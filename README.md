@@ -28,13 +28,32 @@ It is a **complementary cognitive support layer**, not an institutional authorit
 ---
 
 ## Scope — V1 (Strict and Non-Negotiable)
-- ONE single procurement process instance (DAO or RFQ, defined at creation — never both)
+- ONE single procurement process instance per execution scope (never mixed, never combined)
 - Maximum **three (3) user screens**
 - One real procurement case, end-to-end
 - Designed for **field-level usage under pressure**
 - No configuration and no customization in V1
 
 Anything outside this scope is **explicitly out of V1**.
+
+---
+
+## Execution Scopes (Frozen)
+
+This repository may contain one or more **frozen execution scope documents**.
+Each scope defines exactly **what is built**, **what is forbidden**, and **what must not evolve**.
+
+Examples:
+- **MVP 0.2 — JORO (DAO Offer Reception & Opening Journal):**
+  see `MVP_0.2_JORO_SCOPE.md`
+
+- (Optional / future) **RFQ single-workflow execution:**
+  see dedicated execution scope document
+
+Execution scopes may evolve over time.
+Execution scopes evolve only by explicit versioning (e.g. V0.2 → V0.3), never by silent modification.
+
+**The constitutional invariants in this README override all implementations.**
 
 ---
 
