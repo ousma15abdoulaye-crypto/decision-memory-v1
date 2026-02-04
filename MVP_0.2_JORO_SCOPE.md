@@ -44,10 +44,11 @@ Any attempt to move the system in these directions is a violation of its core in
 ## MVP Scope — V1 / V0.2 (Frozen)
 
 ### Workflow
-- Single workflow ONLY: **RFQ (Request for Quotation)**
-- One real RFQ case, end-to-end
+- Single workflow ONLY: **DAO Opening (Offers Reception & Opening)**
+- JORO records offer deposits, withdrawals, and opening events
+- One real DAO instance, end-to-end
 - Field-level usage under pressure
-- No multi-workflow support (DAO, ITB, contracts, etc.)
+- No multi-workflow support (RFQ logic, ITB analysis, contracts, etc.)
 
 ---
 
