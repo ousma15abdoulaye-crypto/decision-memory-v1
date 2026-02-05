@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>DMS — MVP A++ FINAL</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Decision Memory System — MVP A++ (Production)</h1>
+    <p class="muted">
+      DAO-driven extraction + Template-adaptive CBA/PV + Active Memory.
+      <strong>Aucune décision automatique. L'humain décide.</strong>
+    </p>
+
+    <section class="card">
+      <h2>Constitution & Santé</h2>
+      <button id="load_const">Afficher Constitution</button>
+      <button id="check_health">Vérifier Santé Système</button>
+      <pre id="system_info" class="mono"></pre>
+    </section>
+
+    <section class="card">
+      <h2>1) Créer un nouveau cas</h2>
+      <div class="row">
+        <label>Type</label>
+        <select id="case_type">
+          <option value="DAO">DAO</option>
+          <option value="RFQ">RFQ</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>Titre</label>
+        <input id="case_title" placeholder="Ex: DAO MOPTI-2026-01 — Cartouches imprimantes" />
+      </div>
+      <div class="row">
+        <label>Lot (optionnel)</label>
+        <input id="case_lot" placeholder="Ex: Lot 1" />
+      </div>
+      <button id="create_case">Créer le cas</button>
+    </section>
+
+    <section class="card">
+      <h2>2) Sélectionner un cas</h2>
+      <button id="refresh_cases">Rafraîchir la liste</button>
+      <div id="cases"></div>
+    </section>
+
+    <section class="card">
+      <h2>3) Uploader les documents</h2>
+      <p class="muted">
+        <strong>Important:</strong> Chaque cas a son propre template CBA/PV.
+        Upload le template SPÉCIFIQUE à ce DAO (ex: CBA-CARTOUCHES.xlsx pour cartouches).
+      </p>
+
+      <div class="grid2">
+        <div>
+          <h3>📄 DAO (docx/pdf)</h3>
+          <input type="file" id="dao_file" accept=".pdf,.docx" />
+          <button data-kind="dao" class="upload_btn">Upload DAO</button>
+        </div>
+
+        <div>
+          <h3>📦 OFFRES (docx/pdf, multiples)</h3>
+          <input type="file" id="offer_files" multiple accept=".pdf,.docx" />
+          <button data-kind="offer" class="upload_btn">Upload OFFRES</button>
+        </div>
+
+        <div>
+          <h3>📊 Template CBA (xlsx) — SPÉCIFIQUE au DAO</h3>
+          <input type="file" id="cba_file" accept=".xlsx" />
+          <button data-kind="cba_template" class="upload_btn">Upload CBA Template</button>
+        </div>
+
+        <div>
+          <h3>📝 Template PV (docx) — SPÉCIFIQUE au DAO</h3>
+          <input type="file" id="pv_file" accept=".docx" />
+          <button data-kind="pv_template" class="upload_btn">Upload PV Template</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>4) Lancer l'analyse (DAO-driven)</h2>
+      <button id="analyze">🚀 Analyser et Générer CBA + PV</button>
+      <pre id="analyze_result" class="mono"></pre>
+      <div id="warnings" class="warnings"></div>
+      <div id="downloads"></div>
+    </section>
+
+    <section class="card">
+      <h2>5) Décision humaine (finale)</h2>
+      <p class="muted">
+        Le système ne recommande AUCUN fournisseur. La décision est 100% humaine.
+      </p>
+      <div class="row">
+        <label>Fournisseur choisi</label>
+        <input id="chosen_supplier" placeholder="Ex: COMPUTECH SARL" />
+      </div>
+      <div class="row">
+        <label>Justification</label>
+        <textarea id="decision_reason" placeholder="Raison du choix (prix, délai, capacité, etc.)"></textarea>
+      </div>
+      <div class="row">
+        <label>Action suivante</label>
+        <input id="next_action" placeholder="Ex: Bon de commande émis" />
+      </div>
+      <button id="decide">✅ Enregistrer décision + Régénérer PV final</button>
+      <pre id="decide_result" class="mono"></pre>
+    </section>
+
+    <section class="card">
+      <h2>6) Mémoire active (recherche)</h2>
+      <div class="row">
+        <label>Rechercher</label>
+        <input id="mem_q" placeholder="Ex: prix, délai, IMAF, conformité..." />
+      </div>
+      <button id="search_mem">🔍 Chercher dans la mémoire</button>
+      <pre id="mem_hits" class="mono"></pre>
+    </section>
+
+    <p class="footer muted">
+      Version 1.0.0 — DAO-driven + Template-adaptive + Active Memory.<br>
+      OCR pour scans/photos WhatsApp arrive en V1.2.
+    </p>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
