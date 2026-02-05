@@ -59,7 +59,7 @@ INVARIANTS = {
     "erp_agnostic": True,
     "offline_first": True,
     "traceability_keep_sources": True,
-    "one_dao_one_cba_one_pv": True,  # NOUVEAU
+    "one_dao_one_cba_one_pv": True,
 }
 
 
@@ -75,7 +75,7 @@ def db() -> sqlite3.Connection:
 def init_db() -> None:
     with db() as conn:
         cur = conn.cursor()
-        
+
         # Cases (unchanged)
         cur.execute("""
         CREATE TABLE IF NOT EXISTS cases (
@@ -87,7 +87,7 @@ def init_db() -> None:
             status TEXT NOT NULL
         )
         """)
-        
+
         # Artifacts (unchanged)
         cur.execute("""
         CREATE TABLE IF NOT EXISTS artifacts (
@@ -101,7 +101,7 @@ def init_db() -> None:
             FOREIGN KEY(case_id) REFERENCES cases(id)
         )
         """)
-        
+
         # Memory entries (unchanged)
         cur.execute("""
         CREATE TABLE IF NOT EXISTS memory_entries (
@@ -113,7 +113,7 @@ def init_db() -> None:
             FOREIGN KEY(case_id) REFERENCES cases(id)
         )
         """)
-        
+
         # NEW: DAO Criteria (structured extraction)
         cur.execute("""
         CREATE TABLE IF NOT EXISTS dao_criteria (
@@ -130,7 +130,7 @@ def init_db() -> None:
             FOREIGN KEY(case_id) REFERENCES cases(id)
         )
         """)
-        
+
         # NEW: CBA Template Schemas (template learning)
         cur.execute("""
         CREATE TABLE IF NOT EXISTS cba_template_schemas (
@@ -143,7 +143,7 @@ def init_db() -> None:
             FOREIGN KEY(case_id) REFERENCES cases(id)
         )
         """)
-        
+
         # NEW: Offer Extractions (DAO-guided data)
         cur.execute("""
         CREATE TABLE IF NOT EXISTS offer_extractions (
@@ -158,7 +158,7 @@ def init_db() -> None:
             FOREIGN KEY(artifact_id) REFERENCES artifacts(id)
         )
         """)
-        
+
         conn.commit()
 
 
@@ -202,11 +202,11 @@ class CBATemplateSchema:
 @dataclass
 class DAOCriterion:
     """Critère structuré extrait du DAO"""
-    categorie: str  # essentiels/technique/commercial/durabilite
+    categorie: str
     critere_nom: str
     description: str
     ponderation: float
-    type_reponse: str  # oui_non/score_0_100/texte
+    type_reponse: str
     seuil_elimination: Optional[float]
     ordre_affichage: int
 
@@ -340,7 +340,7 @@ def extract_dao_criteria_structured(dao_text: str) -> List[DAOCriterion]:
     - "Critères essentiels: Oui/Non"
     """
     criteria: List[DAOCriterion] = []
-    
+
     # Patterns essentiels (éliminatoires)
     essential_patterns = [
         r"(?i)critères?\s+essentiels?",
@@ -348,20 +348,20 @@ def extract_dao_criteria_structured(dao_text: str) -> List[DAOCriterion]:
         r"(?i)conformité\s+(administrative|documents?)",
         r"(?i)documents?\s+obligatoires?",
     ]
-    
+
     # Patterns pondérés
     weighted_patterns = [
         r"(?i)([\wàâäéèêëïîôùûüÿç\s\-]+?)\s*[:\(]\s*(\d+)\s*%",
         r"(?i)([\wàâäéèêëïîôùûüÿç\s\-]+?)\s*[:\(]\s*(\d+)\s*points?",
     ]
-    
+
     lines = dao_text.split('\n')
-    
+
     for line in lines:
         line_clean = line.strip()
         if len(line_clean) < 5 or len(line_clean) > 250:
             continue
-        
+
         # Détection essentiels
         for pattern in essential_patterns:
             if re.search(pattern, line_clean):
@@ -375,14 +375,14 @@ def extract_dao_criteria_structured(dao_text: str) -> List[DAOCriterion]:
                     ordre_affichage=len(criteria) + 1
                 ))
                 break
-        
+
         # Détection pondérés
         for pattern in weighted_patterns:
             match = re.search(pattern, line_clean)
             if match:
                 name = match.group(1).strip()
                 weight = float(match.group(2)) / 100
-                
+
                 # Catégorisation
                 cat = "autre"
                 if re.search(r"(?i)(prix|co[ûu]t|montant|commercial|financ)", name):
@@ -391,7 +391,7 @@ def extract_dao_criteria_structured(dao_text: str) -> List[DAOCriterion]:
                     cat = "technique"
                 elif re.search(r"(?i)(durabilit[ée]|environnement|social|rse)", name):
                     cat = "durabilite"
-                
+
                 criteria.append(DAOCriterion(
                     categorie=cat,
                     critere_nom=name,
@@ -402,14 +402,14 @@ def extract_dao_criteria_structured(dao_text: str) -> List[DAOCriterion]:
                     ordre_affichage=len(criteria) + 1
                 ))
                 break
-    
+
     # Normalisation pondérations
     total_weight = sum(c.ponderation for c in criteria if c.categorie != "essentiels")
     if 0.95 <= total_weight <= 1.05:
         for c in criteria:
             if c.categorie != "essentiels":
                 c.ponderation = round(c.ponderation / total_weight, 3)
-    
+
     return criteria
 
 
@@ -426,7 +426,7 @@ def guess_supplier_name(text: str, filename: str) -> str:
         line = line.strip()
         if 4 <= len(line) <= 100 and line == line.upper() and re.search(r"[A-Z]", line):
             return line[:80]
-    
+
     return "SUPPLIER_UNKNOWN"
 
 
@@ -446,7 +446,7 @@ def extract_offer_data_guided(offer_text: str, criteria: List[DAOCriterion]) -> 
         "technical_refs": [],
         "missing_fields": []
     }
-    
+
     # Prix (si critère commercial présent)
     commercial_criteria = [c for c in criteria if c.categorie == "commercial"]
     if commercial_criteria:
@@ -460,7 +460,7 @@ def extract_offer_data_guided(offer_text: str, criteria: List[DAOCriterion]) -> 
                 r"(?i)(\d{1,3}(?:[\s\.,]\d{3})+(?:[\s\.,]\d{2})?|\d+)\s*(FCFA|CFA|XOF)",
                 offer_text
             )
-        
+
         if money:
             def to_num(s: str) -> float:
                 s = s.replace(" ", "").replace(",", ".")
@@ -471,7 +471,7 @@ def extract_offer_data_guided(offer_text: str, criteria: List[DAOCriterion]) -> 
                     return float(s)
                 except:
                     return 0.0
-            
+
             if len(money[0]) == 3:  # Format avec label
                 best = max(money, key=lambda m: to_num(m[1]))
                 extracted["total_price"] = f"{best[1]} {best[2].upper()}"
@@ -482,7 +482,7 @@ def extract_offer_data_guided(offer_text: str, criteria: List[DAOCriterion]) -> 
                 extracted["total_price_source"] = "Heuristique: plus grand montant"
         else:
             extracted["missing_fields"].append("Prix total")
-    
+
     # Délai
     m = re.search(
         r"(?i)(d[ée]lai\s+(?:de\s+)?livraison|lead\s*time)[:\s\-]*([0-9]{1,3})\s*(jours?|days?)",
@@ -493,7 +493,7 @@ def extract_offer_data_guided(offer_text: str, criteria: List[DAOCriterion]) -> 
         extracted["lead_time_source"] = f"Pattern: '{m.group(1)}'"
     else:
         extracted["missing_fields"].append("Délai livraison")
-    
+
     # Validité
     m2 = re.search(
         r"(?i)(validit[ée]\s+(?:de\s+l['\u2019])?offre|valid\s*until)[:\s\-]*([0-9]{1,3})\s*(jours?|days?)",
@@ -504,7 +504,7 @@ def extract_offer_data_guided(offer_text: str, criteria: List[DAOCriterion]) -> 
         extracted["validity_source"] = f"Pattern: '{m2.group(1)}'"
     else:
         extracted["missing_fields"].append("Validité offre")
-    
+
     # Références techniques
     technical_criteria = [c for c in criteria if c.categorie == "technique"]
     if technical_criteria:
@@ -515,7 +515,7 @@ def extract_offer_data_guided(offer_text: str, criteria: List[DAOCriterion]) -> 
         extracted["technical_refs"] = [r[1].strip() for r in refs[:5]]
         if not extracted["technical_refs"]:
             extracted["missing_fields"].append("Références techniques")
-    
+
     return extracted
 
 
@@ -526,11 +526,11 @@ def analyze_cba_template(template_path: str) -> CBATemplateSchema:
     """Analyse dynamique structure template CBA"""
     wb = load_workbook(template_path)
     ws = wb.active
-    
+
     supplier_header_row = None
     supplier_name_row = None
     supplier_cols: List[int] = []
-    
+
     # Detect supplier header
     for row_idx in range(1, min(12, ws.max_row + 1)):
         for col_idx in range(1, ws.max_column + 1):
@@ -545,22 +545,22 @@ def analyze_cba_template(template_path: str) -> CBATemplateSchema:
                     break
         if supplier_header_row:
             break
-    
+
     supplier_name_row = supplier_header_row + 1 if supplier_header_row else None
-    
+
     # Detect criteria rows
     criteria_start_row = None
     criteria_rows: List[Dict[str, Any]] = []
-    
+
     if supplier_name_row:
         for row_idx in range(supplier_name_row + 1, min(supplier_name_row + 40, ws.max_row + 1)):
             col_a = ws.cell(row_idx, 1).value or ""
             col_b = ws.cell(row_idx, 2).value or ""
-            
+
             if isinstance(col_b, str) and len(col_b) > 5:
                 if not criteria_start_row:
                     criteria_start_row = row_idx
-                
+
                 # Type detection
                 ctype = "autre"
                 if re.search(r"(?i)(essent|mandatory|obligatoire)", col_b):
@@ -571,13 +571,13 @@ def analyze_cba_template(template_path: str) -> CBATemplateSchema:
                     ctype = "commercial"
                 elif re.search(r"(?i)(durabilit[ée]|sustainability)", col_b):
                     ctype = "durabilite"
-                
+
                 criteria_rows.append({
                     "row": row_idx,
                     "name": col_b[:150],
                     "type": ctype
                 })
-    
+
     schema = CBATemplateSchema(
         template_id=str(uuid.uuid4()),
         template_name=Path(template_path).name,
@@ -589,7 +589,7 @@ def analyze_cba_template(template_path: str) -> CBATemplateSchema:
         sheets=wb.sheetnames,
         meta={"detected_at": datetime.utcnow().isoformat()}
     )
-    
+
     return schema
 
 
@@ -604,7 +604,7 @@ def fill_cba_adaptive(
     1 DAO = 1 template spécifique = 1 CBA unique.
     """
     schema = analyze_cba_template(template_path)
-    
+
     # Save schema to DB for future learning
     with db() as conn:
         conn.execute("""
@@ -618,30 +618,30 @@ def fill_cba_adaptive(
             datetime.utcnow().isoformat()
         ))
         conn.commit()
-    
+
     # Load template
     wb = load_workbook(template_path)
     ws = wb.active
-    
+
     # Metadata section (top)
     ws["A1"] = "Decision Memory System — CBA Adaptatif"
     ws["A2"] = f"Case ID: {case_id}"
     ws["A3"] = f"Generated: {datetime.utcnow().isoformat()}"
     ws["A4"] = f"Template: {schema.template_name}"
-    
+
     # Fill supplier names (detected row/cols)
     if schema.supplier_name_row and schema.supplier_cols:
         for idx, supplier in enumerate(suppliers[:len(schema.supplier_cols)]):
             col = schema.supplier_cols[idx]
             ws.cell(schema.supplier_name_row, col, supplier["supplier_name"])
-    
+
     # Fill commercial data (detected criteria rows)
     for row_idx in range(schema.criteria_start_row, min(schema.criteria_start_row + 50, ws.max_row + 1)):
         label = ws.cell(row_idx, 2).value or ""
-        
+
         for idx, supplier in enumerate(suppliers[:len(schema.supplier_cols)]):
             col = schema.supplier_cols[idx]
-            
+
             # Mapping guided by criteria
             if re.search(r"(?i)(prix|price|montant|co[uû]t)", label):
                 val = supplier.get("total_price") or "NON TROUVÉ"
@@ -649,29 +649,29 @@ def fill_cba_adaptive(
                 # Source in comment (Excel feature)
                 if supplier.get("total_price_source"):
                     ws.cell(row_idx, col).comment = supplier["total_price_source"]
-            
+
             elif re.search(r"(?i)(d[ée]lai|lead.*time|delivery)", label):
                 val = supplier.get("lead_time_days")
                 ws.cell(row_idx, col, f"{val} jours" if val else "NON TROUVÉ")
                 if supplier.get("lead_time_source"):
                     ws.cell(row_idx, col).comment = supplier["lead_time_source"]
-            
+
             elif re.search(r"(?i)(validit[ée]|validity)", label):
                 val = supplier.get("validity_days")
                 ws.cell(row_idx, col, f"{val} jours" if val else "NON TROUVÉ")
                 if supplier.get("validity_source"):
                     ws.cell(row_idx, col).comment = supplier["validity_source"]
-            
+
             elif re.search(r"(?i)(r[ée]f[ée]rence|experience)", label):
                 refs = supplier.get("technical_refs", [])
                 ws.cell(row_idx, col, ", ".join(refs[:3]) if refs else "NON TROUVÉ")
-            
+
             # Highlight missing data
             if "NON TROUVÉ" in str(ws.cell(row_idx, col).value):
                 ws.cell(row_idx, col).fill = PatternFill(
                     start_color="FFF4E6", end_color="FFF4E6", fill_type="solid"
                 )
-    
+
     # Add summary sheet with criteria structure
     if "DMS_SUMMARY" not in wb.sheetnames:
         summary = wb.create_sheet("DMS_SUMMARY")
@@ -680,7 +680,7 @@ def fill_cba_adaptive(
         summary["B2"] = "Critère"
         summary["C2"] = "Pondération"
         summary["D2"] = "Type"
-        
+
         row = 3
         for c in dao_criteria:
             summary[f"A{row}"] = c.categorie
@@ -688,13 +688,13 @@ def fill_cba_adaptive(
             summary[f"C{row}"] = f"{c.ponderation*100:.0f}%" if c.ponderation else "Éliminatoire"
             summary[f"D{row}"] = c.type_reponse
             row += 1
-        
+
         summary["A" + str(row + 2)] = "DONNÉES MANQUANTES (par fournisseur)"
         row += 3
         summary[f"A{row}"] = "Fournisseur"
         summary[f"B{row}"] = "Champs manquants"
         row += 1
-        
+
         for s in suppliers:
             summary[f"A{row}"] = s["supplier_name"]
             summary[f"B{row}"] = ", ".join(s.get("missing_fields", [])) or "Complet"
@@ -703,14 +703,14 @@ def fill_cba_adaptive(
                     start_color="FFE6E6", end_color="FFE6E6", fill_type="solid"
                 )
             row += 1
-    
+
     # Save output
     out_dir = OUTPUTS_DIR / case_id
     out_dir.mkdir(exist_ok=True)
     out_name = f"CBA_{Path(template_path).stem}_{uuid.uuid4().hex[:6]}.xlsx"
     out_path = out_dir / out_name
     wb.save(out_path)
-    
+
     return str(out_path)
 
 
@@ -737,7 +737,7 @@ def generate_pv_adaptive(
         doc.add_paragraph(f"Case: {case_title}")
         doc.add_paragraph(f"Case ID: {case_id}")
         doc.add_paragraph(f"Generated: {datetime.utcnow().isoformat()}")
-    
+
     # Suppliers summary
     lines: List[str] = []
     for s in suppliers:
@@ -750,7 +750,7 @@ def generate_pv_adaptive(
             f"Status: {status}"
         )
     suppliers_block = "\n".join(lines)
-    
+
     # Placeholders replacement
     repl = {
         "{{CASE_ID}}": case_id,
@@ -763,24 +763,24 @@ def generate_pv_adaptive(
         "{{DECISION_REASON}}": (decision.get("decision_reason", "") if decision else ""),
         "{{NEXT_ACTION}}": (decision.get("next_action", "") if decision else ""),
     }
-    
+
     for p in doc.paragraphs:
         for k, v in repl.items():
             if k in p.text:
                 p.text = p.text.replace(k, v)
-    
+
     for t in doc.tables:
         for row in t.rows:
             for cell in row.cells:
                 for k, v in repl.items():
                     if k in cell.text:
                         cell.text = cell.text.replace(k, v)
-    
+
     # Append structured content if no template or empty
     if not template_path or doc.paragraphs[-1].text.strip() == "":
         doc.add_page_break()
         doc.add_heading("RÉSUMÉ AUTO-EXTRAIT (à valider)", level=2)
-        
+
         doc.add_heading("Critères DAO", level=3)
         for c in dao_criteria:
             doc.add_paragraph(
@@ -788,11 +788,11 @@ def generate_pv_adaptive(
                 f"{'Éliminatoire' if c.ponderation == 0 else f'{c.ponderation*100:.0f}%'}",
                 style="List Bullet"
             )
-        
+
         doc.add_heading("Offres reçues", level=3)
         for line in lines:
             doc.add_paragraph(line, style="List Bullet")
-        
+
         if decision:
             doc.add_page_break()
             doc.add_heading("DÉCISION HUMAINE (FINALE)", level=2)
@@ -802,7 +802,7 @@ def generate_pv_adaptive(
             doc.add_paragraph(f"Horodatage: {decision['decided_at']}")
             doc.add_paragraph("\n⚠️ Cette décision est prise par le comité d'évaluation. "
                             "Le système n'a effectué aucune recommandation automatique.")
-    
+
     # Save output
     out_dir = OUTPUTS_DIR / case_id
     out_dir.mkdir(exist_ok=True)
@@ -810,7 +810,7 @@ def generate_pv_adaptive(
     out_name = f"PV_{tpl_name}_{uuid.uuid4().hex[:6]}.docx"
     out_path = out_dir / out_name
     doc.save(out_path)
-    
+
     return str(out_path)
 
 
@@ -878,10 +878,10 @@ def get_case(case_id: str):
         c = conn.execute("SELECT * FROM cases WHERE id=?", (case_id,)).fetchone()
     if not c:
         raise HTTPException(status_code=404, detail="case not found")
-    
+
     arts = [dict(a) for a in get_artifacts(case_id)]
     mem = list_memory(case_id)
-    
+
     # Get DAO criteria if analyzed
     with db() as conn:
         criteria_rows = conn.execute(
@@ -889,7 +889,7 @@ def get_case(case_id: str):
             (case_id,)
         ).fetchall()
     criteria = [dict(r) for r in criteria_rows]
-    
+
     return {
         "case": dict(c),
         "artifacts": arts,
@@ -937,11 +937,11 @@ def analyze(payload: AnalyzeRequest):
     dao_arts = get_artifacts(case_id, "dao")
     if not dao_arts:
         raise HTTPException(status_code=400, detail="Missing DAO (upload kind=dao)")
-    
+
     dao_path = dao_arts[0]["path"]
     dao_text = extract_text_any(dao_path)
     dao_criteria = extract_dao_criteria_structured(dao_text)
-    
+
     # Store criteria in DB
     with db() as conn:
         for c in dao_criteria:
@@ -955,7 +955,7 @@ def analyze(payload: AnalyzeRequest):
                 datetime.utcnow().isoformat()
             ))
         conn.commit()
-    
+
     # Step 2: Offers extraction (DAO-guided)
     offer_arts = get_artifacts(case_id, "offer")
     if not offer_arts:
@@ -966,14 +966,14 @@ def analyze(payload: AnalyzeRequest):
         txt = extract_text_any(off["path"])
         supplier_name = guess_supplier_name(txt, off["filename"])
         offer_data = extract_offer_data_guided(txt, dao_criteria)
-        
+
         suppliers.append({
             "supplier_name": supplier_name,
             **offer_data,
             "source_filename": off["filename"],
             "artifact_id": off["id"]
         })
-        
+
         # Store extraction in DB
         with db() as conn:
             conn.execute("""
@@ -986,7 +986,7 @@ def analyze(payload: AnalyzeRequest):
                 datetime.utcnow().isoformat()
             ))
             conn.commit()
-    
+
     # Memory entry
     add_memory(case_id, "extraction", {
         "dao_source": dao_arts[0]["filename"],
@@ -1059,7 +1059,7 @@ def decide(payload: DecideRequest):
             "SELECT * FROM dao_criteria WHERE case_id=?",
             (case_id,)
         ).fetchall()
-    
+
     suppliers = []
     for ext in extractions:
         data = json.loads(ext["extracted_data_json"])
@@ -1068,7 +1068,7 @@ def decide(payload: DecideRequest):
             **data,
             "artifact_id": ext["artifact_id"]
         })
-    
+
     dao_criteria = [
         DAOCriterion(
             categorie=r["categorie"],
@@ -1081,7 +1081,7 @@ def decide(payload: DecideRequest):
         )
         for r in criteria_rows
     ]
-    
+
     # Regenerate PV with decision
     pv_tpl = get_artifacts(case_id, "pv_template")
     pv_tpl_path = pv_tpl[0]["path"] if pv_tpl else None
