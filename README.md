@@ -1,191 +1,170 @@
-Decision Memory System
-Version
-Status
-License
+text
+# Decision Memory System
 
-Un assistant cognitif intelligent en procurement, conçu pour restaurer la capacité de décision humaine sous pression opérationnelle.
+![Version](https://img.shields.io/badge/version-1.2.0-blue)
+![Status](https://img.shields.io/badge/constitution-FROZEN-red)
+![License](https://img.shields.io/badge/license-Internal-orange)
 
-🎯 Mandat
+> **Un assistant cognitif intelligent en procurement, conçu pour restaurer la capacité de décision humaine sous pression opérationnelle.**
+
+---
+
+## 🎯 Mandat
+
 Ce système part d'une douleur réelle:
+- **99 offres sur 21 lots**
+- **3 jours d'ouverture manuelle**
+- Comités épuisés avant même l'analyse
+- Paperasse qui écrase la réflexion
 
-99 offres sur 21 lots
+**Solution:** Remplacer le secrétariat procurement par un assistant intelligent qui:
+- Ingère, classe, extrait les documents (DAO/RFQ, offres)
+- Pré-remplit les CBA et PV
+- Fait émerger une mémoire décisionnelle vivante
+- Fournit un contexte marché actionnable
 
-3 jours d'ouverture manuelle
+**Sans jamais:** décider à la place de l'humain, noter les fournisseurs, ou juger les personnes.
 
-Comités épuisés avant même l'analyse
+---
 
-Paperasse qui écrase la réflexion
+## 🏗️ Architecture
 
-Solution: Remplacer le secrétariat procurement par un assistant intelligent qui:
+### Couche A — L'ouvrier cognitif
+**Métaphore:** Le stagiaire ultra-efficace qui fait toute la paperasse.
 
-Ingère, classe, extrait les documents (DAO/RFQ, offres)
+**Modules:**
+1. **Ingestion pragmatique** (Word, PDF, Excel, scans)
+2. **Extraction structurée** (DAO/RFQ, offres techniques/financières)
+3. **Pré-remplissage CBA/PV** (templates embarqués, mapping auto)
+4. **Génération artefacts** (Excel, Word, PDF standards)
 
-Pré-remplit les CBA et PV
+**Formats V1 prioritaires:** Word (.docx), PDF, Excel (.xlsx), scans qualité bureau.  
+**Évolution future:** WhatsApp photos, images basse résolution.
 
-Fait émerger une mémoire décisionnelle vivante
+### Couche B — Le collègue expérimenté
+**Métaphore:** Le senior qui se souvient de tout et donne le contexte, sans dire quoi faire.
 
-Fournit un contexte marché actionnable
+**Fonctions:**
+- Mémoire décisionnelle passive (alimentée automatiquement)
+- Market Intelligence (base MARKET_INTEL dense)
+- Recherche factuelle ("Quels fournisseurs ont livré des NFI dans le Centre?")
+- Rappels contextuels non intrusifs (cas similaires, prix historiques)
+- Paquet audit/onboarding (ZIP complet cas)
 
-Sans jamais: décider à la place de l'humain, noter les fournisseurs, ou juger les personnes.
+---
 
-🏗️ Architecture
-Couche A — L'ouvrier cognitif
-Métaphore: Le stagiaire ultra-efficace qui fait toute la paperasse.
+## 📜 Constitution (FROZEN)
 
-Modules:
+La Constitution V1.2 définit **12 invariants intouchables** qui gouvernent toute évolution du système.
 
-Ingestion pragmatique (Word, PDF, Excel, scans)
+**📖 [Lire la Constitution complète](./CONSTITUTION.md)**
 
-Extraction structurée (DAO/RFQ, offres techniques/financières)
+### Invariants clés
 
-Pré-remplissage CBA/PV (templates embarqués, mapping auto)
+1. **Réduction radicale de la charge cognitive** — Le système ne doit jamais augmenter l'effort.
+2. **Primauté absolue de la Couche A** — L'ouvrier cognitif avant tout.
+3. **Mémoire = sous-produit** — Jamais une obligation.
+4. **Système non décisionnaire** — L'humain décide toujours.
+5. **Traçabilité sans accusation** — Faits, pas jugements.
+6. **Conception Sahel-first** — Chaos résilient.
+7. **ERP-agnostique** — Fonctionne avec ou sans ERP.
+8. **Online-first V1, offline-capable futur** — Pragmatisme adoption.
+9. **Append-only** — On corrige en ajoutant, jamais en effaçant.
+10. **Technologie subordonnée** — IA/OCR/LLM optionnels.
+11. **Survivabilité absolue** — Au-delà du créateur.
+12. **Fidélité au réel** — Enregistre ce qui s'est passé, pas ce qui aurait dû.
 
-Génération artefacts (Excel, Word, PDF standards)
+### Test Ultime de Dérive
 
-Formats V1 prioritaires: Word (.docx), PDF, Excel (.xlsx), scans qualité bureau.
-Évolution future: WhatsApp photos, images basse résolution.
+Avant toute évolution, répondre à ces **3 questions**:
 
-Couche B — Le collègue expérimenté
-Métaphore: Le senior qui se souvient de tout et donne le contexte, sans dire quoi faire.
+1. Est-ce que cela peut être utilisé **contre un individu** ?
+2. Est-ce que cela **réduit la liberté de décision humaine** ?
+3. Est-ce que cela **centralise le pouvoir cognitif** ?
 
-Fonctions:
+👉 **Si OUI à une seule → rejet ou report Phase 3+.**
 
-Mémoire décisionnelle passive (alimentée automatiquement)
+---
 
-Market Intelligence (base MARKET_INTEL dense)
+## 🚀 Quick Start
 
-Recherche factuelle ("Quels fournisseurs ont livré des NFI dans le Centre?")
+### Prérequis
 
-Rappels contextuels non intrusifs (cas similaires, prix historiques)
+- Python 3.10+
+- Node.js 18+ (pour le frontend)
+- PostgreSQL 14+ (SQLite pour dev)
 
-Paquet audit/onboarding (ZIP complet cas)
+### Installation
 
-📜 Constitution (FROZEN)
-La Constitution V1.2 définit 12 invariants intouchables qui gouvernent toute évolution du système.
-
-📖 Lire la Constitution complète
-
-Invariants clés
-Réduction radicale de la charge cognitive — Le système ne doit jamais augmenter l'effort.
-
-Primauté absolue de la Couche A — L'ouvrier cognitif avant tout.
-
-Mémoire = sous-produit — Jamais une obligation.
-
-Système non décisionnaire — L'humain décide toujours.
-
-Traçabilité sans accusation — Faits, pas jugements.
-
-Conception Sahel-first — Chaos résilient.
-
-ERP-agnostique — Fonctionne avec ou sans ERP.
-
-Online-first V1, offline-capable futur — Pragmatisme adoption.
-
-Append-only — On corrige en ajoutant, jamais en effaçant.
-
-Technologie subordonnée — IA/OCR/LLM optionnels.
-
-Survivabilité absolue — Au-delà du créateur.
-
-Fidélité au réel — Enregistre ce qui s'est passé, pas ce qui aurait dû.
-
-Test Ultime de Dérive
-Avant toute évolution, répondre à ces 3 questions:
-
-Est-ce que cela peut être utilisé contre un individu ?
-
-Est-ce que cela réduit la liberté de décision humaine ?
-
-Est-ce que cela centralise le pouvoir cognitif ?
-
-👉 Si OUI à une seule → rejet ou report Phase 3+.
-
-🚀 Quick Start
-Prérequis
-Python 3.10+
-
-Node.js 18+ (pour le frontend)
-
-PostgreSQL 14+ (SQLite pour dev)
-
-Installation
 ```bash
-
-Clone le repo
+# Clone le repo
 git clone https://github.com/votre-org/decision-memory-system.git
 cd decision-memory-system
 
-Backend
+# Backend
 cd backend
 python -m venv venv
-source venv/bin/activate # Windows: venv\Scripts\activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-Frontend
+# Frontend
 cd ../frontend
 npm install
 
-Démarrer
-Terminal 1 - Backend
+# Démarrer
+# Terminal 1 - Backend
 cd backend
 uvicorn app.main:app --reload
 
-Terminal 2 - Frontend
+# Terminal 2 - Frontend
 cd frontend
 npm run dev
-```
-
 Configuration
 Copier .env.example → .env et configurer:
 
-```env
+text
 DATABASE_URL=postgresql://user:pass@localhost:5432/dms
-OPENAI_API_KEY=sk-... # Optionnel, pour extraction avancée
+OPENAI_API_KEY=sk-...  # Optionnel, pour extraction avancée
 SCI_MANUAL_PATH=./data/SC-PR-02-Procurement-Manual-3.2-FR.pdf
-```
-
 📁 Structure du Projet
-```
+text
 decision-memory-system/
-├── CONSTITUTION.md # 📜 Document fondateur FROZEN
-├── CHANGELOG.md # 📝 Historique des versions
-├── README.md # Ce fichier
+├── CONSTITUTION.md          # 📜 Document fondateur FROZEN
+├── CHANGELOG.md             # 📝 Historique des versions
+├── README.md                # Ce fichier
 ├── .github/
-│ └── pull_request_template.md # Template PR avec Test Ultime de Dérive
+│   └── pull_request_template.md  # Template PR avec Test Ultime de Dérive
 ├── backend/
-│ ├── app/
-│ │ ├── main.py # Point d'entrée FastAPI
-│ │ ├── routes/ # Routes API (couche A, couche B)
-│ │ ├── services/ # Logique métier
-│ │ │ ├── ingestion.py
-│ │ │ ├── extraction.py
-│ │ │ ├── cba_generator.py
-│ │ │ ├── pv_generator.py
-│ │ │ └── market_intel.py
-│ │ ├── models/ # ORM (SQLAlchemy)
-│ │ ├── templates/ # Templates CBA/PV embarqués
-│ │ └── config.py
-│ ├── tests/
-│ └── requirements.txt
+│   ├── app/
+│   │   ├── main.py          # Point d'entrée FastAPI
+│   │   ├── routes/          # Routes API (couche A, couche B)
+│   │   ├── services/        # Logique métier
+│   │   │   ├── ingestion.py
+│   │   │   ├── extraction.py
+│   │   │   ├── cba_generator.py
+│   │   │   ├── pv_generator.py
+│   │   │   └── market_intel.py
+│   │   ├── models/          # ORM (SQLAlchemy)
+│   │   ├── templates/       # Templates CBA/PV embarqués
+│   │   └── config.py
+│   ├── tests/
+│   └── requirements.txt
 ├── frontend/
-│ ├── src/
-│ │ ├── components/ # Composants React/Vue
-│ │ ├── pages/ # Pages (création cas, mémoire, market intel)
-│ │ └── App.jsx
-│ ├── package.json
-│ └── vite.config.js
+│   ├── src/
+│   │   ├── components/      # Composants React/Vue
+│   │   ├── pages/           # Pages (création cas, mémoire, market intel)
+│   │   └── App.jsx
+│   ├── package.json
+│   └── vite.config.js
 └── data/
-├── templates/ # Templates CBA Excel par catégorie
-│ ├── cba_materiel_bureau.xlsx
-│ ├── cba_nfi.xlsx
-│ ├── cba_vivres.xlsx
-│ └── ...
-├── manual/ # Manuel Procurement SCI (référence)
-│ └── SC-PR-02-Procurement-Manual-3.2-FR.pdf
-└── samples/ # Échantillons pour tests
-```
-
+    ├── templates/           # Templates CBA Excel par catégorie
+    │   ├── cba_materiel_bureau.xlsx
+    │   ├── cba_nfi.xlsx
+    │   ├── cba_vivres.xlsx
+    │   └── ...
+    ├── manual/              # Manuel Procurement SCI (référence)
+    │   └── SC-PR-02-Procurement-Manual-3.2-FR.pdf
+    └── samples/             # Échantillons pour tests
 🎓 Documentation
 Constitution V1.2 — Document fondateur FROZEN
 
@@ -271,17 +250,14 @@ Monitoring: Sentry (errors), Plausible (analytics)
 Hosting V1: VPS (DigitalOcean, Hetzner) ou cloud (AWS, Azure)
 
 🧪 Tests
-```bash
-
-Backend tests
+bash
+# Backend tests
 cd backend
 pytest tests/ -v --cov=app
 
-Frontend tests
+# Frontend tests
 cd frontend
 npm run test
-```
-
 📊 Critères de Succès V1
 Le succès est démontré lorsque:
 
