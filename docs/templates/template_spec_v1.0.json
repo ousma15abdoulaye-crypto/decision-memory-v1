@@ -1,0 +1,193 @@
+{
+  "template_id": "DMS-CBA-CANONICAL",
+  "template_version": "1.0",
+  "template_file": "DMS-CBA-CANONICAL-V1.0.xlsx",
+  "created_date": "2026-02-08",
+  "source_authority": "Save the Children International",
+  "max_suppliers": 50,
+  "min_suppliers_ui": 3,
+  "default_visible_suppliers": 3,
+  "sheet_roles": [
+    "Summary",
+    "Essential Evaluation",
+    "Capability Evaluation",
+    "Sustainability Evaluation",
+    "Commercial Evaluation"
+  ],
+  "sheets": {
+    "Summary": {
+      "sheet_name": "Summary",
+      "role": "SUMMARY",
+      "header_row": 1,
+      "supplier_label_row": 4,
+      "supplier_name_row": 5,
+      "supplier_start_col": "E",
+      "supplier_start_col_index": 5,
+      "block_width": 1,
+      "criteria_name_col": "B",
+      "criteria_weight_col": "C",
+      "score_rows": {
+        "essentials": 6,
+        "capability": 7,
+        "sustainability": 8,
+        "commercial": 9,
+        "total": 10
+      },
+      "score_links": {
+        "essentials": {
+          "target_sheet": "Essential Evaluation",
+          "target_row": 13,
+          "target_start_col": "J",
+          "target_start_col_index": 10,
+          "col_offset": 1,
+          "formula_pattern": "='Essential Evaluation'!{col}{row}"
+        },
+        "capability": {
+          "target_sheet": "Capability Evaluation",
+          "target_row": 14,
+          "target_start_col": "J",
+          "target_start_col_index": 10,
+          "col_offset": 1,
+          "formula_pattern": "='Capability Evaluation'!{col}{row}"
+        },
+        "sustainability": {
+          "target_sheet": "Sustainability Evaluation",
+          "target_row": 10,
+          "target_start_col": "I",
+          "target_start_col_index": 9,
+          "col_offset": 1,
+          "formula_pattern": "='Sustainability Evaluation'!{col}{row}"
+        },
+        "commercial": {
+          "target_sheet": "Commercial Evaluation",
+          "target_row": 16,
+          "target_start_col": "G",
+          "target_start_col_index": 7,
+          "col_offset": 2,
+          "formula_pattern": "='Commercial Evaluation'!{col}{row}"
+        }
+      },
+      "total_score_formula": "=IF({essentials_cell}=\"Pass\", {cap_cell}+{sust_cell}+{comm_cell}, 0)"
+    },
+    "Essential Evaluation": {
+      "sheet_name": "Essential Evaluation",
+      "role": "ESSENTIALS",
+      "supplier_label_row": 4,
+      "supplier_name_row": 5,
+      "supplier_start_col": "J",
+      "supplier_start_col_index": 10,
+      "block_width": 1,
+      "name_formula_pattern": "=Summary!{summary_col}5",
+      "criteria_start_row": 6,
+      "criteria_end_row": 12,
+      "criteria_name_col": "A",
+      "score_row": 13,
+      "score_formula": "=IF(COUNTIF({col}6:{col}12, \"Fail\")>0, \"Not Qualified\", \"Qualified\")",
+      "output_to_summary": {
+        "summary_row": 6,
+        "summary_value_map": {
+          "Qualified": "Pass",
+          "Not Qualified": "Fail"
+        }
+      }
+    },
+    "Capability Evaluation": {
+      "sheet_name": "Capability Evaluation",
+      "role": "CAPABILITY",
+      "supplier_label_row": 3,
+      "supplier_name_row": 4,
+      "supplier_start_col": "J",
+      "supplier_start_col_index": 10,
+      "block_width": 1,
+      "name_formula_pattern": "=Summary!{summary_col}5",
+      "criteria_start_row": 5,
+      "criteria_end_row": 13,
+      "criteria_name_col": "A",
+      "score_row": 14,
+      "score_formula": "=SUM({col}5:{col}13)",
+      "human_only_fields": [
+        "supplier_visit",
+        "sample_evaluation"
+      ]
+    },
+    "Sustainability Evaluation": {
+      "sheet_name": "Sustainability Evaluation",
+      "role": "SUSTAINABILITY",
+      "supplier_label_row": 3,
+      "supplier_name_row": 4,
+      "supplier_start_col": "I",
+      "supplier_start_col_index": 9,
+      "block_width": 1,
+      "name_formula_pattern": "=Summary!{summary_col}5",
+      "criteria_start_row": 6,
+      "criteria_count": 2,
+      "intermediate_score_row": 8,
+      "intermediate_formula": "=AVERAGE({col}6:{col}7)",
+      "score_row": 10,
+      "score_formula": "={col}8"
+    },
+    "Commercial Evaluation": {
+      "sheet_name": "Commercial Evaluation",
+      "role": "COMMERCIAL",
+      "supplier_label_row": 4,
+      "supplier_name_row": 5,
+      "supplier_start_col": "F",
+      "supplier_start_col_index": 6,
+      "block_width": 2,
+      "unit_col": "D",
+      "quantity_col": "E",
+      "items_start_row": 7,
+      "items_end_row": 14,
+      "subtotal_row": 15,
+      "score_row": 16,
+      "montant_formula": "={price_col}{row}*E{row}",
+      "subtotal_formula": "=SUM({total_col}{start}:{total_col}{end})",
+      "score_method": "relative_to_best_price",
+      "score_max": 0.4,
+      "score_notes": "Score commercial calculé à partir du total le plus bas (moins-disant) sans recommandation explicite."
+    }
+  },
+  "expansion": {
+    "mode": "prewide_masking",
+    "mask_by_default_from_slot": 4,
+    "rules": {
+      "Summary": {
+        "visible_slots_default": 3,
+        "start_col_index": 5,
+        "width_per_slot": 1
+      },
+      "Essential Evaluation": {
+        "visible_slots_default": 3,
+        "start_col_index": 10,
+        "width_per_slot": 1
+      },
+      "Capability Evaluation": {
+        "visible_slots_default": 3,
+        "start_col_index": 10,
+        "width_per_slot": 1
+      },
+      "Sustainability Evaluation": {
+        "visible_slots_default": 3,
+        "start_col_index": 9,
+        "width_per_slot": 1
+      },
+      "Commercial Evaluation": {
+        "visible_slots_default": 3,
+        "start_col_index": 6,
+        "width_per_slot": 2
+      }
+    }
+  },
+  "ux": {
+    "zero_user_configuration": true,
+    "confidence_colors": {
+      "high": null,
+      "medium": "FFF3CD",
+      "low": "FFE5CC",
+      "human_only": "FFE5CC",
+      "error": "F8D7DA"
+    },
+    "append_only": true,
+    "export_filename_pattern": "CBA_{case_id}_v{version}_{timestamp}.xlsx"
+  }
+}
