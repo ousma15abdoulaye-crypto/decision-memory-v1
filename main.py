@@ -211,6 +211,30 @@ class DAOCriterion:
     ordre_affichage: int
 
 
+@dataclass
+class OfferSubtype:
+    """Classification automatique du type de document d'offre"""
+    subtype: str  # FINANCIAL_ONLY | TECHNICAL_ONLY | ADMIN_ONLY | COMBINED
+    has_financial: bool
+    has_technical: bool
+    has_admin: bool
+    confidence: str  # HIGH | MEDIUM | LOW
+
+
+@dataclass
+class SupplierPackage:
+    """Agrégation de tous les documents d'un fournisseur"""
+    supplier_name: str
+    offer_ids: List[str]
+    documents: List[dict]
+    package_status: str  # COMPLETE | PARTIAL | MISSING
+    has_financial: bool
+    has_technical: bool
+    has_admin: bool
+    extracted_data: Dict[str, Any]
+    missing_fields: List[str]
+
+
 # =========================
 # Storage Helpers
 # =========================
@@ -329,6 +353,176 @@ def extract_text_any(path: str) -> str:
 
 
 # =========================
+# Document Subtype Detection (PARTIAL OFFERS)
+# =========================
+def detect_offer_subtype(text: str, filename: str) -> OfferSubtype:
+    """
+    Détection automatique du type de document d'offre.
+    Permet de gérer les offres partielles (uniquement financière, etc.)
+    """
+    text_lower = text.lower()
+    filename_lower = filename.lower()
+    
+    # Détection financière
+    financial_patterns = [
+        r"prix\s*(total|unitaire)",
+        r"montant",
+        r"co[uû]t",
+        r"(fcfa|cfa|xof|usd|eur)",
+        r"offre\s*(financière|de\s*prix)",
+        r"bordereau\s*de\s*prix"
+    ]
+    has_financial = any(re.search(pattern, text_lower) for pattern in financial_patterns)
+    
+    # Détection technique
+    technical_patterns = [
+        r"(caract[ée]ristiques?\s*techniques?|spécifications?)",
+        r"(r[ée]f[ée]rences?\s*(techniques?|clients?))",
+        r"(exp[ée]rience|capacit[ée]\s*technique)",
+        r"(certifications?|agr[ée]ments?)",
+        r"offre\s*technique"
+    ]
+    has_technical = any(re.search(pattern, text_lower) for pattern in technical_patterns)
+    
+    # Détection administrative
+    admin_patterns = [
+        r"(documents?\s*(administratifs?|l[ée]gaux))",
+        r"(attestation|certificat)",
+        r"(kbis|rccm|nif|registre\s*de\s*commerce)",
+        r"(fiscal|social)",
+        r"offre\s*administrative"
+    ]
+    has_admin = any(re.search(pattern, text_lower) for pattern in admin_patterns)
+    
+    # Classification
+    count = sum([has_financial, has_technical, has_admin])
+    
+    if count == 0:
+        # Fallback: inférer depuis le nom de fichier
+        if any(kw in filename_lower for kw in ["financ", "prix", "price", "cost"]):
+            has_financial = True
+        elif any(kw in filename_lower for kw in ["technique", "technical", "spec"]):
+            has_technical = True
+        elif any(kw in filename_lower for kw in ["admin", "legal", "conformit"]):
+            has_admin = True
+        count = sum([has_financial, has_technical, has_admin])
+    
+    # Détermination du subtype
+    if count >= 2:
+        subtype = "COMBINED"
+        confidence = "HIGH" if count == 3 else "MEDIUM"
+    elif has_financial:
+        subtype = "FINANCIAL_ONLY"
+        confidence = "MEDIUM" if count == 1 else "LOW"
+    elif has_technical:
+        subtype = "TECHNICAL_ONLY"
+        confidence = "MEDIUM"
+    elif has_admin:
+        subtype = "ADMIN_ONLY"
+        confidence = "MEDIUM"
+    else:
+        subtype = "UNKNOWN"
+        confidence = "LOW"
+    
+    return OfferSubtype(
+        subtype=subtype,
+        has_financial=has_financial,
+        has_technical=has_technical,
+        has_admin=has_admin,
+        confidence=confidence
+    )
+
+
+def aggregate_supplier_packages(offers: List[dict]) -> List[SupplierPackage]:
+    """
+    Agrège les documents par fournisseur pour gérer les offres partielles.
+    Un fournisseur peut soumettre plusieurs documents (financier, technique, admin).
+    """
+    # Grouper par nom de fournisseur
+    by_supplier: Dict[str, List[dict]] = {}
+    for offer in offers:
+        supplier_name = offer.get("supplier_name", "UNKNOWN")
+        if supplier_name not in by_supplier:
+            by_supplier[supplier_name] = []
+        by_supplier[supplier_name].append(offer)
+    
+    packages: List[SupplierPackage] = []
+    
+    for supplier_name, docs in by_supplier.items():
+        # Agréger les capacités
+        has_financial = any(d.get("subtype", {}).get("has_financial", False) for d in docs)
+        has_technical = any(d.get("subtype", {}).get("has_technical", False) for d in docs)
+        has_admin = any(d.get("subtype", {}).get("has_admin", False) for d in docs)
+        
+        # Fusionner les données extraites
+        merged_data = {
+            "total_price": None,
+            "total_price_source": None,
+            "currency": "XOF",
+            "lead_time_days": None,
+            "lead_time_source": None,
+            "validity_days": None,
+            "validity_source": None,
+            "technical_refs": [],
+        }
+        
+        for doc in docs:
+            for key in merged_data.keys():
+                if key == "technical_refs":
+                    merged_data[key].extend(doc.get(key, []))
+                elif doc.get(key) is not None and merged_data[key] is None:
+                    merged_data[key] = doc.get(key)
+        
+        # Déduplication des refs techniques
+        merged_data["technical_refs"] = list(set(merged_data["technical_refs"]))
+        
+        # CRITIQUE: Séparer missing_parts (sections non soumises) vs missing_extracted_fields (données manquantes)
+        missing_parts = []
+        if not has_admin:
+            missing_parts.append("ADMIN")
+        if not has_technical:
+            missing_parts.append("TECHNICAL")
+        
+        # missing_extracted_fields: données attendues mais non trouvées DANS les sections soumises
+        missing_extracted = []
+        if has_financial and merged_data["total_price"] is None:
+            missing_extracted.append("Prix total")
+        if has_financial and merged_data["lead_time_days"] is None:
+            missing_extracted.append("Délai livraison")
+        if has_financial and merged_data["validity_days"] is None:
+            missing_extracted.append("Validité offre")
+        if has_technical and not merged_data["technical_refs"]:
+            missing_extracted.append("Références techniques")
+        
+        # missing_fields pour compatibilité (mais maintenant explicitement séparé)
+        merged_data["missing_parts"] = missing_parts
+        merged_data["missing_extracted_fields"] = missing_extracted
+        merged_data["missing_fields"] = missing_extracted  # Backward compat
+        
+        # Statut du package
+        if has_financial and has_technical and has_admin:
+            package_status = "COMPLETE"
+        elif has_financial or has_technical:
+            package_status = "PARTIAL"
+        else:
+            package_status = "MISSING"
+        
+        packages.append(SupplierPackage(
+            supplier_name=supplier_name,
+            offer_ids=[d.get("artifact_id", "") for d in docs],
+            documents=docs,
+            package_status=package_status,
+            has_financial=has_financial,
+            has_technical=has_technical,
+            has_admin=has_admin,
+            extracted_data=merged_data,
+            missing_fields=missing_extracted  # Données manquantes (pas sections non soumises)
+        ))
+    
+    return packages
+
+
+# =========================
 # DAO-Driven Extraction (CORE)
 # =========================
 def extract_dao_criteria_structured(dao_text: str) -> List[DAOCriterion]:
@@ -414,20 +608,53 @@ def extract_dao_criteria_structured(dao_text: str) -> List[DAOCriterion]:
 
 
 def guess_supplier_name(text: str, filename: str) -> str:
-    """Extract supplier name from filename or document"""
+    """
+    Extract supplier name from filename or document.
+    ❌ INTERDIT d'utiliser un offer_id comme nom fournisseur.
+    
+    Ordre de fallback:
+    a) Nettoyer filename -> retourner si valide et significatif
+    b) Chercher pattern "Société/Entreprise: ..." dans texte
+    c) Chercher première ligne MAJUSCULE non-titre
+    d) Retourner "FOURNISSEUR_INCONNU"
+    """
+    # a) Nettoyer filename
     base = Path(filename).stem
-    base = re.sub(r"(?i)\b(offre|lot|dao|rfq|mpt|mopti|2026)\b", " ", base)
-    base = re.sub(r"[_\-]+", " ", base).strip()
-    if len(base) >= 3:
+    # D'abord normaliser les séparateurs
+    base = re.sub(r"[_\-]+", " ", base)
+    # Puis retirer mots-clés communs (avec espaces comme séparateurs)
+    base = re.sub(r"(?i)\b(offre|lot|dao|rfq|mpt|mopti|2026|2025|2024|annexe|annex)\b", " ", base)
+    base = base.strip()
+    
+    # Retirer IDs UUID-like ou hash-like et nombres purs
+    base = re.sub(r"\b[a-f0-9]{8,}\b", "", base, flags=re.IGNORECASE)
+    base = re.sub(r"\b[A-F0-9\-]{32,}\b", "", base)
+    base = re.sub(r"^\d+$", "", base)  # Retirer si c'est juste un nombre
+    base = re.sub(r"\s+", " ", base).strip()  # Normaliser espaces multiples
+    
+    # Vérifier que le filename nettoyé est significatif (pas juste des chiffres/mots génériques)
+    # Exclure mots génériques trop courts ou techniques
+    generic_words = ["DOC", "PDF", "FILE", "DOCUMENT", "TEMP", "NEW", "OLD", "FINAL", "V", "VER"]
+    base_upper = base.upper().strip()
+    
+    if len(base) >= 5 and re.search(r"[A-Za-z]{3,}", base) and base_upper not in generic_words:
         return base.upper()[:80]
-
-    # Fallback: first all-caps line
+    
+    # b) Chercher pattern "Société/Entreprise: ..." dans texte (prioritaire sur ligne majuscule)
+    match = re.search(r"(?i)(soci[ée]t[ée]|entreprise|firm|company)[:\s]+([A-Za-zÀ-ÿ\s]{4,80})", text)
+    if match:
+        return match.group(2).strip().upper()[:80]
+    
+    # c) Première ligne MAJUSCULE non-titre dans le document
     for line in text.splitlines():
         line = line.strip()
         if 4 <= len(line) <= 100 and line == line.upper() and re.search(r"[A-Z]", line):
-            return line[:80]
-
-    return "SUPPLIER_UNKNOWN"
+            # Exclure titres de section
+            if not re.match(r"^(OFFRE|PROPOSITION|SOUMISSION|ANNEXE)", line):
+                return line[:80]
+    
+    # d) Dernier recours
+    return "FOURNISSEUR_INCONNU"
 
 
 def extract_offer_data_guided(offer_text: str, criteria: List[DAOCriterion]) -> Dict[str, Any]:
@@ -602,6 +829,12 @@ def fill_cba_adaptive(
     """
     Remplissage adaptatif basé sur structure template détectée.
     1 DAO = 1 template spécifique = 1 CBA unique.
+    
+    COMPORTEMENT ATTENDU:
+    - Noms fournisseurs RÉELS (pas d'IDs, pas de hash)
+    - Données manquantes → "REVUE MANUELLE" avec surlignage ORANGE
+    - Aucun onglet debug visible dans l'export final
+    - Aucune note magique, aucune élimination implicite
     """
     schema = analyze_cba_template(template_path)
 
@@ -622,6 +855,10 @@ def fill_cba_adaptive(
     # Load template
     wb = load_workbook(template_path)
     ws = wb.active
+    
+    # Couleur ORANGE pour REVUE MANUELLE (spec conforme)
+    ORANGE_FILL = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
+    REVUE_MANUELLE = "REVUE MANUELLE"
 
     # Metadata section (top)
     ws["A1"] = "Decision Memory System — CBA Adaptatif"
@@ -629,11 +866,21 @@ def fill_cba_adaptive(
     ws["A3"] = f"Generated: {datetime.utcnow().isoformat()}"
     ws["A4"] = f"Template: {schema.template_name}"
 
-    # Fill supplier names (detected row/cols)
+    # Fill supplier names (detected row/cols) - NOMS RÉELS uniquement
     if schema.supplier_name_row and schema.supplier_cols:
         for idx, supplier in enumerate(suppliers[:len(schema.supplier_cols)]):
             col = schema.supplier_cols[idx]
-            ws.cell(schema.supplier_name_row, col, supplier["supplier_name"])
+            supplier_name = supplier.get("supplier_name", "")
+            
+            # Vérifier que ce n'est pas un ID
+            if not supplier_name or supplier_name in ["SUPPLIER_UNKNOWN", "FOURNISSEUR_INCONNU"]:
+                supplier_name = REVUE_MANUELLE
+            
+            # Écriture unique de la cellule
+            cell = ws.cell(schema.supplier_name_row, col)
+            cell.value = supplier_name
+            if supplier_name == REVUE_MANUELLE:
+                cell.fill = ORANGE_FILL
 
     # Fill commercial data (detected criteria rows)
     for row_idx in range(schema.criteria_start_row, min(schema.criteria_start_row + 50, ws.max_row + 1)):
@@ -641,68 +888,68 @@ def fill_cba_adaptive(
 
         for idx, supplier in enumerate(suppliers[:len(schema.supplier_cols)]):
             col = schema.supplier_cols[idx]
+            cell = ws.cell(row_idx, col)
+            
+            # Vérifier le package_status du fournisseur
+            package_status = supplier.get("package_status", "UNKNOWN")
+            has_financial = supplier.get("has_financial", False)
 
             # Mapping guided by criteria
             if re.search(r"(?i)(prix|price|montant|co[uû]t)", label):
-                val = supplier.get("total_price") or "NON TROUVÉ"
-                ws.cell(row_idx, col, val)
-                # Source in comment (Excel feature)
-                if supplier.get("total_price_source"):
-                    ws.cell(row_idx, col).comment = supplier["total_price_source"]
+                if has_financial:
+                    val = supplier.get("total_price")
+                    if val:
+                        cell.value = val
+                        if supplier.get("total_price_source"):
+                            from openpyxl.comments import Comment
+                            cell.comment = Comment(supplier["total_price_source"], "DMS")
+                    else:
+                        cell.value = REVUE_MANUELLE
+                        cell.fill = ORANGE_FILL
+                else:
+                    # Offre sans partie financière
+                    cell.value = REVUE_MANUELLE
+                    cell.fill = ORANGE_FILL
 
             elif re.search(r"(?i)(d[ée]lai|lead.*time|delivery)", label):
                 val = supplier.get("lead_time_days")
-                ws.cell(row_idx, col, f"{val} jours" if val else "NON TROUVÉ")
-                if supplier.get("lead_time_source"):
-                    ws.cell(row_idx, col).comment = supplier["lead_time_source"]
+                if val:
+                    cell.value = f"{val} jours"
+                    if supplier.get("lead_time_source"):
+                        from openpyxl.comments import Comment
+                        cell.comment = Comment(supplier["lead_time_source"], "DMS")
+                else:
+                    cell.value = REVUE_MANUELLE
+                    cell.fill = ORANGE_FILL
 
             elif re.search(r"(?i)(validit[ée]|validity)", label):
                 val = supplier.get("validity_days")
-                ws.cell(row_idx, col, f"{val} jours" if val else "NON TROUVÉ")
-                if supplier.get("validity_source"):
-                    ws.cell(row_idx, col).comment = supplier["validity_source"]
+                if val:
+                    cell.value = f"{val} jours"
+                    if supplier.get("validity_source"):
+                        from openpyxl.comments import Comment
+                        cell.comment = Comment(supplier["validity_source"], "DMS")
+                else:
+                    cell.value = REVUE_MANUELLE
+                    cell.fill = ORANGE_FILL
 
             elif re.search(r"(?i)(r[ée]f[ée]rence|experience)", label):
                 refs = supplier.get("technical_refs", [])
-                ws.cell(row_idx, col, ", ".join(refs[:3]) if refs else "NON TROUVÉ")
+                if refs:
+                    cell.value = ", ".join(refs[:3])
+                else:
+                    cell.value = REVUE_MANUELLE
+                    cell.fill = ORANGE_FILL
 
-            # Highlight missing data
-            if "NON TROUVÉ" in str(ws.cell(row_idx, col).value):
-                ws.cell(row_idx, col).fill = PatternFill(
-                    start_color="FFF4E6", end_color="FFF4E6", fill_type="solid"
-                )
-
-    # Add summary sheet with criteria structure
-    if "DMS_SUMMARY" not in wb.sheetnames:
-        summary = wb.create_sheet("DMS_SUMMARY")
-        summary["A1"] = "CRITÈRES DAO (Structurés)"
-        summary["A2"] = "Catégorie"
-        summary["B2"] = "Critère"
-        summary["C2"] = "Pondération"
-        summary["D2"] = "Type"
-
-        row = 3
-        for c in dao_criteria:
-            summary[f"A{row}"] = c.categorie
-            summary[f"B{row}"] = c.critere_nom
-            summary[f"C{row}"] = f"{c.ponderation*100:.0f}%" if c.ponderation else "Éliminatoire"
-            summary[f"D{row}"] = c.type_reponse
-            row += 1
-
-        summary["A" + str(row + 2)] = "DONNÉES MANQUANTES (par fournisseur)"
-        row += 3
-        summary[f"A{row}"] = "Fournisseur"
-        summary[f"B{row}"] = "Champs manquants"
-        row += 1
-
-        for s in suppliers:
-            summary[f"A{row}"] = s["supplier_name"]
-            summary[f"B{row}"] = ", ".join(s.get("missing_fields", [])) or "Complet"
-            if s.get("missing_fields"):
-                summary[f"B{row}"].fill = PatternFill(
-                    start_color="FFE6E6", end_color="FFE6E6", fill_type="solid"
-                )
-            row += 1
+    # ❌ SUPPRIMER onglets debug de l'export final
+    # On ne crée PLUS le DMS_SUMMARY dans l'export (logs uniquement)
+    debug_sheets = ["DMS_SUMMARY", "DEBUG", "TEMP", "SCRATCH", "NOTES"]
+    for sheet_name in list(wb.sheetnames):
+        for debug_pattern in debug_sheets:
+            if debug_pattern in sheet_name.upper():
+                # Supprimer complètement (pas masquer)
+                wb.remove(wb[sheet_name])
+                break
 
     # Save output
     out_dir = OUTPUTS_DIR / case_id
@@ -956,19 +1203,24 @@ def analyze(payload: AnalyzeRequest):
             ))
         conn.commit()
 
-    # Step 2: Offers extraction (DAO-guided)
+    # Step 2: Offers extraction (DAO-guided) + SUBTYPE DETECTION
     offer_arts = get_artifacts(case_id, "offer")
     if not offer_arts:
         raise HTTPException(status_code=400, detail="Missing OFFERS (upload kind=offer)")
 
-    suppliers: List[dict] = []
+    raw_offers: List[dict] = []
     for off in offer_arts:
         txt = extract_text_any(off["path"])
         supplier_name = guess_supplier_name(txt, off["filename"])
+        
+        # CRITIQUE: Détection du subtype (FINANCIAL_ONLY, etc.)
+        subtype = detect_offer_subtype(txt, off["filename"])
+        
         offer_data = extract_offer_data_guided(txt, dao_criteria)
 
-        suppliers.append({
+        raw_offers.append({
             "supplier_name": supplier_name,
+            "subtype": asdict(subtype),
             **offer_data,
             "source_filename": off["filename"],
             "artifact_id": off["id"]
@@ -981,20 +1233,47 @@ def analyze(payload: AnalyzeRequest):
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (
                 str(uuid.uuid4()), case_id, off["id"], supplier_name,
-                json.dumps(offer_data, ensure_ascii=False),
+                json.dumps({**offer_data, "subtype": asdict(subtype)}, ensure_ascii=False),
                 json.dumps(offer_data.get("missing_fields", []), ensure_ascii=False),
                 datetime.utcnow().isoformat()
             ))
             conn.commit()
 
-    # Memory entry
+    # CRITIQUE: Agrégation par fournisseur (gestion offres partielles)
+    supplier_packages = aggregate_supplier_packages(raw_offers)
+    
+    # Conversion en format compatible avec le reste du système
+    suppliers: List[dict] = []
+    for pkg in supplier_packages:
+        suppliers.append({
+            "supplier_name": pkg.supplier_name,
+            "package_status": pkg.package_status,
+            "has_financial": pkg.has_financial,
+            "has_technical": pkg.has_technical,
+            "has_admin": pkg.has_admin,
+            **pkg.extracted_data,
+            "offer_ids": pkg.offer_ids,
+            "document_count": len(pkg.documents)
+        })
+
+    # Memory entry avec traçabilité des décisions
     add_memory(case_id, "extraction", {
         "dao_source": dao_arts[0]["filename"],
         "offers_sources": [o["filename"] for o in offer_arts],
         "dao_criteria_count": len(dao_criteria),
         "dao_criteria": [asdict(c) for c in dao_criteria],
+        "raw_offers_count": len(raw_offers),
+        "supplier_packages_count": len(supplier_packages),
+        "packages_summary": [
+            {
+                "supplier": pkg.supplier_name,
+                "status": pkg.package_status,
+                "subtypes": [d.get("subtype", {}).get("subtype") for d in pkg.documents]
+            }
+            for pkg in supplier_packages
+        ],
         "offers_summary": suppliers,
-        "note": "DAO-driven extraction. No scoring/ranking. Human validates."
+        "note": "DAO-driven extraction with partial offers support. Subtype detection enabled. No scoring/ranking. Human validates."
     })
 
     # Step 3: Generate CBA (adaptive)
@@ -1012,20 +1291,33 @@ def analyze(payload: AnalyzeRequest):
     register_artifact(case_id, "output_pv", Path(pv_out).name, pv_out, 
                      meta={"template_used": pv_tpl[0]["filename"] if pv_tpl else "default", "decision_included": False})
 
+    # Statistiques et warnings
+    partial_offers = [s for s in suppliers if s.get("package_status") == "PARTIAL"]
+    complete_offers = [s for s in suppliers if s.get("package_status") == "COMPLETE"]
+    financial_only = [s for s in suppliers if s.get("has_financial") and not s.get("has_technical")]
+    
     return {
         "ok": True,
         "case_id": case_id,
         "dao_criteria_count": len(dao_criteria),
         "offers_count": len(suppliers),
+        "raw_documents_count": len(raw_offers),
         "output_cba_generated": bool(cba_out),
         "output_pv_generated": True,
         "downloads": {
             "cba": f"/api/download/{case_id}/output_cba" if cba_out else None,
             "pv": f"/api/download/{case_id}/output_pv",
         },
+        "package_stats": {
+            "complete": len(complete_offers),
+            "partial": len(partial_offers),
+            "financial_only": len(financial_only)
+        },
         "warnings": {
             "missing_data_count": sum(len(s.get("missing_fields", [])) for s in suppliers),
-            "suppliers_with_missing_data": [s["supplier_name"] for s in suppliers if s.get("missing_fields")]
+            "suppliers_with_missing_data": [s["supplier_name"] for s in suppliers if s.get("missing_fields")],
+            "partial_offers_detected": len(partial_offers) > 0,
+            "note": "Offres partielles gérées en mode LENIENT. Aucune pénalité automatique. Champs manquants marqués REVUE MANUELLE."
         }
     }
 
