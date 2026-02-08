@@ -2,30 +2,44 @@ name: DMS CI
 
 on:
   push:
+    branches: [ "main", "cursor/*" ]
   pull_request:
+    branches: [ "main" ]
 
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "requirements.txt"
 
-      - name: Install dependencies
+      - name: Show versions
         run: |
+          python --version
+          pip --version
+
+      - name: Install dependencies (hard gate)
+        run: |
+          test -f requirements.txt
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -r requirements.txt
 
       - name: Compile check (hard gate)
         run: |
-          python -m compileall .
+          echo "🔍 Compiling Python files..."
+          python -m compileall . || { echo "❌ Compilation failed"; exit 1; }
 
-      - name: Run critical smoke tests
+      - name: Run smoke tests (hard gate)
         run: |
-          python3 tests/test_corrections_smoke.py
-          python3 tests/test_partial_offers.py
+          echo "🧪 Running smoke tests..."
+          python3 tests/test_corrections_smoke.py || exit 1
+          python3 tests/test_partial_offers.py || exit 1
+          echo "✅ All tests passed"
