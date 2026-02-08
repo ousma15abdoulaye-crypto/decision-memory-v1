@@ -1,0 +1,36 @@
+name: DMS CI – Core Stability
+
+on:
+  push:
+    branches: [ "main", "cursor/*" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  core-checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies (if any)
+        run: |
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
+      - name: Compile main
+        run: |
+          python -m py_compile main.py
+
+      - name: Run core tests
+        run: |
+          python3 tests/test_partial_offers.py
+          python3 tests/test_corrections_smoke.py
+          python3 tests/mapping/test_engine_smoke.py
