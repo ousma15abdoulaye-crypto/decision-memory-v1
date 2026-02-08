@@ -1,4 +1,4 @@
-name: DMS CI
+name: DMS CI – Core Stability
 
 on:
   push:
@@ -12,7 +12,8 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v5
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -34,12 +35,12 @@ jobs:
 
       - name: Compile check (hard gate)
         run: |
-          echo "🔍 Compiling Python files..."
-          python -m compileall . || { echo "❌ Compilation failed"; exit 1; }
+          echo "🔍 Compiling all Python files..."
+          python -m compileall . -q || { echo "❌ Compilation failed"; exit 1; }
 
-      - name: Run smoke tests (hard gate)
+      - name: Run core tests (hard gate)
         run: |
-          echo "🧪 Running smoke tests..."
+          echo "🧪 Running core tests..."
           python3 tests/test_corrections_smoke.py || exit 1
           python3 tests/test_partial_offers.py || exit 1
           echo "✅ All tests passed"
