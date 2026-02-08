@@ -464,13 +464,10 @@ def aggregate_supplier_packages(offers: List[dict]) -> List[SupplierPackage]:
             "validity_days": None,
             "validity_source": None,
             "technical_refs": [],
-            "missing_fields": []
         }
         
         for doc in docs:
             for key in merged_data.keys():
-                if key == "missing_fields":
-                    continue  # Traité séparément
                 if key == "technical_refs":
                     merged_data[key].extend(doc.get(key, []))
                 elif doc.get(key) is not None and merged_data[key] is None:
@@ -479,18 +476,28 @@ def aggregate_supplier_packages(offers: List[dict]) -> List[SupplierPackage]:
         # Déduplication des refs techniques
         merged_data["technical_refs"] = list(set(merged_data["technical_refs"]))
         
-        # Déterminer les champs manquants
-        missing = []
-        if merged_data["total_price"] is None and has_financial:
-            missing.append("Prix total")
-        if merged_data["lead_time_days"] is None:
-            missing.append("Délai livraison")
-        if merged_data["validity_days"] is None:
-            missing.append("Validité offre")
-        if not merged_data["technical_refs"] and has_technical:
-            missing.append("Références techniques")
+        # CRITIQUE: Séparer missing_parts (sections non soumises) vs missing_extracted_fields (données manquantes)
+        missing_parts = []
+        if not has_admin:
+            missing_parts.append("ADMIN")
+        if not has_technical:
+            missing_parts.append("TECHNICAL")
         
-        merged_data["missing_fields"] = missing
+        # missing_extracted_fields: données attendues mais non trouvées DANS les sections soumises
+        missing_extracted = []
+        if has_financial and merged_data["total_price"] is None:
+            missing_extracted.append("Prix total")
+        if has_financial and merged_data["lead_time_days"] is None:
+            missing_extracted.append("Délai livraison")
+        if has_financial and merged_data["validity_days"] is None:
+            missing_extracted.append("Validité offre")
+        if has_technical and not merged_data["technical_refs"]:
+            missing_extracted.append("Références techniques")
+        
+        # missing_fields pour compatibilité (mais maintenant explicitement séparé)
+        merged_data["missing_parts"] = missing_parts
+        merged_data["missing_extracted_fields"] = missing_extracted
+        merged_data["missing_fields"] = missing_extracted  # Backward compat
         
         # Statut du package
         if has_financial and has_technical and has_admin:
@@ -509,7 +516,7 @@ def aggregate_supplier_packages(offers: List[dict]) -> List[SupplierPackage]:
             has_technical=has_technical,
             has_admin=has_admin,
             extracted_data=merged_data,
-            missing_fields=missing
+            missing_fields=missing_extracted  # Données manquantes (pas sections non soumises)
         ))
     
     return packages
@@ -604,36 +611,49 @@ def guess_supplier_name(text: str, filename: str) -> str:
     """
     Extract supplier name from filename or document.
     ❌ INTERDIT d'utiliser un offer_id comme nom fournisseur.
+    
+    Ordre de fallback:
+    a) Nettoyer filename -> retourner si valide et significatif
+    b) Chercher pattern "Société/Entreprise: ..." dans texte
+    c) Chercher première ligne MAJUSCULE non-titre
+    d) Retourner "FOURNISSEUR_INCONNU"
     """
+    # a) Nettoyer filename
     base = Path(filename).stem
-    
-    # Nettoyer les mots-clés communs
+    # D'abord normaliser les séparateurs
+    base = re.sub(r"[_\-]+", " ", base)
+    # Puis retirer mots-clés communs (avec espaces comme séparateurs)
     base = re.sub(r"(?i)\b(offre|lot|dao|rfq|mpt|mopti|2026|2025|2024|annexe|annex)\b", " ", base)
-    base = re.sub(r"[_\-]+", " ", base).strip()
-    
-    # Retirer les IDs UUID-like ou hash-like
-    base = re.sub(r"\b[a-f0-9]{8,}\b", "", base, flags=re.IGNORECASE)
-    base = re.sub(r"\b[A-F0-9\-]{32,}\b", "", base)
-    
     base = base.strip()
     
-    if len(base) >= 3:
+    # Retirer IDs UUID-like ou hash-like et nombres purs
+    base = re.sub(r"\b[a-f0-9]{8,}\b", "", base, flags=re.IGNORECASE)
+    base = re.sub(r"\b[A-F0-9\-]{32,}\b", "", base)
+    base = re.sub(r"^\d+$", "", base)  # Retirer si c'est juste un nombre
+    base = re.sub(r"\s+", " ", base).strip()  # Normaliser espaces multiples
+    
+    # Vérifier que le filename nettoyé est significatif (pas juste des chiffres/mots génériques)
+    # Exclure mots génériques trop courts ou techniques
+    generic_words = ["DOC", "PDF", "FILE", "DOCUMENT", "TEMP", "NEW", "OLD", "FINAL", "V", "VER"]
+    base_upper = base.upper().strip()
+    
+    if len(base) >= 5 and re.search(r"[A-Za-z]{3,}", base) and base_upper not in generic_words:
         return base.upper()[:80]
-
-    # Fallback 1: première ligne en majuscules dans le document
-    for line in text.splitlines():
-        line = line.strip()
-        if 4 <= len(line) <= 100 and line == line.upper() and re.search(r"[A-Z]", line):
-            # Vérifier que ce n'est pas juste un titre de section
-            if not re.match(r"^(OFFRE|PROPOSITION|SOUMISSION|ANNEXE)", line):
-                return line[:80]
-
-    # Fallback 2: chercher pattern "Société: XXX" ou "Entreprise: XXX"
+    
+    # b) Chercher pattern "Société/Entreprise: ..." dans texte (prioritaire sur ligne majuscule)
     match = re.search(r"(?i)(soci[ée]t[ée]|entreprise|firm|company)[:\s]+([A-Za-zÀ-ÿ\s]{4,80})", text)
     if match:
         return match.group(2).strip().upper()[:80]
-
-    # Dernier recours: générer un nom temporaire basé sur position
+    
+    # c) Première ligne MAJUSCULE non-titre dans le document
+    for line in text.splitlines():
+        line = line.strip()
+        if 4 <= len(line) <= 100 and line == line.upper() and re.search(r"[A-Z]", line):
+            # Exclure titres de section
+            if not re.match(r"^(OFFRE|PROPOSITION|SOUMISSION|ANNEXE)", line):
+                return line[:80]
+    
+    # d) Dernier recours
     return "FOURNISSEUR_INCONNU"
 
 
@@ -856,10 +876,11 @@ def fill_cba_adaptive(
             if not supplier_name or supplier_name in ["SUPPLIER_UNKNOWN", "FOURNISSEUR_INCONNU"]:
                 supplier_name = REVUE_MANUELLE
             
-            ws.cell(schema.supplier_name_row, col, supplier_name)
-            
+            # Écriture unique de la cellule
+            cell = ws.cell(schema.supplier_name_row, col)
+            cell.value = supplier_name
             if supplier_name == REVUE_MANUELLE:
-                ws.cell(schema.supplier_name_row, col).fill = ORANGE_FILL
+                cell.fill = ORANGE_FILL
 
     # Fill commercial data (detected criteria rows)
     for row_idx in range(schema.criteria_start_row, min(schema.criteria_start_row + 50, ws.max_row + 1)):
