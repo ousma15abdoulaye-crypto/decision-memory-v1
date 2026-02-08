@@ -1,680 +1,902 @@
-# 📘 CONSTITUTION DU DECISION MEMORY SYSTEM — V1.2 FINAL
+📘 CONSTITUTION DU DECISION MEMORY SYSTEM — V1.4
+Version : 1.4
+Statut : FROZEN (évolutive sous invariants uniquement)
+Date : 7 février 2026
+Auteur fondateur : Abdoulaye Ousmane
+Tech Lead : Architecture Cognitive Procurement
+Cible V1 : Organisations, États, Mines, Entreprises privées
+Mode : Online – Haute performance – Utilisateurs experts
 
-**Version:** 1.2 (Production-ready)  
-**Statut:** FROZEN (évolutive sous invariants uniquement)  
-**Date:** 6 février 2026  
-**Auteur fondateur:** Abdoulaye Ousmane  
-**Tech Lead:** Architecture Sahel-first
+§ 0 — PRÉAMBULE (Non négociable)
+Le Decision Memory System est un système de structuration cognitive d'un processus compétitif d'achat à la fois (DAO, RFQ ou RFP).
 
----
+Il existe pour :
+Réduire radicalement la charge cognitive des décideurs experts
 
-## § 0 — PRÉAMBULE (Non négociable)
+Transformer un volume documentaire complexe en artefacts décisionnels prêts à l'emploi
 
-Ce système est un **assistant cognitif intelligent** en procurement.
+Préserver une mémoire décisionnelle exploitable sans effort supplémentaire
 
-Il existe pour:
-- **réduire radicalement la charge cognitive** des décideurs sous pression,
-- **faire émerger une mémoire décisionnelle vivante** sans effort supplémentaire,
-- **transformer l'expérience terrain en intelligence de marché actionnable**.
+Ouvrir un chemin clair vers la décision humaine, sans jamais s'y substituer
 
-Il n'existe **pas** pour:
-- améliorer la "qualité intrinsèque" des décisions,
-- remplacer le jugement humain,
-- optimiser les résultats procurement,
-- contrôler ou juger les personnes.
+Éliminer 90% du travail cognitif répétitif (extraction, structuration, pré-classement, pré-remplissage)
 
-**Son seul mandat: restaurer la capacité de décision humaine sous pression opérationnelle.**
+Il n'existe pas pour :
+Optimiser ou améliorer la "qualité intrinsèque" des décisions
 
-**Ce système part d'une douleur réelle: des comités épuisés avant même d'analyser, 99 offres sur 21 lots, 3 jours d'ouverture manuelle, paperasse qui écrase la réflexion.**
+Recommander, classer ou scorer des fournisseurs
 
----
+Juger des individus ou des équipes
 
-## § 1 — IDENTITÉ DU SYSTÈME
+Remplacer le jugement humain
 
-### 1.1 Ce que le système EST
+Servir d'outil de contrôle managérial ou d'audit accusatoire
 
-Un **assistant intelligent** structuré en deux couches complémentaires:
+Gérer les contrats ou le suivi d'exécution post-attribution
 
-**Couche A — L'ouvrier cognitif:**
-- Ingère, classe, extrait, structure les documents procurement (DAO, RFQ, offres).
-- Pré-remplit les CBA, PV, tableaux d'analyse.
-- Élimine le secrétariat manuel et la paperasse.
-- **Métaphore: le stagiaire ultra-efficace qui fait tout le travail préparatoire.**
+Mandat unique :
+Restaurer et amplifier la capacité de décision humaine sous contrainte informationnelle, en créant une version consolidée unique par processus qui remplace les tableaux Excel artisanaux et les copier-coller manuels.
 
-**Couche B — Le collègue expérimenté:**
-- Mémorise passivement toutes les décisions et contextes.
-- Répond à des questions factuelles ("Qu'est-ce qui s'est passé dans des cas similaires ?").
-- Fournit du contexte historique (prix, délais, fournisseurs, incidents).
-- Nourrit une base de market intelligence dense et vivante.
-- **Métaphore: le senior qui se souvient de tout et te donne le contexte, sans te dire quoi faire.**
+§ 1 — IDENTITÉ DU SYSTÈME
+1.1 Ce que le système EST
+Un assistant cognitif structuré en deux couches strictement séparées :
 
-### 1.2 Ce que le système N'EST PAS
+🔹 Couche A — L'ouvrier cognitif (cœur du système)
+Fonction : Traiter un processus compétitif du début (DAO/RFQ/RFP) jusqu'à la décision d'attribution.
 
-- ❌ Un outil de compliance ou d'audit
-- ❌ Un système de détection de fraude
-- ❌ Un moteur de scoring ou ranking fournisseur
-- ❌ Un système d'automatisation de décision
-- ❌ Un ERP ou système de record
-- ❌ Un dashboard de performance HQ
-- ❌ Un outil de contrôle managérial
+Responsabilités :
 
-**C'est une couche de support cognitif complémentaire, jamais une autorité institutionnelle.**
+Ingestion : DAO/RFQ/RFP + offres associées (PDF, Excel, Word)
 
----
+Extraction automatique :
 
-## § 2 — INVARIANTS FONDATEURS (Intouchables)
+Règles d'évaluation
 
-Ces invariants définissent l'identité du système. **Violer un seul invariant invalide le produit.**
+Critères techniques, financiers, administratifs
 
-### Invariant 1 — Réduction radicale de la charge cognitive
+Pondérations
 
-Le système ne doit **jamais augmenter** la charge cognitive des utilisateurs.
-- Toute action doit coûter moins d'effort que la méthode existante.
-- Le bénéfice doit être visible dès la première utilisation.
-- L'usage doit rester possible en situation de fatigue, stress ou urgence.
+Lots (si multi-lots)
 
-**Mesure de succès: si l'utilisateur hésite, ralentit, ou demande de l'aide → échec.**
+Seuils d'élimination
 
-👉 **Si une fonctionnalité augmente la charge cognitive, elle est supprimée.**
+Pré-classement :
 
-### Invariant 2 — Primauté absolue de la Couche A
+Par soumissionnaire
 
-La Couche A est prioritaire sur toutes les autres couches.
-- Utilisable sans formation formelle.
-- Compréhensible intuitivement.
-- Fonctionnelle pour: stagiaire, assistant, agent de sécurité, personnel non technique.
+Par lot
 
-👉 **Aucune sophistication de la Couche B ne peut dégrader la Couche A.**
+Par date/heure/mode de dépôt (horodatage strict)
 
-### Invariant 3 — La mémoire est un sous-produit, jamais une obligation
+Structuration : Tableau d'analyse consolidé unique (lisible, classé, énuméré)
 
-- Aucune donnée n'est saisie "pour alimenter la mémoire".
-- La mémoire émerge de l'usage réel.
-- Elle ne génère **aucune tâche supplémentaire**.
+Pré-remplissage : Intégration automatique dans les outils officiels (CBA, PV)
 
-👉 **Toute fonctionnalité demandant un effort explicite pour "documenter" est interdite.**
+Export : CBA officiel onglet par onglet + PV horodaté en un clic
 
-### Invariant 4 — Le système n'est pas décisionnaire
+Validation : Champs humains restent vides (visite fournisseur, évaluation échantillon, appréciation qualitative)
 
-Le système:
-- n'arbitre pas,
-- ne juge pas,
-- ne sanctionne pas,
-- ne note pas moralement,
-- ne recommande jamais un fournisseur.
+Principe fondamental : La Couche A crée le dossier d'analyse unique qui remplace tous les tableaux Excel artisanaux.
 
-Il:
-- rappelle des faits,
-- contextualise,
-- compare des données historiques,
-- rend visibles des précédents.
+Structure utilisateur : 3 écrans maximum
 
-👉 **La décision finale appartient toujours aux humains.**
+Écran 1 : Ingestion (upload + validation extraction)
 
-### Invariant 5 — Traçabilité sans accusation
+Écran 2 : Structuration (tableau consolidé + corrections)
 
-- Les données sont factuelles.
-- Le langage est neutre.
-- Aucun score individuel de suspicion.
-- Aucun mécanisme accusatoire.
-- L'unité d'analyse est la **décision**, jamais la **personne**.
+Écran 3 : Décision & Exports (CBA + PV)
 
-👉 **Le système protège l'organisation contre l'oubli, pas contre ses agents.**
+👉 Rôle : Faire 90% du travail cognitif répétitif.
 
-### Invariant 6 — Conception Sahel-first (chaos résilient)
+🔹 Couche B — Le collègue expérimenté (mémoire)
+Fonction : Capitaliser la connaissance marché et décisionnelle sans effort humain supplémentaire.
 
-Le système fonctionne dans un environnement marqué par:
-- turnover élevé,
-- fatigue cognitive,
-- **documents hétérogènes (Word, PDF, scans, Excel — formats prioritaires V1)**,
-- connectivité instable,
-- pression opérationnelle constante.
+Responsabilités :
 
-**Priorité V1: Word, PDF, Excel, scans de qualité acceptable.**  
-**Évolution future: photos WhatsApp, images basse résolution.**
+Capitaliser automatiquement les décisions passées (prix, délais, zones, catégories)
 
-👉 **Si le système ne fonctionne pas dans ce contexte, il est invalide.**
+Fournir du contexte historique factuel sur requête
 
-### Invariant 7 — ERP-agnostique par conception
+Alimenter une intelligence marché multi-sources
 
-Le système:
-- ne dépend d'aucun ERP spécifique (ProSave, SAP, Dynamics, etc.),
-- se connecte par exports, fichiers, emails, scans, APIs simples,
-- complète les ERP existants sans les remplacer.
+Répondre à des questions factuelles, jamais prescriptives
 
-👉 **Il doit fonctionner avec ou sans ERP.**
+Principe fondamental : La mémoire est un sous-produit automatique de l'activité réelle, jamais une obligation.
 
-### Invariant 8 — Online-first (pragmatique), offline-capable (évolutif)
+Manifestation utilisateur : Réponses factuelles uniquement (historique prix/délais/volumes/typologie fournisseurs) sur requête, jamais sous forme de recommandations ou de notes.
 
-**Stratégie V1 (réaliste pour adoption bureau pays):**
-- Architecture **online-first** pour accélérer le déploiement et l'adoption.
-- Connectivité internet stable supposée (bureau pays).
-- Synchronisation temps réel.
+👉 Rôle : Se souvenir, pas décider.
 
-**Évolution future (post-adoption):**
-- Capacités offline progressives.
-- Synchronisation différée.
-- Mode dégradé pour terrain sans connexion.
+Règle de séparation absolue : Aucune donnée de la Couche B n'altère les calculs ni la structure de la Couche A.
 
-👉 **V1 privilégie l'adoption rapide. Offline vient après validation terrain.**
+1.2 Ce que le système N'EST PAS
+❌ Un moteur de décision
+❌ Un outil de scoring ou ranking fournisseur
+❌ Un système de conformité / audit
+❌ Un ERP ou système de record
+❌ Un dashboard HQ
+❌ Un outil de contrôle hiérarchique
+❌ Un système de contract management
+❌ Un outil de suivi d'exécution post-attribution
 
-### Invariant 9 — Append-only (aucune suppression)
+§ 2 — INVARIANTS FONDATEURS (Intouchables)
+Invariant 1 — Réduction radicale de la charge cognitive
+Toute fonctionnalité doit :
 
-- Pas de suppression de données.
-- Pas d'édition rétroactive.
-- Uniquement des ajouts horodatés.
+Réduire l'effort mental
 
-👉 **On corrige en ajoutant, jamais en effaçant.**
+Être plus rapide que la méthode existante
 
-### Invariant 10 — Évolution technologique subordonnée à la vision
+Produire un bénéfice visible immédiatement
 
-- IA, OCR, LLM, automatisation: **optionnels**.
-- Retour manuel toujours possible.
-- Toute technologie peut être désactivée si elle devient un risque.
+👉 Test : Si une fonctionnalité fait hésiter ou réfléchir à "comment l'utiliser", elle est rejetée.
 
-👉 **La technologie sert la vision, jamais l'inverse.**
+Invariant 2 — Primauté absolue de la Couche A (version expert)
+La Couche A est prioritaire sur toute autre couche
 
-### Invariant 11 — Survivabilité absolue
+Conçue pour utilisateurs experts du procurement
 
-Le système doit survivre à:
-- son créateur (Abdoulaye Ousmane),
-- toute personne clé,
-- toute rotation RH,
-- toute restructuration organisationnelle,
-- tout changement de direction.
+Supérieure à Excel en vitesse et structuration
 
-👉 **Aucune dépendance critique à un individu unique.**
+Aucune configuration requise
 
-### Invariant 12 — Fidélité au réel
+Structure 3 écrans stricte : Ingestion, Structuration, Décision/Exports
 
-Le système enregistre **ce qui s'est passé**, pas ce qui aurait dû se passer:
-- dépôts hors délai enregistrés (pas effacés),
-- dérogations captées (pas corrigées),
-- incohérences visibles (pas masquées).
+👉 Test : Aucune sophistication mémoire ne doit ralentir la Couche A. Aucune donnée de la Couche B ne modifie les calculs de la Couche A.
 
-👉 **Un PV réaliste vaut mieux qu'un PV artificiellement "propre".**
+Invariant 3 — La mémoire est un sous-produit, jamais une obligation
+La mémoire se nourrit :
 
----
+Automatiquement des processus réels (DAO/RFQ/RFP)
 
-## § 3 — SCOPE V1 (Non négociable)
+Optionnellement de sources externes structurées (mercurials, enquêtes)
 
-### 3.1 Périmètre strict
+👉 Test : Aucune action "pour documenter" n'est imposée à l'utilisateur.
 
-- **UN seul processus procurement** par instance d'exécution (DAO ou RFQ, jamais mixé).
-- **Maximum 3 écrans utilisateur** pour l'usage courant.
-- **Un cas réel end-to-end** comme référence de validation.
-- Conçu pour **usage terrain sous pression**.
-- **Aucune configuration** en V1.
+Invariant 4 — Le système n'est pas décisionnaire
+Le système :
 
-**Définition "un processus":** Du lancement DAO/RFQ jusqu'à la génération du PV et décision finale, pour un seul DAO/RFQ à la fois.
+Ne recommande pas
 
-👉 **Tout ce qui sort de ce scope est explicitement hors V1.**
+Ne classe pas (sauf pré-classement factuel chronologique)
 
-### 3.2 Ce qui est explicitement INTERDIT en V1
+Ne juge pas
 
-- Scoring/ranking/notation globale de fournisseurs
-- Recommandations ou suggestions automatiques de choix
-- Dashboards, KPIs, analytics pour HQ
-- Fonctionnalités de compliance/audit/fraude
-- Multi-workflow complexe
-- Toute saisie de données dont le seul but est reporting/documentation
-- Dépendance ou couplage fort à un ERP
-- Logique d'optimisation de quelque nature que ce soit
+Ne décide pas
 
-👉 **Si une feature "semble utile" mais viole ces règles, elle est hors scope.**
+Il :
 
----
+Structure
 
-## § 4 — COUCHE A: L'OUVRIER COGNITIF (Assistant opérationnel)
+Rappelle des faits
 
-### 4.1 Rôle
+Expose des précédents
 
-**Remplacer le secrétariat procurement** en absorbant toute la paperasse avant la décision humaine.
+👉 Test : La décision appartient toujours à l'humain. Les décisions restent discutées en comité comme avant ; le système réduit le temps de préparation, pas le temps de débat.
 
-### 4.2 Fonctions autorisées (exhaustif pour V1)
+Invariant 5 — Traçabilité sans accusation
+Données factuelles uniquement
 
-#### Module 1 — Ingestion pragmatique (formats prioritaires)
+Langage neutre
 
-**Formats V1 (prioritaires, robustes):**
-- DAO/RFQ: **Word (.docx), PDF, Excel (.xlsx)** → formats structurés standard SCI.
-- Offres techniques/financières: **Word (.docx), PDF** → formats professionnels attendus.
-- Scans: **PDF de qualité acceptable** (documents scannés en bureau, pas terrain).
+Analyse centrée sur la décision, jamais sur la personne
 
-**Formats évolution future (post-V1, après validation adoption):**
-- Photos WhatsApp, images basse résolution, scans terrain dégradés.
-- OCR avancé sur documents manuscrits ou très bruités.
+Horodatage de toute modification (qui, quand, quoi)
 
-**Fonctions Module 1:**
-- Accepter les formats V1 prioritaires.
-- Classifier automatiquement chaque fichier (DAO vs offre, technique vs financière).
-- Détecter le fournisseur (en-tête, signature, cachet) **avec score de confiance**.
-- Détecter le(s) lot(s) concerné(s) **avec score de confiance**.
-- Horodater tout automatiquement.
+👉 Test : Peut-on utiliser les données du système contre un individu ? Si oui, la fonctionnalité est rejetée.
 
-**Gestion des erreurs (clé pour ne pas augmenter charge cognitive):**
-- Chaque champ extrait a un **score de confiance** (élevé/moyen/faible).
-- Champs à faible confiance → **surbrillance orange + validation rapide utilisateur** (1 clic confirmation ou correction).
-- Si extraction échoue totalement → **fallback: saisie manuelle guidée ultra-rapide** (3–5 champs max).
+Invariant 6 — Conception online-first haute performance (V1)
+La V1 est conçue pour :
 
-👉 **Principe: mieux vaut un champ à valider rapidement qu'un blocage ou une erreur silencieuse.**
+Environnement online stable
 
-#### Module 2 — Extraction structurée (alignée manuel procurement SCI)
+Utilisateurs experts (organisations, États, mines, entreprises privées)
 
-**Stratégie technique V1:**
-- Approche **hybride**: règles + modèles légers (pas de ML coûteux en V1).
-- Extraction basée sur **patterns récurrents** dans les templates SCI standards.
-- Si document non-standard → extraction partielle + champs manuels guidés.
+Traitement rapide et fluide
 
-**DAO/RFQ → extraire:**
-- Structure des lots (numéro, libellé, catégorie).
-- Critères d'évaluation **alignés Manuel Procurement SCI** (essentiels, capacité, commerciaux, durabilité) et pondérations.
-- Zone, catégorie, type de procédure (devis simple/formel/AO ouvert), valeur estimée.
-- **Référence implicite: Manuel SC-PR-02 Procurement Manual 3.2 SCI** (règles métier extraites et mappées en backend, jamais mentionnées frontend).
+Documents structurés (PDF, Excel, Word)
 
-**Offres techniques → extraire:**
-- Conformité administrative (docs présents/manquants): RC, NIF/IFU, CNSS, attestation fiscale, formulaire signé, etc.
-- Éléments de capacité: nb contrats similaires, personnel clé, moyens matériels, références.
-- Sites visitables, certifications.
-- **Score de confiance par champ.**
+Hors scope V1 :
 
-**Offres financières → extraire:**
-- Prix (unitaires et totaux par article/lot).
-- Délais de livraison.
-- Validité d'offre.
-- Conditions de paiement.
-- **Score de confiance par champ.**
+Contraintes offline
 
-**Règles métier implicites (backend, jamais exposées utilisateur):**
-- Critères essentiels: conformité admin obligatoire (seuil pass/fail).
-- Critères capacité: notation 0–100 ou 0–10 (validée humainement).
-- Critères commerciaux: prix, conditions paiement.
-- Critères durabilité: environnement, social.
-- Pondérations standards par type de procédure (extraites du manuel, appliquées silencieusement).
+Environnements dégradés (terrain difficile)
 
-👉 **L'outil connaît les règles SCI, mais l'utilisateur n'a jamais à les chercher ou les saisir.**
+Photos WhatsApp
 
-#### Module 3 — Pré-remplissage CBA et PV (templates intelligents embarqués)
+Dévis SMS
 
-**Stratégie templates V1:**
+Extensions contextes difficiles (Sahel, etc.)
 
-**CBA (Comparative Bid Analysis):**
-- **Templates embarqués dans l'outil** (pas de chargement manuel).
-- Un template par **catégorie majeure** (matériel bureau, NFI, vivres, cartouches, mobilier, location véhicules, services).
-- Structure:
-  - Colonnes = fournisseurs (noms auto-remplis).
-  - Lignes = critères (essentiels booléens, capacité 0–100, prix, délais, durabilité).
-  - Formules Excel natives préservées (calculs de scores, totaux, rankings).
-- **Pré-remplissage automatique:**
-  - Tous les champs factuels (noms, prix, délais, docs présents/manquants).
-  - Cellules non trouvées → **orange "NON TROUVÉ" + score confiance faible**.
-  - Cellules à valider → **jaune + icône validation rapide**.
-- Export Excel standard (.xlsx) **100% éditable** par l'utilisateur.
+👉 Test : Toute contrainte offline, terrain ou dégradée est hors scope V1.
 
-**PV (Procès-Verbal):**
-- **Template Word embarqué** (structure standard SCI).
-- Sections auto-remplies:
-  - En-tête: ID DAO, zone, date, lots, membres comité.
-  - Contexte: rappel DAO/RFQ, critères, pondérations.
-  - Liste offres reçues par lot (fournisseur, horodatage, mode dépôt).
-  - Résumé conformité (nb offres conformes/non conformes par critère essentiel, avec détails factuels).
-  - Tableau résumé CBA (collé ou référencé).
-  - Bloc **"DÉCISION DU COMITÉ"** vide ou pré-formaté (à remplir manuellement).
-- Export Word standard (.docx) **100% éditable**.
-- Mention obligatoire footer: *"Document préparé avec assistance — Décision finale humaine."*
+Invariant 6 bis — Supériorité cognitive sur Excel
+À usage égal, le système doit être plus rapide qu'Excel, y compris pour un expert.
 
-**Mapping automatique templates:**
-- Détection automatique catégorie DAO → sélection template CBA correspondant.
-- Si catégorie ambiguë ou nouvelle → template CBA générique + alerte validation catégorie.
-- Templates stockés en base (versioning possible, pas de re-upload à chaque cas).
+👉 Test : Si Excel est plus rapide, la fonctionnalité est rejetée.
 
-👉 **L'utilisateur n'a jamais à charger un template vide. L'outil sait lequel utiliser.**
+Invariant 7 — ERP-agnostique
+Le système :
 
-#### Module 4 — Génération d'artefacts
+Ne dépend d'aucun ERP
 
-- Export Excel, PDF, Word standards.
-- Aucun format propriétaire.
-- Tous les exports sont **autonomes** (pas de lien vers l'outil pour être lus).
+Fonctionne par documents, exports, APIs simples
 
-### 4.3 Ce que la Couche A ne fait JAMAIS
+Complète sans remplacer
 
-- Ne recommande pas de fournisseur.
-- Ne calcule pas de "score global meilleur fournisseur" (Excel peut le faire, pas l'outil).
-- Ne décide rien.
-- Ne juge pas la qualité des offres moralement.
+Invariant 8 — Append-only
+Aucune suppression
 
-👉 **Elle transforme "un tas de docs" en CBA/PV prêts, sans décider.**
+Aucune édition rétroactive
 
----
+Correction par ajout horodaté uniquement
 
-## § 5 — COUCHE B: LE COLLÈGUE EXPÉRIMENTÉ (Intelligence de mémoire)
+Invariant 9 — Technologie subordonnée à la vision
+IA, OCR, LLM :
 
-### 5.1 Rôle
+Activables
 
-**Transformer la mémoire décisionnelle en référentiel de marché actionnable**, sans devenir un outil de contrôle ou de scoring.
+Désactivables
 
-### 5.2 Architecture Market Intelligence (produit stratégique)
+Jamais structurants
 
-**Base de données centrale: `MARKET_INTEL`**
+👉 Test : Le système doit fonctionner sans IA/LLM si nécessaire.
 
-Contient:
-- `supplier_name`, `zone`, `category`, `item_description`, `lot_id`
-- `prix_unitaire`, `prix_total`, `devise`, `delai_livraison`
-- `date_observation`, `source` (DAO/RFQ/SURVEY)
-- `case_id` (lien vers cas, NULL si survey)
-- `awarded` (fournisseur retenu? NULL si survey)
-- `contract_type` (FWA, LTA, PO, NULL)
-- `incident_flag`, `incident_details`, `remarks`
-- `created_at`, `created_by`
+Invariant 10 — Survivabilité
+Le système doit survivre à :
 
-**Objectif: base dense et immense pour market assessment intelligent.**
+Son créateur
 
-### 5.3 Alimentation de la mémoire (deux sources)
+Toute rotation RH
 
-#### Source 1 — Alimentation passive (prioritaire, automatique)
+Toute restructuration
 
-Après chaque décision finalisée (via Couche A):
-- Pour chaque `SOUMISSION` évaluée (fournisseur + lot):
-  - Extraction automatique: `supplier_name`, `zone`, `category`, `lot_id`, `prix_total`, `delai_livraison`, `source` (DAO/RFQ).
-  - `awarded = TRUE` si fournisseur retenu, `FALSE` sinon.
-  - `incident_flag` (si signalé plus tard: retard, qualité, docs manquants).
-  - Insertion dans `MARKET_INTEL`.
+👉 Test : Documentation suffisante pour transmission complète.
 
-**Structuration sortie Couche A pour alimenter mémoire:**
-- PV Word contient **balises structurées** (non visibles utilisateur, XML/JSON embedded ou DB directe):
-  - `<decision>Fournisseur X retenu sur Lot 01</decision>`
-  - `<justification>Prix compétitif + délai respecté + expérience prouvée</justification>`
-- Ces balises permettent extraction automatique décision/justification → mémoire.
+Invariant 11 — Fidélité au réel
+Le système enregistre :
 
-👉 **Mémoire se nourrit des sorties Couche A sans effort supplémentaire.**
+Ce qui s'est passé
 
-#### Source 2 — Alimentation active (surveys terrain, évolution future)
+Pas ce qui aurait dû se passer
 
-**Application mobile/web ultra-légère séparée** (future):
-- **Standards Save the Children** (design system, sécurité, accessibilité).
-- Interface < 6 champs obligatoires:
-  - Fournisseur (dropdown alimenté par base ou texte libre).
-  - Zone (dropdown).
-  - Catégorie (dropdown).
-  - Item (texte libre).
-  - Prix (numérique + devise auto FCFA).
-  - Date (auto-remplie, ajustable).
-- Champs optionnels: délai livraison, remarques.
-- **Temps de saisie cible: < 45 secondes.**
-- Données insérées dans `MARKET_INTEL` avec `source = "SURVEY"`, `case_id = NULL`, `awarded = NULL`.
+§ 3 — SCOPE V1 MVP (Strict)
+3.1 Périmètre MVP
+Processus :
 
-**Alignement SCI (implicite, jamais mentionné dans Constitution):**
-- Catégories dropdown = catégories standards Manuel Procurement SCI.
-- Zones = zones opérationnelles SCI Mali (Centre, Nord, Mopti, Bandiagara, etc.).
-- Mapping backend garantit cohérence données.
+Un seul processus par cas (DAO ou RFQ ou RFP)
 
-👉 **Application survey = outil compagnon, pas intégré V1 core. Évolution post-adoption.**
+Trois écrans max pour l'usage courant (Ingestion, Structuration, Décision/Exports)
 
-### 5.4 Fonctions autorisées (exhaustif pour V1)
+Aucun paramétrage utilisateur
 
-**Recherche factuelle simple:**
-- "Afficher tous les marchés de cartouches dans le Centre en 2024–2025."
-- "Quels fournisseurs ont déjà livré sur des FWA IT au Mali ?"
-- "Liste des décisions où un seul fournisseur était conforme (eWaiver)."
+Formats supportés :
 
-**Rappels contextuels non intrusifs:**
+Documents : PDF, Excel .xlsx, Word .docx
 
-Lors de la création d'un nouveau cas, si DAO similaire existe (même catégorie/zone/procédure):
-- Panneau latéral **"Contexte marché"** (non bloquant, fermable):
-  - "X cas similaires dans les 12 derniers mois."
-  - "Fourchette de prix observée: Y–Z FCFA (moyenne: W FCFA)."
-  - "Fournisseurs ayant déjà livré: A (3 contrats, 0 incidents), B (5 contrats, 1 retard), C (2 contrats, 0 incidents)."
-  - "Incidents récurrents: docs manquants (30% cas), retards livraison (20% cas)."
+Processus compétitifs formels uniquement (DAO/RFQ/RFP structurés)
 
-👉 **Affichage factuel, jamais prescriptif ("A est meilleur" interdit).**
+Export vers outils officiels :
 
-**Paquet audit/onboarding:**
+CBA (Comparative Bid Analysis) Save the Children
 
-Endpoint `/api/case/{case_id}/full-package`:
-- ZIP contenant:
-  - DAO/RFQ original.
-  - Toutes offres (techniques + financières).
-  - CBA généré.
-  - PV généré.
-  - Décision + justification.
-  - Éventuels eWaiver, contrats, avenants.
-- Résumé texte simple (1 page): "Marché cartouches, Centre, 8 offres, 2 conformes, FWA 3 ans non fixe avec X et Y."
+PV (Procès-Verbal) standard humanitaire/État
 
-👉 **Usage: onboarding nouveau logisticien, audit terrain, Head of Supply Chain review.**
+Périmètre décisionnel :
 
-**Market Intelligence queries:**
-- Prix moyen par catégorie/zone/période.
-- Fournisseurs fiables par catégorie/zone (nb contrats, nb incidents).
-- Cas similaires (recherche par critères multiples).
-- Alertes prix anormaux (écart > seuil vs moyenne, ex: ±30%).
+MVP s'arrête à la décision d'attribution
 
-### 5.5 Ce que la Couche B ne fait JAMAIS
+Hors scope : contract management, suivi d'exécution, gestion des avenants
 
-- ❌ Notation globale de fournisseurs (ex: "score 85/100").
-- ❌ Classement automatique ("Top 10 fournisseurs").
-- ❌ Recommandations automatiques ("choisissez X").
-- ❌ Dashboards de performance HQ pour juger personnes ou équipes.
-- ❌ Prédictions ou conseils sur "que faire".
+3.2 Interdictions explicites V1
+❌ Recommandations automatiques
+❌ Scoring global fournisseur
+❌ Dashboards HQ
+❌ Optimisation algorithmique
+❌ Multi-workflows complexes
+❌ Mode offline
+❌ Photos/WhatsApp/SMS
+❌ App Android (post-MVP)
+❌ Chatbot LLM (post-MVP)
 
-👉 **Si une feature de Couche B "suggère" une décision ou "juge" un fournisseur globalement, elle viole la Constitution.**
+§ 4 — COUCHE A : L'OUVRIER COGNITIF (Cœur produit)
+4.1 Fonctions centrales
+1. Ingestion DAO/RFQ/RFP
+Entrées :
 
-👉 **Si elle "rappelle des faits" ou "montre ce qui s'est passé avant", elle est conforme.**
+Document principal (DAO/RFQ/RFP) : PDF ou Word
 
----
+Annexes (cahier des charges, TDR) : PDF ou Word
 
-## § 6 — GOUVERNANCE DES ALERTES (Clé politique)
+Offres soumissionnaires : PDF ou Excel
 
-### 6.1 Nature des alertes
+Extraction automatique :
 
-Les alertes sont **des rappels**, jamais des accusations.
+Critères d'évaluation (techniques, financiers, administratifs)
 
-**Exemples autorisés:**
-- "Prix +65% vs moyenne historique zone/catégorie (basé sur X observations) — à vérifier."
-- "Fournisseur non observé historiquement sur cette catégorie dans cette zone."
-- "Dépôt effectué hors délai standard (tolérance possible selon contexte)."
-- "Document manquant: Attestation CNSS (requis par critère essentiel)."
+Pondérations par critère
 
-**Exemples INTERDITS:**
-- ❌ "Anomalie suspecte"
-- ❌ "Risque de fraude"
-- ❌ "Non-conformité grave"
-- ❌ "Fournisseur peu fiable"
+Lots (si multi-lots)
 
-### 6.2 Statut des alertes
+Règles d'élimination (seuils, documents obligatoires)
 
-Chaque alerte est:
-- **consultative** (pas bloquante),
-- **désactivable** par justification humaine (texte libre court ou dropdown raisons).
+Profil d'évaluation (détection automatique : fournitures, travaux, services, santé)
 
-👉 **Ignorer une alerte est un droit. Justifier l'ignorance est la seule obligation.**
+Validation humaine :
 
-### 6.3 Seuils dynamiques
+Confirmation extraction en 30 secondes max
 
-Seuils alertes (ex: ±30% prix) sont **ajustables backend** (pas par utilisateur V1).
-Basés sur:
-- densité données historiques (si < 5 observations, pas d'alerte prix),
-- variabilité observée (si écart-type élevé, seuil plus large).
+Correction manuelle si extraction < 90% confiance
 
-👉 **Alertes intelligentes, pas mécaniques.**
+Fallback manuel rapide (< 2 minutes)
 
----
+2. Pré-classement des offres
+Données capturées :
 
-## § 7 — ÉVOLUTION VERS UN ASSISTANT INTELLIGENT (LLM léger)
+Nom soumissionnaire
 
-### 7.1 Vision future
+Date/heure dépôt (horodatage strict)
 
-Le système peut évoluer vers un **assistant conversationnel intelligent** (LLM léger intégré):
-- Répondre à des questions en langage naturel ("Quels fournisseurs ont livré des kits NFI dans le Centre l'an dernier ?").
-- Générer des résumés narratifs de cas similaires.
-- Assister à la rédaction de justifications (brouillons modifiables).
-- Détecter des patterns récurrents (ex: "3 retards consécutifs sur cette catégorie dans cette zone").
+Mode de dépôt (physique, email, plateforme)
 
-**Critères déclenchement LLM:**
-- Couche A/B validée en production (adoption > 80% bureau pays).
-- Base `MARKET_INTEL` dense (> 500 entrées).
-- Budget infrastructure LLM validé.
+Lot(s) concerné(s)
 
-### 7.2 Règles d'intégration LLM
+Documents soumis (liste)
 
-**Autorisé:**
-- Réponses factuelles basées sur base de données interne uniquement (pas d'hallucination externe).
-- Génération de texte descriptif/narratif (brouillons PV, résumés, justifications).
-- Extraction améliorée de documents complexes (DAO/RFQ/offres non-standards).
-- Interaction en langage naturel pour recherche mémoire.
+Pré-classement automatique :
 
-**INTERDIT (même avec LLM):**
-- Recommandations de fournisseur ("je vous conseille X").
-- Jugements de valeur ("cette offre est meilleure").
-- Prédictions probabilistes ("X a 85% de chances de gagner").
-- Génération de scores/rankings automatiques.
+Par lot
 
-**Stratégie technique:**
-- LLM léger type Mistral 7B, Llama 3 8B, ou GPT-3.5 fine-tuné.
-- **Prompts gouvernés** (prompt engineering strict, versioning, auditable).
-- RAG (Retrieval-Augmented Generation) sur base `MARKET_INTEL` locale.
-- Aucune connexion modèles externes non contrôlés.
+Par ordre chronologique de dépôt
 
-👉 **Le LLM reste un outil d'assistance cognitive, jamais un décideur.**
+Par conformité administrative préliminaire (documents manquants flaggés)
 
-### 7.3 Garde-fou LLM
+3. Tableau d'analyse consolidé
+Structure :
 
-Toute sortie générée par LLM doit inclure explicitement:
+Soumissionnaire	Lot	Date/heure dépôt	Conformité admin	Critères techniques	Critères financiers	Note finale	Classement
+Champs pré-remplis automatiquement :
 
-> **"Ce texte a été généré avec assistance IA. La décision finale relève exclusivement du jugement humain, compte tenu du contexte opérationnel, des contraintes terrain et des informations disponibles au moment de la décision."**
+Identité soumissionnaire
 
----
+Horodatage dépôt
 
-## § 8 — CLAUSE DE SOUVERAINETÉ LOCALE
+Conformité administrative (documents reçus vs requis)
 
-**La mémoire appartient à l'entité opérationnelle locale.**
+Extraction données techniques (specs, expérience, capacité)
 
-- Pas d'export automatique vers HQ.
-- Pas de dashboard global par défaut.
-- Pas d'agrégation centrale sans accord explicite (process formal governance).
+Extraction données financières (prix unitaires, coût total, délais)
 
-**Mécanisme accord explicite:**
-- Demande écrite HQ → validation Country Director + Head of Supply Chain local.
-- Export anonymisé/agrégé uniquement (pas de données individuelles cas).
-- Tracé dans audit log.
+Calcul notes selon pondérations
 
-👉 **Le local n'est pas un sous-traitant du HQ.**
+Champs vides (humains uniquement) :
 
----
+Visite fournisseur (oui/non, date, observations)
 
-## § 9 — TEST ULTIME DE DÉRIVE (Garde-fou systématique)
+Évaluation échantillon (conformité, qualité, observations)
 
-Avant toute évolution (feature, module, intégration), poser ces **3 questions**:
+Appréciation qualitative comité
 
-1. Est-ce que cela peut être utilisé **contre un individu** ?
-2. Est-ce que cela **réduit la liberté de décision humaine** ?
-3. Est-ce que cela **centralise le pouvoir cognitif** ?
+Négociation (si applicable)
 
-👉 **Si OUI à une seule → rejet ou report Phase 3+.**
+4. Export CBA officiel (en un clic)
+Processus :
 
-**Process application:**
-- Intégré dans validation GitHub (PR template avec checklist).
-- Révision Tech Lead + Product Owner obligatoire.
-- Documentation justification si réponse "OUI" (pourquoi malgré tout acceptable, ou pourquoi rejet).
+Clic "Exporter vers CBA"
 
----
+L'outil remplit automatiquement le template CBA onglet par onglet
 
-## § 10 — CRITÈRES DE SUCCÈS V1
+Champs humains restent vides
 
-Le succès de V1 est démontré lorsque:
+Utilisateur revoit et corrige
 
-- L'utilisateur complète une tâche procurement **plus vite** (mesure: temps moyen ouverture → PV prêt < 50% temps manuel).
-- Avec **moins de fatigue mentale** (feedback qualitatif utilisateurs).
-- **Sans formation préalable** (onboarding < 15 minutes).
-- **Sans explication** pendant l'usage (taux de sollicitation support < 5%).
-- **Sans altération de son autorité décisionnelle** (aucune plainte "l'outil a décidé à ma place").
+Clic "Valider" → système enregistre "CBA terminé" (horodaté)
 
-**Mesures concrètes:**
-- Temps comité: de 3 jours (cas MOPTI-2026-01) → < 1 jour.
-- Taux adoption: > 80% bureau pays dans 6 mois.
-- Satisfaction utilisateur: > 4/5 (NPS positif).
+Possibilité de revenir corriger (horodaté aussi)
 
-👉 **Si le système nécessite une explication, il a déjà échoué.**
+Formats export :
 
----
+Excel .xlsx (CBA éditable)
 
-## § 11 — ALIGNEMENT IMPLICITE MANUEL PROCUREMENT SCI
+PDF horodaté (CBA final)
 
-**Règle stratégique:**
+5. Génération PV officielle horodatée (en un clic)
+Contenu automatique :
 
-Les règles métier du système sont **extraites et mappées** du Manuel SC-PR-02 Procurement Manual 3.2 FR (Save the Children International).
+Date, heure, lieu ouverture
 
-**Éléments mappés (backend uniquement, jamais exposés utilisateur):**
-- Types de procédures (devis simples, formels, AO ouvert/restreint, RFQ, FWA).
-- Seuils monétaires par type procédure.
-- Critères d'évaluation standards (essentiels, capacité, commerciaux, durabilité).
-- Pondérations par défaut par type procédure.
-- Documents administratifs requis (RC, NIF, CNSS, quitus, etc.).
-- Délais standards (publication, soumission, évaluation).
-- Composition comité minimum.
+Liste soumissionnaires + heure dépôt
 
-**Principe:**
-- L'utilisateur n'a **jamais à chercher dans le manuel**.
-- L'outil **applique silencieusement** les règles SCI.
-- Si conflit règle/contexte → alerte neutre + choix utilisateur (avec justification).
+Liste documents soumis par offrant
 
-**Avantage stratégique:**
-- Outil **inattaquable** en audit (conforme manuel by design).
-- Réduction charge cognitive (pas de vérification manuelle règles).
-- Évolution manuel → simple mise à jour mapping backend (pas de retraining utilisateurs).
+Résultat évaluation (extraction depuis CBA validé)
 
-👉 **L'outil connaît les règles SCI. L'utilisateur ne les voit jamais, il les applique naturellement.**
+Classement final
 
----
+Horodatage génération
 
-## § 12 — PRINCIPE DE SURVIE (Clause de clôture)
+Champs vides (humains) :
 
-Ce système doit survivre à:
-- son créateur (Abdoulaye Ousmane),
-- tout individu contributeur,
-- tout manager ou sponsor,
-- toute restructuration organisationnelle.
+Membres comité (noms, qualités)
 
-**Garanties techniques:**
-- Stack simple, documenté, standard (Python/FastAPI, SQLite→PostgreSQL, React/Vue).
-- Données lisibles (SQL standard, exports CSV/JSON).
-- Documentation complète (README, API docs, architecture docs).
-- Aucun savoir caché (pas de "magie" non documentée).
+Signatures
 
-**La vision, les invariants, et le mandat sont au-dessus de toutes les implémentations.**
+Observations particulières
 
-Les invariants ne sont:
-- ni des recommandations,
-- ni des bonnes pratiques,
-- ni des orientations.
+Formats export :
 
-👉 **Ils sont des contraintes structurelles. Si une évolution viole un invariant, elle est rejetée sans débat.**
+Word .docx (PV éditable)
 
----
+PDF horodaté et signé numériquement (PV final)
 
-## § 13 — GOUVERNANCE DE LA CONSTITUTION
+4.2 Règle fondamentale Couche A
+👉 Champs humains (visite, échantillon, appréciation) restent vides.
+👉 Cela empêche le système de dériver vers du pseudo-scoring implicite.
 
-**Processus de modification:**
+§ 5 — COUCHE B : MÉMOIRE & MARKET INTELLIGENCE
+5.1 Base MARKET_INTEL
+Structure de données :
 
-- Amendements mineurs (clarifications, exemples): Tech Lead + Product Owner.
-- Amendements majeurs (nouveaux invariants, changement scope): governance board (Country Director + Head of Supply Chain + Tech Lead + 2 utilisateurs terrain).
-- **Invariants §2 intouchables** sauf urgence absolue (justification écrite, validation unanime board).
+Champ	Type	Description
+id	UUID	Identifiant unique
+source_type	Enum	procurement / mercurial / meal_survey
+fournisseur	String	Nom fournisseur (si applicable)
+categorie	String	Catégorie produit/service
+item	String	Description item spécifique
+zone	String	Zone géographique
+prix	Float	Prix (avec unité)
+delais	Integer	Délais livraison (jours)
+date	Date	Date de la donnée
+source_detail	String	Détail source (numéro DAO, nom mercurial, équipe MEAL)
+lien_cas	String	Lien vers processus Couche A (si applicable)
+timestamp	Timestamp	Horodatage insertion
+5.2 Sources de vérité autorisées
+Source 1 : Procurement réel (automatique)
+Alimentation : Automatique après clôture d'un processus Couche A
 
-**Versioning:**
-- Format: X.Y (X = majeur, Y = mineur).
-- Chaque version datée, tracée Git, changelog public.
-- Version actuelle toujours accessible dans `CONSTITUTION.md` repo racine.
+Données capturées :
 
----
+Fournisseur retenu
 
-## § 14 — STATUT DU DOCUMENT
+Catégorie
 
-- **Version: 1.2 (Production-ready)**
-- **Date: 6 février 2026**
-- **Statut: FROZEN (évolutive sous invariants uniquement)**
-- **Modification: uniquement via processus gouvernance §13**
-- **Rôle: Référence ultime du projet**
+Items + prix unitaires
 
----
+Zone
 
+Délais
+
+Date processus
+
+Lien vers dossier complet Couche A
+
+Principe : Zéro action utilisateur.
+
+Source 2 : Mercurials / Référentiels prix (manuelle)
+Alimentation : Import CSV ou saisie par procurement manager
+
+Format CSV attendu :
+
+text
+categorie,item,zone,prix,unite,date,source
+Fournitures,Ciment 50kg,Bamako,6500,FCFA/sac,2026-02-01,Mercurial BTP Mali
+Principe : Gestionnaire de l'outil ou procurement peut importer sans dépendre d'un processus actif.
+
+Source 3 : Enquêtes MEAL / Programmes (utilisateurs terrain)
+Alimentation : App Android ultra-légère (POST-MVP V1.1)
+
+Interface utilisateur :
+
+Champs : Item, Prix, Zone, Marché (optionnel)
+
+Clic "Enregistrer" → base s'alimente
+
+Aucun accès aux autres fonctions système
+
+Anonymisation : L'outil ne cite jamais le nom de l'utilisateur, seulement "source MEAL" + date.
+
+Principe : Fenêtre dédiée, utilisateurs limités aux fonctions MEAL, pas plus.
+
+5.3 Périmètre MVP (V1.0)
+Sources actives en MVP :
+
+✅ Source 1 (automatique) : Procurement réel → alimentation automatique
+
+✅ Source 2 (import CSV) : Mercurials → import manuel
+
+Post-MVP (V1.1+) :
+3. ❌ Source 3 (app Android) : Enquêtes MEAL/Programmes
+4. ❌ Chatbot LLM : Recherche en langage naturel
+
+Interface Couche B MVP :
+
+Recherche structurée simple (filtres : catégorie, zone, plage de dates)
+
+Affichage résultats avec source identifiée : "Prix ciment 50kg Bamako : 6500 FCFA (source MEAL, 3 fév 2026)"
+
+Export CSV des résultats
+
+5.4 Règles de séparation Couche A / Couche B
+👉 Aucune donnée de la Couche B n'altère les calculs de la Couche A.
+👉 Aucune fusion aveugle des sources : chaque donnée reste typée et sourcée.
+👉 La Couche B se manifeste uniquement sur requête utilisateur, jamais de manière proactive.
+
+§ 6 — ALERTES (Consultatives uniquement)
+6.1 Principe général
+Alertes factuelles uniquement
+
+Jamais bloquantes
+
+Désactivables avec justification humaine
+
+6.2 Types d'alertes autorisées (exemples)
+"Prix proposé 40% inférieur à la médiane des 6 derniers mois (source Couche B)" → flag pour vérification humaine
+
+"Document manquant : agrément technique" → rappel conformité administrative
+
+"Délai proposé 50% supérieur à la moyenne marché" → information contextuelle
+
+6.3 Test de dérive obligatoire
+Toute nouvelle alerte passe par le Test de dérive § 9 :
+
+Peut-on l'utiliser contre un individu ?
+
+Réduit-elle la liberté décisionnelle ?
+
+Centralise-t-elle le pouvoir cognitif ?
+
+👉 Oui à une seule → alerte rejetée.
+
+§ 7 — ÉVOLUTION LLM (Post-validation MVP)
+7.1 LLM autorisé uniquement pour
+Recherche en langage naturel dans Couche B
+
+Résumés factuels
+
+Assistance rédactionnelle (PV, notes)
+
+7.2 LLM interdit pour
+Recommandation
+
+Scoring
+
+Prédiction
+
+Décision
+
+7.3 Chatbot LLM (V1.1 post-MVP)
+Use case principal : Solution au turnover
+
+Exemple d'interaction :
+
+Utilisateur : "Comment on évalue un marché de fournitures scolaires ?"
+
+Chatbot : "Voici les 3 derniers DAO fournitures scolaires traités : critères utilisés (30% technique, 50% financier, 20% admin), pondérations, prix moyens (cahiers 250 FCFA/unité, stylos 100 FCFA), délais moyens (15 jours)."
+
+👉 Le chatbot rappelle des faits, ne recommande jamais.
+
+§ 8 — SOUVERAINETÉ DES DONNÉES
+Données locales par défaut
+
+Aucun export HQ automatique
+
+Agrégation uniquement sur accord formel écrit
+
+Option self-hosted obligatoire pour États/mines/organisations sensibles
+
+§ 9 — TEST DE DÉRIVE (Garde-fou éthique)
+Avant toute évolution fonctionnelle :
+
+Peut-on l'utiliser contre un individu ?
+
+Réduit-elle la liberté décisionnelle ?
+
+Centralise-t-elle le pouvoir cognitif ?
+
+👉 Oui à une seule → rejet immédiat.
+
+§ 10 — CRITÈRES DE SUCCÈS V1 MVP
+10.1 Adoption
+80%+ des utilisateurs pilotes utilisent le système sans rappel après 2 semaines
+
+Zéro formation : utilisateur expert autonome en < 15 minutes
+
+10.2 Performance
+50%+ réduction du temps de préparation (ingestion → export CBA) vs Excel
+
+Plus rapide qu'Excel à usage égal
+
+10.3 Fiabilité
+95%+ des champs critiques (critères, pondérations, lots) extraits correctement
+
+Fallback manuel rapide (< 2 minutes) si extraction < 90% confiance
+
+10.4 Charge cognitive
+40%+ réduction de la charge cognitive (score NASA-TLX ou équivalent)
+
+Fatigue mentale réduite
+
+10.5 Conformité
+Export CBA/PV acceptés sans modification par compliance
+
+Traçabilité complète (horodatage, append-only)
+
+10.6 ROI perçu
+80%+ des early adopters disent "je ne reviendrais pas à Excel"
+
+§ 11 — STATUT CONSTITUTIONNEL
+Version : 1.4
+Statut : FROZEN
+Référence ultime : Ce document est la référence ultime du projet
+
+"This system protects organizations from forgetting, not from their people."
+
+§ 12 — MOTEUR DE RÈGLES MÉTIER (Rules Engine)
+12.1 Profils d'évaluation pré-encodés
+L'outil contient des profils d'évaluation qui s'activent automatiquement selon le type de marché détecté dans le DAO/RFQ/RFP.
+
+Profils MVP (à encoder après réception des manuels) :
+
+Profil	Critères techniques	Critères financiers	Critères administratifs	Pondération défaut
+Fournitures courantes	Conformité specs + échantillon	Prix unitaire + coût total	Agrément + documents légaux	30% / 50% / 20%
+Travaux/construction	Capacité technique + expérience	Prix + délais	Agrément BTP + assurance	40% / 40% / 20%
+Services consulting	Expérience + CV équipe	Prix journalier + coût total	Documents légaux	50% / 30% / 20%
+Médicaments/santé	Conformité réglementaire + certification	Prix + délais	Agrément sanitaire + traçabilité	40% / 40% / 20%
+Note : Ces profils seront affinés selon les manuels Save the Children, UN standards, et règlementation État Mali.
+
+12.2 Règles d'élimination automatique
+L'outil applique automatiquement les critères d'élimination avant l'évaluation :
+
+Éliminations strictes (flags rouges) :
+
+Document obligatoire manquant (liste définie dans DAO/RFQ)
+
+Soumission hors délai (horodatage)
+
+Non-conformité technique majeure (spécifications techniques non respectées)
+
+Alertes pour vérification humaine (flags orange) :
+
+Prix anormalement bas (< 50% de la médiane, source Couche B si disponible)
+
+Délais anormalement courts ou longs (± 50% de la médiane)
+
+Expérience déclarée non vérifiable
+
+12.3 Lexique canonique procurement
+L'outil comprend nativement les termes métier suivants :
+
+Terme	Définition opérationnelle
+DAO	Dossier d'Appel d'Offres = processus formel marché public/humanitaire (> seuil formel)
+RFQ	Request for Quotation = demande de prix simple (< seuil formel, 3 devis min)
+RFP	Request for Proposal = appel à propositions techniques + financières (services intellectuels)
+Lot	Subdivision d'un marché (géographique, technique, ou temporelle)
+CBA	Comparative Bid Analysis = tableau comparatif officiel (Save the Children, UN)
+PV	Procès-Verbal = document d'ouverture et d'évaluation horodaté
+TDR	Termes de Référence = cahier des charges services/consulting
+Cahier des charges	Spécifications techniques fournitures/travaux
+Soumissionnaire	Fournisseur ayant déposé une offre
+Attributaire	Fournisseur retenu après évaluation
+Comité d'évaluation	Groupe d'experts évaluant les offres (3-5 personnes min selon procédures)
+12.4 Grammaire d'évaluation
+L'outil sait interpréter automatiquement les structures de pondération suivantes :
+
+Critères binaires (Go/No-Go)
+Conforme / Non conforme → éliminatoire
+
+Exemples : agrément technique, documents légaux obligatoires, délai maximum
+
+Critères scorés (notation)
+Échelle 0-100 avec coefficients
+
+Exemples : expérience (0-20 points), capacité technique (0-30 points)
+
+Critères combinés (notes composites)
+Note technique (ex: 70%) + note financière (ex: 30%) → note finale
+
+Formule : Note finale = (Note technique × 0.7) + (Note financière × 0.3)
+
+Règles de seuil (notes minimales)
+Note technique minimum (ex: 70/100) pour être éligible à l'évaluation financière
+
+Si note technique < seuil → élimination automatique, même si prix le plus bas
+
+Évaluation financière (formules courantes)
+Méthode 1 : Prix le plus bas = 100 points
+
+text
+Note financière = (Prix le plus bas / Prix offre) × 100
+Méthode 2 : Moyenne pondérée
+
+text
+Note financière = 100 - ((Prix offre - Prix le plus bas) / Prix le plus bas) × 100
+👉 L'outil détecte la méthode utilisée dans le DAO/RFQ et applique la formule correspondante.
+
+12.5 Détection automatique du profil
+Processus :
+
+Extraction du titre + objet marché (DAO/RFQ/RFP)
+
+Analyse des mots-clés (fournitures, travaux, services, médicaments, etc.)
+
+Détection critères d'évaluation présents
+
+Attribution profil le plus proche
+
+Si incertain : L'outil demande confirmation humaine (1 clic pour sélectionner le profil).
+
+Fallback : Si aucun profil ne correspond, l'outil utilise les critères extraits du DAO/RFQ sans appliquer de profil pré-encodé.
+
+12.6 Évolutivité des règles
+Principe : Les règles métier, lexique et grammaire sont configurables sans toucher au code.
+
+Implémentation technique :
+
+Fichiers JSON ou YAML (règles, profils, lexique)
+
+Interface admin simple pour ajouter/modifier profils (post-MVP)
+
+Versioning des règles (append-only)
+
+👉 Permet l'adaptation à de nouvelles organisations (UN, Banque Mondiale, etc.) sans refonte technique.
+
+§ 13 — MAPPING TEMPLATES OFFICIELS
+13.1 Template CBA (Comparative Bid Analysis)
+Note : Le mapping exact sera documenté après réception du template CBA réel Save the Children.
+
+Structure générique attendue :
+
+Onglet	Contenu	Source Couche A	Champs humains (vides)
+1. Informations générales	Titre marché, date ouverture, comité	Extraction DAO + metadata processus	Membres comité (noms, signatures)
+2. Liste soumissionnaires	Nom, date/heure dépôt, lot(s)	Pré-classement Couche A	Conformité administrative (validation)
+3. Analyse technique	Critères techniques + scoring	Extraction cahier charges + offres	Visite fournisseur, évaluation échantillon
+4. Analyse financière	Prix unitaires, coût total, délais	Extraction offres financières	Négociation (si applicable)
+5. Synthèse & recommandation	Tableau récapitulatif notes + classement	Calcul automatique Couche A	Appréciation qualitative comité
+Principe de mapping : Chaque cellule du CBA est mappée à un champ de la Couche A.
+
+13.2 Génération PV officiel
+Contenu automatique :
+
+En-tête : Organisation, titre marché, référence DAO/RFQ/RFP
+
+Date, heure, lieu ouverture
+
+Liste soumissionnaires + heure dépôt (ordre chronologique)
+
+Liste documents soumis par offrant (check-list)
+
+Résultat évaluation (extraction depuis CBA validé)
+
+Classement final (1er, 2ème, 3ème)
+
+Fournisseur retenu + montant
+
+Horodatage génération PV
+
+Champs vides (humains) :
+
+Membres comité (noms, qualités, signatures)
+
+Observations particulières du comité
+
+Réserves ou conditions d'attribution
+
+Formats d'export :
+
+Word .docx (éditable)
+
+PDF horodaté et signé numériquement (final)
+
+13.3 Formats d'export supportés
+Document	Format éditable	Format final	Signature numérique
+CBA	Excel .xlsx	PDF	Non
+PV	Word .docx	PDF	Oui (horodatage)
+§ 14 — ARCHITECTURE TECHNIQUE MVP (Minimum Viable Architecture)
+14.1 Stack recommandé
+Backend :
+
+Python (FastAPI ou Django)
+
+PostgreSQL (base append-only, séparation Couche A / Couche B)
+
+Celery (optionnel, traitement asynchrone documents lourds)
+
+Frontend :
+
+React ou Vue.js (3 écrans, zéro configuration)
+
+Design system minimal (Tailwind ou shadcn/ui)
+
+IA/ML (activable, non structurant) :
+
+OCR : Tesseract ou Azure Document Intelligence
+
+LLM (optionnel post-MVP) : OpenAI API ou Anthropic
+
+Déploiement :
+
+Docker + Docker Compose
+
+Option Cloud : AWS/Azure/GCP (région configurable pour souveraineté)
+
+Option Self-hosted : VM cliente (crucial pour États/mines)
+
+14.2 Séparation Couche A / Couche B
+Base de données :
+
+Schema couche_a : Processus actifs (DAO/RFQ/RFP en cours)
+
+Schema couche_b : Market intelligence (historique prix/délais/fournisseurs)
+
+APIs internes distinctes :
+
+/api/v1/couche_a/* : Ingestion, extraction, structuration, export
+
+/api/v1/couche_b/* : Recherche mémoire, import mercurials
+
+👉 Zéro dépendance de A vers B.
+
+14.3 Sécurité & souveraineté
+Auth robuste (pas de Google OAuth si clients États/mines)
+
+Données stockées localement par défaut
+
+Option self-hosted dès V1
+
+Logs append-only avec anonymisation données sensibles
+
+Encryption at rest + in transit
+
+§ 15 — ROADMAP MVP (12-16 semaines)
+Phase 1 : Durcissement technique (3-4 semaines)
+Architecture MVA (Minimum Viable Architecture)
+
+Database append-only (PostgreSQL)
+
+Document ingestion pipeline (OCR + fallback manuel)
+
+Export engine (CBA/PV mapping)
+
+Migration Replit → GitHub + Docker
+
+Phase 2 : Core product UX (3-4 semaines)
+3 écrans (Ingestion, Structuration, Décision/Exports)
+
+Validation "zéro formation" + "plus rapide qu'Excel"
+
+Prototype utilisable par procurement officers experts
+
+Phase 3 : Couche B opérationnelle (2-3 semaines)
+Base MARKET_INTEL production
+
+Sources 1-2 actives (procurement réel + mercurials)
+
+Recherche structurée simple
+
+Phase 4 : Validation terrain (2-3 semaines)
+5-10 early adopters (ONG, État, mine/entreprise)
+
+Métriques succès MVP
+
+Build-Measure-Learn (cadence hebdomadaire)
+
+§ 16 — CHECKLIST GO / NO-GO MVP → PRODUIT
+✅ 1. Adoption naturelle : 70%+ early adopters utilisent sans relance
+✅ 2. Vitesse : 50%+ réduction temps préparation vs Excel
+✅ 3. Fiabilité : 95%+ champs critiques extraits correctement
+✅ 4. Zéro formation : expert autonome en < 15 min
+✅ 5. Export conforme : CBA/PV acceptés sans modification
+✅ 6. Couche B non intrusive : aucune plainte "trop de mémoire"
+✅ 7. Infrastructure stable : 99%+ uptime sur 4 semaines
+✅ 8. Sécurité OK : audit basique passé
+✅ 9. Test de dérive : aucune feature ne viole les invariants
+✅ 10. ROI perçu : 80%+ disent "je ne reviendrais pas à Excel"
+
+👉 Si < 8/10 validés → rester en MVP et itérer
+👉 Si 8-9/10 → go produit avec monitoring renforcé
+👉 Si 10/10 → go produit + préparation scale
+
+FIN CONSTITUTION V1.4
 **© 2026 — Decision Memory System — Constitution V1.2**
 
 *This system protects organizations from forgetting, not from their people.*
