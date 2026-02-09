@@ -1331,6 +1331,10 @@ def decide(payload: DecideRequest):
         case = conn.execute("SELECT * FROM cases WHERE id=?", (case_id,)).fetchone()
     if not case:
         raise HTTPException(status_code=404, detail="case not found")
+    
+    # Vérifier si déjà décidé (idempotence)
+    if case["status"] == "decided":
+        raise HTTPException(status_code=409, detail="Case already decided. Cannot modify decision.")
 
     decision = {
         "chosen_supplier": payload.chosen_supplier.strip(),
@@ -1340,6 +1344,11 @@ def decide(payload: DecideRequest):
         "human_final": True,
     }
     add_memory(case_id, "decision", decision)
+    
+    # Transition d'état: open → decided
+    with db() as conn:
+        conn.execute("UPDATE cases SET status='decided' WHERE id=?", (case_id,))
+        conn.commit()
 
     # Get latest extraction data
     with db() as conn:
