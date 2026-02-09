@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import re
-import sqlite3
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -14,12 +13,17 @@ from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from sqlalchemy import text
+
 from docx import Document
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
 from openpyxl.utils import get_column_letter
 
 from pypdf import PdfReader
+
+# Database abstraction (SQLite dev / PostgreSQL prod)
+from src.db import engine, init_db as init_db_schema
 
 
 # =========================================================
@@ -35,7 +39,6 @@ BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"
 UPLOADS_DIR = DATA_DIR / "uploads"
 OUTPUTS_DIR = DATA_DIR / "outputs"
-DB_PATH = DATA_DIR / "dms.sqlite3"
 
 DATA_DIR.mkdir(exist_ok=True)
 UPLOADS_DIR.mkdir(exist_ok=True)
@@ -66,103 +69,29 @@ INVARIANTS = {
 # =========================
 # Database
 # =========================
-def db() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+# Note: Database layer migrated to src/db.py (SQLAlchemy)
+# Compatible SQLite (dev) + PostgreSQL (prod) via DATABASE_URL
+
+def db_execute(query: str, params: tuple = ()) -> List[dict]:
+    """Execute SELECT query and return rows as dicts"""
+    with engine.connect() as conn:
+        result = conn.execute(text(query), dict(enumerate(params)) if params else {})
+        return [dict(row._mapping) for row in result]
 
 
-def init_db() -> None:
-    with db() as conn:
-        cur = conn.cursor()
-
-        # Cases (unchanged)
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS cases (
-            id TEXT PRIMARY KEY,
-            case_type TEXT NOT NULL,
-            title TEXT NOT NULL,
-            lot TEXT,
-            created_at TEXT NOT NULL,
-            status TEXT NOT NULL
-        )
-        """)
-
-        # Artifacts (unchanged)
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS artifacts (
-            id TEXT PRIMARY KEY,
-            case_id TEXT NOT NULL,
-            kind TEXT NOT NULL,
-            filename TEXT NOT NULL,
-            path TEXT NOT NULL,
-            uploaded_at TEXT NOT NULL,
-            meta_json TEXT,
-            FOREIGN KEY(case_id) REFERENCES cases(id)
-        )
-        """)
-
-        # Memory entries (unchanged)
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS memory_entries (
-            id TEXT PRIMARY KEY,
-            case_id TEXT NOT NULL,
-            entry_type TEXT NOT NULL,
-            content_json TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(case_id) REFERENCES cases(id)
-        )
-        """)
-
-        # NEW: DAO Criteria (structured extraction)
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS dao_criteria (
-            id TEXT PRIMARY KEY,
-            case_id TEXT NOT NULL,
-            categorie TEXT NOT NULL,
-            critere_nom TEXT NOT NULL,
-            description TEXT,
-            ponderation REAL NOT NULL,
-            type_reponse TEXT NOT NULL,
-            seuil_elimination REAL,
-            ordre_affichage INTEGER DEFAULT 0,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(case_id) REFERENCES cases(id)
-        )
-        """)
-
-        # NEW: CBA Template Schemas (template learning)
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS cba_template_schemas (
-            id TEXT PRIMARY KEY,
-            case_id TEXT NOT NULL,
-            template_name TEXT NOT NULL,
-            structure_json TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            reused_count INTEGER DEFAULT 0,
-            FOREIGN KEY(case_id) REFERENCES cases(id)
-        )
-        """)
-
-        # NEW: Offer Extractions (DAO-guided data)
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS offer_extractions (
-            id TEXT PRIMARY KEY,
-            case_id TEXT NOT NULL,
-            artifact_id TEXT NOT NULL,
-            supplier_name TEXT NOT NULL,
-            extracted_data_json TEXT NOT NULL,
-            missing_fields_json TEXT,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(case_id) REFERENCES cases(id),
-            FOREIGN KEY(artifact_id) REFERENCES artifacts(id)
-        )
-        """)
-
-        conn.commit()
+def db_execute_one(query: str, params: tuple = ()) -> Optional[dict]:
+    """Execute SELECT query and return single row as dict"""
+    rows = db_execute(query, params)
+    return rows[0] if rows else None
 
 
-init_db()
+def db_write(query: str, params: tuple = ()) -> None:
+    """Execute INSERT/UPDATE/DELETE query"""
+    with engine.begin() as conn:
+        conn.execute(text(query), dict(enumerate(params)) if params else {})
+
+
+init_db_schema()
 
 
 # =========================
@@ -257,57 +186,51 @@ def safe_save_upload(case_id: str, kind: str, up: UploadFile) -> Tuple[str, str]
 
 def register_artifact(case_id: str, kind: str, filename: str, path: str, meta: Optional[dict] = None) -> str:
     artifact_id = str(uuid.uuid4())
-    with db() as conn:
-        conn.execute("""
-            INSERT INTO artifacts (id, case_id, kind, filename, path, uploaded_at, meta_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            artifact_id, case_id, kind, filename, path,
-            datetime.utcnow().isoformat(),
-            json.dumps(meta or {}, ensure_ascii=False),
-        ))
-        conn.commit()
+    db_write("""
+        INSERT INTO artifacts (id, case_id, kind, filename, path, uploaded_at, meta_json)
+        VALUES (:0, :1, :2, :3, :4, :5, :6)
+    """, (
+        artifact_id, case_id, kind, filename, path,
+        datetime.utcnow().isoformat(),
+        json.dumps(meta or {}, ensure_ascii=False),
+    ))
     return artifact_id
 
 
-def get_artifacts(case_id: str, kind: Optional[str] = None) -> List[sqlite3.Row]:
-    with db() as conn:
-        if kind:
-            return conn.execute(
-                "SELECT * FROM artifacts WHERE case_id=? AND kind=? ORDER BY uploaded_at DESC",
-                (case_id, kind),
-            ).fetchall()
-        return conn.execute(
-            "SELECT * FROM artifacts WHERE case_id=? ORDER BY uploaded_at DESC",
-            (case_id,),
-        ).fetchall()
+def get_artifacts(case_id: str, kind: Optional[str] = None) -> List[dict]:
+    if kind:
+        return db_execute(
+            "SELECT * FROM artifacts WHERE case_id=:0 AND kind=:1 ORDER BY uploaded_at DESC",
+            (case_id, kind)
+        )
+    return db_execute(
+        "SELECT * FROM artifacts WHERE case_id=:0 ORDER BY uploaded_at DESC",
+        (case_id,)
+    )
 
 
 def add_memory(case_id: str, entry_type: str, content: dict) -> str:
     mem_id = str(uuid.uuid4())
-    with db() as conn:
-        conn.execute("""
-            INSERT INTO memory_entries (id, case_id, entry_type, content_json, created_at)
-            VALUES (?, ?, ?, ?, ?)
-        """, (
-            mem_id, case_id, entry_type,
-            json.dumps(content, ensure_ascii=False),
-            datetime.utcnow().isoformat(),
-        ))
-        conn.commit()
+    db_write("""
+        INSERT INTO memory_entries (id, case_id, entry_type, content_json, created_at)
+        VALUES (:0, :1, :2, :3, :4)
+    """, (
+        mem_id, case_id, entry_type,
+        json.dumps(content, ensure_ascii=False),
+        datetime.utcnow().isoformat(),
+    ))
     return mem_id
 
 
 def list_memory(case_id: str, entry_type: Optional[str] = None) -> List[dict]:
-    with db() as conn:
-        if entry_type:
-            rows = conn.execute("""
-                SELECT * FROM memory_entries WHERE case_id=? AND entry_type=? ORDER BY created_at DESC
-            """, (case_id, entry_type)).fetchall()
-        else:
-            rows = conn.execute("""
-                SELECT * FROM memory_entries WHERE case_id=? ORDER BY created_at DESC
-            """, (case_id,)).fetchall()
+    if entry_type:
+        rows = db_execute("""
+            SELECT * FROM memory_entries WHERE case_id=:0 AND entry_type=:1 ORDER BY created_at DESC
+        """, (case_id, entry_type))
+    else:
+        rows = db_execute("""
+            SELECT * FROM memory_entries WHERE case_id=:0 ORDER BY created_at DESC
+        """, (case_id,))
 
     return [dict(r) | {"content": json.loads(r["content_json"])} for r in rows]
 
@@ -839,18 +762,16 @@ def fill_cba_adaptive(
     schema = analyze_cba_template(template_path)
 
     # Save schema to DB for future learning
-    with db() as conn:
-        conn.execute("""
-            INSERT INTO cba_template_schemas (id, case_id, template_name, structure_json, created_at)
-            VALUES (?, ?, ?, ?, ?)
-        """, (
-            schema.template_id,
-            case_id,
-            schema.template_name,
-            json.dumps(asdict(schema), ensure_ascii=False),
-            datetime.utcnow().isoformat()
-        ))
-        conn.commit()
+    db_write("""
+        INSERT INTO cba_template_schemas (id, case_id, template_name, structure_json, created_at)
+        VALUES (:0, :1, :2, :3, :4)
+    """, (
+        schema.template_id,
+        case_id,
+        schema.template_name,
+        json.dumps(asdict(schema), ensure_ascii=False),
+        datetime.utcnow().isoformat()
+    ))
 
     # Load template
     wb = load_workbook(template_path)
@@ -1095,12 +1016,10 @@ def create_case(payload: CaseCreate):
     case_id = str(uuid.uuid4())
     now = datetime.utcnow().isoformat()
 
-    with db() as conn:
-        conn.execute("""
-            INSERT INTO cases (id, case_type, title, lot, created_at, status)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (case_id, case_type, payload.title.strip(), payload.lot, now, "open"))
-        conn.commit()
+    db_write("""
+        INSERT INTO cases (id, case_type, title, lot, created_at, status)
+        VALUES (:0, :1, :2, :3, :4, :5)
+    """, (case_id, case_type, payload.title.strip(), payload.lot, now, "open"))
 
     return {
         "id": case_id,
@@ -1114,31 +1033,26 @@ def create_case(payload: CaseCreate):
 
 @app.get("/api/cases")
 def list_cases():
-    with db() as conn:
-        rows = conn.execute("SELECT * FROM cases ORDER BY created_at DESC").fetchall()
-    return [dict(r) for r in rows]
+    return db_execute("SELECT * FROM cases ORDER BY created_at DESC")
 
 
 @app.get("/api/cases/{case_id}")
 def get_case(case_id: str):
-    with db() as conn:
-        c = conn.execute("SELECT * FROM cases WHERE id=?", (case_id,)).fetchone()
+    c = db_execute_one("SELECT * FROM cases WHERE id=:0", (case_id,))
     if not c:
         raise HTTPException(status_code=404, detail="case not found")
 
-    arts = [dict(a) for a in get_artifacts(case_id)]
+    arts = get_artifacts(case_id)
     mem = list_memory(case_id)
 
     # Get DAO criteria if analyzed
-    with db() as conn:
-        criteria_rows = conn.execute(
-            "SELECT * FROM dao_criteria WHERE case_id=? ORDER BY ordre_affichage",
-            (case_id,)
-        ).fetchall()
-    criteria = [dict(r) for r in criteria_rows]
+    criteria = db_execute(
+        "SELECT * FROM dao_criteria WHERE case_id=:0 ORDER BY ordre_affichage",
+        (case_id,)
+    )
 
     return {
-        "case": dict(c),
+        "case": c,
         "artifacts": arts,
         "memory": mem,
         "dao_criteria": criteria
@@ -1147,8 +1061,7 @@ def get_case(case_id: str):
 
 @app.post("/api/upload/{case_id}/{kind}")
 def upload(case_id: str, kind: str, file: UploadFile = File(...)):
-    with db() as conn:
-        c = conn.execute("SELECT id FROM cases WHERE id=?", (case_id,)).fetchone()
+    c = db_execute_one("SELECT id FROM cases WHERE id=:0", (case_id,))
     if not c:
         raise HTTPException(status_code=404, detail="case not found")
 
@@ -1175,8 +1088,7 @@ def analyze(payload: AnalyzeRequest):
     """
     case_id = payload.case_id
 
-    with db() as conn:
-        case = conn.execute("SELECT * FROM cases WHERE id=?", (case_id,)).fetchone()
+    case = db_execute_one("SELECT * FROM cases WHERE id=:0", (case_id,))
     if not case:
         raise HTTPException(status_code=404, detail="case not found")
 
@@ -1190,18 +1102,16 @@ def analyze(payload: AnalyzeRequest):
     dao_criteria = extract_dao_criteria_structured(dao_text)
 
     # Store criteria in DB
-    with db() as conn:
-        for c in dao_criteria:
-            conn.execute("""
-                INSERT INTO dao_criteria 
-                (id, case_id, categorie, critere_nom, description, ponderation, type_reponse, seuil_elimination, ordre_affichage, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                str(uuid.uuid4()), case_id, c.categorie, c.critere_nom, c.description,
-                c.ponderation, c.type_reponse, c.seuil_elimination, c.ordre_affichage,
-                datetime.utcnow().isoformat()
-            ))
-        conn.commit()
+    for c in dao_criteria:
+        db_write("""
+            INSERT INTO dao_criteria 
+            (id, case_id, categorie, critere_nom, description, ponderation, type_reponse, seuil_elimination, ordre_affichage, created_at)
+            VALUES (:0, :1, :2, :3, :4, :5, :6, :7, :8, :9)
+        """, (
+            str(uuid.uuid4()), case_id, c.categorie, c.critere_nom, c.description,
+            c.ponderation, c.type_reponse, c.seuil_elimination, c.ordre_affichage,
+            datetime.utcnow().isoformat()
+        ))
 
     # Step 2: Offers extraction (DAO-guided) + SUBTYPE DETECTION
     offer_arts = get_artifacts(case_id, "offer")
@@ -1227,17 +1137,15 @@ def analyze(payload: AnalyzeRequest):
         })
 
         # Store extraction in DB
-        with db() as conn:
-            conn.execute("""
-                INSERT INTO offer_extractions (id, case_id, artifact_id, supplier_name, extracted_data_json, missing_fields_json, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                str(uuid.uuid4()), case_id, off["id"], supplier_name,
-                json.dumps({**offer_data, "subtype": asdict(subtype)}, ensure_ascii=False),
-                json.dumps(offer_data.get("missing_fields", []), ensure_ascii=False),
-                datetime.utcnow().isoformat()
-            ))
-            conn.commit()
+        db_write("""
+            INSERT INTO offer_extractions (id, case_id, artifact_id, supplier_name, extracted_data_json, missing_fields_json, created_at)
+            VALUES (:0, :1, :2, :3, :4, :5, :6)
+        """, (
+            str(uuid.uuid4()), case_id, off["id"], supplier_name,
+            json.dumps({**offer_data, "subtype": asdict(subtype)}, ensure_ascii=False),
+            json.dumps(offer_data.get("missing_fields", []), ensure_ascii=False),
+            datetime.utcnow().isoformat()
+        ))
 
     # CRITIQUE: Agrégation par fournisseur (gestion offres partielles)
     supplier_packages = aggregate_supplier_packages(raw_offers)
@@ -1327,8 +1235,7 @@ def decide(payload: DecideRequest):
     """Record human decision and regenerate PV"""
     case_id = payload.case_id
 
-    with db() as conn:
-        case = conn.execute("SELECT * FROM cases WHERE id=?", (case_id,)).fetchone()
+    case = db_execute_one("SELECT * FROM cases WHERE id=:0", (case_id,))
     if not case:
         raise HTTPException(status_code=404, detail="case not found")
     
@@ -1346,20 +1253,17 @@ def decide(payload: DecideRequest):
     add_memory(case_id, "decision", decision)
     
     # Transition d'état: open → decided
-    with db() as conn:
-        conn.execute("UPDATE cases SET status='decided' WHERE id=?", (case_id,))
-        conn.commit()
+    db_write("UPDATE cases SET status='decided' WHERE id=:0", (case_id,))
 
     # Get latest extraction data
-    with db() as conn:
-        extractions = conn.execute(
-            "SELECT * FROM offer_extractions WHERE case_id=?",
-            (case_id,)
-        ).fetchall()
-        criteria_rows = conn.execute(
-            "SELECT * FROM dao_criteria WHERE case_id=?",
-            (case_id,)
-        ).fetchall()
+    extractions = db_execute(
+        "SELECT * FROM offer_extractions WHERE case_id=:0",
+        (case_id,)
+    )
+    criteria_rows = db_execute(
+        "SELECT * FROM dao_criteria WHERE case_id=:0",
+        (case_id,)
+    )
 
     suppliers = []
     for ext in extractions:
