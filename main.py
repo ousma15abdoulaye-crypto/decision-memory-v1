@@ -72,10 +72,34 @@ INVARIANTS = {
 # Note: Database layer migrated to src/db.py (SQLAlchemy)
 # Compatible SQLite (dev) + PostgreSQL (prod) via DATABASE_URL
 
+def transform_numeric_placeholders(query: str, params: tuple) -> Tuple[str, dict]:
+    """
+    Transforme placeholders numériques (:0, :1) en nommés (:p0, :p1)
+    Compatible PostgreSQL + SQLAlchemy text()
+    
+    Input:  query="SELECT * FROM t WHERE id=:0 AND name=:1", params=("abc", "xyz")
+    Output: query2="SELECT * FROM t WHERE id=:p0 AND name=:p1", bind={"p0":"abc","p1":"xyz"}
+    """
+    if not params:
+        return query, {}
+    
+    # Remplacer :0 → :p0, :1 → :p1, etc.
+    query_transformed = query
+    for i in range(len(params)):
+        # Utiliser word boundary pour éviter :10 → :p10 → :p1p0
+        query_transformed = re.sub(rf':({i})\b', rf':p\1', query_transformed)
+    
+    # Construire dict de binding {"p0": val0, "p1": val1, ...}
+    bind_dict = {f"p{i}": params[i] for i in range(len(params))}
+    
+    return query_transformed, bind_dict
+
+
 def db_execute(query: str, params: tuple = ()) -> List[dict]:
     """Execute SELECT query and return rows as dicts"""
+    query_transformed, bind_dict = transform_numeric_placeholders(query, params)
     with engine.connect() as conn:
-        result = conn.execute(text(query), dict(enumerate(params)) if params else {})
+        result = conn.execute(text(query_transformed), bind_dict)
         return [dict(row._mapping) for row in result]
 
 
@@ -87,8 +111,9 @@ def db_execute_one(query: str, params: tuple = ()) -> Optional[dict]:
 
 def db_write(query: str, params: tuple = ()) -> None:
     """Execute INSERT/UPDATE/DELETE query"""
+    query_transformed, bind_dict = transform_numeric_placeholders(query, params)
     with engine.begin() as conn:
-        conn.execute(text(query), dict(enumerate(params)) if params else {})
+        conn.execute(text(query_transformed), bind_dict)
 
 
 init_db_schema()
