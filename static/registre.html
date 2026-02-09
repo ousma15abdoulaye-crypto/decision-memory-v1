@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Registre des Décisions — DMS</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>📋 Registre des Décisions</h1>
+    <p class="muted">
+      Historique complet des cas traités et décisions validées.
+    </p>
+
+    <nav class="breadcrumb">
+      <a href="/">← Retour Accueil</a>
+    </nav>
+
+    <section class="card">
+      <h2>Filtres</h2>
+      <div class="row">
+        <label>Statut</label>
+        <select id="filter_status">
+          <option value="">Tous</option>
+          <option value="open">Ouvert</option>
+          <option value="decided">Décidé</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>Type</label>
+        <select id="filter_type">
+          <option value="">Tous</option>
+          <option value="DAO">DAO</option>
+          <option value="RFQ">RFQ</option>
+        </select>
+      </div>
+      <button id="apply_filters">Appliquer</button>
+      <button id="reset_filters">Réinitialiser</button>
+    </section>
+
+    <section class="card">
+      <h2>Liste des Cas</h2>
+      <div id="registre_cases" class="registre-list"></div>
+    </section>
+
+    <section class="card">
+      <h2>Détails du Cas Sélectionné</h2>
+      <div id="case_details"></div>
+    </section>
+  </div>
+
+  <script src="/static/app.js"></script>
+  <script>
+    // Registre-specific logic
+    document.addEventListener('DOMContentLoaded', () => {
+      loadRegistreCases();
+      
+      document.getElementById('apply_filters').addEventListener('click', loadRegistreCases);
+      document.getElementById('reset_filters').addEventListener('click', () => {
+        document.getElementById('filter_status').value = '';
+        document.getElementById('filter_type').value = '';
+        loadRegistreCases();
+      });
+    });
+
+    async function loadRegistreCases() {
+      const statusFilter = document.getElementById('filter_status').value;
+      const typeFilter = document.getElementById('filter_type').value;
+      
+      try {
+        const res = await fetch('/api/cases');
+        const cases = await res.json();
+        
+        let filtered = cases;
+        if (statusFilter) {
+          filtered = filtered.filter(c => c.status === statusFilter);
+        }
+        if (typeFilter) {
+          filtered = filtered.filter(c => c.case_type === typeFilter);
+        }
+        
+        const container = document.getElementById('registre_cases');
+        if (filtered.length === 0) {
+          container.innerHTML = '<p class="muted">Aucun cas trouvé.</p>';
+          return;
+        }
+        
+        container.innerHTML = filtered.map(c => `
+          <div class="case-item" onclick="loadCaseDetails('${c.id}')">
+            <div class="case-header">
+              <span class="badge badge-${c.status}">${c.status}</span>
+              <span class="badge">${c.case_type}</span>
+              <strong>${c.title}</strong>
+            </div>
+            <div class="case-meta">
+              ${c.lot ? `Lot: ${c.lot} • ` : ''}
+              Créé: ${new Date(c.created_at).toLocaleString('fr-FR')}
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        console.error('Erreur chargement registre:', err);
+        document.getElementById('registre_cases').innerHTML = 
+          '<p class="error">Erreur de chargement.</p>';
+      }
+    }
+
+    async function loadCaseDetails(caseId) {
+      try {
+        const res = await fetch(`/api/cases/${caseId}`);
+        const data = await res.json();
+        
+        const container = document.getElementById('case_details');
+        container.innerHTML = `
+          <h3>${data.case.title}</h3>
+          <dl>
+            <dt>ID</dt><dd>${data.case.id}</dd>
+            <dt>Type</dt><dd>${data.case.case_type}</dd>
+            <dt>Statut</dt><dd><span class="badge badge-${data.case.status}">${data.case.status}</span></dd>
+            <dt>Créé</dt><dd>${new Date(data.case.created_at).toLocaleString('fr-FR')}</dd>
+            ${data.case.lot ? `<dt>Lot</dt><dd>${data.case.lot}</dd>` : ''}
+          </dl>
+          
+          <h4>Artefacts (${data.artifacts.length})</h4>
+          <ul>
+            ${data.artifacts.map(a => `<li>${a.kind}: ${a.filename}</li>`).join('')}
+          </ul>
+          
+          <h4>Mémoire (${data.memory.length} entrées)</h4>
+          <ul>
+            ${data.memory.map(m => `
+              <li>
+                <strong>${m.entry_type}</strong> - 
+                ${new Date(m.created_at).toLocaleString('fr-FR')}
+              </li>
+            `).join('')}
+          </ul>
+        `;
+      } catch (err) {
+        console.error('Erreur chargement détails:', err);
+      }
+    }
+  </script>
+</body>
+</html>
