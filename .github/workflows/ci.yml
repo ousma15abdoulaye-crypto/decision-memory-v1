@@ -19,15 +19,12 @@ jobs:
           POSTGRES_PASSWORD: dms
           POSTGRES_DB: dms
         ports:
-          - 5432:5432
+          - 5432/tcp
         options: >-
-          --health-cmd pg_isready -U dms
+          --health-cmd "pg_isready -U dms"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
-
-    env:
-      DATABASE_URL: postgresql+psycopg://dms:dms@localhost:5432/dms
+          --health-retries 10
 
     steps:
       - name: Checkout repository
@@ -39,6 +36,11 @@ jobs:
           python-version: "3.11"
           cache: "pip"
           cache-dependency-path: "requirements.txt"
+
+      - name: Export DATABASE_URL (dynamic service port)
+        run: |
+          echo "DATABASE_URL=postgresql+psycopg://dms:dms@localhost:${{ job.services.postgres.ports[5432] }}/dms" >> $GITHUB_ENV
+          echo "Using DATABASE_URL=$DATABASE_URL"
 
       - name: Show versions
         run: |
@@ -65,7 +67,26 @@ jobs:
 
       - name: Static sanity (db engine)
         run: |
-          python3 -c "from src.db import engine; print(engine.url); print(engine.dialect.name)"
+          python3 -c "import os; print('DATABASE_URL=', os.getenv('DATABASE_URL')); from src.db import engine; print(engine.url); print(engine.dialect.name)"
+
+      - name: Wait for Postgres (defensive)
+        run: |
+          python3 - <<'PY'
+          import os, time
+          import psycopg
+          url = os.environ["DATABASE_URL"].replace("postgresql+psycopg://", "postgresql://")
+          for i in range(30):
+            try:
+              with psycopg.connect(url) as conn:
+                with conn.cursor() as cur:
+                  cur.execute("SELECT 1;")
+                print("Postgres is ready ✅")
+                break
+            except Exception as e:
+              time.sleep(1)
+          else:
+            raise SystemExit("Postgres not ready ❌")
+          PY
 
       - name: Smoke Postgres
         run: |
