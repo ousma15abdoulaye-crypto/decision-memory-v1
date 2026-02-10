@@ -81,7 +81,7 @@ async def save_depot(
         raise ValueError("Le fichier fourni est invalide.")
 
     file_bytes = await upload.read()
-    text_sample = file_bytes[:2000].decode(errors="ignore")
+    text_sample = file_bytes[:2000].decode(errors="replace")
     normalized = _normalize_document_type(document_type)
     detection = detect_document_type(upload.filename, text_sample)
     final_type = normalized or detection.document_type

@@ -5,7 +5,6 @@ import asyncio
 import json
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from urllib import request
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import select
@@ -240,6 +239,8 @@ async def post_pv_analyse(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 async def _post_market_signal(base_url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     def _send() -> Dict[str, Any]:
+        from urllib import request
+
         endpoint = f"{base_url.rstrip('/')}/api/market-signals"
         data = json.dumps(payload).encode("utf-8")
         req = request.Request(endpoint, data=data, headers={"Content-Type": "application/json"})

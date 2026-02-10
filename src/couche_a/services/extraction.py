@@ -71,16 +71,22 @@ def _normalize_amount(raw_amount: str) -> float:
 def extract_fields(text: str) -> Tuple[Dict[str, Any], List[str]]:
     """Extract structured fields from raw text."""
     missing_fields: List[str] = []
-    supplier_match = re.search(r"(fournisseur|soumissionnaire)\s*[:\-]\s*(.+)", text, re.IGNORECASE)
+    supplier_match = re.search(
+        r"(fournisseur|soumissionnaire)\s*[:\-]\s*([^\n]+)", text, re.IGNORECASE
+    )
     supplier_name = supplier_match.group(2).strip() if supplier_match else None
 
     date_match = re.search(r"(\d{4}-\d{2}-\d{2}|\d{2}/\d{2}/\d{4})", text)
     depot_date = date_match.group(1) if date_match else None
 
-    amount_match = re.search(r"(\d[\d\s,.]+)\s?(fcfa|eur|usd)?", text, re.IGNORECASE)
+    amount_match = re.search(
+        r"(\d{1,3}(?:[\s,.]\d{3})*(?:[,.]\d{2})?)\s?(fcfa|eur|usd)?",
+        text,
+        re.IGNORECASE,
+    )
     amount = _normalize_amount(amount_match.group(1)) if amount_match else None
 
-    zone_match = re.search(r"zone\s*[:\-]\s*(.+)", text, re.IGNORECASE)
+    zone_match = re.search(r"zone\s*[:\-]\s*([^\n]+)", text, re.IGNORECASE)
     zone = zone_match.group(1).strip() if zone_match else None
 
     attachments = [line.strip() for line in text.splitlines() if "annexe" in line.lower()]
