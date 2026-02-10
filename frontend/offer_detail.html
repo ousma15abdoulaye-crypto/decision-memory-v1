@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DMS – Détail Offre</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <nav class="bg-blue-700 text-white p-4 flex items-center justify-between">
+    <h1 class="text-xl font-bold">DMS – Decision Memory System</h1>
+    <div class="space-x-4">
+      <a href="/frontend/index.html">Dépôt</a>
+      <a href="/frontend/dashboard.html">Dashboard</a>
+      <a href="/frontend/committee.html">Comité</a>
+    </div>
+  </nav>
+  <main class="max-w-4xl mx-auto mt-6 px-4">
+    <h2 class="text-2xl font-semibold mb-4">Détail de la soumission</h2>
+    <div id="offer-info" class="bg-white shadow rounded p-6 mb-6">
+      <p class="text-gray-500">Chargement...</p>
+    </div>
+    <h3 class="text-xl font-semibold mb-3">Pré-analyse</h3>
+    <div id="preanalysis" class="bg-white shadow rounded p-6">
+      <p class="text-gray-500">Chargement...</p>
+    </div>
+  </main>
+  <script src="/frontend/assets/api.js"></script>
+  <script>
+    (async function() {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      if (!id) { document.getElementById('offer-info').innerHTML = '<p class="text-red-500">ID manquant</p>'; return; }
+      try {
+        const data = await dmsApi.get('/api/offers/' + id);
+        const s = data.submission;
+        document.getElementById('offer-info').innerHTML =
+          '<div class="grid grid-cols-2 gap-4">' +
+          '<div><span class="font-medium">Fournisseur:</span> ' + s.vendor_name + '</div>' +
+          '<div><span class="font-medium">Case:</span> ' + s.case_id + '</div>' +
+          '<div><span class="font-medium">Lot:</span> ' + s.lot_id + '</div>' +
+          '<div><span class="font-medium">Statut:</span> <span class="font-bold">' + s.status + '</span></div>' +
+          '<div><span class="font-medium">Canal:</span> ' + s.channel + '</div>' +
+          '</div>';
+        const pre = data.preanalysis;
+        if (pre.length === 0) {
+          document.getElementById('preanalysis').innerHTML = '<p class="text-gray-400">Aucune pré-analyse disponible</p>';
+        } else {
+          let html = '<table class="min-w-full"><thead class="bg-gray-100"><tr><th class="px-3 py-1 text-left">Type détecté</th><th class="px-3 py-1 text-left">Fournisseur</th><th class="px-3 py-1 text-left">Montant</th><th class="px-3 py-1 text-left">LLM</th><th class="px-3 py-1 text-left">Flags</th></tr></thead><tbody>';
+          pre.forEach(function(p) {
+            html += '<tr class="border-b"><td class="px-3 py-1">' + (p.detected_type || '—') + '</td><td class="px-3 py-1">' + (p.vendor_name || '—') + '</td><td class="px-3 py-1">' + (p.amount || '—') + '</td><td class="px-3 py-1">' + (p.llm_used ? 'Oui' : 'Non') + '</td><td class="px-3 py-1">' + JSON.stringify(p.flags || {}) + '</td></tr>';
+          });
+          html += '</tbody></table>';
+          document.getElementById('preanalysis').innerHTML = html;
+        }
+      } catch(e) {
+        document.getElementById('offer-info').innerHTML = '<p class="text-red-500">Erreur: ' + e.message + '</p>';
+      }
+    })();
+  </script>
+</body>
+</html>

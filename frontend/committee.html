@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DMS – Comité</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <nav class="bg-blue-700 text-white p-4 flex items-center justify-between">
+    <h1 class="text-xl font-bold">DMS – Decision Memory System</h1>
+    <div class="space-x-4">
+      <a href="/frontend/index.html">Dépôt</a>
+      <a href="/frontend/dashboard.html">Dashboard</a>
+      <a href="/frontend/committee.html" class="underline">Comité</a>
+    </div>
+  </nav>
+  <main class="max-w-4xl mx-auto mt-6 px-4 space-y-8">
+    <section class="bg-white shadow rounded p-6">
+      <h2 class="text-xl font-semibold mb-4">Export CBA</h2>
+      <div class="flex gap-4 items-end">
+        <div>
+          <label class="block text-sm font-medium mb-1">Case ID</label>
+          <input id="cba-case" class="border rounded px-3 py-2" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Lot ID</label>
+          <input id="cba-lot" class="border rounded px-3 py-2" />
+        </div>
+        <button id="btn-export-cba" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Exporter CBA</button>
+      </div>
+      <div id="cba-result" class="mt-3 text-sm"></div>
+    </section>
+    <section class="bg-white shadow rounded p-6">
+      <h2 class="text-xl font-semibold mb-4">Upload CBA révisé</h2>
+      <form id="cba-review-form" class="flex gap-4 items-end">
+        <input type="file" name="file" accept=".xlsx" class="border rounded px-3 py-2" />
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Uploader</button>
+      </form>
+      <div id="review-result" class="mt-3 text-sm"></div>
+    </section>
+    <section class="bg-white shadow rounded p-6">
+      <h2 class="text-xl font-semibold mb-4">Générer PV</h2>
+      <div class="flex gap-4 items-end">
+        <div>
+          <label class="block text-sm font-medium mb-1">Case ID</label>
+          <input id="pv-case" class="border rounded px-3 py-2" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Lot ID</label>
+          <input id="pv-lot" class="border rounded px-3 py-2" />
+        </div>
+        <button id="btn-pv-opening" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">PV Ouverture</button>
+        <button id="btn-pv-analysis" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">PV Analyse</button>
+      </div>
+      <div id="pv-result" class="mt-3 text-sm"></div>
+    </section>
+  </main>
+  <script src="/frontend/assets/api.js"></script>
+  <script>
+    document.getElementById('btn-export-cba').addEventListener('click', async function() {
+      const caseId = document.getElementById('cba-case').value;
+      const lotId = document.getElementById('cba-lot').value;
+      try {
+        const data = await dmsApi.post('/api/export-cba?case_id=' + encodeURIComponent(caseId) + '&lot_id=' + encodeURIComponent(lotId));
+        document.getElementById('cba-result').innerHTML = '<span class="text-green-600">CBA exporté: ' + data.file_path + '</span>';
+      } catch(e) {
+        document.getElementById('cba-result').innerHTML = '<span class="text-red-500">Erreur: ' + e.message + '</span>';
+      }
+    });
+
+    document.getElementById('cba-review-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const formData = new FormData(this);
+      try {
+        const data = await dmsApi.upload('/api/cba-review/upload', formData);
+        document.getElementById('review-result').innerHTML = '<span class="text-green-600">CBA révisé uploadé</span>';
+      } catch(e) {
+        document.getElementById('review-result').innerHTML = '<span class="text-red-500">Erreur: ' + e.message + '</span>';
+      }
+    });
+
+    document.getElementById('btn-pv-opening').addEventListener('click', async function() {
+      const caseId = document.getElementById('pv-case').value;
+      const lotId = document.getElementById('pv-lot').value;
+      try {
+        const data = await dmsApi.post('/api/pv/opening?case_id=' + encodeURIComponent(caseId) + '&lot_id=' + encodeURIComponent(lotId));
+        document.getElementById('pv-result').innerHTML = '<span class="text-green-600">PV ouverture généré: ' + data.file_path + '</span>';
+      } catch(e) {
+        document.getElementById('pv-result').innerHTML = '<span class="text-red-500">Erreur: ' + e.message + '</span>';
+      }
+    });
+
+    document.getElementById('btn-pv-analysis').addEventListener('click', async function() {
+      const caseId = document.getElementById('pv-case').value;
+      const lotId = document.getElementById('pv-lot').value;
+      try {
+        const data = await dmsApi.post('/api/pv/analysis?case_id=' + encodeURIComponent(caseId) + '&lot_id=' + encodeURIComponent(lotId));
+        document.getElementById('pv-result').innerHTML = '<span class="text-green-600">PV analyse généré: ' + data.file_path + '</span>';
+      } catch(e) {
+        document.getElementById('pv-result').innerHTML = '<span class="text-red-500">Erreur: ' + e.message + '</span>';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DMS – Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <nav class="bg-blue-700 text-white p-4 flex items-center justify-between">
+    <h1 class="text-xl font-bold">DMS – Decision Memory System</h1>
+    <div class="space-x-4">
+      <a href="/frontend/index.html">Dépôt</a>
+      <a href="/frontend/dashboard.html" class="underline">Dashboard</a>
+      <a href="/frontend/committee.html">Comité</a>
+    </div>
+  </nav>
+  <main class="max-w-6xl mx-auto mt-6 px-4">
+    <h2 class="text-2xl font-semibold mb-4">Tableau de bord des soumissions</h2>
+    <div class="flex gap-4 mb-4">
+      <input id="filter-case" placeholder="Case ID" class="border rounded px-3 py-2" />
+      <input id="filter-lot" placeholder="Lot ID" class="border rounded px-3 py-2" />
+      <button id="btn-refresh" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Rafraîchir</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full bg-white shadow rounded">
+        <thead class="bg-gray-200">
+          <tr>
+            <th class="px-4 py-2 text-left">Fournisseur</th>
+            <th class="px-4 py-2 text-left">Case</th>
+            <th class="px-4 py-2 text-left">Lot</th>
+            <th class="px-4 py-2 text-left">Statut</th>
+            <th class="px-4 py-2 text-left">Canal</th>
+            <th class="px-4 py-2 text-left">Date</th>
+            <th class="px-4 py-2 text-left">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="dashboard-body"></tbody>
+      </table>
+    </div>
+    <div id="pagination" class="mt-4 flex gap-2"></div>
+    <div class="mt-8">
+      <canvas id="statusChart" width="400" height="200"></canvas>
+    </div>
+  </main>
+  <script src="/frontend/assets/api.js"></script>
+  <script>
+    let currentPage = 1;
+    async function loadDashboard(page) {
+      currentPage = page || 1;
+      const caseId = document.getElementById('filter-case').value;
+      const lotId = document.getElementById('filter-lot').value;
+      let url = '/api/dashboard?page=' + currentPage;
+      if (caseId) url += '&case_id=' + encodeURIComponent(caseId);
+      if (lotId) url += '&lot_id=' + encodeURIComponent(lotId);
+      try {
+        const data = await dmsApi.get(url);
+        const tbody = document.getElementById('dashboard-body');
+        tbody.innerHTML = '';
+        data.items.forEach(function(s) {
+          const statusClass = s.status === 'CONF' ? 'text-green-600' : s.status === 'NON_CONF' ? 'text-red-600' : s.status === 'REVUE_MANUELLE' ? 'text-orange-500' : 'text-gray-600';
+          const tr = document.createElement('tr');
+          tr.className = 'border-b hover:bg-gray-50';
+          tr.innerHTML =
+            '<td class="px-4 py-2">' + (s.vendor_name || '—') + '</td>' +
+            '<td class="px-4 py-2">' + s.case_id + '</td>' +
+            '<td class="px-4 py-2">' + s.lot_id + '</td>' +
+            '<td class="px-4 py-2 font-semibold ' + statusClass + '">' + s.status + '</td>' +
+            '<td class="px-4 py-2">' + s.channel + '</td>' +
+            '<td class="px-4 py-2">' + (s.created_at ? new Date(s.created_at).toLocaleDateString() : '') + '</td>' +
+            '<td class="px-4 py-2"><a href="/frontend/offer_detail.html?id=' + s.id + '" class="text-blue-600 underline">Détail</a></td>';
+          tbody.appendChild(tr);
+        });
+      } catch(e) {
+        console.error('Dashboard error:', e);
+      }
+    }
+    document.getElementById('btn-refresh').addEventListener('click', function() { loadDashboard(1); });
+    if (localStorage.getItem('dms_token')) loadDashboard(1);
+  </script>
+</body>
+</html>
