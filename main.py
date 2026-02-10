@@ -1,9 +1,16 @@
 from __future__ import annotations
 
 import json
+import os
 import re
-import sqlite3
 import uuid
+
+# Load .env before db import (DATABASE_URL required)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
@@ -21,11 +28,14 @@ from openpyxl.utils import get_column_letter
 
 from pypdf import PdfReader
 
+from src.db import get_connection, db_execute, db_execute_one, db_fetchall, init_db_schema
+
 
 # =========================================================
 # Decision Memory System — MVP A++ FINAL
 # Version: 1.0.0
 # DAO-driven extraction + Template-adaptive CBA + Active Memory
+# Constitution V2.1: ONLINE-ONLY (PostgreSQL)
 # =========================================================
 
 APP_TITLE = "Decision Memory System — MVP A++ (Production)"
@@ -35,21 +45,14 @@ BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"
 UPLOADS_DIR = DATA_DIR / "uploads"
 OUTPUTS_DIR = DATA_DIR / "outputs"
-DB_PATH = DATA_DIR / "dms.sqlite3"
 
 DATA_DIR.mkdir(exist_ok=True)
 UPLOADS_DIR.mkdir(exist_ok=True)
 OUTPUTS_DIR.mkdir(exist_ok=True)
 
-app = FastAPI(title=APP_TITLE, version=APP_VERSION)
-
-STATIC_DIR = BASE_DIR / "static"
-STATIC_DIR.mkdir(exist_ok=True)
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
 
 # =========================
-# CONSTITUTION
+# CONSTITUTION (V2.1 ONLINE-ONLY)
 # =========================
 INVARIANTS = {
     "cognitive_load_never_increase": True,
@@ -57,112 +60,27 @@ INVARIANTS = {
     "no_scoring_no_ranking_no_recommendations": True,
     "memory_is_byproduct_never_a_task": True,
     "erp_agnostic": True,
-    "offline_first": True,
+    "online_only": True,
     "traceability_keep_sources": True,
     "one_dao_one_cba_one_pv": True,
 }
 
 
 # =========================
-# Database
+# Database — PostgreSQL only (schema created on startup)
 # =========================
-def db() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+from contextlib import asynccontextmanager
 
+@asynccontextmanager
+async def lifespan(app):
+    init_db_schema()
+    yield
 
-def init_db() -> None:
-    with db() as conn:
-        cur = conn.cursor()
+app = FastAPI(title=APP_TITLE, version=APP_VERSION, lifespan=lifespan)
 
-        # Cases (unchanged)
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS cases (
-            id TEXT PRIMARY KEY,
-            case_type TEXT NOT NULL,
-            title TEXT NOT NULL,
-            lot TEXT,
-            created_at TEXT NOT NULL,
-            status TEXT NOT NULL
-        )
-        """)
-
-        # Artifacts (unchanged)
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS artifacts (
-            id TEXT PRIMARY KEY,
-            case_id TEXT NOT NULL,
-            kind TEXT NOT NULL,
-            filename TEXT NOT NULL,
-            path TEXT NOT NULL,
-            uploaded_at TEXT NOT NULL,
-            meta_json TEXT,
-            FOREIGN KEY(case_id) REFERENCES cases(id)
-        )
-        """)
-
-        # Memory entries (unchanged)
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS memory_entries (
-            id TEXT PRIMARY KEY,
-            case_id TEXT NOT NULL,
-            entry_type TEXT NOT NULL,
-            content_json TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(case_id) REFERENCES cases(id)
-        )
-        """)
-
-        # NEW: DAO Criteria (structured extraction)
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS dao_criteria (
-            id TEXT PRIMARY KEY,
-            case_id TEXT NOT NULL,
-            categorie TEXT NOT NULL,
-            critere_nom TEXT NOT NULL,
-            description TEXT,
-            ponderation REAL NOT NULL,
-            type_reponse TEXT NOT NULL,
-            seuil_elimination REAL,
-            ordre_affichage INTEGER DEFAULT 0,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(case_id) REFERENCES cases(id)
-        )
-        """)
-
-        # NEW: CBA Template Schemas (template learning)
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS cba_template_schemas (
-            id TEXT PRIMARY KEY,
-            case_id TEXT NOT NULL,
-            template_name TEXT NOT NULL,
-            structure_json TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            reused_count INTEGER DEFAULT 0,
-            FOREIGN KEY(case_id) REFERENCES cases(id)
-        )
-        """)
-
-        # NEW: Offer Extractions (DAO-guided data)
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS offer_extractions (
-            id TEXT PRIMARY KEY,
-            case_id TEXT NOT NULL,
-            artifact_id TEXT NOT NULL,
-            supplier_name TEXT NOT NULL,
-            extracted_data_json TEXT NOT NULL,
-            missing_fields_json TEXT,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(case_id) REFERENCES cases(id),
-            FOREIGN KEY(artifact_id) REFERENCES artifacts(id)
-        )
-        """)
-
-        conn.commit()
-
-
-init_db()
+STATIC_DIR = BASE_DIR / "static"
+STATIC_DIR.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 # =========================
@@ -257,58 +175,55 @@ def safe_save_upload(case_id: str, kind: str, up: UploadFile) -> Tuple[str, str]
 
 def register_artifact(case_id: str, kind: str, filename: str, path: str, meta: Optional[dict] = None) -> str:
     artifact_id = str(uuid.uuid4())
-    with db() as conn:
-        conn.execute("""
+    with get_connection() as conn:
+        db_execute(conn, """
             INSERT INTO artifacts (id, case_id, kind, filename, path, uploaded_at, meta_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            artifact_id, case_id, kind, filename, path,
-            datetime.utcnow().isoformat(),
-            json.dumps(meta or {}, ensure_ascii=False),
-        ))
-        conn.commit()
+            VALUES (:aid, :cid, :kind, :fname, :path, :ts, :meta)
+        """, {
+            "aid": artifact_id, "cid": case_id, "kind": kind, "fname": filename, "path": path,
+            "ts": datetime.utcnow().isoformat(),
+            "meta": json.dumps(meta or {}, ensure_ascii=False),
+        })
     return artifact_id
 
 
-def get_artifacts(case_id: str, kind: Optional[str] = None) -> List[sqlite3.Row]:
-    with db() as conn:
+def get_artifacts(case_id: str, kind: Optional[str] = None) -> List[dict]:
+    with get_connection() as conn:
         if kind:
-            return conn.execute(
-                "SELECT * FROM artifacts WHERE case_id=? AND kind=? ORDER BY uploaded_at DESC",
-                (case_id, kind),
-            ).fetchall()
-        return conn.execute(
-            "SELECT * FROM artifacts WHERE case_id=? ORDER BY uploaded_at DESC",
-            (case_id,),
-        ).fetchall()
+            return db_fetchall(conn,
+                "SELECT * FROM artifacts WHERE case_id=:cid AND kind=:kind ORDER BY uploaded_at DESC",
+                {"cid": case_id, "kind": kind},
+            )
+        return db_fetchall(conn,
+            "SELECT * FROM artifacts WHERE case_id=:cid ORDER BY uploaded_at DESC",
+            {"cid": case_id},
+        )
 
 
 def add_memory(case_id: str, entry_type: str, content: dict) -> str:
     mem_id = str(uuid.uuid4())
-    with db() as conn:
-        conn.execute("""
+    with get_connection() as conn:
+        db_execute(conn, """
             INSERT INTO memory_entries (id, case_id, entry_type, content_json, created_at)
-            VALUES (?, ?, ?, ?, ?)
-        """, (
-            mem_id, case_id, entry_type,
-            json.dumps(content, ensure_ascii=False),
-            datetime.utcnow().isoformat(),
-        ))
-        conn.commit()
+            VALUES (:mid, :cid, :etype, :content, :ts)
+        """, {
+            "mid": mem_id, "cid": case_id, "etype": entry_type,
+            "content": json.dumps(content, ensure_ascii=False),
+            "ts": datetime.utcnow().isoformat(),
+        })
     return mem_id
 
 
 def list_memory(case_id: str, entry_type: Optional[str] = None) -> List[dict]:
-    with db() as conn:
+    with get_connection() as conn:
         if entry_type:
-            rows = conn.execute("""
-                SELECT * FROM memory_entries WHERE case_id=? AND entry_type=? ORDER BY created_at DESC
-            """, (case_id, entry_type)).fetchall()
+            rows = db_fetchall(conn, """
+                SELECT * FROM memory_entries WHERE case_id=:cid AND entry_type=:etype ORDER BY created_at DESC
+            """, {"cid": case_id, "etype": entry_type})
         else:
-            rows = conn.execute("""
-                SELECT * FROM memory_entries WHERE case_id=? ORDER BY created_at DESC
-            """, (case_id,)).fetchall()
-
+            rows = db_fetchall(conn, """
+                SELECT * FROM memory_entries WHERE case_id=:cid ORDER BY created_at DESC
+            """, {"cid": case_id})
     return [dict(r) | {"content": json.loads(r["content_json"])} for r in rows]
 
 
@@ -839,18 +754,15 @@ def fill_cba_adaptive(
     schema = analyze_cba_template(template_path)
 
     # Save schema to DB for future learning
-    with db() as conn:
-        conn.execute("""
+    with get_connection() as conn:
+        db_execute(conn, """
             INSERT INTO cba_template_schemas (id, case_id, template_name, structure_json, created_at)
-            VALUES (?, ?, ?, ?, ?)
-        """, (
-            schema.template_id,
-            case_id,
-            schema.template_name,
-            json.dumps(asdict(schema), ensure_ascii=False),
-            datetime.utcnow().isoformat()
-        ))
-        conn.commit()
+            VALUES (:tid, :cid, :tname, :struct, :ts)
+        """, {
+            "tid": schema.template_id, "cid": case_id, "tname": schema.template_name,
+            "struct": json.dumps(asdict(schema), ensure_ascii=False),
+            "ts": datetime.utcnow().isoformat(),
+        })
 
     # Load template
     wb = load_workbook(template_path)
@@ -1095,12 +1007,11 @@ def create_case(payload: CaseCreate):
     case_id = str(uuid.uuid4())
     now = datetime.utcnow().isoformat()
 
-    with db() as conn:
-        conn.execute("""
+    with get_connection() as conn:
+        db_execute(conn, """
             INSERT INTO cases (id, case_type, title, lot, created_at, status)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (case_id, case_type, payload.title.strip(), payload.lot, now, "open"))
-        conn.commit()
+            VALUES (:id, :ctype, :title, :lot, :ts, :status)
+        """, {"id": case_id, "ctype": case_type, "title": payload.title.strip(), "lot": payload.lot, "ts": now, "status": "open"})
 
     return {
         "id": case_id,
@@ -1114,28 +1025,24 @@ def create_case(payload: CaseCreate):
 
 @app.get("/api/cases")
 def list_cases():
-    with db() as conn:
-        rows = conn.execute("SELECT * FROM cases ORDER BY created_at DESC").fetchall()
-    return [dict(r) for r in rows]
+    with get_connection() as conn:
+        rows = db_fetchall(conn, "SELECT * FROM cases ORDER BY created_at DESC")
+    return rows
 
 
 @app.get("/api/cases/{case_id}")
 def get_case(case_id: str):
-    with db() as conn:
-        c = conn.execute("SELECT * FROM cases WHERE id=?", (case_id,)).fetchone()
+    with get_connection() as conn:
+        c = db_execute_one(conn, "SELECT * FROM cases WHERE id=:id", {"id": case_id})
     if not c:
         raise HTTPException(status_code=404, detail="case not found")
 
-    arts = [dict(a) for a in get_artifacts(case_id)]
+    arts = get_artifacts(case_id)
     mem = list_memory(case_id)
 
     # Get DAO criteria if analyzed
-    with db() as conn:
-        criteria_rows = conn.execute(
-            "SELECT * FROM dao_criteria WHERE case_id=? ORDER BY ordre_affichage",
-            (case_id,)
-        ).fetchall()
-    criteria = [dict(r) for r in criteria_rows]
+    with get_connection() as conn:
+        criteria = db_fetchall(conn, "SELECT * FROM dao_criteria WHERE case_id=:cid ORDER BY ordre_affichage", {"cid": case_id})
 
     return {
         "case": dict(c),
@@ -1147,8 +1054,8 @@ def get_case(case_id: str):
 
 @app.post("/api/upload/{case_id}/{kind}")
 def upload(case_id: str, kind: str, file: UploadFile = File(...)):
-    with db() as conn:
-        c = conn.execute("SELECT id FROM cases WHERE id=?", (case_id,)).fetchone()
+    with get_connection() as conn:
+        c = db_execute_one(conn, "SELECT id FROM cases WHERE id=:id", {"id": case_id})
     if not c:
         raise HTTPException(status_code=404, detail="case not found")
 
@@ -1175,8 +1082,8 @@ def analyze(payload: AnalyzeRequest):
     """
     case_id = payload.case_id
 
-    with db() as conn:
-        case = conn.execute("SELECT * FROM cases WHERE id=?", (case_id,)).fetchone()
+    with get_connection() as conn:
+        case = db_execute_one(conn, "SELECT * FROM cases WHERE id=:id", {"id": case_id})
     if not case:
         raise HTTPException(status_code=404, detail="case not found")
 
@@ -1190,18 +1097,18 @@ def analyze(payload: AnalyzeRequest):
     dao_criteria = extract_dao_criteria_structured(dao_text)
 
     # Store criteria in DB
-    with db() as conn:
+    with get_connection() as conn:
         for c in dao_criteria:
-            conn.execute("""
+            db_execute(conn, """
                 INSERT INTO dao_criteria 
                 (id, case_id, categorie, critere_nom, description, ponderation, type_reponse, seuil_elimination, ordre_affichage, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                str(uuid.uuid4()), case_id, c.categorie, c.critere_nom, c.description,
-                c.ponderation, c.type_reponse, c.seuil_elimination, c.ordre_affichage,
-                datetime.utcnow().isoformat()
-            ))
-        conn.commit()
+                VALUES (:id, :cid, :cat, :nom, :desc, :pond, :type_reponse, :seuil, :ordre, :ts)
+            """, {
+                "id": str(uuid.uuid4()), "cid": case_id, "cat": c.categorie, "nom": c.critere_nom,
+                "desc": c.description, "pond": c.ponderation, "type_reponse": c.type_reponse,
+                "seuil": c.seuil_elimination, "ordre": c.ordre_affichage,
+                "ts": datetime.utcnow().isoformat(),
+            })
 
     # Step 2: Offers extraction (DAO-guided) + SUBTYPE DETECTION
     offer_arts = get_artifacts(case_id, "offer")
@@ -1227,17 +1134,16 @@ def analyze(payload: AnalyzeRequest):
         })
 
         # Store extraction in DB
-        with db() as conn:
-            conn.execute("""
+        with get_connection() as conn:
+            db_execute(conn, """
                 INSERT INTO offer_extractions (id, case_id, artifact_id, supplier_name, extracted_data_json, missing_fields_json, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                str(uuid.uuid4()), case_id, off["id"], supplier_name,
-                json.dumps({**offer_data, "subtype": asdict(subtype)}, ensure_ascii=False),
-                json.dumps(offer_data.get("missing_fields", []), ensure_ascii=False),
-                datetime.utcnow().isoformat()
-            ))
-            conn.commit()
+                VALUES (:id, :cid, :aid, :supplier, :extracted, :missing, :ts)
+            """, {
+                "id": str(uuid.uuid4()), "cid": case_id, "aid": off["id"], "supplier": supplier_name,
+                "extracted": json.dumps({**offer_data, "subtype": asdict(subtype)}, ensure_ascii=False),
+                "missing": json.dumps(offer_data.get("missing_fields", []), ensure_ascii=False),
+                "ts": datetime.utcnow().isoformat(),
+            })
 
     # CRITIQUE: Agrégation par fournisseur (gestion offres partielles)
     supplier_packages = aggregate_supplier_packages(raw_offers)
@@ -1327,8 +1233,8 @@ def decide(payload: DecideRequest):
     """Record human decision and regenerate PV"""
     case_id = payload.case_id
 
-    with db() as conn:
-        case = conn.execute("SELECT * FROM cases WHERE id=?", (case_id,)).fetchone()
+    with get_connection() as conn:
+        case = db_execute_one(conn, "SELECT * FROM cases WHERE id=:id", {"id": case_id})
     if not case:
         raise HTTPException(status_code=404, detail="case not found")
 
@@ -1342,15 +1248,9 @@ def decide(payload: DecideRequest):
     add_memory(case_id, "decision", decision)
 
     # Get latest extraction data
-    with db() as conn:
-        extractions = conn.execute(
-            "SELECT * FROM offer_extractions WHERE case_id=?",
-            (case_id,)
-        ).fetchall()
-        criteria_rows = conn.execute(
-            "SELECT * FROM dao_criteria WHERE case_id=?",
-            (case_id,)
-        ).fetchall()
+    with get_connection() as conn:
+        extractions = db_fetchall(conn, "SELECT * FROM offer_extractions WHERE case_id=:cid", {"cid": case_id})
+        criteria_rows = db_fetchall(conn, "SELECT * FROM dao_criteria WHERE case_id=:cid", {"cid": case_id})
 
     suppliers = []
     for ext in extractions:

@@ -1,20 +1,17 @@
 # PostgreSQL Cloud Run — DMS
 
-⚠️ **STATUT : NOT EXECUTED**
-
-Ce fichier est un **placeholder**.
-Il ne constitue PAS une preuve de validation PostgreSQL tant qu’il n’est pas complété
-avec les éléments listés ci-dessous.
+DMS is **ONLINE-ONLY** (Constitution V2.1). No SQLite fallback.
 
 ---
 
 ## Objectif
-Prouver l’exécution réelle de DMS sur PostgreSQL cloud (Railway/Render/Supabase)
-avant tout merge vers `main`.
+
+Prouver l'exécution réelle de DMS sur PostgreSQL cloud (Railway/Render/Supabase).
 
 ---
 
 ## Environnement
+
 - Provider : _TBD_
 - Service URL : _TBD_
 - Database URL : _REDACTED_
@@ -25,6 +22,7 @@ avant tout merge vers `main`.
 
 ## Smoke Test
 
-Commande exécutée :
 ```bash
+export DATABASE_URL="postgresql+psycopg://..."
 python3 scripts/smoke_postgres.py
+```
