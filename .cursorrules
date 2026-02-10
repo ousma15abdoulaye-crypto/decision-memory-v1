@@ -1,0 +1,152 @@
+# CURSOR AGENT RULES — DMS V2.1 Constitution Alignment
+
+## 🎯 MISSION
+Implement Couche B (Market Intelligence Layer) following Constitution DMS V2.1 with zero deviation.
+
+## 📚 REFERENCE DOCUMENTS
+- **PRIMARY**: `docs/constitution_v2.1.md` (source of truth)
+- **SECONDARY**: `CURSOR_AGENT_INSTRUCTIONS.md` (execution plan)
+- **API SPEC**: `docs/API_COUCHE_B.md`
+- **RESOLVER SPEC**: `docs/RESOLVERS_GUIDE.md`
+
+## 🚫 STRICT RULES
+
+### 1. Architecture
+- ✅ ALWAYS use async/await (asyncio)
+- ✅ ALWAYS use SQLAlchemy 2.0+ Core (NOT ORM)
+- ✅ ALWAYS use FastAPI for endpoints
+- ❌ NEVER use sync database calls
+- ❌ NEVER use SQLAlchemy ORM classes
+- ❌ NEVER use Flask/Django
+
+### 2. Database Schema
+- ✅ ALWAYS follow exact schema from Constitution §4
+- ✅ ALWAYS use `Table()` from sqlalchemy
+- ✅ ALWAYS create indexes as specified
+- ✅ ALWAYS use proper constraints (FK, CHECK, UNIQUE)
+- ❌ NEVER add columns not in Constitution
+- ❌ NEVER skip indexes
+
+### 3. Resolvers (§5.2)
+- ✅ ALWAYS follow 4-step pattern: canonical → alias → fuzzy → propose
+- ✅ ALWAYS use fuzzywuzzy for fuzzy matching
+- ✅ ALWAYS normalize text before matching
+- ✅ ALWAYS use threshold 85% (90% for geo)
+- ❌ NEVER skip fuzzy matching step
+- ❌ NEVER auto-approve proposals
+
+### 4. Code Quality
+- ✅ ALWAYS write type hints
+- ✅ ALWAYS handle errors gracefully
+- ✅ ALWAYS write docstrings
+- ✅ ALWAYS follow PEP 8
+- ❌ NEVER leave TODO without implementation
+- ❌ NEVER commit commented code
+
+### 5. Testing
+- ✅ ALWAYS write pytest tests
+- ✅ ALWAYS use pytest-asyncio for async tests
+- ✅ ALWAYS test edge cases
+- ✅ ALWAYS achieve >80% coverage
+- ❌ NEVER skip tests
+- ❌ NEVER use assert without message
+
+### 6. Git Commits
+- ✅ ALWAYS use conventional commits (feat:, fix:, test:, docs:)
+- ✅ ALWAYS commit after each session
+- ✅ ALWAYS reference Constitution section
+- ❌ NEVER commit broken code
+- ❌ NEVER mix concerns in one commit
+
+## 📋 EXECUTION PATTERN
+
+### Session Start
+1. Read Constitution section referenced in TODO
+2. Read existing code in module
+3. Plan implementation
+4. Write tests first (TDD)
+5. Implement functionality
+6. Run tests
+7. Commit with proper message
+
+### Session End
+1. Verify all tests pass
+2. Check alignment with Constitution
+3. Update TODO markers
+4. Commit progress
+5. Update CURSOR_AGENT_INSTRUCTIONS.md
+
+## 🎨 CODE STYLE
+
+### Imports Order
+```python
+# Standard library
+import os
+from typing import Optional, List
+
+# Third-party
+from fastapi import APIRouter
+from sqlalchemy import Table, Column
+
+# Local
+from src.db import metadata
+```
+
+### Async Pattern
+```python
+async def my_function(conn):
+    result = await conn.execute(query)
+    return result.fetchall()
+```
+
+### Error Handling
+```python
+try:
+    result = await operation()
+except SpecificError as e:
+    logger.error(f"Operation failed: {e}")
+    raise HTTPException(status_code=500, detail=str(e))
+```
+
+## 🔍 VALIDATION CHECKLIST
+Before marking session complete:
+- [ ] All tests pass (`pytest tests/couche_b/`)
+- [ ] No linting errors (`ruff check src/couche_b/`)
+- [ ] Type hints verified (`mypy src/couche_b/`)
+- [ ] Constitution alignment verified
+- [ ] Docstrings complete
+- [ ] Commit message follows convention
+
+## 📊 SESSION TRACKING
+Use TODO markers:
+- `# TODO Session X.Y: <description>` - Not started
+- `# IN PROGRESS Session X.Y: <description>` - Working
+- `# DONE Session X.Y: <description>` - Complete
+
+## 🚀 PERFORMANCE TARGETS
+- API response time: <100ms (p95)
+- Database queries: <50ms (p95)
+- Fuzzy matching: <10ms per entity
+- Memory usage: <500MB
+
+## 🔐 SECURITY RULES
+- ✅ ALWAYS validate input
+- ✅ ALWAYS use parameterized queries
+- ✅ ALWAYS sanitize user input
+- ❌ NEVER trust user input
+- ❌ NEVER expose internal errors to users
+- ❌ NEVER log sensitive data
+
+## 📝 DOCUMENTATION RULES
+- ✅ ALWAYS update API docs when adding endpoints
+- ✅ ALWAYS update RESOLVERS_GUIDE when changing resolvers
+- ✅ ALWAYS add inline comments for complex logic
+- ❌ NEVER leave undocumented functions
+
+## 🎯 ALIGNMENT VERIFICATION
+After each session, run:
+```bash
+python scripts/validate_alignment.py
+```
+
+Must show 100% alignment before moving to next session.

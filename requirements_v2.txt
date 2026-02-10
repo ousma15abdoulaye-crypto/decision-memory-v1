@@ -1,0 +1,46 @@
+# DMS V2.1 Constitution — Production dependencies
+# Constitution V2.1 §1.1
+
+# Core
+fastapi==0.110.0
+uvicorn[standard]==0.27.1
+pydantic==2.6.1
+pydantic-settings==2.1.0
+
+# Database
+sqlalchemy==2.0.27
+alembic==1.13.1
+psycopg[binary,pool]==3.1.18
+asyncpg==0.29.0
+
+# Document processing (existing)
+pypdf==4.0.1
+python-docx==1.1.0
+openpyxl==3.1.2
+python-multipart==0.0.9
+
+# Security & Auth
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Performance
+redis[hiredis]==5.0.1
+orjson==3.9.15
+
+# Couche B (entity matching)
+fuzzywuzzy==0.18.0
+python-Levenshtein==0.25.0
+
+# Monitoring
+sentry-sdk[fastapi]==1.40.6
+structlog==24.1.0
+
+# Utils
+python-dotenv==1.0.1
+
+# Dev/Test
+pytest==8.0.0
+pytest-cov==4.1.0
+pytest-asyncio==0.23.5
+httpx==0.26.0
+faker==23.1.0

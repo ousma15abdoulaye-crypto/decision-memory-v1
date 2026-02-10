@@ -48,3 +48,24 @@ Thumbs.db
 # Backup files
 *.backup.xlsx
 *.bak
+
+# Couche B
+src/couche_b/__pycache__/
+tests/couche_b/__pycache__/
+
+# Alembic
+alembic/versions/__pycache__/
+alembic/__pycache__/
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment
+.env.local
+.env.*.local
+
+# IDE
+.cursor/
+.vscode/settings.json
