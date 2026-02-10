@@ -195,7 +195,7 @@ def guess_supplier_name(text: str, filename: str) -> str:
 
 **Exemples**:
 | Filename | Nom extrait |
-|----------|-------------|
+|==========|=============|
 | `offre_lot1_alpha_construction.pdf` | `ALPHA CONSTRUCTION` |
 | `beta-services-2026-abc123.docx` | `BETA SERVICES` |
 | Document: "Société: Gamma Industries" | `GAMMA INDUSTRIES` |
@@ -252,9 +252,9 @@ for pkg in packages:
 
 **Résultat**:
 ```
-------------------------------------------------------------
+============================================================
 ✅ TOUS LES TESTS PASSÉS
-------------------------------------------------------------
+============================================================
 
 Le moteur gère correctement:
   1. Détection automatique des subtypes (FINANCIAL_ONLY, etc.)
@@ -331,7 +331,7 @@ python3 tests/test_partial_offers.py
 **Vérifications post-implémentation**:
 
 | Interdiction | Statut | Détails |
-|--------------|--------|---------|
+|==============|========|=========|
 | ❌ Ajouter dépendances | ✅ | `requirements.txt` inchangé |
 | ❌ Changer architecture | ✅ | Couche A/B préservées |
 | ❌ Features non demandées | ✅ | Uniquement corrections spec |
