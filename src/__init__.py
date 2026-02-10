@@ -1,1 +1,1 @@
-# DMS src package
+"""DMS source package."""
