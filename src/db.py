@@ -67,8 +67,7 @@ def db_execute_one(
     row = result.fetchone()
     if row is None:
         return None
-    return dict(row._mapping)
-
+return dict(row._mapping)
 
 def db_fetchall(
     conn: Connection, sql: str, params: Optional[dict] = None

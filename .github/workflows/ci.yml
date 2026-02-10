@@ -1,15 +1,20 @@
-name: DMS CI – Core Stability
+name: DMS CI
 
 on:
   push:
-    branches: [ "main", "cursor/*" ]
+    branches:
+      - main
+      - "copilot/*"
+      - "cursor/*"
   pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
     env:
       PYTHONPATH: ${{ github.workspace }}
 
@@ -39,34 +44,18 @@ jobs:
           cache: "pip"
           cache-dependency-path: "requirements.txt"
 
-      - name: Show versions
-        run: |
-          python --version
-          pip --version
-
-      - name: Install dependencies (hard gate)
+      - name: Install dependencies
         run: |
           test -f requirements.txt
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
-      - name: Compile check (hard gate)
-        run: |
-          echo "🔍 Compiling all Python files..."
-          python -m compileall . -q || { echo "❌ Compilation failed"; exit 1; }
-
-      - name: Run core tests (hard gate)
-        run: |
-          echo "🧪 Running core tests..."
-          python3 tests/test_corrections_smoke.py || exit 1
-          python3 tests/test_partial_offers.py || exit 1
-          echo "✅ All tests passed"
 
       - name: Debug import path
         run: |
           echo "=== Environment ==="
           echo "PWD=$(pwd)"
           echo "GITHUB_WORKSPACE=${GITHUB_WORKSPACE}"
+          echo "PYTHONPATH=${PYTHONPATH}"
           echo ""
           echo "=== Directory structure ==="
           ls -la
@@ -77,47 +66,37 @@ jobs:
           echo "=== Python sys.path ==="
           python3 -c "import sys; print('sys.path:'); print('\n'.join(sys.path))"
           echo ""
-          echo "=== PYTHONPATH env ==="
-          python3 -c "import os; print('PYTHONPATH=', os.environ.get('PYTHONPATH', 'NOT SET'))"
-          echo ""
-          echo "=== src/ exists? ==="
+          echo "=== src exists? ==="
           python3 -c "import pathlib; print('src exists:', pathlib.Path('src').exists())"
 
-      - name: Export DATABASE_URL (dynamic service port)
+      - name: Compile check
         run: |
-          echo "DATABASE_URL=postgresql+psycopg://dms:dms@localhost:${{ job.services.postgres.ports[5432] }}/dms" >> $GITHUB_ENV
+          python -m compileall . -q || { echo "❌ Compilation failed"; exit 1; }
 
       - name: Validate Python imports
         run: |
-          echo "=== PYTHONPATH is set ==="
-          python3 -c "import os; print('PYTHONPATH=', os.environ.get('PYTHONPATH'))"
-          echo ""
-          echo "=== Test src import ==="
           python3 -c "import src; print('✅ src import OK')"
-          python3 -c "from src.db import engine; print('✅ src.db import OK')"
+          python3 -c "from src.db import engine; print('✅ src.db import OK'); print(engine.dialect.name)"
 
-      - name: Static sanity (db engine)
+      - name: Run core tests
         run: |
-          python3 -c "import os; print('DATABASE_URL=', os.getenv('DATABASE_URL')); from src.db import engine; print(engine.url); print(engine.dialect.name)"
+          python3 tests/test_corrections_smoke.py
+          python3 tests/test_partial_offers.py
 
-      - name: Wait for Postgres (defensive)
+      - name: Set DATABASE_URL (dynamic port)
         run: |
-          python3 - <<'PY'
-          import os, time
-          import psycopg
-          url = os.environ["DATABASE_URL"].replace("postgresql+psycopg://", "postgresql://")
-          for i in range(30):
-            try:
-              with psycopg.connect(url) as conn:
-                with conn.cursor() as cur:
-                  cur.execute("SELECT 1;")
-                print("Postgres is ready ✅")
-                break
-            except Exception as e:
-              time.sleep(1)
-          else:
-            raise SystemExit("Postgres not ready ❌")
-          PY
+          PG_PORT=${{ job.services.postgres.ports['5432'] }}
+          echo "DATABASE_URL=postgresql+psycopg://dms:dms@localhost:${PG_PORT}/dms" >> "$GITHUB_ENV"
+          echo "Using Postgres on port ${PG_PORT}"
+
+      - name: Wait for Postgres
+        run: |
+          PG_PORT=${{ job.services.postgres.ports['5432'] }}
+          for i in $(seq 1 15); do
+            pg_isready -h localhost -p "$PG_PORT" -U dms && break
+            echo "Waiting for Postgres... ($i)"
+            sleep 2
+          done
 
       - name: Smoke Postgres
         run: |

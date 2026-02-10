@@ -1,0 +1,15 @@
+# DMS Local Development — PostgreSQL only (Constitution V2.1)
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: dms
+      POSTGRES_PASSWORD: dms
+      POSTGRES_DB: dms
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dms"]
+      interval: 5s
+      timeout: 5s
+      retries: 5

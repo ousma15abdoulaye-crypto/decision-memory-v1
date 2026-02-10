@@ -4,8 +4,11 @@ DMS Smoke Test — PostgreSQL (Constitution V2.1 ONLINE-ONLY)
 Run with: DATABASE_URL=postgresql+psycopg://... python3 scripts/smoke_postgres.py
 Optional: --url postgresql://user:pass@host:5432/db
 """
+from __future__ import annotations
 
 from pathlib import Path
+import argparse
+import os
 import sys
 
 # Ensure project root is in sys.path (works without PYTHONPATH)
@@ -13,8 +16,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import argparse
-import os
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 try:
     from dotenv import load_dotenv
