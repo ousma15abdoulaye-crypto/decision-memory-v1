@@ -11,7 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      DATABASE_URL: postgresql+psycopg://dms:dms@localhost:5432/dms
       PYTHONPATH: ${{ github.workspace }}
 
     services:
@@ -84,6 +83,10 @@ jobs:
           echo "=== src/ exists? ==="
           python3 -c "import pathlib; print('src exists:', pathlib.Path('src').exists())"
 
+      - name: Export DATABASE_URL (dynamic service port)
+        run: |
+          echo "DATABASE_URL=postgresql+psycopg://dms:dms@localhost:${{ job.services.postgres.ports[5432] }}/dms" >> $GITHUB_ENV
+
       - name: Validate Python imports
         run: |
           echo "=== PYTHONPATH is set ==="
@@ -91,12 +94,7 @@ jobs:
           echo ""
           echo "=== Test src import ==="
           python3 -c "import src; print('✅ src import OK')"
-          python3 -c "import src.db; print('✅ src.db import OK')"
-
-      - name: Export DATABASE_URL (dynamic service port)
-        run: |
-          echo "DATABASE_URL=postgresql+psycopg://dms:dms@localhost:${{ job.services.postgres.ports[5432] }}/dms" >> $GITHUB_ENV
-          echo "Using DATABASE_URL=$DATABASE_URL"
+          python3 -c "from src.db import engine; print('✅ src.db import OK')"
 
       - name: Static sanity (db engine)
         run: |
