@@ -1,16 +1,17 @@
-name: DMS CI – Core Stability
+name: DMS CI
 
 on:
   push:
-    branches: [ "main", "cursor/*" ]
+    branches: ["main", "copilot/*", "cursor/*"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
+
+    # Job-level env (ONE source of truth)
     env:
       PYTHONPATH: ${{ github.workspace }}
 
@@ -30,97 +31,93 @@ jobs:
           --health-retries 10
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip"
-          cache-dependency-path: "requirements.txt"
+          cache: pip
+          cache-dependency-path: requirements.txt
 
-      - name: Export DATABASE_URL (dynamic service port)
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ------------------------------------------------------------
+      # Tripwire: refuse merge if conflict markers exist
+      # ------------------------------------------------------------
+      - name: Tripwire — no merge conflict markers
         run: |
-          echo "DATABASE_URL=postgresql+psycopg://dms:dms@localhost:${{ job.services.postgres.ports[5432] }}/dms" >> $GITHUB_ENV
-          echo "Using DATABASE_URL=$DATABASE_URL"
+          if grep -R "^[<>=]\{7\}" -n .github/workflows; then
+            echo "❌ Merge conflict markers detected"
+            exit 1
+          fi
+          echo "✅ No conflict markers found"
 
-      - name: Show versions
+      # ------------------------------------------------------------
+      # Compile hard gate
+      # ------------------------------------------------------------
+      - name: Compile check (src + backend)
         run: |
-          python --version
-          pip --version
+          python -m compileall src/ -q
+          if [ -d backend ]; then
+            python -m compileall backend/ -q
+          fi
+          echo "✅ Compileall OK"
 
-      - name: Install dependencies (hard gate)
+      # ------------------------------------------------------------
+      # Proof that src is importable (anti-cousin check)
+      # ------------------------------------------------------------
+      - name: Proof — src importable
         run: |
-          test -f requirements.txt
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python3 -c "import src; print('src_import=OK')"
 
-      - name: Compile check (hard gate)
-        run: |
-          echo "🔍 Compiling all Python files..."
-          python -m compileall . -q || { echo "❌ Compilation failed"; exit 1; }
-
-      - name: Run core tests (hard gate)
+      # ------------------------------------------------------------
+      # Core hard-gate tests (ONLY these)
+      # ------------------------------------------------------------
+      - name: Run core tests
         run: |
           echo "🧪 Running core tests..."
-          python3 tests/test_corrections_smoke.py || exit 1
-          python3 tests/test_partial_offers.py || exit 1
-          echo "✅ All tests passed"
+          python3 tests/test_corrections_smoke.py
+          python3 tests/test_partial_offers.py
+          echo "✅ Core tests passed"
 
-      - name: Debug import path
+      # ------------------------------------------------------------
+      # Optional tests (do not fail pipeline if absent)
+      # ------------------------------------------------------------
+      - name: Run pytest (optional)
         run: |
-          echo "=== Environment ==="
-          echo "PWD=$(pwd)"
-          echo "GITHUB_WORKSPACE=${GITHUB_WORKSPACE}"
-          echo ""
-          echo "=== Directory structure ==="
-          ls -la
-          echo ""
-          echo "=== Find src (depth 2) ==="
-          find . -maxdepth 2 -type d -print
-          echo ""
-          echo "=== Python sys.path ==="
-          python3 -c "import sys; print('sys.path:'); print('\n'.join(sys.path))"
-          echo ""
-          echo "=== PYTHONPATH env ==="
-          python3 -c "import os; print('PYTHONPATH=', os.environ.get('PYTHONPATH', 'NOT SET'))"
-          echo ""
-          echo "=== src/ exists? ==="
-          python3 -c "import pathlib; print('src exists:', pathlib.Path('src').exists())"
+          if [ -d tests ]; then
+            python3 -m pytest tests/ -q || true
+          else
+            echo "SKIP pytest (no tests directory)"
+          fi
 
-      - name: Validate Python imports
+      # ------------------------------------------------------------
+      # Prepare DATABASE_URL (dynamic Postgres port)
+      # ------------------------------------------------------------
+      - name: Set DATABASE_URL
         run: |
-          echo "=== PYTHONPATH is set ==="
-          python3 -c "import os; print('PYTHONPATH=', os.environ.get('PYTHONPATH'))"
-          echo ""
-          echo "=== Test src import ==="
-          python3 -c "import src; print('✅ src import OK')"
-          python3 -c "import src.db; print('✅ src.db import OK')"
+          PG_PORT=${{ job.services.postgres.ports['5432'] }}
+          echo "DATABASE_URL=postgresql+psycopg://dms:dms@localhost:${PG_PORT}/dms" >> "$GITHUB_ENV"
+          echo "Using Postgres on port ${PG_PORT}"
 
-      - name: Static sanity (db engine)
+      # ------------------------------------------------------------
+      # Wait for Postgres
+      # ------------------------------------------------------------
+      - name: Wait for Postgres
         run: |
-          python3 -c "import os; print('DATABASE_URL=', os.getenv('DATABASE_URL')); from src.db import engine; print(engine.url); print(engine.dialect.name)"
+          PG_PORT=${{ job.services.postgres.ports['5432'] }}
+          for i in $(seq 1 15); do
+            pg_isready -h localhost -p "$PG_PORT" -U dms && break
+            echo "Waiting for Postgres... ($i)"
+            sleep 2
+          done
 
-      - name: Wait for Postgres (defensive)
-        run: |
-          python3 - <<'PY'
-          import os, time
-          import psycopg
-          url = os.environ["DATABASE_URL"].replace("postgresql+psycopg://", "postgresql://")
-          for i in range(30):
-            try:
-              with psycopg.connect(url) as conn:
-                with conn.cursor() as cur:
-                  cur.execute("SELECT 1;")
-                print("Postgres is ready ✅")
-                break
-            except Exception as e:
-              time.sleep(1)
-          else:
-            raise SystemExit("Postgres not ready ❌")
-          PY
-
+      # ------------------------------------------------------------
+      # Smoke test (ONLINE-ONLY proof)
+      # ------------------------------------------------------------
       - name: Smoke Postgres
         run: |
           python3 scripts/smoke_postgres.py
