@@ -1,8 +1,8 @@
-name: DMS CI – Core Stability
+name: DMS CI – PostgreSQL Online-Only
 
 on:
   push:
-    branches: [ "main", "cursor/*" ]
+    branches: [ "main", "cursor/*", "copilot/*" ]
   pull_request:
     branches: [ "main" ]
 
@@ -10,6 +10,21 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: dms_test
+          POSTGRES_USER: dms_ci
+          POSTGRES_PASSWORD: dms_ci_temp_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout repository
@@ -22,57 +37,30 @@ jobs:
           cache: "pip"
           cache-dependency-path: "requirements.txt"
 
-      - name: Show versions
+      - name: Install dependencies
         run: |
-          python --version
-          pip --version
-
-      - name: Show environment diagnostics
-        run: |
-          echo "🔍 Repository Diagnostics"
-          echo "========================="
-          echo ""
-          echo "Working Directory:"
-          pwd
-          echo ""
-          echo "Repository Structure:"
-          ls -la
-          echo ""
-          echo "Python sys.path:"
-          python3 -c "import sys; print('\n'.join(sys.path))"
-          echo ""
-          echo "Module Resolution:"
-          python3 -c "import importlib.util as u; print('src=', u.find_spec('src')); print('backend=', u.find_spec('backend'))"
-          echo ""
-
-      - name: Install dependencies (hard gate)
-        run: |
-          test -f requirements.txt
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install sqlalchemy psycopg[binary]
         env:
           PYTHONPATH: ${{ github.workspace }}
 
-      - name: Compile check (hard gate)
+      - name: Compile check
         run: |
-          echo "🔍 Compiling all Python files..."
           python -m compileall . -q || { echo "❌ Compilation failed"; exit 1; }
         env:
           PYTHONPATH: ${{ github.workspace }}
 
-      - name: Run smoke test (Constitution V2.1 verification)
+      - name: PostgreSQL smoke test (ONLINE-ONLY)
         run: |
-          echo "🧪 Running Constitution V2.1 smoke test..."
-          python3 scripts/smoke_postgres.py || exit 1
-          echo "✅ Smoke test passed"
+          python3 scripts/smoke_postgres.py
         env:
           PYTHONPATH: ${{ github.workspace }}
+          DATABASE_URL: postgresql://dms_ci:dms_ci_temp_pass@localhost:5432/dms_test
 
-      - name: Run core tests (hard gate)
+      - name: Core tests
         run: |
-          echo "🧪 Running core tests..."
-          python3 tests/test_corrections_smoke.py || exit 1
-          python3 tests/test_partial_offers.py || exit 1
-          echo "✅ All tests passed"
+          python3 tests/test_corrections_smoke.py
+          python3 tests/test_partial_offers.py
         env:
           PYTHONPATH: ${{ github.workspace }}
