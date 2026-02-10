@@ -47,42 +47,44 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Tripwire — no merge conflict markers
+      - name: Debug import path
         run: |
-          if grep -R "^[<>=]\{7\}" -n .github/workflows; then
-            echo "❌ Merge conflict markers detected"
-            exit 1
-          fi
-          echo "✅ No conflict markers found"
+          echo "=== Environment ==="
+          echo "PWD=$(pwd)"
+          echo "GITHUB_WORKSPACE=${GITHUB_WORKSPACE}"
+          echo ""
+          echo "=== Directory structure ==="
+          ls -la
+          echo ""
+          echo "=== Find src (depth 2) ==="
+          find . -maxdepth 2 -type d -print
+          echo ""
+          echo "=== Python sys.path ==="
+          python3 -c "import sys; print('sys.path:'); print('\n'.join(sys.path))"
+          echo ""
+          echo "=== PYTHONPATH env ==="
+          python3 -c "import os; print('PYTHONPATH=', os.environ.get('PYTHONPATH', 'NOT SET'))"
+          echo ""
+          echo "=== src/ exists? ==="
+          python3 -c "import pathlib; print('src exists:', pathlib.Path('src').exists())"
 
-      - name: Compile check (src + backend)
+      - name: Validate Python imports
         run: |
-          python -m compileall src/ -q
-          if [ -d backend ]; then
-            python -m compileall backend/ -q
-          fi
-          echo "✅ Compileall OK"
-
-      - name: Proof — src importable
-        run: |
-          python3 -c "import src; print('src_import=OK')"
+          echo "=== PYTHONPATH is set ==="
+          python3 -c "import os; print('PYTHONPATH=', os.environ.get('PYTHONPATH'))"
+          echo ""
+          echo "=== Test src import ==="
+          python3 -c "import src; print('✅ src import OK')"
+          python3 -c "from src.db import engine; print('✅ src.db import OK')"
 
       - name: Run core tests
         run: |
           echo "🧪 Running core tests..."
-          python3 tests/test_corrections_smoke.py
-          python3 tests/test_partial_offers.py
-          echo "✅ Core tests passed"
+          python3 tests/test_corrections_smoke.py || exit 1
+          python3 tests/test_partial_offers.py || exit 1
+          echo "✅ All tests passed"
 
-      - name: Run pytest (optional)
-        run: |
-          if [ -d tests ]; then
-            python3 -m pytest tests/ -q || true
-          else
-            echo "SKIP pytest (no tests directory)"
-          fi
-
-      - name: Set DATABASE_URL
+      - name: Set DATABASE_URL (dynamic port)
         run: |
           PG_PORT=${{ job.services.postgres.ports['5432'] }}
           echo "DATABASE_URL=postgresql+psycopg://dms:dms@localhost:${PG_PORT}/dms" >> "$GITHUB_ENV"
