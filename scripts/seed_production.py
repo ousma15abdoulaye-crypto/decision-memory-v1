@@ -167,7 +167,12 @@ def main() -> None:
         sys.exit(1)
 
     sync_url = db_url.replace("+asyncpg", "").replace("+aiosqlite", "")
-    print(f"Seeding database: {sync_url.split('@')[-1] if '@' in sync_url else sync_url}")
+    # Log only the host/db portion — never print credentials
+    if "@" in sync_url:
+        safe_display = sync_url.split("@", 1)[-1]
+    else:
+        safe_display = "(local)"
+    print(f"Seeding database: {safe_display}")
 
     engine = create_engine(sync_url)
 

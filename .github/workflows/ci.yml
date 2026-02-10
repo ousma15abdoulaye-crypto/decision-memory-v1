@@ -59,7 +59,7 @@ jobs:
           PG_PORT=${{ job.services.postgres.ports['5432'] }}
           for i in $(seq 1 15); do
             pg_isready -h localhost -p "$PG_PORT" -U dms && break
-            echo "Waiting for Postgres… ($i)"
+            echo "Waiting for Postgres... ($i)"
             sleep 2
           done
 

@@ -20,7 +20,12 @@ def main() -> None:
 
     # Alembic / this script need a sync driver
     sync_url = db_url.replace("+asyncpg", "").replace("+aiosqlite", "")
-    print(f"Connecting to: {sync_url.split('@')[-1] if '@' in sync_url else sync_url}")
+    # Log only the host/db portion — never print credentials
+    if "@" in sync_url:
+        safe_display = sync_url.split("@", 1)[-1]
+    else:
+        safe_display = "(local)"
+    print(f"Connecting to: {safe_display}")
 
     engine = create_engine(sync_url)
 
@@ -31,7 +36,7 @@ def main() -> None:
         print("✅ Postgres connectivity OK")
 
     # 2. Run Alembic migration
-    print("Running alembic upgrade head …")
+    print("Running alembic upgrade head ...")
     import subprocess
 
     env = {**os.environ, "DATABASE_URL": db_url}
