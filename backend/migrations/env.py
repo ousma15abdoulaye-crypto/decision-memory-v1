@@ -1,5 +1,6 @@
 """Alembic environment configuration."""
 
+import os
 import sys
 from pathlib import Path
 
@@ -11,6 +12,13 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+# If DATABASE_URL contains an async driver, keep it for the backend import
+# but derive a sync URL for Alembic's own connection.
+_db_url_raw = os.environ.get("DATABASE_URL", "")
+_sync_url: str | None = None
+if _db_url_raw:
+    _sync_url = _db_url_raw.replace("+asyncpg", "").replace("+aiosqlite", "")
+
 from backend.system.db import Base
 
 # Import all models so Base.metadata is populated
@@ -19,6 +27,12 @@ import backend.couche_b.models  # noqa: F401
 import backend.system.audit  # noqa: F401
 
 config = context.config
+
+# Override sqlalchemy.url from DATABASE_URL env var if set.
+# Alembic requires a synchronous driver, so async drivers are stripped.
+if _sync_url:
+    config.set_main_option("sqlalchemy.url", _sync_url)
+
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 

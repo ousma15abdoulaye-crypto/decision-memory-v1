@@ -10,16 +10,64 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dms
+          POSTGRES_PASSWORD: dms
+          POSTGRES_DB: dms
+        # Do NOT expose 5432:5432 — use the internal service network
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U dms"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: requirements.txt
+
       - name: Install dependencies
         run: pip install -r requirements.txt
+
       - name: Compile check
         run: python -m compileall backend/ -q
-      - name: Run tests
+
+      - name: Run tests (SQLite)
         run: python -m pytest tests/ -v --tb=short
+
+      - name: Set DATABASE_URL (dynamic port)
+        run: |
+          PG_PORT=${{ job.services.postgres.ports['5432'] }}
+          echo "DATABASE_URL=postgresql+asyncpg://dms:dms@localhost:${PG_PORT}/dms" >> "$GITHUB_ENV"
+          echo "Using Postgres on port ${PG_PORT}"
+
+      - name: Wait for Postgres
+        run: |
+          PG_PORT=${{ job.services.postgres.ports['5432'] }}
+          for i in $(seq 1 15); do
+            pg_isready -h localhost -p "$PG_PORT" -U dms && break
+            echo "Waiting for Postgres… ($i)"
+            sleep 2
+          done
+
+      - name: Alembic migration
+        run: python -m alembic upgrade head
+
+      - name: Seed production data
+        run: python scripts/seed_production.py
+
+      - name: Smoke test Postgres
+        run: python scripts/smoke_postgres.py
