@@ -1,12 +1,73 @@
-# This is a comment to maintain the structure of the file
-# Existing Steps...
+name: DMS CI – Core Stability
 
-# Run core tests
-  - name: Run core tests
-    run: |
-      # running tests...
+on:
+  push:
+    branches: [ "main", "cursor/*" ]
+  pull_request:
+    branches: [ "main" ]
 
-      # Debug import path
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dms
+          POSTGRES_PASSWORD: dms
+          POSTGRES_DB: dms
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U dms"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "requirements.txt"
+
+      - name: Export DATABASE_URL (dynamic service port)
+        run: |
+          echo "DATABASE_URL=postgresql+psycopg://dms:dms@localhost:${{ job.services.postgres.ports[5432] }}/dms" >> $GITHUB_ENV
+          echo "Using DATABASE_URL=$DATABASE_URL"
+
+      - name: Show versions
+        run: |
+          python --version
+          pip --version
+
+      - name: Install dependencies (hard gate)
+        run: |
+          test -f requirements.txt
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compile check (hard gate)
+        run: |
+          echo "🔍 Compiling all Python files..."
+          python -m compileall . -q || { echo "❌ Compilation failed"; exit 1; }
+
+      - name: Run core tests (hard gate)
+        run: |
+          echo "🧪 Running core tests..."
+          python3 tests/test_corrections_smoke.py || exit 1
+          python3 tests/test_partial_offers.py || exit 1
+          echo "✅ All tests passed"
+
       - name: Debug import path
         run: |
           echo "=== Environment ==="
@@ -28,7 +89,6 @@
           echo "=== src/ exists? ==="
           python3 -c "import pathlib; print('src exists:', pathlib.Path('src').exists())"
 
-      # Validate Python imports
       - name: Validate Python imports
         run: |
           echo "=== PYTHONPATH is set ==="
@@ -38,7 +98,29 @@
           python3 -c "import src; print('✅ src import OK')"
           python3 -c "import src.db; print('✅ src.db import OK')"
 
-# Smoke Postgres
-  - name: Smoke Postgres
-    run: |
-      # smoke tests...
+      - name: Static sanity (db engine)
+        run: |
+          python3 -c "import os; print('DATABASE_URL=', os.getenv('DATABASE_URL')); from src.db import engine; print(engine.url); print(engine.dialect.name)"
+
+      - name: Wait for Postgres (defensive)
+        run: |
+          python3 - <<'PY'
+          import os, time
+          import psycopg
+          url = os.environ["DATABASE_URL"].replace("postgresql+psycopg://", "postgresql://")
+          for i in range(30):
+            try:
+              with psycopg.connect(url) as conn:
+                with conn.cursor() as cur:
+                  cur.execute("SELECT 1;")
+                print("Postgres is ready ✅")
+                break
+            except Exception as e:
+              time.sleep(1)
+          else:
+            raise SystemExit("Postgres not ready ❌")
+          PY
+
+      - name: Smoke Postgres
+        run: |
+          python3 scripts/smoke_postgres.py
