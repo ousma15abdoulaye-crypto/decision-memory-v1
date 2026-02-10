@@ -48,13 +48,14 @@ app.include_router(couche_a_router)
 app.include_router(couche_b_router)
 
 
-# ---- Static files (frontend) ------------------------------------------------
-_frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
-if os.path.isdir(_frontend_dir):
-    app.mount("/", StaticFiles(directory=_frontend_dir, html=True), name="frontend")
-
-
 # ---- Health check ------------------------------------------------------------
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
+
+
+# ---- Static files (frontend) ------------------------------------------------
+# Must be mounted last — catch-all "/" would shadow API routes defined after it.
+_frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
+if os.path.isdir(_frontend_dir):
+    app.mount("/", StaticFiles(directory=_frontend_dir, html=True), name="frontend")
