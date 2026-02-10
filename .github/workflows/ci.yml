@@ -41,7 +41,7 @@ jobs:
 
       - name: Static sanity (db engine)
         run: |
-          python3 -c "from src.db import engine; print('dialect', engine.url.get_backend_name())"
+          python3 -c "from src.db import engine; print('Dialect:', engine.url.get_backend_name())"
 
       - name: Smoke Postgres
         run: |
