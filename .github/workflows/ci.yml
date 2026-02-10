@@ -10,7 +10,7 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
+grep -R "<<<<<<<\|=======\|>>>>>>>" -n .
     env:
       PYTHONPATH: ${{ github.workspace }}
 
@@ -120,6 +120,9 @@ jobs:
           else:
             raise SystemExit("Postgres not ready ❌")
           PY
+
+      - name: Proof PYTHONPATH
+        run: python3 -c "import src"
 
       - name: Smoke Postgres
         run: |
