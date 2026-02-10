@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Smoke test: verify Postgres is reachable and Alembic migration creates all expected tables."""
+"""Smoke test: verify Postgres is reachable and Alembic migration creates all expected tables.
+
+Imports: src.db (Source of Truth) — no backend.* imports.
+"""
 
 from __future__ import annotations
 
@@ -52,20 +55,13 @@ def main() -> None:
         sys.exit(1)
     print("✅ Alembic upgrade head OK")
 
-    # 3. Verify expected tables
-    expected_tables = {
-        # Couche A
-        "cases", "lots", "submissions", "submission_documents",
-        "preanalysis_results", "cba_exports", "minutes_pv", "outbox_events",
-        # Couche B
-        "vendors", "vendor_aliases", "vendor_events",
-        "items", "item_aliases",
-        "units", "unit_aliases",
-        "geo_master", "geo_aliases",
-        "market_signals",
-        # System
-        "audit_log",
-    }
+    # 3. Verify expected tables (using src.db metadata as reference)
+    from src.db import Base  # noqa: E402 — Source of Truth
+    import src.couche_a.models  # noqa: F401, E402
+    import src.couche_b.models  # noqa: F401, E402
+    import src.system.audit  # noqa: F401, E402
+
+    expected_tables = set(Base.metadata.tables.keys())
 
     inspector = inspect(engine)
     actual_tables = set(inspector.get_table_names())

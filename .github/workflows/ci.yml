@@ -2,7 +2,7 @@ name: DMS CI
 
 on:
   push:
-    branches: ["main", "copilot/*"]
+    branches: ["main", "copilot/*", "cursor/*"]
   pull_request:
     branches: ["main"]
 
@@ -42,8 +42,19 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Compile check
-        run: python -m compileall backend/ -q
+      - name: Compile check (backend + src)
+        run: |
+          python -m compileall backend/ -q
+          python -m compileall src/ -q
+
+      - name: Verify src imports (no backend.* in scripts)
+        run: |
+          echo "Checking scripts for forbidden backend.* imports..."
+          if grep -rn "from backend\.\|import backend\." scripts/*.py; then
+            echo "❌ FAIL: scripts must use src.* imports only"
+            exit 1
+          fi
+          echo "✅ Scripts use src-only imports"
 
       - name: Run tests (SQLite)
         run: python -m pytest tests/ -v --tb=short
@@ -63,7 +74,7 @@ jobs:
             sleep 2
           done
 
-      - name: Alembic migration
+      - name: Alembic migration (alembic/ source of truth)
         run: python -m alembic upgrade head
 
       - name: Seed production data

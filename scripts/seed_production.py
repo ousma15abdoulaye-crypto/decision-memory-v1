@@ -2,6 +2,7 @@
 """Seed script: idempotent insert of reference data (units, geo Mali, vendors, items).
 
 Requires DATABASE_URL env var (sync or async driver accepted — script uses sync).
+Imports: src.* (Source of Truth) — no backend.* imports.
 """
 
 from __future__ import annotations
