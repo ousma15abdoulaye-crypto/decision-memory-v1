@@ -38,8 +38,15 @@ env/
 data/
 *.sqlite3
 *.db
+dms_dev.db
 uploads/
 outputs/
+
+# Environment
+.env
+
+# Node
+node_modules/
 
 # OS
 .DS_Store

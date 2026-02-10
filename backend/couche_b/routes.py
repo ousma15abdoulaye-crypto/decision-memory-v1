@@ -109,6 +109,8 @@ async def market_intelligence_stats(
 # ---- Market signal ingestion (admin only) -----------------------------------
 
 class MarketSignalPayload(BaseModel):
+    model_config = {"extra": "forbid"}
+
     item_name: str
     vendor_name: str
     geo_name: str | None = None
