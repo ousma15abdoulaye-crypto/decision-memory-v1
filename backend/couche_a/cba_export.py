@@ -10,7 +10,7 @@ from openpyxl.styles import Font, PatternFill
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.couche_a.models import PreanalysisResult, Submission
+from backend.couche_a.models import Submission
 from backend.couche_a.rules_engine import evaluate_submission
 from backend.system.settings import get_settings
 
@@ -36,6 +36,9 @@ async def generate_cba_excel(case_id: str, lot_id: str, db: AsyncSession) -> str
         ev = await evaluate_submission(sub.id, db)
         evaluations.append(ev)
 
+    # Pre-build vendor lookup to avoid N+1 queries
+    vendor_lookup = {sub.id: sub.vendor_name for sub in submissions}
+
     wb = Workbook()
 
     # --- Summary sheet ---
@@ -47,9 +50,7 @@ async def generate_cba_excel(case_id: str, lot_id: str, db: AsyncSession) -> str
         cell.font = HEADER_FONT
 
     for row_idx, ev in enumerate(evaluations, 2):
-        sub_stmt = select(Submission).where(Submission.id == ev["submission_id"])
-        sub = (await db.execute(sub_stmt)).scalar_one_or_none()
-        vendor = sub.vendor_name if sub else "Unknown"
+        vendor = vendor_lookup.get(ev["submission_id"], "Unknown")
         ws_summary.cell(row=row_idx, column=1, value=vendor)
         status_cell = ws_summary.cell(row=row_idx, column=2, value=ev["status"])
         ws_summary.cell(row=row_idx, column=3, value=ev["total"])
@@ -65,9 +66,8 @@ async def generate_cba_excel(case_id: str, lot_id: str, db: AsyncSession) -> str
     ws_ess.cell(row=1, column=2, value="Pass").font = HEADER_FONT
     ws_ess.cell(row=1, column=3, value="Reasons").font = HEADER_FONT
     for row_idx, ev in enumerate(evaluations, 2):
-        sub_stmt = select(Submission).where(Submission.id == ev["submission_id"])
-        sub = (await db.execute(sub_stmt)).scalar_one_or_none()
-        ws_ess.cell(row=row_idx, column=1, value=sub.vendor_name if sub else "Unknown")
+        vendor = vendor_lookup.get(ev["submission_id"], "Unknown")
+        ws_ess.cell(row=row_idx, column=1, value=vendor)
         ws_ess.cell(row=row_idx, column=2, value="YES" if ev["essential_pass"] else "NO")
         ws_ess.cell(row=row_idx, column=3, value="; ".join(ev["essential_reasons"]))
 
@@ -76,9 +76,8 @@ async def generate_cba_excel(case_id: str, lot_id: str, db: AsyncSession) -> str
     ws_cap.cell(row=1, column=1, value="Vendor").font = HEADER_FONT
     ws_cap.cell(row=1, column=2, value="Capacity Score").font = HEADER_FONT
     for row_idx, ev in enumerate(evaluations, 2):
-        sub_stmt = select(Submission).where(Submission.id == ev["submission_id"])
-        sub = (await db.execute(sub_stmt)).scalar_one_or_none()
-        ws_cap.cell(row=row_idx, column=1, value=sub.vendor_name if sub else "Unknown")
+        vendor = vendor_lookup.get(ev["submission_id"], "Unknown")
+        ws_cap.cell(row=row_idx, column=1, value=vendor)
         ws_cap.cell(row=row_idx, column=2, value=ev["scores"]["capacity"])
 
     # --- Sustainability sheet ---
@@ -86,9 +85,8 @@ async def generate_cba_excel(case_id: str, lot_id: str, db: AsyncSession) -> str
     ws_dur.cell(row=1, column=1, value="Vendor").font = HEADER_FONT
     ws_dur.cell(row=1, column=2, value="Durability Score").font = HEADER_FONT
     for row_idx, ev in enumerate(evaluations, 2):
-        sub_stmt = select(Submission).where(Submission.id == ev["submission_id"])
-        sub = (await db.execute(sub_stmt)).scalar_one_or_none()
-        ws_dur.cell(row=row_idx, column=1, value=sub.vendor_name if sub else "Unknown")
+        vendor = vendor_lookup.get(ev["submission_id"], "Unknown")
+        ws_dur.cell(row=row_idx, column=1, value=vendor)
         ws_dur.cell(row=row_idx, column=2, value=ev["scores"]["durability"])
 
     # --- Commercial sheet ---
@@ -96,10 +94,8 @@ async def generate_cba_excel(case_id: str, lot_id: str, db: AsyncSession) -> str
     ws_com.cell(row=1, column=1, value="Vendor").font = HEADER_FONT
     ws_com.cell(row=1, column=2, value="Commercial Score").font = HEADER_FONT
     for row_idx, ev in enumerate(evaluations, 2):
-        sub_stmt = select(Submission).where(Submission.id == ev["submission_id"])
-        sub = (await db.execute(sub_stmt)).scalar_one_or_none()
-        ws_com.cell(row=row_idx, column=1, value=sub.vendor_name if sub else "Unknown")
-        ws_com.cell(row=row_idx, column=2, value=ev["scores"]["commercial"])
+        vendor = vendor_lookup.get(ev["submission_id"], "Unknown")
+        ws_com.cell(row=row_idx, column=1, value=vendor)
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     file_path = os.path.join(output_dir, f"CBA_{case_id}_{lot_id}_{ts}.xlsx")

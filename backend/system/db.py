@@ -55,7 +55,3 @@ async def init_db() -> None:
     """Create all tables (dev convenience – use Alembic in production)."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
-
-def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)

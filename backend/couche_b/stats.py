@@ -22,9 +22,10 @@ async def get_price_stats(
         stmt = stmt.where(MarketSignal.geo_id == geo_id)
 
     rows = (await db.execute(stmt)).scalars().all()
-    prices = [r.unit_price for r in rows if r.unit_price is not None]
+    # Chronological order for trend analysis
+    chrono_prices = [r.unit_price for r in sorted(rows, key=lambda r: r.created_at) if r.unit_price is not None]
 
-    if not prices:
+    if not chrono_prices:
         return {
             "item_id": item_id,
             "geo_id": geo_id,
@@ -36,7 +37,7 @@ async def get_price_stats(
             "trend": None,
         }
 
-    prices_sorted = sorted(prices)
+    prices_sorted = sorted(chrono_prices)
     n = len(prices_sorted)
     median = (
         prices_sorted[n // 2]
@@ -44,12 +45,12 @@ async def get_price_stats(
         else (prices_sorted[n // 2 - 1] + prices_sorted[n // 2]) / 2
     )
 
-    # Simple trend: compare first and last signal
+    # Trend: compare earliest and latest signals chronologically
     trend = None
     if n >= 2:
-        if prices_sorted[-1] > prices_sorted[0]:
+        if chrono_prices[-1] > chrono_prices[0]:
             trend = "up"
-        elif prices_sorted[-1] < prices_sorted[0]:
+        elif chrono_prices[-1] < chrono_prices[0]:
             trend = "down"
         else:
             trend = "stable"
@@ -58,9 +59,9 @@ async def get_price_stats(
         "item_id": item_id,
         "geo_id": geo_id,
         "count": n,
-        "min": min(prices),
-        "max": max(prices),
-        "avg": round(sum(prices) / n, 2),
+        "min": min(chrono_prices),
+        "max": max(chrono_prices),
+        "avg": round(sum(chrono_prices) / n, 2),
         "median": median,
         "trend": trend,
     }

@@ -86,7 +86,8 @@ async def depot_upload(
     # Trigger extraction (inline for small files, celery for large)
     size_mb = len(content) / (1024 * 1024)
     if size_mb > settings.CELERY_THRESHOLD_MB:
-        pass  # TODO: celery task
+        from backend.workers.tasks import extract_document_task
+        extract_document_task.delay(doc.id, file_path)
     else:
         from backend.couche_a.analyzer import run_extraction
         await run_extraction(doc.id, file_path, db)
