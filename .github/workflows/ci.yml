@@ -10,6 +10,8 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}
 
     steps:
       - name: Checkout repository
@@ -32,6 +34,18 @@ jobs:
           test -f requirements.txt
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
+      - name: Proof PYTHONPATH & src import
+        run: |
+          python3 -c "import os; import src; print('src_import=OK'); print('PYTHONPATH=', os.getenv('PYTHONPATH'))"
+
+      - name: Static sanity (db engine)
+        run: |
+          python3 -c "from src.db import engine; print('dialect', engine.url.get_backend_name())"
+
+      - name: Smoke Postgres
+        run: |
+          python3 scripts/smoke_postgres.py
 
       - name: Compile check (hard gate)
         run: |
