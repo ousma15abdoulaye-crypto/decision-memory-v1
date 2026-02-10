@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Couche A</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/dashboard.js" defer></script>
+  </head>
+  <body class="bg-slate-50 text-slate-900">
+    <main class="max-w-6xl mx-auto py-10 px-6">
+      <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-semibold">Tableau de pré-analyse</h1>
+        <a class="text-indigo-600" href="/templates/index.html">Accueil</a>
+      </div>
+
+      <section class="mt-6 bg-white shadow rounded-lg p-4 border border-slate-200">
+        <div class="grid gap-4 sm:grid-cols-3">
+          <div>
+            <label class="text-sm text-slate-500">Lot</label>
+            <input id="filter-lot" class="w-full border rounded px-3 py-2" placeholder="LOT-001" />
+          </div>
+          <div>
+            <label class="text-sm text-slate-500">Statut</label>
+            <input id="filter-status" class="w-full border rounded px-3 py-2" placeholder="CONFORME" />
+          </div>
+          <div>
+            <label class="text-sm text-slate-500">Date (YYYY-MM-DD)</label>
+            <input id="filter-date" class="w-full border rounded px-3 py-2" placeholder="2026-02-10" />
+          </div>
+        </div>
+        <button
+          id="apply-filters"
+          class="mt-4 bg-indigo-600 text-white px-4 py-2 rounded"
+        >
+          Filtrer
+        </button>
+      </section>
+
+      <section class="mt-6 grid gap-6 lg:grid-cols-3">
+        <div class="lg:col-span-2 bg-white shadow rounded-lg border border-slate-200">
+          <table class="min-w-full text-sm" id="dashboard-table">
+            <thead class="bg-slate-100 text-slate-600">
+              <tr>
+                <th class="p-3 text-left">Acheteur</th>
+                <th class="p-3 text-left">Fournisseur</th>
+                <th class="p-3 text-left">Date</th>
+                <th class="p-3 text-left">Type</th>
+                <th class="p-3 text-left">Montant</th>
+                <th class="p-3 text-left">Score</th>
+                <th class="p-3 text-left">Statut</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y" id="dashboard-body"></tbody>
+          </table>
+        </div>
+        <div class="bg-white shadow rounded-lg p-4 border border-slate-200">
+          <h2 class="text-sm font-medium text-slate-500">Répartition des statuts</h2>
+          <canvas id="status-chart" class="mt-4"></canvas>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
