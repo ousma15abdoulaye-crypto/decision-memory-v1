@@ -3,7 +3,7 @@ Couche B — Seed Data Mali
 Constitution DMS V2.1 §4.4 (Geo) + §4.3 (Units)
 """
 
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, text
 from sqlalchemy.ext.asyncio import create_async_engine
 from src.db import DATABASE_URL, metadata
 from src.couche_b.resolvers import generate_ulid
