@@ -27,16 +27,46 @@ jobs:
           python --version
           pip --version
 
+      - name: Show environment diagnostics
+        run: |
+          echo "🔍 Repository Diagnostics"
+          echo "========================="
+          echo ""
+          echo "Working Directory:"
+          pwd
+          echo ""
+          echo "Repository Structure:"
+          ls -la
+          echo ""
+          echo "Python sys.path:"
+          python3 -c "import sys; print('\n'.join(sys.path))"
+          echo ""
+          echo "Module Resolution:"
+          python3 -c "import importlib.util as u; print('src=', u.find_spec('src')); print('backend=', u.find_spec('backend'))"
+          echo ""
+
       - name: Install dependencies (hard gate)
         run: |
           test -f requirements.txt
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+        env:
+          PYTHONPATH: ${{ github.workspace }}
 
       - name: Compile check (hard gate)
         run: |
           echo "🔍 Compiling all Python files..."
           python -m compileall . -q || { echo "❌ Compilation failed"; exit 1; }
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+
+      - name: Run smoke test (Constitution V2.1 verification)
+        run: |
+          echo "🧪 Running Constitution V2.1 smoke test..."
+          python3 scripts/smoke_postgres.py || exit 1
+          echo "✅ Smoke test passed"
+        env:
+          PYTHONPATH: ${{ github.workspace }}
 
       - name: Run core tests (hard gate)
         run: |
@@ -44,3 +74,5 @@ jobs:
           python3 tests/test_corrections_smoke.py || exit 1
           python3 tests/test_partial_offers.py || exit 1
           echo "✅ All tests passed"
+        env:
+          PYTHONPATH: ${{ github.workspace }}
