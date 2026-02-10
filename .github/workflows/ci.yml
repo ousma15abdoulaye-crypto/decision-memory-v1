@@ -91,8 +91,7 @@ jobs:
           PY
 
       - name: Proof PYTHONPATH
-        run: |
-          python3 -c "import sys; import os; print('PYTHONPATH=', os.getenv('PYTHONPATH')); import src; print('src_import=OK')"
+        run: python3 -c "import src"
 
       - name: Smoke Postgres
         run: |
