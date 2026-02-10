@@ -2,16 +2,19 @@ name: DMS CI
 
 on:
   push:
-    branches: ["main", "copilot/*", "cursor/*"]
+    branches:
+      - main
+      - "copilot/*"
+      - "cursor/*"
   pull_request:
-    branches: ["main"]
+    branches:
+      - main
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
-    # Job-level env (ONE source of truth)
     env:
       PYTHONPATH: ${{ github.workspace }}
 
@@ -44,9 +47,6 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # ------------------------------------------------------------
-      # Tripwire: refuse merge if conflict markers exist
-      # ------------------------------------------------------------
       - name: Tripwire — no merge conflict markers
         run: |
           if grep -R "^[<>=]\{7\}" -n .github/workflows; then
@@ -55,9 +55,6 @@ jobs:
           fi
           echo "✅ No conflict markers found"
 
-      # ------------------------------------------------------------
-      # Compile hard gate
-      # ------------------------------------------------------------
       - name: Compile check (src + backend)
         run: |
           python -m compileall src/ -q
@@ -66,16 +63,10 @@ jobs:
           fi
           echo "✅ Compileall OK"
 
-      # ------------------------------------------------------------
-      # Proof that src is importable (anti-cousin check)
-      # ------------------------------------------------------------
       - name: Proof — src importable
         run: |
           python3 -c "import src; print('src_import=OK')"
 
-      # ------------------------------------------------------------
-      # Core hard-gate tests (ONLY these)
-      # ------------------------------------------------------------
       - name: Run core tests
         run: |
           echo "🧪 Running core tests..."
@@ -83,9 +74,6 @@ jobs:
           python3 tests/test_partial_offers.py
           echo "✅ Core tests passed"
 
-      # ------------------------------------------------------------
-      # Optional tests (do not fail pipeline if absent)
-      # ------------------------------------------------------------
       - name: Run pytest (optional)
         run: |
           if [ -d tests ]; then
@@ -94,18 +82,12 @@ jobs:
             echo "SKIP pytest (no tests directory)"
           fi
 
-      # ------------------------------------------------------------
-      # Prepare DATABASE_URL (dynamic Postgres port)
-      # ------------------------------------------------------------
       - name: Set DATABASE_URL
         run: |
           PG_PORT=${{ job.services.postgres.ports['5432'] }}
           echo "DATABASE_URL=postgresql+psycopg://dms:dms@localhost:${PG_PORT}/dms" >> "$GITHUB_ENV"
           echo "Using Postgres on port ${PG_PORT}"
 
-      # ------------------------------------------------------------
-      # Wait for Postgres
-      # ------------------------------------------------------------
       - name: Wait for Postgres
         run: |
           PG_PORT=${{ job.services.postgres.ports['5432'] }}
@@ -115,9 +97,6 @@ jobs:
             sleep 2
           done
 
-      # ------------------------------------------------------------
-      # Smoke test (ONLINE-ONLY proof)
-      # ------------------------------------------------------------
       - name: Smoke Postgres
         run: |
           python3 scripts/smoke_postgres.py
