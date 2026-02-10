@@ -33,6 +33,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Fail if merge conflict markers exist
+        run: |
+          MARKERS=$(grep -rn '^<\{7\}\|^=\{7\}$\|^>\{7\}' .github/workflows/ || true)
+          if [ -n "$MARKERS" ]; then
+            echo "$MARKERS"
+            echo "❌ Merge conflict markers detected in workflow files"
+            exit 1
+          fi
+          echo "✅ No conflict markers in .github/workflows/"
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
