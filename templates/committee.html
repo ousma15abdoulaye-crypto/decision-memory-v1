@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Revue Comité</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/committee.js" defer></script>
+  </head>
+  <body class="bg-slate-50 text-slate-900">
+    <main class="max-w-4xl mx-auto py-10 px-6">
+      <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-semibold">Revue Comité &amp; PV</h1>
+        <a class="text-indigo-600" href="/templates/index.html">Accueil</a>
+      </div>
+
+      <section class="mt-6 bg-white shadow rounded-lg p-6 border border-slate-200">
+        <h2 class="text-lg font-medium">Upload CBA complété</h2>
+        <form id="cba-upload-form" class="mt-4 space-y-3">
+          <input class="w-full border rounded px-3 py-2" name="offer_id" placeholder="ID Offre" />
+          <input class="w-full border rounded px-3 py-2" name="reviewer" placeholder="Relecteur" />
+          <input class="w-full" type="file" name="file" />
+          <button class="bg-indigo-600 text-white px-4 py-2 rounded" type="submit">
+            Charger
+          </button>
+        </form>
+        <p id="upload-status" class="text-sm text-slate-500 mt-3"></p>
+      </section>
+
+      <section class="mt-6 bg-white shadow rounded-lg p-6 border border-slate-200">
+        <h2 class="text-lg font-medium">PV automatiques</h2>
+        <div class="mt-4 grid gap-3">
+          <input class="w-full border rounded px-3 py-2" id="pv-lot-id" placeholder="ID Lot" />
+          <div class="flex gap-3">
+            <button id="pv-ouverture" class="bg-emerald-600 text-white px-4 py-2 rounded">
+              Générer PV Ouverture
+            </button>
+            <button id="pv-analyse" class="bg-blue-600 text-white px-4 py-2 rounded">
+              Générer PV Analyse
+            </button>
+          </div>
+        </div>
+        <p id="pv-status" class="text-sm text-slate-500 mt-3"></p>
+      </section>
+    </main>
+  </body>
+</html>
