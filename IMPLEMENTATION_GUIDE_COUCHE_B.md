@@ -144,6 +144,13 @@ connectable = create_async_engine(DATABASE_URL, poolclass=pool.NullPool)
 **File:** `alembic/versions/001_create_couche_b_schema.py`  
 **Content:** 10 tables + indexes + constraints
 
+**Prerequisites:**
+```sql
+-- Enable PostgreSQL extensions (must be run first)
+CREATE EXTENSION IF NOT EXISTS pg_trgm;  -- For fuzzy text search
+CREATE SCHEMA IF NOT EXISTS couche_b;
+```
+
 **Tables to create:**
 1. `couche_b.vendors` (20 colonnes)
 2. `couche_b.vendor_aliases` (5 colonnes)
@@ -175,6 +182,7 @@ See Constitution § 3.3 - § 5.1 for exact DDL.
 ```python
 from sqlalchemy import Table, Column, String, Integer, DECIMAL, DateTime, JSON, ARRAY, TEXT
 from sqlalchemy import MetaData, Index, CheckConstraint, ForeignKey
+from sqlalchemy.sql import func
 from datetime import datetime
 
 metadata = MetaData(schema="couche_b")
@@ -192,8 +200,8 @@ vendors = Table(
     Column("contact_json", JSON),
     Column("tags", ARRAY(TEXT)),
     Column("metadata_json", JSON),
-    Column("created_at", DateTime, default=datetime.utcnow),
-    Column("updated_at", DateTime, default=datetime.utcnow, onupdate=datetime.utcnow),
+    Column("created_at", DateTime, server_default=func.now()),  # Use server_default for proper timestamp
+    Column("updated_at", DateTime, server_default=func.now(), onupdate=func.now()),
     Column("created_by", String(100)),
 )
 

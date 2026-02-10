@@ -26,6 +26,12 @@
 10. [x] `couche_b.market_signals` - 20 colonnes minimum
 
 ### Indexes (Required)
+
+**IMPORTANT:** GIN indexes require `pg_trgm` extension:
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+```
+
 - [x] `idx_vendors_status` ON vendors(status)
 - [x] `idx_vendor_aliases_name` ON vendor_aliases USING gin(alias_name gin_trgm_ops)
 - [x] `idx_items_category` ON items(category)
@@ -126,6 +132,14 @@
 ## 📊 EXACT COLUMN SPECIFICATIONS
 
 ### vendors (13 columns minimum)
+
+**ID Format Convention:**  
+- Format: `PREFIX_IDENTIFIER` (e.g., `VND_SOGELEC`, `VND_01HQRST...`)  
+- Prefix: 3-4 chars (VND, ITM, UNT, GEO, SIG)  
+- Separator: `_`  
+- Identifier: Human-readable OR ULID (sortable timestamp-based)  
+- Max length: 20 chars ensures future ULID compatibility
+
 ```sql
 vendor_id VARCHAR(20) PRIMARY KEY
 canonical_name VARCHAR(200) NOT NULL UNIQUE
