@@ -11,6 +11,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dms
+          POSTGRES_PASSWORD: dms
+          POSTGRES_DB: dms
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready -U dms
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+psycopg://dms:dms@localhost:5432/dms
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -44,3 +62,11 @@ jobs:
           python3 tests/test_corrections_smoke.py || exit 1
           python3 tests/test_partial_offers.py || exit 1
           echo "✅ All tests passed"
+
+      - name: Static sanity (db engine)
+        run: |
+          python3 -c "from src.db import engine; print(engine.url); print(engine.dialect.name)"
+
+      - name: Smoke Postgres
+        run: |
+          python3 scripts/smoke_postgres.py

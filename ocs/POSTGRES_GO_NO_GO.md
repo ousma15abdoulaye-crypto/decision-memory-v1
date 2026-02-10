@@ -12,7 +12,7 @@ Objectif: éviter le mélange et sécuriser l’industrialisation sans ralentir 
 ## Constat
 L’agent a livré:
 - Correction placeholder layer (:0 → :p0): ✅ fait
-- Dual-mode SQLite/Postgres: ✅ fait
+- ONLINE-ONLY (Postgres only): ✅ fait
 - Tests existants + infra validation: ✅ fait
 - Docs GO/NO-GO: ✅ fait
 
