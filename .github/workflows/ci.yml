@@ -68,6 +68,8 @@ jobs:
       - name: Static sanity (db engine)
         run: |
           python3 -c "import os; print('DATABASE_URL=', os.getenv('DATABASE_URL')); from src.db import engine; print(engine.url); print(engine.dialect.name)"
+        env:
+          PYTHONPATH: ${{ github.workspace }}
 
       - name: Wait for Postgres (defensive)
         run: |
@@ -91,3 +93,5 @@ jobs:
       - name: Smoke Postgres
         run: |
           python3 scripts/smoke_postgres.py
+        env:
+          PYTHONPATH: ${{ github.workspace }}
