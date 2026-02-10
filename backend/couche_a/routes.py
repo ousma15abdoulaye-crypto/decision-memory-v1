@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import uuid
 from typing import Annotated
 
@@ -28,6 +29,11 @@ __all__ = ["router"]
 router = APIRouter(tags=["couche_a"])
 
 
+def _sanitize_path_component(value: str) -> str:
+    """Remove path traversal characters from user-provided path components."""
+    return re.sub(r"[^a-zA-Z0-9_\-.]", "_", value)
+
+
 # ---- POST /api/depot --------------------------------------------------------
 
 @router.post("/api/depot", status_code=status.HTTP_201_CREATED)
@@ -48,11 +54,15 @@ async def depot_upload(
         raise HTTPException(status_code=413, detail="File exceeds maximum size")
 
     # Ensure upload dir exists
-    upload_dir = os.path.join(settings.UPLOAD_DIR, case_id, lot_id)
+    upload_dir = os.path.join(
+        settings.UPLOAD_DIR,
+        _sanitize_path_component(case_id),
+        _sanitize_path_component(lot_id),
+    )
     os.makedirs(upload_dir, exist_ok=True)
 
     file_id = str(uuid.uuid4())
-    safe_name = f"{file_id}_{file.filename}"
+    safe_name = f"{file_id}_{_sanitize_path_component(file.filename or 'unknown')}"
     file_path = os.path.join(upload_dir, safe_name)
     with open(file_path, "wb") as f:
         f.write(content)
@@ -213,7 +223,7 @@ async def cba_review_upload(
 
     upload_dir = os.path.join(settings.UPLOAD_DIR, "cba_reviews")
     os.makedirs(upload_dir, exist_ok=True)
-    file_path = os.path.join(upload_dir, f"{uuid.uuid4()}_{file.filename}")
+    file_path = os.path.join(upload_dir, f"{uuid.uuid4()}_{_sanitize_path_component(file.filename or 'unknown')}")
     with open(file_path, "wb") as f:
         f.write(content)
 
