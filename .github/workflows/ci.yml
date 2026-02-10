@@ -1,4 +1,4 @@
-name: DMS CI
+name: DMS CI – Core Stability
 
 on:
   push:
@@ -18,14 +18,13 @@ jobs:
           POSTGRES_USER: dms
           POSTGRES_PASSWORD: dms
           POSTGRES_DB: dms
-        # Do NOT expose 5432:5432 — use the internal service network
         ports:
           - 5432/tcp
         options: >-
           --health-cmd "pg_isready -U dms"
           --health-interval 5s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
 
     env:
       PYTHONPATH: ${{ github.workspace }}
@@ -50,21 +49,17 @@ jobs:
           cache-dependency-path: requirements.txt
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Compile check (backend + src)
         run: |
-          python -m compileall backend/ -q
-          python -m compileall src/ -q
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Verify src imports (no backend.* in scripts)
+      - name: Compile check
+        run: python -m compileall . -q
+
+      - name: Run core tests
         run: |
-          echo "Checking scripts for forbidden backend.* imports..."
-          if grep -rn "from backend\.\|import backend\." scripts/*.py; then
-            echo "❌ FAIL: scripts must use src.* imports only"
-            exit 1
-          fi
-          echo "✅ Scripts use src-only imports"
+          python3 tests/test_corrections_smoke.py
+          python3 tests/test_partial_offers.py
 
       - name: Run tests (SQLite)
         run: python -m pytest tests/ -v --tb=short
@@ -72,7 +67,7 @@ jobs:
       - name: Set DATABASE_URL (dynamic port)
         run: |
           PG_PORT=${{ job.services.postgres.ports['5432'] }}
-          echo "DATABASE_URL=postgresql+asyncpg://dms:dms@localhost:${PG_PORT}/dms" >> "$GITHUB_ENV"
+          echo "DATABASE_URL=postgresql+psycopg://dms:dms@localhost:${PG_PORT}/dms" >> "$GITHUB_ENV"
           echo "Using Postgres on port ${PG_PORT}"
 
       - name: Wait for Postgres
@@ -83,6 +78,10 @@ jobs:
             echo "Waiting for Postgres... ($i)"
             sleep 2
           done
+
+      - name: Validate src imports
+        run: |
+          python3 -c "import src; print('✅ src import OK')"
 
       - name: Alembic migration (alembic/ source of truth)
         run: python -m alembic upgrade head

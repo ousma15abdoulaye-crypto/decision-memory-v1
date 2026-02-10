@@ -1,2 +1,1 @@
-# src/ — Source of Truth package
-# Re-exports from backend.* to provide the canonical src.* import path.
+"""DMS Source Package - Decision Memory System"""
