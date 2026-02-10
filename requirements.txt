@@ -5,3 +5,16 @@ python-multipart==0.0.12
 openpyxl==3.1.5
 python-docx==1.1.2
 pypdf==5.1.0
+
+# Database (Constitution V2.1)
+sqlalchemy==2.0.27
+psycopg[binary,pool]==3.1.18
+alembic==1.13.1
+
+# Testing
+pytest==8.0.0
+pytest-asyncio==0.23.5
+
+# Couche B dependencies
+fuzzywuzzy==0.18.0
+python-Levenshtein==0.25.0
