@@ -17,9 +17,6 @@ jobs:
     env:
       PYTHONPATH: ${{ github.workspace }}
 
-    env:
-      PYTHONPATH: ${{ github.workspace }}
-
     services:
       postgres:
         image: postgres:16
@@ -52,39 +49,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-name: Debug import path
-        run: |
-          echo "=== Environment ==="
-          echo "PWD=$(pwd)"
-          echo "GITHUB_WORKSPACE=${GITHUB_WORKSPACE}"
-          echo "PYTHONPATH=${PYTHONPATH}"
-          echo ""
-          echo "=== Directory structure ==="
-          ls -la
-          echo ""
-          echo "=== Find src (depth 2) ==="
-          find . -maxdepth 2 -type d -print
-          echo ""
-          echo "=== Python sys.path ==="
-          python3 -c "import sys; print('sys.path:'); print('\n'.join(sys.path))"
-          echo ""
-          echo "=== src exists? ==="
-          python3 -c "import pathlib; print('src exists:', pathlib.Path('src').exists())"
-
-      - name: Proof PYTHONPATH & src import
-        run: |
-          python3 -c "import os; import src; print('src_import=OK'); print('PYTHONPATH=', os.getenv('PYTHONPATH'))"
-
       - name: Compile check
         run: |
           python -m compileall . -q || { echo "❌ Compilation failed"; exit 1; }
-        run: |
-          python -m compileall . -q || { echo "❌ Compilation failed"; exit 1; }
-
-      - name: Validate Python imports
-        run: |
-          python3 -c "import src; print('✅ src import OK')"
-          python3 -c "from src.db import engine; print('✅ src.db import OK'); print(engine.dialect.name)"
 
       - name: Run core tests
         run: |

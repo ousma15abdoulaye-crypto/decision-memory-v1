@@ -31,12 +31,12 @@ from pypdf import PdfReader
 from src.db import get_connection, db_execute, db_execute_one, db_fetchall, init_db_schema
 
 
-# =========================================================
+# ---------------------------------------------------------
 # Decision Memory System — MVP A++ FINAL
 # Version: 1.0.0
 # DAO-driven extraction + Template-adaptive CBA + Active Memory
 # Constitution V2.1: ONLINE-ONLY (PostgreSQL)
-# =========================================================
+# ---------------------------------------------------------
 
 APP_TITLE = "Decision Memory System — MVP A++ (Production)"
 APP_VERSION = "1.0.0"
@@ -51,9 +51,9 @@ UPLOADS_DIR.mkdir(exist_ok=True)
 OUTPUTS_DIR.mkdir(exist_ok=True)
 
 
-# =========================
+# -------------------------
 # CONSTITUTION (V2.1 ONLINE-ONLY)
-# =========================
+# -------------------------
 INVARIANTS = {
     "cognitive_load_never_increase": True,
     "human_decision_final": True,
@@ -66,9 +66,9 @@ INVARIANTS = {
 }
 
 
-# =========================
+# -------------------------
 # Database — PostgreSQL only (schema created on startup)
-# =========================
+# -------------------------
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
@@ -83,9 +83,9 @@ STATIC_DIR.mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
-# =========================
+# -------------------------
 # Pydantic Models
-# =========================
+# -------------------------
 class CaseCreate(BaseModel):
     case_type: str
     title: str
@@ -153,9 +153,9 @@ class SupplierPackage:
     missing_fields: List[str]
 
 
-# =========================
+# -------------------------
 # Storage Helpers
-# =========================
+# -------------------------
 def safe_save_upload(case_id: str, kind: str, up: UploadFile) -> Tuple[str, str]:
     ext = Path(up.filename).suffix.lower()
     if ext not in [".pdf", ".docx", ".xlsx"]:
@@ -227,9 +227,9 @@ def list_memory(case_id: str, entry_type: Optional[str] = None) -> List[dict]:
     return [dict(r) | {"content": json.loads(r["content_json"])} for r in rows]
 
 
-# =========================
+# -------------------------
 # Text Extraction
-# =========================
+# -------------------------
 def extract_text_from_docx(path: str) -> str:
     doc = Document(path)
     parts: List[str] = []
@@ -267,9 +267,9 @@ def extract_text_any(path: str) -> str:
     raise HTTPException(status_code=400, detail=f"Unsupported extraction: {ext}")
 
 
-# =========================
+# -------------------------
 # Document Subtype Detection (PARTIAL OFFERS)
-# =========================
+# -------------------------
 def detect_offer_subtype(text: str, filename: str) -> OfferSubtype:
     """
     Détection automatique du type de document d'offre.
@@ -437,9 +437,9 @@ def aggregate_supplier_packages(offers: List[dict]) -> List[SupplierPackage]:
     return packages
 
 
-# =========================
+# -------------------------
 # DAO-Driven Extraction (CORE)
-# =========================
+# -------------------------
 def extract_dao_criteria_structured(dao_text: str) -> List[DAOCriterion]:
     """
     Extraction structurée critères DAO (pas candidates).
@@ -661,9 +661,9 @@ def extract_offer_data_guided(offer_text: str, criteria: List[DAOCriterion]) -> 
     return extracted
 
 
-# =========================
+# -------------------------
 # CBA Template Analysis (ADAPTIVE)
-# =========================
+# -------------------------
 def analyze_cba_template(template_path: str) -> CBATemplateSchema:
     """Analyse dynamique structure template CBA"""
     wb = load_workbook(template_path)
@@ -873,9 +873,9 @@ def fill_cba_adaptive(
     return str(out_path)
 
 
-# =========================
+# -------------------------
 # PV Generation (Template-specific)
-# =========================
+# -------------------------
 def generate_pv_adaptive(
     template_path: Optional[str],
     case_id: str,
@@ -973,9 +973,9 @@ def generate_pv_adaptive(
     return str(out_path)
 
 
-# =========================
+# -------------------------
 # API Routes
-# =========================
+# -------------------------
 @app.get("/", response_class=HTMLResponse)
 def home():
     idx = STATIC_DIR / "index.html"
