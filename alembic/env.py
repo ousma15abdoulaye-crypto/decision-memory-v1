@@ -10,7 +10,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import metadata
 from src.db import metadata
-from src.couche_b.models import *  # Import all Couche B models
+try:
+    from src.couche_b.models import (
+        vendors, vendor_aliases, vendor_events,
+        items, item_aliases, units, unit_aliases,
+        geo_master, geo_aliases, market_signals
+    )
+except (ImportError, AttributeError):
+    pass  # Tables not yet implemented
 
 config = context.config
 

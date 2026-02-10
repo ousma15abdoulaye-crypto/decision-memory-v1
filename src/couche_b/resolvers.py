@@ -5,6 +5,7 @@ Constitution DMS V2.1 §5.2
 
 from typing import Optional
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncConnection
 from fuzzywuzzy import fuzz
 import re
 import unicodedata
@@ -23,7 +24,7 @@ def normalize_text(text: str) -> str:
     # TODO: Implement
     pass
 
-async def resolve_vendor(conn, vendor_name: str, threshold: int = 85) -> str:
+async def resolve_vendor(conn: AsyncConnection, vendor_name: str, threshold: int = 85) -> str:
     """
     Resolve vendor: canonical → alias → fuzzy → propose new
     Returns: vendor_id
@@ -35,17 +36,17 @@ async def resolve_vendor(conn, vendor_name: str, threshold: int = 85) -> str:
     # 4. Create proposed if no match
     pass
 
-async def resolve_item(conn, item_description: str, threshold: int = 85) -> str:
+async def resolve_item(conn: AsyncConnection, item_description: str, threshold: int = 85) -> str:
     """Resolve item: canonical → alias → fuzzy → propose new"""
     # TODO: Implement
     pass
 
-async def resolve_unit(conn, unit_text: str) -> str:
+async def resolve_unit(conn: AsyncConnection, unit_text: str) -> str:
     """Resolve unit: exact match only (no fuzzy for units)"""
     # TODO: Implement
     pass
 
-async def resolve_geo(conn, location_name: str, threshold: int = 90) -> str:
+async def resolve_geo(conn: AsyncConnection, location_name: str, threshold: int = 90) -> str:
     """Resolve geo: canonical → alias → fuzzy strict → propose new"""
     # TODO: Implement
     pass

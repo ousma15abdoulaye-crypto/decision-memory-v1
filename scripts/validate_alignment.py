@@ -6,6 +6,7 @@ Usage: python scripts/validate_alignment.py
 
 import subprocess
 import sys
+import os
 from pathlib import Path
 
 def check(name: str, cmd: str, expected: str = None):
@@ -31,13 +32,25 @@ def main():
     print("=" * 60)
     print()
     
+    # Detect database type
+    database_url = os.getenv("DATABASE_URL", "sqlite:///data/dms.sqlite3")
+    is_postgres = "postgresql" in database_url
+    
     checks = [
         ("Async migration", "grep -r '^def ' main.py | wc -l", "0"),
-        ("Couche B tables", "psql $DATABASE_URL -c '\\dt couche_b.*' 2>/dev/null | grep -c table", "9"),
-        ("Seed geo", "psql $DATABASE_URL -c 'SELECT COUNT(*) FROM couche_b.geo_master' 2>/dev/null", "8"),
-        ("Seed units", "psql $DATABASE_URL -c 'SELECT COUNT(*) FROM couche_b.units' 2>/dev/null", "9"),
         ("Tests pass", "pytest tests/ -v --tb=short"),
     ]
+    
+    # Add PostgreSQL-specific checks only if using PostgreSQL
+    if is_postgres:
+        checks.extend([
+            ("Couche B tables", "psql $DATABASE_URL -c '\\dt couche_b.*' 2>/dev/null | grep -c table", "9"),
+            ("Seed geo", "psql $DATABASE_URL -c 'SELECT COUNT(*) FROM couche_b.geo_master' 2>/dev/null", "8"),
+            ("Seed units", "psql $DATABASE_URL -c 'SELECT COUNT(*) FROM couche_b.units' 2>/dev/null", "9"),
+        ])
+    else:
+        print("⏭️  PostgreSQL checks SKIPPED (SQLite mode)")
+        print()
     
     passed = 0
     for name, cmd, expected in checks:

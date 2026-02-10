@@ -27,7 +27,7 @@ else:
 
 def init_db():
     """Initialize all schemas: Couche A + Couche B"""
-    # Import Couche B models
+    # Late import to avoid circular dependency with src/couche_b/__init__.py
     try:
         from src.couche_b import models as couche_b_models
         print("📦 Couche B models imported")

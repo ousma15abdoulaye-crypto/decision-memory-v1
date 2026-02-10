@@ -35,3 +35,9 @@ case_data = {
 out = engine.export_cba(case_data, output_dir="out")
 print(out)
 ```
+
+## 📦 Couche B — Market Intelligence Layer
+
+**Status:** ✅ Structure complète
+
+Voir [SETUP_COUCHE_B.md](SETUP_COUCHE_B.md) pour structure et plan d'implémentation.
