@@ -1,5 +1,11 @@
 """Alembic environment configuration."""
 
+import sys
+from pathlib import Path
+
+# Ensure project root is on sys.path so "backend" package is importable
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from logging.config import fileConfig
 
 from alembic import context
@@ -10,6 +16,7 @@ from backend.system.db import Base
 # Import all models so Base.metadata is populated
 import backend.couche_a.models  # noqa: F401
 import backend.couche_b.models  # noqa: F401
+import backend.system.audit  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

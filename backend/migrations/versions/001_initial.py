@@ -243,8 +243,24 @@ def upgrade() -> None:
     op.create_index("ix_market_signals_item_geo", "market_signals", ["item_id", "geo_id"])
     op.create_index("ix_market_signals_vendor_item", "market_signals", ["vendor_id", "item_id"])
 
+    # -- System tables --
+    op.create_table(
+        "audit_log",
+        sa.Column("id", sa.String(), primary_key=True),
+        sa.Column("user_id", sa.String(36), nullable=False),
+        sa.Column("action", sa.String(100), nullable=False),
+        sa.Column("entity_type", sa.String(50), nullable=False),
+        sa.Column("entity_id", sa.String(36), nullable=False),
+        sa.Column("details", sa.JSON(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_audit_log_user_id", "audit_log", ["user_id"])
+    op.create_index("ix_audit_log_entity_type", "audit_log", ["entity_type"])
+    op.create_index("ix_audit_log_entity_id", "audit_log", ["entity_id"])
+
 
 def downgrade() -> None:
+    op.drop_table("audit_log")
     op.drop_table("market_signals")
     op.drop_table("geo_aliases")
     op.drop_table("geo_master")

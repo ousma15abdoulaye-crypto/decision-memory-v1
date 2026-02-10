@@ -58,4 +58,4 @@ async def health():
 # Must be mounted last — catch-all "/" would shadow API routes defined after it.
 _frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
 if os.path.isdir(_frontend_dir):
-    app.mount("/", StaticFiles(directory=_frontend_dir, html=True), name="frontend")
+    app.mount("/frontend", StaticFiles(directory=_frontend_dir, html=True), name="frontend")
