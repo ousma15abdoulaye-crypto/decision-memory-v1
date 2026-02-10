@@ -10,6 +10,8 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}
 
     services:
       postgres:
@@ -68,8 +70,6 @@ jobs:
       - name: Static sanity (db engine)
         run: |
           python3 -c "import os; print('DATABASE_URL=', os.getenv('DATABASE_URL')); from src.db import engine; print(engine.url); print(engine.dialect.name)"
-        env:
-          PYTHONPATH: ${{ github.workspace }}
 
       - name: Wait for Postgres (defensive)
         run: |
@@ -90,8 +90,10 @@ jobs:
             raise SystemExit("Postgres not ready ❌")
           PY
 
+      - name: Proof PYTHONPATH
+        run: |
+          python3 -c "import sys; import os; print('PYTHONPATH=', os.getenv('PYTHONPATH')); import src; print('src_import=OK')"
+
       - name: Smoke Postgres
         run: |
           python3 scripts/smoke_postgres.py
-        env:
-          PYTHONPATH: ${{ github.workspace }}
