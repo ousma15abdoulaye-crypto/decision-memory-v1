@@ -91,3 +91,8 @@ jobs:
         run: |
           python3 tests/test_corrections_smoke.py
           python3 tests/test_partial_offers.py
+
+      - name: Run couche_a tests
+        run: pytest tests/couche_a/ -v
+        env:
+          DATABASE_URL: postgresql+psycopg://dms:dms@localhost:${{ job.services.postgres.ports['5432'] }}/dms
