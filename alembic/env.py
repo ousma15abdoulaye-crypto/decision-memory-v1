@@ -1,6 +1,6 @@
-"""Alembic environment configuration — Source of Truth.
+"""Alembic environment configuration.
 
-Imports metadata from src.db (canonical path).
+Imports metadata from backend.system.db.
 """
 
 import os
@@ -22,12 +22,12 @@ _sync_url: str | None = None
 if _db_url_raw:
     _sync_url = _db_url_raw.replace("+asyncpg", "").replace("+aiosqlite", "")
 
-from src.db import Base  # Source of Truth import
+from backend.system.db import Base  # noqa: E402
 
 # Import all models so Base.metadata is populated
-import src.couche_a.models  # noqa: F401
-import src.couche_b.models  # noqa: F401
-import src.system.audit  # noqa: F401
+import backend.couche_a.models  # noqa: F401, E402
+import backend.couche_b.models  # noqa: F401, E402
+import backend.system.audit  # noqa: F401, E402
 
 config = context.config
 

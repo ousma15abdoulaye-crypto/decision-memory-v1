@@ -1,1 +1,1 @@
-# src.couche_a — Re-exports from backend.couche_a
+"""Couche A package for Decision Memory System."""

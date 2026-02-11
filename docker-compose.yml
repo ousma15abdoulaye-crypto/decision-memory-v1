@@ -1,57 +1,15 @@
-version: "3.9"
+# DMS Local Development — PostgreSQL only (Constitution V2.1)
 services:
-  api:
-    build: .
-    ports:
-      - "8000:8000"
-    env_file: .env
-    environment:
-      DATABASE_URL: postgresql+asyncpg://dms:dms@postgres:5432/dms
-      REDIS_URL: redis://redis:6379/0
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    volumes:
-      - uploads:/app/uploads
-      - outputs:/app/outputs
-
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16
     environment:
       POSTGRES_USER: dms
       POSTGRES_PASSWORD: dms
       POSTGRES_DB: dms
     ports:
       - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U dms"]
       interval: 5s
       timeout: 5s
       retries: 5
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-
-  worker:
-    build: .
-    command: celery -A backend.workers.celery_app worker --loglevel=info
-    env_file: .env
-    environment:
-      DATABASE_URL: postgresql+asyncpg://dms:dms@postgres:5432/dms
-      REDIS_URL: redis://redis:6379/0
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_started
-
-volumes:
-  pgdata:
-  uploads:
-  outputs:

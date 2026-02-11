@@ -1,1 +1,1 @@
-"""DMS Source Package - Decision Memory System"""
+"""DMS source package."""

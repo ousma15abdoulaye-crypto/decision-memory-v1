@@ -1,38 +1,15 @@
 """
-DMS Database Layer — Unified (async backend + sync PostgreSQL)
-
-Provides both:
-  - Async ORM layer (Base, async engine, session factory) via backend.system.db
-  - Sync connection helpers for scripts/CI (get_connection, db_execute, etc.)
+DMS Database Layer — PostgreSQL ONLY (Constitution V2.1 ONLINE-ONLY)
+No SQLite fallback. App refuses boot without DATABASE_URL.
 """
 from __future__ import annotations
 
 import os
-from contextlib import contextmanager
-from typing import Any, Iterator, List, Optional
-
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.engine.base import Connection
-
-# Re-export async ORM layer from backend
-from backend.system.db import (  # noqa: F401
-    Base,
-    engine as async_engine,
-    async_session_factory,
-    get_db,
-    init_db,
-)
-
-__all__ = [
-    "Base", "async_engine", "async_session_factory", "get_db", "init_db",
-    "engine", "get_connection", "db_execute", "db_execute_one", "db_fetchall",
-    "init_db_schema",
-]
-
-# ---------------------------------------------------------------------------
-# Sync engine for scripts and CI (matches main branch src/db.py API)
-# ---------------------------------------------------------------------------
+from contextlib import contextmanager
+from typing import Iterator, List, Any, Optional
 
 _DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 
@@ -40,63 +17,33 @@ _DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 def _normalize_url(url: str) -> str:
     """Normalize postgres:// to postgresql:// for SQLAlchemy/psycopg compatibility."""
     if url.startswith("postgres://"):
-        return "postgresql://" + url[len("postgres://"):]
+        return "postgresql://" + url[len("postgres://") :]
     return url
 
 
-def _get_sync_engine() -> Optional[Engine]:
-    """Return a sync engine if DATABASE_URL is set, else None."""
+def _get_engine() -> Engine:
     if not _DATABASE_URL:
-        return None
-    url = _normalize_url(_DATABASE_URL)
-    # Strip async drivers for sync engine
-    url = url.replace("+asyncpg", "").replace("+aiosqlite", "")
-    # Ensure psycopg driver for postgresql URL if psycopg is available
-    if url.startswith("postgresql://") and "+psycopg" not in url:
-        try:
-            import psycopg  # noqa: F401
-            url = url.replace("postgresql://", "postgresql+psycopg://", 1)
-        except ImportError:
-            pass  # Use default driver
-    return create_engine(url, pool_pre_ping=True, echo=False)
-
-
-# Lazy sync engine — only created if DATABASE_URL is set
-_sync_engine: Optional[Engine] = None
-
-
-def _ensure_sync_engine() -> Engine:
-    global _sync_engine
-    if _sync_engine is None:
-        _sync_engine = _get_sync_engine()
-    if _sync_engine is None:
         raise RuntimeError(
             "DATABASE_URL is required. DMS is online-only (Constitution V2.1)."
         )
-    return _sync_engine
+    url = _normalize_url(_DATABASE_URL)
+    # Ensure psycopg driver for postgresql URL
+    if url.startswith("postgresql://") and "postgresql+psycopg" not in url:
+        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
+    return create_engine(
+        url,
+        pool_pre_ping=True,
+        echo=False,
+    )
 
 
-# Module-level engine accessor (created lazily)
-class _EngineProxy:
-    """Lazy proxy so importing src.db doesn't fail without DATABASE_URL."""
-    def __getattr__(self, name: str) -> Any:
-        return getattr(_ensure_sync_engine(), name)
-
-    def __repr__(self) -> str:
-        try:
-            return repr(_ensure_sync_engine())
-        except RuntimeError:
-            return "<EngineProxy(not configured)>"
-
-
-engine = _EngineProxy()
+engine: Engine = _get_engine()
 
 
 @contextmanager
 def get_connection() -> Iterator[Connection]:
-    """Context manager for a sync database connection. Commits on success."""
-    eng = _ensure_sync_engine()
-    conn = eng.connect()
+    """Context manager for a database connection. Commits on success."""
+    conn = engine.connect()
     try:
         yield conn
         conn.commit()
@@ -115,13 +62,12 @@ def db_execute(conn: Connection, sql: str, params: Optional[dict] = None) -> Non
 def db_execute_one(
     conn: Connection, sql: str, params: Optional[dict] = None
 ) -> Optional[dict]:
-    """Execute and fetch one row as dict, or None."""
+    """Execute and fetch one row as dict, or None if no row."""
     result = conn.execute(text(sql), params or {})
     row = result.fetchone()
     if row is None:
         return None
     return dict(row._mapping)
-
 
 def db_fetchall(
     conn: Connection, sql: str, params: Optional[dict] = None
@@ -134,17 +80,16 @@ def db_fetchall(
 
 
 def init_db_schema() -> None:
-    """Create all tables if they do not exist (sync, for legacy scripts)."""
-    eng = _ensure_sync_engine()
-    with eng.connect() as conn:
+    """Create all tables if they do not exist."""
+    with engine.connect() as conn:
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS cases (
                 id TEXT PRIMARY KEY,
-                case_type TEXT NOT NULL DEFAULT '',
-                title TEXT NOT NULL DEFAULT '',
+                case_type TEXT NOT NULL,
+                title TEXT NOT NULL,
                 lot TEXT,
-                created_at TEXT NOT NULL DEFAULT '',
-                status TEXT NOT NULL DEFAULT 'open'
+                created_at TEXT NOT NULL,
+                status TEXT NOT NULL
             )
         """))
         conn.execute(text("""

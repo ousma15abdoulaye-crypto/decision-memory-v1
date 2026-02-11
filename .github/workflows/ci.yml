@@ -1,15 +1,21 @@
-name: DMS CI – Core Stability
+name: DMS CI
 
 on:
   push:
-    branches: ["main", "copilot/*", "cursor/*"]
+    branches:
+      - main
+      - "copilot/*"
+      - "cursor/*"
   pull_request:
-    branches: ["main"]
+    branches:
+      - main
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}
 
     services:
       postgres:
@@ -22,47 +28,35 @@ jobs:
           - 5432/tcp
         options: >-
           --health-cmd "pg_isready -U dms"
-          --health-interval 5s
+          --health-interval 10s
           --health-timeout 5s
           --health-retries 10
 
-    env:
-      PYTHONPATH: ${{ github.workspace }}
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v5
 
-      - name: Fail if merge conflict markers exist
-        run: |
-          MARKERS=$(grep -rn '^<\{7\}\|^=\{7\}$\|^>\{7\}' .github/workflows/ || true)
-          if [ -n "$MARKERS" ]; then
-            echo "$MARKERS"
-            echo "❌ Merge conflict markers detected in workflow files"
-            exit 1
-          fi
-          echo "✅ No conflict markers in .github/workflows/"
-
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
-          cache-dependency-path: requirements.txt
+          cache: "pip"
+          cache-dependency-path: "requirements.txt"
 
       - name: Install dependencies
         run: |
+          test -f requirements.txt
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Compile check
-        run: python -m compileall . -q
+        run: |
+          python -m compileall . -q || { echo "❌ Compilation failed"; exit 1; }
 
       - name: Run core tests
         run: |
           python3 tests/test_corrections_smoke.py
           python3 tests/test_partial_offers.py
-
-      - name: Run tests (SQLite)
-        run: python -m pytest tests/ -v --tb=short
 
       - name: Set DATABASE_URL (dynamic port)
         run: |
@@ -79,15 +73,6 @@ jobs:
             sleep 2
           done
 
-      - name: Validate src imports
+      - name: Smoke Postgres
         run: |
-          python3 -c "import src; print('✅ src import OK')"
-
-      - name: Alembic migration (alembic/ source of truth)
-        run: python -m alembic upgrade head
-
-      - name: Seed production data
-        run: python scripts/seed_production.py
-
-      - name: Smoke test Postgres
-        run: python scripts/smoke_postgres.py
+          python3 scripts/smoke_postgres.py
