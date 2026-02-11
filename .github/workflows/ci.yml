@@ -34,7 +34,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -42,6 +42,11 @@ jobs:
           python-version: "3.11"
           cache: "pip"
           cache-dependency-path: "requirements.txt"
+
+      - name: Install OS deps (Postgres client)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
 
       - name: Install dependencies
         run: |
@@ -53,41 +58,6 @@ jobs:
         run: |
           python -m compileall . -q || { echo "❌ Compilation failed"; exit 1; }
 
-      - name: Debug import path
-        run: |
-          echo "=== Environment ==="
-          echo "PWD=$(pwd)"
-          echo "GITHUB_WORKSPACE=${GITHUB_WORKSPACE}"
-          echo ""
-          echo "=== Directory structure ==="
-          ls -la
-          echo ""
-          echo "=== Find src (depth 2) ==="
-          find . -maxdepth 2 -type d -print
-          echo ""
-          echo "=== Python sys.path ==="
-          python3 -c "import sys; print('sys.path:'); print('\n'.join(sys.path))"
-          echo ""
-          echo "=== PYTHONPATH env ==="
-          python3 -c "import os; print('PYTHONPATH=', os.environ.get('PYTHONPATH', 'NOT SET'))"
-          echo ""
-          echo "=== src/ exists? ==="
-          python3 -c "import pathlib; print('src exists:', pathlib.Path('src').exists())"
-
-      - name: Validate Python imports
-        run: |
-          echo "=== Check PYTHONPATH ==="
-          python3 -c "import os; print('PYTHONPATH=', os.environ.get('PYTHONPATH', 'NOT SET'))"
-          echo ""
-          echo "=== Test src import ==="
-          python3 -c "import src; print('✅ src import OK')"
-          python3 -c "import src.db; print('✅ src.db import OK')"
-
-      - name: Run core tests
-        run: |
-          python3 tests/test_corrections_smoke.py
-          python3 tests/test_partial_offers.py
-
       - name: Set DATABASE_URL (dynamic port)
         run: |
           PG_PORT=${{ job.services.postgres.ports['5432'] }}
@@ -97,12 +67,19 @@ jobs:
       - name: Wait for Postgres
         run: |
           PG_PORT=${{ job.services.postgres.ports['5432'] }}
-          for i in $(seq 1 15); do
-            pg_isready -h localhost -p "$PG_PORT" -U dms && break
+          for i in $(seq 1 20); do
+            pg_isready -h localhost -p "$PG_PORT" -U dms && exit 0
             echo "Waiting for Postgres... ($i)"
             sleep 2
           done
+          echo "❌ Postgres not ready"
+          exit 1
 
       - name: Smoke Postgres
         run: |
           python3 scripts/smoke_postgres.py
+
+      - name: Run core tests
+        run: |
+          python3 tests/test_corrections_smoke.py
+          python3 tests/test_partial_offers.py
