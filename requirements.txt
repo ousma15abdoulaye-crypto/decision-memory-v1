@@ -9,3 +9,4 @@ python-dotenv==1.0.1
 sqlalchemy==2.0.25
 psycopg[binary,pool]==3.2.5
 pytest>=8.0.0
+httpx>=0.25.0

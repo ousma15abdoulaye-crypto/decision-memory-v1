@@ -29,6 +29,7 @@ from openpyxl.utils import get_column_letter
 from pypdf import PdfReader
 
 from src.db import get_connection, db_execute, db_execute_one, db_fetchall, init_db_schema
+from src.couche_a.upload_routers import router as upload_router
 
 
 # =========================================================
@@ -77,6 +78,7 @@ async def lifespan(app):
     yield
 
 app = FastAPI(title=APP_TITLE, version=APP_VERSION, lifespan=lifespan)
+app.include_router(upload_router)
 
 STATIC_DIR = BASE_DIR / "static"
 STATIC_DIR.mkdir(exist_ok=True)
