@@ -58,6 +58,32 @@ jobs:
         run: |
           python -m compileall . -q || { echo "❌ Compilation failed"; exit 1; }
 
+      - name: Debug import path
+        run: |
+          echo "=== Environment ==="
+          echo "PWD=$(pwd)"
+          echo "GITHUB_WORKSPACE=${GITHUB_WORKSPACE}"
+          echo ""
+          echo "=== Directory structure ==="
+          ls -la
+          echo ""
+          echo "=== Find src (depth 2) ==="
+          find . -maxdepth 2 -type d -print
+          echo ""
+          echo "=== Python sys.path ==="
+          python3 -c "import sys; print('sys.path:'); print('\n'.join(sys.path))"
+          echo ""
+          echo "=== PYTHONPATH env ==="
+          python3 -c "import os; print('PYTHONPATH=', os.environ.get('PYTHONPATH', 'NOT SET'))"
+          echo ""
+          echo "=== src/ exists? ==="
+          python3 -c "import pathlib; print('src exists:', pathlib.Path('src').exists())"
+
+      - name: Validate Python imports
+        run: |
+          python3 -c "import src; print('✅ src import OK')"
+          python3 -c "import src.db; print('✅ src.db import OK')"
+
       - name: Set DATABASE_URL (dynamic port)
         run: |
           PG_PORT=${{ job.services.postgres.ports['5432'] }}
