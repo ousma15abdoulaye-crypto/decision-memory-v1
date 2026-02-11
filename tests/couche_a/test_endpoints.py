@@ -1,26 +1,25 @@
 from __future__ import annotations
 
-from pathlib import Path
+import os
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from src.couche_a import models
 from src.couche_a.routers import router
 
 
-def _build_client(tmp_path: Path, monkeypatch) -> TestClient:
-    db_path = tmp_path / "couche_a.sqlite3"
-    monkeypatch.setenv("COUCHE_A_DB_PATH", str(db_path))
-    monkeypatch.delenv("COUCHE_A_DB_URL", raising=False)
-    models.reset_engine()
+@pytest.fixture
+def client() -> TestClient:
+    """Build a test client. Requires DATABASE_URL (PostgreSQL)."""
+    if not os.environ.get("DATABASE_URL"):
+        pytest.skip("DATABASE_URL not set – skipping PostgreSQL tests")
     app = FastAPI()
     app.include_router(router)
     return TestClient(app)
 
 
-def test_depot_dashboard_and_export(tmp_path: Path, monkeypatch) -> None:
-    client = _build_client(tmp_path, monkeypatch)
+def test_depot_dashboard_and_export(client: TestClient) -> None:
     response = client.post(
         "/api/depot",
         data={"case_id": "CASE1", "lot_id": "LOT1"},
