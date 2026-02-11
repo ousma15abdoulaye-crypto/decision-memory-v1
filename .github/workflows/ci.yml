@@ -39,7 +39,7 @@ jobs:
       - name: Tripwire workflow inventory
         run: |
           EXTRA_WORKFLOWS=$(find .github/workflows -maxdepth 1 -type f \( -name "*.yml" -o -name "*.yaml" \) -printf "%f\n" \
-            | grep -Ev "^(ci\.yml|codeql\.yml|dependabot\.yml)$" || true)
+            | grep -Ev "^(ci\.yml)$" || true)
           if [ -n "$EXTRA_WORKFLOWS" ]; then
             echo "Unexpected workflow files detected:"
             echo "$EXTRA_WORKFLOWS"
