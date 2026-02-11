@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-echo "This repo's hard gates are compileall + two core tests. Alembic and couche_* tests are optional when present."
+echo "This repo’s hard gates are compileall + two core tests. Alembic and couche_* tests are optional when present."
 
 echo "Running compileall..."
 python -m compileall . -q
