@@ -79,6 +79,9 @@ jobs:
             sleep 2
           done
 
+      - name: Initialize database schema
+        run: python -c "from src.couche_a.models import ensure_schema, get_engine; ensure_schema(get_engine())"
+
       - name: Compile check
         run: |
           python -m compileall . -q || { echo "❌ Compilation failed"; exit 1; }
@@ -91,3 +94,6 @@ jobs:
         run: |
           python3 tests/test_corrections_smoke.py
           python3 tests/test_partial_offers.py
+
+      - name: Run couche_a tests
+        run: pytest tests/couche_a/ -v
