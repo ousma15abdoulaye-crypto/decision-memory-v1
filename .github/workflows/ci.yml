@@ -80,11 +80,14 @@ jobs:
           done
 
       - name: Initialize database schema
-        run: python -c "from src.couche_a.models import ensure_schema, get_engine; ensure_schema(get_engine())"
+        run: python3 -c "from src.couche_a.models import ensure_schema, get_engine; ensure_schema(get_engine())"
+
+      - name: Run couche_a tests
+        run: python3 -m pytest tests/couche_a/ -v
 
       - name: Compile check
         run: |
-          python -m compileall . -q || { echo "❌ Compilation failed"; exit 1; }
+          python3 -m compileall . -q || { echo "❌ Compilation failed"; exit 1; }
 
       - name: Smoke Postgres
         run: |
@@ -94,6 +97,3 @@ jobs:
         run: |
           python3 tests/test_corrections_smoke.py
           python3 tests/test_partial_offers.py
-
-      - name: Run couche_a tests
-        run: pytest tests/couche_a/ -v
