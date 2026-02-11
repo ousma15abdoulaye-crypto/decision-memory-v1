@@ -58,6 +58,23 @@ jobs:
         run: |
           python -m compileall . -q || { echo "❌ Compilation failed"; exit 1; }
 
+      - name: Set DATABASE_URL (dynamic port)
+        run: |
+          PG_PORT=${{ job.services.postgres.ports['5432'] }}
+          echo "DATABASE_URL=postgresql+psycopg://dms:dms@localhost:${PG_PORT}/dms" >> "$GITHUB_ENV"
+          echo "Using Postgres on port ${PG_PORT}"
+
+      - name: Wait for Postgres
+        run: |
+          PG_PORT=${{ job.services.postgres.ports['5432'] }}
+          for i in $(seq 1 20); do
+            pg_isready -h localhost -p "$PG_PORT" -U dms && exit 0
+            echo "Waiting for Postgres... ($i)"
+            sleep 2
+          done
+          echo "❌ Postgres not ready"
+          exit 1
+
       - name: Debug import path
         run: |
           echo "=== Environment ==="
@@ -76,30 +93,20 @@ jobs:
           echo "=== PYTHONPATH env ==="
           python3 -c "import os; print('PYTHONPATH=', os.environ.get('PYTHONPATH', 'NOT SET'))"
           echo ""
+          echo "=== DATABASE_URL env ==="
+          python3 -c "import os; print('DATABASE_URL=', os.environ.get('DATABASE_URL', 'NOT SET'))"
+          echo ""
           echo "=== src/ exists? ==="
           python3 -c "import pathlib; print('src exists:', pathlib.Path('src').exists())"
 
       - name: Validate Python imports
         run: |
+          echo "=== Check PYTHONPATH ==="
+          python3 -c "import os; print('PYTHONPATH=', os.environ.get('PYTHONPATH', 'NOT SET'))"
+          echo ""
+          echo "=== Test src import ==="
           python3 -c "import src; print('✅ src import OK')"
           python3 -c "import src.db; print('✅ src.db import OK')"
-
-      - name: Set DATABASE_URL (dynamic port)
-        run: |
-          PG_PORT=${{ job.services.postgres.ports['5432'] }}
-          echo "DATABASE_URL=postgresql+psycopg://dms:dms@localhost:${PG_PORT}/dms" >> "$GITHUB_ENV"
-          echo "Using Postgres on port ${PG_PORT}"
-
-      - name: Wait for Postgres
-        run: |
-          PG_PORT=${{ job.services.postgres.ports['5432'] }}
-          for i in $(seq 1 20); do
-            pg_isready -h localhost -p "$PG_PORT" -U dms && exit 0
-            echo "Waiting for Postgres... ($i)"
-            sleep 2
-          done
-          echo "❌ Postgres not ready"
-          exit 1
 
       - name: Smoke Postgres
         run: |
