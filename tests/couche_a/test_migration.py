@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import os
 from importlib import util
 from pathlib import Path
 
+import pytest
 from sqlalchemy import inspect
-
-from src.couche_a import models
 
 
 def _load_migration() -> object:
@@ -20,12 +20,11 @@ def _load_migration() -> object:
     return module
 
 
-def test_upgrade_downgrade(tmp_path: Path, monkeypatch) -> None:
-    db_path = tmp_path / "couche_a.sqlite3"
-    monkeypatch.setenv("COUCHE_A_DB_PATH", str(db_path))
-    monkeypatch.delenv("COUCHE_A_DB_URL", raising=False)
-    models.reset_engine()
-    engine = models.get_engine()
+def test_upgrade_downgrade(db_engine) -> None:
+    """Run migration upgrade/downgrade against PostgreSQL."""
+    if not os.environ.get("DATABASE_URL"):
+        pytest.skip("DATABASE_URL not set – skipping PostgreSQL tests")
+    engine = db_engine
 
     migration = _load_migration()
     migration.upgrade(engine)

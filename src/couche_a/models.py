@@ -1,11 +1,14 @@
-"""Database models and helpers for Couche A using SQLAlchemy Core."""
+"""Database models and helpers for Couche A using SQLAlchemy Core.
+
+PostgreSQL ONLY (Constitution V2.1 ONLINE-ONLY).
+Uses DATABASE_URL via the global engine from src.db.
+"""
 from __future__ import annotations
 
 import json
 import logging
 import os
 import secrets
-from functools import lru_cache
 from pathlib import Path
 from typing import Any, Optional
 
@@ -19,18 +22,17 @@ from sqlalchemy import (
     String,
     Table,
     Text,
-    create_engine,
     func,
 )
 from sqlalchemy.engine import Engine
+
+from src.db import engine
 
 logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_DATA_DIR = BASE_DIR / "data" / "couche_a"
 DATA_DIR = Path(os.getenv("COUCHE_A_DATA_DIR", DEFAULT_DATA_DIR))
-DB_PATH = Path(os.getenv("COUCHE_A_DB_PATH", DATA_DIR / "couche_a.sqlite3"))
-DB_URL = os.getenv("COUCHE_A_DB_URL", f"sqlite:///{DB_PATH}")
 
 metadata = MetaData()
 
@@ -144,22 +146,14 @@ def deserialize_json(payload: Optional[str]) -> Any:
         return {}
 
 
-def _ensure_data_dir() -> None:
-    if DB_URL.startswith("sqlite:///"):
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-
-@lru_cache(maxsize=1)
 def get_engine() -> Engine:
-    """Return a configured SQLAlchemy engine for Couche A."""
-    _ensure_data_dir()
-    connect_args = {"check_same_thread": False} if DB_URL.startswith("sqlite") else {}
-    return create_engine(DB_URL, future=True, connect_args=connect_args)
+    """Return the configured PostgreSQL engine for Couche A (from DATABASE_URL)."""
+    return engine
 
 
 def reset_engine() -> None:
-    """Clear the cached engine (useful for tests)."""
-    get_engine.cache_clear()
+    """No-op: engine is global (kept for backward compatibility in tests)."""
+    pass
 
 
 def ensure_schema(engine: Optional[Engine] = None) -> None:
