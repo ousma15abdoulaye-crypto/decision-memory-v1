@@ -76,8 +76,8 @@ jobs:
 
       - name: Validate Python imports
         run: |
-          echo "=== PYTHONPATH is set ==="
-          python3 -c "import os; print('PYTHONPATH=', os.environ.get('PYTHONPATH'))"
+          echo "=== Check PYTHONPATH ==="
+          python3 -c "import os; print('PYTHONPATH=', os.environ.get('PYTHONPATH', 'NOT SET'))"
           echo ""
           echo "=== Test src import ==="
           python3 -c "import src; print('✅ src import OK')"
