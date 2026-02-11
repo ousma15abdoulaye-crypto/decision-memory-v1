@@ -34,7 +34,17 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
+
+      - name: Tripwire workflow inventory
+        run: |
+          EXTRA_WORKFLOWS=$(find .github/workflows -maxdepth 1 -type f \( -name "*.yml" -o -name "*.yaml" \) -printf "%f\n" \
+            | grep -Ev "^(ci\.yml|codeql\.yml|dependabot\.yml)$" || true)
+          if [ -n "$EXTRA_WORKFLOWS" ]; then
+            echo "Unexpected workflow files detected:"
+            echo "$EXTRA_WORKFLOWS"
+            exit 1
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -49,14 +59,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Compile check
+      - name: Install Postgres client
         run: |
-          python -m compileall . -q || { echo "❌ Compilation failed"; exit 1; }
-
-      - name: Run core tests
-        run: |
-          python3 tests/test_corrections_smoke.py
-          python3 tests/test_partial_offers.py
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
 
       - name: Set DATABASE_URL (dynamic port)
         run: |
@@ -73,6 +79,15 @@ jobs:
             sleep 2
           done
 
+      - name: Compile check
+        run: |
+          python -m compileall . -q || { echo "❌ Compilation failed"; exit 1; }
+
       - name: Smoke Postgres
         run: |
           python3 scripts/smoke_postgres.py
+
+      - name: Run core tests
+        run: |
+          python3 tests/test_corrections_smoke.py
+          python3 tests/test_partial_offers.py
