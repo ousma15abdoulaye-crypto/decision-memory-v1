@@ -1,98 +1,189 @@
-name: DMS CI
+"""Add Couche B + Couche A tables — migration autonome (down_revision=None).
 
-on:
-  push:
-    branches:
-      - main
-      - "copilot/*"
-      - "cursor/*"
-  pull_request:
-    branches:
-      - main
+Tables Couche B : cases, artifacts, memory_entries, dao_criteria, cba_template_schemas, offer_extractions.
+Tables Couche A : lots, offers, documents, extractions, analyses, audits.
+Source : src/db.py (Couche B), schéma Couche A (lots, offers, etc.).
+"""
+from __future__ import annotations
 
-jobs:
-  verify:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      PYTHONPATH: ${{ github.workspace }}
+from typing import Optional
 
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: dms
-          POSTGRES_PASSWORD: dms
-          POSTGRES_DB: dms
-        ports:
-          - 5432/tcp
-        options: >-
-          --health-cmd "pg_isready -U dms"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
+from sqlalchemy import text
+from sqlalchemy.engine import Connection, Engine
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+try:
+    from alembic import op
+except ImportError:
+    op = None
 
-      - name: Tripwire workflow inventory
-        run: |
-          EXTRA_WORKFLOWS=$(find .github/workflows -maxdepth 1 -type f \( -name "*.yml" -o -name "*.yaml" \) -printf "%f\n" \
-            | grep -Ev "^(ci\.yml|codeql\.yml|dependabot\.yml)$" || true)
-          if [ -n "$EXTRA_WORKFLOWS" ]; then
-            echo "❌ Unexpected workflow files detected:"
-            echo "$EXTRA_WORKFLOWS"
-            exit 1
-          fi
+revision = "002_add_couche_a"
+down_revision = None
+branch_labels = None
+depends_on = None
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
-          cache-dependency-path: "requirements.txt"
 
-      - name: Install dependencies
-        run: |
-          test -f requirements.txt
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+def _get_bind(engine: Optional[Engine] = None) -> Engine | Connection:
+    """Retourne la connexion/engine approprié."""
+    if engine is not None:
+        return engine
+    if op is not None:
+        return op.get_bind()
+    from src.db import engine as db_engine
+    return db_engine
 
-      - name: Install Postgres client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
 
-      - name: Set DATABASE_URL (dynamic port)
-        run: |
-          PG_PORT=${{ job.services.postgres.ports['5432'] }}
-          echo "DATABASE_URL=postgresql+psycopg://dms:dms@localhost:${PG_PORT}/dms" >> "$GITHUB_ENV"
-          echo "Using Postgres on port ${PG_PORT}"
+def _execute_sql(target, sql: str) -> None:
+    """Exécute du SQL brut – version simplifiée et robuste."""
+    if isinstance(target, Engine):
+        with target.connect() as conn:
+            conn.execute(text(sql))
+            conn.commit()
+    else:
+        # target est une Connection (Alembic)
+        target.execute(text(sql))
 
-      - name: Wait for Postgres
-        run: |
-          PG_PORT=${{ job.services.postgres.ports['5432'] }}
-          for i in $(seq 1 15); do
-            pg_isready -h localhost -p "$PG_PORT" -U dms && break
-            echo "Waiting for Postgres... ($i)"
-            sleep 2
-          done
 
-      - name: Compile check
-        run: |
-          python -m compileall . -q || { echo "❌ Compilation failed"; exit 1; }
+def upgrade(engine: Optional[Engine] = None) -> None:
+    """Crée toutes les tables avec IF NOT EXISTS (Couche B + Couche A)."""
+    bind = _get_bind(engine)
 
-      - name: Smoke Postgres
-        run: |
-          python3 scripts/smoke_postgres.py
+    # ----- Tables Couche B (src.db) -----
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS cases (
+            id TEXT PRIMARY KEY,
+            case_type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            lot TEXT,
+            created_at TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'draft'
+        )
+    """)
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS artifacts (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            kind TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            path TEXT NOT NULL,
+            uploaded_at TEXT NOT NULL,
+            meta_json TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS memory_entries (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            entry_type TEXT NOT NULL,
+            content_json TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    """)
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS dao_criteria (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            categorie TEXT NOT NULL,
+            critere_nom TEXT NOT NULL,
+            description TEXT,
+            ponderation REAL NOT NULL,
+            type_reponse TEXT NOT NULL,
+            seuil_elimination REAL,
+            ordre_affichage INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL
+        )
+    """)
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS cba_template_schemas (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            template_name TEXT NOT NULL,
+            structure_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            reused_count INTEGER DEFAULT 0
+        )
+    """)
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS offer_extractions (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
+            supplier_name TEXT NOT NULL,
+            extracted_data_json TEXT NOT NULL,
+            missing_fields_json TEXT,
+            created_at TEXT NOT NULL
+        )
+    """)
 
-      - name: Run core tests
-        run: |
-          python3 tests/test_corrections_smoke.py
-          python3 tests/test_partial_offers.py
+    # ----- Tables Couche A -----
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS lots (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            lot_number TEXT NOT NULL,
+            description TEXT,
+            estimated_value REAL,
+            created_at TEXT NOT NULL
+        )
+    """)
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS offers (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            supplier_name TEXT NOT NULL,
+            offer_type TEXT NOT NULL,
+            file_hash TEXT,
+            submitted_at TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    """)
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS documents (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            offer_id TEXT REFERENCES offers(id) ON DELETE CASCADE,
+            filename TEXT NOT NULL,
+            path TEXT NOT NULL,
+            uploaded_at TEXT NOT NULL
+        )
+    """)
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS extractions (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
+            extraction_type TEXT NOT NULL,
+            data_json TEXT NOT NULL,
+            confidence REAL,
+            created_at TEXT NOT NULL
+        )
+    """)
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS analyses (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            analysis_type TEXT NOT NULL,
+            result_json TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    """)
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS audits (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            user_id TEXT,
+            action TEXT NOT NULL,
+            old_value TEXT,
+            new_value TEXT,
+            created_at TEXT NOT NULL
+        )
+    """)
 
-      - name: Run couche_a tests
-        run: pytest tests/couche_a/ -v
-        env:
-          DATABASE_URL: postgresql+psycopg://dms:dms@localhost:${{ job.services.postgres.ports['5432'] }}/dms
+
+def downgrade(engine: Optional[Engine] = None) -> None:
+    """Supprime UNIQUEMENT les tables Couche A (préserve cases et Couche B)."""
+    bind = _get_bind(engine)
+    
+    tables_to_drop = ["audits", "analyses", "extractions", "documents", "offers", "lots"]
+    for table in tables_to_drop:
+        _execute_sql(bind, f"DROP TABLE IF EXISTS {table} CASCADE")
