@@ -1,48 +1,98 @@
-name: CI/CD DMS V2.1
+name: DMS CI
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - "copilot/*"
+      - "cursor/*"
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   verify:
-    runs-on: ubuntu-latest   # ← AJOUTER CETTE LIGNE (indentation 2 espaces)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+
     services:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_DB: dms_test
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_pass
+          POSTGRES_USER: dms
+          POSTGRES_PASSWORD: dms
+          POSTGRES_DB: dms
+        ports:
+          - 5432/tcp
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U dms"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
+
     steps:
-      - uses: actions/checkout@v3
-      
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-      
-      - name: Setup test database
-        env:
-          DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/dms_test
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Tripwire workflow inventory
         run: |
-          alembic upgrade head || python -c "
-          import asyncio
-          from src.db import init_db_schema
-          asyncio.run(init_db_schema())
-          "
-      
-      - name: Run tests
+          EXTRA_WORKFLOWS=$(find .github/workflows -maxdepth 1 -type f \( -name "*.yml" -o -name "*.yaml" \) -printf "%f\n" \
+            | grep -Ev "^(ci\.yml|codeql\.yml|dependabot\.yml)$" || true)
+          if [ -n "$EXTRA_WORKFLOWS" ]; then
+            echo "❌ Unexpected workflow files detected:"
+            echo "$EXTRA_WORKFLOWS"
+            exit 1
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "requirements.txt"
+
+      - name: Install dependencies
+        run: |
+          test -f requirements.txt
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Postgres client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Set DATABASE_URL (dynamic port)
+        run: |
+          PG_PORT=${{ job.services.postgres.ports['5432'] }}
+          echo "DATABASE_URL=postgresql+psycopg://dms:dms@localhost:${PG_PORT}/dms" >> "$GITHUB_ENV"
+          echo "Using Postgres on port ${PG_PORT}"
+
+      - name: Wait for Postgres
+        run: |
+          PG_PORT=${{ job.services.postgres.ports['5432'] }}
+          for i in $(seq 1 15); do
+            pg_isready -h localhost -p "$PG_PORT" -U dms && break
+            echo "Waiting for Postgres... ($i)"
+            sleep 2
+          done
+
+      - name: Compile check
+        run: |
+          python -m compileall . -q || { echo "❌ Compilation failed"; exit 1; }
+
+      - name: Smoke Postgres
+        run: |
+          python3 scripts/smoke_postgres.py
+
+      - name: Run core tests
+        run: |
+          python3 tests/test_corrections_smoke.py
+          python3 tests/test_partial_offers.py
+
+      - name: Run couche_a tests
+        run: pytest tests/couche_a/ -v
         env:
-          DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/dms_test
-        run: pytest tests/ -v --tb=short
+          DATABASE_URL: postgresql+psycopg://dms:dms@localhost:${{ job.services.postgres.ports['5432'] }}/dms

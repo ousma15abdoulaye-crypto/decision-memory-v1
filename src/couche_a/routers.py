@@ -1,265 +1,197 @@
-"""FastAPI router for Couche A endpoints."""
-from __future__ import annotations
-
-import asyncio
-import json
+"""
+Couche A – Endpoints d'upload (Manuel SCI §4)
+Constitution V2.1 : helpers synchrones src.db, pas de table SQLAlchemy.
+"""
+from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Form
+from enum import Enum
+from pathlib import Path
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+import hashlib
+import json
+import uuid
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
-from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
+from src.db import get_connection, db_execute_one, db_execute
 
-from .models import (
-    analyses_table,
-    cases_table,
-    deserialize_json,
-    documents_table,
-    ensure_schema,
-    extractions_table,
-    get_engine,
-    lots_table,
-    offers_table,
-)
-from .services.analysis import analyze_offer
-from .services.cba import export_cba, upload_cba_review
-from .services.depot import save_depot
-from .services.extraction import extract_and_store
-from .services.pv import generate_pv_analyse, generate_pv_ouverture
+router = APIRouter(prefix="/api/cases", tags=["Couche A Upload"])
 
-router = APIRouter()
+UPLOADS_DIR = Path("data/uploads")
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+ALLOWED_MIME_TYPES = {
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+}
 
-def _parse_date(date_str: Optional[str]) -> Optional[datetime]:
-    if not date_str:
-        return None
-    try:
-        return datetime.fromisoformat(date_str)
-    except ValueError:
-        return None
+class OfferType(str, Enum):
+    TECHNIQUE = "technique"
+    FINANCIERE = "financiere"
+    ADMINISTRATIVE = "administrative"
+    REGISTRE = "registre"
 
+def compute_file_hash(file_path: Path) -> str:
+    sha256 = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            sha256.update(chunk)
+    return sha256.hexdigest()
 
-@router.post("/api/depot")
-async def post_depot(
-    file: UploadFile = File(...),
-    case_id: str = Form(...),
-    lot_id: str = Form(...),
-    document_type: Optional[str] = Form(None),
-    offer_id: Optional[str] = Form(None),
-    sender_email: Optional[str] = Form(None),
-    subject: Optional[str] = Form(None),
-    received_at: Optional[str] = Form(None),
-) -> Dict[str, Any]:
-    """Handle a new document deposit."""
-    try:
-        result = await save_depot(
-            upload=file,
-            case_id=case_id,
-            lot_id=lot_id,
-            document_type=document_type,
-            offer_id=offer_id,
-            sender_email=sender_email,
-            subject=subject,
-            received_at=received_at,
+def register_artifact(case_id: str, kind: str, filename: str, path: str, meta: dict) -> str:
+    artifact_id = str(uuid.uuid4())
+    with get_connection() as conn:
+        db_execute(
+            conn,
+            """
+            INSERT INTO artifacts (id, case_id, kind, filename, path, uploaded_at, meta_json)
+            VALUES (:id, :case_id, :kind, :filename, :path, :ts, :meta)
+            """,
+            {
+                "id": artifact_id,
+                "case_id": case_id,
+                "kind": kind,
+                "filename": filename,
+                "path": path,
+                "ts": datetime.utcnow().isoformat(),
+                "meta": json.dumps(meta, ensure_ascii=False)
+            }
         )
-        await extract_and_store(result["document_id"])
-        await analyze_offer(result["offer_id"])
-        return result
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except RuntimeError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return artifact_id
 
-
-@router.get("/api/dashboard")
-async def get_dashboard(
-    lot_id: Optional[str] = Query(None),
-    status: Optional[str] = Query(None),
-    start_date: Optional[str] = Query(None),
-    end_date: Optional[str] = Query(None),
-) -> Dict[str, Any]:
-    """Return dashboard data with filters."""
-    def _fetch() -> Dict[str, Any]:
-        engine = get_engine()
-        ensure_schema(engine)
-        try:
-            with engine.begin() as conn:
-                query = (
-                    select(
-                        offers_table,
-                        cases_table.c.buyer_name,
-                        lots_table.c.name.label("lot_name"),
-                        analyses_table.c.status.label("analysis_status"),
-                        analyses_table.c.total_score,
-                    )
-                    .select_from(
-                        offers_table.join(cases_table, offers_table.c.case_id == cases_table.c.id)
-                        .join(lots_table, offers_table.c.lot_id == lots_table.c.id)
-                        .outerjoin(analyses_table, analyses_table.c.offer_id == offers_table.c.id)
-                    )
-                )
-                if lot_id:
-                    query = query.where(offers_table.c.lot_id == lot_id)
-                if status:
-                    query = query.where(analyses_table.c.status == status)
-                start_dt = _parse_date(start_date)
-                end_dt = _parse_date(end_date)
-                if start_dt:
-                    query = query.where(offers_table.c.created_at >= start_dt)
-                if end_dt:
-                    query = query.where(offers_table.c.created_at <= end_dt)
-
-                rows = conn.execute(query).mappings().all()
-                items: List[Dict[str, Any]] = []
-                status_counts: Dict[str, int] = {}
-                for row in rows:
-                    item_status = row.get("analysis_status") or row["status"]
-                    status_counts[item_status] = status_counts.get(item_status, 0) + 1
-                    items.append(
-                        {
-                            "id": row["id"],
-                            "acheteur": row["buyer_name"],
-                            "fournisseur": row["supplier_name"],
-                            "date": row["created_at"].isoformat() if row["created_at"] else None,
-                            "type": row["offer_type"],
-                            "montant": row["amount"],
-                            "score": row.get("total_score"),
-                            "statut": item_status,
-                            "lot": row["lot_name"],
-                        }
-                    )
-                return {"items": items, "status_counts": status_counts}
-        except SQLAlchemyError as exc:
-            raise RuntimeError("Erreur lors du chargement du dashboard.") from exc
-
-    try:
-        return await asyncio.to_thread(_fetch)
-    except RuntimeError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-
-@router.get("/api/offres/{offer_id}")
-async def get_offre_detail(offer_id: str) -> Dict[str, Any]:
-    """Return a detailed offer view."""
-    def _fetch() -> Dict[str, Any]:
-        engine = get_engine()
-        ensure_schema(engine)
-        try:
-            with engine.begin() as conn:
-                offer = conn.execute(
-                    select(offers_table).where(offers_table.c.id == offer_id)
-                ).mappings().first()
-                if not offer:
-                    raise ValueError("Offre introuvable.")
-                docs = conn.execute(
-                    select(documents_table)
-                    .where(documents_table.c.offer_id == offer_id)
-                    .order_by(documents_table.c.created_at.desc())
-                ).mappings().all()
-                extraction = conn.execute(
-                    select(extractions_table)
-                    .where(extractions_table.c.offer_id == offer_id)
-                    .order_by(extractions_table.c.created_at.desc())
-                ).mappings().first()
-                analysis = conn.execute(
-                    select(analyses_table)
-                    .where(analyses_table.c.offer_id == offer_id)
-                    .order_by(analyses_table.c.created_at.desc())
-                ).mappings().first()
-
-                return {
-                    "offer": dict(offer),
-                    "documents": [dict(doc) for doc in docs],
-                    "extraction": dict(extraction) if extraction else None,
-                    "analysis": dict(analysis) if analysis else None,
-                    "missing_fields": deserialize_json(extraction["missing_json"]) if extraction else [],
-                }
-        except SQLAlchemyError as exc:
-            raise RuntimeError("Erreur lors du chargement de l'offre.") from exc
-
-    try:
-        return await asyncio.to_thread(_fetch)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except RuntimeError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-
-@router.post("/api/export-cba")
-async def post_export_cba(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Generate a CBA export."""
-    offer_id = payload.get("offer_id")
-    actor = payload.get("actor")
-    if not offer_id:
-        raise HTTPException(status_code=400, detail="offer_id requis.")
-    try:
-        return await export_cba(offer_id=offer_id, actor=actor)
-    except (ValueError, RuntimeError) as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-
-@router.post("/api/cba-review/upload")
-async def post_cba_review(
-    offer_id: str = Form(...),
-    reviewer: Optional[str] = Form(None),
+@router.post("/{case_id}/upload-dao")
+async def upload_dao(
+    case_id: str,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-) -> Dict[str, Any]:
-    """Upload a completed CBA file for committee review."""
-    try:
-        return await upload_cba_review(offer_id, file, reviewer)
-    except (ValueError, RuntimeError) as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+):
+    """Upload du DAO – un seul par case (409 si existant)."""
+    with get_connection() as conn:
+        case = db_execute_one(conn, "SELECT id FROM cases WHERE id=:id", {"id": case_id})
+        if not case:
+            raise HTTPException(404, "Case not found")
 
+    with get_connection() as conn:
+        existing = db_execute_one(
+            conn,
+            "SELECT id FROM artifacts WHERE case_id=:cid AND kind='dao'",
+            {"cid": case_id}
+        )
+        if existing:
+            raise HTTPException(409, "DAO already uploaded. Delete existing DAO first.")
 
-@router.post("/api/pv/ouverture")
-async def post_pv_ouverture(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Generate PV d'ouverture."""
-    lot_id = payload.get("lot_id")
-    actor = payload.get("actor")
-    if not lot_id:
-        raise HTTPException(status_code=400, detail="lot_id requis.")
-    try:
-        return await generate_pv_ouverture(lot_id, actor)
-    except (ValueError, RuntimeError) as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    if file.content_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(400, "Invalid file type. Allowed: PDF, DOCX, XLSX")
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(413, "File too large (max 50 MB)")
 
+    timestamp = datetime.now()
+    safe_filename = f"dao_{case_id}_{timestamp.strftime('%Y%m%d%H%M%S')}_{file.filename}"
+    file_path = UPLOADS_DIR / safe_filename
+    with open(file_path, "wb") as f:
+        f.write(content)
 
-@router.post("/api/pv/analyse")
-async def post_pv_analyse(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Generate PV d'analyse."""
-    lot_id = payload.get("lot_id")
-    actor = payload.get("actor")
-    if not lot_id:
-        raise HTTPException(status_code=400, detail="lot_id requis.")
-    try:
-        return await generate_pv_analyse(lot_id, actor)
-    except (ValueError, RuntimeError) as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    file_hash = compute_file_hash(file_path)
 
+    meta = {
+        "original_filename": file.filename,
+        "size_bytes": len(content),
+        "mime_type": file.content_type,
+        "hash": file_hash,
+        "upload_timestamp": timestamp.isoformat()
+    }
+    artifact_id = register_artifact(case_id, "dao", file.filename, str(file_path), meta)
 
-async def _post_market_signal(base_url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-    def _send() -> Dict[str, Any]:
-        from urllib import request
+    from src.couche_a.extraction import extract_dao_content
+    background_tasks.add_task(extract_dao_content, case_id, artifact_id, str(file_path))
 
-        endpoint = f"{base_url.rstrip('/')}/api/market-signals"
-        data = json.dumps(payload).encode("utf-8")
-        req = request.Request(endpoint, data=data, headers={"Content-Type": "application/json"})
-        with request.urlopen(req, timeout=10) as response:
-            body = response.read().decode("utf-8")
-            return {"status": response.status, "body": body}
+    return {
+        "artifact_id": artifact_id,
+        "filename": file.filename,
+        "status": "uploaded",
+        "extraction_status": "pending"
+    }
 
-    return await asyncio.to_thread(_send)
+@router.post("/{case_id}/upload-offer")
+async def upload_offer(
+    case_id: str,
+    background_tasks: BackgroundTasks,
+    supplier_name: str = Form(...),
+    offer_type: OfferType = Form(...),
+    file: UploadFile = File(...),
+):
+    """Upload offre avec classification obligatoire."""
+    with get_connection() as conn:
+        case = db_execute_one(conn, "SELECT id FROM cases WHERE id=:id", {"id": case_id})
+        if not case:
+            raise HTTPException(404, "Case not found")
 
+    with get_connection() as conn:
+        dao = db_execute_one(
+            conn,
+            "SELECT id FROM artifacts WHERE case_id=:cid AND kind='dao'",
+            {"cid": case_id}
+        )
+        if not dao:
+            raise HTTPException(400, "Cannot upload offer before DAO is uploaded.")
 
-@router.post("/api/sync-market")
-async def post_sync_market(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Sync market signals to Couche B after committee validation."""
-    approved = payload.get("approved")
-    if not approved:
-        raise HTTPException(status_code=400, detail="Validation comité requise.")
-    base_url = payload.get("base_url", "http://localhost:8001")
-    try:
-        result = await _post_market_signal(base_url, payload.get("signal", {}))
-        return {"result": result}
-    except Exception as exc:  # noqa: BLE001 - surface connection errors
-        raise HTTPException(status_code=502, detail="Erreur de synchronisation.") from exc
+    with get_connection() as conn:
+        existing = db_execute_one(
+            conn,
+            """
+            SELECT id FROM artifacts
+            WHERE case_id=:cid AND kind='offer'
+              AND (meta_json::json)->>'supplier_name' = :supplier
+              AND (meta_json::json)->>'offer_type' = :otype
+            """,
+            {"cid": case_id, "supplier": supplier_name, "otype": offer_type.value}
+        )
+        if existing:
+            raise HTTPException(
+                409,
+                f"Offer of type '{offer_type.value}' already uploaded for supplier '{supplier_name}'."
+            )
+
+    if file.content_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(400, "Invalid file type. Allowed: PDF, DOCX, XLSX")
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(413, "File too large (max 50 MB)")
+
+    timestamp = datetime.now()
+    ext = file.filename.split('.')[-1] if '.' in file.filename else 'pdf'
+    safe_filename = f"offer_{offer_type.value}_{supplier_name.replace(' ', '_')}_{timestamp.strftime('%Y%m%d%H%M%S')}.{ext}"
+    file_path = UPLOADS_DIR / safe_filename
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    file_hash = compute_file_hash(file_path)
+
+    meta = {
+        "supplier_name": supplier_name,
+        "offer_type": offer_type.value,
+        "original_filename": file.filename,
+        "size_bytes": len(content),
+        "mime_type": file.content_type,
+        "hash": file_hash,
+        "upload_timestamp": timestamp.isoformat()
+    }
+    artifact_id = register_artifact(case_id, "offer", file.filename, str(file_path), meta)
+
+    from src.couche_a.extraction import extract_offer_content
+    background_tasks.add_task(
+        extract_offer_content,
+        case_id,
+        artifact_id,
+        str(file_path),
+        offer_type.value
+    )
+
+    return {
+        "artifact_id": artifact_id,
+        "supplier_name": supplier_name,
+        "offer_type": offer_type.value,
+        "filename": file.filename,
+        "timestamp": timestamp.isoformat(),
+        "extraction_status": "pending"
+    }

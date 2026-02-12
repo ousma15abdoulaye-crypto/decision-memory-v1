@@ -37,4 +37,12 @@ def test_upgrade_downgrade(db_engine) -> None:
     migration.downgrade(engine)
     inspector = inspect(engine)
     tables = inspector.get_table_names()
-    assert "cases" not in tables
+    # La table 'cases' doit être préservée
+    assert "cases" in tables
+    # Les autres tables de Couche A doivent être supprimées
+    assert "offers" not in tables
+    assert "audits" not in tables
+    assert "lots" not in tables
+    assert "documents" not in tables
+    assert "extractions" not in tables
+    assert "analyses" not in tables
