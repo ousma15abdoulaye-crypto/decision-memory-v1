@@ -1,10 +1,7 @@
 """
 Tests d'intégration pour les endpoints d'upload (Manuel SCI §4).
 """
-from __future__ import annotations
-
 import os
-import uuid
 
 import pytest
 from fastapi.testclient import TestClient
@@ -63,7 +60,7 @@ def test_upload_dao_duplicate(test_case):
 
 def test_upload_offer_requires_dao(test_case):
     """Upload offre sans DAO → 400."""
-    # Create a NEW case (different from test_case) - no DAO uploaded
+    # Créer un cas sans DAO (l'API génère l'id, on utilise le cas retourné)
     response = client.post(
         "/api/cases",
         json={
@@ -73,9 +70,9 @@ def test_upload_offer_requires_dao(test_case):
         },
     )
     assert response.status_code == 200
-    case_without_dao = response.json()["id"]
+    case_no_dao = response.json()["id"]
     response = client.post(
-        f"/api/cases/{case_without_dao}/upload-offer",
+        f"/api/cases/{case_no_dao}/upload-offer",
         data={"supplier_name": "Test Supplier", "offer_type": "technique"},
         files={"file": ("offer.pdf", b"%PDF-1.4", "application/pdf")},
     )
@@ -85,12 +82,10 @@ def test_upload_offer_requires_dao(test_case):
 
 def test_upload_offer_success(test_case):
     """Upload offre nominal."""
-    # d'abord upload DAO
     client.post(
         f"/api/cases/{test_case}/upload-dao",
         files={"file": ("dao.pdf", b"%PDF-1.4", "application/pdf")},
     )
-    # upload offre technique
     response = client.post(
         f"/api/cases/{test_case}/upload-offer",
         data={"supplier_name": "Supplier A", "offer_type": "technique"},
@@ -104,18 +99,15 @@ def test_upload_offer_success(test_case):
 
 def test_upload_offer_duplicate_supplier_type(test_case):
     """Même fournisseur + même type → 409."""
-    # DAO
     client.post(
         f"/api/cases/{test_case}/upload-dao",
         files={"file": ("dao.pdf", b"%PDF-1.4", "application/pdf")},
     )
-    # première offre
     client.post(
         f"/api/cases/{test_case}/upload-offer",
         data={"supplier_name": "Duplicate", "offer_type": "financiere"},
         files={"file": ("fin1.pdf", b"%PDF-1.4", "application/pdf")},
     )
-    # deuxième offre identique
     response = client.post(
         f"/api/cases/{test_case}/upload-offer",
         data={"supplier_name": "Duplicate", "offer_type": "financiere"},
