@@ -23,10 +23,12 @@ depends_on = None
 
 
 def _get_bind(engine: Optional[Engine] = None) -> Connection | Engine:
+    if engine is not None:
+        return engine
     if op is not None:
         return op.get_bind()
     from src.db import engine as db_engine
-    return engine if engine is not None else db_engine
+    return db_engine
 
 
 def _run_sql(bind, sql: str) -> None:
