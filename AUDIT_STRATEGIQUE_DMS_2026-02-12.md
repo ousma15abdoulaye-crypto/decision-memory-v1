@@ -1680,3 +1680,26 @@ Justification :
 **Durée audit:** 80 minutes  
 **Objectivité:** Brutale mais constructive (comme demandé)
 
+---
+
+## ✅ MISE À JOUR : RÉSOLUTION MIGRATION 003
+
+**Date résolution**: 2026-02-13 00:37 CET  
+**Agent**: Ingénieur Senior PostgreSQL + CI/CD + Alembic
+
+### Problème résolu
+
+**Migration 003 bloquante CI** - RÉSOLU ✅
+
+**Commits de correction:**
+- `3c3577c` - fix(migration): restore migration 003 with correct PostgreSQL syntax
+- `e8b25ef` - chore: remove orphaned migration 003 files
+
+**Corrections appliquées:**
+1. ✅ Migration 003 restaurée avec syntaxe PostgreSQL correcte (TRUE/FALSE au lieu de 1/0)
+2. ✅ Fichiers orphelins supprimés (racine + structure imbriquée)
+3. ✅ Fichiers Alembic core ajoutés (env.py, script.py.mako)
+4. ✅ Chaîne révisions validée: 002 → 003 → 004
+
+**Prochaine étape:** Push + validation CI GitHub Actions
+
