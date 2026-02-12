@@ -152,30 +152,12 @@ def upgrade(engine: Optional[Engine] = None) -> None:
     # ============================================
     _execute_sql(bind, """
         ALTER TABLE cases 
-        ADD COLUMN IF NOT EXISTS ref_id TEXT REFERENCES procurement_references(id)
-    """)
-    _execute_sql(bind, """
-        ALTER TABLE cases 
-        ADD COLUMN IF NOT EXISTS category_id TEXT REFERENCES procurement_categories(id)
-    """)
-    _execute_sql(bind, """
-        ALTER TABLE cases 
-        ADD COLUMN IF NOT EXISTS purchase_category_id TEXT REFERENCES purchase_categories(id)
-    """)
-    _execute_sql(bind, """
-        ALTER TABLE cases 
-        ADD COLUMN IF NOT EXISTS estimated_value NUMERIC(12,2)
-    """)
-    _execute_sql(bind, """
-        ALTER TABLE cases 
-        ADD COLUMN IF NOT EXISTS closing_date TEXT
-    """)
-    _execute_sql(bind, """
-        ALTER TABLE cases 
-        ADD COLUMN IF NOT EXISTS procedure_type TEXT
-    """)
-    _execute_sql(bind, """
-        ALTER TABLE cases 
+        ADD COLUMN IF NOT EXISTS ref_id TEXT REFERENCES procurement_references(id),
+        ADD COLUMN IF NOT EXISTS category_id TEXT REFERENCES procurement_categories(id),
+        ADD COLUMN IF NOT EXISTS purchase_category_id TEXT REFERENCES purchase_categories(id),
+        ADD COLUMN IF NOT EXISTS estimated_value NUMERIC(12,2),
+        ADD COLUMN IF NOT EXISTS closing_date TEXT,
+        ADD COLUMN IF NOT EXISTS procedure_type TEXT,
         ADD COLUMN IF NOT EXISTS total_upload_size BIGINT DEFAULT 0
     """)
 
