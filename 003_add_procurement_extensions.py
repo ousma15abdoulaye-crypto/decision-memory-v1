@@ -4,9 +4,18 @@ Revision ID: 003_add_procurement_extensions
 Revises: 002_add_couche_a
 Create Date: 2026-02-12 19:15:00
 """
-from alembic import op
-import sqlalchemy as sa
+from __future__ import annotations
+
+from typing import Optional
 from datetime import datetime
+
+from sqlalchemy import text
+from sqlalchemy.engine import Connection, Engine
+
+try:
+    from alembic import op
+except ImportError:
+    op = None
 
 revision = '003_add_procurement_extensions'
 down_revision = '002_add_couche_a'
@@ -14,74 +23,93 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade() -> None:
-    timestamp = datetime.utcnow().isoformat()
+def _get_bind(engine: Optional[Engine] = None) -> Engine | Connection:
+    """Retourne la connexion/engine approprié."""
+    if engine is not None:
+        return engine
+    if op is not None:
+        return op.get_bind()
+    from src.db import engine as db_engine
+    return db_engine
 
+
+def _execute_sql(target, sql: str) -> None:
+    """Exécute du SQL brut."""
+    if isinstance(target, Engine):
+        with target.connect() as conn:
+            conn.execute(text(sql))
+            conn.commit()
+    else:
+        target.execute(text(sql))
+
+
+def upgrade(engine: Optional[Engine] = None) -> None:
+    """Crée tables procurement + purchase_categories (M2-Extended)."""
+    bind = _get_bind(engine)
+    timestamp = datetime.utcnow().isoformat()
+    
     # ============================================
     # 1. RÉFÉRENCES UNIQUES (M2D)
     # ============================================
-    op.create_table(
-        'procurement_references',
-        sa.Column('id', sa.Text(), nullable=False),
-        sa.Column('case_id', sa.Text(), nullable=False),
-        sa.Column('ref_type', sa.Text(), nullable=False),
-        sa.Column('ref_number', sa.Text(), nullable=False),
-        sa.Column('year', sa.Integer(), nullable=False),
-        sa.Column('sequence', sa.Integer(), nullable=False),
-        sa.Column('created_at', sa.Text(), nullable=False),
-        sa.Column('created_by', sa.Integer(), nullable=True),
-        sa.PrimaryKeyConstraint('id'),
-        sa.ForeignKeyConstraint(['case_id'], ['cases.id'], ondelete='CASCADE'),
-        sa.UniqueConstraint('ref_number', name='uq_ref_number'),
-        sa.UniqueConstraint('ref_type', 'year', 'sequence', name='uq_ref_type_year_seq')
-    )
-    op.create_index('idx_procref_case', 'procurement_references', ['case_id'])
-    op.create_index('idx_procref_year', 'procurement_references', ['year', 'ref_type'])
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS procurement_references (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            ref_type TEXT NOT NULL,
+            ref_number TEXT NOT NULL UNIQUE,
+            year INTEGER NOT NULL,
+            sequence INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            created_by INTEGER REFERENCES users(id),
+            UNIQUE (ref_type, year, sequence)
+        )
+    """)
+    _execute_sql(bind, "CREATE INDEX IF NOT EXISTS idx_procref_case ON procurement_references(case_id)")
+    _execute_sql(bind, "CREATE INDEX IF NOT EXISTS idx_procref_year ON procurement_references(year, ref_type)")
 
     # ============================================
-    # 2. CATÉGORIES D'ACHAT (M2E)
+    # 2. CATÉGORIES PROCÉDURES (M2E)
     # ============================================
-    op.create_table(
-        'procurement_categories',
-        sa.Column('id', sa.Text(), nullable=False),
-        sa.Column('code', sa.Text(), nullable=False),
-        sa.Column('name_en', sa.Text(), nullable=False),
-        sa.Column('name_fr', sa.Text(), nullable=False),
-        sa.Column('threshold_usd', sa.Numeric(12, 2), nullable=True),
-        sa.Column('requires_technical_eval', sa.Boolean(), server_default='1'),
-        sa.Column('min_suppliers', sa.Integer(), server_default='3'),
-        sa.Column('created_at', sa.Text(), nullable=False),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('code', name='uq_category_code')
-    )
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS procurement_categories (
+            id TEXT PRIMARY KEY,
+            code TEXT NOT NULL UNIQUE,
+            name_en TEXT NOT NULL,
+            name_fr TEXT NOT NULL,
+            threshold_usd NUMERIC(12,2),
+            requires_technical_eval BOOLEAN DEFAULT TRUE,
+            min_suppliers INTEGER DEFAULT 3,
+            created_at TEXT NOT NULL
+        )
+    """)
 
-    op.execute(f"""
+    _execute_sql(bind, f"""
         INSERT INTO procurement_categories (id, code, name_en, name_fr, threshold_usd, requires_technical_eval, min_suppliers, created_at) VALUES
-        ('cat_equipmed', 'EQUIPMED', 'Medical Equipment', 'Équipement médical', 50000, 1, 5, '{timestamp}'),
-        ('cat_vehicules', 'VEHICULES', 'Vehicles', 'Véhicules', 100000, 1, 5, '{timestamp}'),
-        ('cat_fournitures', 'FOURNITURES', 'Office Supplies', 'Fournitures bureau', 5000, 0, 3, '{timestamp}'),
-        ('cat_it', 'IT', 'IT Equipment', 'Équipement IT', 25000, 1, 3, '{timestamp}'),
-        ('cat_construction', 'CONSTRUCTION', 'Construction Works', 'Travaux construction', 150000, 1, 5, '{timestamp}'),
-        ('cat_services', 'SERVICES', 'Professional Services', 'Services professionnels', 30000, 1, 3, '{timestamp}')
+        ('cat_equipmed', 'EQUIPMED', 'Medical Equipment', 'Équipement médical', 50000, TRUE, 5, '{timestamp}'),
+        ('cat_vehicules', 'VEHICULES', 'Vehicles', 'Véhicules', 100000, TRUE, 5, '{timestamp}'),
+        ('cat_fournitures', 'FOURNITURES', 'Office Supplies', 'Fournitures bureau', 5000, FALSE, 3, '{timestamp}'),
+        ('cat_it', 'IT', 'IT Equipment', 'Équipement IT', 25000, TRUE, 3, '{timestamp}'),
+        ('cat_construction', 'CONSTRUCTION', 'Construction Works', 'Travaux construction', 150000, TRUE, 5, '{timestamp}'),
+        ('cat_services', 'SERVICES', 'Professional Services', 'Services professionnels', 30000, TRUE, 3, '{timestamp}')
+        ON CONFLICT (code) DO NOTHING
     """)
 
     # ============================================
-    # 2B. CATÉGORIES D'ACHAT MÉTIER (Manuel SCI)
+    # 2B. CATÉGORIES MÉTIER (Manuel SCI)
     # ============================================
-    op.create_table(
-        'purchase_categories',
-        sa.Column('id', sa.Text(), nullable=False),
-        sa.Column('code', sa.Text(), nullable=False),
-        sa.Column('label', sa.Text(), nullable=False),
-        sa.Column('is_high_risk', sa.Boolean(), server_default='0'),
-        sa.Column('requires_expert', sa.Boolean(), server_default='0'),
-        sa.Column('specific_rules_json', sa.JSON(), nullable=True),
-        sa.Column('created_at', sa.Text(), nullable=False),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('code', name='uq_purchase_category_code')
-    )
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS purchase_categories (
+            id TEXT PRIMARY KEY,
+            code TEXT NOT NULL UNIQUE,
+            label TEXT NOT NULL,
+            is_high_risk BOOLEAN DEFAULT FALSE,
+            requires_expert BOOLEAN DEFAULT FALSE,
+            specific_rules_json JSON,
+            created_at TEXT NOT NULL
+        )
+    """)
 
-    op.execute(f"""
+    _execute_sql(bind, f"""
         INSERT INTO purchase_categories (id, code, label, is_high_risk, requires_expert, specific_rules_json, created_at) VALUES
         ('cat_travel', 'TRAVEL', 'Voyages et hôtels', FALSE, FALSE, '{{"max_procedure": "devis_formel"}}', '{timestamp}'),
         ('cat_property', 'PROPERTY', 'Location immobilière', FALSE, FALSE, '{{"legal_review_required": true}}', '{timestamp}'),
@@ -93,84 +121,114 @@ def upgrade() -> None:
         ('cat_fleet', 'FLEET', 'Flotte et transport', FALSE, FALSE, '{{"fleet_fund_priority": true, "safety_standards": true}}', '{timestamp}'),
         ('cat_insurance', 'INSURANCE', 'Assurance', FALSE, FALSE, '{{"provider": "Marsh/MMB", "no_competition": true}}', '{timestamp}'),
         ('cat_generic', 'GENERIC', 'Achats généraux', FALSE, FALSE, '{{}}', '{timestamp}')
+        ON CONFLICT (code) DO NOTHING
     """)
 
     # ============================================
-    # 3. LOTS (M2F) - Ajout colonnes
+    # 3. SEUILS PROCÉDURES (M2H)
     # ============================================
-    op.add_column('lots', sa.Column('category_id', sa.Text(), nullable=True))
-    op.create_foreign_key('fk_lots_category', 'lots', 'procurement_categories', ['category_id'], ['id'])
-    op.create_index('idx_lots_category', 'lots', ['category_id'])
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS procurement_thresholds (
+            id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+            procedure_type TEXT NOT NULL UNIQUE,
+            min_amount_usd NUMERIC(12,2) NOT NULL,
+            max_amount_usd NUMERIC(12,2),
+            min_suppliers INTEGER NOT NULL,
+            description_en TEXT,
+            description_fr TEXT
+        )
+    """)
 
-    # ============================================
-    # 4. SEUILS PROCÉDURES (M2H)
-    # ============================================
-    op.create_table(
-        'procurement_thresholds',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('procedure_type', sa.Text(), nullable=False),
-        sa.Column('min_amount_usd', sa.Numeric(12, 2), nullable=False),
-        sa.Column('max_amount_usd', sa.Numeric(12, 2), nullable=True),
-        sa.Column('min_suppliers', sa.Integer(), nullable=False),
-        sa.Column('description_en', sa.Text(), nullable=True),
-        sa.Column('description_fr', sa.Text(), nullable=True),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('procedure_type', name='uq_procedure_type')
-    )
-
-    op.execute("""
-        INSERT INTO procurement_thresholds (id, procedure_type, min_amount_usd, max_amount_usd, min_suppliers, description_en, description_fr) VALUES
-        (1, 'RFQ', 0, 10000, 3, 'Request for Quotation', 'Demande de cotation'),
-        (2, 'RFP', 10001, 100000, 5, 'Request for Proposal', 'Demande de proposition'),
-        (3, 'DAO', 100001, NULL, 5, 'Open Tender', 'Appel d''offres ouvert')
+    _execute_sql(bind, """
+        INSERT INTO procurement_thresholds (procedure_type, min_amount_usd, max_amount_usd, min_suppliers, description_en, description_fr) VALUES
+        ('RFQ', 0, 10000, 3, 'Request for Quotation', 'Demande de cotation'),
+        ('RFP', 10001, 100000, 5, 'Request for Proposal', 'Demande de proposition'),
+        ('DAO', 100001, NULL, 5, 'Open Tender', 'Appel d''offres ouvert')
+        ON CONFLICT (procedure_type) DO NOTHING
     """)
 
     # ============================================
-    # 5. MODIFICATIONS TABLES EXISTANTES
+    # 4. ENRICHISSEMENT CASES
     # ============================================
-    op.add_column('cases', sa.Column('ref_id', sa.Text(), nullable=True))
-    op.add_column('cases', sa.Column('category_id', sa.Text(), nullable=True))
-    op.add_column('cases', sa.Column('estimated_value', sa.Numeric(12, 2), nullable=True))
-    op.add_column('cases', sa.Column('closing_date', sa.Text(), nullable=True))
-    op.add_column('cases', sa.Column('purchase_category_id', sa.Text(), nullable=True))
-    op.add_column('cases', sa.Column('procedure_type', sa.Text(), nullable=True))
-    op.add_column('cases', sa.Column('total_upload_size', sa.BigInteger(), server_default='0'))
+    _execute_sql(bind, """
+        ALTER TABLE cases 
+        ADD COLUMN IF NOT EXISTS ref_id TEXT REFERENCES procurement_references(id)
+    """)
+    _execute_sql(bind, """
+        ALTER TABLE cases 
+        ADD COLUMN IF NOT EXISTS category_id TEXT REFERENCES procurement_categories(id)
+    """)
+    _execute_sql(bind, """
+        ALTER TABLE cases 
+        ADD COLUMN IF NOT EXISTS purchase_category_id TEXT REFERENCES purchase_categories(id)
+    """)
+    _execute_sql(bind, """
+        ALTER TABLE cases 
+        ADD COLUMN IF NOT EXISTS estimated_value NUMERIC(12,2)
+    """)
+    _execute_sql(bind, """
+        ALTER TABLE cases 
+        ADD COLUMN IF NOT EXISTS closing_date TEXT
+    """)
+    _execute_sql(bind, """
+        ALTER TABLE cases 
+        ADD COLUMN IF NOT EXISTS procedure_type TEXT
+    """)
+    _execute_sql(bind, """
+        ALTER TABLE cases 
+        ADD COLUMN IF NOT EXISTS total_upload_size BIGINT DEFAULT 0
+    """)
 
-    op.create_foreign_key('fk_cases_ref', 'cases', 'procurement_references', ['ref_id'], ['id'])
-    op.create_foreign_key('fk_cases_category', 'cases', 'procurement_categories', ['category_id'], ['id'])
-    op.create_foreign_key('fk_cases_purchase_category', 'cases', 'purchase_categories', ['purchase_category_id'], ['id'])
+    _execute_sql(bind, "CREATE INDEX IF NOT EXISTS idx_cases_ref ON cases(ref_id)")
+    _execute_sql(bind, "CREATE INDEX IF NOT EXISTS idx_cases_category ON cases(category_id)")
+    _execute_sql(bind, "CREATE INDEX IF NOT EXISTS idx_cases_purchase_category ON cases(purchase_category_id)")
 
-    op.create_index('idx_cases_ref', 'cases', ['ref_id'])
-    op.create_index('idx_cases_category', 'cases', ['category_id'])
-    op.create_index('idx_cases_purchase_category', 'cases', ['purchase_category_id'])
-
-    op.execute("""
-        ALTER TABLE cases ADD CONSTRAINT check_procedure_type
+    # Contrainte procedure_type
+    _execute_sql(bind, """
+        ALTER TABLE cases 
+        DROP CONSTRAINT IF EXISTS check_procedure_type
+    """)
+    _execute_sql(bind, """
+        ALTER TABLE cases 
+        ADD CONSTRAINT check_procedure_type 
         CHECK (procedure_type IN ('devis_unique', 'devis_simple', 'devis_formel', 'appel_offres_ouvert'))
     """)
 
+    # ============================================
+    # 5. ENRICHISSEMENT LOTS
+    # ============================================
+    _execute_sql(bind, """
+        ALTER TABLE lots 
+        ADD COLUMN IF NOT EXISTS category_id TEXT REFERENCES procurement_categories(id)
+    """)
+    _execute_sql(bind, "CREATE INDEX IF NOT EXISTS idx_lots_category ON lots(category_id)")
 
-def downgrade() -> None:
-    op.drop_constraint('check_procedure_type', 'cases')
-    op.drop_index('idx_cases_purchase_category', table_name='cases')
-    op.drop_index('idx_cases_category', table_name='cases')
-    op.drop_index('idx_cases_ref', table_name='cases')
-    op.drop_constraint('fk_cases_purchase_category', 'cases', type_='foreignkey')
-    op.drop_constraint('fk_cases_category', 'cases', type_='foreignkey')
-    op.drop_constraint('fk_cases_ref', 'cases', type_='foreignkey')
-    op.drop_column('cases', 'total_upload_size')
-    op.drop_column('cases', 'procedure_type')
-    op.drop_column('cases', 'purchase_category_id')
-    op.drop_column('cases', 'closing_date')
-    op.drop_column('cases', 'estimated_value')
-    op.drop_column('cases', 'category_id')
-    op.drop_column('cases', 'ref_id')
-    op.drop_table('procurement_thresholds')
-    op.drop_index('idx_lots_category', table_name='lots')
-    op.drop_constraint('fk_lots_category', 'lots', type_='foreignkey')
-    op.drop_column('lots', 'category_id')
-    op.drop_table('purchase_categories')
-    op.drop_table('procurement_categories')
-    op.drop_index('idx_procref_year', table_name='procurement_references')
-    op.drop_index('idx_procref_case', table_name='procurement_references')
-    op.drop_table('procurement_references')
+
+def downgrade(engine: Optional[Engine] = None) -> None:
+    """Supprime les tables et colonnes ajoutées."""
+    bind = _get_bind(engine)
+    
+    # Lots
+    _execute_sql(bind, "DROP INDEX IF EXISTS idx_lots_category")
+    _execute_sql(bind, "ALTER TABLE lots DROP COLUMN IF EXISTS category_id")
+    
+    # Cases
+    _execute_sql(bind, "ALTER TABLE cases DROP CONSTRAINT IF EXISTS check_procedure_type")
+    _execute_sql(bind, "DROP INDEX IF EXISTS idx_cases_purchase_category")
+    _execute_sql(bind, "DROP INDEX IF EXISTS idx_cases_category")
+    _execute_sql(bind, "DROP INDEX IF EXISTS idx_cases_ref")
+    _execute_sql(bind, "ALTER TABLE cases DROP COLUMN IF EXISTS total_upload_size")
+    _execute_sql(bind, "ALTER TABLE cases DROP COLUMN IF EXISTS procedure_type")
+    _execute_sql(bind, "ALTER TABLE cases DROP COLUMN IF EXISTS closing_date")
+    _execute_sql(bind, "ALTER TABLE cases DROP COLUMN IF EXISTS estimated_value")
+    _execute_sql(bind, "ALTER TABLE cases DROP COLUMN IF EXISTS purchase_category_id")
+    _execute_sql(bind, "ALTER TABLE cases DROP COLUMN IF EXISTS category_id")
+    _execute_sql(bind, "ALTER TABLE cases DROP COLUMN IF EXISTS ref_id")
+    
+    # Tables
+    _execute_sql(bind, "DROP TABLE IF EXISTS procurement_thresholds")
+    _execute_sql(bind, "DROP TABLE IF EXISTS purchase_categories")
+    _execute_sql(bind, "DROP TABLE IF EXISTS procurement_categories")
+    _execute_sql(bind, "DROP INDEX IF EXISTS idx_procref_year")
+    _execute_sql(bind, "DROP INDEX IF EXISTS idx_procref_case")
+    _execute_sql(bind, "DROP TABLE IF EXISTS procurement_references")
