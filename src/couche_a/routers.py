@@ -119,13 +119,28 @@ async def upload_offer(
     supplier_name: str = Form(...),
     offer_type: OfferType = Form(...),
     file: UploadFile = File(...),
+    lot_id: str = Form(None),
 ):
-    """Upload offre avec classification obligatoire."""
+    """Upload offre avec classification obligatoire et lot optionnel."""
     with get_connection() as conn:
-        case = db_execute_one(conn, "SELECT id FROM cases WHERE id=:id", {"id": case_id})
+        case = db_execute_one(conn, "SELECT id, closing_date FROM cases WHERE id=:id", {"id": case_id})
         if not case:
             raise HTTPException(404, "Case not found")
+        case_id_db, closing_date = case[0], case[1] if len(case) > 1 else None
 
+    # Valider lot_id si fourni
+    if lot_id:
+        with get_connection() as conn:
+            lot = db_execute_one(
+                conn,
+                "SELECT id, case_id FROM lots WHERE id=:lid",
+                {"lid": lot_id}
+            )
+            if not lot:
+                raise HTTPException(404, f"Lot '{lot_id}' not found")
+            if lot[1] != case_id:
+                raise HTTPException(400, f"Lot '{lot_id}' does not belong to case '{case_id}'")
+    
     with get_connection() as conn:
         dao = db_execute_one(
             conn,
@@ -166,6 +181,15 @@ async def upload_offer(
         f.write(content)
 
     file_hash = compute_file_hash(file_path)
+    
+    # Déterminer si l'offre est hors délai
+    is_late = False
+    if closing_date:
+        try:
+            closing_dt = datetime.fromisoformat(closing_date)
+            is_late = timestamp > closing_dt
+        except (ValueError, TypeError):
+            pass  # Si closing_date invalide, on considère not late
 
     meta = {
         "supplier_name": supplier_name,
@@ -174,7 +198,9 @@ async def upload_offer(
         "size_bytes": len(content),
         "mime_type": file.content_type,
         "hash": file_hash,
-        "upload_timestamp": timestamp.isoformat()
+        "upload_timestamp": timestamp.isoformat(),
+        "lot_id": lot_id,
+        "is_late": is_late
     }
     artifact_id = register_artifact(case_id, "offer", file.filename, str(file_path), meta)
 
@@ -193,5 +219,7 @@ async def upload_offer(
         "offer_type": offer_type.value,
         "filename": file.filename,
         "timestamp": timestamp.isoformat(),
+        "lot_id": lot_id,
+        "is_late": is_late,
         "extraction_status": "pending"
     }

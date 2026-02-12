@@ -114,3 +114,53 @@ def test_upload_offer_duplicate_supplier_type(test_case):
         files={"file": ("fin2.pdf", b"%PDF-1.4", "application/pdf")},
     )
     assert response.status_code == 409
+
+
+def test_upload_offer_with_lot_id(test_case):
+    """Upload offre avec lot_id – validation du lot."""
+    from src.db import get_connection, db_execute
+    
+    # Créer un lot pour le case
+    lot_id = "test-lot-123"
+    with get_connection() as conn:
+        db_execute(conn, """
+            INSERT INTO lots (id, case_id, lot_number, description, estimated_value, created_at)
+            VALUES (:id, :cid, :num, :desc, :val, :ts)
+        """, {
+            "id": lot_id,
+            "cid": test_case,
+            "num": "LOT-TEST-01",
+            "desc": "Test Lot",
+            "val": 10000,
+            "ts": "2026-02-12T00:00:00"
+        })
+    
+    # Upload DAO first
+    client.post(
+        f"/api/cases/{test_case}/upload-dao",
+        files={"file": ("dao.pdf", b"%PDF-1.4", "application/pdf")},
+    )
+    
+    # Upload offre avec lot_id valide
+    response = client.post(
+        f"/api/cases/{test_case}/upload-offer",
+        data={"supplier_name": "Supplier With Lot", "offer_type": "technique", "lot_id": lot_id},
+        files={"file": ("tech.pdf", b"%PDF-1.4 technical", "application/pdf")},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["lot_id"] == lot_id
+    assert "is_late" in data
+    
+    # Upload offre avec lot_id invalide
+    response = client.post(
+        f"/api/cases/{test_case}/upload-offer",
+        data={"supplier_name": "Supplier Bad Lot", "offer_type": "financiere", "lot_id": "nonexistent"},
+        files={"file": ("fin.pdf", b"%PDF-1.4", "application/pdf")},
+    )
+    assert response.status_code == 404
+    assert "not found" in response.text.lower()
+    
+    # Cleanup
+    with get_connection() as conn:
+        db_execute(conn, "DELETE FROM lots WHERE id=:id", {"id": lot_id})
