@@ -29,7 +29,7 @@ from openpyxl.utils import get_column_letter
 from pypdf import PdfReader
 
 from src.db import get_connection, db_execute, db_execute_one, db_fetchall, init_db_schema
-from src.couche_a.upload_routers import router as upload_router
+from src.couche_a.routers import router as upload_router
 
 
 # =========================================================

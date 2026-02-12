@@ -59,13 +59,19 @@ def db_execute(conn: Connection, sql: str, params: Optional[dict] = None) -> Non
     conn.execute(text(sql), params or {})
 
 
-def db_execute_one(query, params=None):
-    with engine.connect() as conn:
-        result = conn.execute(text(query), params or {})
-        row = result.fetchone()
-        if row is None:
-            return None
-        return dict(row._mapping)
+def db_execute_one(conn_or_sql, sql_or_params=None, params=None):
+    """Execute query and return first row. Supports (conn, sql, params) or (sql, params)."""
+    if params is not None:
+        conn, sql, p = conn_or_sql, sql_or_params, params or {}
+        result = conn.execute(text(sql), p)
+    else:
+        sql, p = conn_or_sql, sql_or_params or {}
+        with engine.connect() as conn:
+            result = conn.execute(text(sql), p)
+    row = result.fetchone()
+    if row is None:
+        return None
+    return dict(row._mapping)
 
 def db_fetchall(
     conn: Connection, sql: str, params: Optional[dict] = None
