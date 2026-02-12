@@ -1,5 +1,14 @@
+name: CI/CD DMS V2.1
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
 jobs:
   verify:
+    runs-on: ubuntu-latest   # ← AJOUTER CETTE LIGNE (indentation 2 espaces)
     services:
       postgres:
         image: postgres:16
@@ -12,7 +21,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     steps:
       - uses: actions/checkout@v3
       
@@ -28,15 +36,10 @@ jobs:
         env:
           DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/dms_test
         run: |
-          # Option 1: Alembic migrations
-          alembic upgrade head
-          
-          # Option 2: Si pas de migrations, init manuel
-          python -c "
+          alembic upgrade head || python -c "
           import asyncio
-          from src.couche_a.models import ensure_schema
-          from src.db import get_connection
-          asyncio.run(ensure_schema(get_connection()))
+          from src.db import init_db_schema
+          asyncio.run(init_db_schema())
           "
       
       - name: Run tests
