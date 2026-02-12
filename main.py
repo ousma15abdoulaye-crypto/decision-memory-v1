@@ -31,6 +31,7 @@ from pypdf import PdfReader
 from src.db import get_connection, db_execute, db_execute_one, db_fetchall, init_db_schema
 from src.couche_a.routers import router as upload_router
 from src.couche_a.procurement import router as procurement_router
+from src.couche_a.references import router as references_router
 
 
 # =========================================================
@@ -81,6 +82,7 @@ async def lifespan(app):
 app = FastAPI(title=APP_TITLE, version=APP_VERSION, lifespan=lifespan)
 app.include_router(upload_router)
 app.include_router(procurement_router)
+app.include_router(references_router)
 
 STATIC_DIR = BASE_DIR / "static"
 STATIC_DIR.mkdir(exist_ok=True)

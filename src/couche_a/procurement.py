@@ -78,13 +78,10 @@ def get_current_user():
     return {"user_id": "stub_user", "email": "stub@example.com"}
 
 
-CurrentUser = Depends(get_current_user)
-
-
 # ==================== Endpoints ====================
 
 @router.post("/categories", response_model=CategoryResponse, status_code=201)
-def create_category(payload: CategoryCreate, user: CurrentUser):
+def create_category(payload: CategoryCreate, user = Depends(get_current_user)):
     """Créer une catégorie de procurement."""
     with get_connection() as conn:
         # Vérifier unicité code
@@ -120,7 +117,7 @@ def create_category(payload: CategoryCreate, user: CurrentUser):
 
 
 @router.get("/categories", response_model=List[CategoryResponse])
-def list_categories(user: CurrentUser):
+def list_categories(user = Depends(get_current_user)):
     """Lister toutes les catégories."""
     with get_connection() as conn:
         rows = conn.execute(
@@ -137,7 +134,7 @@ def list_categories(user: CurrentUser):
 
 
 @router.post("/cases/{case_id}/lots", response_model=LotResponse, status_code=201)
-def create_lot(case_id: str, payload: LotCreate, user: CurrentUser):
+def create_lot(case_id: str, payload: LotCreate, user = Depends(get_current_user)):
     """Créer un lot pour un case."""
     with get_connection() as conn:
         # Vérifier case existe
@@ -179,7 +176,7 @@ def create_lot(case_id: str, payload: LotCreate, user: CurrentUser):
 
 
 @router.get("/cases/{case_id}/lots", response_model=List[LotResponse])
-def list_lots(case_id: str, user: CurrentUser):
+def list_lots(case_id: str, user = Depends(get_current_user)):
     """Lister les lots d'un case."""
     with get_connection() as conn:
         # Vérifier case existe
@@ -202,7 +199,7 @@ def list_lots(case_id: str, user: CurrentUser):
 
 
 @router.get("/thresholds", response_model=List[ThresholdResponse])
-def list_thresholds(user: CurrentUser):
+def list_thresholds(user = Depends(get_current_user)):
     """Lister les seuils de procédure."""
     with get_connection() as conn:
         rows = conn.execute(
@@ -219,7 +216,7 @@ def list_thresholds(user: CurrentUser):
 
 
 @router.post("/cases/{case_id}/references", response_model=ReferenceResponse, status_code=201)
-def create_reference(case_id: str, payload: ReferenceCreate, user: CurrentUser):
+def create_reference(case_id: str, payload: ReferenceCreate, user = Depends(get_current_user)):
     """Générer une référence procurement pour un case (DAO-2026-001, RFQ-2026-042, etc.)."""
     with get_connection() as conn:
         # Vérifier case existe
@@ -270,7 +267,7 @@ def create_reference(case_id: str, payload: ReferenceCreate, user: CurrentUser):
 
 
 @router.get("/cases/{case_id}/references", response_model=ReferenceResponse)
-def get_reference(case_id: str, user: CurrentUser):
+def get_reference(case_id: str, user = Depends(get_current_user)):
     """Récupérer la référence procurement d'un case."""
     with get_connection() as conn:
         row = db_execute_one(conn, 

@@ -36,6 +36,7 @@ def test_upgrade_downgrade(db_engine) -> None:
     # Vérifier que les nouvelles tables sont créées
     assert "procurement_references" in tables
     assert "procurement_categories" in tables
+    assert "purchase_categories" in tables
     assert "procurement_thresholds" in tables
     
     # Vérifier que la table lots existe (devrait être dans 002)
@@ -49,15 +50,22 @@ def test_upgrade_downgrade(db_engine) -> None:
     cases_columns = [col['name'] for col in inspector.get_columns('cases')]
     assert "ref_id" in cases_columns
     assert "category_id" in cases_columns
+    assert "purchase_category_id" in cases_columns
+    assert "procedure_type" in cases_columns
     assert "estimated_value" in cases_columns
     assert "closing_date" in cases_columns
     
     # Vérifier que les seed data sont insérées
     with engine.connect() as conn:
-        # 6 catégories
+        # 6 catégories procurement
         result = conn.execute(inspector.engine.text("SELECT COUNT(*) FROM procurement_categories"))
         count = result.scalar()
-        assert count == 6, f"Expected 6 categories, got {count}"
+        assert count == 6, f"Expected 6 procurement categories, got {count}"
+        
+        # 10 catégories d'achat SCI
+        result = conn.execute(inspector.engine.text("SELECT COUNT(*) FROM purchase_categories"))
+        count = result.scalar()
+        assert count == 10, f"Expected 10 purchase categories, got {count}"
         
         # 3 seuils
         result = conn.execute(inspector.engine.text("SELECT COUNT(*) FROM procurement_thresholds"))
@@ -72,6 +80,7 @@ def test_upgrade_downgrade(db_engine) -> None:
     # Les nouvelles tables doivent être supprimées
     assert "procurement_references" not in tables
     assert "procurement_categories" not in tables
+    assert "purchase_categories" not in tables
     assert "procurement_thresholds" not in tables
     
     # Vérifier que les colonnes sont supprimées de lots
@@ -82,5 +91,7 @@ def test_upgrade_downgrade(db_engine) -> None:
     cases_columns = [col['name'] for col in inspector.get_columns('cases')]
     assert "ref_id" not in cases_columns
     assert "category_id" not in cases_columns
+    assert "purchase_category_id" not in cases_columns
+    assert "procedure_type" not in cases_columns
     assert "estimated_value" not in cases_columns
     assert "closing_date" not in cases_columns
