@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Optional
 
 import sqlalchemy as sa
+from sqlalchemy import text
 from sqlalchemy.engine import Connection, Engine
 
 try:
@@ -32,6 +33,11 @@ def upgrade(engine: Optional[Engine] = None) -> None:
 
 
 def downgrade(engine: Optional[Engine] = None) -> None:
-    """Drop Couche A tables."""
+    """Drop Couche A tables (reverse FK order, CASCADE for cases)."""
     bind = _get_bind(engine)
-    metadata.drop_all(bind)
+    # Drop in reverse dependency order; cases has external FKs (cba_template_schemas,
+    # offer_extractions) so requires CASCADE
+    tables = ["analyses", "extractions", "documents", "offers", "lots", "audits"]
+    for t in tables:
+        bind.execute(text(f"DROP TABLE IF EXISTS {t} CASCADE"))
+    bind.execute(text("DROP TABLE IF EXISTS cases CASCADE"))
