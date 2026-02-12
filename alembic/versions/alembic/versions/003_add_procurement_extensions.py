@@ -24,6 +24,7 @@ depends_on = None
 
 
 def _get_bind(engine: Optional[Engine] = None) -> Engine | Connection:
+    """Retourne la connexion/engine approprié."""
     if engine is not None:
         return engine
     if op is not None:
@@ -33,6 +34,7 @@ def _get_bind(engine: Optional[Engine] = None) -> Engine | Connection:
 
 
 def _execute_sql(target, sql: str) -> None:
+    """Exécute du SQL brut."""
     if isinstance(target, Engine):
         with target.connect() as conn:
             conn.execute(text(sql))
@@ -42,9 +44,13 @@ def _execute_sql(target, sql: str) -> None:
 
 
 def upgrade(engine: Optional[Engine] = None) -> None:
+    """Crée tables procurement + purchase_categories (M2-Extended)."""
     bind = _get_bind(engine)
     timestamp = datetime.utcnow().isoformat()
     
+    # ============================================
+    # 1. RÉFÉRENCES UNIQUES (M2D)
+    # ============================================
     _execute_sql(bind, """
         CREATE TABLE IF NOT EXISTS procurement_references (
             id TEXT PRIMARY KEY,
@@ -61,6 +67,9 @@ def upgrade(engine: Optional[Engine] = None) -> None:
     _execute_sql(bind, "CREATE INDEX IF NOT EXISTS idx_procref_case ON procurement_references(case_id)")
     _execute_sql(bind, "CREATE INDEX IF NOT EXISTS idx_procref_year ON procurement_references(year, ref_type)")
 
+    # ============================================
+    # 2. CATÉGORIES PROCÉDURES (M2E)
+    # ============================================
     _execute_sql(bind, """
         CREATE TABLE IF NOT EXISTS procurement_categories (
             id TEXT PRIMARY KEY,
@@ -73,6 +82,7 @@ def upgrade(engine: Optional[Engine] = None) -> None:
             created_at TEXT NOT NULL
         )
     """)
+
     _execute_sql(bind, f"""
         INSERT INTO procurement_categories (id, code, name_en, name_fr, threshold_usd, requires_technical_eval, min_suppliers, created_at) VALUES
         ('cat_equipmed', 'EQUIPMED', 'Medical Equipment', 'Équipement médical', 50000, TRUE, 5, '{timestamp}'),
@@ -84,6 +94,9 @@ def upgrade(engine: Optional[Engine] = None) -> None:
         ON CONFLICT (code) DO NOTHING
     """)
 
+    # ============================================
+    # 2B. CATÉGORIES MÉTIER (Manuel SCI)
+    # ============================================
     _execute_sql(bind, """
         CREATE TABLE IF NOT EXISTS purchase_categories (
             id TEXT PRIMARY KEY,
@@ -95,6 +108,7 @@ def upgrade(engine: Optional[Engine] = None) -> None:
             created_at TEXT NOT NULL
         )
     """)
+
     _execute_sql(bind, f"""
         INSERT INTO purchase_categories (id, code, label, is_high_risk, requires_expert, specific_rules_json, created_at) VALUES
         ('cat_travel', 'TRAVEL', 'Voyages et hôtels', FALSE, FALSE, '{{"max_procedure": "devis_formel"}}', '{timestamp}'),
@@ -110,6 +124,9 @@ def upgrade(engine: Optional[Engine] = None) -> None:
         ON CONFLICT (code) DO NOTHING
     """)
 
+    # ============================================
+    # 3. SEUILS PROCÉDURES (M2H)
+    # ============================================
     _execute_sql(bind, """
         CREATE TABLE IF NOT EXISTS procurement_thresholds (
             id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
@@ -121,6 +138,7 @@ def upgrade(engine: Optional[Engine] = None) -> None:
             description_fr TEXT
         )
     """)
+
     _execute_sql(bind, """
         INSERT INTO procurement_thresholds (procedure_type, min_amount_usd, max_amount_usd, min_suppliers, description_en, description_fr) VALUES
         ('RFQ', 0, 10000, 3, 'Request for Quotation', 'Demande de cotation'),
@@ -129,37 +147,44 @@ def upgrade(engine: Optional[Engine] = None) -> None:
         ON CONFLICT (procedure_type) DO NOTHING
     """)
 
-    _execute_sql(bind, """
-        ALTER TABLE cases 
-        ADD COLUMN IF NOT EXISTS ref_id TEXT REFERENCES procurement_references(id),
-        ADD COLUMN IF NOT EXISTS category_id TEXT REFERENCES procurement_categories(id),
-        ADD COLUMN IF NOT EXISTS purchase_category_id TEXT REFERENCES purchase_categories(id),
-        ADD COLUMN IF NOT EXISTS estimated_value NUMERIC(12,2),
-        ADD COLUMN IF NOT EXISTS closing_date TEXT,
-        ADD COLUMN IF NOT EXISTS procedure_type TEXT,
-        ADD COLUMN IF NOT EXISTS total_upload_size BIGINT DEFAULT 0
-    """)
+    # ============================================
+    # 4. ENRICHISSEMENT CASES (statements séparés)
+    # ============================================
+    _execute_sql(bind, "ALTER TABLE cases ADD COLUMN IF NOT EXISTS ref_id TEXT REFERENCES procurement_references(id)")
+    _execute_sql(bind, "ALTER TABLE cases ADD COLUMN IF NOT EXISTS category_id TEXT REFERENCES procurement_categories(id)")
+    _execute_sql(bind, "ALTER TABLE cases ADD COLUMN IF NOT EXISTS purchase_category_id TEXT REFERENCES purchase_categories(id)")
+    _execute_sql(bind, "ALTER TABLE cases ADD COLUMN IF NOT EXISTS estimated_value NUMERIC(12,2)")
+    _execute_sql(bind, "ALTER TABLE cases ADD COLUMN IF NOT EXISTS closing_date TEXT")
+    _execute_sql(bind, "ALTER TABLE cases ADD COLUMN IF NOT EXISTS procedure_type TEXT")
+    _execute_sql(bind, "ALTER TABLE cases ADD COLUMN IF NOT EXISTS total_upload_size BIGINT DEFAULT 0")
+
     _execute_sql(bind, "CREATE INDEX IF NOT EXISTS idx_cases_ref ON cases(ref_id)")
     _execute_sql(bind, "CREATE INDEX IF NOT EXISTS idx_cases_category ON cases(category_id)")
     _execute_sql(bind, "CREATE INDEX IF NOT EXISTS idx_cases_purchase_category ON cases(purchase_category_id)")
 
+    # Contrainte procedure_type
     _execute_sql(bind, "ALTER TABLE cases DROP CONSTRAINT IF EXISTS check_procedure_type")
     _execute_sql(bind, """
         ALTER TABLE cases ADD CONSTRAINT check_procedure_type 
         CHECK (procedure_type IN ('devis_unique', 'devis_simple', 'devis_formel', 'appel_offres_ouvert'))
     """)
 
-    _execute_sql(bind, """
-        ALTER TABLE lots 
-        ADD COLUMN IF NOT EXISTS category_id TEXT REFERENCES procurement_categories(id)
-    """)
+    # ============================================
+    # 5. ENRICHISSEMENT LOTS
+    # ============================================
+    _execute_sql(bind, "ALTER TABLE lots ADD COLUMN IF NOT EXISTS category_id TEXT REFERENCES procurement_categories(id)")
     _execute_sql(bind, "CREATE INDEX IF NOT EXISTS idx_lots_category ON lots(category_id)")
 
 
 def downgrade(engine: Optional[Engine] = None) -> None:
+    """Supprime les tables et colonnes ajoutées."""
     bind = _get_bind(engine)
+    
+    # Lots
     _execute_sql(bind, "DROP INDEX IF EXISTS idx_lots_category")
     _execute_sql(bind, "ALTER TABLE lots DROP COLUMN IF EXISTS category_id")
+    
+    # Cases
     _execute_sql(bind, "ALTER TABLE cases DROP CONSTRAINT IF EXISTS check_procedure_type")
     _execute_sql(bind, "DROP INDEX IF EXISTS idx_cases_purchase_category")
     _execute_sql(bind, "DROP INDEX IF EXISTS idx_cases_category")
@@ -171,6 +196,8 @@ def downgrade(engine: Optional[Engine] = None) -> None:
     _execute_sql(bind, "ALTER TABLE cases DROP COLUMN IF EXISTS purchase_category_id")
     _execute_sql(bind, "ALTER TABLE cases DROP COLUMN IF EXISTS category_id")
     _execute_sql(bind, "ALTER TABLE cases DROP COLUMN IF EXISTS ref_id")
+    
+    # Tables
     _execute_sql(bind, "DROP TABLE IF EXISTS procurement_thresholds")
     _execute_sql(bind, "DROP TABLE IF EXISTS purchase_categories")
     _execute_sql(bind, "DROP TABLE IF EXISTS procurement_categories")
