@@ -8,7 +8,7 @@ from alembic import op
 import sqlalchemy as sa
 from datetime import datetime
 
-revision = '003_procurement_extended'
+revision = '003_add_procurement_extensions'
 down_revision = '002_add_couche_a'
 branch_labels = None
 depends_on = None
