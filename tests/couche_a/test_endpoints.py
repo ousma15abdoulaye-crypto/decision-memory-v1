@@ -19,7 +19,7 @@ def client() -> TestClient:
     return TestClient(app)
 
 
-@pytest.mark.skip(reason="Endpoint /api/depot non encore implémenté (Milestone 2B)")
+@pytest.mark.skip(reason="Endpoint non encore implémenté (Milestone 2B / M5)")
 def test_depot_dashboard_and_export(client: TestClient) -> None:
     response = client.post(
         "/api/depot",

@@ -1,4 +1,9 @@
-"""Add Couche B + Couche A tables — migration autonome (down_revision=None)."""
+"""Add Couche B + Couche A tables — migration autonome (down_revision=None).
+
+Tables Couche B : cases, artifacts, memory_entries, dao_criteria, cba_template_schemas, offer_extractions.
+Tables Couche A : lots, offers, documents, extractions, analyses, audits.
+Source : src/db.py (Couche B), schéma Couche A (lots, offers, etc.).
+"""
 from __future__ import annotations
 
 from typing import Optional
@@ -19,7 +24,7 @@ depends_on = None
 
 def _get_bind(engine: Optional[Engine] = None) -> Engine | Connection:
     """Retourne la connexion/engine approprié.
-    
+
     Priorité :
     1. engine passé en argument (cas du test)
     2. connexion Alembic (cas migration CLI)
@@ -34,8 +39,8 @@ def _get_bind(engine: Optional[Engine] = None) -> Engine | Connection:
 
 
 def _execute_sql(target, sql: str) -> None:
-    """Exécute du SQL brut.
-    
+    """Exécute du SQL brut – version simplifiée et robuste.
+
     - Si target est un Engine : on crée une connexion, on exécute, on commit.
     - Si target est une Connection : on exécute directement (Alembic gère la transaction).
     """
@@ -187,10 +192,8 @@ def upgrade(engine: Optional[Engine] = None) -> None:
 
 def downgrade(engine: Optional[Engine] = None) -> None:
     """Supprime UNIQUEMENT les tables Couche A (préserve cases et Couche B)."""
-    if op is None:
-        # Hors contexte Alembic (test) – ne rien faire, le downgrade n'est pas testé
-        return
-
-    tables_to_drop = ["analyses", "extractions", "documents", "offers", "lots", "audits"]
+    bind = _get_bind(engine)
+    
+    tables_to_drop = ["audits", "analyses", "extractions", "documents", "offers", "lots"]
     for table in tables_to_drop:
-        op.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
+        _execute_sql(bind, f"DROP TABLE IF EXISTS {table} CASCADE")
