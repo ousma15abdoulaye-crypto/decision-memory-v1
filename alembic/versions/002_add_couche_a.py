@@ -25,13 +25,18 @@ def _get_bind(engine: Optional[Engine] = None) -> Connection | Engine:
     return engine or get_engine()
 
 
-def upgrade(engine: Optional[Engine] = None) -> None:
-    """Create Couche A tables."""
-    bind = _get_bind(engine)
-    metadata.create_all(bind)
-
-
 def downgrade(engine: Optional[Engine] = None) -> None:
-    """Drop Couche A tables."""
+    """Drop Couche A tables created in this migration (preserve 'cases')."""
     bind = _get_bind(engine)
-    metadata.drop_all(bind)
+    tables_to_drop = ["analyses", "extractions", "documents", "offers", "lots", "audits"]
+    
+    if op is not None:
+        # Contexte Alembic (migration CLI)
+        for table in tables_to_drop:
+            op.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
+    else:
+        # Contexte de test (Engine direct)
+        with bind.connect() as conn:
+            for table in tables_to_drop:
+                conn.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE"))
+            conn.commit()
