@@ -80,6 +80,22 @@ def generate_pv_ouverture(case_data: Dict, output_dir: Path) -> Path:
         for j in range(3):
             table.rows[i].cells[j].text = "_______________________"
 
+    # --- Échantillons reçus (amendement A10) ---
+    doc.add_heading('Échantillons reçus', level=2)
+    p = doc.add_paragraph()
+    p.add_run('Soumis : ').bold = True
+    p.add_run('☐ Oui  ☐ Non\n')
+    p.add_run('Description : ').bold = True
+    p.add_run('_' * 50)
+
+    # --- Délégation technique (amendement A10) ---
+    doc.add_heading('Délégation technique', level=2)
+    p = doc.add_paragraph()
+    p.add_run('Présence : ').bold = True
+    p.add_run('☐ Oui  ☐ Non\n')
+    p.add_run('Noms / Fonctions : ').bold = True
+    p.add_run('_' * 50)
+
     # Section 3: Soumissionnaires invités
     doc.add_heading('3. SOUMISSIONNAIRES INVITÉS', level=1)
     invited = case_data.get('invited_suppliers', [])
@@ -222,45 +238,49 @@ def generate_pv_analyse(case_data: Dict, cba_summary: Dict, output_dir: Path) ->
         row.cells[4].text = f"{entry.get('commercial_score', 0):.2f}"
         row.cells[5].text = f"{entry.get('final_score', 0):.2f}"
 
-    # Section 5: Recommandation comité
-    doc.add_heading('5. RECOMMANDATION DU COMITÉ', level=1)
-    if classement:
-        winner = classement[0]
-        doc.add_heading('5.1 Fournisseur(s) retenu(s)', level=2)
-        doc.add_paragraph(f"Nom : {winner.get('supplier_name', '')}")
-        doc.add_paragraph(f"Note finale : {winner.get('final_score', 0):.2f}/100")
-        doc.add_paragraph(f"Classement : {winner.get('rank', 1)}")
-
-        doc.add_heading('5.2 Type de contrat', level=2)
-        doc.add_paragraph("☑ Accord‑cadre à prix fixe")
-        doc.add_paragraph("☐ Accord‑cadre à prix non fixe")
-        doc.add_paragraph("☐ Bon de commande autonome")
-        doc.add_paragraph("Durée : ____ ans (max 3 ans)")
-        doc.add_paragraph("Plafond : ____ FCFA (≤ seuil procédure)")
-
-    # Section 6: Justification décision
-    doc.add_heading('6. JUSTIFICATION DE LA DÉCISION', level=1)
-    doc.add_paragraph("Le comité a retenu ce fournisseur pour les raisons suivantes :")
-    doc.add_paragraph("• Documentation administrative à jour", style='List Bullet')
-    doc.add_paragraph("• Capacité technique démontrée (références similaires)", style='List Bullet')
-    doc.add_paragraph("• Garantie satisfaisante", style='List Bullet')
-    doc.add_paragraph("• Engagement durabilité", style='List Bullet')
-    doc.add_paragraph("• Proposition financière avantageuse", style='List Bullet')
-
-    # Section 8: Signatures
-    doc.add_heading('8. SIGNATURES DU COMITÉ D\'ÉVALUATION', level=1)
-    table = doc.add_table(rows=4, cols=4)
+    # --- Section Négociation (amendement A11) ---
+    doc.add_page_break()
+    doc.add_heading('Négociation', level=1)
+    doc.add_heading('Offres retenues pour négociation', level=2)
+    table = doc.add_table(rows=1, cols=4)
     table.style = 'Light Grid Accent 1'
-    headers = ["Nom", "Fonction", "Date", "Signature"]
-    for i, h in enumerate(headers):
-        table.rows[0].cells[i].text = h
-    roles = ["Supply Chain", "Finance / Subventions", "Budget Owner", "Lead Technique (non‑votant)"]
-    for i in range(1, 4):
-        row = table.rows[i]
-        row.cells[0].text = "_________________"
-        row.cells[1].text = roles[i - 1]
-        row.cells[2].text = "_________________"
-        row.cells[3].text = "_________________"
+    hdr = table.rows[0].cells
+    hdr[0].text = 'Fournisseur'
+    hdr[1].text = 'Lot'
+    hdr[2].text = 'Montant initial'
+    hdr[3].text = 'Commentaire'
+    # Laisse 5 lignes vides
+    for _ in range(5):
+        cells = table.add_row().cells
+        for c in cells:
+            c.text = '_' * 15
+
+    doc.add_heading('Résultat de la négociation', level=2)
+    p = doc.add_paragraph()
+    p.add_run('Nouveau montant : ').bold = True
+    p.add_run('_' * 30 + '\n')
+    p.add_run('Délai ajusté : ').bold = True
+    p.add_run('_' * 30 + '\n')
+    p.add_run('Conditions particulières : ').bold = True
+    p.add_run('_' * 50)
+
+    # --- Revue Procurement (amendement A11) ---
+    doc.add_heading('Revue Procurement', level=2)
+    p = doc.add_paragraph()
+    p.add_run('Conformité technique : ').bold = True
+    p.add_run('☐ Conforme  ☐ Non conforme  ☐ Partiellement conforme\n')
+    p.add_run('Observations : ').bold = True
+    p.add_run('_' * 50)
+
+    # --- Validation Head of Supply Chain (amendement A11) ---
+    doc.add_heading('Validation', level=2)
+    p = doc.add_paragraph()
+    p.add_run('Nom du Head of Supply Chain : ').bold = True
+    p.add_run('_' * 40 + '\n')
+    p.add_run('Date : ').bold = True
+    p.add_run('_' * 20 + '\n')
+    p.add_run('Signature : ').bold = True
+    p.add_run('_' * 30)
 
     # Footer
     doc.add_page_break()
