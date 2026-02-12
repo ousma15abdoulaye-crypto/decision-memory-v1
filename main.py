@@ -11,13 +11,18 @@ try:
     load_dotenv()
 except ImportError:
     pass
+
+# Configure logging pour resilience patterns
+from src.logging_config import configure_logging
+configure_logging()
+
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, asdict
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -32,7 +37,9 @@ from src.db import get_connection, db_execute, db_execute_one, db_fetchall, init
 from src.couche_a.routers import router as upload_router
 from src.couche_a.procurement import router as procurement_router
 from src.couche_a.references import router as references_router
-
+from src.auth_router import router as auth_router
+from src.ratelimit import init_rate_limit, limiter
+from src.auth import CurrentUser
 
 # =========================================================
 # Decision Memory System — MVP A++ FINAL
@@ -80,6 +87,12 @@ async def lifespan(app):
     yield
 
 app = FastAPI(title=APP_TITLE, version=APP_VERSION, lifespan=lifespan)
+
+# Initialize rate limiting
+init_rate_limit(app)
+
+# Include routers
+app.include_router(auth_router)
 app.include_router(upload_router)
 app.include_router(procurement_router)
 app.include_router(references_router)
@@ -1005,7 +1018,9 @@ def api_constitution():
 
 
 @app.post("/api/cases")
-def create_case(payload: CaseCreate):
+@limiter.limit("10/minute")
+async def create_case(request: Request, payload: CaseCreate, user: CurrentUser):
+    """Crée nouveau case (requiert authentification)."""
     case_type = payload.case_type.strip().upper()
     if case_type not in {"DAO", "RFQ"}:
         raise HTTPException(status_code=400, detail="case_type must be DAO or RFQ")
@@ -1015,9 +1030,17 @@ def create_case(payload: CaseCreate):
 
     with get_connection() as conn:
         db_execute(conn, """
-            INSERT INTO cases (id, case_type, title, lot, created_at, status)
-            VALUES (:id, :ctype, :title, :lot, :ts, :status)
-        """, {"id": case_id, "ctype": case_type, "title": payload.title.strip(), "lot": payload.lot, "ts": now, "status": "open"})
+            INSERT INTO cases (id, case_type, title, lot, created_at, status, owner_id)
+            VALUES (:id, :ctype, :title, :lot, :ts, :status, :owner)
+        """, {
+            "id": case_id,
+            "ctype": case_type,
+            "title": payload.title.strip(),
+            "lot": payload.lot,
+            "ts": now,
+            "status": "open",
+            "owner": user["id"]
+        })
 
     return {
         "id": case_id,
@@ -1025,12 +1048,15 @@ def create_case(payload: CaseCreate):
         "title": payload.title,
         "lot": payload.lot,
         "created_at": now,
-        "status": "open"
+        "status": "open",
+        "owner_id": user["id"]
     }
 
 
 @app.get("/api/cases")
-def list_cases():
+@limiter.limit("50/minute")
+def list_cases(request: Request):
+    """Liste tous les cases (rate limited)."""
     with get_connection() as conn:
         rows = db_fetchall(conn, "SELECT * FROM cases ORDER BY created_at DESC")
     return rows
