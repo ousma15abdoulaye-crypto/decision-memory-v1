@@ -122,78 +122,13 @@ def db_fetchall(
     return [dict(zip(keys, row)) for row in rows]
 
 
-def init_db_schema() -> None:
-    """Create all tables if they do not exist."""
-    with engine.connect() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS cases (
-                id TEXT PRIMARY KEY,
-                case_type TEXT NOT NULL,
-                title TEXT NOT NULL,
-                lot TEXT,
-                created_at TEXT NOT NULL,
-                status TEXT NOT NULL
-            )
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS artifacts (
-                id TEXT PRIMARY KEY,
-                case_id TEXT NOT NULL,
-                kind TEXT NOT NULL,
-                filename TEXT NOT NULL,
-                path TEXT NOT NULL,
-                uploaded_at TEXT NOT NULL,
-                meta_json TEXT,
-                FOREIGN KEY (case_id) REFERENCES cases(id)
-            )
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS memory_entries (
-                id TEXT PRIMARY KEY,
-                case_id TEXT NOT NULL,
-                entry_type TEXT NOT NULL,
-                content_json TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                FOREIGN KEY (case_id) REFERENCES cases(id)
-            )
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS dao_criteria (
-                id TEXT PRIMARY KEY,
-                case_id TEXT NOT NULL,
-                categorie TEXT NOT NULL,
-                critere_nom TEXT NOT NULL,
-                description TEXT,
-                ponderation REAL NOT NULL,
-                type_reponse TEXT NOT NULL,
-                seuil_elimination REAL,
-                ordre_affichage INTEGER DEFAULT 0,
-                created_at TEXT NOT NULL,
-                FOREIGN KEY (case_id) REFERENCES cases(id)
-            )
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS cba_template_schemas (
-                id TEXT PRIMARY KEY,
-                case_id TEXT NOT NULL,
-                template_name TEXT NOT NULL,
-                structure_json TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                reused_count INTEGER DEFAULT 0,
-                FOREIGN KEY (case_id) REFERENCES cases(id)
-            )
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS offer_extractions (
-                id TEXT PRIMARY KEY,
-                case_id TEXT NOT NULL,
-                artifact_id TEXT NOT NULL,
-                supplier_name TEXT NOT NULL,
-                extracted_data_json TEXT NOT NULL,
-                missing_fields_json TEXT,
-                created_at TEXT NOT NULL,
-                FOREIGN KEY (case_id) REFERENCES cases(id),
-                FOREIGN KEY (artifact_id) REFERENCES artifacts(id)
-            )
-        """))
-        conn.commit()
+def check_alembic_current() -> str:
+    """Retourne la révision Alembic actuelle du schéma."""
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT version_num FROM alembic_version"))
+            row = result.fetchone()
+            return row[0] if row else None
+    except Exception as e:
+        logger.warning(f"[DB] Unable to check Alembic version: {e}")
+        return None

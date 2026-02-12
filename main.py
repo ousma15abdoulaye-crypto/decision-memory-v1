@@ -25,6 +25,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from sqlalchemy import text
 
 from docx import Document
 from openpyxl import load_workbook
@@ -33,7 +34,7 @@ from openpyxl.utils import get_column_letter
 
 from pypdf import PdfReader
 
-from src.db import get_connection, db_execute, db_execute_one, db_fetchall, init_db_schema
+from src.db import get_connection, db_execute, db_execute_one, db_fetchall, check_alembic_current
 from src.couche_a.routers import router as upload_router
 from src.auth_router import router as auth_router
 from src.ratelimit import init_rate_limit, limiter
@@ -83,7 +84,26 @@ from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app):
-    init_db_schema()
+    """Startup checks (Constitution V2.1: Alembic migrations only)."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Vérifier connexion DB
+    try:
+        with get_connection() as conn:
+            conn.execute(text("SELECT 1"))
+        logger.info("[STARTUP] ✅ Database connection OK")
+    except Exception as e:
+        logger.error(f"[STARTUP] ❌ Database connection failed: {e}")
+        raise RuntimeError("DATABASE_URL invalid or database unreachable")
+    
+    # Vérifier version Alembic (recommandé mais non bloquant)
+    schema_version = check_alembic_current()
+    if schema_version:
+        logger.info(f"[STARTUP] ✅ Schema version: {schema_version}")
+    else:
+        logger.warning("[STARTUP] ⚠️ Alembic version not found. Run 'alembic upgrade head' to initialize schema.")
+    
     yield
 
 app = FastAPI(title=APP_TITLE, version=APP_VERSION, lifespan=lifespan)
@@ -1004,9 +1024,12 @@ def home():
 
 @app.get("/api/health")
 def health():
+    """Health check avec version schéma (Constitution V2.1)."""
+    schema_version = check_alembic_current()
     return {
         "status": "healthy",
         "version": APP_VERSION,
+        "schema_version": schema_version or "unknown",
         "invariants_status": "enforced"
     }
 
