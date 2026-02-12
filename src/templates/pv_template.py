@@ -141,6 +141,43 @@ def generate_pv_ouverture(case_data: Dict, output_dir: Path) -> Path:
     doc.add_page_break()
     doc.add_paragraph(f"Fait à ________________, le {datetime.now().strftime('%d/%m/%Y')}")
 
+    # --- Échantillons reçus (amendement A10) ---
+    doc.add_heading('Échantillons reçus', level=2)
+    
+    table = doc.add_table(rows=2, cols=3)
+    table.style = 'Light Grid Accent 1'
+    
+    hdr_cells = table.rows[0].cells
+    hdr_cells[0].text = 'Fournisseur'
+    hdr_cells[1].text = 'Description échantillon'
+    hdr_cells[2].text = 'Conforme'
+    
+    row_cells = table.rows[1].cells
+    row_cells[0].text = '_' * 20
+    row_cells[1].text = '_' * 40
+    row_cells[2].text = '☐ Oui  ☐ Non'
+    
+    doc.add_paragraph()
+    
+    # --- Délégation technique (amendement A10) ---
+    doc.add_heading('Délégation de pouvoir technique', level=2)
+    
+    p = doc.add_paragraph()
+    p.add_run('Le comité délègue l\'évaluation technique à : ').bold = True
+    p.add_run('_' * 40)
+    
+    doc.add_paragraph()
+    
+    p = doc.add_paragraph()
+    p.add_run('Fonction : ').bold = True
+    p.add_run('_' * 40)
+    
+    doc.add_paragraph()
+    
+    p = doc.add_paragraph()
+    p.add_run('Date de la délégation : ').bold = True
+    p.add_run('_' * 20)
+
     filename = f"PV_Ouverture_{case_data.get('case_reference', 'case')}.docx"
     filepath = output_dir / filename
     doc.save(filepath)
@@ -265,6 +302,93 @@ def generate_pv_analyse(case_data: Dict, cba_summary: Dict, output_dir: Path) ->
     # Footer
     doc.add_page_break()
     doc.add_paragraph(f"Fait à ________________, le {datetime.now().strftime('%d/%m/%Y')}")
+
+    doc.add_page_break()
+    
+    # --- Négociation (amendement A11) ---
+    doc.add_heading('Procès-verbal de négociation', level=2)
+    
+    doc.add_heading('Offres retenues pour négociation', level=3)
+    
+    table = doc.add_table(rows=4, cols=4)
+    table.style = 'Light Grid Accent 1'
+    
+    hdr_cells = table.rows[0].cells
+    hdr_cells[0].text = 'Fournisseur'
+    hdr_cells[1].text = 'Lot'
+    hdr_cells[2].text = 'Montant initial (USD)'
+    hdr_cells[3].text = 'Points négociables'
+    
+    for i in range(1, 4):
+        for j in range(4):
+            table.rows[i].cells[j].text = '_' * 15
+    
+    doc.add_paragraph()
+    
+    doc.add_heading('Résultat de la négociation', level=3)
+    
+    table2 = doc.add_table(rows=2, cols=4)
+    table2.style = 'Light Grid Accent 1'
+    
+    hdr2_cells = table2.rows[0].cells
+    hdr2_cells[0].text = 'Fournisseur'
+    hdr2_cells[1].text = 'Montant final (USD)'
+    hdr2_cells[2].text = 'Délai ajusté'
+    hdr2_cells[3].text = 'Conditions particulières'
+    
+    for j in range(4):
+        table2.rows[1].cells[j].text = '_' * 15
+    
+    doc.add_paragraph()
+    
+    # --- Revue Procurement (amendement A11) ---
+    doc.add_heading('Revue Procurement', level=2)
+    
+    p = doc.add_paragraph()
+    p.add_run('Conformité technique : ').bold = True
+    p.add_run('☐ Conforme  ☐ Non conforme  ☐ Partiellement conforme')
+    
+    doc.add_paragraph()
+    
+    p = doc.add_paragraph()
+    p.add_run('Observations : ').bold = True
+    doc.add_paragraph('_' * 80)
+    doc.add_paragraph('_' * 80)
+    
+    doc.add_paragraph()
+    
+    p = doc.add_paragraph()
+    p.add_run('Révisé par : ').bold = True
+    p.add_run('_' * 40)
+    
+    doc.add_paragraph()
+    
+    p = doc.add_paragraph()
+    p.add_run('Date : ').bold = True
+    p.add_run('_' * 20)
+    
+    doc.add_paragraph()
+    
+    # --- Validation finale (amendement A11) ---
+    doc.add_heading('Validation finale', level=2)
+    
+    p = doc.add_paragraph()
+    p.add_run('Nom du Head of Supply Chain : ').bold = True
+    p.add_run('_' * 40)
+    
+    doc.add_paragraph()
+    
+    p = doc.add_paragraph()
+    p.add_run('Date de validation : ').bold = True
+    p.add_run('_' * 20)
+    
+    doc.add_paragraph()
+    
+    p = doc.add_paragraph()
+    p.add_run('Signature : ').bold = True
+    doc.add_paragraph()
+    doc.add_paragraph()
+    doc.add_paragraph('_' * 30)
 
     filename = f"PV_Analyse_{case_data.get('case_reference', 'case')}.docx"
     filepath = output_dir / filename
