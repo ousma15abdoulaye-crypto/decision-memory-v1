@@ -32,7 +32,7 @@ def upgrade(engine: Optional[Engine] = None) -> None:
     metadata.create_all(bind)
 
 
-ef downgrade(engine: Optional[Engine] = None) -> None:
+def downgrade(engine: Optional[Engine] = None) -> None:
     """Drop Couche A tables created in this migration (preserve 'cases')."""
     bind = _get_bind(engine)
     # Liste des tables créées dans cette migration (à ajuster selon le vrai contenu)
