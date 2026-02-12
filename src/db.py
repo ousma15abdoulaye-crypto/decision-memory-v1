@@ -5,11 +5,14 @@ No SQLite fallback. App refuses boot without DATABASE_URL.
 from __future__ import annotations
 
 import os
+import logging
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.engine.base import Connection
 from contextlib import contextmanager
 from typing import Iterator, List, Any, Optional
+
+logger = logging.getLogger(__name__)
 
 _DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 
@@ -40,10 +43,31 @@ def _get_engine() -> Engine:
 engine: Engine = _get_engine()
 
 
+def _get_raw_connection() -> Connection:
+    """Connexion brute sans protection (interne)."""
+    return engine.connect()
+
+
 @contextmanager
 def get_connection() -> Iterator[Connection]:
-    """Context manager for a database connection. Commits on success."""
-    conn = engine.connect()
+    """
+    Context manager for a database connection with resilience.
+    
+    Constitution V2.1 : Helpers synchrones uniquement.
+    Tenacity : 3 tentatives avec backoff exponentiel.
+    Circuit breaker : Protection contre échecs en cascade.
+    """
+    from src.resilience import retry_db_operation, db_breaker
+    
+    @retry_db_operation
+    def get_conn():
+        try:
+            return db_breaker.call(_get_raw_connection)
+        except Exception as e:
+            logger.error(f"[DB] Échec connexion après retry: {e}")
+            raise
+    
+    conn = get_conn()
     try:
         yield conn
         conn.commit()
@@ -55,8 +79,23 @@ def get_connection() -> Iterator[Connection]:
 
 
 def db_execute(conn: Connection, sql: str, params: Optional[dict] = None) -> None:
-    """Execute a statement (INSERT/UPDATE/DELETE)."""
-    conn.execute(text(sql), params or {})
+    """
+    Execute a statement (INSERT/UPDATE/DELETE) with retry.
+    
+    Protège contre erreurs temporaires (network, lock timeout).
+    """
+    from src.resilience import retry_db_operation
+    from psycopg import OperationalError, DatabaseError
+    
+    @retry_db_operation
+    def _execute():
+        try:
+            return conn.execute(text(sql), params or {})
+        except (OperationalError, DatabaseError) as e:
+            logger.warning(f"[DB] Erreur temporaire: {e}")
+            raise  # Tenacity va retry
+    
+    _execute()
 
 
 def db_execute_one(conn_or_sql, sql_or_params=None, params=None):

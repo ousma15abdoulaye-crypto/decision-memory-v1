@@ -11,6 +11,10 @@ try:
     load_dotenv()
 except ImportError:
     pass
+
+# Configure logging pour resilience patterns
+from src.logging_config import configure_logging
+configure_logging()
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
