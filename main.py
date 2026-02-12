@@ -15,13 +15,14 @@ except ImportError:
 # Configure logging pour resilience patterns
 from src.logging_config import configure_logging
 configure_logging()
+
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, asdict
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -36,8 +37,9 @@ from src.db import get_connection, db_execute, db_execute_one, db_fetchall, init
 from src.couche_a.routers import router as upload_router
 from src.auth_router import router as auth_router
 from src.ratelimit import init_rate_limit, limiter
-# ❌ REMOVED: from src.couche_a.procurement import router as procurement_router (M2-Extended)
+from src.auth import CurrentUser
 
+# ❌ REMOVED: from src.couche_a.procurement import router as procurement_router (M2-Extended)
 
 # =========================================================
 # Decision Memory System — MVP A++ FINAL
@@ -90,8 +92,8 @@ app = FastAPI(title=APP_TITLE, version=APP_VERSION, lifespan=lifespan)
 init_rate_limit(app)
 
 # Include routers
-app.include_router(upload_router)
 app.include_router(auth_router)
+app.include_router(upload_router)
 # ❌ REMOVED: app.include_router(procurement_router) (M2-Extended)
 
 STATIC_DIR = BASE_DIR / "static"
@@ -1015,10 +1017,9 @@ def api_constitution():
 
 
 @app.post("/api/cases")
-def create_case(payload: CaseCreate, user: "CurrentUser" = None):
+@limiter.limit("10/minute")
+async def create_case(request: Request, payload: CaseCreate, user: CurrentUser):
     """Crée nouveau case (requiert authentification)."""
-    from src.auth import CurrentUser as CU
-    
     case_type = payload.case_type.strip().upper()
     if case_type not in {"DAO", "RFQ"}:
         raise HTTPException(status_code=400, detail="case_type must be DAO or RFQ")
@@ -1031,13 +1032,13 @@ def create_case(payload: CaseCreate, user: "CurrentUser" = None):
             INSERT INTO cases (id, case_type, title, lot, created_at, status, owner_id)
             VALUES (:id, :ctype, :title, :lot, :ts, :status, :owner)
         """, {
-            "id": case_id, 
-            "ctype": case_type, 
-            "title": payload.title.strip(), 
-            "lot": payload.lot, 
-            "ts": now, 
+            "id": case_id,
+            "ctype": case_type,
+            "title": payload.title.strip(),
+            "lot": payload.lot,
+            "ts": now,
             "status": "open",
-            "owner": user["id"] if user else None
+            "owner": user["id"]
         })
 
     return {
@@ -1047,15 +1048,14 @@ def create_case(payload: CaseCreate, user: "CurrentUser" = None):
         "lot": payload.lot,
         "created_at": now,
         "status": "open",
-        "owner_id": user["id"] if user else None
+        "owner_id": user["id"]
     }
 
 
 @app.get("/api/cases")
 @limiter.limit("50/minute")
-def list_cases(request: "Request"):
+def list_cases(request: Request):
     """Liste tous les cases (rate limited)."""
-    from fastapi import Request as Req
     with get_connection() as conn:
         rows = db_fetchall(conn, "SELECT * FROM cases ORDER BY created_at DESC")
     return rows

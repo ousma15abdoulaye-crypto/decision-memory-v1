@@ -42,12 +42,13 @@ def compute_file_hash(file_path: Path) -> str:
 
 def register_artifact(case_id: str, kind: str, filename: str, path: str, meta: dict) -> str:
     artifact_id = str(uuid.uuid4())
+    created_by = meta.get("uploaded_by")  # Extract user_id from meta
     with get_connection() as conn:
         db_execute(
             conn,
             """
-            INSERT INTO artifacts (id, case_id, kind, filename, path, uploaded_at, meta_json)
-            VALUES (:id, :case_id, :kind, :filename, :path, :ts, :meta)
+            INSERT INTO artifacts (id, case_id, kind, filename, path, uploaded_at, meta_json, created_by)
+            VALUES (:id, :case_id, :kind, :filename, :path, :ts, :meta, :created_by)
             """,
             {
                 "id": artifact_id,
@@ -56,7 +57,8 @@ def register_artifact(case_id: str, kind: str, filename: str, path: str, meta: d
                 "filename": filename,
                 "path": path,
                 "ts": datetime.utcnow().isoformat(),
-                "meta": json.dumps(meta, ensure_ascii=False)
+                "meta": json.dumps(meta, ensure_ascii=False),
+                "created_by": created_by
             }
         )
     return artifact_id
@@ -68,12 +70,12 @@ async def upload_dao(
     case_id: str,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    user: CurrentUser = None,
+    user: CurrentUser,
 ):
     """Upload du DAO – un seul par case (409 si existant). Requiert authentification."""
     # Ownership check
     check_case_ownership(case_id, user)
-    
+
     with get_connection() as conn:
         case = db_execute_one(conn, "SELECT id FROM cases WHERE id=:id", {"id": case_id})
         if not case:
@@ -94,8 +96,8 @@ async def upload_dao(
     timestamp = datetime.now()
     safe_filename = f"dao_{case_id}_{timestamp.strftime('%Y%m%d%H%M%S')}_{safe_name}"
     file_path = UPLOADS_DIR / safe_filename
-    
-    # Read and write content
+
+    # Read and write full content after validation
     content = await file.read()
     with open(file_path, "wb") as f:
         f.write(content)
@@ -111,8 +113,8 @@ async def upload_dao(
         "uploaded_by": user["id"]
     }
     artifact_id = register_artifact(case_id, "dao", file.filename, str(file_path), meta)
-    
-    # Update quota
+
+    # Update quota after success
     update_case_quota(case_id, size)
 
     from src.couche_a.extraction import extract_dao_content
@@ -135,12 +137,12 @@ async def upload_offer(
     offer_type: OfferType = Form(...),
     file: UploadFile = File(...),
     lot_id: str = Form(None),
-    user: CurrentUser = None,
+    user: CurrentUser,
 ):
     """Upload offre avec classification obligatoire et lot optionnel. Requiert authentification."""
     # Ownership check
     check_case_ownership(case_id, user)
-    
+
     with get_connection() as conn:
         case = db_execute_one(conn, "SELECT id, closing_date FROM cases WHERE id=:id", {"id": case_id})
         if not case:
@@ -160,7 +162,7 @@ async def upload_offer(
             lot_case_id = lot.get("case_id") if isinstance(lot, dict) else lot[1]
             if lot_case_id != case_id:
                 raise HTTPException(400, f"Lot '{lot_id}' does not belong to case '{case_id}'")
-    
+
     with get_connection() as conn:
         dao = db_execute_one(
             conn,
@@ -198,14 +200,14 @@ async def upload_offer(
     ext = safe_name.split('.')[-1] if '.' in safe_name else 'pdf'
     safe_filename = f"offer_{offer_type.value}_{supplier_name.replace(' ', '_')}_{timestamp.strftime('%Y%m%d%H%M%S')}.{ext}"
     file_path = UPLOADS_DIR / safe_filename
-    
-    # Read and write content
+
+    # Read and write full content after validation
     content = await file.read()
     with open(file_path, "wb") as f:
         f.write(content)
 
     file_hash = compute_file_hash(file_path)
-    
+
     # Déterminer si l'offre est hors délai
     is_late = False
     if closing_date:
@@ -228,8 +230,8 @@ async def upload_offer(
         "uploaded_by": user["id"]
     }
     artifact_id = register_artifact(case_id, "offer", file.filename, str(file_path), meta)
-    
-    # Update quota
+
+    # Update quota after success
     update_case_quota(case_id, size)
 
     from src.couche_a.extraction import extract_offer_content

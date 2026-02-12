@@ -1,7 +1,10 @@
 """Tests authentification JWT (M4A)."""
 import pytest
+import uuid
 from fastapi.testclient import TestClient
+from jose import jwt
 from main import app
+from src.auth import SECRET_KEY, ALGORITHM
 
 client = TestClient(app)
 
@@ -37,10 +40,9 @@ def test_login_nonexistent_user():
 
 def test_register_user():
     """Enregistrement nouvel utilisateur."""
-    import uuid
     unique_username = f"testuser_{uuid.uuid4().hex[:8]}"
     unique_email = f"test_{uuid.uuid4().hex[:8]}@example.com"
-    
+
     response = client.post("/auth/register", json={
         "email": unique_email,
         "username": unique_username,
@@ -48,9 +50,10 @@ def test_register_user():
         "full_name": "Test User"
     })
     assert response.status_code == 201
-    assert response.json()["username"] == unique_username
-    assert response.json()["email"] == unique_email
-    assert response.json()["role_name"] == "procurement_officer"
+    data = response.json()
+    assert data["username"] == unique_username
+    assert data["email"] == unique_email
+    assert data["role_name"] == "procurement_officer"
 
 
 def test_register_duplicate_username():
@@ -77,14 +80,15 @@ def test_get_me_with_auth():
         "password": "Admin123!"
     })
     token = login_response.json()["access_token"]
-    
+
     # Accès protégé
     response = client.get("/auth/me", headers={
         "Authorization": f"Bearer {token}"
     })
     assert response.status_code == 200
-    assert response.json()["username"] == "admin"
-    assert response.json()["role_name"] == "admin"
+    data = response.json()
+    assert data["username"] == "admin"
+    assert data["role_name"] == "admin"
 
 
 def test_invalid_token():
@@ -97,28 +101,52 @@ def test_invalid_token():
 
 def test_protected_endpoint_no_auth():
     """Endpoint protégé sans token → 401."""
-    # This test assumes upload endpoints require auth
     response = client.post("/api/cases", json={
         "case_type": "DAO",
-        "title": "Test Case"
+        "title": "Test Case",
+        "lot": None
     })
-    # Should fail without auth (though endpoint might not enforce it yet in all cases)
-    # The actual behavior depends on whether the endpoint has CurrentUser dependency
+    # Maintenant l'endpoint exige CurrentUser, donc 401
+    assert response.status_code == 401
 
 
-def test_token_expiration():
-    """Test que le token contient un champ exp."""
-    from jose import jwt
-    from src.auth import SECRET_KEY, ALGORITHM
-    
+def test_protected_endpoint_with_token():
+    """Endpoint protégé avec token valide → 200."""
     # Login
     login_response = client.post("/auth/token", data={
         "username": "admin",
         "password": "Admin123!"
     })
     token = login_response.json()["access_token"]
-    
-    # Decode without verification to check structure
+
+    # Création d'un case
+    response = client.post("/api/cases",
+        json={
+            "case_type": "DAO",
+            "title": "Test Case with Auth",
+            "lot": None
+        },
+        headers={
+            "Authorization": f"Bearer {token}"
+        }
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "id" in data
+    assert data["title"] == "Test Case with Auth"
+    assert "owner_id" in data
+
+
+def test_token_expiration():
+    """Test que le token contient un champ exp."""
+    # Login
+    login_response = client.post("/auth/token", data={
+        "username": "admin",
+        "password": "Admin123!"
+    })
+    token = login_response.json()["access_token"]
+
+    # Décoder sans vérifier l'expiration pour inspecter le payload
     payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     assert "sub" in payload  # User ID
     assert "exp" in payload  # Expiration

@@ -201,5 +201,6 @@ def create_user(email: str, username: str, password: str, role_id: int = 2, full
         })
         
         user_id = result.fetchone()[0]
-        conn.commit()
+        # La transaction sera commitée automatiquement à la sortie du context manager
+        
         return get_user_by_id(user_id)

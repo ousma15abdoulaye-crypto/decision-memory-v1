@@ -1,7 +1,7 @@
 """Add users, roles, permissions tables
 
 Revision ID: 004_users_rbac
-Revises: 002_add_couche_a
+Revises: 003_add_procurement_extensions
 Create Date: 2026-02-12 19:15:00
 """
 from __future__ import annotations
@@ -18,7 +18,7 @@ except ImportError:
     op = None
 
 revision = '004_users_rbac'
-down_revision = '002_add_couche_a'
+down_revision = '003_add_procurement_extensions'  # ✅ dépend de M2‑Extended
 branch_labels = None
 depends_on = None
 
