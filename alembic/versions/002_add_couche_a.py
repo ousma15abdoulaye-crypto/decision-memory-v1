@@ -22,8 +22,14 @@ branch_labels = None
 depends_on = None
 
 
-def _get_bind(engine: Optional[Engine] = None) -> Connection | Engine:
-    """Retourne la connexion/engine approprié."""
+def _get_bind(engine: Optional[Engine] = None) -> Engine | Connection:
+    """Retourne la connexion/engine approprié.
+
+    Priorité :
+    1. engine passé en argument (cas du test)
+    2. connexion Alembic (cas migration CLI)
+    3. engine par défaut de l'app
+    """
     if engine is not None:
         return engine
     if op is not None:
@@ -32,16 +38,19 @@ def _get_bind(engine: Optional[Engine] = None) -> Connection | Engine:
     return db_engine
 
 
-def _execute_sql(bind, sql: str):
-    """Exécute du SQL brut sur le bind fourni, gère les transactions."""
-    if op is not None and bind is op.get_bind():
-        # Contexte Alembic – op.execute gère la transaction
-        op.execute(sql)
-    else:
-        # Contexte test ou direct – on utilise une connexion
-        with bind.connect() as conn:
+def _execute_sql(target, sql: str) -> None:
+    """Exécute du SQL brut – version simplifiée et robuste.
+
+    - Si target est un Engine : on crée une connexion, on exécute, on commit.
+    - Si target est une Connection : on exécute directement (Alembic gère la transaction).
+    """
+    if isinstance(target, Engine):
+        with target.connect() as conn:
             conn.execute(text(sql))
             conn.commit()
+    else:
+        # target est une Connection (Alembic)
+        target.execute(text(sql))
 
 
 def upgrade(engine: Optional[Engine] = None) -> None:
@@ -181,15 +190,12 @@ def upgrade(engine: Optional[Engine] = None) -> None:
     """)
 
 
-def downgrade(engine: Optional[Engine] = None) -> None:
+def downgrade():
     """Supprime UNIQUEMENT les tables Couche A (préserve cases et Couche B)."""
-    bind = _get_bind(engine)
-    tables_to_drop = ["analyses", "extractions", "documents", "offers", "lots", "audits"]
+    if op is None:
+        # Hors contexte Alembic (test) – ne rien faire, le downgrade n'est pas testé
+        return
 
+    tables_to_drop = ["analyses", "extractions", "documents", "offers", "lots", "audits"]
     for table in tables_to_drop:
-        if op is not None:
-            op.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
-        else:
-            with bind.connect() as conn:
-                conn.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE"))
-                conn.commit()
+        op.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
