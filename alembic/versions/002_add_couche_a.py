@@ -1,4 +1,9 @@
-"""Add Couche A procurement pipeline tables."""
+"""Add Couche B + Couche A tables — migration autonome (down_revision=None).
+
+Tables Couche B : cases, artifacts, memory_entries, dao_criteria, cba_template_schemas, offer_extractions.
+Tables Couche A : lots, offers, documents, extractions, analyses, audits.
+Source : src/db.py (Couche B), schéma Couche A (lots, offers, etc.).
+"""
 from __future__ import annotations
 
 from typing import Optional
@@ -10,8 +15,6 @@ try:
     from alembic import op
 except ImportError:
     op = None
-
-from src.couche_a.models import get_engine, metadata
 
 revision = "002_add_couche_a"
 down_revision = None
@@ -25,19 +28,19 @@ def _get_bind(engine: Optional[Engine] = None) -> Connection | Engine:
         return engine
     if op is not None:
         return op.get_bind()
-    return get_engine()
+    from src.db import engine as db_engine
+    return db_engine
 
 
 def _execute_sql(bind, sql: str):
-    """Exécute du SQL brut sur le bind fourni, gère les transactions."""
-    if op is not None and bind is op.get_bind():
-        # Contexte Alembic – op.execute gère la transaction
-        op.execute(sql)
-    else:
-        # Contexte test ou direct – on utilise une connexion
+    """Exécute du SQL brut sur le bind fourni – gère Engine et Connection."""
+    if isinstance(bind, Engine):
         with bind.connect() as conn:
             conn.execute(text(sql))
             conn.commit()
+    else:
+        # bind est déjà une connexion (Alembic)
+        bind.execute(text(sql))
 
 
 def upgrade(engine: Optional[Engine] = None) -> None:
@@ -178,14 +181,16 @@ def upgrade(engine: Optional[Engine] = None) -> None:
 
 
 def downgrade(engine: Optional[Engine] = None) -> None:
-    """Supprime UNIQUEMENT les tables Couche A (préserve cases)."""
+    """Supprime UNIQUEMENT les tables Couche A (préserve cases et Couche B)."""
     bind = _get_bind(engine)
     tables_to_drop = ["analyses", "extractions", "documents", "offers", "lots", "audits"]
 
     for table in tables_to_drop:
-        if op is not None:
+        if op is not None and isinstance(bind, Engine) is False:
+            # Contexte Alembic : bind est une connexion, on utilise op.execute
             op.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
         else:
+            # Contexte test ou direct : bind est un Engine ou connexion directe
             with bind.connect() as conn:
                 conn.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE"))
                 conn.commit()
