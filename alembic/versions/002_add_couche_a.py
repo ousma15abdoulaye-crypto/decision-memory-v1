@@ -23,6 +23,7 @@ depends_on = None
 
 
 def _get_bind(engine: Optional[Engine] = None) -> Connection | Engine:
+    """Retourne la connexion/engine approprié."""
     if engine is not None:
         return engine
     if op is not None:
@@ -31,190 +32,164 @@ def _get_bind(engine: Optional[Engine] = None) -> Connection | Engine:
     return db_engine
 
 
-def upgrade(engine: Optional[Engine] = None) -> None:
-    """
-    Crée les tables Couche B et Couche A avec IF NOT EXISTS.
-    Gère les deux contextes :
-      - engine fourni (test) → création d'une connexion manuelle, commit, close.
-      - engine None et op présent (CLI) → utilise la connexion Alembic, pas de commit/close.
-    """
-    own_connection = False
-    if engine is not None:
-        bind = engine.connect()
-        own_connection = True
-    elif op is not None:
-        bind = op.get_bind()
-        own_connection = False
+def _execute_sql(bind, sql: str):
+    """Exécute du SQL brut sur le bind fourni, gère les transactions."""
+    if op is not None and bind is op.get_bind():
+        # Contexte Alembic – op.execute gère la transaction
+        op.execute(sql)
     else:
-        from src.db import engine as db_engine
-        bind = db_engine.connect()
-        own_connection = True
+        # Contexte test ou direct – on utilise une connexion
+        with bind.connect() as conn:
+            conn.execute(text(sql))
+            conn.commit()
 
-    try:
-        # ---------- Tables Couche B (src.db) ----------
-        bind.execute(text("""
-            CREATE TABLE IF NOT EXISTS cases (
-                id TEXT PRIMARY KEY,
-                case_type TEXT NOT NULL,
-                title TEXT NOT NULL,
-                lot TEXT,
-                created_at TEXT NOT NULL,
-                status TEXT NOT NULL
-            )
-        """))
-        bind.execute(text("""
-            CREATE TABLE IF NOT EXISTS artifacts (
-                id TEXT PRIMARY KEY,
-                case_id TEXT NOT NULL,
-                kind TEXT NOT NULL,
-                filename TEXT NOT NULL,
-                path TEXT NOT NULL,
-                uploaded_at TEXT NOT NULL,
-                meta_json TEXT,
-                FOREIGN KEY (case_id) REFERENCES cases(id)
-            )
-        """))
-        bind.execute(text("""
-            CREATE TABLE IF NOT EXISTS memory_entries (
-                id TEXT PRIMARY KEY,
-                case_id TEXT NOT NULL,
-                entry_type TEXT NOT NULL,
-                content_json TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                FOREIGN KEY (case_id) REFERENCES cases(id)
-            )
-        """))
-        bind.execute(text("""
-            CREATE TABLE IF NOT EXISTS dao_criteria (
-                id TEXT PRIMARY KEY,
-                case_id TEXT NOT NULL,
-                categorie TEXT NOT NULL,
-                critere_nom TEXT NOT NULL,
-                description TEXT,
-                ponderation REAL NOT NULL,
-                type_reponse TEXT NOT NULL,
-                seuil_elimination REAL,
-                ordre_affichage INTEGER DEFAULT 0,
-                created_at TEXT NOT NULL,
-                FOREIGN KEY (case_id) REFERENCES cases(id)
-            )
-        """))
-        bind.execute(text("""
-            CREATE TABLE IF NOT EXISTS cba_template_schemas (
-                id TEXT PRIMARY KEY,
-                case_id TEXT NOT NULL,
-                template_name TEXT NOT NULL,
-                structure_json TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                reused_count INTEGER DEFAULT 0,
-                FOREIGN KEY (case_id) REFERENCES cases(id)
-            )
-        """))
-        bind.execute(text("""
-            CREATE TABLE IF NOT EXISTS offer_extractions (
-                id TEXT PRIMARY KEY,
-                case_id TEXT NOT NULL,
-                artifact_id TEXT NOT NULL,
-                supplier_name TEXT NOT NULL,
-                extracted_data_json TEXT NOT NULL,
-                missing_fields_json TEXT,
-                created_at TEXT NOT NULL,
-                FOREIGN KEY (case_id) REFERENCES cases(id),
-                FOREIGN KEY (artifact_id) REFERENCES artifacts(id)
-            )
-        """))
 
-        # ---------- Tables Couche A ----------
-        bind.execute(text("""
-            CREATE TABLE IF NOT EXISTS lots (
-                id VARCHAR(20) PRIMARY KEY,
-                case_id VARCHAR(20) NOT NULL REFERENCES cases(id),
-                name VARCHAR(255) NOT NULL,
-                description TEXT,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
-            )
-        """))
-        bind.execute(text("""
-            CREATE TABLE IF NOT EXISTS offers (
-                id VARCHAR(20) PRIMARY KEY,
-                case_id VARCHAR(20) NOT NULL REFERENCES cases(id),
-                lot_id VARCHAR(20) NOT NULL REFERENCES lots(id),
-                supplier_name VARCHAR(255) NOT NULL,
-                offer_type VARCHAR(40) NOT NULL DEFAULT 'AUTRE',
-                submitted_at TIMESTAMP WITH TIME ZONE,
-                amount REAL,
-                status VARCHAR(40) NOT NULL DEFAULT 'EN_ATTENTE',
-                score REAL,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
-            )
-        """))
-        bind.execute(text("""
-            CREATE TABLE IF NOT EXISTS documents (
-                id VARCHAR(20) PRIMARY KEY,
-                case_id VARCHAR(20) NOT NULL REFERENCES cases(id),
-                lot_id VARCHAR(20) NOT NULL REFERENCES lots(id),
-                offer_id VARCHAR(20) NOT NULL REFERENCES offers(id),
-                document_type VARCHAR(40) NOT NULL,
-                filename VARCHAR(255) NOT NULL,
-                storage_path TEXT NOT NULL,
-                mime_type VARCHAR(120) NOT NULL,
-                metadata_json TEXT,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
-            )
-        """))
-        bind.execute(text("""
-            CREATE TABLE IF NOT EXISTS extractions (
-                id VARCHAR(20) PRIMARY KEY,
-                document_id VARCHAR(20) NOT NULL REFERENCES documents(id),
-                offer_id VARCHAR(20) NOT NULL REFERENCES offers(id),
-                extracted_json TEXT NOT NULL,
-                missing_json TEXT NOT NULL,
-                used_llm BOOLEAN NOT NULL DEFAULT FALSE,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
-            )
-        """))
-        bind.execute(text("""
-            CREATE TABLE IF NOT EXISTS analyses (
-                id VARCHAR(20) PRIMARY KEY,
-                offer_id VARCHAR(20) NOT NULL REFERENCES offers(id),
-                essentials_score REAL,
-                capacity_score REAL,
-                sustainability_score REAL,
-                commercial_score REAL,
-                total_score REAL,
-                status VARCHAR(40) NOT NULL,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
-            )
-        """))
-        bind.execute(text("""
-            CREATE TABLE IF NOT EXISTS audits (
-                id VARCHAR(20) PRIMARY KEY,
-                entity_type VARCHAR(40) NOT NULL,
-                entity_id VARCHAR(20) NOT NULL,
-                action VARCHAR(80) NOT NULL,
-                actor VARCHAR(120),
-                details_json TEXT,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
-            )
-        """))
+def upgrade(engine: Optional[Engine] = None) -> None:
+    """Crée toutes les tables avec IF NOT EXISTS (Couche B + Couche A)."""
+    bind = _get_bind(engine)
 
-        if own_connection:
-            bind.commit()
-    finally:
-        if own_connection:
-            bind.close()
+    # ----- Tables Couche B (src.db) -----
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS cases (
+            id TEXT PRIMARY KEY,
+            case_type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            lot TEXT,
+            created_at TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'draft'
+        )
+    """)
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS artifacts (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            kind TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            path TEXT NOT NULL,
+            uploaded_at TEXT NOT NULL,
+            meta_json TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS memory_entries (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            entry_type TEXT NOT NULL,
+            content_json TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    """)
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS dao_criteria (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            categorie TEXT NOT NULL,
+            critere_nom TEXT NOT NULL,
+            description TEXT,
+            ponderation REAL NOT NULL,
+            type_reponse TEXT NOT NULL,
+            seuil_elimination REAL,
+            ordre_affichage INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL
+        )
+    """)
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS cba_template_schemas (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            template_name TEXT NOT NULL,
+            structure_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            reused_count INTEGER DEFAULT 0
+        )
+    """)
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS offer_extractions (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
+            supplier_name TEXT NOT NULL,
+            extracted_data_json TEXT NOT NULL,
+            missing_fields_json TEXT,
+            created_at TEXT NOT NULL
+        )
+    """)
+
+    # ----- Tables Couche A (spécifiques) -----
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS lots (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            lot_number TEXT NOT NULL,
+            description TEXT,
+            estimated_value REAL,
+            created_at TEXT NOT NULL
+        )
+    """)
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS offers (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            supplier_name TEXT NOT NULL,
+            offer_type TEXT NOT NULL,
+            file_hash TEXT,
+            submitted_at TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    """)
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS documents (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            offer_id TEXT REFERENCES offers(id) ON DELETE CASCADE,
+            filename TEXT NOT NULL,
+            path TEXT NOT NULL,
+            uploaded_at TEXT NOT NULL
+        )
+    """)
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS extractions (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
+            extraction_type TEXT NOT NULL,
+            data_json TEXT NOT NULL,
+            confidence REAL,
+            created_at TEXT NOT NULL
+        )
+    """)
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS analyses (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            analysis_type TEXT NOT NULL,
+            result_json TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    """)
+    _execute_sql(bind, """
+        CREATE TABLE IF NOT EXISTS audits (
+            id TEXT PRIMARY KEY,
+            case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+            user_id TEXT,
+            action TEXT NOT NULL,
+            old_value TEXT,
+            new_value TEXT,
+            created_at TEXT NOT NULL
+        )
+    """)
 
 
 def downgrade(engine: Optional[Engine] = None) -> None:
-    """Drop Couche A tables only (preserve cases et Couche B)."""
+    """Supprime UNIQUEMENT les tables Couche A (préserve cases et Couche B)."""
     bind = _get_bind(engine)
     tables_to_drop = ["analyses", "extractions", "documents", "offers", "lots", "audits"]
 
-    if op is not None:
-        for table in tables_to_drop:
-            op.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE"))
-    else:
-        with bind.connect() as conn:
-            for table in tables_to_drop:
+    for table in tables_to_drop:
+        if op is not None:
+            op.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
+        else:
+            with bind.connect() as conn:
                 conn.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE"))
-            conn.commit()
+                conn.commit()
