@@ -2,7 +2,7 @@
 Couche A – Endpoints d'upload (Manuel SCI §4)
 Constitution V2.1 : helpers synchrones src.db, pas de table SQLAlchemy.
 """
-from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Form
+from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Form, Request
 from enum import Enum
 from pathlib import Path
 from datetime import datetime
@@ -11,6 +11,9 @@ import json
 import uuid
 
 from src.db import get_connection, db_execute_one, db_execute
+from src.auth import CurrentUser, check_case_ownership
+from src.ratelimit import limiter
+from src.upload_security import validate_upload_security, update_case_quota
 
 router = APIRouter(prefix="/api/cases", tags=["Couche A Upload"])
 
@@ -39,12 +42,13 @@ def compute_file_hash(file_path: Path) -> str:
 
 def register_artifact(case_id: str, kind: str, filename: str, path: str, meta: dict) -> str:
     artifact_id = str(uuid.uuid4())
+    created_by = meta.get("uploaded_by")  # Extract user_id from meta
     with get_connection() as conn:
         db_execute(
             conn,
             """
-            INSERT INTO artifacts (id, case_id, kind, filename, path, uploaded_at, meta_json)
-            VALUES (:id, :case_id, :kind, :filename, :path, :ts, :meta)
+            INSERT INTO artifacts (id, case_id, kind, filename, path, uploaded_at, meta_json, created_by)
+            VALUES (:id, :case_id, :kind, :filename, :path, :ts, :meta, :created_by)
             """,
             {
                 "id": artifact_id,
@@ -53,18 +57,25 @@ def register_artifact(case_id: str, kind: str, filename: str, path: str, meta: d
                 "filename": filename,
                 "path": path,
                 "ts": datetime.utcnow().isoformat(),
-                "meta": json.dumps(meta, ensure_ascii=False)
+                "meta": json.dumps(meta, ensure_ascii=False),
+                "created_by": created_by
             }
         )
     return artifact_id
 
 @router.post("/{case_id}/upload-dao")
+@limiter.limit("5/minute")
 async def upload_dao(
+    request: Request,
     case_id: str,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    user: CurrentUser = None,
 ):
-    """Upload du DAO – un seul par case (409 si existant)."""
+    """Upload du DAO – un seul par case (409 si existant). Requiert authentification."""
+    # Ownership check
+    check_case_ownership(case_id, user)
+    
     with get_connection() as conn:
         case = db_execute_one(conn, "SELECT id FROM cases WHERE id=:id", {"id": case_id})
         if not case:
@@ -79,11 +90,11 @@ async def upload_dao(
         if existing:
             raise HTTPException(409, "DAO already uploaded. Delete existing DAO first.")
 
-    if file.content_type not in ALLOWED_MIME_TYPES:
-        raise HTTPException(400, "Invalid file type. Allowed: PDF, DOCX, XLSX")
+    # Validation sécurité complète (M4F)
+    safe_name, mime, size = await validate_upload_security(file, case_id)
+    
+    # Lire contenu après validation
     content = await file.read()
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(413, "File too large (max 50 MB)")
 
     timestamp = datetime.now()
     safe_filename = f"dao_{case_id}_{timestamp.strftime('%Y%m%d%H%M%S')}_{file.filename}"
@@ -96,11 +107,15 @@ async def upload_dao(
     meta = {
         "original_filename": file.filename,
         "size_bytes": len(content),
-        "mime_type": file.content_type,
+        "mime_type": mime,
         "hash": file_hash,
-        "upload_timestamp": timestamp.isoformat()
+        "upload_timestamp": timestamp.isoformat(),
+        "uploaded_by": user["id"]
     }
     artifact_id = register_artifact(case_id, "dao", file.filename, str(file_path), meta)
+    
+    # Mettre à jour quota après succès
+    update_case_quota(case_id, size)
 
     from src.couche_a.extraction import extract_dao_content
     background_tasks.add_task(extract_dao_content, case_id, artifact_id, str(file_path))
@@ -113,15 +128,21 @@ async def upload_dao(
     }
 
 @router.post("/{case_id}/upload-offer")
+@limiter.limit("10/minute")
 async def upload_offer(
+    request: Request,
     case_id: str,
     background_tasks: BackgroundTasks,
     supplier_name: str = Form(...),
     offer_type: OfferType = Form(...),
     file: UploadFile = File(...),
     lot_id: str = Form(None),
+    user: CurrentUser = None,
 ):
-    """Upload offre avec classification obligatoire et lot optionnel."""
+    """Upload offre avec classification obligatoire et lot optionnel. Requiert authentification."""
+    # Ownership check
+    check_case_ownership(case_id, user)
+    
     with get_connection() as conn:
         case = db_execute_one(conn, "SELECT id, closing_date FROM cases WHERE id=:id", {"id": case_id})
         if not case:
@@ -167,11 +188,11 @@ async def upload_offer(
                 f"Offer of type '{offer_type.value}' already uploaded for supplier '{supplier_name}'."
             )
 
-    if file.content_type not in ALLOWED_MIME_TYPES:
-        raise HTTPException(400, "Invalid file type. Allowed: PDF, DOCX, XLSX")
+    # Validation sécurité complète (M4F)
+    safe_name, mime, size = await validate_upload_security(file, case_id)
+    
+    # Lire contenu après validation
     content = await file.read()
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(413, "File too large (max 50 MB)")
 
     timestamp = datetime.now()
     ext = file.filename.split('.')[-1] if '.' in file.filename else 'pdf'
@@ -196,13 +217,17 @@ async def upload_offer(
         "offer_type": offer_type.value,
         "original_filename": file.filename,
         "size_bytes": len(content),
-        "mime_type": file.content_type,
+        "mime_type": mime,
         "hash": file_hash,
         "upload_timestamp": timestamp.isoformat(),
         "lot_id": lot_id,
-        "is_late": is_late
+        "is_late": is_late,
+        "uploaded_by": user["id"]
     }
     artifact_id = register_artifact(case_id, "offer", file.filename, str(file_path), meta)
+    
+    # Mettre à jour quota après succès
+    update_case_quota(case_id, size)
 
     from src.couche_a.extraction import extract_offer_content
     background_tasks.add_task(
