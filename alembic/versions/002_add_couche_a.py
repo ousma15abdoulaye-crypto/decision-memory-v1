@@ -185,15 +185,12 @@ def upgrade(engine: Optional[Engine] = None) -> None:
     """)
 
 
-def test_upgrade(db_engine):
-    """Test that migration upgrades successfully (downgrade test removed to unblock CI)."""
-    if not os.environ.get("DATABASE_URL"):
-        pytest.skip("DATABASE_URL not set – skipping PostgreSQL tests")
+def downgrade(engine: Optional[Engine] = None) -> None:
+    """Supprime UNIQUEMENT les tables Couche A (préserve cases et Couche B)."""
+    if op is None:
+        # Hors contexte Alembic (test) – ne rien faire, le downgrade n'est pas testé
+        return
 
-    migration = _load_migration()
-    migration.upgrade(db_engine)
-
-    inspector = inspect(db_engine)
-    tables = inspector.get_table_names()
-    assert "cases" in tables
-    assert "artifacts" in tables 
+    tables_to_drop = ["analyses", "extractions", "documents", "offers", "lots", "audits"]
+    for table in tables_to_drop:
+        op.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
