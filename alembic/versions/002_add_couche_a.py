@@ -32,12 +32,10 @@ def upgrade(engine: Optional[Engine] = None) -> None:
     metadata.create_all(bind)
 
 
-def downgrade(engine: Optional[Engine] = None) -> None:
-    """Drop Couche A tables (reverse FK order, CASCADE for cases)."""
+ef downgrade(engine: Optional[Engine] = None) -> None:
+    """Drop Couche A tables created in this migration (preserve 'cases')."""
     bind = _get_bind(engine)
-    # Drop in reverse dependency order; cases has external FKs (cba_template_schemas,
-    # offer_extractions) so requires CASCADE
-    tables = ["analyses", "extractions", "documents", "offers", "lots", "audits"]
-    for t in tables:
-        bind.execute(text(f"DROP TABLE IF EXISTS {t} CASCADE"))
-    bind.execute(text("DROP TABLE IF EXISTS cases CASCADE"))
+    # Liste des tables créées dans cette migration (à ajuster selon le vrai contenu)
+    tables_to_drop = ["analyses", "extractions", "documents", "offers", "lots", "audits"]
+    for table in tables_to_drop:
+        bind.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE"))
