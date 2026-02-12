@@ -9,7 +9,7 @@ from sqlalchemy.engine import Connection, Engine
 
 try:
     from alembic import op
-except ImportError:  # Alembic may not be installed in minimal environments.
+except ImportError:
     op = None
 
 from src.couche_a.models import get_engine, metadata
@@ -35,7 +35,15 @@ def upgrade(engine: Optional[Engine] = None) -> None:
 def downgrade(engine: Optional[Engine] = None) -> None:
     """Drop Couche A tables created in this migration (preserve 'cases')."""
     bind = _get_bind(engine)
-    # Liste des tables créées dans cette migration (à ajuster selon le vrai contenu)
     tables_to_drop = ["analyses", "extractions", "documents", "offers", "lots", "audits"]
-    for table in tables_to_drop:
-        bind.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE"))
+
+    if op is not None:
+        # Contexte Alembic (migration CLI)
+        for table in tables_to_drop:
+            op.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
+    else:
+        # Contexte de test (Engine direct)
+        with bind.connect() as conn:
+            for table in tables_to_drop:
+                conn.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE"))
+            conn.commit()
