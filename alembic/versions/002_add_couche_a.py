@@ -190,12 +190,10 @@ def upgrade(engine: Optional[Engine] = None) -> None:
     """)
 
 
-def downgrade():
+def downgrade(engine: Optional[Engine] = None) -> None:
     """Supprime UNIQUEMENT les tables Couche A (préserve cases et Couche B)."""
-    if op is None:
-        # Hors contexte Alembic (test) – ne rien faire, le downgrade n'est pas testé
-        return
-
-    tables_to_drop = ["analyses", "extractions", "documents", "offers", "lots", "audits"]
+    bind = _get_bind(engine)
+    
+    tables_to_drop = ["audits", "analyses", "extractions", "documents", "offers", "lots"]
     for table in tables_to_drop:
-        op.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
+        _execute_sql(bind, f"DROP TABLE IF EXISTS {table} CASCADE")
