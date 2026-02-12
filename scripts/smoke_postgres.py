@@ -22,12 +22,6 @@ try:
 except ImportError:
     pass
 
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
-
 
 def main():
     parser = argparse.ArgumentParser()
