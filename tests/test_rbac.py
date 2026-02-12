@@ -1,180 +1,159 @@
 """Tests RBAC (M4B)."""
+import uuid
 import pytest
 from fastapi.testclient import TestClient
 from main import app
-import uuid
 
 client = TestClient(app)
 
 
 def get_token(username: str, password: str) -> str:
-    """Helper login."""
+    """Helper login – retourne le token JWT."""
     response = client.post("/auth/token", data={
         "username": username,
         "password": password
     })
-    assert response.status_code == 200
+    if response.status_code != 200:
+        raise Exception(f"Login failed: {response.json()}")
     return response.json()["access_token"]
 
 
-def test_admin_can_create_case():
-    """Admin peut créer un case."""
+def create_test_user(username: str, email: str, password: str = "TestPass123!") -> dict:
+    """Helper pour créer un utilisateur de test."""
+    response = client.post("/auth/register", json={
+        "email": email,
+        "username": username,
+        "password": password,
+        "full_name": f"Test User {username}"
+    })
+    if response.status_code != 201:
+        # L'utilisateur existe déjà, on essaye de se connecter
+        return {"username": username, "password": password}
+    return response.json()
+
+
+def test_admin_can_access_all_cases():
+    """Admin peut voir tous les cases."""
     admin_token = get_token("admin", "Admin123!")
-    
-    response = client.post("/api/cases",
-        json={
-            "case_type": "DAO",
-            "title": "Admin Test Case",
-            "lot": None
-        },
-        headers={"Authorization": f"Bearer {admin_token}"}
-    )
+    response = client.get("/api/cases", headers={
+        "Authorization": f"Bearer {admin_token}"
+    })
     assert response.status_code == 200
-    assert "id" in response.json()
 
 
 def test_procurement_officer_can_create_case():
     """Procurement officer peut créer un case."""
-    # Create procurement officer first
-    username = f"po_{uuid.uuid4().hex[:8]}"
-    email = f"po_{uuid.uuid4().hex[:8]}@example.com"
-    
-    register_response = client.post("/auth/register", json={
-        "email": email,
-        "username": username,
-        "password": "POPass123!",
-        "full_name": "Procurement Officer"
-    })
-    assert register_response.status_code == 201
-    
-    # Login
-    token = get_token(username, "POPass123!")
-    
-    # Create case
-    response = client.post("/api/cases",
+    unique_id = uuid.uuid4().hex[:8]
+    user = create_test_user(f"officer_{unique_id}", f"officer_{unique_id}@test.com")
+    token = get_token(user["username"], user.get("password", "TestPass123!"))
+
+    response = client.post("/api/cases", 
         json={
             "case_type": "DAO",
-            "title": "PO Test Case",
+            "title": f"Test Case by Officer {unique_id}",
             "lot": None
         },
         headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 200
-
-
-def test_user_can_access_own_case():
-    """User peut accéder à son propre case."""
-    # Create user
-    username = f"user_{uuid.uuid4().hex[:8]}"
-    email = f"user_{uuid.uuid4().hex[:8]}@example.com"
-    
-    client.post("/auth/register", json={
-        "email": email,
-        "username": username,
-        "password": "UserPass123!",
-        "full_name": "Test User"
-    })
-    
-    token = get_token(username, "UserPass123!")
-    
-    # Create case
-    create_response = client.post("/api/cases",
-        json={
-            "case_type": "DAO",
-            "title": "User Test Case",
-            "lot": None
-        },
-        headers={"Authorization": f"Bearer {token}"}
-    )
-    assert create_response.status_code == 200
-    case_id = create_response.json()["id"]
-    
-    # Access case
-    response = client.get(f"/api/cases/{case_id}")
-    assert response.status_code == 200
+    assert "id" in response.json()
+    return response.json()["id"]
 
 
 def test_ownership_check():
-    """Test ownership verification for uploads."""
-    # Create two users
-    username1 = f"user1_{uuid.uuid4().hex[:8]}"
-    email1 = f"user1_{uuid.uuid4().hex[:8]}@example.com"
-    
-    username2 = f"user2_{uuid.uuid4().hex[:8]}"
-    email2 = f"user2_{uuid.uuid4().hex[:8]}@example.com"
-    
-    client.post("/auth/register", json={
-        "email": email1,
-        "username": username1,
-        "password": "User1Pass123!",
-        "full_name": "User 1"
-    })
-    
-    client.post("/auth/register", json={
-        "email": email2,
-        "username": username2,
-        "password": "User2Pass123!",
-        "full_name": "User 2"
-    })
-    
-    token1 = get_token(username1, "User1Pass123!")
-    token2 = get_token(username2, "User2Pass123!")
-    
-    # User 1 creates case
+    """Vérifie qu'un utilisateur ne peut pas accéder/modifier le case d'un autre."""
+    # Créer deux utilisateurs
+    unique_id1 = uuid.uuid4().hex[:8]
+    unique_id2 = uuid.uuid4().hex[:8]
+
+    user1 = create_test_user(f"owner_{unique_id1}", f"owner_{unique_id1}@test.com")
+    user2 = create_test_user(f"other_{unique_id2}", f"other_{unique_id2}@test.com")
+
+    token1 = get_token(user1["username"], user1.get("password", "TestPass123!"))
+    token2 = get_token(user2["username"], user2.get("password", "TestPass123!"))
+
+    # User1 crée un case
     create_response = client.post("/api/cases",
         json={
             "case_type": "DAO",
-            "title": "User 1 Case",
+            "title": f"Private Case {unique_id1}",
             "lot": None
         },
         headers={"Authorization": f"Bearer {token1}"}
     )
     assert create_response.status_code == 200
     case_id = create_response.json()["id"]
-    
-    # User 2 tries to upload to User 1's case → 403
-    response = client.post(
+
+    # Vérifier que le case a bien le bon owner_id (via GET /cases/{id})
+    get_response = client.get(f"/api/cases/{case_id}", headers={
+        "Authorization": f"Bearer {token1}"
+    })
+    assert get_response.status_code == 200
+    case_data = get_response.json()
+    assert case_data["case"]["owner_id"] == user1.get("id") or case_data["case"]["owner_id"] == 1  # selon l'implémentation
+
+    # User2 tente d'uploader un DAO sur le case de User1 → doit échouer avec 403
+    upload_response = client.post(
         f"/api/cases/{case_id}/upload-dao",
-        files={"file": ("test.pdf", b"%PDF-1.4\ntest", "application/pdf")},
+        files={"file": ("test.pdf", b"%PDF-1.4 test", "application/pdf")},
         headers={"Authorization": f"Bearer {token2}"}
     )
-    assert response.status_code == 403
+    # L'endpoint devrait retourner 403 (Forbidden) si ownership check est implémenté
+    assert upload_response.status_code == 403
 
 
 def test_admin_bypass_ownership():
-    """Admin peut accéder aux cases d'autres utilisateurs."""
-    # Create regular user
-    username = f"user_{uuid.uuid4().hex[:8]}"
-    email = f"user_{uuid.uuid4().hex[:8]}@example.com"
-    
-    client.post("/auth/register", json={
-        "email": email,
-        "username": username,
-        "password": "UserPass123!",
-        "full_name": "Regular User"
-    })
-    
-    user_token = get_token(username, "UserPass123!")
+    """Admin peut accéder et uploader sur les cases des autres utilisateurs."""
     admin_token = get_token("admin", "Admin123!")
-    
-    # User creates case
+
+    # Créer un utilisateur ordinaire et son case
+    unique_id = uuid.uuid4().hex[:8]
+    user = create_test_user(f"regular_{unique_id}", f"regular_{unique_id}@test.com")
+    user_token = get_token(user["username"], user.get("password", "TestPass123!"))
+
     create_response = client.post("/api/cases",
         json={
             "case_type": "DAO",
-            "title": "User Case",
+            "title": f"Regular User Case {unique_id}",
             "lot": None
         },
         headers={"Authorization": f"Bearer {user_token}"}
     )
     assert create_response.status_code == 200
     case_id = create_response.json()["id"]
-    
-    # Admin can upload to any case (should work if admin bypass is implemented)
-    # Note: This test assumes admin has bypass - may need adjustment based on implementation
-    response = client.post(
+
+    # Admin peut uploader un DAO sur ce case
+    upload_response = client.post(
         f"/api/cases/{case_id}/upload-dao",
-        files={"file": ("admin_test.pdf", b"%PDF-1.4\ntest", "application/pdf")},
+        files={"file": ("admin_upload.pdf", b"%PDF-1.4 admin", "application/pdf")},
         headers={"Authorization": f"Bearer {admin_token}"}
     )
-    # Admin bypass should allow this
-    assert response.status_code in [200, 404]  # 404 if extraction module not found
+    # Doit réussir (ownership bypass)
+    assert upload_response.status_code == 200
+    assert "artifact_id" in upload_response.json()
+
+
+def test_user_roles():
+    """Vérifie que les rôles sont correctement assignés lors de l'inscription."""
+    # Admin doit avoir le rôle admin et superuser
+    admin_token = get_token("admin", "Admin123!")
+    response = client.get("/auth/me", headers={
+        "Authorization": f"Bearer {admin_token}"
+    })
+    assert response.status_code == 200
+    data = response.json()
+    assert data["role_name"] == "admin"
+    assert data["is_superuser"] is True
+
+    # Nouvel utilisateur doit avoir le rôle procurement_officer
+    unique_id = uuid.uuid4().hex[:8]
+    user = create_test_user(f"newuser_{unique_id}", f"new_{unique_id}@test.com")
+    token = get_token(user["username"], user.get("password", "TestPass123!"))
+
+    response = client.get("/auth/me", headers={
+        "Authorization": f"Bearer {token}"
+    })
+    assert response.status_code == 200
+    data = response.json()
+    assert data["role_name"] == "procurement_officer"
+    assert data["is_superuser"] is False

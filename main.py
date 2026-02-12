@@ -11,13 +11,18 @@ try:
     load_dotenv()
 except ImportError:
     pass
+
+# Configure logging pour resilience patterns
+from src.logging_config import configure_logging
+configure_logging()
+
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, asdict
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -33,8 +38,8 @@ from src.couche_a.routers import router as upload_router
 from src.auth_router import router as auth_router
 from src.ratelimit import init_rate_limit, limiter
 from src.auth import CurrentUser
-# ❌ REMOVED: from src.couche_a.procurement import router as procurement_router (M2-Extended)
 
+# ❌ REMOVED: from src.couche_a.procurement import router as procurement_router (M2-Extended)
 
 # =========================================================
 # Decision Memory System — MVP A++ FINAL
@@ -1013,7 +1018,7 @@ def api_constitution():
 
 @app.post("/api/cases")
 @limiter.limit("10/minute")
-async def create_case(request: Request, payload: CaseCreate, user: CurrentUser = None):
+async def create_case(request: Request, payload: CaseCreate, user: CurrentUser):
     """Crée nouveau case (requiert authentification)."""
     case_type = payload.case_type.strip().upper()
     if case_type not in {"DAO", "RFQ"}:
@@ -1026,7 +1031,15 @@ async def create_case(request: Request, payload: CaseCreate, user: CurrentUser =
         db_execute(conn, """
             INSERT INTO cases (id, case_type, title, lot, created_at, status, owner_id)
             VALUES (:id, :ctype, :title, :lot, :ts, :status, :owner)
-        """, {"id": case_id, "ctype": case_type, "title": payload.title.strip(), "lot": payload.lot, "ts": now, "status": "open", "owner": user["id"]})
+        """, {
+            "id": case_id,
+            "ctype": case_type,
+            "title": payload.title.strip(),
+            "lot": payload.lot,
+            "ts": now,
+            "status": "open",
+            "owner": user["id"]
+        })
 
     return {
         "id": case_id,
@@ -1040,7 +1053,9 @@ async def create_case(request: Request, payload: CaseCreate, user: CurrentUser =
 
 
 @app.get("/api/cases")
-def list_cases():
+@limiter.limit("50/minute")
+def list_cases(request: Request):
+    """Liste tous les cases (rate limited)."""
     with get_connection() as conn:
         rows = db_fetchall(conn, "SELECT * FROM cases ORDER BY created_at DESC")
     return rows

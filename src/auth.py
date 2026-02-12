@@ -12,8 +12,8 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-
 from sqlalchemy import text
+
 from src.db import get_connection, db_execute_one, db_execute
 
 # --- Configuration ---
@@ -186,22 +186,21 @@ def create_user(email: str, username: str, password: str, role_id: int = 2, full
         if existing:
             raise HTTPException(409, "Email or username already exists")
         
-        # Insérer utilisateur
-        result = conn.execute(
-            text("""
+        # Insérer utilisateur avec RETURNING pour PostgreSQL
+        result = conn.execute(text("""
             INSERT INTO users (email, username, hashed_password, full_name, role_id, is_active, is_superuser, created_at)
-            VALUES (:email, :username, :password, :name, :role, 1, 0, :ts)
+            VALUES (:email, :username, :password, :name, :role, TRUE, FALSE, :ts)
             RETURNING id
-            """), 
-            {
-                "email": email,
-                "username": username,
-                "password": hashed_password,
-                "name": full_name,
-                "role": role_id,
-                "ts": timestamp
-            }
-        )
+        """), {
+            "email": email,
+            "username": username,
+            "password": hashed_password,
+            "name": full_name,
+            "role": role_id,
+            "ts": timestamp
+        })
         
         user_id = result.fetchone()[0]
+        # La transaction sera commitée automatiquement à la sortie du context manager
+        
         return get_user_by_id(user_id)
