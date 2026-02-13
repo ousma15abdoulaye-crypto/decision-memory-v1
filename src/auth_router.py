@@ -1,5 +1,5 @@
 """Authentication endpoints."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
 from datetime import timedelta
@@ -11,6 +11,7 @@ from src.auth import (
     CurrentUser,
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
+from src.ratelimit import limiter
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -38,7 +39,8 @@ class UserResponse(BaseModel):
 
 
 @router.post("/token", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+@limiter.limit("5/minute")
+async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     """Login endpoint – retourne JWT token."""
     user = authenticate_user(form_data.username, form_data.password)
     if not user:
@@ -57,7 +59,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)
-async def register(user_data: UserRegister):
+@limiter.limit("3/hour")
+async def register(request: Request, user_data: UserRegister):
     """Enregistre nouvel utilisateur (role procurement_officer par défaut)."""
     user = create_user(
         email=user_data.email,
@@ -70,6 +73,7 @@ async def register(user_data: UserRegister):
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_me(current_user: CurrentUser):
+@limiter.limit("60/minute")
+async def get_me(request: Request, current_user: CurrentUser):
     """Récupère informations utilisateur actuel."""
     return UserResponse(**current_user)

@@ -42,4 +42,4 @@ jobs:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/test_db
           PYTHONPATH: ${{ github.workspace }}
         run: |
-          pytest tests/ -v --tb=short || true
+          pytest tests/ -v --tb=short
