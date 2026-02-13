@@ -84,11 +84,13 @@ def upgrade(engine: Optional[Engine] = None) -> None:
     """)
     _execute_sql(bind, "CREATE INDEX IF NOT EXISTS idx_users_role ON users(role_id)")
     
-    # Seed admin user (username: admin, password: Admin123!)
-    # Hash généré avec: passlib.hash.bcrypt.hash("Admin123!")
+    # Seed admin user (username: admin, password: admin123)
+    # Hash généré avec: passlib.hash.bcrypt.hash("admin123")
+    # Note: Fixed hash to correctly match "admin123"
+    # ON CONFLICT DO NOTHING preserves any existing password (e.g., if admin changed their password)
     _execute_sql(bind, f"""
         INSERT INTO users (email, username, hashed_password, full_name, is_active, is_superuser, role_id, created_at)
-        VALUES ('admin@dms.local', 'admin', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lWZy.KU7T.Zm', 'System Administrator', TRUE, TRUE, 1, '{timestamp}')
+        VALUES ('admin@dms.local', 'admin', '$2b$12$n19PjDhu0vc01dy0LDWnZ.n8fX4z8tKiNGVwON4wTavaaGXOXFvDG', 'System Administrator', TRUE, TRUE, 1, '{timestamp}')
         ON CONFLICT (username) DO NOTHING
     """)
     

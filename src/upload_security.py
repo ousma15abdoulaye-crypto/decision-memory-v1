@@ -46,10 +46,10 @@ async def validate_mime_type(file: UploadFile) -> str:
 
 async def validate_file_size(file: UploadFile) -> int:
     """Valide taille fichier."""
-    # Aller à la fin pour récupérer taille
-    await file.seek(0, 2)  # SEEK_END
-    size = file.tell()
-    await file.seek(0)  # Reset
+    # Read entire file to get size, then reset
+    content = await file.read()
+    size = len(content)
+    await file.seek(0)  # Reset to beginning
     
     if size > MAX_UPLOAD_SIZE:
         raise HTTPException(413, f"File too large: {size} bytes (max {MAX_UPLOAD_SIZE / 1024 / 1024} MB)")
