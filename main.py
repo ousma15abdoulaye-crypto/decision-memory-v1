@@ -53,7 +53,7 @@ from src.business.offer_processor import (
     detect_offer_subtype, aggregate_supplier_packages,
     guess_supplier_name, extract_offer_data_guided
 )
-from src.api import health, cases
+from src.api import health, cases, documents
 
 # ❌ REMOVED: from src.couche_a.procurement import router as procurement_router (M2-Extended)
 
@@ -77,6 +77,7 @@ app.include_router(auth_router)
 app.include_router(upload_router)
 app.include_router(health.router)
 app.include_router(cases.router)
+app.include_router(documents.router)
 # ❌ REMOVED: app.include_router(procurement_router) (M2-Extended)
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -396,115 +397,6 @@ def generate_pv_adaptive(
     return str(out_path)
 
 
-# =========================
-# API Routes
-# =========================
-@app.get("/", response_class=HTMLResponse)
-def home():
-    idx = STATIC_DIR / "index.html"
-    if not idx.exists():
-        return HTMLResponse("<h3>Missing static/index.html</h3>", status_code=500)
-    return HTMLResponse(idx.read_text(encoding="utf-8"))
-
-
-@app.get("/api/health")
-def health():
-    return {
-        "status": "healthy",
-        "version": APP_VERSION,
-        "invariants_status": "enforced"
-    }
-
-
-@app.get("/api/constitution")
-def api_constitution():
-    return {"invariants": INVARIANTS, "version": APP_VERSION}
-
-
-@app.post("/api/cases")
-@limiter.limit("10/minute")
-async def create_case(request: Request, payload: CaseCreate, user: CurrentUser):
-    """Crée nouveau case (requiert authentification)."""
-    case_type = payload.case_type.strip().upper()
-    if case_type not in {"DAO", "RFQ"}:
-        raise HTTPException(status_code=400, detail="case_type must be DAO or RFQ")
-
-    case_id = str(uuid.uuid4())
-    now = datetime.utcnow().isoformat()
-
-    with get_connection() as conn:
-        db_execute(conn, """
-            INSERT INTO cases (id, case_type, title, lot, created_at, status, owner_id)
-            VALUES (:id, :ctype, :title, :lot, :ts, :status, :owner)
-        """, {
-            "id": case_id,
-            "ctype": case_type,
-            "title": payload.title.strip(),
-            "lot": payload.lot,
-            "ts": now,
-            "status": "open",
-            "owner": user["id"]
-        })
-
-    return {
-        "id": case_id,
-        "case_type": case_type,
-        "title": payload.title,
-        "lot": payload.lot,
-        "created_at": now,
-        "status": "open",
-        "owner_id": user["id"]
-    }
-
-
-@app.get("/api/cases")
-@limiter.limit("50/minute")
-def list_cases(request: Request):
-    """Liste tous les cases (rate limited)."""
-    with get_connection() as conn:
-        rows = db_fetchall(conn, "SELECT * FROM cases ORDER BY created_at DESC")
-    return rows
-
-
-@app.get("/api/cases/{case_id}")
-def get_case(case_id: str):
-    with get_connection() as conn:
-        c = db_execute_one(conn, "SELECT * FROM cases WHERE id=:id", {"id": case_id})
-    if not c:
-        raise HTTPException(status_code=404, detail="case not found")
-
-    arts = get_artifacts(case_id)
-    mem = list_memory(case_id)
-
-    # Get DAO criteria if analyzed
-    with get_connection() as conn:
-        criteria = db_fetchall(conn, "SELECT * FROM dao_criteria WHERE case_id=:cid ORDER BY ordre_affichage", {"cid": case_id})
-
-    return {
-        "case": dict(c),
-        "artifacts": arts,
-        "memory": mem,
-        "dao_criteria": criteria
-    }
-
-
-@app.post("/api/upload/{case_id}/{kind}")
-def upload(case_id: str, kind: str, file: UploadFile = File(...)):
-    with get_connection() as conn:
-        c = db_execute_one(conn, "SELECT id FROM cases WHERE id=:id", {"id": case_id})
-    if not c:
-        raise HTTPException(status_code=404, detail="case not found")
-
-    kind = kind.strip().lower()
-    allowed = {"dao", "offer", "cba_template", "pv_template"}
-    if kind not in allowed:
-        raise HTTPException(status_code=400, detail=f"kind must be one of {sorted(list(allowed))}")
-
-    filename, path = safe_save_upload(case_id, kind, file)
-    aid = register_artifact(case_id, kind, filename, path, meta={"original_name": file.filename})
-
-    return {"ok": True, "artifact_id": aid, "filename": filename}
-
 
 @app.post("/api/analyze")
 def analyze(payload: AnalyzeRequest):
@@ -723,51 +615,6 @@ def decide(payload: DecideRequest):
         "pv_with_decision": f"/api/download/{case_id}/output_pv"
     }
 
-
-@app.get("/api/download/{case_id}/{kind}")
-def download_latest(case_id: str, kind: str):
-    """Download latest generated artifact"""
-    kind = kind.strip().lower()
-    if kind not in {"output_cba", "output_pv"}:
-        raise HTTPException(status_code=400, detail="kind must be output_cba or output_pv")
-
-    arts = get_artifacts(case_id, kind)
-    if not arts:
-        raise HTTPException(status_code=404, detail=f"No artifact found for {kind}")
-
-    p = Path(arts[0]["path"])
-    if not p.exists():
-        raise HTTPException(status_code=404, detail="file missing on disk")
-
-    return FileResponse(path=str(p), filename=p.name, media_type="application/octet-stream")
-
-
-@app.get("/api/memory/{case_id}")
-def memory(case_id: str):
-    """Retrieve all memory entries for a case"""
-    return {"case_id": case_id, "memory": list_memory(case_id)}
-
-
-@app.get("/api/search_memory/{case_id}")
-def search_memory(case_id: str, q: str):
-    """Search memory entries by keyword"""
-    q = (q or "").strip().lower()
-    if not q:
-        return {"case_id": case_id, "hits": []}
-
-    mem = list_memory(case_id)
-    hits = []
-    for entry in mem:
-        blob = json.dumps(entry.get("content", {}), ensure_ascii=False).lower()
-        if q in blob:
-            hits.append({
-                "id": entry["id"],
-                "entry_type": entry["entry_type"],
-                "created_at": entry["created_at"],
-                "preview": entry["content"]
-            })
-
-    return {"case_id": case_id, "q": q, "hits": hits}
 
 
 # Rebuild Pydantic models to resolve forward references
