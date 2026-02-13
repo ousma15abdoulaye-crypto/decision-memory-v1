@@ -36,10 +36,15 @@ _original_limit = limiter.limit
 
 
 def conditional_limit(rate_limit: str):
-    """Conditional rate limiting - disabled in test mode."""
+    """Conditional rate limiting - disabled in test mode.
+    
+    Note: In test mode, we return the original function unchanged,
+    which naturally preserves all function metadata (name, docstring, signature).
+    No need for @wraps since we're not creating a wrapper.
+    """
     def decorator(func):
         if TESTING:
-            # In test mode, just return the original function without rate limiting
+            # In test mode, return original function unchanged (preserves async + metadata)
             return func
         else:
             # In production, apply the rate limit
