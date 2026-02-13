@@ -1,5 +1,5 @@
 """Upload security validation (M4F)."""
-import magic
+import filetype
 from werkzeug.utils import secure_filename
 from fastapi import HTTPException, UploadFile
 
@@ -32,7 +32,11 @@ async def validate_mime_type(file: UploadFile) -> str:
     content = await file.read(2048)
     await file.seek(0)  # Reset pour lecture complète après
     
-    mime = magic.from_buffer(content, mime=True)
+    kind = filetype.guess(content)
+    if kind is None:
+        raise HTTPException(400, "Unable to determine file type")
+    
+    mime = kind.mime
     
     if mime not in ALLOWED_MIME_TYPES:
         raise HTTPException(400, f"Invalid file type: {mime}. Allowed: PDF, Word, Excel")

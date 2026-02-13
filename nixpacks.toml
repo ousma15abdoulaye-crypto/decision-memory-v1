@@ -1,2 +1,0 @@
-[phases.setup]
-aptPackages = ["libmagic1", "libmagic-dev"]
