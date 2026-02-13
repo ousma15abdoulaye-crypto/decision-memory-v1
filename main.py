@@ -36,42 +36,12 @@ from src.couche_a.routers import router as upload_router
 from src.auth_router import router as auth_router
 from src.ratelimit import init_rate_limit, limiter
 from src.auth import CurrentUser
+from src.core.config import (
+    APP_TITLE, APP_VERSION, BASE_DIR, DATA_DIR, UPLOADS_DIR, OUTPUTS_DIR, 
+    STATIC_DIR, INVARIANTS
+)
 
 # ❌ REMOVED: from src.couche_a.procurement import router as procurement_router (M2-Extended)
-
-# =========================================================
-# Decision Memory System — MVP A++ FINAL
-# Version: 1.0.0
-# DAO-driven extraction + Template-adaptive CBA + Active Memory
-# Constitution V2.1: ONLINE-ONLY (PostgreSQL)
-# =========================================================
-
-APP_TITLE = "Decision Memory System — MVP A++ (Production)"
-APP_VERSION = "1.0.0"
-
-BASE_DIR = Path(__file__).parent
-DATA_DIR = BASE_DIR / "data"
-UPLOADS_DIR = DATA_DIR / "uploads"
-OUTPUTS_DIR = DATA_DIR / "outputs"
-
-DATA_DIR.mkdir(exist_ok=True)
-UPLOADS_DIR.mkdir(exist_ok=True)
-OUTPUTS_DIR.mkdir(exist_ok=True)
-
-
-# =========================
-# CONSTITUTION (V2.1 ONLINE-ONLY)
-# =========================
-INVARIANTS = {
-    "cognitive_load_never_increase": True,
-    "human_decision_final": True,
-    "no_scoring_no_ranking_no_recommendations": True,
-    "memory_is_byproduct_never_a_task": True,
-    "erp_agnostic": True,
-    "online_only": True,
-    "traceability_keep_sources": True,
-    "one_dao_one_cba_one_pv": True,
-}
 
 
 # =========================
@@ -94,8 +64,6 @@ app.include_router(auth_router)
 app.include_router(upload_router)
 # ❌ REMOVED: app.include_router(procurement_router) (M2-Extended)
 
-STATIC_DIR = BASE_DIR / "static"
-STATIC_DIR.mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
