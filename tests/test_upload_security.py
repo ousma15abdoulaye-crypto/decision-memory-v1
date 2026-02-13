@@ -8,7 +8,7 @@ from main import app
 client = TestClient(app)
 
 
-def get_token(username: str = "admin", password: str = "Admin123!") -> str:
+def get_token(username: str = "admin", password: str = "admin123") -> str:
     """Helper login – retourne le token JWT."""
     response = client.post("/auth/token", data={
         "username": username,
@@ -189,7 +189,7 @@ def test_upload_with_sql_injection_attempt():
     # Vérifier que la table users est toujours accessible
     login_check = client.post("/auth/token", data={
         "username": "admin",
-        "password": "Admin123!"
+        "password": "admin123"
     })
     assert login_check.status_code == 200
 
