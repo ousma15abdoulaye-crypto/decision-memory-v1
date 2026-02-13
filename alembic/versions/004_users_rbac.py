@@ -86,10 +86,11 @@ def upgrade(engine: Optional[Engine] = None) -> None:
     
     # Seed admin user (username: admin, password: Admin123!)
     # Hash généré avec: passlib.hash.bcrypt.hash("Admin123!")
+    # Note: Fixed hash to correctly match "Admin123!"
     _execute_sql(bind, f"""
         INSERT INTO users (email, username, hashed_password, full_name, is_active, is_superuser, role_id, created_at)
-        VALUES ('admin@dms.local', 'admin', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lWZy.KU7T.Zm', 'System Administrator', TRUE, TRUE, 1, '{timestamp}')
-        ON CONFLICT (username) DO NOTHING
+        VALUES ('admin@dms.local', 'admin', '$2b$12$DqT91f0yXWzN02n2IUs9BeHUVC5OYzFOf1viyOefO664E/5VnJElW', 'System Administrator', TRUE, TRUE, 1, '{timestamp}')
+        ON CONFLICT (username) DO UPDATE SET hashed_password = EXCLUDED.hashed_password
     """)
     
     # --- Table permissions (optionnel, pour granularité fine) ---

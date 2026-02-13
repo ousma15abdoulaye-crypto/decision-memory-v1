@@ -98,10 +98,11 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: int = payload.get("sub")
-        if user_id is None:
+        user_id_str: str = payload.get("sub")
+        if user_id_str is None:
             raise credentials_exception
-    except JWTError:
+        user_id = int(user_id_str)  # Convert string back to int
+    except (JWTError, ValueError):
         raise credentials_exception
     
     user = get_user_by_id(user_id)
@@ -201,6 +202,10 @@ def create_user(email: str, username: str, password: str, role_id: int = 2, full
         })
         
         user_id = result.fetchone()[0]
-        # La transaction sera commitée automatiquement à la sortie du context manager
-        
-        return get_user_by_id(user_id)
+        # Fetch the user data within the same transaction to avoid isolation issues
+        return db_execute_one(conn, """
+            SELECT u.*, r.name as role_name 
+            FROM users u 
+            JOIN roles r ON u.role_id = r.id 
+            WHERE u.id = :id
+        """, {"id": user_id})

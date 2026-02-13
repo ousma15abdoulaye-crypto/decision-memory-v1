@@ -48,3 +48,6 @@ Thumbs.db
 # Backup files
 *.backup.xlsx
 *.bak
+
+# Logs
+*.log

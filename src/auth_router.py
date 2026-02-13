@@ -34,6 +34,7 @@ class UserResponse(BaseModel):
     full_name: str = None
     role_name: str
     is_active: bool
+    is_superuser: bool
 
 
 @router.post("/token", response_model=Token)
@@ -49,7 +50,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user["id"]},  # Store user ID in JWT
+        data={"sub": str(user["id"])},  # Store user ID as string in JWT
         expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
