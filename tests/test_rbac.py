@@ -18,7 +18,7 @@ def get_token(username: str, password: str) -> str:
     return response.json()["access_token"]
 
 
-def create_test_user(username: str, email: str, password: str = "TestPass123!") -> dict:
+def create_test_user(username: str, email: str, password: str = "testpass") -> dict:
     """Helper pour créer un utilisateur de test."""
     response = client.post("/auth/register", json={
         "email": email,
@@ -34,7 +34,7 @@ def create_test_user(username: str, email: str, password: str = "TestPass123!") 
 
 def test_admin_can_access_all_cases():
     """Admin peut voir tous les cases."""
-    admin_token = get_token("admin", "Admin123!")
+    admin_token = get_token("admin", "admin123")
     response = client.get("/api/cases", headers={
         "Authorization": f"Bearer {admin_token}"
     })
@@ -45,7 +45,7 @@ def test_procurement_officer_can_create_case():
     """Procurement officer peut créer un case."""
     unique_id = uuid.uuid4().hex[:8]
     user = create_test_user(f"officer_{unique_id}", f"officer_{unique_id}@test.com")
-    token = get_token(user["username"], user.get("password", "TestPass123!"))
+    token = get_token(user["username"], user.get("password", "testpass"))
 
     response = client.post("/api/cases", 
         json={
@@ -69,8 +69,8 @@ def test_ownership_check():
     user1 = create_test_user(f"owner_{unique_id1}", f"owner_{unique_id1}@test.com")
     user2 = create_test_user(f"other_{unique_id2}", f"other_{unique_id2}@test.com")
 
-    token1 = get_token(user1["username"], user1.get("password", "TestPass123!"))
-    token2 = get_token(user2["username"], user2.get("password", "TestPass123!"))
+    token1 = get_token(user1["username"], user1.get("password", "testpass"))
+    token2 = get_token(user2["username"], user2.get("password", "testpass"))
 
     # User1 crée un case
     create_response = client.post("/api/cases",
@@ -104,12 +104,12 @@ def test_ownership_check():
 
 def test_admin_bypass_ownership():
     """Admin peut accéder et uploader sur les cases des autres utilisateurs."""
-    admin_token = get_token("admin", "Admin123!")
+    admin_token = get_token("admin", "admin123")
 
     # Créer un utilisateur ordinaire et son case
     unique_id = uuid.uuid4().hex[:8]
     user = create_test_user(f"regular_{unique_id}", f"regular_{unique_id}@test.com")
-    user_token = get_token(user["username"], user.get("password", "TestPass123!"))
+    user_token = get_token(user["username"], user.get("password", "testpass"))
 
     create_response = client.post("/api/cases",
         json={
@@ -136,7 +136,7 @@ def test_admin_bypass_ownership():
 def test_user_roles():
     """Vérifie que les rôles sont correctement assignés lors de l'inscription."""
     # Admin doit avoir le rôle admin et superuser
-    admin_token = get_token("admin", "Admin123!")
+    admin_token = get_token("admin", "admin123")
     response = client.get("/auth/me", headers={
         "Authorization": f"Bearer {admin_token}"
     })
@@ -148,7 +148,7 @@ def test_user_roles():
     # Nouvel utilisateur doit avoir le rôle procurement_officer
     unique_id = uuid.uuid4().hex[:8]
     user = create_test_user(f"newuser_{unique_id}", f"new_{unique_id}@test.com")
-    token = get_token(user["username"], user.get("password", "TestPass123!"))
+    token = get_token(user["username"], user.get("password", "testpass"))
 
     response = client.get("/auth/me", headers={
         "Authorization": f"Bearer {token}"

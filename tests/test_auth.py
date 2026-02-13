@@ -13,7 +13,7 @@ def test_login_success():
     """Login admin → token JWT."""
     response = client.post("/auth/token", data={
         "username": "admin",
-        "password": "Admin123!"
+        "password": "admin123"
     })
     assert response.status_code == 200
     assert "access_token" in response.json()
@@ -46,7 +46,7 @@ def test_register_user():
     response = client.post("/auth/register", json={
         "email": unique_email,
         "username": unique_username,
-        "password": "SecurePass123!",
+        "password": "testpass",
         "full_name": "Test User"
     })
     assert response.status_code == 201
@@ -61,7 +61,7 @@ def test_register_duplicate_username():
     response = client.post("/auth/register", json={
         "email": "another@example.com",
         "username": "admin",  # Already exists
-        "password": "SecurePass123!"
+        "password": "testpass"
     })
     assert response.status_code == 409
 
@@ -77,7 +77,7 @@ def test_get_me_with_auth():
     # Login
     login_response = client.post("/auth/token", data={
         "username": "admin",
-        "password": "Admin123!"
+        "password": "admin123"
     })
     token = login_response.json()["access_token"]
 
@@ -115,7 +115,7 @@ def test_protected_endpoint_with_token():
     # Login
     login_response = client.post("/auth/token", data={
         "username": "admin",
-        "password": "Admin123!"
+        "password": "admin123"
     })
     token = login_response.json()["access_token"]
 
@@ -142,7 +142,7 @@ def test_token_expiration():
     # Login
     login_response = client.post("/auth/token", data={
         "username": "admin",
-        "password": "Admin123!"
+        "password": "admin123"
     })
     token = login_response.json()["access_token"]
 
