@@ -34,7 +34,7 @@ async def validate_mime_type(file: UploadFile) -> str:
     
     kind = filetype.guess(content)
     if kind is None:
-        raise HTTPException(400, "Impossible de déterminer le type MIME")
+        raise HTTPException(400, "Unable to determine file type")
     
     mime = kind.mime
     
