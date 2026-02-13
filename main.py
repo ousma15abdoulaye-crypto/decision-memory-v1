@@ -53,9 +53,9 @@ from src.business.offer_processor import (
     detect_offer_subtype, aggregate_supplier_packages,
     guess_supplier_name, extract_offer_data_guided
 )
+from src.api import health, cases
 
 # ❌ REMOVED: from src.couche_a.procurement import router as procurement_router (M2-Extended)
-
 
 # =========================
 # Database — PostgreSQL only (schema created on startup)
@@ -75,6 +75,8 @@ init_rate_limit(app)
 # Include routers
 app.include_router(auth_router)
 app.include_router(upload_router)
+app.include_router(health.router)
+app.include_router(cases.router)
 # ❌ REMOVED: app.include_router(procurement_router) (M2-Extended)
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
