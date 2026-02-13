@@ -44,6 +44,10 @@ from src.core.models import (
     CaseCreate, AnalyzeRequest, DecideRequest,
     CBATemplateSchema, DAOCriterion, OfferSubtype, SupplierPackage
 )
+from src.core.dependencies import (
+    safe_save_upload, register_artifact, get_artifacts,
+    add_memory, list_memory
+)
 
 # ❌ REMOVED: from src.couche_a.procurement import router as procurement_router (M2-Extended)
 
@@ -69,80 +73,6 @@ app.include_router(upload_router)
 # ❌ REMOVED: app.include_router(procurement_router) (M2-Extended)
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-
-# =========================
-# Storage Helpers
-# =========================
-def safe_save_upload(case_id: str, kind: str, up: UploadFile) -> Tuple[str, str]:
-    ext = Path(up.filename).suffix.lower()
-    if ext not in [".pdf", ".docx", ".xlsx"]:
-        raise HTTPException(status_code=400, detail=f"Unsupported file type: {ext}")
-
-    file_id = str(uuid.uuid4())
-    filename = f"{kind}_{file_id}{ext}"
-    out_dir = UPLOADS_DIR / case_id
-    out_dir.mkdir(parents=True, exist_ok=True)
-    full_path = out_dir / filename
-
-    with full_path.open("wb") as f:
-        f.write(up.file.read())
-
-    return filename, str(full_path)
-
-
-def register_artifact(case_id: str, kind: str, filename: str, path: str, meta: Optional[dict] = None) -> str:
-    artifact_id = str(uuid.uuid4())
-    with get_connection() as conn:
-        db_execute(conn, """
-            INSERT INTO artifacts (id, case_id, kind, filename, path, uploaded_at, meta_json)
-            VALUES (:aid, :cid, :kind, :fname, :path, :ts, :meta)
-        """, {
-            "aid": artifact_id, "cid": case_id, "kind": kind, "fname": filename, "path": path,
-            "ts": datetime.utcnow().isoformat(),
-            "meta": json.dumps(meta or {}, ensure_ascii=False),
-        })
-    return artifact_id
-
-
-def get_artifacts(case_id: str, kind: Optional[str] = None) -> List[dict]:
-    with get_connection() as conn:
-        if kind:
-            return db_fetchall(conn,
-                "SELECT * FROM artifacts WHERE case_id=:cid AND kind=:kind ORDER BY uploaded_at DESC",
-                {"cid": case_id, "kind": kind},
-            )
-        return db_fetchall(conn,
-            "SELECT * FROM artifacts WHERE case_id=:cid ORDER BY uploaded_at DESC",
-            {"cid": case_id},
-        )
-
-
-def add_memory(case_id: str, entry_type: str, content: dict) -> str:
-    mem_id = str(uuid.uuid4())
-    with get_connection() as conn:
-        db_execute(conn, """
-            INSERT INTO memory_entries (id, case_id, entry_type, content_json, created_at)
-            VALUES (:mid, :cid, :etype, :content, :ts)
-        """, {
-            "mid": mem_id, "cid": case_id, "etype": entry_type,
-            "content": json.dumps(content, ensure_ascii=False),
-            "ts": datetime.utcnow().isoformat(),
-        })
-    return mem_id
-
-
-def list_memory(case_id: str, entry_type: Optional[str] = None) -> List[dict]:
-    with get_connection() as conn:
-        if entry_type:
-            rows = db_fetchall(conn, """
-                SELECT * FROM memory_entries WHERE case_id=:cid AND entry_type=:etype ORDER BY created_at DESC
-            """, {"cid": case_id, "etype": entry_type})
-        else:
-            rows = db_fetchall(conn, """
-                SELECT * FROM memory_entries WHERE case_id=:cid ORDER BY created_at DESC
-            """, {"cid": case_id})
-    return [dict(r) | {"content": json.loads(r["content_json"])} for r in rows]
 
 
 # =========================
