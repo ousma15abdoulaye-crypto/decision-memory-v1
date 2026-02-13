@@ -253,3 +253,65 @@ async def upload_offer(
         "is_late": is_late,
         "extraction_status": "pending"
     }
+
+
+@router.get("/{case_id}/criteria/validation")
+@limiter.limit("10/minute")
+async def get_criteria_validation(request: Request, case_id: str, user: CurrentUser):
+    """Récupère la dernière validation des pondérations pour un case."""
+    # Ownership check
+    check_case_ownership(case_id, user)
+    
+    with get_connection() as conn:
+        row = db_execute_one(
+            conn,
+            """
+            SELECT commercial_weight, sustainability_weight, is_valid, validation_errors
+            FROM criteria_weighting_validation
+            WHERE case_id = :cid
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            {"cid": case_id}
+        )
+    if not row:
+        raise HTTPException(404, "Aucune validation trouvée pour ce case")
+    return {
+        "case_id": case_id,
+        "commercial_weight": row["commercial_weight"],
+        "sustainability_weight": row["sustainability_weight"],
+        "is_valid": row["is_valid"],
+        "errors": row["validation_errors"].split("\n") if row["validation_errors"] else []
+    }
+
+
+@router.get("/{case_id}/criteria/by-category")
+@limiter.limit("10/minute")
+async def get_criteria_by_category(request: Request, case_id: str, user: CurrentUser):
+    """Retourne les critères groupés par catégorie."""
+    # Ownership check
+    check_case_ownership(case_id, user)
+    
+    with get_connection() as conn:
+        rows = db_fetchall(
+            conn,
+            """
+            SELECT criterion_category, critere_nom, description, ponderation, is_eliminatory
+            FROM dao_criteria
+            WHERE case_id = :cid
+            ORDER BY criterion_category, ordre_affichage
+            """,
+            {"cid": case_id}
+        )
+    grouped = {}
+    for r in rows:
+        cat = r["criterion_category"]
+        if cat not in grouped:
+            grouped[cat] = []
+        grouped[cat].append({
+            "nom": r["critere_nom"],
+            "description": r["description"],
+            "ponderation": r["ponderation"],
+            "is_eliminatory": r["is_eliminatory"]
+        })
+    return {"case_id": case_id, "criteria_by_category": grouped}
