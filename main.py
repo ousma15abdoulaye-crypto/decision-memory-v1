@@ -103,6 +103,7 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # Pydantic Models
 # =========================
 class CaseCreate(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
     case_type: str
     title: str
     lot: Optional[str] = None
@@ -1362,6 +1363,14 @@ def search_memory(case_id: str, q: str):
 
     return {"case_id": case_id, "q": q, "hits": hits}
 
+
+# Rebuild Pydantic models to resolve forward references
+try:
+    CaseCreate.model_rebuild()
+    AnalyzeRequest.model_rebuild()
+    DecideRequest.model_rebuild()
+except Exception:
+    pass  # Ignore if models don't need rebuilding
 
 if __name__ == "__main__":
     import uvicorn
