@@ -2,6 +2,7 @@
 Tests d'intégration pour les endpoints d'upload (Manuel SCI §4).
 """
 import os
+import uuid
 
 import pytest
 from fastapi.testclient import TestClient
@@ -18,9 +19,21 @@ from main import app
 client = TestClient(app)
 
 
+def get_token(username: str = "admin", password: str = "admin123") -> str:
+    """Helper login – retourne le token JWT."""
+    response = client.post("/auth/token", data={
+        "username": username,
+        "password": password
+    })
+    if response.status_code != 200:
+        raise Exception(f"Login failed: {response.json()}")
+    return response.json()["access_token"]
+
+
 @pytest.fixture
 def test_case():
-    """Crée un cas via l'API et retourne son ID."""
+    """Crée un cas via l'API et retourne (case_id, token)."""
+    token = get_token()
     response = client.post(
         "/api/cases",
         json={
@@ -28,16 +41,19 @@ def test_case():
             "title": "Test Upload Endpoints",
             "lot": None,
         },
+        headers={"Authorization": f"Bearer {token}"}
     )
-    assert response.status_code == 200
-    return response.json()["id"]
+    assert response.status_code == 200, f"Failed to create case: {response.text}"
+    return response.json()["id"], token
 
 
 def test_upload_dao_success(test_case):
     """Upload DAO nominal."""
+    case_id, token = test_case
     response = client.post(
-        f"/api/cases/{test_case}/upload-dao",
+        f"/api/cases/{case_id}/upload-dao",
         files={"file": ("dao.pdf", b"%PDF-1.4 fake content", "application/pdf")},
+        headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -47,19 +63,23 @@ def test_upload_dao_success(test_case):
 
 def test_upload_dao_duplicate(test_case):
     """Second upload DAO → 409."""
+    case_id, token = test_case
     client.post(
-        f"/api/cases/{test_case}/upload-dao",
+        f"/api/cases/{case_id}/upload-dao",
         files={"file": ("dao1.pdf", b"%PDF-1.4", "application/pdf")},
+        headers={"Authorization": f"Bearer {token}"}
     )
     response = client.post(
-        f"/api/cases/{test_case}/upload-dao",
+        f"/api/cases/{case_id}/upload-dao",
         files={"file": ("dao2.pdf", b"%PDF-1.5", "application/pdf")},
+        headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 409
 
 
 def test_upload_offer_requires_dao(test_case):
     """Upload offre sans DAO → 400."""
+    case_id, token = test_case
     # Créer un cas sans DAO (l'API génère l'id, on utilise le cas retourné)
     response = client.post(
         "/api/cases",
@@ -68,6 +88,7 @@ def test_upload_offer_requires_dao(test_case):
             "title": "No DAO",
             "lot": None,
         },
+        headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 200
     case_no_dao = response.json()["id"]
@@ -75,6 +96,7 @@ def test_upload_offer_requires_dao(test_case):
         f"/api/cases/{case_no_dao}/upload-offer",
         data={"supplier_name": "Test Supplier", "offer_type": "technique"},
         files={"file": ("offer.pdf", b"%PDF-1.4", "application/pdf")},
+        headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 400
     assert "before DAO" in response.text
@@ -82,14 +104,17 @@ def test_upload_offer_requires_dao(test_case):
 
 def test_upload_offer_success(test_case):
     """Upload offre nominal."""
+    case_id, token = test_case
     client.post(
-        f"/api/cases/{test_case}/upload-dao",
+        f"/api/cases/{case_id}/upload-dao",
         files={"file": ("dao.pdf", b"%PDF-1.4", "application/pdf")},
+        headers={"Authorization": f"Bearer {token}"}
     )
     response = client.post(
-        f"/api/cases/{test_case}/upload-offer",
+        f"/api/cases/{case_id}/upload-offer",
         data={"supplier_name": "Supplier A", "offer_type": "technique"},
         files={"file": ("tech.pdf", b"%PDF-1.4 technical", "application/pdf")},
+        headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -99,25 +124,30 @@ def test_upload_offer_success(test_case):
 
 def test_upload_offer_duplicate_supplier_type(test_case):
     """Même fournisseur + même type → 409."""
+    case_id, token = test_case
     client.post(
-        f"/api/cases/{test_case}/upload-dao",
+        f"/api/cases/{case_id}/upload-dao",
         files={"file": ("dao.pdf", b"%PDF-1.4", "application/pdf")},
+        headers={"Authorization": f"Bearer {token}"}
     )
     client.post(
-        f"/api/cases/{test_case}/upload-offer",
+        f"/api/cases/{case_id}/upload-offer",
         data={"supplier_name": "Duplicate", "offer_type": "financiere"},
         files={"file": ("fin1.pdf", b"%PDF-1.4", "application/pdf")},
+        headers={"Authorization": f"Bearer {token}"}
     )
     response = client.post(
-        f"/api/cases/{test_case}/upload-offer",
+        f"/api/cases/{case_id}/upload-offer",
         data={"supplier_name": "Duplicate", "offer_type": "financiere"},
         files={"file": ("fin2.pdf", b"%PDF-1.4", "application/pdf")},
+        headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 409
 
 
 def test_upload_offer_with_lot_id(test_case):
     """Upload offre avec lot_id – validation du lot."""
+    case_id, token = test_case
     from src.db import get_connection, db_execute
     
     # Créer un lot pour le case
@@ -128,7 +158,7 @@ def test_upload_offer_with_lot_id(test_case):
             VALUES (:id, :cid, :num, :desc, :val, :ts)
         """, {
             "id": lot_id,
-            "cid": test_case,
+            "cid": case_id,
             "num": "LOT-TEST-01",
             "desc": "Test Lot",
             "val": 10000,
@@ -137,15 +167,17 @@ def test_upload_offer_with_lot_id(test_case):
     
     # Upload DAO first
     client.post(
-        f"/api/cases/{test_case}/upload-dao",
+        f"/api/cases/{case_id}/upload-dao",
         files={"file": ("dao.pdf", b"%PDF-1.4", "application/pdf")},
+        headers={"Authorization": f"Bearer {token}"}
     )
     
     # Upload offre avec lot_id valide
     response = client.post(
-        f"/api/cases/{test_case}/upload-offer",
+        f"/api/cases/{case_id}/upload-offer",
         data={"supplier_name": "Supplier With Lot", "offer_type": "technique", "lot_id": lot_id},
         files={"file": ("tech.pdf", b"%PDF-1.4 technical", "application/pdf")},
+        headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -154,9 +186,10 @@ def test_upload_offer_with_lot_id(test_case):
     
     # Upload offre avec lot_id invalide
     response = client.post(
-        f"/api/cases/{test_case}/upload-offer",
+        f"/api/cases/{case_id}/upload-offer",
         data={"supplier_name": "Supplier Bad Lot", "offer_type": "financiere", "lot_id": "nonexistent"},
         files={"file": ("fin.pdf", b"%PDF-1.4", "application/pdf")},
+        headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 404
     assert "not found" in response.text.lower()
