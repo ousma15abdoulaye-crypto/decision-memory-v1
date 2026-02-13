@@ -279,6 +279,9 @@ def extract_offer_data_guided(offer_text: str, criteria: List[DAOCriterion]) -> 
                 best = max(money, key=lambda m: to_num(m[0]))
                 extracted["total_price"] = f"{best[0]} {best[1].upper()}"
                 extracted["total_price_source"] = "Heuristique: plus grand montant"
+        except (ValueError, TypeError):
+            # Skip if conversion fails
+            pass
         else:
             extracted["missing_fields"].append("Prix total")
 

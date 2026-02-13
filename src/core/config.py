@@ -1,6 +1,6 @@
 """
 Configuration settings for Decision Memory System.
-Constitution V2.1: ONLINE-ONLY (PostgreSQL).
+Constitution V3: ONLINE-ONLY (PostgreSQL) - Addendum FROZEN+.
 """
 from pathlib import Path
 
@@ -8,7 +8,7 @@ from pathlib import Path
 # Decision Memory System — MVP A++ FINAL
 # Version: 1.0.0
 # DAO-driven extraction + Template-adaptive CBA + Active Memory
-# Constitution V2.1: ONLINE-ONLY (PostgreSQL)
+# Constitution V3: ONLINE-ONLY (PostgreSQL) - Addendum FROZEN+
 # =========================================================
 
 APP_TITLE = "Decision Memory System — MVP A++ (Production)"
@@ -28,7 +28,7 @@ STATIC_DIR.mkdir(exist_ok=True)
 
 
 # =========================
-# CONSTITUTION (V2.1 ONLINE-ONLY)
+# CONSTITUTION (V3 ONLINE-ONLY - Addendum FROZEN+)
 # =========================
 INVARIANTS = {
     "cognitive_load_never_increase": True,
