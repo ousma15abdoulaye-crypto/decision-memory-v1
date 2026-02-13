@@ -68,9 +68,9 @@ def register_artifact(case_id: str, kind: str, filename: str, path: str, meta: d
 async def upload_dao(
     request: Request,
     case_id: str,
+    user: CurrentUser,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    user: CurrentUser,
 ):
     """Upload du DAO – un seul par case (409 si existant). Requiert authentification."""
     # Ownership check
@@ -132,12 +132,12 @@ async def upload_dao(
 async def upload_offer(
     request: Request,
     case_id: str,
+    user: CurrentUser,
     background_tasks: BackgroundTasks,
     supplier_name: str = Form(...),
     offer_type: OfferType = Form(...),
     file: UploadFile = File(...),
     lot_id: str = Form(None),
-    user: CurrentUser,
 ):
     """Upload offre avec classification obligatoire et lot optionnel. Requiert authentification."""
     # Ownership check
