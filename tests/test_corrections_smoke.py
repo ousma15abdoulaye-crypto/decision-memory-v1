@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from main import (
+from src.business.offer_processor import (
     guess_supplier_name,
     detect_offer_subtype,
     aggregate_supplier_packages,
