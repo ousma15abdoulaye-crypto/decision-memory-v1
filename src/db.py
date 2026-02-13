@@ -11,6 +11,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.engine.base import Connection
 from contextlib import contextmanager
 from typing import Iterator, List, Any, Optional
+from sqlalchemy.orm import sessionmaker, Session
 
 logger = logging.getLogger(__name__)
 
@@ -197,3 +198,24 @@ def init_db_schema() -> None:
             )
         """))
         conn.commit()
+
+
+@contextmanager
+def get_session() -> Iterator[Session]:
+    """
+    Context manager for a SQLAlchemy ORM session.
+    
+    Provides an ORM session for Couche B fuzzy resolution queries.
+    Automatically commits on success, rolls back on error.
+    """
+    SessionLocal = sessionmaker(bind=engine)
+    session = SessionLocal()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
