@@ -145,9 +145,6 @@ def test_rate_limit_upload_real():
     This test verifies that rate limiting works correctly by testing against
     a dedicated endpoint that has strict rate limits enabled.
     """
-    import os
-    from unittest.mock import patch
-    
     # We can't easily re-enable rate limiting on existing endpoints without
     # reloading the app, so instead we verify the rate limiting configuration
     # and test against login endpoint which has strict limits (3/hour)
@@ -162,7 +159,7 @@ def test_rate_limit_upload_real():
     from src.ratelimit import limiter, TESTING
     
     # In test mode, verify that rate limiting would work in production
-    assert TESTING == True, "This test assumes TESTING mode is enabled"
+    assert TESTING is True, "This test assumes TESTING mode is enabled"
     
     # Verify that rate limits are configured on critical endpoints
     # by checking that the limiter object exists and is properly configured
