@@ -37,9 +37,42 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/test_db
+        run: |
+          alembic upgrade head
+      
+      - name: Verify migrations applied
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/test_db
+        run: |
+          python -c "
+          from src.db import engine
+          from sqlalchemy import text, inspect
+          
+          with engine.connect() as conn:
+              # List all tables
+              inspector = inspect(engine)
+              tables = inspector.get_table_names()
+              print('✅ Tables in database:', tables)
+              
+              # Verify users table exists
+              if 'users' in tables:
+                  print('✅ users table exists')
+              else:
+                  print('❌ users table MISSING')
+                  exit(1)
+              
+              # Check alembic version
+              result = conn.execute(text('SELECT version_num FROM alembic_version')).fetchone()
+              print(f'✅ Current migration version: {result[0]}')
+          "
+      
       - name: Run tests
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/test_db
           PYTHONPATH: ${{ github.workspace }}
+          TESTING: "true"
         run: |
-          pytest tests/ -v --tb=short || true
+          pytest tests/ -v --tb=short
