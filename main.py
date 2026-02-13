@@ -48,6 +48,7 @@ from src.core.dependencies import (
     safe_save_upload, register_artifact, get_artifacts,
     add_memory, list_memory
 )
+from src.business.extraction import extract_text_from_docx, extract_text_from_pdf, extract_text_any
 
 # ❌ REMOVED: from src.couche_a.procurement import router as procurement_router (M2-Extended)
 
@@ -73,46 +74,6 @@ app.include_router(upload_router)
 # ❌ REMOVED: app.include_router(procurement_router) (M2-Extended)
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-
-# =========================
-# Text Extraction
-# =========================
-def extract_text_from_docx(path: str) -> str:
-    doc = Document(path)
-    parts: List[str] = []
-
-    for p in doc.paragraphs:
-        t = (p.text or "").strip()
-        if t:
-            parts.append(t)
-
-    for table in doc.tables:
-        for row in table.rows:
-            cells = [c.text.strip() for c in row.cells if c.text and c.text.strip()]
-            if cells:
-                parts.append(" | ".join(cells))
-
-    return "\n".join(parts)
-
-
-def extract_text_from_pdf(path: str) -> str:
-    reader = PdfReader(path)
-    out: List[str] = []
-    for i, page in enumerate(reader.pages):
-        txt = (page.extract_text() or "").strip()
-        if txt:
-            out.append(f"[PAGE {i+1}]\n{txt}\n")
-    return "\n".join(out).strip()
-
-
-def extract_text_any(path: str) -> str:
-    ext = Path(path).suffix.lower()
-    if ext == ".docx":
-        return extract_text_from_docx(path)
-    if ext == ".pdf":
-        return extract_text_from_pdf(path)
-    raise HTTPException(status_code=400, detail=f"Unsupported extraction: {ext}")
 
 
 # =========================
