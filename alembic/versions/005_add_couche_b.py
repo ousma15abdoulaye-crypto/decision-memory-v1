@@ -7,7 +7,7 @@ Create Date: 2026-02-13 20:00:00
 from __future__ import annotations
 
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection, Engine
@@ -46,7 +46,7 @@ def _execute_sql(target, sql: str) -> None:
 def upgrade(engine: Optional[Engine] = None) -> None:
     """Crée tables Couche B + active pg_trgm pour fuzzy matching."""
     bind = _get_bind(engine)
-    timestamp = datetime.utcnow().isoformat()
+    timestamp = datetime.now(timezone.utc).isoformat()
     
     # --- Enable pg_trgm extension for fuzzy matching ---
     _execute_sql(bind, """
