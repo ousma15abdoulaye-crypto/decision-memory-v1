@@ -27,8 +27,14 @@ ENV/
 env/
 .venv
 
+# Environment / secrets (Constitution: no secrets in repo)
+.env
+.env.local
+.env.*.local
+
 # IDEs
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
