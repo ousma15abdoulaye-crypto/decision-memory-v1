@@ -36,6 +36,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
+      - name: Verify syntax (compileall)
+        run: python -m compileall src/ -q
       
       - name: Run migrations
         env:
