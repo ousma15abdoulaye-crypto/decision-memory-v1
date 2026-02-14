@@ -62,6 +62,8 @@ app.include_router(health.router)
 app.include_router(cases.router)
 app.include_router(documents.router)
 app.include_router(analysis.router)
+from src.couche_a.scoring import api as scoring_api
+app.include_router(scoring_api.router)
 # ❌ REMOVED: app.include_router(procurement_router) (M2-Extended)
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
