@@ -11,7 +11,7 @@ import re
 
 from src.couche_a.scoring.models import ScoreResult, EliminationResult
 from src.core.models import DAOCriterion, SupplierPackage
-from src.core.database import get_db_connection
+from src.db import get_connection
 from sqlalchemy import text
 
 __all__ = ["ScoringEngine"]

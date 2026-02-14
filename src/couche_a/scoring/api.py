@@ -1,12 +1,12 @@
 """
 M3B Scoring API endpoints.
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
 import time
 
 from src.auth import CurrentUser
-from src.core.dependencies import get_db
+from src.db import get_connection, db_fetchall
 from src.couche_a.scoring.engine import ScoringEngine
 from src.couche_a.scoring.models import ScoringRequest, ScoringResponse
 
@@ -16,8 +16,7 @@ router = APIRouter(prefix="/api/scoring", tags=["Scoring M3B"])
 @router.post("/calculate", response_model=ScoringResponse)
 async def calculate_scores(
     request: ScoringRequest,
-    user: CurrentUser,
-    db=Depends(get_db)
+    user: CurrentUser
 ):
     """
     Calculate scores for a case (async background task in production).
@@ -47,33 +46,30 @@ async def calculate_scores(
 @router.get("/{case_id}/scores")
 async def get_scores(
     case_id: str,
-    user: CurrentUser,
-    db=Depends(get_db)
+    user: CurrentUser
 ):
     """Retrieve calculated scores for a case."""
     try:
-        scores = db.execute(
-            text("""
+        with get_connection() as conn:
+            scores = db_fetchall(conn, """
                 SELECT supplier_name, category, score_value,
                        calculation_method, calculation_details,
                        is_validated, created_at
                 FROM supplier_scores
                 WHERE case_id = :case_id
                 ORDER BY category, score_value DESC
-            """),
-            {"case_id": case_id}
-        ).fetchall()
+            """, {"case_id": case_id})
         
         return {
             "case_id": case_id,
             "scores": [
                 {
-                    "supplier_name": s.supplier_name,
-                    "category": s.category,
-                    "score_value": float(s.score_value),
-                    "calculation_method": s.calculation_method,
-                    "is_validated": s.is_validated,
-                    "created_at": s.created_at.isoformat()
+                    "supplier_name": s["supplier_name"],
+                    "category": s["category"],
+                    "score_value": float(s["score_value"]),
+                    "calculation_method": s["calculation_method"],
+                    "is_validated": s["is_validated"],
+                    "created_at": s["created_at"]
                 }
                 for s in scores
             ]
