@@ -5,34 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard Couche A</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>body{position:relative}.skip-link{position:absolute;top:-40px;left:0;background:#4f46e5;color:white;padding:8px 16px;z-index:100;border-radius:0 0 4px 0}.skip-link:focus{top:0;outline:2px solid #6366f1;outline-offset:2px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #6366f1;outline-offset:2px}</style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/static/dashboard.js" defer></script>
   </head>
   <body class="bg-slate-50 text-slate-900">
-    <main class="max-w-6xl mx-auto py-10 px-6">
+    <a href="#main-content" class="skip-link">Aller au contenu principal</a>
+    <main id="main-content" class="max-w-6xl mx-auto py-10 px-6" role="main">
       <div class="flex items-center justify-between">
         <h1 class="text-2xl font-semibold">Tableau de pré-analyse</h1>
-        <a class="text-indigo-600" href="/templates/index.html">Accueil</a>
+        <a class="text-indigo-600" href="/templates/index.html" aria-label="Retour à l'accueil">Accueil</a>
       </div>
 
       <section class="mt-6 bg-white shadow rounded-lg p-4 border border-slate-200">
         <div class="grid gap-4 sm:grid-cols-3">
           <div>
-            <label class="text-sm text-slate-500">Lot</label>
-            <input id="filter-lot" class="w-full border rounded px-3 py-2" placeholder="LOT-001" />
+            <label for="filter-lot" class="text-sm text-slate-500">Lot</label>
+            <input id="filter-lot" class="w-full border rounded px-3 py-2" placeholder="LOT-001" aria-label="Filtrer par lot" />
           </div>
           <div>
-            <label class="text-sm text-slate-500">Statut</label>
-            <input id="filter-status" class="w-full border rounded px-3 py-2" placeholder="CONFORME" />
+            <label for="filter-status" class="text-sm text-slate-500">Statut</label>
+            <input id="filter-status" class="w-full border rounded px-3 py-2" placeholder="CONFORME" aria-label="Filtrer par statut" />
           </div>
           <div>
-            <label class="text-sm text-slate-500">Date (YYYY-MM-DD)</label>
-            <input id="filter-date" class="w-full border rounded px-3 py-2" placeholder="2026-02-10" />
+            <label for="filter-date" class="text-sm text-slate-500">Date (YYYY-MM-DD)</label>
+            <input id="filter-date" class="w-full border rounded px-3 py-2" placeholder="2026-02-10" aria-label="Filtrer par date" />
           </div>
         </div>
         <button
           id="apply-filters"
           class="mt-4 bg-indigo-600 text-white px-4 py-2 rounded"
+          aria-label="Appliquer les filtres"
         >
           Filtrer
         </button>
@@ -41,23 +44,25 @@
       <section class="mt-6 grid gap-6 lg:grid-cols-3">
         <div class="lg:col-span-2 bg-white shadow rounded-lg border border-slate-200">
           <table class="min-w-full text-sm" id="dashboard-table">
+            <caption id="table-caption" class="sr-only">Tableau de pré-analyse des offres par acheteur, fournisseur, date, type, montant, score et statut</caption>
             <thead class="bg-slate-100 text-slate-600">
               <tr>
-                <th class="p-3 text-left">Acheteur</th>
-                <th class="p-3 text-left">Fournisseur</th>
-                <th class="p-3 text-left">Date</th>
-                <th class="p-3 text-left">Type</th>
-                <th class="p-3 text-left">Montant</th>
-                <th class="p-3 text-left">Score</th>
-                <th class="p-3 text-left">Statut</th>
+                <th class="p-3 text-left" scope="col">Acheteur</th>
+                <th class="p-3 text-left" scope="col">Fournisseur</th>
+                <th class="p-3 text-left" scope="col">Date</th>
+                <th class="p-3 text-left" scope="col">Type</th>
+                <th class="p-3 text-left" scope="col">Montant</th>
+                <th class="p-3 text-left" scope="col">Score</th>
+                <th class="p-3 text-left" scope="col">Statut</th>
               </tr>
             </thead>
             <tbody class="divide-y" id="dashboard-body"></tbody>
           </table>
         </div>
-        <div class="bg-white shadow rounded-lg p-4 border border-slate-200">
+        <div class="bg-white shadow rounded-lg p-4 border border-slate-200" role="img" aria-label="Graphique en donut représentant la répartition des statuts des offres">
           <h2 class="text-sm font-medium text-slate-500">Répartition des statuts</h2>
-          <canvas id="status-chart" class="mt-4"></canvas>
+          <canvas id="status-chart" class="mt-4" aria-hidden="true" title="Graphique répartition des statuts - voir tableau pour données textuelles"></canvas>
+          <p id="chart-summary" class="sr-only" aria-live="polite"></p>
         </div>
       </section>
     </main>
