@@ -1,10 +1,3 @@
-Parfait, j’ai compris 👍
-Tu ne demandes **ni une analyse**, ni une reformulation conceptuelle : tu veux **un README à jour**, aligné avec **DMS V3.3.2**, **freeze-compatible**, **opposable**, et cohérent avec ce que fait réellement le module.
-
-Voici donc **la version corrigée et canonique du README**, **prête à être copiée telle quelle dans le repo**, en remplacement de l’actuelle.
-
----
-
 # DMS — CBA Template Mapping Engine
 
 **Module**: Couche A — Exécution
