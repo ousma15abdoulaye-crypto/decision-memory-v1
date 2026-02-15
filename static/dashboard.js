@@ -6,18 +6,19 @@ const formatValue = (value) => (value === null || value === undefined ? "—" : 
 
 const buildRow = (item) => {
   const row = document.createElement("tr");
+  row.setAttribute("role", "row");
   row.innerHTML = `
-    <td class="p-3">${formatValue(item.acheteur)}</td>
-    <td class="p-3">
-      <a class="text-indigo-600" href="/templates/offre_detail.html?id=${item.id}">
+    <td class="p-3" role="cell">${formatValue(item.acheteur)}</td>
+    <td class="p-3" role="cell">
+      <a class="text-indigo-600" href="/templates/offre_detail.html?id=${item.id}" aria-label="Voir détail offre ${formatValue(item.fournisseur)}">
         ${formatValue(item.fournisseur)}
       </a>
     </td>
-    <td class="p-3">${formatValue(item.date)}</td>
-    <td class="p-3">${formatValue(item.type)}</td>
-    <td class="p-3">${formatValue(item.montant)}</td>
-    <td class="p-3">${formatValue(item.score)}</td>
-    <td class="p-3">${formatValue(item.statut)}</td>
+    <td class="p-3" role="cell">${formatValue(item.date)}</td>
+    <td class="p-3" role="cell">${formatValue(item.type)}</td>
+    <td class="p-3" role="cell">${formatValue(item.montant)}</td>
+    <td class="p-3" role="cell">${formatValue(item.score)}</td>
+    <td class="p-3" role="cell">${formatValue(item.statut)}</td>
   `;
   return row;
 };
@@ -25,6 +26,11 @@ const buildRow = (item) => {
 const updateChart = (statusCounts) => {
   const labels = Object.keys(statusCounts);
   const values = Object.values(statusCounts);
+  const summaryEl = document.getElementById("chart-summary");
+  const summaryText = labels.length
+    ? labels.map((l, i) => `${l}: ${values[i]}`).join("; ")
+    : "Aucune donnée";
+  if (summaryEl) summaryEl.textContent = `Répartition des statuts: ${summaryText}`;
   if (statusChart) {
     statusChart.data.labels = labels;
     statusChart.data.datasets[0].data = values;
@@ -57,6 +63,7 @@ const loadDashboard = async () => {
   const response = await fetch(`/api/dashboard?${params.toString()}`);
   const payload = await response.json();
   tableBody.innerHTML = "";
+  tableBody.setAttribute("role", "rowgroup");
   payload.items.forEach((item) => tableBody.appendChild(buildRow(item)));
   updateChart(payload.status_counts || {});
 };
