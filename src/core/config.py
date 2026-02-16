@@ -2,6 +2,7 @@
 Configuration settings for Decision Memory System.
 Constitution V3: ONLINE-ONLY (PostgreSQL) - Addendum FROZEN+.
 """
+
 from pathlib import Path
 
 # =========================================================

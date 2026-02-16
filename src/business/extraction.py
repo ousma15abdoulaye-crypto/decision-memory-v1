@@ -1,6 +1,7 @@
 """
 Text extraction from different document formats (PDF, DOCX).
 """
+
 from pathlib import Path
 from typing import List
 

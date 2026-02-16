@@ -3,13 +3,13 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from datetime import datetime
 
 import openpyxl
 from openpyxl.workbook import Workbook
 
-from .column_calculator import supplier_col_letter, commercial_cols, supplier_col_index
+from .column_calculator import commercial_cols, supplier_col_index
 from .supplier_mapper import (
     populate_summary_supplier,
     populate_essential_supplier,
@@ -18,10 +18,12 @@ from .supplier_mapper import (
     populate_commercial_supplier,
 )
 
+
 @dataclass
 class EnginePaths:
     spec_path: Path
     template_path: Path
+
 
 class TemplateMappingEngine:
     def __init__(self, spec_path: str | Path, template_path: str | Path):
@@ -59,6 +61,7 @@ class TemplateMappingEngine:
                 if width == 1:
                     col_idx = supplier_col_index(start, slot, 1)
                     from openpyxl.utils import get_column_letter
+
                     col = get_column_letter(col_idx)
                     ws.column_dimensions[col].hidden = not (slot <= n_visible)
                 else:
@@ -77,27 +80,40 @@ class TemplateMappingEngine:
         # Fill Summary first (names drive formulas)
         ws_summary = wb[self.spec["sheets"]["Summary"]["sheet_name"]]
         for slot, sub in enumerate(submissions, start=1):
-            populate_summary_supplier(ws_summary, self.spec, slot, sub.get("supplier_name", f"Soumissionnaire {slot:02d}"))
+            populate_summary_supplier(
+                ws_summary,
+                self.spec,
+                slot,
+                sub.get("supplier_name", f"Soumissionnaire {slot:02d}"),
+            )
 
         # Essential
         ws_ess = wb[self.spec["sheets"]["Essential Evaluation"]["sheet_name"]]
         for slot, sub in enumerate(submissions, start=1):
-            populate_essential_supplier(ws_ess, self.spec, slot, sub.get("conformity", {}))
+            populate_essential_supplier(
+                ws_ess, self.spec, slot, sub.get("conformity", {})
+            )
 
         # Capability
         ws_cap = wb[self.spec["sheets"]["Capability Evaluation"]["sheet_name"]]
         for slot, sub in enumerate(submissions, start=1):
-            populate_capability_supplier(ws_cap, self.spec, slot, sub.get("capacity_scores", {}))
+            populate_capability_supplier(
+                ws_cap, self.spec, slot, sub.get("capacity_scores", {})
+            )
 
         # Sustainability
         ws_sus = wb[self.spec["sheets"]["Sustainability Evaluation"]["sheet_name"]]
         for slot, sub in enumerate(submissions, start=1):
-            populate_sustainability_supplier(ws_sus, self.spec, slot, sub.get("sustainability_scores", {}))
+            populate_sustainability_supplier(
+                ws_sus, self.spec, slot, sub.get("sustainability_scores", {})
+            )
 
         # Commercial
         ws_com = wb[self.spec["sheets"]["Commercial Evaluation"]["sheet_name"]]
         for slot, sub in enumerate(submissions, start=1):
-            populate_commercial_supplier(ws_com, self.spec, slot, sub.get("line_items", []))
+            populate_commercial_supplier(
+                ws_com, self.spec, slot, sub.get("line_items", [])
+            )
 
         return wb
 

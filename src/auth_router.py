@@ -1,4 +1,5 @@
 """Authentication endpoints."""
+
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
@@ -9,7 +10,7 @@ from src.auth import (
     create_access_token,
     create_user,
     CurrentUser,
-    ACCESS_TOKEN_EXPIRE_MINUTES
+    ACCESS_TOKEN_EXPIRE_MINUTES,
 )
 from src.ratelimit import limiter
 
@@ -49,11 +50,11 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": str(user["id"])},  # Store user ID as string in JWT
-        expires_delta=access_token_expires
+        expires_delta=access_token_expires,
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -67,7 +68,7 @@ async def register(request: Request, user_data: UserRegister):
         username=user_data.username,
         password=user_data.password,
         full_name=user_data.full_name,
-        role_id=2  # procurement_officer
+        role_id=2,  # procurement_officer
     )
     return UserResponse(**user)
 
