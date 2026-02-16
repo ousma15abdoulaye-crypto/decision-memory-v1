@@ -5,8 +5,8 @@ from pathlib import Path
 from typing import List
 
 from docx import Document
-from pypdf import PdfReader
 from fastapi import HTTPException
+from pypdf import PdfReader
 
 
 # =========================

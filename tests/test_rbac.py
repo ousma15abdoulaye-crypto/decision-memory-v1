@@ -1,7 +1,8 @@
 """Tests RBAC (M4B)."""
 import uuid
-import pytest
+
 from fastapi.testclient import TestClient
+
 from main import app
 
 client = TestClient(app)
@@ -47,7 +48,7 @@ def test_procurement_officer_can_create_case():
     user = create_test_user(f"officer_{unique_id}", f"officer_{unique_id}@test.com")
     token = get_token(user["username"], user.get("password", "testpass"))
 
-    response = client.post("/api/cases", 
+    response = client.post("/api/cases",
         json={
             "case_type": "DAO",
             "title": f"Test Case by Officer {unique_id}",

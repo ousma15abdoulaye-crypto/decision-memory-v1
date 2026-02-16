@@ -4,22 +4,24 @@ Handles DAO/offer analysis and decision recording.
 """
 import json
 import uuid
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import List
-from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException
 
-from src.db import get_connection, db_execute, db_execute_one, db_fetchall
-from src.core.models import AnalyzeRequest, DecideRequest, DAOCriterion
-from src.core.dependencies import get_artifacts, add_memory, register_artifact
 from src.business.extraction import extract_text_any
 from src.business.offer_processor import (
-    detect_offer_subtype, aggregate_supplier_packages,
-    guess_supplier_name, extract_offer_data_guided
+    aggregate_supplier_packages,
+    detect_offer_subtype,
+    extract_offer_data_guided,
+    guess_supplier_name,
 )
 from src.business.templates import fill_cba_adaptive, generate_pv_adaptive
+from src.core.dependencies import add_memory, get_artifacts, register_artifact
+from src.core.models import AnalyzeRequest, DAOCriterion, DecideRequest
+from src.db import db_execute, db_execute_one, db_fetchall, get_connection
 
 router = APIRouter(prefix="/api", tags=["analysis"])
 
@@ -86,10 +88,10 @@ def analyze(payload: AnalyzeRequest):
     for off in offer_arts:
         txt = extract_text_any(off["path"])
         supplier_name = guess_supplier_name(txt, off["filename"])
-        
+
         # CRITIQUE: Détection du subtype (FINANCIAL_ONLY, etc.)
         subtype = detect_offer_subtype(txt, off["filename"])
-        
+
         offer_data = extract_offer_data_guided(txt, dao_criteria)
 
         raw_offers.append({
@@ -114,7 +116,7 @@ def analyze(payload: AnalyzeRequest):
 
     # CRITIQUE: Agrégation par fournisseur (gestion offres partielles)
     supplier_packages = aggregate_supplier_packages(raw_offers)
-    
+
     # Conversion en format compatible avec le reste du système
     suppliers: List[dict] = []
     for pkg in supplier_packages:
@@ -154,21 +156,21 @@ def analyze(payload: AnalyzeRequest):
     cba_tpl = get_artifacts(case_id, "cba_template")
     if cba_tpl:
         cba_out = fill_cba_adaptive(cba_tpl[0]["path"], case_id, suppliers, dao_criteria)
-        register_artifact(case_id, "output_cba", Path(cba_out).name, cba_out, 
+        register_artifact(case_id, "output_cba", Path(cba_out).name, cba_out,
                         meta={"template_used": cba_tpl[0]["filename"]})
 
     # Step 4: Generate PV (adaptive)
     pv_tpl = get_artifacts(case_id, "pv_template")
     pv_tpl_path = pv_tpl[0]["path"] if pv_tpl else None
     pv_out = generate_pv_adaptive(pv_tpl_path, case_id, case["title"], suppliers, dao_criteria, decision=None)
-    register_artifact(case_id, "output_pv", Path(pv_out).name, pv_out, 
+    register_artifact(case_id, "output_pv", Path(pv_out).name, pv_out,
                      meta={"template_used": pv_tpl[0]["filename"] if pv_tpl else "default", "decision_included": False})
 
     # Statistiques et warnings
     partial_offers = [s for s in suppliers if s.get("package_status") == "PARTIAL"]
     complete_offers = [s for s in suppliers if s.get("package_status") == "COMPLETE"]
     financial_only = [s for s in suppliers if s.get("has_financial") and not s.get("has_technical")]
-    
+
     return {
         "ok": True,
         "case_id": case_id,
@@ -245,7 +247,7 @@ def decide(payload: DecideRequest):
     pv_tpl = get_artifacts(case_id, "pv_template")
     pv_tpl_path = pv_tpl[0]["path"] if pv_tpl else None
     pv_out = generate_pv_adaptive(pv_tpl_path, case_id, case["title"], suppliers, dao_criteria, decision=decision)
-    register_artifact(case_id, "output_pv", Path(pv_out).name, pv_out, 
+    register_artifact(case_id, "output_pv", Path(pv_out).name, pv_out,
                      meta={"template_used": pv_tpl[0]["filename"] if pv_tpl else "default", "decision_included": True})
 
     return {

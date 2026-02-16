@@ -12,6 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..models import (
+    analyses_table,
     audits_table,
     deserialize_json,
     documents_table,
@@ -20,7 +21,6 @@ from ..models import (
     generate_id,
     get_engine,
     offers_table,
-    analyses_table,
     serialize_json,
 )
 

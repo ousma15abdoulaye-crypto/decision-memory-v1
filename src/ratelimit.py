@@ -1,11 +1,11 @@
 """Rate limiting with slowapi."""
-import os
-from functools import wraps
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-from fastapi import FastAPI, Request
 import logging
+import os
+
+from fastapi import FastAPI
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ def init_rate_limit(app: FastAPI):
     """Initialise rate limiting sur l'application."""
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-    
+
     if TESTING:
         logger.info("Rate limiting DISABLED (test mode)")
     else:

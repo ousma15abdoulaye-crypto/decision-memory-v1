@@ -1,10 +1,11 @@
 """Tests authentification JWT (M4A)."""
-import pytest
 import uuid
+
 from fastapi.testclient import TestClient
 from jose import jwt
+
 from main import app
-from src.auth import SECRET_KEY, ALGORITHM
+from src.auth import ALGORITHM, SECRET_KEY
 
 client = TestClient(app)
 

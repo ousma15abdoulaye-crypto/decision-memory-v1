@@ -4,14 +4,15 @@ No SQLite fallback. App refuses boot without DATABASE_URL.
 """
 from __future__ import annotations
 
-import os
 import logging
+import os
+from contextlib import contextmanager
+from typing import Any, Iterator, List, Optional
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.engine.base import Connection
-from contextlib import contextmanager
-from typing import Iterator, List, Any, Optional
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +59,8 @@ def get_connection() -> Iterator[Connection]:
     Tenacity : 3 tentatives avec backoff exponentiel.
     Circuit breaker : Protection contre échecs en cascade.
     """
-    from src.resilience import retry_db_operation, db_breaker
-    
+    from src.resilience import db_breaker, retry_db_operation
+
     @retry_db_operation
     def get_conn():
         try:
@@ -67,7 +68,7 @@ def get_connection() -> Iterator[Connection]:
         except Exception as e:
             logger.error(f"[DB] Échec connexion après retry: {e}")
             raise
-    
+
     conn = get_conn()
     try:
         yield conn
@@ -85,9 +86,10 @@ def db_execute(conn: Connection, sql: str, params: Optional[dict] = None) -> Non
     
     Protège contre erreurs temporaires (network, lock timeout).
     """
+    from psycopg import DatabaseError, OperationalError
+
     from src.resilience import retry_db_operation
-    from psycopg import OperationalError, DatabaseError
-    
+
     @retry_db_operation
     def _execute():
         try:
@@ -95,7 +97,7 @@ def db_execute(conn: Connection, sql: str, params: Optional[dict] = None) -> Non
         except (OperationalError, DatabaseError) as e:
             logger.warning(f"[DB] Erreur temporaire: {e}")
             raise  # Tenacity va retry
-    
+
     _execute()
 
 

@@ -2,19 +2,22 @@
 Template generation functions for CBA and PV documents.
 Handles template-adaptive generation for procurement analysis.
 """
+import json
 import re
 import uuid
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
+from docx import Document
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
-from openpyxl.utils import get_column_letter
-from docx import Document
 
-from src.core.models import CBATemplateSchema, DAOCriterion
 from src.core.config import OUTPUTS_DIR
+from src.core.models import CBATemplateSchema, DAOCriterion
+from src.db import db_execute, get_connection
+
 
 def analyze_cba_template(template_path: str) -> CBATemplateSchema:
     """Analyse dynamique structure template CBA"""
@@ -119,7 +122,7 @@ def fill_cba_adaptive(
     # Load template
     wb = load_workbook(template_path)
     ws = wb.active
-    
+
     # Couleur ORANGE pour REVUE MANUELLE (spec conforme)
     ORANGE_FILL = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
     REVUE_MANUELLE = "REVUE MANUELLE"
@@ -135,11 +138,11 @@ def fill_cba_adaptive(
         for idx, supplier in enumerate(suppliers[:len(schema.supplier_cols)]):
             col = schema.supplier_cols[idx]
             supplier_name = supplier.get("supplier_name", "")
-            
+
             # Vérifier que ce n'est pas un ID
             if not supplier_name or supplier_name in ["SUPPLIER_UNKNOWN", "FOURNISSEUR_INCONNU"]:
                 supplier_name = REVUE_MANUELLE
-            
+
             # Écriture unique de la cellule
             cell = ws.cell(schema.supplier_name_row, col)
             cell.value = supplier_name
@@ -153,7 +156,7 @@ def fill_cba_adaptive(
         for idx, supplier in enumerate(suppliers[:len(schema.supplier_cols)]):
             col = schema.supplier_cols[idx]
             cell = ws.cell(row_idx, col)
-            
+
             # Vérifier le package_status du fournisseur
             package_status = supplier.get("package_status", "UNKNOWN")
             has_financial = supplier.get("has_financial", False)

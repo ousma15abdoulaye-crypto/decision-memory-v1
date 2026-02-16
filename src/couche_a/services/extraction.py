@@ -14,7 +14,6 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from ..models import (
     audits_table,
-    deserialize_json,
     documents_table,
     ensure_schema,
     extractions_table,

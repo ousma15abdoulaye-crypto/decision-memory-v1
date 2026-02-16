@@ -1,5 +1,5 @@
 """Profils d'évaluation pré‑encodés par catégorie d'achat (Manuel SCI)."""
-from typing import Dict, Any
+from typing import Any, Dict
 
 EVALUATION_PROFILES: Dict[str, Dict[str, Any]] = {
     "GENERIC": {

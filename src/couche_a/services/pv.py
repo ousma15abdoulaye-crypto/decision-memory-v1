@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..models import (
+    analyses_table,
     audits_table,
     documents_table,
     ensure_schema,
@@ -17,7 +18,6 @@ from ..models import (
     get_engine,
     lots_table,
     offers_table,
-    analyses_table,
     serialize_json,
 )
 

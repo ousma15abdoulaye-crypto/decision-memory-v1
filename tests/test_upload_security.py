@@ -1,8 +1,10 @@
 """Tests uploads sécurisés (M4F)."""
-import pytest
-import uuid
 import io
+import uuid
+
+import pytest
 from fastapi.testclient import TestClient
+
 from main import app
 
 client = TestClient(app)
@@ -148,37 +150,38 @@ def test_rate_limit_upload_real():
     # We can't easily re-enable rate limiting on existing endpoints without
     # reloading the app, so instead we verify the rate limiting configuration
     # and test against login endpoint which has strict limits (3/hour)
-    
+
     # Strategy: Test the login endpoint which has @limiter.limit("3/hour")
     # This provides security coverage without needing to modify TESTING mode
-    
+
     # However, since TESTING mode disables ALL rate limits via conditional_limit,
     # we need to verify the rate limiter is properly configured for production
-    
+
     # Alternative: We can verify the limiter configuration exists
-    from src.ratelimit import limiter, TESTING
-    
+    from src.ratelimit import TESTING, limiter
+
     # In test mode, verify that rate limiting would work in production
     assert TESTING is True, "This test assumes TESTING mode is enabled"
-    
+
     # Verify that rate limits are configured on critical endpoints
     # by checking that the limiter object exists and is properly configured
     assert limiter is not None, "Rate limiter should be initialized"
-    
+
     # For actual rate limit testing, we rely on integration tests in
     # non-TESTING environments or manual testing
     # This is a known limitation per Constitution V3 requirement that
     # "rate limiting must be tested for security on sensitive endpoints"
-    
+
     # As a compromise, we can at least verify the endpoints have limits defined
     # by importing and checking the route decorators
     import inspect
+
     from src.couche_a import routers
-    
+
     # Check that upload endpoints have rate limit decorators
     upload_dao_source = inspect.getsource(routers.upload_dao)
     assert "limiter.limit" in upload_dao_source, "upload_dao should have rate limiting"
-    
+
     # This provides compile-time verification that rate limiting is configured,
     # even if we can't test runtime behavior in TESTING mode
 
@@ -208,7 +211,7 @@ def test_case_quota_enforcement():
     # The test primarily verifies that:
     # 1. Individual files under 50MB are accepted
     # 2. The upload quota tracking is working
-    # 
+    #
     # Note: Testing the cumulative 500MB quota would require uploading many files
     # which would make the test very slow. That's better tested in integration tests.
     # This test focuses on verifying the per-file size limit works correctly.

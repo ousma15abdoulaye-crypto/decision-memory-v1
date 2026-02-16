@@ -11,17 +11,12 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.business.offer_processor import (
-    detect_offer_subtype,
-    aggregate_supplier_packages,
-    guess_supplier_name,
-    OfferSubtype
-)
+from src.business.offer_processor import aggregate_supplier_packages, detect_offer_subtype, guess_supplier_name
 
 
 def test_detect_financial_only():
     """Test détection d'une offre financière uniquement"""
-    
+
     text = """
     OFFRE FINANCIERE
     
@@ -31,11 +26,11 @@ def test_detect_financial_only():
     Délai de livraison: 60 jours
     Validité de l'offre: 90 jours
     """
-    
+
     filename = "OFFRE_FINANCIERE_ALPHA.pdf"
-    
+
     subtype = detect_offer_subtype(text, filename)
-    
+
     print("=" * 60)
     print("TEST 1: Détection offre financière uniquement")
     print("=" * 60)
@@ -44,44 +39,44 @@ def test_detect_financial_only():
     print(f"Has Technical: {subtype.has_technical}")
     print(f"Has Admin: {subtype.has_admin}")
     print(f"Confidence: {subtype.confidence}")
-    
+
     assert subtype.subtype == "FINANCIAL_ONLY", f"Expected FINANCIAL_ONLY, got {subtype.subtype}"
     assert subtype.has_financial is True
     assert subtype.has_technical is False
     assert subtype.has_admin is False
-    
+
     print("✅ Test 1 PASSED\n")
 
 
 def test_supplier_name_extraction():
     """Test extraction du nom fournisseur (pas d'ID)"""
-    
+
     text = """
     SOCIÉTÉ: BETA SERVICES SARL
     
     Offre technique et financière
     """
-    
+
     filename = "offre_lot1_beta_services.pdf"
-    
+
     name = guess_supplier_name(text, filename)
-    
+
     print("=" * 60)
     print("TEST 2: Extraction nom fournisseur")
     print("=" * 60)
     print(f"Filename: {filename}")
     print(f"Nom extrait: {name}")
-    
+
     # Vérifier qu'on n'a pas d'ID ou de patterns génériques
     assert "BETA" in name.upper()
     assert not any(c in name.lower() for c in ["uuid", "hash", "unknown"])
-    
+
     print("✅ Test 2 PASSED\n")
 
 
 def test_aggregate_three_financial_only():
     """Test agrégation de 3 offres financières uniquement"""
-    
+
     offers = [
         {
             "supplier_name": "ALPHA CONSTRUCTION",
@@ -144,14 +139,14 @@ def test_aggregate_three_financial_only():
             "missing_fields": ["Références techniques"]
         }
     ]
-    
+
     packages = aggregate_supplier_packages(offers)
-    
+
     print("=" * 60)
     print("TEST 3: Agrégation de 3 offres financières uniquement")
     print("=" * 60)
     print(f"Nombre de packages: {len(packages)}")
-    
+
     for pkg in packages:
         print(f"\nFournisseur: {pkg.supplier_name}")
         print(f"  Package Status: {pkg.package_status}")
@@ -160,12 +155,12 @@ def test_aggregate_three_financial_only():
         print(f"  Has Admin: {pkg.has_admin}")
         print(f"  Prix: {pkg.extracted_data.get('total_price')}")
         print(f"  Champs manquants: {pkg.missing_fields}")
-        
+
         # Vérifications
         assert pkg.package_status == "PARTIAL", f"Expected PARTIAL, got {pkg.package_status}"
         assert pkg.has_financial is True
         assert pkg.has_technical is False
-        
+
     print("\n✅ Test 3 PASSED")
     print("\n📋 COMPORTEMENT ATTENDU VÉRIFIÉ:")
     print("  - Offres FINANCIAL_ONLY détectées")
@@ -181,12 +176,12 @@ def main():
     print("\n" + "=" * 60)
     print("TESTS DES OFFRES PARTIELLES - DMS CBA ENGINE")
     print("=" * 60 + "\n")
-    
+
     try:
         test_detect_financial_only()
         test_supplier_name_extraction()
         test_aggregate_three_financial_only()
-        
+
         print("\n" + "=" * 60)
         print("✅ TOUS LES TESTS PASSÉS")
         print("=" * 60)
@@ -196,9 +191,9 @@ def main():
         print("  3. Agrégation par fournisseur avec statut PARTIAL")
         print("  4. Pas de pénalité pour documents non soumis")
         print("  5. Prêt pour marquage REVUE MANUELLE dans le CBA\n")
-        
+
         return 0
-        
+
     except AssertionError as e:
         print(f"\n❌ TEST FAILED: {e}\n")
         return 1

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Tuple
+
 from openpyxl.utils import get_column_letter
+
 
 @dataclass(frozen=True)
 class SheetColRule:

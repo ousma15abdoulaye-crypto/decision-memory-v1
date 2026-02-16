@@ -2,8 +2,9 @@
 Pydantic models for M3B Scoring Engine.
 Constitution V3 compliant: Non-prescriptive scoring.
 """
-from typing import Optional, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, Optional
+
 from pydantic import BaseModel, Field
 
 __all__ = ["ScoreResult", "EliminationResult", "ScoringRequest", "ScoringResponse"]

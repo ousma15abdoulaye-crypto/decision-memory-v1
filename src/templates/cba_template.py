@@ -2,12 +2,13 @@
 CBA Excel Generator – Save the Children Format (5 onglets)
 Constitution V2.1 § 4.1 – Manuel SCI SC-PR-02 § 5.3
 """
-from pathlib import Path
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
 from datetime import datetime
-from typing import Dict, List, Optional
+from pathlib import Path
+from typing import Dict
+
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
 
 # === CHARTE SAVE THE CHILDREN ===
 HEADER_FILL = PatternFill(start_color="366092", end_color="366092", fill_type="solid")

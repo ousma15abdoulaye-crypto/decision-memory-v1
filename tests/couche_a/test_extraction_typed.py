@@ -1,5 +1,4 @@
 """Tests pour l'extraction typée des critères (M3A)."""
-import pytest
 from src.couche_a.extraction import classify_criterion, validate_criterion_weightings
 from src.evaluation.profiles import get_profile_for_category
 

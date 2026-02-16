@@ -2,6 +2,7 @@
 import logging
 import sys
 
+
 def configure_logging():
     """Configure logging avec niveau détail."""
     logging.basicConfig(
@@ -12,7 +13,7 @@ def configure_logging():
             logging.FileHandler('dms.log')
         ]
     )
-    
+
     # Niveau DEBUG pour resilience
     logging.getLogger('src.resilience').setLevel(logging.DEBUG)
     logging.getLogger('tenacity').setLevel(logging.INFO)

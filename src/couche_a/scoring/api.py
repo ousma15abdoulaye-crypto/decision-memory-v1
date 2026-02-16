@@ -1,14 +1,13 @@
 """
 M3B Scoring API endpoints.
 """
-from fastapi import APIRouter, HTTPException
-from sqlalchemy import text
 import time
 
+from fastapi import APIRouter, HTTPException
+
 from src.auth import CurrentUser
-from src.db import get_connection, db_fetchall
-from src.couche_a.scoring.engine import ScoringEngine
 from src.couche_a.scoring.models import ScoringRequest, ScoringResponse
+from src.db import db_fetchall, get_connection
 
 router = APIRouter(prefix="/api/scoring", tags=["Scoring M3B"])
 
@@ -23,12 +22,12 @@ async def calculate_scores(
     Constitution V3: Non-prescriptive, validation humaine requise.
     """
     start_time = time.time()
-    
+
     try:
         # Load case data (stub - implement actual loading)
         # suppliers = load_suppliers_for_case(request.case_id)
         # criteria = load_criteria_for_case(request.case_id)
-        
+
         # For now, return stub response
         return ScoringResponse(
             case_id=request.case_id,
@@ -38,7 +37,7 @@ async def calculate_scores(
             status="success",
             errors=[]
         )
-    
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Scoring failed: {str(e)}")
 
@@ -59,7 +58,7 @@ async def get_scores(
                 WHERE case_id = :case_id
                 ORDER BY category, score_value DESC
             """, {"case_id": case_id})
-        
+
         return {
             "case_id": case_id,
             "scores": [
@@ -74,6 +73,6 @@ async def get_scores(
                 for s in scores
             ]
         }
-    
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve scores: {str(e)}")

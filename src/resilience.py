@@ -1,14 +1,9 @@
 """Resilience patterns: retry & circuit breaker (M4D)."""
 import logging
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type,
-    before_sleep_log
-)
+
 import pybreaker
-from psycopg import OperationalError, DatabaseError
+from psycopg import DatabaseError, OperationalError
+from tenacity import before_sleep_log, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class DatabaseCircuitBreaker:
     """Circuit breaker pour pool connexions PostgreSQL."""
-    
+
     def __init__(self):
         self.breaker = pybreaker.CircuitBreaker(
             fail_max=5,  # Ouvre après 5 échecs consécutifs
@@ -27,7 +22,7 @@ class DatabaseCircuitBreaker:
             exclude=[KeyboardInterrupt],
             name="PostgreSQL Connection Pool"
         )
-    
+
     def call(self, func, *args, **kwargs):
         """Exécute fonction avec circuit breaker."""
         try:
@@ -60,14 +55,14 @@ retry_db_operation = retry(
 
 class ExtractionCircuitBreaker:
     """Circuit breaker pour appels LLM extraction."""
-    
+
     def __init__(self):
         self.breaker = pybreaker.CircuitBreaker(
             fail_max=3,  # Ouvre après 3 échecs
             reset_timeout=30,  # Réessaie après 30 secondes
             name="LLM Extraction"
         )
-    
+
     def call(self, func, *args, **kwargs):
         """Exécute extraction avec protection."""
         try:

@@ -1,8 +1,9 @@
 from pathlib import Path
-import json
+
 import pytest
 
 from src.mapping.template_engine import TemplateMappingEngine
+
 
 @pytest.mark.smoke
 def test_engine_loads_spec():

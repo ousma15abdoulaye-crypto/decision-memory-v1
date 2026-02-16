@@ -2,18 +2,19 @@
 Couche A – Endpoints d'upload (Manuel SCI §4)
 Constitution V2.1 : helpers synchrones src.db, pas de table SQLAlchemy.
 """
-from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Form, Request
-from enum import Enum
-from pathlib import Path
-from datetime import datetime
 import hashlib
 import json
 import uuid
+from datetime import datetime
+from enum import Enum
+from pathlib import Path
 
-from src.db import get_connection, db_execute_one, db_execute
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Request, UploadFile
+
 from src.auth import CurrentUser, check_case_ownership
+from src.db import db_execute, db_execute_one, db_fetchall, get_connection
 from src.ratelimit import limiter
-from src.upload_security import validate_upload_security, update_case_quota
+from src.upload_security import update_case_quota, validate_upload_security
 
 router = APIRouter(prefix="/api/cases", tags=["Couche A Upload"])
 
@@ -182,7 +183,7 @@ async def upload_offer(
               AND meta_json LIKE :otype_pattern
             """,
             {
-                "cid": case_id, 
+                "cid": case_id,
                 "supplier_pattern": f'%"supplier_name": "{supplier_name}"%',
                 "otype_pattern": f'%"offer_type": "{offer_type.value}"%'
             }
@@ -261,7 +262,7 @@ async def get_criteria_validation(request: Request, case_id: str, user: CurrentU
     """Récupère la dernière validation des pondérations pour un case."""
     # Ownership check
     check_case_ownership(case_id, user)
-    
+
     with get_connection() as conn:
         row = db_execute_one(
             conn,
@@ -291,7 +292,7 @@ async def get_criteria_by_category(request: Request, case_id: str, user: Current
     """Retourne les critères groupés par catégorie."""
     # Ownership check
     check_case_ownership(case_id, user)
-    
+
     with get_connection() as conn:
         rows = db_fetchall(
             conn,

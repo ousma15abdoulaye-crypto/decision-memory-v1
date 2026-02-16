@@ -1,8 +1,9 @@
 """
 Pydantic models and dataclasses for Decision Memory System.
 """
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel
 
 

@@ -5,7 +5,9 @@ Threshold: 60% (0.6) - balances typo tolerance with false positive prevention.
 """
 
 from typing import Optional
+
 from sqlalchemy import text
+
 from src.db import get_session
 
 # Production-safe threshold: tolerates 1-2 letter typos, rejects semantic variations
@@ -31,7 +33,7 @@ def resolve_vendor(name: str) -> Optional[int]:
     """
     if not name or not name.strip():
         return None
-    
+
     with get_session() as session:
         result = session.execute(
             text("""
@@ -43,7 +45,7 @@ def resolve_vendor(name: str) -> Optional[int]:
             """),
             {"search_name": name.strip(), "threshold": SIMILARITY_THRESHOLD}
         ).fetchone()
-        
+
         return result[0] if result else None
 
 
@@ -66,7 +68,7 @@ def resolve_item(description: str) -> Optional[int]:
     """
     if not description or not description.strip():
         return None
-    
+
     with get_session() as session:
         result = session.execute(
             text("""
@@ -78,7 +80,7 @@ def resolve_item(description: str) -> Optional[int]:
             """),
             {"search_desc": description.strip(), "threshold": SIMILARITY_THRESHOLD}
         ).fetchone()
-        
+
         return result[0] if result else None
 
 
@@ -105,7 +107,7 @@ def resolve_zone(name: str) -> Optional[str]:
     """
     if not name or not name.strip():
         return None
-    
+
     with get_session() as session:
         result = session.execute(
             text("""
@@ -117,5 +119,5 @@ def resolve_zone(name: str) -> Optional[str]:
             """),
             {"search_name": name.strip(), "threshold": SIMILARITY_THRESHOLD}
         ).fetchone()
-        
+
         return result[0] if result else None

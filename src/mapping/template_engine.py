@@ -2,21 +2,22 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List
 
 import openpyxl
 from openpyxl.workbook import Workbook
 
-from .column_calculator import supplier_col_letter, commercial_cols, supplier_col_index
+from .column_calculator import commercial_cols, supplier_col_index
 from .supplier_mapper import (
-    populate_summary_supplier,
-    populate_essential_supplier,
     populate_capability_supplier,
-    populate_sustainability_supplier,
     populate_commercial_supplier,
+    populate_essential_supplier,
+    populate_summary_supplier,
+    populate_sustainability_supplier,
 )
+
 
 @dataclass
 class EnginePaths:

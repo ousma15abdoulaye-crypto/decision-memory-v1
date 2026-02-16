@@ -4,9 +4,9 @@ Handles partial offers and supplier package management.
 """
 import re
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
-from src.core.models import OfferSubtype, SupplierPackage, DAOCriterion
+from src.core.models import DAOCriterion, OfferSubtype, SupplierPackage
 
 
 # =========================
@@ -19,7 +19,7 @@ def detect_offer_subtype(text: str, filename: str) -> OfferSubtype:
     """
     text_lower = text.lower()
     filename_lower = filename.lower()
-    
+
     # Détection financière
     financial_patterns = [
         r"prix\s*(total|unitaire)",
@@ -30,7 +30,7 @@ def detect_offer_subtype(text: str, filename: str) -> OfferSubtype:
         r"bordereau\s*de\s*prix"
     ]
     has_financial = any(re.search(pattern, text_lower) for pattern in financial_patterns)
-    
+
     # Détection technique
     technical_patterns = [
         r"(caract[ée]ristiques?\s*techniques?|spécifications?)",
@@ -40,7 +40,7 @@ def detect_offer_subtype(text: str, filename: str) -> OfferSubtype:
         r"offre\s*technique"
     ]
     has_technical = any(re.search(pattern, text_lower) for pattern in technical_patterns)
-    
+
     # Détection administrative
     admin_patterns = [
         r"(documents?\s*(administratifs?|l[ée]gaux))",
@@ -50,10 +50,10 @@ def detect_offer_subtype(text: str, filename: str) -> OfferSubtype:
         r"offre\s*administrative"
     ]
     has_admin = any(re.search(pattern, text_lower) for pattern in admin_patterns)
-    
+
     # Classification
     count = sum([has_financial, has_technical, has_admin])
-    
+
     if count == 0:
         # Fallback: inférer depuis le nom de fichier
         if any(kw in filename_lower for kw in ["financ", "prix", "price", "cost"]):
@@ -63,7 +63,7 @@ def detect_offer_subtype(text: str, filename: str) -> OfferSubtype:
         elif any(kw in filename_lower for kw in ["admin", "legal", "conformit"]):
             has_admin = True
         count = sum([has_financial, has_technical, has_admin])
-    
+
     # Détermination du subtype
     if count >= 2:
         subtype = "COMBINED"
@@ -80,7 +80,7 @@ def detect_offer_subtype(text: str, filename: str) -> OfferSubtype:
     else:
         subtype = "UNKNOWN"
         confidence = "LOW"
-    
+
     return OfferSubtype(
         subtype=subtype,
         has_financial=has_financial,
@@ -102,15 +102,15 @@ def aggregate_supplier_packages(offers: List[dict]) -> List[SupplierPackage]:
         if supplier_name not in by_supplier:
             by_supplier[supplier_name] = []
         by_supplier[supplier_name].append(offer)
-    
+
     packages: List[SupplierPackage] = []
-    
+
     for supplier_name, docs in by_supplier.items():
         # Agréger les capacités
         has_financial = any(d.get("subtype", {}).get("has_financial", False) for d in docs)
         has_technical = any(d.get("subtype", {}).get("has_technical", False) for d in docs)
         has_admin = any(d.get("subtype", {}).get("has_admin", False) for d in docs)
-        
+
         # Fusionner les données extraites
         merged_data = {
             "total_price": None,
@@ -122,24 +122,24 @@ def aggregate_supplier_packages(offers: List[dict]) -> List[SupplierPackage]:
             "validity_source": None,
             "technical_refs": [],
         }
-        
+
         for doc in docs:
             for key in merged_data.keys():
                 if key == "technical_refs":
                     merged_data[key].extend(doc.get(key, []))
                 elif doc.get(key) is not None and merged_data[key] is None:
                     merged_data[key] = doc.get(key)
-        
+
         # Déduplication des refs techniques
         merged_data["technical_refs"] = list(set(merged_data["technical_refs"]))
-        
+
         # CRITIQUE: Séparer missing_parts (sections non soumises) vs missing_extracted_fields (données manquantes)
         missing_parts = []
         if not has_admin:
             missing_parts.append("ADMIN")
         if not has_technical:
             missing_parts.append("TECHNICAL")
-        
+
         # missing_extracted_fields: données attendues mais non trouvées DANS les sections soumises
         missing_extracted = []
         if has_financial and merged_data["total_price"] is None:
@@ -150,12 +150,12 @@ def aggregate_supplier_packages(offers: List[dict]) -> List[SupplierPackage]:
             missing_extracted.append("Validité offre")
         if has_technical and not merged_data["technical_refs"]:
             missing_extracted.append("Références techniques")
-        
+
         # missing_fields pour compatibilité (mais maintenant explicitement séparé)
         merged_data["missing_parts"] = missing_parts
         merged_data["missing_extracted_fields"] = missing_extracted
         merged_data["missing_fields"] = missing_extracted  # Backward compat
-        
+
         # Statut du package
         if has_financial and has_technical and has_admin:
             package_status = "COMPLETE"
@@ -163,7 +163,7 @@ def aggregate_supplier_packages(offers: List[dict]) -> List[SupplierPackage]:
             package_status = "PARTIAL"
         else:
             package_status = "MISSING"
-        
+
         packages.append(SupplierPackage(
             supplier_name=supplier_name,
             offer_ids=[d.get("artifact_id", "") for d in docs],
@@ -175,7 +175,7 @@ def aggregate_supplier_packages(offers: List[dict]) -> List[SupplierPackage]:
             extracted_data=merged_data,
             missing_fields=missing_extracted  # Données manquantes (pas sections non soumises)
         ))
-    
+
     return packages
 
 
@@ -197,26 +197,26 @@ def guess_supplier_name(text: str, filename: str) -> str:
     # Puis retirer mots-clés communs (avec espaces comme séparateurs)
     base = re.sub(r"(?i)\b(offre|lot|dao|rfq|mpt|mopti|2026|2025|2024|annexe|annex)\b", " ", base)
     base = base.strip()
-    
+
     # Retirer IDs UUID-like ou hash-like et nombres purs
     base = re.sub(r"\b[a-f0-9]{8,}\b", "", base, flags=re.IGNORECASE)
     base = re.sub(r"\b[A-F0-9\-]{32,}\b", "", base)
     base = re.sub(r"^\d+$", "", base)  # Retirer si c'est juste un nombre
     base = re.sub(r"\s+", " ", base).strip()  # Normaliser espaces multiples
-    
+
     # Vérifier que le filename nettoyé est significatif (pas juste des chiffres/mots génériques)
     # Exclure mots génériques trop courts ou techniques
     generic_words = ["DOC", "PDF", "FILE", "DOCUMENT", "TEMP", "NEW", "OLD", "FINAL", "V", "VER"]
     base_upper = base.upper().strip()
-    
+
     if len(base) >= 5 and re.search(r"[A-Za-z]{3,}", base) and base_upper not in generic_words:
         return base.upper()[:80]
-    
+
     # b) Chercher pattern "Société/Entreprise: ..." dans texte (prioritaire sur ligne majuscule)
     match = re.search(r"(?i)(soci[ée]t[ée]|entreprise|firm|company)[:\s]+([A-Za-zÀ-ÿ\s]{4,80})", text)
     if match:
         return match.group(2).strip().upper()[:80]
-    
+
     # c) Première ligne MAJUSCULE non-titre dans le document
     for line in text.splitlines():
         line = line.strip()
@@ -224,7 +224,7 @@ def guess_supplier_name(text: str, filename: str) -> str:
             # Exclure titres de section
             if not re.match(r"^(OFFRE|PROPOSITION|SOUMISSION|ANNEXE)", line):
                 return line[:80]
-    
+
     # d) Dernier recours
     return "FOURNISSEUR_INCONNU"
 

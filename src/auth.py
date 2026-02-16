@@ -4,9 +4,9 @@ Constitution V2.1 : Pas de FastAPI-Users (ORM interdit).
 Implémentation manuelle avec python-jose + passlib.
 """
 import os
-from typing import Optional, Annotated
 from datetime import datetime, timedelta
 from functools import wraps
+from typing import Annotated, Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -14,7 +14,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy import text
 
-from src.db import get_connection, db_execute_one, db_execute
+from src.db import db_execute, db_execute_one, get_connection
 
 # --- Configuration ---
 SECRET_KEY = os.getenv("JWT_SECRET", "CHANGE_IN_PRODUCTION_USE_OPENSSL_RAND_HEX_32")
@@ -68,14 +68,14 @@ def authenticate_user(username: str, password: str) -> Optional[dict]:
         return None
     if not user["is_active"]:
         return None
-    
+
     # Update last_login
     with get_connection() as conn:
-        db_execute(conn, 
+        db_execute(conn,
             "UPDATE users SET last_login = :ts WHERE id = :id",
             {"ts": datetime.utcnow().isoformat(), "id": user["id"]}
         )
-    
+
     return user
 
 
@@ -104,11 +104,11 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         user_id = int(user_id_str)  # Convert string back to int
     except (JWTError, ValueError):
         raise credentials_exception
-    
+
     user = get_user_by_id(user_id)
     if user is None:
         raise credentials_exception
-    
+
     return user
 
 
@@ -139,10 +139,10 @@ def require_roles(*allowed_roles: str):
             if current_user is None:
                 # Chercher dans kwargs
                 current_user = kwargs.get("current_user") or kwargs.get("user")
-            
+
             if current_user is None:
                 raise HTTPException(403, "Authentication required")
-            
+
             user_role = get_user_role(current_user)
             if user_role not in allowed_roles and not current_user.get("is_superuser"):
                 raise HTTPException(
@@ -160,15 +160,15 @@ def check_case_ownership(case_id: str, user: dict) -> bool:
     # Admin bypass
     if user.get("is_superuser") or get_user_role(user) == "admin":
         return True
-    
+
     with get_connection() as conn:
         case = db_execute_one(conn, "SELECT owner_id FROM cases WHERE id = :id", {"id": case_id})
         if not case:
             raise HTTPException(404, "Case not found")
-        
+
         if case["owner_id"] != user["id"]:
             raise HTTPException(403, "You do not own this case")
-    
+
     return True
 
 
@@ -177,16 +177,16 @@ def create_user(email: str, username: str, password: str, role_id: int = 2, full
     """Crée nouvel utilisateur."""
     hashed_password = get_password_hash(password)
     timestamp = datetime.utcnow().isoformat()
-    
+
     with get_connection() as conn:
         # Vérifier unicité email/username
         existing = db_execute_one(conn, """
             SELECT id FROM users WHERE email = :email OR username = :username
         """, {"email": email, "username": username})
-        
+
         if existing:
             raise HTTPException(409, "Email or username already exists")
-        
+
         # Insérer utilisateur avec RETURNING pour PostgreSQL
         result = conn.execute(text("""
             INSERT INTO users (email, username, hashed_password, full_name, role_id, is_active, is_superuser, created_at)
@@ -200,7 +200,7 @@ def create_user(email: str, username: str, password: str, role_id: int = 2, full
             "role": role_id,
             "ts": timestamp
         })
-        
+
         user_id = result.fetchone()[0]
         # Fetch the user data within the same transaction to avoid isolation issues
         return db_execute_one(conn, """

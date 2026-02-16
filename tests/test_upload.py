@@ -2,7 +2,6 @@
 Tests d'intégration pour les endpoints d'upload (Manuel SCI §4).
 """
 import os
-import uuid
 
 import pytest
 from fastapi.testclient import TestClient
@@ -149,8 +148,8 @@ def test_upload_offer_duplicate_supplier_type(test_case):
 def test_upload_offer_with_lot_id(test_case):
     """Upload offre avec lot_id – validation du lot."""
     case_id, token = test_case
-    from src.db import get_connection, db_execute
-    
+    from src.db import db_execute, get_connection
+
     # Créer un lot pour le case
     lot_id = "test-lot-123"
     with get_connection() as conn:
@@ -165,14 +164,14 @@ def test_upload_offer_with_lot_id(test_case):
             "val": 10000,
             "ts": "2026-02-12T00:00:00"
         })
-    
+
     # Upload DAO first
     client.post(
         f"/api/cases/{case_id}/upload-dao",
         files={"file": ("dao.pdf", b"%PDF-1.4", "application/pdf")},
         headers={"Authorization": f"Bearer {token}"}
     )
-    
+
     # Upload offre avec lot_id valide
     response = client.post(
         f"/api/cases/{case_id}/upload-offer",
@@ -184,7 +183,7 @@ def test_upload_offer_with_lot_id(test_case):
     data = response.json()
     assert data["lot_id"] == lot_id
     assert "is_late" in data
-    
+
     # Upload offre avec lot_id invalide
     response = client.post(
         f"/api/cases/{case_id}/upload-offer",
@@ -194,7 +193,7 @@ def test_upload_offer_with_lot_id(test_case):
     )
     assert response.status_code == 404
     assert "not found" in response.text.lower()
-    
+
     # Cleanup
     with get_connection() as conn:
         db_execute(conn, "DELETE FROM lots WHERE id=:id", {"id": lot_id})

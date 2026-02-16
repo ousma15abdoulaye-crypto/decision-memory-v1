@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from typing import Dict, List, Any, Tuple
+from typing import Any, Dict, List
+
 from openpyxl.worksheet.worksheet import Worksheet
 
-from .column_calculator import supplier_col_letter, commercial_cols
+from .column_calculator import commercial_cols, supplier_col_letter
 from .styling import apply_confidence_styling
+
 
 def populate_summary_supplier(ws: Worksheet, spec: dict, slot: int, supplier_name: str) -> None:
     s = spec["sheets"]["Summary"]
@@ -64,7 +66,7 @@ def populate_essential_supplier(ws: Worksheet, spec: dict, slot: int, conformity
     ws[f"{col}{s['supplier_name_row']}"] = s["name_formula_pattern"].format(summary_col=summary_col)
 
     # Critères : si data absente => "Pass" low confidence (à valider)
-    row = s["criteria_start_row"]
+    _ = s["criteria_start_row"]
     for k in range(s["criteria_start_row"], s["criteria_end_row"] + 1):
         # On mappe par ordre d'apparition des clés si fourni
         pass

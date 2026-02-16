@@ -1,0 +1,139 @@
+{
+  "audit_run_id": "audit_20260215_124514",
+  "timestamp": "2026-02-15T12:45:14",
+  "repository": {
+    "structure": {
+      "tree": "src/, tests/, alembic/, templates/, static/, docs/",
+      "modules": ["api", "couche_a", "couche_b", "core", "business", "mapping", "templates", "evaluation"],
+      "entry_points": ["main.py", "Procfile"]
+    },
+    "branching": {
+      "main_branch": "main",
+      "current_branch": "fix/a11y-wcag-a",
+      "branch_strategy": "feature/fix/infra"
+    },
+    "tests": {
+      "pytest": "pass",
+      "coverage_pct": 0.0,
+      "reports": "CI artifacts"
+    },
+    "ci": {
+      "workflow_status": "pass",
+      "config": {
+        "python": "3.11.9",
+        "postgres": "15",
+        "steps": ["compileall", "alembic", "pytest"]
+      }
+    },
+    "docker": {
+      "images": ["postgres:16"],
+      "compose": "present",
+      "deploy_cmd": "uvicorn main:app --host 0.0.0.0 --port $PORT"
+    }
+  },
+  "deployment": {
+    "railway": {
+      "project_id": "NON_VERIFIE",
+      "envs": ["staging", "prod"],
+      "status": "NON_VERIFIE"
+    },
+    "health": {
+      "health_check": "GET /api/health",
+      "response_time_ms": null,
+      "status": "NON_VERIFIE"
+    }
+  },
+  "stack": {
+    "backend": ["python3.11.9", "fastapi", "sqlalchemy_core", "psycopg"],
+    "db": ["postgresql"],
+    "frontend": ["web-panel 3-ecrans"],
+    "document_generation": ["openpyxl", "python-docx", "pypdf"],
+    "security": ["jwt", "rbac", "rate_limit", "filetype"],
+    "monitoring": ["logging_standard"],
+    "storage": ["local/fs"],
+    "OCR": ["none"],
+    "testing": ["pytest", "httpx"]
+  },
+  "milestones_status": {
+    "M2-EXTENDED": "DONE",
+    "M4A-FIX": "DONE",
+    "M-REFACTOR": "DONE",
+    "M-TESTS": "IN_PROGRESS",
+    "M8": "PARTIEL",
+    "M3A": "DONE",
+    "M3B": "DONE",
+    "M5_REGISTRY": "PARTIEL",
+    "M6_GENERATION": "DONE",
+    "M9_SECURITY": "DONE",
+    "M11_MONITORING": "PAS_COMMENCE"
+  },
+  "data_readiness": {
+    "doa_count_total": 2,
+    "doa_count_ready_for_ingest": 2,
+    "offers_present": 80,
+    "templates": {
+      "cba_templates_count": 1,
+      "pv_templates_count": 1
+    },
+    "mercurals": {
+      "entries": 2
+    }
+  },
+  "templates_registry": {
+    "registry_present": true,
+    "templates_count": 1,
+    "mapping_jsons": ["docs/templates/template_spec_v1.0.json"],
+    "example_template_id": "DMS-CBA-CANONICAL"
+  },
+  "two_dao_status": {
+    "dao_ids": ["DAO-01", "DAO-02"],
+    "offers_expected_per_dao": 40,
+    "offers_seen_per_dao": [0, 0],
+    "ingestion_status": "not_started"
+  },
+  "issues": [
+    "Railway deployment non vérifiable (accès requis)",
+    "Coverage pytest non en CI (objectif ≥40%)",
+    "M8-J2 REST API Couche B absente",
+    "Mercurials non vérifiables depuis le repo",
+    "Monitoring (structlog, prometheus) absent"
+  ],
+  "recommendations": [
+    {
+      "area": "technique",
+      "action": "Ajouter pytest-cov en CI, gate coverage ≥40%",
+      "priority": "high"
+    },
+    {
+      "area": "data",
+      "action": "Démarrer ingestion DAO-01, DAO-02 (80 offres)",
+      "priority": "high"
+    },
+    {
+      "area": "infra",
+      "action": "Vérifier déploiement Railway, health /api/health",
+      "priority": "high"
+    },
+    {
+      "area": "monitoring",
+      "action": "Ajouter structlog, métriques de base",
+      "priority": "medium"
+    },
+    {
+      "area": "tooling_lock",
+      "action": "Freeze date, gates CI, checklist pre-merge",
+      "priority": "high"
+    }
+  ],
+  "auditor_signature": {
+    "name": "Cursor Agent",
+    "role": "Tech Lead / CTO",
+    "date": "2026-02-15"
+  },
+  "proofs": {
+    "ci_config": ".github/workflows/ci.yml",
+    "migrations": "alembic/versions/002-008",
+    "template_spec": "docs/templates/template_spec_v1.0.json",
+    "constitution": "docs/constitution_v3_addendum.md"
+  }
+}
