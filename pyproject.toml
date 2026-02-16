@@ -1,0 +1,28 @@
+[project]
+name = "dms"
+version = "1.0.0"
+requires-python = ">=3.11"
+description = "Decision Memory System — Constitution V3.3.2"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "W",   # pycodestyle warnings
+    "I",   # isort
+]
+ignore = [
+    "E501",   # Line too long (géré par Black)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/**/*.py" = ["F841"]
+
+[tool.black]
+line-length = 120
+target-version = ["py311"]
