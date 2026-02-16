@@ -19,10 +19,10 @@
 
 | Fichier (relatif à la racine du repo) | SHA256 |
 |---------------------------------------|--------|
-| docs/freeze/v3.3.2/CONSTITUTION_DMS_V3.3.2.md | eec3c2ee34cce690525161f713e054de9671e69f31d98a9316ac57fe68c55215 |
-| docs/freeze/v3.3.2/MILESTONES_EXECUTION_PLAN_V3.3.2.md | b142de17aacb689d9d3baec362b5adf51bb395fe9a4854627321c61dfaaad64a |
-| docs/freeze/v3.3.2/INVARIANTS.md | ddcb557ca5f1646f1bd5ca0aa2a0a1cdeb83082718131503ebd16a978c3660ef |
-| docs/freeze/v3.3.2/adrs/ADR-0001.md | 323cfffc5a5935356f9cc682c2975f17ed5110d00684f187aff8081560aad537 |
+| docs/freeze/v3.3.2/CONSTITUTION_DMS_V3.3.2.md | 7695cc523e67ab53722f97ff36d979eb0e0c832d54c5d4de1b9a6df5ddd82549 |
+| docs/freeze/v3.3.2/MILESTONES_EXECUTION_PLAN_V3.3.2.md | 90b64e0b155aa544a42d6161957f875061cb1fbc9197402124d3aacd5516489e |
+| docs/freeze/v3.3.2/INVARIANTS.md | fe32fc0485afc303ab8508b8e5369e908f94106d71fb9eca48a12602b9bfda54 |
+| docs/freeze/v3.3.2/adrs/ADR-0001.md | e3a32be97e3c6a3b0e17a73ce581b8de806f488d9ab12f3962804833829688f0 |
 
 Référence complète : `docs/freeze/v3.3.2/SHA256SUMS.txt`.
 
