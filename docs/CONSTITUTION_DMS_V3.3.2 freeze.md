@@ -1,456 +1,857 @@
+# 📘 CONSTITUTION DU DECISION MEMORY SYSTEM (DMS)
+## VERSION V3.3.2 — FROZEN (RÉFÉRENCE CANONIQUE)
 
-📘 CONSTITUTION DU DECISION MEMORY SYSTEM
-VERSION V3.3.2 — FROZEN (RÉFÉRENCE CANONIQUE)
-Auteur : Abdoulaye Ousmane
-Rôle : Founder & CTO — System Engineer · Tech Lead · Procurement Analyst
-Statut : OFFICIEL · OPPOSABLE · FROZEN
-Date de gel : 2026-02-15
-Cible : États · ONG · Entreprises privées · Mines
-Portée géographique : Mali · Afrique de l’Ouest · extensible internationalement
-Mode : Online-first · Haute performance · Zéro saisie manuelle répétitive — l’humain intervient pour contrôle et arbitrage uniquement
-§0 — RAISON D’ÊTRE
+**Auteur** : Abdoulaye Ousmane  
+**Rôle** : Founder & CTO — System Engineer · Tech Lead · Procurement Analyst  
+**Statut** : OFFICIEL · OPPOSABLE · FROZEN  
+**Date de gel** : 2026-02-16 (CET)  
+**Cible** : États · ONG · Entreprises privées · Mines  
+**Portée géographique** : Mali · Afrique de l’Ouest · extensible internationalement  
+**Mode** : Online-first · Haute performance · Zéro saisie manuelle répétitive — l’humain intervient pour contrôle et arbitrage uniquement
+
+---
+
+# §0 — RAISON D’ÊTRE
+
 Le Decision Memory System (DMS) est un système logiciel de procurement conçu pour :
-1.	Automatiser 80–90 % du travail cognitif entre l’ouverture d’un processus d’achat et la décision humaine finale.
-2.	Accélérer la production des dossiers de décision à un niveau incompatible avec le travail manuel.
-3.	Structurer et conserver la mémoire décisionnelle de chaque organisation utilisatrice.
-4.	Établir un standard de référence du procurement moderne en Afrique.
-Constat fondateur :
-Les organisations ne manquent pas de règles.
-Elles manquent de vitesse, de mémoire exploitable et de rigueur reproductible.
-§1 — PORTÉE FONCTIONNELLE
-§1.1 — Universalité des processus d’achat
-Le DMS couvre l’ensemble des processus d’achat formalisés et informels :
-Type	Description	Couvert
-DAO	Dossier d’Appel d’Offres (national/international)	✅
-RFQ	Request for Quotation	✅
-RFP	Request for Proposal	✅
-Achat simple	Consultation directe, achat récurrent	✅
-Marché négocié	Gré à gré encadré	✅
-Procédure hybride	ONG, entreprises, mines	✅
-Le terme DAO est utilisé dans la documentation comme exemple de processus formel. Il ne constitue en aucun cas une limitation du périmètre fonctionnel.
-________________________________________
-§1.2 — Abstraction canonique
-Le DMS repose sur une abstraction unique :
-$$\text{Processus d’achat} = \text{Règles} + \text{Critères} + \text{Offres} + \text{Décision humaine}$$
-Les différences entre types de processus portent sur :
-•	le niveau de formalité (nombre d’étapes, validations requises),
-•	la structure des critères (pondérations, seuils),
-•	les livrables requis (CBA, PV, rapport).
-Elles ne portent jamais sur :
-•	l’architecture du moteur (Couche A/B),
-•	la logique de traçabilité,
-•	la mémoire décisionnelle.
-Le moteur de scoring est configurable par type de processus (pondérations, formules, critères actifs) mais repose sur une base algorithmique unique.
-________________________________________
-§2 — ARCHITECTURE FONDATRICE À DEUX COUCHES
-§2.1 — Couche A : Moteur d’exécution
-La Couche A est le cœur opérationnel du DMS.
-Mission : Automatiser le travail cognitif entre la réception des documents et la décision humaine.
-Responsabilités (exhaustives et non négociables) :
-Fonction	Description	Entrée	Sortie
-Ingestion	Réception et classement des documents (PDF, scans, Excel, Word)	Fichiers bruts	Documents indexés en base
-Extraction	Extraction du texte, identification des critères, lots, règles d’éligibilité	Documents indexés	Données structurées JSON
-Normalisation	Standardisation des offres via le dictionnaire procurement (§2.3)	Données brutes fournisseur	Items normalisés, unités alignées
-Scoring	Calcul des scores multi-critères (commercial, capacity, sustainability, essentials, total)	Critères typés + offres normalisées	supplier_scores + supplier_eliminations
-Enrichissement	Injection du Market Signal (§3) dans le contexte de décision	3 sources de vérité	Indicateurs contextuels (non prescriptifs)
-Génération	Production automatique des livrables officiels	Scores + données + templates	Fichiers Excel CBA + Word PV
-Traçabilité	Journalisation append-only de chaque action	Toute mutation	Audit trail horodaté, immutable
-Règle cardinale :
-Toute opération qu’un utilisateur effectue actuellement dans Excel et qui est automatisable est considérée comme un échec de la Couche A.
-________________________________________
-§2.2 — Couche B : Mémoire décisionnelle
-La Couche B est la mémoire vivante et l’intelligence contextuelle du DMS.
-Mission : Capitaliser, structurer et restituer la connaissance marché et décisionnelle sans jamais prescrire.
-Responsabilités :
-Fonction	Description
-Historisation	Archivage automatique des décisions passées, prix payés, fournisseurs, délais, zones, volumes
-Contextualisation	Fourniture de données comparables (historiques, tendances, écarts, anomalies factuelles)
-Market Signal	Agrégation des 3 sources de vérité (§3)
-Alertes factuelles	Signalement des écarts statistiques (±30% du prix moyen) sans jugement de valeur
-Interdictions absolues — la Couche B :
-•	❌ Ne décide pas.
-•	❌ Ne recommande pas.
-•	❌ Ne prescrit pas.
-•	❌ Ne modifie jamais l’état d’un processus de la Couche A.
-•	❌ Ne classe pas les fournisseurs.
-Principe de séparation :
-Couche A = ACTION & CALCUL (mute l’état du système)
-Couche B = MÉMOIRE & CONTEXTE (read-only sur les processus en cours)
-La frontière entre les deux est structurelle et inviolable. Aucune fonctionnalité ne peut chevaucher les deux couches.
-________________________________________
-§2.3 — Dictionnaire Procurement
-Le dictionnaire procurement est une brique fondatrice partagée entre les Couches A et B.
-Rôle : Fournir un référentiel canonique pour la normalisation des items, unités, et identités fournisseurs.
-Contenu obligatoire :
-Composant	Description	Exemple
-Items canoniques	Nom standardisé + aliases + code mercuriale	"Rame papier A4 80g" → aliases: ["papier A4", "rame A4", "papier photocopie A4"]
-Unités	Unité canonique + équivalences + ratios de conversion	"Rame" = 500 feuilles ; "Carton" = 5 rames
-Fournisseurs	Nom canonique + variantes + identifiants	"ETS KONATÉ SARL" → ["Konaté", "KONATE", "Ets Konate"]
-Catégories	Classification hiérarchique alignée sur la mercuriale	Groupe → Sous-groupe → Item
-Résolution des ambiguïtés :
-•	Algorithme de fuzzy matching (Levenshtein + token-based).
-•	Seuil de confiance configurable (défaut : 80%).
-•	En dessous du seuil : validation humaine requise.
-________________________________________
-§3 — MARKET SURVEY & MARKET SIGNAL
-§3.1 — Statut constitutionnel
-Le Market Survey est une brique critique du DMS. Il constitue la source la plus actuelle du contexte prix. Il n’est ni optionnel, ni secondaire.
-________________________________________
-§3.2 — Les trois sources de vérité
-Le Market Signal repose obligatoirement sur l’agrégation de trois sources :
-#	Source	Nature	Fraîcheur	Autorité
-1	Mercuriale officielle	Prix réglementés publiés par l’État (par zone, par année)	Annuelle	Référence légale — prix plafond
-2	Historique des décisions	Prix réellement payés par l’organisation lors de processus passés	Continue (auto-feed post-décision)	Référence opérationnelle — réalité terrain
-3	Market Survey terrain	Enquêtes de prix réalisées avant le lancement du processus (min. 3 cotations/item)	Ponctuelle (pré-processus)	Référence conjoncturelle — prix du moment
-________________________________________
-§3.3 — Règles d’agrégation
-Priorité en cas de conflit :
-1.	Le Market Survey terrain prévaut pour les prix actuels (plus récent).
-2.	L’historique des décisions prévaut pour les tendances et la fiabilité fournisseur.
-3.	La mercuriale officielle sert de borne supérieure réglementaire.
-Comportement quand une source manque :
-Source manquante	Comportement	Indicateur UI
-Mercuriale	Signal réduit à 2 sources, mention "Pas de référence officielle"	⚠️ Jaune
-Historique	Signal réduit à 2 sources, mention "Aucun précédent"	⚠️ Jaune
-Market Survey	Signal réduit à 2 sources, mention "Pas d’enquête terrain"	⚠️ Jaune
-2 sources manquantes	Signal dégradé, mention "Contexte prix insuffisant"	🔴 Rouge
-3 sources manquantes	Aucun signal, affichage "Aucune donnée marché"	⬛ Gris
-Politique de fraîcheur :
-Source	Fenêtre de validité	Au-delà
-Mercuriale	Année en cours + année précédente	Marquée "obsolète" + coefficient d’inflation configurable
-Historique	24 mois glissants	Données au-delà = archivées, non incluses dans le signal actif
-Market Survey	90 jours	Marqué "à actualiser"
-________________________________________
-§3.4 — Flux Market Signal → Couche A
-Le Market Signal alimente la Couche A en lecture seule :
-Market Survey ──┐
-Mercuriale ─────┼──→ MarketSignalProvider ──→ Panneau contextuel (UI)
-Historique ─────┘                              │
-                                               ▼
-                                    Couche A (scoring)
-                                    [Le signal est AFFICHÉ
-                                     mais ne MODIFIE PAS
-                                     les scores]
-________________________________________
-§4 — INVARIANTS FONDAMENTAUX
-Toute évolution du DMS doit respecter les invariants suivants. Chaque invariant est défini par une règle opérationnelle et un test de conformité.
-________________________________________
-INV-1 — Réduction de la charge cognitive
-Règle : Chaque fonctionnalité doit réduire le temps ou l’effort cognitif de l’utilisateur par rapport au processus manuel équivalent.
-Test :
-$T_{\text{DMS}} < T_{\text{manuel}} \times 0.2$
-pour toute opération mesurable (extraction, scoring, génération CBA).
-________________________________________
-INV-2 — Primauté de la Couche A
-Règle : La Couche A fonctionne de manière autonome. La Couche B enrichit mais n’est jamais requise pour produire un livrable complet.
-Test : Couper la Couche B → le système génère toujours un CBA/PV valide.
-________________________________________
-INV-3 — Mémoire non prescriptive
-Règle : La Couche B informe, ne prescrit pas. Aucune donnée de la Couche B ne modifie un score ou un classement.
-Test : Aucun champ de supplier_scores n’est alimenté par une query Couche B.
-________________________________________
-INV-4 — Online-first
-Règle : Le DMS est conçu pour un usage connecté en production. Aucun mode offline n’est un objectif produit. L’exécution locale (dev, tests, CI) reste pleinement supportée.
-Test : Aucun composant de synchronisation offline, stockage local durable, ou file d’attente offline n’est implémenté dans le cœur applicatif.
-________________________________________
-INV-5 — CI verte obligatoire
-Règle : Aucun merge sur la branche principale n’est autorisé si la CI est rouge.
-Test : GitHub Actions bloque le merge si un test échoue ou si la coverage est sous le seuil.
-________________________________________
-INV-6 — Append-only & traçabilité
-Règle : Toute mutation de données métier (score, élimination, décision) est journalisée de manière immutable avec horodatage et identifiant utilisateur.
-Test : DELETE et UPDATE sur les tables de traçabilité sont interdits au niveau SQL. Seul INSERT est autorisé sur audit_log, score_history, elimination_log.
-________________________________________
-INV-7 — ERP-agnostique
-Règle : Le DMS ne dépend d’aucun ERP. Il expose ses données via API REST et exports fichiers.
-Test : Aucune dépendance d’import vers un ERP tiers dans le code source.
-________________________________________
-INV-8 — Survivabilité & lisibilité
-Règle : Le code, la base de données et la documentation doivent être compréhensibles par un ingénieur senior qui n’a pas participé au développement, dans un délai de 48h.
-Test : README à jour, schéma de base documenté, aucune logique métier dans des fichiers non documentés.
-________________________________________
-INV-9 — Fidélité au réel & neutralité
-Règle : Le système reflète les données fournies sans interprétation, biais, ou modification. Les scores sont calculés, jamais ajustés.
-Corrections humaines : Lorsqu’un utilisateur corrige une extraction (OCR fautif, erreur de parsing), la correction est tracée en append-only avec :
-•	valeur avant correction,
-•	valeur après correction,
-•	identifiant utilisateur,
-•	timestamp,
-•	motif (champ libre).
-La donnée originale n’est jamais supprimée.
-Test : Score calculé = résultat de la formule appliquée aux données extraites. Aucun coefficient d’ajustement non déclaré.
-Test additionnel : toute correction humaine génère une entrée dans extraction_corrections avec before/after.
-________________________________________
-§5 — STACK TECHNIQUE CANONIQUE
-§5.1 — Backend & Data
-Composant	Choix	Justification
-Langage	Python 3.11+ (minimum 3.11, compatible 3.12)	Écosystème data/ML, performance suffisante
-Framework API	FastAPI	Async, validation Pydantic, OpenAPI natif
-Base de données	PostgreSQL 15+	Source unique de vérité, JSONB, full-text search
-Migrations	Alembic	SQL brut uniquement — pas d’autogenerate
-Accès DB	SQL paramétré via helpers synchrones	Contrôle total, pas de magie ORM
-Cache	Redis (optionnel V3)	Fuzzy matching cache, sessions
-Qualification Redis :
-Redis est un cache non-autoritaire et reconstructible. PostgreSQL reste l’unique source de vérité.
-Il est interdit de stocker dans Redis :
-•	des entités métier (scores, décisions, éliminations),
-•	des données d’audit ou de traçabilité,
-•	toute donnée dont la perte nécessiterait une reconstruction impossible sans Redis.
-En cas de perte totale du cache Redis, le système doit continuer à fonctionner (performances dégradées acceptables).
-Interdictions techniques :
-•	❌ Aucun ORM (SQLAlchemy Core autorisé, SQLAlchemy ORM interdit)
-•	❌ Aucune base secondaire (pas de MongoDB, SQLite, etc.)
-•	❌ Aucune migration autogénérée
-________________________________________
-§5.2 — Extraction & Génération
-Composant	Choix	Rôle
-OCR primaire	Azure Document Intelligence	Extraction texte scans/PDF
-OCR fallback	Tesseract	Fallback si Azure indisponible
-Génération Excel	openpyxl	CBA avec formules, onglets, styles
-Génération Word	python-docx	PV avec placeholders remplis
-Parsing PDF	pdfplumber / PyMuPDF	Extraction texte PDF natifs
-________________________________________
-§5.3 — DevOps & Déploiement
-Composant	Choix
-Repository	GitHub (mono-repo)
-CI	GitHub Actions — tests, coverage gate, linting
-CD	Railway (Nixpacks)
-Conteneurisation	Docker + docker-compose (dev & staging)
-Healthcheck	GET /api/health — vérifie DB, migrations, disk
-________________________________________
-§5.4 — Sécurité
-Composant	Choix
-Authentification	JWT (access + refresh tokens)
-Autorisation	RBAC — 5 rôles (admin, manager, buyer, viewer, auditor)
-Audit	Table audit_log — append-only, log_action()
-Rate limiting	Par user et par endpoint
-Upload	Validation MIME réelle (magic bytes), taille max 50MB, extensions whitelist
-Secrets	Variables d’environnement, jamais en dur
-CORS	Domaine production uniquement
-________________________________________
-§6 — MODÈLE DE DONNÉES CANONIQUE
-§6.1 — Entité d’entrée : Documents
-La brique d’entrée du DMS est l’entité documents, qui formalise le passage entre “fichier uploadé” et “données exploitables”.
-┌──────────────────┐
-│    documents     │
-│                  │
-│ id               │
-│ case_id (FK)     │
-│ kind (enum)      │  ← dao | offer | annex | market_survey | other
-│ filename         │
-│ storage_uri      │
-│ sha256           │  ← intégrité vérifiable
-│ mime_type        │  ← validé par magic bytes
-│ size_bytes       │
-│ page_count       │
-│ extraction_status│  ← pending | processing | done | failed
-│ created_at       │
-│ created_by (FK)  │
-└──────────────────┘
-         │
-         ▼
-┌──────────────────────┐
-│     extractions      │
-│                      │
-│ id                   │
-│ document_id (FK)     │
-│ page_number          │
-│ raw_text             │
-│ structured_data      │  ← JSONB
-│ extraction_method    │  ← azure | tesseract | native_pdf | manual
-│ confidence_score     │
-│ extracted_at         │
-└──────────────────────┘
-         │
-         ▼
-┌──────────────────────────┐
-│  extraction_corrections  │
-│                          │
-│ id                       │
-│ extraction_id (FK)       │
-│ field_path               │
-│ value_before             │
-│ value_after              │
-│ reason                   │
-│ corrected_by (FK)        │
-│ corrected_at             │
-└──────────────────────────┘
-________________________________________
-§6.2 — Entités fondamentales
-┌─────────────┐     ┌──────────────┐     ┌──────────────┐
-│    cases     │────→│   suppliers  │────→│    offers     │
-│             │     │              │     │              │
-│ id          │     │ id           │     │ id           │
-│ reference   │     │ name_canon   │     │ case_id (FK) │
-│ type (enum) │     │ aliases[]    │     │ supplier_id  │
-│ status      │     │ tin          │     │ items[]      │
-│ created_at  │     │ history{}    │     │ total_price  │
-│ created_by  │     └──────────────┘     │ currency     │
-└─────────────┘                          │ submitted_at │
-       │                                 └──────────────┘
-       │                                        │
-       ▼                                        ▼
-┌──────────────┐                    ┌──────────────────┐
-│   criteria   │                    │  supplier_scores │
-│              │                    │                  │
-│ id           │                    │ id               │
-│ case_id (FK) │                    │ case_id (FK)     │
-│ name         │                    │ supplier_id (FK) │
-│ type (enum)  │                    │ commercial_score │
-│ weight       │                    │ capacity_score   │
-│ formula      │                    │ sustain_score    │
-└──────────────┘                    │ essential_score  │
-                                    │ total_score      │
-                                    │ rank             │
-                                    │ calculated_at    │
-                                    └──────────────────┘
-                                           │
-                                           ▼
-                                ┌─────────────────────┐
-                                │supplier_eliminations│
-                                │                     │
-                                │ id                  │
-                                │ case_id (FK)        │
-                                │ supplier_id (FK)    │
-                                │ reason              │
-                                │ rule_ref            │
-                                │ eliminated_at       │
-                                └─────────────────────┘
-________________________________________
-§6.3 — Entités Market Signal (Couche B)
-┌──────────────────┐   ┌───────────────────┐   ┌──────────────────┐
-│   mercurials     │   │ decision_history  │   │ market_surveys   │
-│                  │   │                   │   │                  │
-│ id               │   │ id                │   │ id               │
-│ item_code        │   │ case_id (FK)      │   │ case_id (FK)     │
-│ item_name        │   │ item_id (FK)      │   │ item_id (FK)     │
-│ unit             │   │ supplier_id (FK)  │   │ supplier_name    │
-│ zone             │   │ price_paid        │   │ price_quoted     │
-│ year             │   │ quantity          │   │ date_surveyed    │
-│ price_min        │   │ decision_date     │   │ location         │
-│ price_avg        │   │ zone              │   │ surveyor         │
-│ price_max        │   └───────────────────┘   └──────────────────┘
-│ group_code       │
-│ source           │
-└──────────────────┘
 
-┌──────────────────────┐
-│procurement_dictionary│
-│                      │
-│ id                   │
-│ item_name_canonical  │
-│ aliases[]            │
-│ unit_canonical       │
-│ unit_aliases[]       │
-│ category_code        │
-│ mercuriale_ref{}     │
-│ procurement_type     │
-│ tags[]               │
-└──────────────────────┘
-________________________________________
-§6.4 — Tables de traçabilité (append-only)
-audit_log                → user_id, action, entity, entity_id, payload, timestamp
-score_history            → case_id, supplier_id, scores{}, calculated_at, version
-elimination_log          → case_id, supplier_id, reason, rule_ref, timestamp, by_user
-extraction_corrections   → extraction_id, field_path, value_before, value_after,
-                           reason, corrected_by, corrected_at
-Contraintes SQL obligatoires :
-•	REVOKE DELETE, UPDATE ON audit_log, score_history, elimination_log, extraction_corrections FROM app_user;
-•	Seul INSERT est autorisé pour ces tables.
-________________________________________
-§7 — CONTRAINTES DE PERFORMANCE
-Toutes les contraintes ci-dessous sont des SLA internes.
+1) **Automatiser 80–90 %** du travail cognitif entre l’ouverture d’un processus d’achat et la **décision humaine finale**.  
+2) **Accélérer** la production des dossiers de décision à un niveau **incompatible avec le travail manuel**.  
+3) **Structurer et conserver** la mémoire décisionnelle de chaque organisation utilisatrice.  
+4) Établir un **standard de référence** du procurement moderne en Afrique.
+
+**Constat fondateur** :  
+Les organisations ne manquent pas de règles.  
+Elles manquent de **vitesse**, de **mémoire exploitable** et de **rigueur reproductible**.
+
+---
+
+# §1 — PORTÉE FONCTIONNELLE
+
+## §1.1 — Universalité des processus d’achat
+
+Le DMS couvre l’ensemble des processus d’achat formalisés et informels :
+
+| Type | Description | Couvert |
+|---|---|---|
+| DAO | Dossier d’Appel d’Offres (national/international) | ✅ |
+| RFQ | Request for Quotation | ✅ |
+| RFP | Request for Proposal | ✅ |
+| Achat simple | Consultation directe, achat récurrent | ✅ |
+| Marché négocié | Gré à gré encadré | ✅ |
+| Procédure hybride | ONG, entreprises, mines | ✅ |
+
+**Règle** : le terme “DAO” est utilisé comme exemple de processus formel. Il ne constitue **en aucun cas** une limitation du périmètre fonctionnel.
+
+## §1.2 — Abstraction canonique
+
+Le DMS repose sur une abstraction unique :
+
+**Processus d’achat = Règles + Critères + Offres + Décision humaine**
+
+Les différences entre types de processus portent sur :
+- le **niveau de formalité** (nombre d’étapes, validations),
+- la **structure des critères** (pondérations, seuils),
+- les **livrables requis** (CBA, PV, rapport).
+
+Elles ne portent **jamais** sur :
+- l’architecture du moteur (Couche A/B),
+- la logique de traçabilité,
+- la mémoire décisionnelle.
+
+**Règle** : le moteur de scoring est configurable (pondérations/formules/critères actifs) **mais repose sur une base algorithmique unique**.
+
+---
+
+# §2 — ARCHITECTURE FONDATRICE À DEUX COUCHES
+
+## §2.1 — Couche A : Moteur d’exécution
+
+La Couche A est le cœur opérationnel du DMS.
+
+**Mission** : automatiser le travail cognitif entre la réception des documents et la décision humaine.
+
+### §2.1.1 — Responsabilités Couche A (exhaustives et non négociables)
+
+| Fonction | Description | Entrée | Sortie |
+|---|---|---|---|
+| Ingestion | Réception et classement des documents (PDF, scans, Excel, Word) | Fichiers bruts | Documents indexés en base |
+| Extraction | Extraction texte + identification critères/lots/éligibilité | Documents indexés | Extractions (raw_text + structured_data JSONB) |
+| Normalisation | Standardisation des offres via dictionnaire procurement (§2.3) | Offres brutes | Items normalisés, unités alignées |
+| Scoring | Calcul scores multi-critères (commercial/capacity/sustainability/essentials/total) | Critères typés + offres normalisées | supplier_scores + supplier_eliminations |
+| Génération | Production livrables officiels | Scores + données + templates | Excel CBA + Word PV |
+| Traçabilité | Journalisation append-only des actions/événements | Toute mutation | Audit trail immutable |
+
+### §2.1.2 — Règle cardinale Couche A
+
+Toute opération qu’un utilisateur effectue actuellement dans Excel et qui est **automatisable** est considérée comme un **échec** de la Couche A.
+
+### §2.1.3 — Classement calculé (rank) : clarification opposable
+
+Le DMS peut calculer un **rank** (tri mathématique par total_score) à des fins d’affichage.
+
+**Règle** :  
+- le **rank** est un **résultat arithmétique** (tri),  
+- il ne constitue **ni recommandation**, ni prescription, ni arbitrage,  
+- la **décision finale** appartient au comité.
+
+---
+
+## §2.2 — Couche B : Mémoire décisionnelle (non prescriptive)
+
+La Couche B est la mémoire vivante et l’intelligence contextuelle du DMS.
+
+**Mission** : capitaliser, structurer et restituer la connaissance marché/décisionnelle **sans jamais prescrire**.
+
+### §2.2.1 — Responsabilités Couche B
+
+| Fonction | Description |
+|---|---|
+| Historisation | Archivage automatique des décisions passées : prix payés, fournisseurs, délais, zones, volumes |
+| Contextualisation | Restitution de comparables : tendances, écarts, anomalies factuelles |
+| Market Signal | Agrégation des 3 sources de vérité (§3) |
+| Alertes factuelles | Signalement d’écarts statistiques (ex: ±30%) **sans jugement de valeur** |
+
+### §2.2.2 — Interdictions absolues Couche B
+
+La Couche B :
+- ❌ ne décide pas  
+- ❌ ne recommande pas  
+- ❌ ne prescrit pas  
+- ❌ ne modifie jamais l’état d’un processus Couche A  
+- ❌ ne classe pas les fournisseurs  
+- ❌ ne change aucun score
+
+### §2.2.3 — Principe de séparation structurelle (inviolable)
+
+- **Couche A = ACTION & CALCUL** (mute l’état du système)  
+- **Couche B = MÉMOIRE & CONTEXTE** (read-only sur processus en cours)
+
+Aucune fonctionnalité ne peut chevaucher les deux couches.
+
+---
+
+## §2.3 — Dictionnaire Procurement (brique partagée A/B)
+
+Le dictionnaire procurement est une brique fondatrice partagée entre les Couches A et B.
+
+**Rôle** : fournir un référentiel canonique pour normaliser items, unités, identités fournisseurs.
+
+### §2.3.1 — Contenu obligatoire
+
+| Composant | Description | Exemple |
+|---|---|---|
+| Items canoniques | nom standard + aliases + code mercuriale | “Rame papier A4 80g” |
+| Unités | unité canonique + équivalences + ratios | “Rame = 500 feuilles” |
+| Fournisseurs | nom canonique + variantes + identifiants | “ETS KONATÉ SARL” |
+| Catégories | classification hiérarchique alignée mercuriale | Groupe → Sous-groupe |
+| Résolution ambiguïtés | fuzzy + validation humaine | seuil 80% |
+
+### §2.3.2 — Règle de validation humaine
+
+- Algorithme fuzzy matching (Levenshtein + token-based).  
+- Seuil configurable (défaut 80%).  
+- En dessous du seuil : **validation humaine requise**.
+
+---
+
+# §3 — MARKET SURVEY & MARKET SIGNAL
+
+## §3.1 — Statut constitutionnel
+
+Le Market Survey est une brique critique du DMS.  
+Il n’est **ni optionnel**, ni secondaire.
+
+## §3.2 — Les trois sources de vérité
+
+| # | Source | Nature | Fraîcheur | Autorité |
+|---|---|---|---|---|
+| 1 | Mercuriale officielle | Prix réglementés (par zone/année) | annuelle | référence légale |
+| 2 | Historique décisions | Prix réellement payés (organisation) | continue (auto-feed) | référence opérationnelle |
+| 3 | Market Survey terrain | Enquête prix avant lancement (min 3 cotations/item) | 90 jours | référence conjoncturelle |
+
+## §3.3 — Règles d’agrégation
+
+### §3.3.1 — Priorité en cas de conflit
+1) Market Survey terrain (prix du moment)  
+2) Historique décisions (tendances / fiabilité)  
+3) Mercuriale (borne supérieure/plafond légal)
+
+### §3.3.2 — Comportement quand une source manque
+
+| Source manquante | Comportement | Indicateur UI |
+|---|---|---|
+| Mercuriale | signal réduit à 2 sources, mention “Pas de référence officielle” | ⚠️ |
+| Historique | signal réduit à 2 sources, mention “Aucun précédent” | ⚠️ |
+| Market Survey | signal réduit à 2 sources, mention “Pas d’enquête terrain” | ⚠️ |
+| 2 sources manquantes | signal dégradé, “Contexte insuffisant” | 🔴 |
+| 3 sources manquantes | aucun signal, “Aucune donnée marché” | ⬛ |
+
+### §3.3.3 — Politique de fraîcheur
+
+| Source | Fenêtre de validité | Au-delà |
+|---|---|---|
+| Mercuriale | année en cours + année précédente | “obsolète” + coefficient inflation configurable |
+| Historique | 24 mois glissants | archivé, non inclus dans signal actif |
+| Market Survey | 90 jours | “à actualiser” |
+
+## §3.4 — Flux Market Signal → Couche A (read-only)
+
+Market Survey ──┐  
+Mercuriale ─────┼──→ MarketSignalProvider ──→ UI Context Panel  
+Historique ─────┘  
+
+**Règle** : le signal est **affiché** mais ne **modifie pas** les scores.
+
+---
+
+# §4 — INVARIANTS FONDAMENTAUX (OPPOSABLES)
+
+Toute évolution du DMS doit respecter les invariants suivants.  
+Chaque invariant implique une règle opérationnelle et un test CI de conformité (Annexe A).
+
+## INV-1 — Réduction de la charge cognitive
+**Règle** : chaque fonctionnalité doit réduire le temps/effort vs manuel.  
+**Test** : T_DMS < T_manuel × 0.2 (sur opérations mesurables).
+
+## INV-2 — Primauté de la Couche A
+**Règle** : la Couche A doit produire CBA/PV même si Couche B indisponible.  
+**Test** : Couper Couche B → export valide.
+
+## INV-3 — Mémoire non prescriptive
+**Règle** : Couche B n’alimente aucun score ni classement.  
+**Test** : supplier_scores ne dépend d’aucune query Couche B.
+
+## INV-4 — Online-first
+**Règle** : pas de mode offline produit.  
+**Test** : absence de composants offline sync / durable local store.
+
+## INV-5 — CI verte obligatoire
+**Règle** : aucun merge si CI rouge.  
+**Test** : branch protection + checks required.
+
+## INV-6 — Append-only & traçabilité
+**Règle** : mutations métier journalisées immutable.  
+**Test** : DELETE/UPDATE interdits sur tables de trace.
+
+## INV-7 — ERP-agnostique
+**Règle** : aucune dépendance ERP, seulement API + exports.  
+**Test** : scan imports/strings + règles CI.
+
+## INV-8 — Survivabilité & lisibilité
+**Règle** : un senior doit comprendre en 48h.  
+**Test** : README à jour + schéma DB documenté + ADRs présents.
+
+## INV-9 — Fidélité au réel & neutralité
+**Règle** : scores calculés, jamais “ajustés”.  
+Corrections humaines append-only with before/after + reason.  
+**Test** : score == formule + test extraction_corrections append-only.
+
+---
+
+# §5 — STACK TECHNIQUE CANONIQUE
+
+## §5.1 — Backend & Data
+
+| Composant | Choix | Justification |
+|---|---|---|
+| Langage | Python 3.11+ | écosystème data/ML, performance suffisante |
+| Framework API | FastAPI | async + validation + OpenAPI |
+| DB | PostgreSQL 15+ | source unique vérité, JSONB, index |
+| Migrations | Alembic | SQL brut uniquement — pas d’autogenerate |
+| Accès DB | SQL paramétré via helpers synchrones | contrôle total |
+| Cache | Redis (optionnel V3) | cache non-autoritaire |
+
+### Qualification Redis (opposable)
+Redis est un cache reconstructible. PostgreSQL est l’unique source de vérité.
+
+Interdiction de stocker dans Redis :
+- entités métier (scores/décisions/éliminations),
+- traçabilité (audit),
+- toute donnée non reconstructible sans Redis.
+
+## §5.2 — Extraction & Génération
+
+| Composant | Choix | Rôle |
+|---|---|---|
+| OCR primaire | Azure Document Intelligence | scans/PDF |
+| OCR fallback | Tesseract | fallback |
+| Excel | openpyxl | CBA formules/onglets/styles |
+| Word | python-docx | PV placeholders |
+| PDF parsing | pdfplumber / PyMuPDF | texte natif |
+
+## §5.3 — DevOps & Déploiement
+
+| Composant | Choix |
+|---|---|
+| Repo | GitHub (mono-repo) |
+| CI | GitHub Actions |
+| CD | Railway (Nixpacks) |
+| Conteneurs | Docker + docker-compose |
+| Healthcheck | GET /api/health |
+
+## §5.4 — Sécurité
+
+| Composant | Choix |
+|---|---|
+| Auth | JWT (access + refresh) |
+| Autorisation | RBAC 5 rôles (admin/manager/buyer/viewer/auditor) |
+| Audit | audit_log append-only + log_action() |
+| Rate limit | par user + endpoint |
+| Upload | magic bytes + taille max + whitelist |
+| Secrets | env vars uniquement |
+| CORS | domaine prod uniquement |
+
+---
+
+# §6 — MODÈLE DE DONNÉES CANONIQUE (POSTGRES)
+
+## §6.1 — Entité d’entrée : documents → extractions → extraction_corrections
+
+documents
+
+id (PK)
+
+case_id (FK)
+
+kind (enum) # dao | offer | annex | market_survey | other
+
+filename
+
+storage_uri
+
+sha256 # intégrité
+
+mime_type # validé magic bytes
+
+size_bytes
+
+page_count
+
+extraction_status # pending | processing | done | failed
+
+created_at
+
+created_by (FK users)
+
+extractions
+
+id (PK)
+
+document_id (FK)
+
+page_number (nullable)
+
+raw_text
+
+structured_data (jsonb)
+
+extraction_method # azure | tesseract | native_pdf | manual
+
+confidence_score
+
+extracted_at
+
+extraction_corrections (append-only)
+
+id (PK)
+
+extraction_id (FK)
+
+field_path # ex: "lots[0].criteria[2].weight"
+
+value_before
+
+value_after
+
+reason
+
+corrected_by (FK users)
+
+corrected_at
+
+
+## §6.2 — Entités fondamentales (Couche A)
+
+cases
+
+id (PK)
+
+reference
+
+type (enum) # dao | rfq | rfp | simple | negotiated | hybrid
+
+status
+
+zone (nullable)
+
+amount (nullable)
+
+metadata (jsonb)
+
+created_at
+
+created_by (FK users)
+
+suppliers
+
+id (PK)
+
+name_canon
+
+aliases (text[])
+
+tin (nullable)
+
+metadata (jsonb)
+
+offers
+
+id (PK)
+
+case_id (FK)
+
+supplier_id (FK)
+
+items (jsonb) # brut (avant normalisation)
+
+total_price
+
+currency
+
+submitted_at
+
+created_at
+
+
+## §6.3 — Critères & scoring (Couche A)
+
+criteria
+
+id (PK)
+
+case_id (FK)
+
+name
+
+category (enum) # commercial | capability | sustainability | essential
+
+weight (numeric)
+
+formula (text)
+
+is_essential (bool)
+
+created_at
+
+supplier_scores
+
+id (PK)
+
+case_id (FK)
+
+supplier_id (FK)
+
+commercial_score (numeric)
+
+capacity_score (numeric)
+
+sustainability_score (numeric)
+
+essential_pass (bool)
+
+total_score (numeric)
+
+rank (int, nullable) # tri mathématique (non prescriptif)
+
+calculated_at
+
+supplier_eliminations
+
+id (PK)
+
+case_id (FK)
+
+supplier_id (FK)
+
+reason (text)
+
+rule_ref (text)
+
+eliminated_at
+
+
+## §6.4 — Gouvernance Comité (LOCK immuable + délégation)
+
+### §6.4.1 — Tables canoniques
+
+committee
+
+id (PK)
+
+case_id (FK, UNIQUE) # 1 comité par case
+
+status (enum) # draft | locked
+
+rule_ref (text) # référence règle appliquée (ex: SCI_MLI_PROC_2024_§...)
+
+justification (text) # justification lisible
+
+locked_at (timestamp, nullable)
+
+locked_by (FK users, nullable)
+
+created_at
+
+created_by (FK users)
+
+committee_members (ROSTER OFFICIEL)
+
+id (PK)
+
+committee_id (FK)
+
+role (text) # buyer | finance | budget_holder | technical | observer | chair | ...
+
+last_name
+
+first_name
+
+function_title
+
+email (nullable)
+
+required (bool)
+
+min_level (text, nullable)
+
+created_at
+
+created_by (FK users)
+
+committee_delegations (POST-LOCK ONLY, append-only)
+
+id (PK)
+
+committee_id (FK)
+
+member_id (FK committee_members)
+
+delegate_last_name
+
+delegate_first_name
+
+delegate_function_title
+
+delegate_email (nullable)
+
+reason (text)
+
+starts_at (nullable)
+
+ends_at (nullable)
+
+created_at
+
+created_by (FK users)
+
+committee_events (append-only)
+
+id (PK)
+
+committee_id (FK)
+
+event_type (text) # created | rule_applied | member_added | exception_logged | locked | delegation_added | export_generated | ...
+
+payload (jsonb)
+
+created_at
+
+created_by (FK users)
+
+
+### §6.4.2 — Contraintes d’enforcement DB-level (obligatoires)
+
+1) **LOCK irréversible** : `committee.status` ne peut pas passer de `locked` à `draft`.  
+2) **Immutabilité roster** : si `committee.status = locked`, toute tentative INSERT/UPDATE/DELETE sur `committee_members` doit échouer.  
+3) **Délégation autorisée après LOCK** : INSERT sur `committee_delegations` autorisé, sans toucher `committee_members`.  
+4) **Events append-only** : `committee_events` = INSERT only.  
+5) **Audit global** : chaque action critique doit produire un audit_log (append-only).
+
+(Implémentation typique : triggers PostgreSQL + REVOKE droits UPDATE/DELETE.)
+
+## §6.5 — Entités Market Signal (Couche B)
+
+mercurials
+
+id (PK)
+
+item_code
+
+item_name
+
+unit
+
+zone
+
+year
+
+price_min
+
+price_avg
+
+price_max
+
+group_code
+
+source
+
+decision_history
+
+id (PK)
+
+case_id (FK)
+
+item_id (FK procurement_dictionary)
+
+supplier_id (FK suppliers)
+
+price_paid
+
+quantity
+
+decision_date
+
+zone
+
+market_surveys
+
+id (PK)
+
+case_id (FK)
+
+item_id (FK procurement_dictionary)
+
+supplier_name
+
+price_quoted
+
+date_surveyed
+
+location
+
+surveyor
+
+procurement_dictionary
+
+id (PK)
+
+item_name_canonical
+
+aliases (text[])
+
+unit_canonical
+
+unit_aliases (text[])
+
+category_code
+
+mercuriale_ref (jsonb)
+
+procurement_type (text)
+
+tags (text[])
+
+
+## §6.6 — Tables de traçabilité (append-only)
+
+audit_log (append-only)
+
+id (PK)
+
+user_id
+
+action
+
+entity
+
+entity_id
+
+payload (jsonb)
+
+timestamp
+
+score_history (append-only)
+
+id (PK)
+
+case_id
+
+supplier_id
+
+scores (jsonb)
+
+calculated_at
+
+version
+
+elimination_log (append-only)
+
+id (PK)
+
+case_id
+
+supplier_id
+
+reason
+
+rule_ref
+
+timestamp
+
+by_user
+
+
+### Contraintes SQL obligatoires
+- REVOKE DELETE, UPDATE sur audit_log, score_history, elimination_log, extraction_corrections, committee_events, committee_delegations
+- Seul INSERT est autorisé sur ces tables.
+
+---
+
+# §7 — CONTRAINTES DE PERFORMANCE (SLA INTERNES)
+
 Toute régression au-delà des seuils définis bloque le merge en CI.
-§7.1 — Classe A — Documents natifs (PDF texte, Excel, Word)
-Métrique	Cible	Mesure
-Pipeline DAO → CBA complet	< 60 secondes	Timer end-to-end en CI
-Upload + extraction 1 document	< 15 secondes	Timer en CI
-Génération Excel CBA	< 10 secondes	Timer en CI
-Génération Word PV	< 5 secondes	Timer en CI
-§7.2 — Classe B — Scans OCR
-Métrique	Cible	Mesure
-Upload + mise en queue	< 5 secondes	Timer en CI
-Extraction OCR (asynchrone)	Budget séparé, progress bar, statut	Monitoring
-L’OCR ne bloque pas l’application	Queue + callback	Test d’intégration
-§7.3 — Commun aux deux classes
-Métrique	Cible	Mesure
-Query Market Signal (1 item)	< 200 ms	Benchmark en CI
-Fuzzy match dictionnaire	< 100 ms	Benchmark en CI
-Charge simultanée	10 DAO concurrents sans dégradation > 2×	Test de charge
-Disponibilité	99.5% (hors maintenance planifiée)	Monitoring
-Cold start Railway	< 30 secondes	Healthcheck
-________________________________________
-§8 — POSITIONNEMENT ERP & INTÉGRATION
-§8.1 — Principe d’indépendance
-Le DMS est ERP-agnostique par design :
-•	Il ne dépend d’aucun ERP pour fonctionner.
-•	Il ne remplace pas un ERP.
-•	Il occupe un espace fonctionnel que les ERP ne couvrent pas : la structuration de la décision d’achat.
-§8.2 — Formats d’intégration
-Type	Format	Usage
-Export CBA	Excel (.xlsx) avec formules et mise en forme	Comité d’évaluation, archivage
-Export PV	Word (.docx) pré-rempli	Procès-verbal officiel
-API REST	JSON via FastAPI	Intégration avec ERP, BI, systèmes tiers
-Export données	CSV, JSON	Migration, reporting, audit externe
-§8.3 — Positionnement
-$$\text{DMS structure la décision} \quad | \quad \text{ERP enregistre l’exécution}$$
-________________________________________
-§9 — GOUVERNANCE & CLAUSES JURIDIQUES
-§9.1 — Propriété intellectuelle
-Le DMS, son code source, son architecture, sa Constitution et sa documentation sont la propriété exclusive d’Abdoulaye Ousmane et de toute entité légale qu’il désignera.
-§9.2 — Confidentialité des données
-Les données ingérées dans le DMS (documents, offres, prix, fournisseurs) sont la propriété de l’organisation utilisatrice. Le DMS :
-•	Ne partage pas les données entre organisations.
-•	Ne les utilise pas à des fins d’entraînement ou de profilage.
-•	Garantit leur suppression sur demande de l’organisation propriétaire.
-§9.3 — Réversibilité
-Toute organisation utilisatrice peut à tout moment :
-•	Exporter l’intégralité de ses données (cas, offres, scores, historique, Market Surveys) en format ouvert (CSV/JSON).
-•	Résilier son usage sans perte de données.
-§9.4 — Autorité interprétative
-En cas de litige d’interprétation de cette Constitution, l’auteur et fondateur (Abdoulaye Ousmane) est l’autorité finale.
-Toute interprétation divergente par un tiers (développeur, partenaire, auditeur) est soumise à validation explicite du fondateur.
-§9.5 — Clause de freeze
-Cette Constitution V3.3.1 est gelée par décision du fondateur.
+
+## §7.1 — Classe A — Documents natifs (PDF texte, Excel, Word)
+
+| Métrique | Cible | Mesure |
+|---|---|---|
+| Pipeline DAO → CBA complet | < 60s | timer end-to-end CI |
+| Upload + extraction 1 doc | < 15s | timer CI |
+| Génération Excel CBA | < 10s | timer CI |
+| Génération Word PV | < 5s | timer CI |
+
+## §7.2 — Classe B — Scans OCR
+
+| Métrique | Cible | Mesure |
+|---|---|---|
+| Upload + mise en queue | < 5s | timer CI |
+| OCR asynchrone | budget séparé | monitoring |
+| OCR ne bloque pas app | queue + callback | test intégration |
+
+## §7.3 — Commun
+
+| Métrique | Cible | Mesure |
+|---|---|---|
+| Query Market Signal (1 item) | < 200ms | benchmark CI |
+| Fuzzy match dictionnaire | < 100ms | benchmark CI |
+| Charge | 10 DAO concurrents sans dégradation >2× | test charge |
+| Cold start Railway | < 30s | healthcheck |
+
+---
+
+# §8 — POSITIONNEMENT ERP & INTÉGRATION
+
+## §8.1 — Principe d’indépendance
+Le DMS est ERP-agnostique :
+- ne dépend d’aucun ERP pour fonctionner,
+- ne remplace pas un ERP,
+- structure la décision d’achat (zone non couverte par ERP).
+
+## §8.2 — Formats d’intégration
+
+| Type | Format | Usage |
+|---|---|---|
+| Export CBA | Excel (.xlsx) | comité + archivage |
+| Export PV | Word (.docx) | PV officiel |
+| API REST | JSON (FastAPI) | intégration ERP/BI |
+| Export données | CSV/JSON | audit/migration |
+
+## §8.3 — Positionnement
+DMS structure la décision | ERP enregistre l’exécution
+
+---
+
+# §9 — GOUVERNANCE & CLAUSES JURIDIQUES
+
+## §9.1 — Propriété intellectuelle
+Le DMS (code, architecture, Constitution, documentation) est la propriété exclusive d’Abdoulaye Ousmane et de toute entité légale qu’il désignera.
+
+## §9.2 — Confidentialité des données
+Les données ingérées appartiennent à l’organisation utilisatrice. Le DMS :
+- ne partage pas les données entre organisations,
+- ne les utilise pas pour entraînement/profilage,
+- garantit la suppression sur demande.
+
+## §9.3 — Réversibilité
+Toute organisation peut :
+- exporter l’intégralité des données en formats ouverts,
+- résilier sans perte de données.
+
+## §9.4 — Autorité interprétative
+En cas de litige d’interprétation, l’auteur est l’autorité finale. Toute interprétation divergente par un tiers requiert validation explicite.
+
+## §9.5 — Clause de freeze (V3.3.2)
+Cette Constitution V3.3.2 est gelée par décision du fondateur.
 Toute évolution future :
-1.	Doit démontrer son alignement avec les invariants (§4).
-2.	Doit être documentée comme amendement versionné.
-3.	Nécessite l’approbation explicite du fondateur.
-4.	N’invalide pas rétroactivement les décisions prises sous la version précédente.
-________________________________________
-§10 — FORMULE FONDATRICE
-Le Decision Memory System est un système à deux couches —
-un moteur d’exécution (Couche A) et une mémoire intelligente (Couche B) —
+1) doit démontrer l’alignement avec les invariants (§4),
+2) doit être documentée comme amendement versionné,
+3) nécessite l’approbation explicite du fondateur,
+4) n’invalide pas rétroactivement les décisions prises sous version précédente.
+
+---
+
+# §10 — FORMULE FONDATRICE
+
+Le DMS est un système à deux couches :
+- un moteur d’exécution (Couche A),
+- une mémoire intelligente non prescriptive (Couche B),
 articulé autour d’un dictionnaire procurement et d’un Market Signal à trois sources de vérité,
 conçu pour automatiser, accélérer et structurer tous les processus d’achat,
-au service des États, des organisations et des entreprises,
-sans jamais décider à leur place.
-________________________________________
-ANNEXE A — Table de concordance Invariants ↔ Tests CI
-Invariant	Test CI correspondant	Type
-INV-1	test_pipeline_under_60s	Performance
-INV-2	test_couche_a_standalone (Couche B désactivée → CBA valide)	Intégration
-INV-3	test_scores_independent_of_couche_b	Unitaire
-INV-4	test_no_offline_components (scan statique : pas de sync offline, pas de stockage local durable, pas de queue offline)	Statique
-INV-5	GitHub Actions gate — merge bloqué si rouge	CI
-INV-6	test_audit_log_append_only (tentative DELETE → erreur SQL)	Sécurité
-INV-7	test_no_erp_dependency (scan imports)	Statique
-INV-8	test_readme_exists, test_schema_documented	Documentation
-INV-9	test_score_equals_formula_output (pas de coefficient caché) + test_extraction_corrections_append_only (before/after exigé)	Unitaire / Sécurité
-________________________________________
-ANNEXE B — Changelog
-Version	Date	Changements
-V1.0	2024-Q3	Vision initiale, Couche A uniquement
-V2.0	2024-Q4	Ajout Couche B, Market Survey
-V3.0	2025-01	Stack technique, invariants
-V3.2	2025-02	Portée universelle (DAO/RFQ/RFP), ERP-agnostique
-V3.3	2025-02-15	Dictionnaire procurement, Market Signal 3 sources, modèle de données, contraintes performance, clauses juridiques, tests de conformité invariants — VERSION BLINDÉE
-V3.3.1	2026-02-15	Patch freeze : SLA dual-class, INV-4/INV-9 corrigés, Redis qualifié non-autoritaire, entité documents/extractions/extraction_corrections ajoutées, date corrigée, mode “zéro saisie manuelle répétitive”, Python 3.11+ précisé — VERSION FREEZE CANONIQUE
-________________________________________
-🔐 STATUT FINAL
-Ce document CONSTITUTION DMS V3.3.1 est désormais :
-✅ OFFICIEL
-✅ FROZEN
-✅ RÉFÉRENCE CANONIQUE UNIQUE
-✅ OPPOSABLE aux agents IA, au code, aux PR, aux choix techniques, et aux futures extensions
+sans jamais décider à la place du comité.
 
+---
+
+# ANNEXE A — Concordance Invariants ↔ Tests CI (OPPOSABLE)
+
+| Invariant | Test CI correspondant | Type |
+|---|---|---|
+| INV-1 | test_pipeline_under_60s | Performance |
+| INV-2 | test_couche_a_standalone_exports_without_couche_b | Intégration |
+| INV-3 | test_scores_independent_of_couche_b | Unitaire |
+| INV-4 | test_no_offline_components_static_scan | Statique |
+| INV-5 | required_checks_branch_protection + coverage_gate | CI |
+| INV-6 | test_append_only_tables_reject_update_delete | Sécurité |
+| INV-7 | test_no_erp_dependency_scan | Statique |
+| INV-8 | test_readme_exists + test_schema_documented + test_adrs_present | Documentation |
+| INV-9 | test_score_equals_formula_output + test_extraction_corrections_append_only | Unitaire/Sécurité |
+
+## Tests CI comité (dérivés INV-6 / INV-9, obligatoires)
+- test_committee_lock_irreversible
+- test_committee_roster_immutable_after_lock
+- test_committee_delegation_allowed_post_lock
+- test_committee_events_append_only
+
+---
+
+# ANNEXE B — Changelog (versionné)
+
+| Version | Date | Changements |
+|---|---|---|
+| V1.0 | 2024-Q3 | Vision initiale, Couche A uniquement |
+| V2.0 | 2024-Q4 | Ajout Couche B, Market Survey |
+| V3.0 | 2025-01 | Stack technique, invariants |
+| V3.2 | 2025-02 | Portée universelle (DAO/RFQ/RFP), ERP-agnostique |
+| V3.3 | 2025-02-15 | Dictionnaire + Market Signal 3 sources + modèle données + SLA + clauses juridiques + tests invariants |
+| V3.3.1 | 2026-02-15 | Patch : SLA dual-class, INV-4/INV-9, Redis qualifié, documents/extractions/corrections |
+| V3.3.2 | 2026-02-16 | Ajout gouvernance comité (LOCK immuable + délégation), enforcement DB-level, tables comité, correction clause freeze, clarification rank non prescriptif, extension Annex A tests comité |
+
+---
+
+# 🔐 STATUT FINAL
+
+Ce document CONSTITUTION DMS V3.3.2 est désormais :
+✅ OFFICIEL  
+✅ FROZEN  
+✅ RÉFÉRENCE CANONIQUE UNIQUE  
+✅ OPPOSABLE au code, aux PR, aux agents IA, aux choix techniques, et aux extensions futures
