@@ -1,204 +1,188 @@
-# DMS — CBA Template Mapping Engine
+# DMS — Decision Memory System (V3.3.2)
 
-**Module**: Couche A — Exécution
-**Version module**: V1.0
-**Compatibilité DMS**: V3.3.2 (FREEZE)
-**Statut**: CANONIQUE · STABLE · OPPOSABLE
-**Auteur**: Abdoulaye Ousmane — Founder & CTO
+DMS est un système **procurement** en 2 couches conçu pour **accélérer** et **standardiser** un travail manuel (DAO/RFQ/RFP → extraction → normalisation → scoring → exports CBA/PV), tout en construisant une **mémoire décisionnelle** exploitable (Market Signal / Market Survey) **sans jamais prescrire** la décision.
 
----
-
-## 1. Rôle du module
-
-Le **CBA Template Mapping Engine** est le moteur responsable de la **projection déterministe des données de soumission** dans un **template Excel CBA canonique**.
-
-Il garantit que :
-
-* le **template Excel est figé** (source de vérité),
-* le moteur **n’ajuste jamais la structure du fichier**,
-* les données sont **placées par indices calculés**, sans heuristique fragile.
-
-> Ce module matérialise le principe fondamental du DMS :
-> **le document est une interface contractuelle, pas un artefact malléable**.
+> DMS ne signe pas de contrat, n’émet pas de bon de commande et ne remplace pas un comité.  
+> Il **calcule**, **structure**, **trace**, puis **exporte** vers les livrables officiels (Excel/Word).  
+> La décision finale reste humaine et traçable.
 
 ---
 
-## 2. Périmètre fonctionnel exact
+## Pourquoi DMS existe
 
-Le module prend en charge **exclusivement** :
+Dans beaucoup d’organisations, le procurement devient lent et opaque non pas parce que les règles n’existent pas, mais parce que :
+- elles sont dispersées (memos, manuels, habitudes),
+- elles sont réappliquées manuellement (Excel + copier/coller),
+- l’audit trail est incomplet ou “SharePoint-like” (documents, mais pas une mémoire vivante).
 
-* le mapping des fournisseurs (jusqu’à **50 fournisseurs max**),
-* la gestion des colonnes au-delà de `Z` (AA, AB, …),
-* l’application du **masquage** (pré-large / non retenus),
-* la canonisation stricte des noms d’onglets,
-* l’application de styles visuels normalisés (codes de confiance).
-
-Il **ne réalise pas** :
-
-* le calcul des scores,
-* l’évaluation conformité métier,
-* la normalisation dictionnaire,
-* l’accès à la Couche B (Market Signal, mémoire, audit).
+DMS formalise un “atelier” (Couche A) et une “mémoire” (Couche B) pour que l’organisation respire : **plus rapide**, **plus cohérent**, **plus auditable**.
 
 ---
 
-## 3. Contraintes structurelles (non négociables)
+## Architecture (2 couches)
 
-Ce moteur applique volontairement les contraintes suivantes :
+### Couche A — Atelier d’exécution (procédural, autonome)
+Responsable de :
+- ingestion de documents (DAO/RFQ/RFP…)
+- extraction (texte/structures)
+- normalisation via dictionnaire procurement (non contournable)
+- scoring multi-critères
+- génération / export **CBA Excel** + **PV Word**
+- registre de dépôt (append-only)
+- comité (configuration → validation → **LOCK irréversible**)
 
-* ❌ **Aucune insertion dynamique de colonnes**
-* ❌ **Aucune modification du template Excel**
-* ❌ **Aucune logique métier procurement**
-* ❌ **Aucune dépendance ERP**
-* ❌ **Aucun état global ou cache**
+**Couche A est autonome** : elle doit pouvoir produire les livrables sans Couche B.
 
-Toutes les colonnes calculées sont **déterministes**, basées sur :
+### Couche B — Mémoire & Market Signal (non prescriptive)
+Responsable de :
+- Market Signal à 3 sources (mercuriale / historique / market surveys)
+- explications contextuelles (aide à la compréhension)
+- audit vivant : traces, corrections, historique, justification
 
-* un index fournisseur,
-* une base de colonne connue,
-* un algorithme robuste (support > Z).
-
----
-
-## 4. Source de vérité (Template Spec)
-
-La **spécification du template** est versionnée et constitue la **seule source de vérité** :
-
-```
-docs/templates/template_spec_v1.0.json
-```
-
-Cette spécification définit :
-
-* les onglets attendus,
-* les colonnes fixes,
-* les offsets fournisseurs,
-* les règles de masquage,
-* les zones éditables vs protégées.
-
-⚠️ Toute modification du template **impose une nouvelle version de spec**.
+**Couche B n’influence jamais les scores.**  
+Elle éclaire, elle ne décide pas.
 
 ---
 
-## 5. Structure du module
+## Principes non négociables
 
-```
-src/mapping/
-├── template_engine.py        # Orchestrateur principal
-├── supplier_mapper.py        # Fonctions populate_* par section
-├── column_calculator.py      # Calcul robuste des colonnes (> Z)
-├── styling.py                # Styles & codes visuels de confiance
-tests/mapping/
-├── test_engine_smoke.py      # Test smoke canonique
-docs/templates/
-├── template_spec_v1.0.json   # Spécification versionnée
-src/templates/
-├── DMS-CBA-CANONICAL-V1.0.xlsx
-```
+La référence officielle est la Constitution :
+
+- `docs/CONSTITUTION_DMS_V3.3.2.md`
+- `docs/INVARIANTS.md`
+
+Exemples de règles “opposables” :
+- **Append-only** sur les traces critiques (corrections, registre dépôt, lock events, logs).
+- **Aucun scoring sur une offre brute** : normalisation obligatoire.
+- **Comité** : une fois **LOCK**, la composition ne change plus (interdiction totale de remplacement/ajout/suppression).
+- **Couche B non prescriptive** : pas de recommandations décisionnelles.
 
 ---
 
-## 6. API principale
+## Workflow fonctionnel (haut niveau)
 
-### Initialisation
-
-```python
-from mapping.template_engine import TemplateMappingEngine
-
-engine = TemplateMappingEngine(
-    spec_path="docs/templates/template_spec_v1.0.json",
-    template_path="src/templates/DMS-CBA-CANONICAL-V1.0.xlsx",
-)
-```
-
-### Export CBA
-
-```python
-out = engine.export_cba(
-    case_data=case_data,
-    output_dir="out"
-)
-```
-
-Le moteur retourne :
-
-* le chemin du fichier généré,
-* une trace d’exécution déterministe,
-* un statut de complétion.
+1. Création d’un cas (case)
+2. Upload des documents
+3. Extraction + corrections (append-only)
+4. Normalisation via dictionnaire
+5. Scoring + tableau comparatif
+6. Configuration comité (identités) → **LOCK comité**
+7. Export des livrables (CBA/PV)
+8. Mémoire & Market Signal consultables (Couche B)
 
 ---
 
-## 7. Format d’entrée attendu (`case_data`)
+## Documentation (où lire quoi)
 
-```python
-case_data = {
-  "case_id": "MOPTI-2026-01",
-  "version": 1,
-  "submissions": [
-    {
-      "supplier_name": "FOURNISSEUR A",
-      "conformity": {"RC": True},
-      "capacity_scores": {},
-      "sustainability_scores": {},
-      "line_items": []
-    }
-  ]
-}
-```
+### Canonique
+- Constitution : `docs/CONSTITUTION_DMS_V3.3.2.md`
+- Plan milestones : `docs/MILESTONES_EXECUTION_PLAN_V3.3.2.md`
+- ADRs : `docs/adrs/ADR-0001.md`
 
-⚠️ Toute donnée fournie à ce module est supposée :
+### Références techniques
+- Architecture : `docs/ARCHITECTURE.md`
+- Schéma DB : `docs/DATABASE_SCHEMA.md`
+- API : `docs/API_REFERENCE.md`
+- Sécurité : `docs/SECURITY.md`
+- SLA / perf : `docs/PERFORMANCE_SLA.md`
+- Guide dev : `docs/DEVELOPER_GUIDE.md`
+- Guide user : `docs/USER_GUIDE.md`
 
-* validée,
-* normalisée,
-* scorée en amont.
+### Freeze (immutables)
+- Index : `docs/freeze/README.md`
+- Freeze V3.3.2 : `docs/freeze/v3.3.2/`  
+  (manifest + hashes SHA256 + copies des docs)
 
 ---
 
-## 8. Tests & garanties
+## Structure du repo (indicative)
 
-* `test_engine_smoke.py` valide :
+src/
+couche_a/ # ingestion, extraction, normalisation, scoring, exports, UX workspace
+couche_b/ # mémoire, market signal/survey, chat/context (non prescriptif)
+dictionary/ # colonne vertébrale normalisation (items, unités, vendors)
+mapping/ # moteur mapping template CBA (si utilisé)
+docs/
+adrs/
+audits/
+freeze/
+tests/
+invariants/
+ux/
+mapping/
+.github/workflows/
 
-  * chargement du template,
-  * projection minimale,
-  * absence d’erreur runtime,
-  * respect strict de la spec.
-
-Ce module est conçu pour :
-
-* **ne jamais casser silencieusement**,
-* **échouer tôt** si la spec ou le template divergent.
-
----
-
-## 9. Alignement Constitution DMS
-
-Ce module est conforme aux invariants suivants :
-
-* **INV-1** : Exécution rapide et déterministe
-* **INV-2** : Couche A autonome
-* **INV-3** : Aucune influence sur le scoring
-* **INV-7** : ERP-agnostique
-* **INV-9** : Résultat strictement égal à la formule/spec
 
 ---
 
-## 10. Statut freeze
+## Quickstart (local)
 
-```yaml
-Module: CBA Template Mapping Engine
-Version: V1.0
-DMS: V3.3.2
-Statut: FREEZE-COMPATIBLE
-Modifiable: ❌ sans versioning
-Responsable: Abdoulaye Ousmane (CTO)
-```
+### Pré-requis
+- Python 3.11+
+- PostgreSQL 15+
+- (Optionnel) Docker
 
-Toute évolution future impose :
+### Variables d’environnement
+Exemple :
+- `DATABASE_URL=postgresql://user:pass@localhost:5432/dms`
+- `JWT_SECRET_KEY=...`
+- `ENV=dev`
 
-1. Nouvelle version de spec,
-2. Tests dédiés,
-3. Validation explicite CTO.
+### Installer & lancer
+```bash
+python -m venv .venv
+source .venv/bin/activate
 
----
+pip install -r requirements.txt
 
-**FIN DU README CANONIQUE**
+# migrations
+alembic upgrade head
+
+# run api
+uvicorn src.main:app --reload
+Tests
+pytest -q
+Coverage (si gate activé)
+pytest --cov=src --cov-report=term-missing
+CI / Qualité
+La CI est l’arbitre :
+
+CI verte obligatoire
+
+tests invariants obligatoires (voir tests/invariants/)
+
+gate coverage selon phase (voir plan milestones)
+
+Aucune PR ne doit être mergée avec CI rouge.
+
+Sécurité (résumé)
+DMS implémente / prévoit :
+
+JWT + RBAC (rôles)
+
+validation upload (magic bytes, taille, etc.)
+
+rate limiting
+
+secrets uniquement via env
+
+logs structurés + audit log
+
+Détails : docs/SECURITY.md
+
+Déploiement
+Déploiement cible : Railway (PostgreSQL + app).
+Checklist & validation : docs/DEPLOYMENT.md (ou section deployment du plan milestones).
+
+Module — CBA Template Mapping Engine
+Si tu utilises le moteur de mapping CBA (pré-large + masquage fournisseurs), la doc module doit vivre hors README racine :
+
+doc module : docs/modules/MAPPING_ENGINE.md (recommandé)
+ou src/mapping/README.md (acceptable)
+
+Le README racine doit rester produit/architecture, pas “un seul sous-module”.
+
+Licence / Propriété intellectuelle
+Ce dépôt et son contenu sont une propriété intellectuelle.
+L’usage, la reproduction et la redistribution sont soumis aux règles définies par l’auteur.
+
