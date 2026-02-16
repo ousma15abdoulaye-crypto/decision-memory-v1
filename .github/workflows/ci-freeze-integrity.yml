@@ -1,0 +1,37 @@
+name: Freeze Integrity V3.3.2
+
+on:
+  push:
+    branches: [main, develop, ci/*, fix/*, feat/*]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  verify-freeze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify freeze files present
+        run: |
+          test -d "docs/freeze/v3.3.2" || (echo "❌ docs/freeze/v3.3.2 absent" && exit 1)
+          test -f "docs/freeze/v3.3.2/SHA256SUMS.txt" || (echo "❌ SHA256SUMS.txt absent" && exit 1)
+          test -f "docs/freeze/v3.3.2/FREEZE_MANIFEST.md" || (echo "❌ FREEZE_MANIFEST.md absent" && exit 1)
+          echo "✅ Freeze files present"
+
+      - name: Verify SHA256 checksums (from repo root)
+        run: |
+          sha256sum -c docs/freeze/v3.3.2/SHA256SUMS.txt
+          echo "✅ Freeze V3.3.2 integrity verified"
+
+      - name: Check freeze tag exists (informational)
+        run: |
+          git fetch --tags --force
+          if git rev-parse v3.3.2-freeze >/dev/null 2>&1; then
+            echo "✅ Tag v3.3.2-freeze exists"
+          else
+            echo "⚠️ Tag v3.3.2-freeze not found yet (create after merge)"
+          fi
