@@ -1,137 +1,300 @@
-📝 NOTE DE TRANSMISSION – DMS V3 (Constitution, Milestones, Discipline)
+Titre : NOTE DE TRANSMISSION — DMS V3.3.2 (Constitution, Milestones, Discipline)
 Projet : Decision Memory System (DMS)
-Rôle : Assistant intelligent de procurement (ONG, États, Mines, Privé)
-Référence produit : docs/CONSTITUTION_V3.md (incluant l’Addendum FROZEN+)
+Périmètre : Backend + DB + CI/CD + Docs + UX (selon milestones)
+Rôle du système : Assistant intelligent de procurement (ONG, États, Mines, Privé)
+Autorité : Abdoulaye Ousmane — Founder & CTO
+Statut : CANONIQUE · OPPOSABLE · FREEZABLE
+Date : 2026-02-16
+Hash (à renseigner au freeze) : SHA256 dans docs/freeze/FREEZE_MANIFEST.md
 
-Cette note fixe le cadre de travail non négociable pour tout agent (IA ou humain) intervenant sur le projet.
+0) Objet et force obligatoire
 
-1. Référence unique : Constitution V3 + Addendum
-La seule source de vérité fonctionnelle et stratégique est la Constitution V3 (fichier docs/CONSTITUTION_V3.md).
+Cette note définit le cadre de travail non négociable applicable à tout agent (IA ou humain) qui :
 
-L’Addendum FROZEN+ fait partie intégrante de cette Constitution (frontière A/B, machine d’état, doctrine d’échec, responsabilité humaine).
+propose une évolution,
 
-Toute proposition, PR, refactor ou évolution doit être compatible avec:
+écrit du code,
 
-la séparation stricte Couche A / Couche B,
+modifie une CI,
 
-la machine d’état des processus,
+modifie la base,
 
-le principe “le système aide à décider, mais ne décide jamais”.
+modifie un document de référence,
 
-Si une instruction ou une optimisation contredit la Constitution, la Constitution prime.
+ou prépare une PR.
 
-2. Milestones à suivre – Ordre figé (aucun saut)
-L’agent doit respecter strictement l’ordre suivant, sans sauter ni réordonner les milestones:
+Règle système : si un comportement n’est pas conforme à ce cadre, il est refusé, même s’il “améliore” localement le produit.
 
-M2‑EXTENDED – Références & catégories
+1) Sources de vérité (références uniques, opposables)
+1.1 Documents canoniques obligatoires (ordre de lecture)
 
-État: DONE, mergé.
+docs/CONSTITUTION_DMS_V3.3.2.md
 
-M4A‑FIX – Chaîne Alembic 002→003→004
+inclut l’Addendum FROZEN+ (frontière A/B, machine d’état, doctrine d’échec, responsabilité humaine)
 
-État: DONE, mergé.
+docs/MILESTONES_EXECUTION_PLAN_V3.3.2.md
 
-M‑REFACTOR – Découpage de main.py
+docs/INVARIANTS.md
 
-Objectif: supprimer le monolithe, sortir les routes dans des modules src/api/*, src/couche_a/*, etc.
+docs/adrs/ADR-0001.md
 
-main.py ne doit contenir que: création app, wiring des routeurs, middlewares, config.
+1.2 Règle de primauté
 
-Aucune modification fonctionnelle, uniquement structure.
+Si une instruction, une PR, un refactor, une optimisation ou un “quick win” contredit :
 
-M‑TESTS – Remonter la qualité des tests
+la séparation Couche A / Couche B,
 
-Objectif: tests fiables, CI sans masquage, couverture ≥ 40% sur modules critiques (upload_security, auth, Couche A core).
+la machine d’état,
 
-Suppression définitive de tout || true dans la CI.
+ou “le système aide à décider mais ne décide jamais”,
+alors la proposition est invalide.
 
-M8 – Couche B MVP – Mémoire vivante minimaliste
+1.3 Règle de gel (freeze)
 
-Migration pg_trgm, resolvers fuzzy, endpoints Couche B, tests dédiés.
+Après freeze, ces documents deviennent immutables (édition uniquement via amendement versionné + ADR + validation CTO).
 
-Respect absolu de la frontière: Couche B ne modifie jamais Couche A.
+2) Séquence de milestones (ordre figé, aucun saut)
+2.1 Principe général (binaire)
 
-Ensuite seulement :
+Un milestone est DONE ou ABSENT.
 
-M3A – Extraction typée des critères,
+Un milestone suivant ne démarre pas tant que le précédent n’est pas DONE.
 
-M3B, M2B, M5, M6, M7, etc., selon la roadmap définie dans la Constitution V3.
+Aucun “démarrage en parallèle” sans ADR + validation CTO explicite.
 
-Tout agent qui propose d’implémenter M8, M3A ou toute autre feature avant M‑REFACTOR et M‑TESTS est en dehors du cadre de ce projet.
+2.2 Milestones internes (pré-registry) — ordre imposé
 
-3. Discipline CI / Tests – Niveau “haut standard”
-Exigences non négociables:
+Ces milestones sont des pré-requis d’hygiène (repo/structure/CI) avant d’attaquer le registry complet V3.3.2.
 
-CI verte réelle
+M2-EXTENDED — Références & catégories
 
-Interdiction absolue de masquer les échecs (|| true dans .github/workflows/ci.yml).
+État : DONE, mergé.
 
-Si pytest échoue, la CI doit être rouge et bloquer le merge.
+Règle : considéré verrouillé ; tout changement = PR dédiée + justification + tests.
 
-Pipeline minimal attendu
+M4A-FIX — Chaîne Alembic 002→003→004
 
-alembic upgrade head doit passer.
+État : DONE, mergé.
+
+Règle : aucune migration ne doit casser alembic upgrade head.
+
+M-REFACTOR — Découpage de main.py (structure uniquement)
+
+Objectif : supprimer le monolithe, organiser en modules :
+
+src/api/ (routes + dépendances)
+
+src/couche_a/ (logique Couche A)
+
+src/couche_b/ (logique Couche B)
+
+src/security/ (auth/rbac/rate limit)
+
+src/db/ (connexions, migrations, helpers SQL)
+
+Contrainte : main.py ne contient que :
+
+création app,
+
+wiring routeurs,
+
+middlewares,
+
+config.
+
+Interdit : tout changement fonctionnel. Refactor = structure only.
+
+M-TESTS — Remonter la qualité des tests
+
+Objectif : tests fiables, CI sans masquage, couverture ≥ 40% sur modules critiques :
+
+upload_security, auth, couche_a core
+
+Interdit : || true dans la CI (suppression définitive).
+
+Interdit : tests “flaky” non isolés ; si instable → corriger ou supprimer.
+
+M8 — Couche B MVP (mémoire minimaliste)
+
+Contenu minimal :
+
+extension pg_trgm (si fuzzy matching DB),
+
+resolvers fuzzy,
+
+endpoints Couche B,
+
+tests dédiés.
+
+Ligne rouge : Couche B ne modifie jamais Couche A.
+
+Ensuite seulement : milestones du registry V3.3.2
+
+M3A (Extraction typée critères),
+
+M3B, M2B, M5, M6, M7, etc.
+
+Selon l’ordre défini dans docs/MILESTONES_EXECUTION_PLAN_V3.3.2.md.
+
+2.3 Règle d’exclusion
+
+Tout agent qui propose d’implémenter M8, M3A, ou toute feature avant M-REFACTOR et M-TESTS est hors cadre.
+
+3) Discipline CI / Tests — niveau “haut standard” (non négociable)
+3.1 Interdictions absolues
+
+Interdit : masquer un échec CI (ex : || true, continue-on-error non justifié).
+
+Interdit : merger avec CI rouge.
+
+Interdit : introduire une dépendance non déclarée / non documentée.
+
+Interdit : secrets en dur (tokens, passwords, URLs sensibles).
+
+3.2 Pipeline CI minimal obligatoire (commandes exactes)
+
+La CI doit exécuter et valider au minimum :
+
+Migrations
+
+alembic upgrade head doit passer (sur DB propre).
+
+Tests
 
 pytest tests/ -v --tb=short doit passer.
 
+Compilation
+
 python -m compileall src/ -q doit réussir.
 
-Sécurité auth (M4A-F)
+Quality gate
 
-Endpoints /auth/token, /auth/register, /auth/me doivent être protégés par rate limiting via slowapi (@limiter.limit(...)).
+Couverture : seuil progressif mais ≥ 40% sur modules sensibles (voir §2.2.4).
 
-Toute PR qui touche à l’auth doit préserver ou renforcer ces protections.
+Toute nouvelle logique métier critique = tests obligatoires.
 
-Qualité des tests
+3.3 Sécurité Auth — protection minimale opposable
 
-Toute nouvelle logique métier doit venir avec des tests.
+Tout endpoint d’auth doit rester protégé :
 
-Objectif: couverture progressive, mais ≥ 40% sur les modules sensibles.
+/auth/token
 
-Aucun “code magique” ou non testé dans les zones critiques (upload, auth, critères).
+/auth/register
 
-4. Frontière Couche A / Couche B – Ligne rouge
-Couche A : ouvrier cognitif, moteur d’analyse, CBA/PV, décision processuelle.
+/auth/me
+
+Exigence : rate limiting via slowapi (@limiter.limit(...)) + tests prouvant l’enforcement.
+
+Règle : toute PR touchant auth doit préserver ou renforcer ces protections.
+
+3.4 Qualité des tests (règles système)
+
+Toute nouvelle logique métier = tests unitaires minimum.
+
+Pas de “code magique” dans : upload, auth, critères, scoring, comité.
+
+Pas de tests qui passent “par hasard” : fixtures explicites, données contrôlées.
+
+4) Frontière Couche A / Couche B — ligne rouge (opposable)
+4.1 Définition
+
+Couche A : ouvrier cognitif, moteur d’analyse, pipeline documents→extraction→normalisation→scoring→exports (CBA/PV).
 
 Couche B : mémoire intelligente, historique, market intelligence, patterns, Q/R factuelles.
 
-Règles de fer:
+4.2 Règles de fer (interdictions absolues)
 
-Couche B est read‑only vis-à-vis de Couche A:
+Couche B est read-only vis-à-vis de Couche A :
 
-pas de modification de scores,
+Interdit à Couche B :
 
-pas de recalcul de notes,
+modifier des scores,
 
-pas de changement d’ordre des classements.
+recalculer des notes,
 
-Aucun endpoint, module ou agent de Couche B ne peut modifier un état, un calcul, un export Couche A.
+changer un classement,
 
-Les suggestions de la Couche B sont des faits, des comparaisons, des questions, jamais des prescriptions.
+injecter un coefficient marché dans le scoring,
 
-Toute dérive (reco fournisseur, “best choice”, scoring global fournisseur) est strictement interdite.
+modifier un état d’un process Couche A,
 
-5. Doctrine d’échec & responsabilité humaine
-Le DMS préfère échouer explicitement (refuser un CBA, marquer un document comme incomplet) plutôt que produire un résultat ambigu ou trompeur.
+modifier un export Couche A,
 
-Les documents générés (CBA, PV, exports) sont des pré‑documents à valider par des humains habilités.
+écrire dans des tables Couche A liées au process en cours (hors traces append-only strictement autorisées par Constitution).
+
+4.3 Non-prescriptif (forme et contenu)
+
+Les sorties Couche B sont :
+
+faits,
+
+comparaisons,
+
+tendances,
+
+questions,
+
+anomalies factuelles.
+
+Interdit :
+
+recommandation fournisseur (“best choice”),
+
+scoring global fournisseur,
+
+“classement conseillé”,
+
+toute formulation qui transfère la responsabilité au système.
+
+5) Doctrine d’échec & responsabilité humaine (opposable)
+5.1 Doctrine d’échec explicite
+
+Le DMS préfère :
+
+échouer explicitement (refuser un CBA, marquer incomplet),
+plutôt que :
+
+produire un résultat ambigu ou trompeur.
+
+5.2 Responsabilité humaine
+
+CBA/PV/exports sont des pré-documents à valider par des humains habilités.
 
 La décision finale reste 100% humaine (comités, managers, autorités).
 
-Aucune feature ne doit déplacer la responsabilité sur le système.
+Aucune feature ne doit déplacer la responsabilité vers le système.
 
-6. Attentes de professionnalisme pour tout agent
-Pour ce projet, le niveau attendu est celui d’un tech lead senior dans un environnement critique:
+6) Attentes de professionnalisme (standard tech lead senior)
+6.1 Règles d’exécution
 
-Respect strict de la séquence de milestones (pas de “sauts” opportunistes).
+Respect strict de la séquence milestones (pas de “sauts opportunistes”).
 
-PR petites, ciblées, lisibles, avec descriptions claires et tests associés.
+PR petites, ciblées, lisibles, avec description claire et tests associés.
 
-Pas de shortcuts en CI ou sécurité, même “temporairement”.
+Aucun shortcut en CI ou sécurité, même “temporairement”.
 
-Conformité stricte à docs/CONSTITUTION_V3.md + Addendum, considérés comme contrat produit/tech.
+6.2 Règles de dépôt / environnement
 
-Capacité à dire non à une évolution si elle viole les invariants (même si elle semble “intéressante”).
+Le code source officiel vit dans Git (repo).
 
-Règle ultime pour l’agent :
-“Si un choix technique améliore localement quelque chose mais affaiblit la Constitution, la roadmap ou la discipline CI, il doit être refusé.”
+Aucun changement “hors repo” n’est considéré comme existant.
+
+Toute modification doit être intégrée via PR, puis déployée via pipeline prévu (Railway selon DevOps).
+
+6.3 Règle ultime (non négociable)
+
+“Si un choix technique améliore localement quelque chose mais affaiblit la Constitution, la roadmap, la frontière A/B, ou la discipline CI, il doit être refusé.”
+
+7) Clause d’application (enforcement)
+
+Toute PR non conforme à cette note doit être refusée.
+
+Toute exception nécessite :
+
+ADR,
+
+justification,
+
+validation explicite CTO,
+
+tests prouvant l’absence de dérive.
