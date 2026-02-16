@@ -1,0 +1,73 @@
+name: Milestones Gates V3.3.2
+
+on:
+  push:
+    branches: [main, develop, ci/*]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  milestones:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure .milestones exists
+        run: |
+          mkdir -p .milestones
+
+      - name: Check no out-of-order DONE markers
+        run: |
+          ordered=(
+            "M-DOCS-CORE"
+            "M-EXTRACTION-ENGINE"
+            "M-EXTRACTION-CORRECTIONS"
+            "M-CRITERIA-TYPING"
+            "M-NORMALISATION-ITEMS"
+            "M-SCORING-ENGINE"
+            "M-SCORING-TESTS-CRITIQUES"
+            "M-COMMITTEE-CORE"
+            "M-CBA-TEMPLATES"
+            "M-PV-TEMPLATES"
+            "M-CBA-GEN"
+            "M-PV-GEN"
+            "M-PIPELINE-A-E2E"
+            "M-SECURITY-CORE"
+            "M-TRACE-HISTORY"
+            "M-CI-INVARIANTS"
+            "M-MARKET-DATA-TABLES"
+            "M-MARKET-INGEST"
+            "M-MARKET-SURVEY-WORKFLOW"
+            "M-MARKET-SIGNAL-ENGINE"
+            "M-CONTEXT-UI-PANEL"
+            "M-DICT-FUZZY-MATCH"
+            "M-MONITORING-OPS"
+            "M-DEVOPS-DEPLOY"
+            "M10-UX-V2"
+            "M-UX-TEST-TERRAIN"
+            "M-ERP-AGNOSTIC-CHECK"
+            "M-PILOT-EARLY-ADOPTERS"
+          )
+
+          highest_done=-1
+          for i in "${!ordered[@]}"; do
+            m="${ordered[$i]}"
+            if [ -f ".milestones/${m}.done" ]; then
+              highest_done=$i
+            fi
+          done
+
+          for i in $(seq 0 $highest_done); do
+            m="${ordered[$i]}"
+            if [ ! -f ".milestones/${m}.done" ]; then
+              echo "❌ Out-of-order: ${ordered[$highest_done]} is DONE but ${m} is missing"
+              exit 1
+            fi
+          done
+
+          if [ $highest_done -ge 0 ]; then
+            echo "✅ Milestones order OK (highest: ${ordered[$highest_done]})"
+          else
+            echo "ℹ️ No milestones done yet"
+          fi
