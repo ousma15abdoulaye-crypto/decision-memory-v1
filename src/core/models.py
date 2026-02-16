@@ -1,6 +1,7 @@
 """
 Pydantic models and dataclasses for Decision Memory System.
 """
+
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from pydantic import BaseModel
@@ -33,6 +34,7 @@ class DecideRequest(BaseModel):
 @dataclass
 class CBATemplateSchema:
     """Structure détectée d'un template CBA (adaptive)"""
+
     template_id: str
     template_name: str
     supplier_header_row: int
@@ -47,6 +49,7 @@ class CBATemplateSchema:
 @dataclass
 class DAOCriterion:
     """Critère structuré extrait du DAO"""
+
     categorie: str
     critere_nom: str
     description: str
@@ -59,6 +62,7 @@ class DAOCriterion:
 @dataclass
 class OfferSubtype:
     """Classification automatique du type de document d'offre"""
+
     subtype: str  # FINANCIAL_ONLY | TECHNICAL_ONLY | ADMIN_ONLY | COMBINED
     has_financial: bool
     has_technical: bool
@@ -69,6 +73,7 @@ class OfferSubtype:
 @dataclass
 class SupplierPackage:
     """Agrégation de tous les documents d'un fournisseur"""
+
     supplier_name: str
     offer_ids: List[str]
     documents: List[dict]

@@ -1,9 +1,9 @@
 """
 Health and status endpoints.
 """
+
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
-from pathlib import Path
 
 from src.core.config import APP_VERSION, INVARIANTS, STATIC_DIR
 
@@ -23,7 +23,7 @@ def health():
     return {
         "status": "healthy",
         "version": APP_VERSION,
-        "invariants_status": "enforced"
+        "invariants_status": "enforced",
     }
 
 

@@ -14,13 +14,13 @@ SIMILARITY_THRESHOLD = 0.6
 
 def resolve_vendor(name: str) -> Optional[int]:
     """Resolve vendor name to vendor_id using fuzzy matching.
-    
+
     Args:
         name: Vendor name to search (may contain typos)
-        
+
     Returns:
         vendor_id if match found with similarity >= 60%, None otherwise
-        
+
     Examples:
         >>> resolve_vendor("Marché Central")  # exact match
         1
@@ -31,7 +31,7 @@ def resolve_vendor(name: str) -> Optional[int]:
     """
     if not name or not name.strip():
         return None
-    
+
     with get_session() as session:
         result = session.execute(
             text("""
@@ -41,21 +41,21 @@ def resolve_vendor(name: str) -> Optional[int]:
                 ORDER BY similarity(name, :search_name) DESC
                 LIMIT 1
             """),
-            {"search_name": name.strip(), "threshold": SIMILARITY_THRESHOLD}
+            {"search_name": name.strip(), "threshold": SIMILARITY_THRESHOLD},
         ).fetchone()
-        
+
         return result[0] if result else None
 
 
 def resolve_item(description: str) -> Optional[int]:
     """Resolve item description to item_id using fuzzy matching.
-    
+
     Args:
         description: Item description to search (may contain typos)
-        
+
     Returns:
         item_id if match found with similarity >= 60%, None otherwise
-        
+
     Examples:
         >>> resolve_item("Riz local")  # exact match
         1
@@ -66,7 +66,7 @@ def resolve_item(description: str) -> Optional[int]:
     """
     if not description or not description.strip():
         return None
-    
+
     with get_session() as session:
         result = session.execute(
             text("""
@@ -76,21 +76,21 @@ def resolve_item(description: str) -> Optional[int]:
                 ORDER BY similarity(description, :search_desc) DESC
                 LIMIT 1
             """),
-            {"search_desc": description.strip(), "threshold": SIMILARITY_THRESHOLD}
+            {"search_desc": description.strip(), "threshold": SIMILARITY_THRESHOLD},
         ).fetchone()
-        
+
         return result[0] if result else None
 
 
 def resolve_zone(name: str) -> Optional[str]:
     """Resolve zone name to zone_id using fuzzy matching.
-    
+
     Args:
         name: Zone name to search (may contain typos)
-        
+
     Returns:
         zone_id if match found with similarity >= 60%, None otherwise
-        
+
     Examples:
         >>> resolve_zone("Bamako")  # exact match
         'zone-bamako-1'
@@ -105,7 +105,7 @@ def resolve_zone(name: str) -> Optional[str]:
     """
     if not name or not name.strip():
         return None
-    
+
     with get_session() as session:
         result = session.execute(
             text("""
@@ -115,7 +115,7 @@ def resolve_zone(name: str) -> Optional[str]:
                 ORDER BY similarity(name, :search_name) DESC
                 LIMIT 1
             """),
-            {"search_name": name.strip(), "threshold": SIMILARITY_THRESHOLD}
+            {"search_name": name.strip(), "threshold": SIMILARITY_THRESHOLD},
         ).fetchone()
-        
+
         return result[0] if result else None

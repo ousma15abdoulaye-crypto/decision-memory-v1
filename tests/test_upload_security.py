@@ -1,4 +1,5 @@
 """Tests uploads sécurisés (M4F)."""
+
 import pytest
 import uuid
 import io
@@ -10,10 +11,9 @@ client = TestClient(app)
 
 def get_token(username: str = "admin", password: str = "admin123") -> str:
     """Helper login – retourne le token JWT."""
-    response = client.post("/auth/token", data={
-        "username": username,
-        "password": password
-    })
+    response = client.post(
+        "/auth/token", data={"username": username, "password": password}
+    )
     if response.status_code != 200:
         raise Exception(f"Login failed: {response.json()}")
     return response.json()["access_token"]
@@ -21,13 +21,14 @@ def get_token(username: str = "admin", password: str = "admin123") -> str:
 
 def create_test_case(token: str) -> str:
     """Helper – crée un cas de test et retourne son ID."""
-    response = client.post("/api/cases",
+    response = client.post(
+        "/api/cases",
         json={
             "case_type": "DAO",
             "title": f"Test Case {uuid.uuid4().hex[:8]}",
-            "lot": None
+            "lot": None,
         },
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200, f"Case creation failed: {response.json()}"
     return response.json()["id"]
@@ -51,7 +52,7 @@ def test_upload_file_too_large():
     response = client.post(
         f"/api/cases/{case_id}/upload-dao",
         files={"file": ("large.pdf", large_content, "application/pdf")},
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 413
     assert "too large" in response.json()["detail"].lower()
@@ -65,8 +66,10 @@ def test_upload_invalid_filename():
     pdf_content = b"%PDF-1.4\ntest"
     response = client.post(
         f"/api/cases/{case_id}/upload-dao",
-        files={"file": ("../../../etc/passwd", io.BytesIO(pdf_content), "application/pdf")},
-        headers={"Authorization": f"Bearer {token}"}
+        files={
+            "file": ("../../../etc/passwd", io.BytesIO(pdf_content), "application/pdf")
+        },
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 400
     assert "Invalid filename" in response.json()["detail"]
@@ -82,7 +85,7 @@ def test_mime_type_validation():
     response = client.post(
         f"/api/cases/{case_id}/upload-dao",
         files=files,
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
     )
     # Doit échouer la validation MIME (python-magic)
     assert response.status_code in [400, 415]  # Selon implémentation
@@ -100,7 +103,7 @@ def test_duplicate_dao_upload():
     response1 = client.post(
         f"/api/cases/{case_id}/upload-dao",
         files=files,
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert response1.status_code in [200, 202]  # Accepté
 
@@ -108,16 +111,18 @@ def test_duplicate_dao_upload():
     response2 = client.post(
         f"/api/cases/{case_id}/upload-dao",
         files={"file": ("dao2.pdf", io.BytesIO(pdf_content), "application/pdf")},
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert response2.status_code == 409
     assert "already uploaded" in response2.json()["detail"].lower()
 
 
-@pytest.mark.skip(reason="Rate limiting disabled in TESTING mode - see test_rate_limit_upload_real for alternative")
+@pytest.mark.skip(
+    reason="Rate limiting disabled in TESTING mode - see test_rate_limit_upload_real for alternative"
+)
 def test_rate_limit_upload():
     """Rate limit sur upload-dao → 429 après 5 requêtes/minute.
-    
+
     NOTE: This test is skipped because rate limiting is disabled in TESTING mode.
     See test_rate_limit_upload_real for a working alternative that tests rate limiting.
     """
@@ -130,8 +135,10 @@ def test_rate_limit_upload():
         case_id = create_test_case(token)
         response = client.post(
             f"/api/cases/{case_id}/upload-dao",
-            files={"file": (f"file{i}.pdf", io.BytesIO(pdf_content), "application/pdf")},
-            headers={"Authorization": f"Bearer {token}"}
+            files={
+                "file": (f"file{i}.pdf", io.BytesIO(pdf_content), "application/pdf")
+            },
+            headers={"Authorization": f"Bearer {token}"},
         )
         responses.append(response.status_code)
 
@@ -141,51 +148,51 @@ def test_rate_limit_upload():
 
 def test_rate_limit_upload_real():
     """Test rate limiting with actual enforcement (security critical).
-    
+
     This test verifies that rate limiting works correctly by testing against
     a dedicated endpoint that has strict rate limits enabled.
     """
     # We can't easily re-enable rate limiting on existing endpoints without
     # reloading the app, so instead we verify the rate limiting configuration
     # and test against login endpoint which has strict limits (3/hour)
-    
+
     # Strategy: Test the login endpoint which has @limiter.limit("3/hour")
     # This provides security coverage without needing to modify TESTING mode
-    
+
     # However, since TESTING mode disables ALL rate limits via conditional_limit,
     # we need to verify the rate limiter is properly configured for production
-    
+
     # Alternative: We can verify the limiter configuration exists
     from src.ratelimit import limiter, TESTING
-    
+
     # In test mode, verify that rate limiting would work in production
     assert TESTING is True, "This test assumes TESTING mode is enabled"
-    
+
     # Verify that rate limits are configured on critical endpoints
     # by checking that the limiter object exists and is properly configured
     assert limiter is not None, "Rate limiter should be initialized"
-    
+
     # For actual rate limit testing, we rely on integration tests in
     # non-TESTING environments or manual testing
     # This is a known limitation per Constitution V3 requirement that
     # "rate limiting must be tested for security on sensitive endpoints"
-    
+
     # As a compromise, we can at least verify the endpoints have limits defined
     # by importing and checking the route decorators
     import inspect
     from src.couche_a import routers
-    
+
     # Check that upload endpoints have rate limit decorators
     upload_dao_source = inspect.getsource(routers.upload_dao)
     assert "limiter.limit" in upload_dao_source, "upload_dao should have rate limiting"
-    
+
     # This provides compile-time verification that rate limiting is configured,
     # even if we can't test runtime behavior in TESTING mode
 
 
 def test_case_quota_enforcement():
     """Test case upload quota enforcement (within size limits).
-    
+
     This test verifies that individual file size limits are enforced.
     Files must be under 50MB per file, and we test quota tracking.
     """
@@ -201,14 +208,16 @@ def test_case_quota_enforcement():
     response1 = client.post(
         f"/api/cases/{case_id}/upload-dao",
         files={"file": ("dao1.pdf", io.BytesIO(file_content), "application/pdf")},
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
     )
-    assert response1.status_code == 200, f"First upload should succeed: {response1.json() if response1.status_code != 200 else 'OK'}"
+    assert (
+        response1.status_code == 200
+    ), f"First upload should succeed: {response1.json() if response1.status_code != 200 else 'OK'}"
 
     # The test primarily verifies that:
     # 1. Individual files under 50MB are accepted
     # 2. The upload quota tracking is working
-    # 
+    #
     # Note: Testing the cumulative 500MB quota would require uploading many files
     # which would make the test very slow. That's better tested in integration tests.
     # This test focuses on verifying the per-file size limit works correctly.
@@ -224,22 +233,18 @@ def test_upload_with_sql_injection_attempt():
 
     response = client.post(
         f"/api/cases/{case_id}/upload-offer",
-        data={
-            "supplier_name": malicious_name,
-            "offer_type": "financiere"
-        },
+        data={"supplier_name": malicious_name, "offer_type": "financiere"},
         files={"file": ("test.pdf", io.BytesIO(pdf_content), "application/pdf")},
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
     )
 
     # Ne doit pas planter, et les utilisateurs doivent toujours exister
     assert response.status_code in [200, 400, 409, 500]
 
     # Vérifier que la table users est toujours accessible
-    login_check = client.post("/auth/token", data={
-        "username": "admin",
-        "password": "admin123"
-    })
+    login_check = client.post(
+        "/auth/token", data={"username": "admin", "password": "admin123"}
+    )
     assert login_check.status_code == 200
 
 
@@ -267,7 +272,7 @@ def test_valid_pdf_upload_success():
     response = client.post(
         f"/api/cases/{case_id}/upload-dao",
         files={"file": ("valid.pdf", io.BytesIO(pdf_content), "application/pdf")},
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
     assert "artifact_id" in response.json()

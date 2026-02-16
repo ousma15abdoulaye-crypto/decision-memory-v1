@@ -8,7 +8,7 @@ from src.couche_b.resolvers import resolve_vendor, resolve_item, resolve_zone
 def seed_zones(db_session):
     """Seed test data for geo_master table."""
     from sqlalchemy import text
-    
+
     # Insert test zones (already seeded in migration, but ensure they exist)
     db_session.execute(text("""
         INSERT INTO geo_master (id, name, type, parent_id, created_at) VALUES
@@ -26,7 +26,7 @@ def seed_zones(db_session):
 def seed_vendors(db_session):
     """Seed test data for vendors table."""
     from sqlalchemy import text
-    
+
     db_session.execute(text("""
         INSERT INTO vendors (name, zone_id, created_at) VALUES
         ('Marché Central', 'zone-bamako-1', '2026-02-13T20:00:00'),
@@ -41,7 +41,7 @@ def seed_vendors(db_session):
 def seed_items(db_session):
     """Seed test data for items table."""
     from sqlalchemy import text
-    
+
     db_session.execute(text("""
         INSERT INTO items (description, category, unit_id, created_at) VALUES
         ('Riz local', 'Céréales', 1, '2026-02-13T20:00:00'),
@@ -56,21 +56,25 @@ def seed_items(db_session):
 def test_resolve_zone_exact_match(seed_zones):
     """Test exact zone name match."""
     zone_id = resolve_zone("Bamako")
-    assert zone_id == 'zone-bamako-1', "Exact match should resolve correctly"
-    
+    assert zone_id == "zone-bamako-1", "Exact match should resolve correctly"
+
     zone_id = resolve_zone("Kayes")
-    assert zone_id == 'zone-kayes-1', "Exact match should resolve correctly"
+    assert zone_id == "zone-kayes-1", "Exact match should resolve correctly"
 
 
 def test_resolve_zone_fuzzy_match(seed_zones):
     """Test fuzzy match with realistic typo (similarity ≥60%)"""
     # Test avec typo plausible : lettre manquante
     zone_id = resolve_zone("Bamko")  # "Bamako" avec typo: manque 'a'
-    assert zone_id == 'zone-bamako-1', "Should resolve 'Bamko' to 'Bamako' (typo tolerance)"
-    
+    assert (
+        zone_id == "zone-bamako-1"
+    ), "Should resolve 'Bamko' to 'Bamako' (typo tolerance)"
+
     # Test avec typo plausible : lettre doublée
     zone_id = resolve_zone("Bamaako")  # "Bamako" avec double 'a'
-    assert zone_id == 'zone-bamako-1', "Should resolve 'Bamaako' to 'Bamako' (typo tolerance)"
+    assert (
+        zone_id == "zone-bamako-1"
+    ), "Should resolve 'Bamaako' to 'Bamako' (typo tolerance)"
 
 
 def test_resolve_zone_no_match(seed_zones):
@@ -78,7 +82,7 @@ def test_resolve_zone_no_match(seed_zones):
     # Semantic variation: "Bamako City" has ~44% similarity, below 60% threshold
     zone_id = resolve_zone("Bamako City")
     assert zone_id is None, "Should not match 'Bamako City' (similarity too low)"
-    
+
     # Completely different name
     zone_id = resolve_zone("Paris")
     assert zone_id is None, "Should not match unrelated name"
@@ -94,7 +98,7 @@ def test_resolve_vendor_exact_match(seed_vendors):
     """Test exact vendor name match."""
     vendor_id = resolve_vendor("Marché Central")
     assert vendor_id is not None, "Exact match should resolve"
-    
+
     vendor_id = resolve_vendor("Boutique Kayes")
     assert vendor_id is not None, "Exact match should resolve"
 
@@ -122,7 +126,7 @@ def test_resolve_item_exact_match(seed_items):
     """Test exact item description match."""
     item_id = resolve_item("Riz local")
     assert item_id is not None, "Exact match should resolve"
-    
+
     item_id = resolve_item("Mil")
     assert item_id is not None, "Exact match should resolve"
 

@@ -1,4 +1,5 @@
 """Document extraction service for Couche A."""
+
 from __future__ import annotations
 
 import asyncio
@@ -14,7 +15,6 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from ..models import (
     audits_table,
-    deserialize_json,
     documents_table,
     ensure_schema,
     extractions_table,
@@ -89,7 +89,9 @@ def extract_fields(text: str) -> Tuple[Dict[str, Any], List[str]]:
     zone_match = re.search(r"zone\s*[:\-]\s*([^\n]+)", text, re.IGNORECASE)
     zone = zone_match.group(1).strip() if zone_match else None
 
-    attachments = [line.strip() for line in text.splitlines() if "annexe" in line.lower()]
+    attachments = [
+        line.strip() for line in text.splitlines() if "annexe" in line.lower()
+    ]
 
     fields = {
         "fournisseur": supplier_name,
@@ -106,16 +108,25 @@ def extract_fields(text: str) -> Tuple[Dict[str, Any], List[str]]:
     return fields, missing_fields
 
 
-async def extract_and_store(document_id: str, llm_enabled: bool = False) -> Dict[str, Any]:
+async def extract_and_store(
+    document_id: str, llm_enabled: bool = False
+) -> Dict[str, Any]:
     """Extract data from a document and store the results."""
+
     def _process() -> Dict[str, Any]:
         engine = get_engine()
         ensure_schema(engine)
         try:
             with engine.begin() as conn:
-                doc_row = conn.execute(
-                    select(documents_table).where(documents_table.c.id == document_id)
-                ).mappings().first()
+                doc_row = (
+                    conn.execute(
+                        select(documents_table).where(
+                            documents_table.c.id == document_id
+                        )
+                    )
+                    .mappings()
+                    .first()
+                )
                 if not doc_row:
                     raise ValueError("Document introuvable.")
 

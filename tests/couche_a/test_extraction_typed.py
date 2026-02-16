@@ -1,5 +1,5 @@
 """Tests pour l'extraction typée des critères (M3A)."""
-import pytest
+
 from src.couche_a.extraction import classify_criterion, validate_criterion_weightings
 from src.evaluation.profiles import get_profile_for_category
 
@@ -7,7 +7,9 @@ from src.evaluation.profiles import get_profile_for_category
 def test_classify_essential():
     """Test classification of essential criteria."""
     assert classify_criterion("Ce critère est obligatoire") == "essential"
-    assert classify_criterion("Le fournisseur doit impérativement fournir") == "essential"
+    assert (
+        classify_criterion("Le fournisseur doit impérativement fournir") == "essential"
+    )
     assert classify_criterion("Conditions générales acceptées") == "essential"
 
 
@@ -20,7 +22,10 @@ def test_classify_commercial():
 
 def test_classify_capacity():
     """Test classification of capacity criteria."""
-    assert classify_criterion("Expérience similaire dans les 3 dernières années") == "capacity"
+    assert (
+        classify_criterion("Expérience similaire dans les 3 dernières années")
+        == "capacity"
+    )
     assert classify_criterion("Certification ISO 9001") == "capacity"
     assert classify_criterion("Références de projets antérieurs") == "capacity"
 
@@ -37,7 +42,7 @@ def test_validate_weightings_ok():
     criteria = [
         {"criterion_category": "commercial", "ponderation": 50},
         {"criterion_category": "sustainability", "ponderation": 15},
-        {"criterion_category": "capacity", "ponderation": 35}
+        {"criterion_category": "capacity", "ponderation": 35},
     ]
     is_valid, errors = validate_criterion_weightings(criteria)
     assert is_valid is True
@@ -49,7 +54,7 @@ def test_validate_weightings_fail_commercial():
     criteria = [
         {"criterion_category": "commercial", "ponderation": 30},
         {"criterion_category": "sustainability", "ponderation": 20},
-        {"criterion_category": "capacity", "ponderation": 50}
+        {"criterion_category": "capacity", "ponderation": 50},
     ]
     is_valid, errors = validate_criterion_weightings(criteria)
     assert is_valid is False
@@ -61,7 +66,7 @@ def test_validate_weightings_fail_sustainability():
     criteria = [
         {"criterion_category": "commercial", "ponderation": 60},
         {"criterion_category": "sustainability", "ponderation": 5},
-        {"criterion_category": "capacity", "ponderation": 35}
+        {"criterion_category": "capacity", "ponderation": 35},
     ]
     is_valid, errors = validate_criterion_weightings(criteria)
     assert is_valid is False
@@ -73,7 +78,7 @@ def test_validate_weightings_fail_both():
     criteria = [
         {"criterion_category": "commercial", "ponderation": 30},
         {"criterion_category": "sustainability", "ponderation": 5},
-        {"criterion_category": "capacity", "ponderation": 65}
+        {"criterion_category": "capacity", "ponderation": 65},
     ]
     is_valid, errors = validate_criterion_weightings(criteria)
     assert is_valid is False
