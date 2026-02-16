@@ -1,4 +1,4 @@
-# 🔒 FREEZE MANIFEST — DMS V3.3.1
+# 🔒 FREEZE MANIFEST — DMS V3.3.2
 
 Date freeze: 15 février 2026, 17:53 CET  
 Autorité: Abdoulaye Ousmane (Founder & CTO)  
