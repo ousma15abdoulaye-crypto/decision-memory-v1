@@ -10,9 +10,11 @@ from typing import List, Tuple
 from datetime import datetime
 import re
 
-from src.couche_a.scoring.models import ScoreResult, EliminationResult
-from src.core.models import DAOCriterion, SupplierPackage
 from sqlalchemy import text
+
+from src.couche_a.scoring.models import EliminationResult, ScoreResult
+from src.core.models import DAOCriterion, SupplierPackage
+from src.db import get_connection
 
 __all__ = ["ScoringEngine"]
 
@@ -342,7 +344,7 @@ class ScoringEngine:
 
     def _save_scores_to_db(self, case_id: str, scores: List[ScoreResult]) -> None:
         """Save scores to database."""
-        with get_db_connection() as conn:
+        with get_connection() as conn:
             for score in scores:
                 conn.execute(
                     text("""
@@ -378,7 +380,7 @@ class ScoringEngine:
         if not eliminations:
             return
 
-        with get_db_connection() as conn:
+        with get_connection() as conn:
             for elim in eliminations:
                 conn.execute(
                     text("""

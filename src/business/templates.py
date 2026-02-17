@@ -3,18 +3,21 @@ Template generation functions for CBA and PV documents.
 Handles template-adaptive generation for procurement analysis.
 """
 
+import json
 import re
 import uuid
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
+from docx import Document
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
-from docx import Document
 
-from src.core.models import CBATemplateSchema, DAOCriterion
 from src.core.config import OUTPUTS_DIR
+from src.core.models import CBATemplateSchema, DAOCriterion
+from src.db import db_execute, get_connection
 
 
 def analyze_cba_template(template_path: str) -> CBATemplateSchema:
@@ -51,7 +54,7 @@ def analyze_cba_template(template_path: str) -> CBATemplateSchema:
         for row_idx in range(
             supplier_name_row + 1, min(supplier_name_row + 40, ws.max_row + 1)
         ):
-            col_a = ws.cell(row_idx, 1).value or ""
+            _ = ws.cell(row_idx, 1).value or ""
             col_b = ws.cell(row_idx, 2).value or ""
 
             if isinstance(col_b, str) and len(col_b) > 5:
@@ -169,7 +172,7 @@ def fill_cba_adaptive(
             cell = ws.cell(row_idx, col)
 
             # Vérifier le package_status du fournisseur
-            package_status = supplier.get("package_status", "UNKNOWN")
+            _ = supplier.get("package_status", "UNKNOWN")
             has_financial = supplier.get("has_financial", False)
 
             # Mapping guided by criteria

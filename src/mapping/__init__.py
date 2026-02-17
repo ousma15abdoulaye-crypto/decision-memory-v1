@@ -1,1 +1,1 @@
-from .template_engine import TemplateMappingEngine
+from .template_engine import TemplateMappingEngine as TemplateMappingEngine
