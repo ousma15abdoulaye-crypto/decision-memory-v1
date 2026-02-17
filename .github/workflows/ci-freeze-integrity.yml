@@ -1,0 +1,21 @@
+name: CI Freeze Integrity
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  verify-freeze:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Verify freeze checksums
+        run: sha256sum -c docs/freeze/v3.3.2/SHA256SUMS.txt
+      
+      - name: Report status
+        if: success()
+        run: echo "✅ Freeze V3.3.2 integrity verified" >> $GITHUB_STEP_SUMMARY
