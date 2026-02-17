@@ -8,11 +8,14 @@ No automatic vendor ranking or recommendations.
 
 from typing import List, Tuple
 from datetime import datetime
+import json
 import re
 
-from src.couche_a.scoring.models import ScoreResult, EliminationResult
-from src.core.models import DAOCriterion, SupplierPackage
 from sqlalchemy import text
+
+from src.couche_a.scoring.models import EliminationResult, ScoreResult
+from src.core.models import DAOCriterion, SupplierPackage
+from src.db import get_connection
 
 __all__ = ["ScoringEngine"]
 
@@ -342,7 +345,7 @@ class ScoringEngine:
 
     def _save_scores_to_db(self, case_id: str, scores: List[ScoreResult]) -> None:
         """Save scores to database."""
-        with get_db_connection() as conn:
+        with get_connection() as conn:
             for score in scores:
                 conn.execute(
                     text("""
@@ -351,7 +354,7 @@ class ScoringEngine:
                             calculation_method, calculation_details, is_validated
                         ) VALUES (
                             :case_id, :supplier_name, :category, :score_value,
-                            :method, :details::jsonb, :validated
+                            :method, CAST(:details AS jsonb), :validated
                         )
                         ON CONFLICT (case_id, supplier_name, category)
                         DO UPDATE SET
@@ -363,10 +366,10 @@ class ScoringEngine:
                         "case_id": case_id,
                         "supplier_name": score.supplier_name,
                         "category": score.category,
-                        "score_value": score.score_value,
+                        "score_value": float(score.score_value),
                         "method": score.calculation_method,
-                        "details": str(score.calculation_details),
-                        "validated": score.is_validated,
+                        "details": json.dumps(score.calculation_details),
+                        "validated": bool(score.is_validated),
                     },
                 )
             conn.commit()
@@ -378,26 +381,50 @@ class ScoringEngine:
         if not eliminations:
             return
 
-        with get_db_connection() as conn:
+        with get_connection() as conn:
+            # Group eliminations by supplier_name
+            eliminations_by_supplier = {}
             for elim in eliminations:
+                if elim.supplier_name not in eliminations_by_supplier:
+                    eliminations_by_supplier[elim.supplier_name] = []
+                eliminations_by_supplier[elim.supplier_name].append(elim)
+            
+            # Insert one row per supplier with reason_codes JSONB
+            for supplier_name, elims in eliminations_by_supplier.items():
+                reason_codes = [
+                    {
+                        "criterion_id": elim.criterion_id,
+                        "criterion_name": elim.criterion_name,
+                        "criterion_category": elim.criterion_category,
+                    }
+                    for elim in elims
+                ]
+                details = {
+                    "eliminations": [
+                        {
+                            "criterion_id": elim.criterion_id,
+                            "criterion_name": elim.criterion_name,
+                            "criterion_category": elim.criterion_category,
+                            "failure_reason": elim.failure_reason,
+                            "eliminated_at": elim.eliminated_at.isoformat() if isinstance(elim.eliminated_at, datetime) else str(elim.eliminated_at),
+                        }
+                        for elim in elims
+                    ]
+                }
+                
                 conn.execute(
                     text("""
                         INSERT INTO supplier_eliminations (
-                            case_id, supplier_name, criterion_id, criterion_name,
-                            criterion_category, failure_reason, eliminated_at
+                            case_id, supplier_name, reason_codes, details
                         ) VALUES (
-                            :case_id, :supplier_name, :criterion_id, :criterion_name,
-                            :category, :reason, :eliminated_at
+                            :case_id, :supplier_name, CAST(:reason_codes AS jsonb), CAST(:details AS jsonb)
                         )
                     """),
                     {
                         "case_id": case_id,
-                        "supplier_name": elim.supplier_name,
-                        "criterion_id": elim.criterion_id,
-                        "criterion_name": elim.criterion_name,
-                        "category": elim.criterion_category,
-                        "reason": elim.failure_reason,
-                        "eliminated_at": elim.eliminated_at,
+                        "supplier_name": supplier_name,
+                        "reason_codes": json.dumps(reason_codes),
+                        "details": json.dumps(details),
                     },
                 )
             conn.commit()

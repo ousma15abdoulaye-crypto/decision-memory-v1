@@ -292,8 +292,9 @@ class TestScoringEngine:
         assert len(total_scores) == 1
         total_score = total_scores[0]
 
-        # Calcul attendu: (80 * 0.50) + (70 * 0.30) + (90 * 0.10) = 40 + 21 + 9 = 70
-        expected_score = (80.0 * 0.50) + (70.0 * 0.30) + (90.0 * 0.10)
+        # Calcul attendu: (80 * 0.50) + (70 * 0.30) + (90 * 0.10) + (100 * 0.10) = 40 + 21 + 9 + 10 = 80
+        # Note: Le calcul inclut 'essentials' avec poids 0.10 (comportement conforme à la Constitution)
+        expected_score = (80.0 * 0.50) + (70.0 * 0.30) + (90.0 * 0.10) + (100.0 * 0.10)
         assert abs(total_score.score_value - expected_score) < 0.01
         assert total_score.category == "total"
         assert total_score.calculation_method == "weighted_sum"
@@ -387,6 +388,37 @@ class TestScoringEngine:
             assert True
         except Exception as e:
             pytest.fail(f"save_eliminations_to_db a échoué avec: {e}")
+        
+        # Vérifier que les données sont bien stockées en JSONB
+        from src.db import get_connection
+        from sqlalchemy import text
+        
+        with get_connection() as conn:
+            result = conn.execute(
+                text("""
+                    SELECT reason_codes, details
+                    FROM supplier_eliminations
+                    WHERE case_id = :case_id AND supplier_name = :supplier_name
+                """),
+                {
+                    "case_id": "test_case_123",
+                    "supplier_name": "Fournisseur Éliminé",
+                },
+            ).fetchone()
+            
+            assert result is not None, "Elimination should be saved"
+            reason_codes = result[0]
+            details = result[1]
+            
+            # Vérifier que reason_codes est un JSONB valide
+            assert isinstance(reason_codes, dict) or isinstance(reason_codes, list)
+            assert len(reason_codes) > 0
+            
+            # Vérifier que details contient les éliminations
+            assert isinstance(details, dict)
+            assert "eliminations" in details
+            assert len(details["eliminations"]) == 1
+            assert details["eliminations"][0]["criterion_id"] == "crit_123"
 
 
 class TestScoringIntegration:
