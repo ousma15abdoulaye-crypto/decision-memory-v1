@@ -47,9 +47,9 @@ def test_detect_financial_only():
     assert (
         subtype.subtype == "FINANCIAL_ONLY"
     ), f"Expected FINANCIAL_ONLY, got {subtype.subtype}"
-    assert subtype.has_financial == True
-    assert subtype.has_technical == False
-    assert subtype.has_admin == False
+    assert subtype.has_financial
+    assert not subtype.has_technical
+    assert not subtype.has_admin
 
     print("✅ Test 1 PASSED\n")
 
@@ -166,8 +166,8 @@ def test_aggregate_three_financial_only():
         assert (
             pkg.package_status == "PARTIAL"
         ), f"Expected PARTIAL, got {pkg.package_status}"
-        assert pkg.has_financial == True
-        assert pkg.has_technical == False
+        assert pkg.has_financial
+        assert not pkg.has_technical
 
     print("\n✅ Test 3 PASSED")
     print("\n📋 COMPORTEMENT ATTENDU VÉRIFIÉ:")

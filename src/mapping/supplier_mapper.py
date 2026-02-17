@@ -83,7 +83,7 @@ def populate_essential_supplier(
     )
 
     # Critères : si data absente => "Pass" low confidence (à valider)
-    row = s["criteria_start_row"]
+    _ = s["criteria_start_row"]
     for k in range(s["criteria_start_row"], s["criteria_end_row"] + 1):
         # On mappe par ordre d'apparition des clés si fourni
         pass

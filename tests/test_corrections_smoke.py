@@ -19,7 +19,7 @@ def test_guess_supplier_name_order():
     """Test que l'ordre de fallback est correct"""
 
     # Cas a) Filename valide et significatif
-    text_with_societe = """
+    _ = """
     Société: OMEGA CORPORATION
     
     Prix: 1000000 FCFA
