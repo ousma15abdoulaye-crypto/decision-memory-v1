@@ -1,6 +1,7 @@
 """
 Case management endpoints.
 """
+
 import uuid
 from datetime import datetime
 
@@ -27,18 +28,22 @@ async def create_case(request: Request, payload: CaseCreate, user: CurrentUser):
     now = datetime.utcnow().isoformat()
 
     with get_connection() as conn:
-        db_execute(conn, """
+        db_execute(
+            conn,
+            """
             INSERT INTO cases (id, case_type, title, lot, created_at, status, owner_id)
             VALUES (:id, :ctype, :title, :lot, :ts, :status, :owner)
-        """, {
-            "id": case_id,
-            "ctype": case_type,
-            "title": payload.title.strip(),
-            "lot": payload.lot,
-            "ts": now,
-            "status": "open",
-            "owner": user["id"]
-        })
+        """,
+            {
+                "id": case_id,
+                "ctype": case_type,
+                "title": payload.title.strip(),
+                "lot": payload.lot,
+                "ts": now,
+                "status": "open",
+                "owner": user["id"],
+            },
+        )
 
     return {
         "id": case_id,
@@ -47,7 +52,7 @@ async def create_case(request: Request, payload: CaseCreate, user: CurrentUser):
         "lot": payload.lot,
         "created_at": now,
         "status": "open",
-        "owner_id": user["id"]
+        "owner_id": user["id"],
     }
 
 
@@ -72,11 +77,8 @@ def get_case(case_id: str):
 
     # Get DAO criteria if analyzed
     with get_connection() as conn:
-        criteria = db_fetchall(conn, "SELECT * FROM dao_criteria WHERE case_id=:cid ORDER BY ordre_affichage", {"cid": case_id})
+        criteria = db_fetchall(
+            conn, "SELECT * FROM dao_criteria WHERE case_id=:cid ORDER BY ordre_affichage", {"cid": case_id}
+        )
 
-    return {
-        "case": dict(c),
-        "artifacts": arts,
-        "memory": mem,
-        "dao_criteria": criteria
-    }
+    return {"case": dict(c), "artifacts": arts, "memory": mem, "dao_criteria": criteria}

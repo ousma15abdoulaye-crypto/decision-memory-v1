@@ -1,4 +1,5 @@
 """Rate limiting with slowapi."""
+
 import logging
 import os
 
@@ -16,7 +17,7 @@ TESTING = os.getenv("TESTING", "false").lower() == "true"
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=[] if TESTING else ["100/minute"],  # Disable in tests
-    storage_uri="memory://"  # Utiliser Redis en production
+    storage_uri="memory://",  # Utiliser Redis en production
 )
 
 
@@ -37,11 +38,12 @@ _original_limit = limiter.limit
 
 def conditional_limit(rate_limit: str):
     """Conditional rate limiting - disabled in test mode.
-    
+
     Note: In test mode, we return the original function unchanged,
     which naturally preserves all function metadata (name, docstring, signature).
     No need for @wraps since we're not creating a wrapper.
     """
+
     def decorator(func):
         if TESTING:
             # In test mode, return original function unchanged (preserves async + metadata)
@@ -49,6 +51,7 @@ def conditional_limit(rate_limit: str):
         else:
             # In production, apply the rate limit
             return _original_limit(rate_limit)(func)
+
     return decorator
 
 

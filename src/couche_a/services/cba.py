@@ -1,4 +1,5 @@
 """CBA export and review services for Couche A."""
+
 from __future__ import annotations
 
 import asyncio
@@ -53,26 +54,33 @@ def _build_workbook(payload: Dict[str, Any]) -> Workbook:
 
 async def export_cba(offer_id: str, actor: Optional[str] = None) -> Dict[str, Any]:
     """Generate and store a CBA export for an offer."""
+
     def _process() -> Dict[str, Any]:
         engine = get_engine()
         ensure_schema(engine)
         try:
             with engine.begin() as conn:
-                offer = conn.execute(
-                    select(offers_table).where(offers_table.c.id == offer_id)
-                ).mappings().first()
+                offer = conn.execute(select(offers_table).where(offers_table.c.id == offer_id)).mappings().first()
                 if not offer:
                     raise ValueError("Offre introuvable.")
-                extraction = conn.execute(
-                    select(extractions_table)
-                    .where(extractions_table.c.offer_id == offer_id)
-                    .order_by(extractions_table.c.created_at.desc())
-                ).mappings().first()
-                analysis = conn.execute(
-                    select(analyses_table)
-                    .where(analyses_table.c.offer_id == offer_id)
-                    .order_by(analyses_table.c.created_at.desc())
-                ).mappings().first()
+                extraction = (
+                    conn.execute(
+                        select(extractions_table)
+                        .where(extractions_table.c.offer_id == offer_id)
+                        .order_by(extractions_table.c.created_at.desc())
+                    )
+                    .mappings()
+                    .first()
+                )
+                analysis = (
+                    conn.execute(
+                        select(analyses_table)
+                        .where(analyses_table.c.offer_id == offer_id)
+                        .order_by(analyses_table.c.created_at.desc())
+                    )
+                    .mappings()
+                    .first()
+                )
 
                 missing_fields = []
                 if extraction:
@@ -84,10 +92,7 @@ async def export_cba(offer_id: str, actor: Optional[str] = None) -> Dict[str, An
                 existing_exports = conn.execute(
                     select(func.count())
                     .select_from(documents_table)
-                    .where(
-                        (documents_table.c.offer_id == offer_id)
-                        & (documents_table.c.document_type == "CBA_EXPORT")
-                    )
+                    .where((documents_table.c.offer_id == offer_id) & (documents_table.c.document_type == "CBA_EXPORT"))
                 ).scalar_one()
                 version = int(existing_exports) + 1
 
@@ -146,9 +151,7 @@ async def export_cba(offer_id: str, actor: Optional[str] = None) -> Dict[str, An
     return await asyncio.to_thread(_process)
 
 
-async def upload_cba_review(
-    offer_id: str, upload: UploadFile, reviewer: Optional[str] = None
-) -> Dict[str, Any]:
+async def upload_cba_review(offer_id: str, upload: UploadFile, reviewer: Optional[str] = None) -> Dict[str, Any]:
     """Store a completed CBA upload for committee review."""
     if not upload.filename:
         raise ValueError("Le fichier fourni est invalide.")
@@ -165,9 +168,7 @@ async def upload_cba_review(
         try:
             review_path.write_bytes(file_bytes)
             with engine.begin() as conn:
-                offer = conn.execute(
-                    select(offers_table).where(offers_table.c.id == offer_id)
-                ).mappings().first()
+                offer = conn.execute(select(offers_table).where(offers_table.c.id == offer_id)).mappings().first()
                 if not offer:
                     raise ValueError("Offre introuvable.")
                 doc_id = generate_id()

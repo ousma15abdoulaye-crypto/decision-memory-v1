@@ -1,4 +1,5 @@
 """Authentication endpoints."""
+
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -47,8 +48,7 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": str(user["id"])},  # Store user ID as string in JWT
-        expires_delta=access_token_expires
+        data={"sub": str(user["id"])}, expires_delta=access_token_expires  # Store user ID as string in JWT
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -62,7 +62,7 @@ async def register(request: Request, user_data: UserRegister):
         username=user_data.username,
         password=user_data.password,
         full_name=user_data.full_name,
-        role_id=2  # procurement_officer
+        role_id=2,  # procurement_officer
     )
     return UserResponse(**user)
 

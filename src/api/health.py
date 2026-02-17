@@ -20,11 +20,7 @@ def home():
 
 @router.get("/api/health")
 def health():
-    return {
-        "status": "healthy",
-        "version": APP_VERSION,
-        "invariants_status": "enforced"
-    }
+    return {"status": "healthy", "version": APP_VERSION, "invariants_status": "enforced"}
 
 
 @router.get("/api/constitution")

@@ -57,21 +57,21 @@ def seed_items(db_session):
 def test_resolve_zone_exact_match(seed_zones):
     """Test exact zone name match."""
     zone_id = resolve_zone("Bamako")
-    assert zone_id == 'zone-bamako-1', "Exact match should resolve correctly"
+    assert zone_id == "zone-bamako-1", "Exact match should resolve correctly"
 
     zone_id = resolve_zone("Kayes")
-    assert zone_id == 'zone-kayes-1', "Exact match should resolve correctly"
+    assert zone_id == "zone-kayes-1", "Exact match should resolve correctly"
 
 
 def test_resolve_zone_fuzzy_match(seed_zones):
     """Test fuzzy match with realistic typo (similarity ≥60%)"""
     # Test avec typo plausible : lettre manquante
     zone_id = resolve_zone("Bamko")  # "Bamako" avec typo: manque 'a'
-    assert zone_id == 'zone-bamako-1', "Should resolve 'Bamko' to 'Bamako' (typo tolerance)"
+    assert zone_id == "zone-bamako-1", "Should resolve 'Bamko' to 'Bamako' (typo tolerance)"
 
     # Test avec typo plausible : lettre doublée
     zone_id = resolve_zone("Bamaako")  # "Bamako" avec double 'a'
-    assert zone_id == 'zone-bamako-1', "Should resolve 'Bamaako' to 'Bamako' (typo tolerance)"
+    assert zone_id == "zone-bamako-1", "Should resolve 'Bamaako' to 'Bamako' (typo tolerance)"
 
 
 def test_resolve_zone_no_match(seed_zones):

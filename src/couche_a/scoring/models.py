@@ -2,6 +2,7 @@
 Pydantic models for M3B Scoring Engine.
 Constitution V3 compliant: Non-prescriptive scoring.
 """
+
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -12,6 +13,7 @@ __all__ = ["ScoreResult", "EliminationResult", "ScoringRequest", "ScoringRespons
 
 class ScoreResult(BaseModel):
     """Score result for a supplier in a category."""
+
     supplier_name: str
     category: str  # 'commercial', 'capacity', 'sustainability', 'essentials', 'total'
     score_value: float = Field(..., ge=0, le=100)
@@ -24,6 +26,7 @@ class ScoreResult(BaseModel):
 
 class EliminationResult(BaseModel):
     """Elimination result for a supplier."""
+
     supplier_name: str
     criterion_id: str
     criterion_name: str
@@ -34,12 +37,14 @@ class EliminationResult(BaseModel):
 
 class ScoringRequest(BaseModel):
     """Request to calculate scores for a case."""
+
     case_id: str
     recalculate: bool = False  # Force recalculation even if scores exist
 
 
 class ScoringResponse(BaseModel):
     """Response after scoring calculation."""
+
     case_id: str
     scores_count: int
     eliminations_count: int

@@ -1,4 +1,5 @@
 """PV generation services for Couche A."""
+
 from __future__ import annotations
 
 import asyncio
@@ -50,21 +51,21 @@ async def _generate_pv(lot_id: str, kind: str, actor: Optional[str]) -> Dict[str
         ensure_schema(engine)
         try:
             with engine.begin() as conn:
-                lot = conn.execute(
-                    select(lots_table).where(lots_table.c.id == lot_id)
-                ).mappings().first()
+                lot = conn.execute(select(lots_table).where(lots_table.c.id == lot_id)).mappings().first()
                 if not lot:
                     raise ValueError("Lot introuvable.")
 
-                offers = conn.execute(
-                    select(offers_table, analyses_table.c.status.label("analysis_status"))
-                    .select_from(
-                        offers_table.outerjoin(
-                            analyses_table, analyses_table.c.offer_id == offers_table.c.id
+                offers = (
+                    conn.execute(
+                        select(offers_table, analyses_table.c.status.label("analysis_status"))
+                        .select_from(
+                            offers_table.outerjoin(analyses_table, analyses_table.c.offer_id == offers_table.c.id)
                         )
+                        .where(offers_table.c.lot_id == lot_id)
                     )
-                    .where(offers_table.c.lot_id == lot_id)
-                ).mappings().all()
+                    .mappings()
+                    .all()
+                )
                 if not offers:
                     raise ValueError("Aucune offre disponible pour ce lot.")
 

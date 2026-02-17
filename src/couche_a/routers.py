@@ -2,6 +2,7 @@
 Couche A – Endpoints d'upload (Manuel SCI §4)
 Constitution V2.1 : helpers synchrones src.db, pas de table SQLAlchemy.
 """
+
 import hashlib
 import json
 import uuid
@@ -25,8 +26,9 @@ MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 ALLOWED_MIME_TYPES = {
     "application/pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
+
 
 class OfferType(str, Enum):
     TECHNIQUE = "technique"
@@ -34,12 +36,14 @@ class OfferType(str, Enum):
     ADMINISTRATIVE = "administrative"
     REGISTRE = "registre"
 
+
 def compute_file_hash(file_path: Path) -> str:
     sha256 = hashlib.sha256()
     with open(file_path, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):
             sha256.update(chunk)
     return sha256.hexdigest()
+
 
 def register_artifact(case_id: str, kind: str, filename: str, path: str, meta: dict) -> str:
     artifact_id = str(uuid.uuid4())
@@ -59,10 +63,11 @@ def register_artifact(case_id: str, kind: str, filename: str, path: str, meta: d
                 "path": path,
                 "ts": datetime.utcnow().isoformat(),
                 "meta": json.dumps(meta, ensure_ascii=False),
-                "created_by": created_by
-            }
+                "created_by": created_by,
+            },
         )
     return artifact_id
+
 
 @router.post("/{case_id}/upload-dao")
 @limiter.limit("5/minute")
@@ -83,11 +88,7 @@ async def upload_dao(
             raise HTTPException(404, "Case not found")
 
     with get_connection() as conn:
-        existing = db_execute_one(
-            conn,
-            "SELECT id FROM artifacts WHERE case_id=:cid AND kind='dao'",
-            {"cid": case_id}
-        )
+        existing = db_execute_one(conn, "SELECT id FROM artifacts WHERE case_id=:cid AND kind='dao'", {"cid": case_id})
         if existing:
             raise HTTPException(409, "DAO already uploaded. Delete existing DAO first.")
 
@@ -111,7 +112,7 @@ async def upload_dao(
         "mime_type": mime,
         "hash": file_hash,
         "upload_timestamp": timestamp.isoformat(),
-        "uploaded_by": user["id"]
+        "uploaded_by": user["id"],
     }
     artifact_id = register_artifact(case_id, "dao", file.filename, str(file_path), meta)
 
@@ -119,14 +120,11 @@ async def upload_dao(
     update_case_quota(case_id, size)
 
     from src.couche_a.extraction import extract_dao_content
+
     background_tasks.add_task(extract_dao_content, case_id, artifact_id, str(file_path))
 
-    return {
-        "artifact_id": artifact_id,
-        "filename": file.filename,
-        "status": "uploaded",
-        "extraction_status": "pending"
-    }
+    return {"artifact_id": artifact_id, "filename": file.filename, "status": "uploaded", "extraction_status": "pending"}
+
 
 @router.post("/{case_id}/upload-offer")
 @limiter.limit("5/minute")
@@ -153,11 +151,7 @@ async def upload_offer(
     # Valider lot_id si fourni
     if lot_id:
         with get_connection() as conn:
-            lot = db_execute_one(
-                conn,
-                "SELECT id, case_id FROM lots WHERE id=:lid",
-                {"lid": lot_id}
-            )
+            lot = db_execute_one(conn, "SELECT id, case_id FROM lots WHERE id=:lid", {"lid": lot_id})
             if not lot:
                 raise HTTPException(404, f"Lot '{lot_id}' not found")
             lot_case_id = lot.get("case_id") if isinstance(lot, dict) else lot[1]
@@ -165,11 +159,7 @@ async def upload_offer(
                 raise HTTPException(400, f"Lot '{lot_id}' does not belong to case '{case_id}'")
 
     with get_connection() as conn:
-        dao = db_execute_one(
-            conn,
-            "SELECT id FROM artifacts WHERE case_id=:cid AND kind='dao'",
-            {"cid": case_id}
-        )
+        dao = db_execute_one(conn, "SELECT id FROM artifacts WHERE case_id=:cid AND kind='dao'", {"cid": case_id})
         if not dao:
             raise HTTPException(400, "Cannot upload offer before DAO is uploaded.")
 
@@ -185,21 +175,22 @@ async def upload_offer(
             {
                 "cid": case_id,
                 "supplier_pattern": f'%"supplier_name": "{supplier_name}"%',
-                "otype_pattern": f'%"offer_type": "{offer_type.value}"%'
-            }
+                "otype_pattern": f'%"offer_type": "{offer_type.value}"%',
+            },
         )
         if existing:
             raise HTTPException(
-                409,
-                f"Offer of type '{offer_type.value}' already uploaded for supplier '{supplier_name}'."
+                409, f"Offer of type '{offer_type.value}' already uploaded for supplier '{supplier_name}'."
             )
 
     # Validation sécurité complète (M4F)
     safe_name, mime, size = await validate_upload_security(file, case_id)
 
     timestamp = datetime.now()
-    ext = safe_name.split('.')[-1] if '.' in safe_name else 'pdf'
-    safe_filename = f"offer_{offer_type.value}_{supplier_name.replace(' ', '_')}_{timestamp.strftime('%Y%m%d%H%M%S')}.{ext}"
+    ext = safe_name.split(".")[-1] if "." in safe_name else "pdf"
+    safe_filename = (
+        f"offer_{offer_type.value}_{supplier_name.replace(' ', '_')}_{timestamp.strftime('%Y%m%d%H%M%S')}.{ext}"
+    )
     file_path = UPLOADS_DIR / safe_filename
 
     # Read and write full content after validation
@@ -228,7 +219,7 @@ async def upload_offer(
         "upload_timestamp": timestamp.isoformat(),
         "lot_id": lot_id,
         "is_late": is_late,
-        "uploaded_by": user["id"]
+        "uploaded_by": user["id"],
     }
     artifact_id = register_artifact(case_id, "offer", file.filename, str(file_path), meta)
 
@@ -236,13 +227,8 @@ async def upload_offer(
     update_case_quota(case_id, size)
 
     from src.couche_a.extraction import extract_offer_content
-    background_tasks.add_task(
-        extract_offer_content,
-        case_id,
-        artifact_id,
-        str(file_path),
-        offer_type.value
-    )
+
+    background_tasks.add_task(extract_offer_content, case_id, artifact_id, str(file_path), offer_type.value)
 
     return {
         "artifact_id": artifact_id,
@@ -252,7 +238,7 @@ async def upload_offer(
         "timestamp": timestamp.isoformat(),
         "lot_id": lot_id,
         "is_late": is_late,
-        "extraction_status": "pending"
+        "extraction_status": "pending",
     }
 
 
@@ -273,7 +259,7 @@ async def get_criteria_validation(request: Request, case_id: str, user: CurrentU
             ORDER BY created_at DESC
             LIMIT 1
             """,
-            {"cid": case_id}
+            {"cid": case_id},
         )
     if not row:
         raise HTTPException(404, "Aucune validation trouvée pour ce case")
@@ -282,7 +268,7 @@ async def get_criteria_validation(request: Request, case_id: str, user: CurrentU
         "commercial_weight": row["commercial_weight"],
         "sustainability_weight": row["sustainability_weight"],
         "is_valid": row["is_valid"],
-        "errors": row["validation_errors"].split("\n") if row["validation_errors"] else []
+        "errors": row["validation_errors"].split("\n") if row["validation_errors"] else [],
     }
 
 
@@ -302,17 +288,19 @@ async def get_criteria_by_category(request: Request, case_id: str, user: Current
             WHERE case_id = :cid
             ORDER BY criterion_category, ordre_affichage
             """,
-            {"cid": case_id}
+            {"cid": case_id},
         )
     grouped = {}
     for r in rows:
         cat = r["criterion_category"]
         if cat not in grouped:
             grouped[cat] = []
-        grouped[cat].append({
-            "nom": r["critere_nom"],
-            "description": r["description"],
-            "ponderation": r["ponderation"],
-            "is_eliminatory": r["is_eliminatory"]
-        })
+        grouped[cat].append(
+            {
+                "nom": r["critere_nom"],
+                "description": r["description"],
+                "ponderation": r["ponderation"],
+                "is_eliminatory": r["is_eliminatory"],
+            }
+        )
     return {"case_id": case_id, "criteria_by_category": grouped}

@@ -1,4 +1,5 @@
 """Tests pour l'extraction typée des critères (M3A)."""
+
 from src.couche_a.extraction import classify_criterion, validate_criterion_weightings
 from src.evaluation.profiles import get_profile_for_category
 
@@ -36,7 +37,7 @@ def test_validate_weightings_ok():
     criteria = [
         {"criterion_category": "commercial", "ponderation": 50},
         {"criterion_category": "sustainability", "ponderation": 15},
-        {"criterion_category": "capacity", "ponderation": 35}
+        {"criterion_category": "capacity", "ponderation": 35},
     ]
     is_valid, errors = validate_criterion_weightings(criteria)
     assert is_valid is True
@@ -48,7 +49,7 @@ def test_validate_weightings_fail_commercial():
     criteria = [
         {"criterion_category": "commercial", "ponderation": 30},
         {"criterion_category": "sustainability", "ponderation": 20},
-        {"criterion_category": "capacity", "ponderation": 50}
+        {"criterion_category": "capacity", "ponderation": 50},
     ]
     is_valid, errors = validate_criterion_weightings(criteria)
     assert is_valid is False
@@ -60,7 +61,7 @@ def test_validate_weightings_fail_sustainability():
     criteria = [
         {"criterion_category": "commercial", "ponderation": 60},
         {"criterion_category": "sustainability", "ponderation": 5},
-        {"criterion_category": "capacity", "ponderation": 35}
+        {"criterion_category": "capacity", "ponderation": 35},
     ]
     is_valid, errors = validate_criterion_weightings(criteria)
     assert is_valid is False
@@ -72,7 +73,7 @@ def test_validate_weightings_fail_both():
     criteria = [
         {"criterion_category": "commercial", "ponderation": 30},
         {"criterion_category": "sustainability", "ponderation": 5},
-        {"criterion_category": "capacity", "ponderation": 65}
+        {"criterion_category": "capacity", "ponderation": 65},
     ]
     is_valid, errors = validate_criterion_weightings(criteria)
     assert is_valid is False

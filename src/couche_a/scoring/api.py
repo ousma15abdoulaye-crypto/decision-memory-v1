@@ -1,6 +1,7 @@
 """
 M3B Scoring API endpoints.
 """
+
 import time
 
 from fastapi import APIRouter, HTTPException
@@ -13,10 +14,7 @@ router = APIRouter(prefix="/api/scoring", tags=["Scoring M3B"])
 
 
 @router.post("/calculate", response_model=ScoringResponse)
-async def calculate_scores(
-    request: ScoringRequest,
-    user: CurrentUser
-):
+async def calculate_scores(request: ScoringRequest, user: CurrentUser):
     """
     Calculate scores for a case (async background task in production).
     Constitution V3: Non-prescriptive, validation humaine requise.
@@ -35,7 +33,7 @@ async def calculate_scores(
             eliminations_count=0,
             calculation_time_ms=(time.time() - start_time) * 1000,
             status="success",
-            errors=[]
+            errors=[],
         )
 
     except Exception as e:
@@ -43,21 +41,22 @@ async def calculate_scores(
 
 
 @router.get("/{case_id}/scores")
-async def get_scores(
-    case_id: str,
-    user: CurrentUser
-):
+async def get_scores(case_id: str, user: CurrentUser):
     """Retrieve calculated scores for a case."""
     try:
         with get_connection() as conn:
-            scores = db_fetchall(conn, """
+            scores = db_fetchall(
+                conn,
+                """
                 SELECT supplier_name, category, score_value,
                        calculation_method, calculation_details,
                        is_validated, created_at
                 FROM supplier_scores
                 WHERE case_id = :case_id
                 ORDER BY category, score_value DESC
-            """, {"case_id": case_id})
+            """,
+                {"case_id": case_id},
+            )
 
         return {
             "case_id": case_id,
@@ -68,10 +67,10 @@ async def get_scores(
                     "score_value": float(s["score_value"]),
                     "calculation_method": s["calculation_method"],
                     "is_validated": s["is_validated"],
-                    "created_at": s["created_at"]
+                    "created_at": s["created_at"],
                 }
                 for s in scores
-            ]
+            ],
         }
 
     except Exception as e:

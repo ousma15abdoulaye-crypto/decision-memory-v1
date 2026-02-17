@@ -9,9 +9,7 @@ from sqlalchemy import inspect
 
 
 def _load_migration() -> object:
-    migration_path = (
-        Path(__file__).resolve().parents[2] / "alembic" / "versions" / "002_add_couche_a.py"
-    )
+    migration_path = Path(__file__).resolve().parents[2] / "alembic" / "versions" / "002_add_couche_a.py"
     spec = util.spec_from_file_location("migration_002_add_couche_a", migration_path)
     if spec is None or spec.loader is None:
         raise RuntimeError("Migration introuvable.")

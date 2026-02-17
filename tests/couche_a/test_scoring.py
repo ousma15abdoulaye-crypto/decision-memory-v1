@@ -1,6 +1,7 @@
 """
 Tests unitaires pour le moteur de scoring M3B.
 """
+
 from datetime import datetime
 
 import pytest
@@ -20,7 +21,7 @@ class TestScoringEngine:
             score_value=85.5,
             calculation_method="price_lowest_100",
             calculation_details={"price": 1000, "lowest_price": 850, "currency": "XOF"},
-            is_validated=False
+            is_validated=False,
         )
 
         assert score.supplier_name == "Fournisseur Test"
@@ -37,7 +38,7 @@ class TestScoringEngine:
             criterion_name="Certification ISO 9001",
             criterion_category="essential",
             failure_reason="Certification manquante",
-            eliminated_at=datetime.utcnow()
+            eliminated_at=datetime.utcnow(),
         )
 
         assert elimination.supplier_name == "Fournisseur Éliminé"
@@ -66,11 +67,8 @@ class TestScoringEngine:
                 has_financial=True,
                 has_technical=True,
                 has_admin=True,
-                extracted_data={
-                    "total_price": "1000 XOF",
-                    "currency": "XOF"
-                },
-                missing_fields=[]
+                extracted_data={"total_price": "1000 XOF", "currency": "XOF"},
+                missing_fields=[],
             ),
             SupplierPackage(
                 supplier_name="Fournisseur B",
@@ -80,12 +78,9 @@ class TestScoringEngine:
                 has_financial=True,
                 has_technical=True,
                 has_admin=True,
-                extracted_data={
-                    "total_price": "850 XOF",
-                    "currency": "XOF"
-                },
-                missing_fields=[]
-            )
+                extracted_data={"total_price": "850 XOF", "currency": "XOF"},
+                missing_fields=[],
+            ),
         ]
 
         profile = {
@@ -125,7 +120,7 @@ class TestScoringEngine:
                 has_technical=True,
                 has_admin=False,
                 extracted_data={},
-                missing_fields=["Prix total"]
+                missing_fields=["Prix total"],
             )
         ]
 
@@ -150,10 +145,8 @@ class TestScoringEngine:
                 has_financial=True,
                 has_technical=True,
                 has_admin=True,
-                extracted_data={
-                    "technical_refs": ["Réf 1", "Réf 2", "Réf 3", "Réf 4", "Réf 5"]
-                },
-                missing_fields=[]
+                extracted_data={"technical_refs": ["Réf 1", "Réf 2", "Réf 3", "Réf 4", "Réf 5"]},
+                missing_fields=[],
             ),
             SupplierPackage(
                 supplier_name="Fournisseur sans références",
@@ -163,11 +156,9 @@ class TestScoringEngine:
                 has_financial=True,
                 has_technical=True,
                 has_admin=True,
-                extracted_data={
-                    "technical_refs": []
-                },
-                missing_fields=[]
-            )
+                extracted_data={"technical_refs": []},
+                missing_fields=[],
+            ),
         ]
 
         profile = {"criteria": []}
@@ -196,7 +187,7 @@ class TestScoringEngine:
                 has_technical=True,
                 has_admin=True,
                 extracted_data={},
-                missing_fields=[]
+                missing_fields=[],
             ),
             SupplierPackage(
                 supplier_name="Fournisseur standard",
@@ -207,8 +198,8 @@ class TestScoringEngine:
                 has_technical=True,
                 has_admin=True,
                 extracted_data={},
-                missing_fields=[]
-            )
+                missing_fields=[],
+            ),
         ]
 
         profile = {"criteria": []}
@@ -219,7 +210,9 @@ class TestScoringEngine:
         # Le fournisseur durable devrait avoir un score > 0
         sustainable_supplier = next(s for s in scores if s.supplier_name == "Fournisseur durable")
         assert sustainable_supplier.score_value > 0.0
-        assert "environnement" in sustainable_supplier.calculation_details.get("found_keywords", []) or "rse" in sustainable_supplier.calculation_details.get("found_keywords", [])
+        assert "environnement" in sustainable_supplier.calculation_details.get(
+            "found_keywords", []
+        ) or "rse" in sustainable_supplier.calculation_details.get("found_keywords", [])
 
     def test_calculate_total_scores(self):
         """Test du calcul des scores totaux pondérés."""
@@ -235,7 +228,7 @@ class TestScoringEngine:
                 has_technical=True,
                 has_admin=True,
                 extracted_data={},
-                missing_fields=[]
+                missing_fields=[],
             )
         ]
 
@@ -246,29 +239,29 @@ class TestScoringEngine:
                 category="commercial",
                 score_value=80.0,
                 calculation_method="price_lowest_100",
-                calculation_details={}
+                calculation_details={},
             ),
             ScoreResult(
                 supplier_name="Fournisseur Test",
                 category="capacity",
                 score_value=70.0,
                 calculation_method="capacity_experience",
-                calculation_details={}
+                calculation_details={},
             ),
             ScoreResult(
                 supplier_name="Fournisseur Test",
                 category="sustainability",
                 score_value=90.0,
                 calculation_method="sustainability_certifications",
-                calculation_details={}
+                calculation_details={},
             ),
             ScoreResult(
                 supplier_name="Fournisseur Test",
                 category="essentials",
                 score_value=100.0,
                 calculation_method="elimination_check",
-                calculation_details={}
-            )
+                calculation_details={},
+            ),
         ]
 
         profile = {
@@ -305,7 +298,7 @@ class TestScoringEngine:
                 has_technical=True,
                 has_admin=True,
                 extracted_data={},
-                missing_fields=[]
+                missing_fields=[],
             )
         ]
 
@@ -317,7 +310,7 @@ class TestScoringEngine:
                 ponderation=0.0,
                 type_reponse="boolean",
                 seuil_elimination=1.0,  # Seuil d'élimination
-                ordre_affichage=1
+                ordre_affichage=1,
             ),
             DAOCriterion(
                 categorie="commercial",
@@ -326,8 +319,8 @@ class TestScoringEngine:
                 ponderation=50.0,
                 type_reponse="numeric",
                 seuil_elimination=None,  # Pas éliminatoire
-                ordre_affichage=2
-            )
+                ordre_affichage=2,
+            ),
         ]
 
         eliminations = engine._check_eliminatory_criteria(suppliers, criteria)
@@ -348,7 +341,7 @@ class TestScoringEngine:
                 score_value=85.5,
                 calculation_method="price_lowest_100",
                 calculation_details={"price": 1000, "lowest_price": 850},
-                is_validated=False
+                is_validated=False,
             )
         ]
 
@@ -370,7 +363,7 @@ class TestScoringEngine:
                 criterion_name="Certification manquante",
                 criterion_category="essential",
                 failure_reason="Certification ISO 9001 non fournie",
-                eliminated_at=datetime.utcnow()
+                eliminated_at=datetime.utcnow(),
             )
         ]
 
@@ -398,7 +391,7 @@ class TestScoringIntegration:
                 ponderation=0.0,
                 type_reponse="boolean",
                 seuil_elimination=1.0,
-                ordre_affichage=1
+                ordre_affichage=1,
             ),
             DAOCriterion(
                 categorie="commercial",
@@ -407,7 +400,7 @@ class TestScoringIntegration:
                 ponderation=50.0,
                 type_reponse="numeric",
                 seuil_elimination=None,
-                ordre_affichage=2
+                ordre_affichage=2,
             ),
             DAOCriterion(
                 categorie="capacity",
@@ -416,7 +409,7 @@ class TestScoringIntegration:
                 ponderation=30.0,
                 type_reponse="numeric",
                 seuil_elimination=None,
-                ordre_affichage=3
+                ordre_affichage=3,
             ),
             DAOCriterion(
                 categorie="sustainability",
@@ -425,8 +418,8 @@ class TestScoringIntegration:
                 ponderation=10.0,
                 type_reponse="boolean",
                 seuil_elimination=None,
-                ordre_affichage=4
-            )
+                ordre_affichage=4,
+            ),
         ]
 
         # Fournisseurs avec données extraites
@@ -444,9 +437,9 @@ class TestScoringIntegration:
                     "currency": "XOF",
                     "technical_refs": ["Projet 1", "Projet 2", "Projet 3"],
                     "lead_time_days": 30,
-                    "validity_days": 60
+                    "validity_days": 60,
                 },
-                missing_fields=[]
+                missing_fields=[],
             ),
             SupplierPackage(
                 supplier_name="Fournisseur B",
@@ -461,17 +454,15 @@ class TestScoringIntegration:
                     "currency": "XOF",
                     "technical_refs": ["Projet A", "Projet B"],
                     "lead_time_days": 45,
-                    "validity_days": 90
+                    "validity_days": 90,
                 },
-                missing_fields=[]
-            )
+                missing_fields=[],
+            ),
         ]
 
         # Exécuter le calcul complet
         scores, eliminations = engine.calculate_scores_for_case(
-            case_id="test_case_123",
-            suppliers=suppliers,
-            criteria=criteria
+            case_id="test_case_123", suppliers=suppliers, criteria=criteria
         )
 
         # Vérifications de base

@@ -24,6 +24,7 @@ class EnginePaths:
     spec_path: Path
     template_path: Path
 
+
 class TemplateMappingEngine:
     def __init__(self, spec_path: str | Path, template_path: str | Path):
         self.paths = EnginePaths(Path(spec_path), Path(template_path))
@@ -60,6 +61,7 @@ class TemplateMappingEngine:
                 if width == 1:
                     col_idx = supplier_col_index(start, slot, 1)
                     from openpyxl.utils import get_column_letter
+
                     col = get_column_letter(col_idx)
                     ws.column_dimensions[col].hidden = not (slot <= n_visible)
                 else:
@@ -78,7 +80,9 @@ class TemplateMappingEngine:
         # Fill Summary first (names drive formulas)
         ws_summary = wb[self.spec["sheets"]["Summary"]["sheet_name"]]
         for slot, sub in enumerate(submissions, start=1):
-            populate_summary_supplier(ws_summary, self.spec, slot, sub.get("supplier_name", f"Soumissionnaire {slot:02d}"))
+            populate_summary_supplier(
+                ws_summary, self.spec, slot, sub.get("supplier_name", f"Soumissionnaire {slot:02d}")
+            )
 
         # Essential
         ws_ess = wb[self.spec["sheets"]["Essential Evaluation"]["sheet_name"]]

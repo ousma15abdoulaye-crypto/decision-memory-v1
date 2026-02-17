@@ -1,4 +1,5 @@
 """Document extraction service for Couche A."""
+
 from __future__ import annotations
 
 import asyncio
@@ -70,9 +71,7 @@ def _normalize_amount(raw_amount: str) -> float:
 def extract_fields(text: str) -> Tuple[Dict[str, Any], List[str]]:
     """Extract structured fields from raw text."""
     missing_fields: List[str] = []
-    supplier_match = re.search(
-        r"(fournisseur|soumissionnaire)\s*[:\-]\s*([^\n]+)", text, re.IGNORECASE
-    )
+    supplier_match = re.search(r"(fournisseur|soumissionnaire)\s*[:\-]\s*([^\n]+)", text, re.IGNORECASE)
     supplier_name = supplier_match.group(2).strip() if supplier_match else None
 
     date_match = re.search(r"(\d{4}-\d{2}-\d{2}|\d{2}/\d{2}/\d{4})", text)
@@ -107,14 +106,15 @@ def extract_fields(text: str) -> Tuple[Dict[str, Any], List[str]]:
 
 async def extract_and_store(document_id: str, llm_enabled: bool = False) -> Dict[str, Any]:
     """Extract data from a document and store the results."""
+
     def _process() -> Dict[str, Any]:
         engine = get_engine()
         ensure_schema(engine)
         try:
             with engine.begin() as conn:
-                doc_row = conn.execute(
-                    select(documents_table).where(documents_table.c.id == document_id)
-                ).mappings().first()
+                doc_row = (
+                    conn.execute(select(documents_table).where(documents_table.c.id == document_id)).mappings().first()
+                )
                 if not doc_row:
                     raise ValueError("Document introuvable.")
 
@@ -141,9 +141,7 @@ async def extract_and_store(document_id: str, llm_enabled: bool = False) -> Dict
                     update_payload["amount"] = extracted["montant"]
                 if update_payload:
                     conn.execute(
-                        update(offers_table)
-                        .where(offers_table.c.id == doc_row["offer_id"])
-                        .values(**update_payload)
+                        update(offers_table).where(offers_table.c.id == doc_row["offer_id"]).values(**update_payload)
                     )
 
                 conn.execute(
@@ -153,9 +151,7 @@ async def extract_and_store(document_id: str, llm_enabled: bool = False) -> Dict
                         entity_id=extraction_id,
                         action="EXTRACTION",
                         actor=None,
-                        details_json=serialize_json(
-                            {"missing_fields": missing, "llm_enabled": llm_enabled}
-                        ),
+                        details_json=serialize_json({"missing_fields": missing, "llm_enabled": llm_enabled}),
                     )
                 )
 

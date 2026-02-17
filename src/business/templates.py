@@ -2,6 +2,7 @@
 Template generation functions for CBA and PV documents.
 Handles template-adaptive generation for procurement analysis.
 """
+
 import json
 import re
 import uuid
@@ -51,7 +52,7 @@ def analyze_cba_template(template_path: str) -> CBATemplateSchema:
 
     if supplier_name_row:
         for row_idx in range(supplier_name_row + 1, min(supplier_name_row + 40, ws.max_row + 1)):
-            col_a = ws.cell(row_idx, 1).value or ""
+            _ = ws.cell(row_idx, 1).value or ""
             col_b = ws.cell(row_idx, 2).value or ""
 
             if isinstance(col_b, str) and len(col_b) > 5:
@@ -69,11 +70,7 @@ def analyze_cba_template(template_path: str) -> CBATemplateSchema:
                 elif re.search(r"(?i)(durabilit[ée]|sustainability)", col_b):
                     ctype = "durabilite"
 
-                criteria_rows.append({
-                    "row": row_idx,
-                    "name": col_b[:150],
-                    "type": ctype
-                })
+                criteria_rows.append({"row": row_idx, "name": col_b[:150], "type": ctype})
 
     schema = CBATemplateSchema(
         template_id=str(uuid.uuid4()),
@@ -84,22 +81,17 @@ def analyze_cba_template(template_path: str) -> CBATemplateSchema:
         criteria_start_row=criteria_start_row or 0,
         criteria_rows=criteria_rows,
         sheets=wb.sheetnames,
-        meta={"detected_at": datetime.utcnow().isoformat()}
+        meta={"detected_at": datetime.utcnow().isoformat()},
     )
 
     return schema
 
 
-def fill_cba_adaptive(
-    template_path: str,
-    case_id: str,
-    suppliers: List[dict],
-    dao_criteria: List[DAOCriterion]
-) -> str:
+def fill_cba_adaptive(template_path: str, case_id: str, suppliers: List[dict], dao_criteria: List[DAOCriterion]) -> str:
     """
     Remplissage adaptatif basé sur structure template détectée.
     1 DAO = 1 template spécifique = 1 CBA unique.
-    
+
     COMPORTEMENT ATTENDU:
     - Noms fournisseurs RÉELS (pas d'IDs, pas de hash)
     - Données manquantes → "REVUE MANUELLE" avec surlignage ORANGE
@@ -110,14 +102,20 @@ def fill_cba_adaptive(
 
     # Save schema to DB for future learning
     with get_connection() as conn:
-        db_execute(conn, """
+        db_execute(
+            conn,
+            """
             INSERT INTO cba_template_schemas (id, case_id, template_name, structure_json, created_at)
             VALUES (:tid, :cid, :tname, :struct, :ts)
-        """, {
-            "tid": schema.template_id, "cid": case_id, "tname": schema.template_name,
-            "struct": json.dumps(asdict(schema), ensure_ascii=False),
-            "ts": datetime.utcnow().isoformat(),
-        })
+        """,
+            {
+                "tid": schema.template_id,
+                "cid": case_id,
+                "tname": schema.template_name,
+                "struct": json.dumps(asdict(schema), ensure_ascii=False),
+                "ts": datetime.utcnow().isoformat(),
+            },
+        )
 
     # Load template
     wb = load_workbook(template_path)
@@ -135,7 +133,7 @@ def fill_cba_adaptive(
 
     # Fill supplier names (detected row/cols) - NOMS RÉELS uniquement
     if schema.supplier_name_row and schema.supplier_cols:
-        for idx, supplier in enumerate(suppliers[:len(schema.supplier_cols)]):
+        for idx, supplier in enumerate(suppliers[: len(schema.supplier_cols)]):
             col = schema.supplier_cols[idx]
             supplier_name = supplier.get("supplier_name", "")
 
@@ -153,12 +151,12 @@ def fill_cba_adaptive(
     for row_idx in range(schema.criteria_start_row, min(schema.criteria_start_row + 50, ws.max_row + 1)):
         label = ws.cell(row_idx, 2).value or ""
 
-        for idx, supplier in enumerate(suppliers[:len(schema.supplier_cols)]):
+        for idx, supplier in enumerate(suppliers[: len(schema.supplier_cols)]):
             col = schema.supplier_cols[idx]
             cell = ws.cell(row_idx, col)
 
             # Vérifier le package_status du fournisseur
-            package_status = supplier.get("package_status", "UNKNOWN")
+            _ = supplier.get("package_status", "UNKNOWN")
             has_financial = supplier.get("has_financial", False)
 
             # Mapping guided by criteria
@@ -169,6 +167,7 @@ def fill_cba_adaptive(
                         cell.value = val
                         if supplier.get("total_price_source"):
                             from openpyxl.comments import Comment
+
                             cell.comment = Comment(supplier["total_price_source"], "DMS")
                     else:
                         cell.value = REVUE_MANUELLE
@@ -184,6 +183,7 @@ def fill_cba_adaptive(
                     cell.value = f"{val} jours"
                     if supplier.get("lead_time_source"):
                         from openpyxl.comments import Comment
+
                         cell.comment = Comment(supplier["lead_time_source"], "DMS")
                 else:
                     cell.value = REVUE_MANUELLE
@@ -195,6 +195,7 @@ def fill_cba_adaptive(
                     cell.value = f"{val} jours"
                     if supplier.get("validity_source"):
                         from openpyxl.comments import Comment
+
                         cell.comment = Comment(supplier["validity_source"], "DMS")
                 else:
                     cell.value = REVUE_MANUELLE
@@ -237,7 +238,7 @@ def generate_pv_adaptive(
     case_title: str,
     suppliers: List[dict],
     dao_criteria: List[DAOCriterion],
-    decision: Optional[dict] = None
+    decision: Optional[dict] = None,
 ) -> str:
     """
     Generate PV from template or create structured fallback.
@@ -300,7 +301,7 @@ def generate_pv_adaptive(
             doc.add_paragraph(
                 f"• {c.critere_nom} ({c.categorie}) — "
                 f"{'Éliminatoire' if c.ponderation == 0 else f'{c.ponderation*100:.0f}%'}",
-                style="List Bullet"
+                style="List Bullet",
             )
 
         doc.add_heading("Offres reçues", level=3)
@@ -314,8 +315,10 @@ def generate_pv_adaptive(
             doc.add_paragraph(f"Justification: {decision['decision_reason']}")
             doc.add_paragraph(f"Action suivante: {decision['next_action']}")
             doc.add_paragraph(f"Horodatage: {decision['decided_at']}")
-            doc.add_paragraph("\n⚠️ Cette décision est prise par le comité d'évaluation. "
-                            "Le système n'a effectué aucune recommandation automatique.")
+            doc.add_paragraph(
+                "\n⚠️ Cette décision est prise par le comité d'évaluation. "
+                "Le système n'a effectué aucune recommandation automatique."
+            )
 
     # Save output
     out_dir = OUTPUTS_DIR / case_id
@@ -326,5 +329,3 @@ def generate_pv_adaptive(
     doc.save(out_path)
 
     return str(out_path)
-
-

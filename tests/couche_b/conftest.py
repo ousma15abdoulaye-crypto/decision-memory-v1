@@ -1,4 +1,5 @@
 """Pytest fixtures for Couche B tests — PostgreSQL with transaction rollback."""
+
 from __future__ import annotations
 
 import os
@@ -25,7 +26,7 @@ def db_engine() -> Engine:
 @pytest.fixture(scope="function")
 def db_session(db_engine) -> Session:
     """Provide a transactional database session for each test.
-    
+
     Changes are rolled back after each test to ensure isolation.
     """
     connection = db_engine.connect()

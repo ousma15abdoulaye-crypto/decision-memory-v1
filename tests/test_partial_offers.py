@@ -19,9 +19,9 @@ def test_detect_financial_only():
 
     text = """
     OFFRE FINANCIERE
-    
+
     Entreprise: SARL ALPHA CONSTRUCTION
-    
+
     Prix Total: 45.000.000 FCFA
     Délai de livraison: 60 jours
     Validité de l'offre: 90 jours
@@ -53,7 +53,7 @@ def test_supplier_name_extraction():
 
     text = """
     SOCIÉTÉ: BETA SERVICES SARL
-    
+
     Offre technique et financière
     """
 
@@ -86,7 +86,7 @@ def test_aggregate_three_financial_only():
                 "has_financial": True,
                 "has_technical": False,
                 "has_admin": False,
-                "confidence": "MEDIUM"
+                "confidence": "MEDIUM",
             },
             "total_price": "45000000 FCFA",
             "total_price_source": "Pattern: 'Prix Total'",
@@ -96,7 +96,7 @@ def test_aggregate_three_financial_only():
             "validity_days": 90,
             "validity_source": "Pattern: 'Validité'",
             "technical_refs": [],
-            "missing_fields": ["Références techniques"]
+            "missing_fields": ["Références techniques"],
         },
         {
             "supplier_name": "BETA SERVICES",
@@ -106,7 +106,7 @@ def test_aggregate_three_financial_only():
                 "has_financial": True,
                 "has_technical": False,
                 "has_admin": False,
-                "confidence": "MEDIUM"
+                "confidence": "MEDIUM",
             },
             "total_price": "42000000 FCFA",
             "total_price_source": "Pattern: 'Montant total'",
@@ -116,7 +116,7 @@ def test_aggregate_three_financial_only():
             "validity_days": 90,
             "validity_source": "Pattern: 'Validité'",
             "technical_refs": [],
-            "missing_fields": ["Références techniques"]
+            "missing_fields": ["Références techniques"],
         },
         {
             "supplier_name": "GAMMA INDUSTRIES",
@@ -126,7 +126,7 @@ def test_aggregate_three_financial_only():
                 "has_financial": True,
                 "has_technical": False,
                 "has_admin": False,
-                "confidence": "MEDIUM"
+                "confidence": "MEDIUM",
             },
             "total_price": "48500000 FCFA",
             "total_price_source": "Pattern: 'Prix'",
@@ -136,8 +136,8 @@ def test_aggregate_three_financial_only():
             "validity_days": 90,
             "validity_source": "Pattern: 'Validité offre'",
             "technical_refs": [],
-            "missing_fields": ["Références techniques"]
-        }
+            "missing_fields": ["Références techniques"],
+        },
     ]
 
     packages = aggregate_supplier_packages(offers)
@@ -200,6 +200,7 @@ def main():
     except Exception as e:
         print(f"\n❌ ERROR: {e}\n")
         import traceback
+
         traceback.print_exc()
         return 1
 

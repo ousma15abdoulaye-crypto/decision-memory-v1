@@ -1,4 +1,5 @@
 """Pre-analysis and scoring services for Couche A."""
+
 from __future__ import annotations
 
 import asyncio
@@ -53,22 +54,25 @@ def _derive_status(missing_fields: List[str]) -> str:
 
 async def analyze_offer(offer_id: str) -> Dict[str, Any]:
     """Run the pre-analysis rules engine for an offer."""
+
     def _process() -> Dict[str, Any]:
         engine = get_engine()
         ensure_schema(engine)
         try:
             with engine.begin() as conn:
-                offer_row = conn.execute(
-                    select(offers_table).where(offers_table.c.id == offer_id)
-                ).mappings().first()
+                offer_row = conn.execute(select(offers_table).where(offers_table.c.id == offer_id)).mappings().first()
                 if not offer_row:
                     raise ValueError("Offre introuvable.")
 
-                extraction_row = conn.execute(
-                    select(extractions_table)
-                    .where(extractions_table.c.offer_id == offer_id)
-                    .order_by(extractions_table.c.created_at.desc())
-                ).mappings().first()
+                extraction_row = (
+                    conn.execute(
+                        select(extractions_table)
+                        .where(extractions_table.c.offer_id == offer_id)
+                        .order_by(extractions_table.c.created_at.desc())
+                    )
+                    .mappings()
+                    .first()
+                )
 
                 if not extraction_row:
                     status = STATUS_REVUE
@@ -97,9 +101,7 @@ async def analyze_offer(offer_id: str) -> Dict[str, Any]:
                         entity_id=analysis_id,
                         action="PRE_ANALYSE",
                         actor=None,
-                        details_json=serialize_json(
-                            {"status": status, "missing_fields": missing_fields}
-                        ),
+                        details_json=serialize_json({"status": status, "missing_fields": missing_fields}),
                     )
                 )
 

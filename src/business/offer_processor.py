@@ -2,6 +2,7 @@
 Offer processing: detection, aggregation, and extraction.
 Handles partial offers and supplier package management.
 """
+
 import re
 from pathlib import Path
 from typing import Any, Dict, List
@@ -27,7 +28,7 @@ def detect_offer_subtype(text: str, filename: str) -> OfferSubtype:
         r"co[uû]t",
         r"(fcfa|cfa|xof|usd|eur)",
         r"offre\s*(financière|de\s*prix)",
-        r"bordereau\s*de\s*prix"
+        r"bordereau\s*de\s*prix",
     ]
     has_financial = any(re.search(pattern, text_lower) for pattern in financial_patterns)
 
@@ -37,7 +38,7 @@ def detect_offer_subtype(text: str, filename: str) -> OfferSubtype:
         r"(r[ée]f[ée]rences?\s*(techniques?|clients?))",
         r"(exp[ée]rience|capacit[ée]\s*technique)",
         r"(certifications?|agr[ée]ments?)",
-        r"offre\s*technique"
+        r"offre\s*technique",
     ]
     has_technical = any(re.search(pattern, text_lower) for pattern in technical_patterns)
 
@@ -47,7 +48,7 @@ def detect_offer_subtype(text: str, filename: str) -> OfferSubtype:
         r"(attestation|certificat)",
         r"(kbis|rccm|nif|registre\s*de\s*commerce)",
         r"(fiscal|social)",
-        r"offre\s*administrative"
+        r"offre\s*administrative",
     ]
     has_admin = any(re.search(pattern, text_lower) for pattern in admin_patterns)
 
@@ -86,7 +87,7 @@ def detect_offer_subtype(text: str, filename: str) -> OfferSubtype:
         has_financial=has_financial,
         has_technical=has_technical,
         has_admin=has_admin,
-        confidence=confidence
+        confidence=confidence,
     )
 
 
@@ -164,17 +165,19 @@ def aggregate_supplier_packages(offers: List[dict]) -> List[SupplierPackage]:
         else:
             package_status = "MISSING"
 
-        packages.append(SupplierPackage(
-            supplier_name=supplier_name,
-            offer_ids=[d.get("artifact_id", "") for d in docs],
-            documents=docs,
-            package_status=package_status,
-            has_financial=has_financial,
-            has_technical=has_technical,
-            has_admin=has_admin,
-            extracted_data=merged_data,
-            missing_fields=missing_extracted  # Données manquantes (pas sections non soumises)
-        ))
+        packages.append(
+            SupplierPackage(
+                supplier_name=supplier_name,
+                offer_ids=[d.get("artifact_id", "") for d in docs],
+                documents=docs,
+                package_status=package_status,
+                has_financial=has_financial,
+                has_technical=has_technical,
+                has_admin=has_admin,
+                extracted_data=merged_data,
+                missing_fields=missing_extracted,  # Données manquantes (pas sections non soumises)
+            )
+        )
 
     return packages
 
@@ -183,7 +186,7 @@ def guess_supplier_name(text: str, filename: str) -> str:
     """
     Extract supplier name from filename or document.
     ❌ INTERDIT d'utiliser un offer_id comme nom fournisseur.
-    
+
     Ordre de fallback:
     a) Nettoyer filename -> retourner si valide et significatif
     b) Chercher pattern "Société/Entreprise: ..." dans texte
@@ -243,7 +246,7 @@ def extract_offer_data_guided(offer_text: str, criteria: List[DAOCriterion]) -> 
         "validity_days": None,
         "validity_source": None,
         "technical_refs": [],
-        "missing_fields": []
+        "missing_fields": [],
     }
 
     # Prix (si critère commercial présent)
@@ -251,16 +254,14 @@ def extract_offer_data_guided(offer_text: str, criteria: List[DAOCriterion]) -> 
     if commercial_criteria:
         money = re.findall(
             r"(?i)(prix\s+total|montant\s+total|total)[:\s]*(\d{1,3}(?:[\s\.,]\d{3})+(?:[\s\.,]\d{2})?|\d+)\s*(FCFA|CFA|XOF)",
-            offer_text
+            offer_text,
         )
         if not money:
             # Fallback: any large number with currency
-            money = re.findall(
-                r"(?i)(\d{1,3}(?:[\s\.,]\d{3})+(?:[\s\.,]\d{2})?|\d+)\s*(FCFA|CFA|XOF)",
-                offer_text
-            )
+            money = re.findall(r"(?i)(\d{1,3}(?:[\s\.,]\d{3})+(?:[\s\.,]\d{2})?|\d+)\s*(FCFA|CFA|XOF)", offer_text)
 
         if money:
+
             def to_num(s: str) -> float:
                 s = s.replace(" ", "").replace(",", ".")
                 if s.count(".") > 1:
@@ -283,10 +284,7 @@ def extract_offer_data_guided(offer_text: str, criteria: List[DAOCriterion]) -> 
             extracted["missing_fields"].append("Prix total")
 
     # Délai
-    m = re.search(
-        r"(?i)(d[ée]lai\s+(?:de\s+)?livraison|lead\s*time)[:\s\-]*([0-9]{1,3})\s*(jours?|days?)",
-        offer_text
-    )
+    m = re.search(r"(?i)(d[ée]lai\s+(?:de\s+)?livraison|lead\s*time)[:\s\-]*([0-9]{1,3})\s*(jours?|days?)", offer_text)
     if m:
         extracted["lead_time_days"] = int(m.group(2))
         extracted["lead_time_source"] = f"Pattern: '{m.group(1)}'"
@@ -295,8 +293,7 @@ def extract_offer_data_guided(offer_text: str, criteria: List[DAOCriterion]) -> 
 
     # Validité
     m2 = re.search(
-        r"(?i)(validit[ée]\s+(?:de\s+l['\u2019])?offre|valid\s*until)[:\s\-]*([0-9]{1,3})\s*(jours?|days?)",
-        offer_text
+        r"(?i)(validit[ée]\s+(?:de\s+l['\u2019])?offre|valid\s*until)[:\s\-]*([0-9]{1,3})\s*(jours?|days?)", offer_text
     )
     if m2:
         extracted["validity_days"] = int(m2.group(2))
@@ -307,10 +304,7 @@ def extract_offer_data_guided(offer_text: str, criteria: List[DAOCriterion]) -> 
     # Références techniques
     technical_criteria = [c for c in criteria if c.categorie == "technique"]
     if technical_criteria:
-        refs = re.findall(
-            r"(?i)(r[ée]f[ée]rence|client|projet|contrat)[:\s]+([\w\s\-]{10,100})",
-            offer_text
-        )
+        refs = re.findall(r"(?i)(r[ée]f[ée]rence|client|projet|contrat)[:\s]+([\w\s\-]{10,100})", offer_text)
         extracted["technical_refs"] = [r[1].strip() for r in refs[:5]]
         if not extracted["technical_refs"]:
             extracted["missing_fields"].append("Références techniques")

@@ -1,4 +1,5 @@
 """Resilience patterns: retry & circuit breaker (M4D)."""
+
 import logging
 
 import pybreaker
@@ -12,6 +13,7 @@ logger = logging.getLogger(__name__)
 # CIRCUIT BREAKER POUR CONNEXIONS DB
 # ============================================
 
+
 class DatabaseCircuitBreaker:
     """Circuit breaker pour pool connexions PostgreSQL."""
 
@@ -20,7 +22,7 @@ class DatabaseCircuitBreaker:
             fail_max=5,  # Ouvre après 5 échecs consécutifs
             reset_timeout=60,  # Réessaie après 60 secondes
             exclude=[KeyboardInterrupt],
-            name="PostgreSQL Connection Pool"
+            name="PostgreSQL Connection Pool",
         )
 
     def call(self, func, *args, **kwargs):
@@ -45,7 +47,7 @@ retry_db_operation = retry(
     wait=wait_exponential(multiplier=1, min=1, max=10),  # Backoff exponentiel
     retry=retry_if_exception_type((OperationalError, DatabaseError)),
     before_sleep=before_sleep_log(logger, logging.WARNING),
-    reraise=True
+    reraise=True,
 )
 
 
@@ -53,14 +55,13 @@ retry_db_operation = retry(
 # HELPERS POUR EXTRACTION LLM (FUTURE M3A)
 # ============================================
 
+
 class ExtractionCircuitBreaker:
     """Circuit breaker pour appels LLM extraction."""
 
     def __init__(self):
         self.breaker = pybreaker.CircuitBreaker(
-            fail_max=3,  # Ouvre après 3 échecs
-            reset_timeout=30,  # Réessaie après 30 secondes
-            name="LLM Extraction"
+            fail_max=3, reset_timeout=30, name="LLM Extraction"  # Ouvre après 3 échecs  # Réessaie après 30 secondes
         )
 
     def call(self, func, *args, **kwargs):
@@ -79,7 +80,7 @@ extraction_breaker = ExtractionCircuitBreaker()
     stop=stop_after_attempt(2),  # 2 tentatives seulement (LLM coûteux)
     wait=wait_exponential(multiplier=2, min=2, max=30),
     retry=retry_if_exception_type(Exception),  # Toutes exceptions
-    before_sleep=before_sleep_log(logger, logging.WARNING)
+    before_sleep=before_sleep_log(logger, logging.WARNING),
 )
 def retry_llm_call(func, *args, **kwargs):
     """Wrapper retry pour appels LLM."""

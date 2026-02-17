@@ -1,4 +1,5 @@
 """Upload security validation (M4F)."""
+
 import filetype
 from fastapi import HTTPException, UploadFile
 from werkzeug.utils import secure_filename
@@ -60,10 +61,7 @@ async def validate_file_size(file: UploadFile) -> int:
 def check_case_quota(case_id: str, new_file_size: int):
     """Vérifie quota cumulé du case."""
     with get_connection() as conn:
-        case = db_execute_one(conn,
-            "SELECT total_upload_size FROM cases WHERE id = :id",
-            {"id": case_id}
-        )
+        case = db_execute_one(conn, "SELECT total_upload_size FROM cases WHERE id = :id", {"id": case_id})
 
         if not case:
             raise HTTPException(404, "Case not found")
@@ -73,24 +71,24 @@ def check_case_quota(case_id: str, new_file_size: int):
 
         if new_total > MAX_CASE_TOTAL:
             raise HTTPException(
-                413,
-                f"Case quota exceeded: {new_total / 1024 / 1024:.2f} MB / {MAX_CASE_TOTAL / 1024 / 1024} MB"
+                413, f"Case quota exceeded: {new_total / 1024 / 1024:.2f} MB / {MAX_CASE_TOTAL / 1024 / 1024} MB"
             )
 
 
 def update_case_quota(case_id: str, file_size: int):
     """Met à jour quota cumulé après upload réussi."""
     with get_connection() as conn:
-        db_execute(conn,
+        db_execute(
+            conn,
             "UPDATE cases SET total_upload_size = total_upload_size + :size WHERE id = :id",
-            {"size": file_size, "id": case_id}
+            {"size": file_size, "id": case_id},
         )
 
 
 async def validate_upload_security(file: UploadFile, case_id: str) -> tuple[str, str, int]:
     """
     Validation sécurité complète upload (M4F).
-    
+
     Returns:
         (safe_filename, mime_type, file_size)
     """

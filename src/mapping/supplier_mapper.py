@@ -27,20 +27,29 @@ def populate_summary_supplier(ws: Worksheet, spec: dict, slot: int, supplier_nam
         # essentials/capability/sustainability => width=1; commercial => width=2 (points to TOTAL col)
         idx = start + (slot - 1) * width
         from openpyxl.utils import get_column_letter
+
         return get_column_letter(idx)
 
     # Essentials
     e_col = target_col_letter("essentials")
-    ws[f"{col}{sr['essentials']}"] = links["essentials"]["formula_pattern"].format(col=e_col, row=links["essentials"]["target_row"])
+    ws[f"{col}{sr['essentials']}"] = links["essentials"]["formula_pattern"].format(
+        col=e_col, row=links["essentials"]["target_row"]
+    )
     # Capability
     c_col = target_col_letter("capability")
-    ws[f"{col}{sr['capability']}"] = links["capability"]["formula_pattern"].format(col=c_col, row=links["capability"]["target_row"])
+    ws[f"{col}{sr['capability']}"] = links["capability"]["formula_pattern"].format(
+        col=c_col, row=links["capability"]["target_row"]
+    )
     # Sustainability
     su_col = target_col_letter("sustainability")
-    ws[f"{col}{sr['sustainability']}"] = links["sustainability"]["formula_pattern"].format(col=su_col, row=links["sustainability"]["target_row"])
+    ws[f"{col}{sr['sustainability']}"] = links["sustainability"]["formula_pattern"].format(
+        col=su_col, row=links["sustainability"]["target_row"]
+    )
     # Commercial
     co_col = target_col_letter("commercial")
-    ws[f"{col}{sr['commercial']}"] = links["commercial"]["formula_pattern"].format(col=co_col, row=links["commercial"]["target_row"])
+    ws[f"{col}{sr['commercial']}"] = links["commercial"]["formula_pattern"].format(
+        col=co_col, row=links["commercial"]["target_row"]
+    )
 
     # Total
     essentials_cell = f"{col}{sr['essentials']}"
@@ -48,11 +57,9 @@ def populate_summary_supplier(ws: Worksheet, spec: dict, slot: int, supplier_nam
     sust_cell = f"{col}{sr['sustainability']}"
     comm_cell = f"{col}{sr['commercial']}"
     ws[f"{col}{sr['total']}"] = s["total_score_formula"].format(
-        essentials_cell=essentials_cell,
-        cap_cell=cap_cell,
-        sust_cell=sust_cell,
-        comm_cell=comm_cell
+        essentials_cell=essentials_cell, cap_cell=cap_cell, sust_cell=sust_cell, comm_cell=comm_cell
     )
+
 
 def populate_essential_supplier(ws: Worksheet, spec: dict, slot: int, conformity_data: Dict[str, Any]) -> None:
     s = spec["sheets"]["Essential Evaluation"]
@@ -83,6 +90,7 @@ def populate_essential_supplier(ws: Worksheet, spec: dict, slot: int, conformity
     # Score final
     ws[f"{col}{s['score_row']}"] = s["score_formula"].format(col=col)
 
+
 def populate_capability_supplier(ws: Worksheet, spec: dict, slot: int, capacity_scores: Dict[str, Any]) -> None:
     s = spec["sheets"]["Capability Evaluation"]
     col = supplier_col_letter(s["supplier_start_col_index"], slot, width_per_slot=1)
@@ -106,7 +114,10 @@ def populate_capability_supplier(ws: Worksheet, spec: dict, slot: int, capacity_
 
     ws[f"{col}{s['score_row']}"] = s["score_formula"].format(col=col)
 
-def populate_sustainability_supplier(ws: Worksheet, spec: dict, slot: int, sustainability_scores: Dict[str, Any]) -> None:
+
+def populate_sustainability_supplier(
+    ws: Worksheet, spec: dict, slot: int, sustainability_scores: Dict[str, Any]
+) -> None:
     s = spec["sheets"]["Sustainability Evaluation"]
     col = supplier_col_letter(s["supplier_start_col_index"], slot, width_per_slot=1)
 
@@ -126,6 +137,7 @@ def populate_sustainability_supplier(ws: Worksheet, spec: dict, slot: int, susta
     ws[f"{col}{s['intermediate_score_row']}"] = s["intermediate_formula"].format(col=col)
     ws[f"{col}{s['score_row']}"] = s["score_formula"].format(col=col)
 
+
 def populate_commercial_supplier(ws: Worksheet, spec: dict, slot: int, line_items: List[Dict[str, Any]]) -> None:
     s = spec["sheets"]["Commercial Evaluation"]
     price_col, total_col = commercial_cols(s["supplier_start_col_index"], slot)
@@ -133,8 +145,12 @@ def populate_commercial_supplier(ws: Worksheet, spec: dict, slot: int, line_item
     summary_col = supplier_col_letter(spec["sheets"]["Summary"]["supplier_start_col_index"], slot, 1)
 
     # label+name placed in price_col (first col of block)
-    ws[f"{price_col}{s['supplier_label_row']}"] = f"=Summary!{summary_col}{spec['sheets']['Summary']['supplier_label_row']}"
-    ws[f"{price_col}{s['supplier_name_row']}"] = f"=Summary!{summary_col}{spec['sheets']['Summary']['supplier_name_row']}"
+    ws[f"{price_col}{s['supplier_label_row']}"] = (
+        f"=Summary!{summary_col}{spec['sheets']['Summary']['supplier_label_row']}"
+    )
+    ws[f"{price_col}{s['supplier_name_row']}"] = (
+        f"=Summary!{summary_col}{spec['sheets']['Summary']['supplier_name_row']}"
+    )
 
     # Items: write unit_price and compute totals (leave quantities in column E to be already in template)
     start = s["items_start_row"]

@@ -1,4 +1,5 @@
 """Templates generation module for CBA and PV documents."""
+
 from .cba_template import generate_cba_excel
 from .pv_template import generate_pv_analyse, generate_pv_ouverture
 

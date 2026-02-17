@@ -2,6 +2,7 @@
 DMS Database Layer — PostgreSQL ONLY (Constitution V2.1 ONLINE-ONLY)
 No SQLite fallback. App refuses boot without DATABASE_URL.
 """
+
 from __future__ import annotations
 
 import logging
@@ -28,9 +29,7 @@ def _normalize_url(url: str) -> str:
 
 def _get_engine() -> Engine:
     if not _DATABASE_URL:
-        raise RuntimeError(
-            "DATABASE_URL is required. DMS is online-only (Constitution V2.1)."
-        )
+        raise RuntimeError("DATABASE_URL is required. DMS is online-only (Constitution V2.1).")
     url = _normalize_url(_DATABASE_URL)
     # Ensure psycopg driver for postgresql URL
     if url.startswith("postgresql://") and "postgresql+psycopg" not in url:
@@ -54,7 +53,7 @@ def _get_raw_connection() -> Connection:
 def get_connection() -> Iterator[Connection]:
     """
     Context manager for a database connection with resilience.
-    
+
     Constitution V2.1 : Helpers synchrones uniquement.
     Tenacity : 3 tentatives avec backoff exponentiel.
     Circuit breaker : Protection contre échecs en cascade.
@@ -83,7 +82,7 @@ def get_connection() -> Iterator[Connection]:
 def db_execute(conn: Connection, sql: str, params: Optional[dict] = None) -> None:
     """
     Execute a statement (INSERT/UPDATE/DELETE) with retry.
-    
+
     Protège contre erreurs temporaires (network, lock timeout).
     """
     from psycopg import DatabaseError, OperationalError
@@ -115,9 +114,8 @@ def db_execute_one(conn_or_sql, sql_or_params=None, params=None):
         return None
     return dict(row._mapping)
 
-def db_fetchall(
-    conn: Connection, sql: str, params: Optional[dict] = None
-) -> List[Any]:
+
+def db_fetchall(conn: Connection, sql: str, params: Optional[dict] = None) -> List[Any]:
     """Execute and fetch all rows."""
     result = conn.execute(text(sql), params or {})
     rows = result.fetchall()
@@ -206,7 +204,7 @@ def init_db_schema() -> None:
 def get_session() -> Iterator[Session]:
     """
     Context manager for a SQLAlchemy ORM session.
-    
+
     Provides an ORM session for Couche B fuzzy resolution queries.
     Automatically commits on success, rolls back on error.
     """
@@ -220,4 +218,3 @@ def get_session() -> Iterator[Session]:
         raise
     finally:
         session.close()
-

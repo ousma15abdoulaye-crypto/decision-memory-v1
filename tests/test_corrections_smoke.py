@@ -21,7 +21,7 @@ def test_guess_supplier_name_order():
     # Cas a) Filename valide et significatif
     text_with_societe = """
     Société: OMEGA CORPORATION
-    
+
     Prix: 1000000 FCFA
     """
 
@@ -33,9 +33,9 @@ def test_guess_supplier_name_order():
     # Cas b) Pattern Société dans texte (prioritaire sur ligne majuscule)
     text_with_both = """
     TITLE LINE IN CAPS
-    
+
     Société: BETA SERVICES SARL
-    
+
     ANOTHER CAPS LINE
     """
     name = guess_supplier_name(text_with_both, "123_offre.pdf")
@@ -45,9 +45,9 @@ def test_guess_supplier_name_order():
     # Cas c) Ligne majuscule non-titre
     text_caps_only = """
     OFFRE TECHNIQUE
-    
+
     GAMMA CONSTRUCTION SARL
-    
+
     Prix: 500000 FCFA
     """
     name = guess_supplier_name(text_caps_only, "doc.pdf")
@@ -95,7 +95,9 @@ def test_missing_fields_separation():
     assert "ADMIN" in pkg.extracted_data["missing_parts"], "Should have ADMIN in missing_parts"
 
     # Vérifier missing_extracted_fields (données manquantes dans sections soumises)
-    assert "Délai livraison" in pkg.extracted_data["missing_extracted_fields"], "Should have Délai in missing_extracted_fields"
+    assert (
+        "Délai livraison" in pkg.extracted_data["missing_extracted_fields"]
+    ), "Should have Délai in missing_extracted_fields"
 
     # missing_fields devrait contenir seulement les champs extraits manquants
     assert pkg.missing_fields == ["Délai livraison"], f"Expected ['Délai livraison'], got {pkg.missing_fields}"
@@ -157,6 +159,7 @@ def main():
     except Exception as e:
         print(f"\n❌ ERROR: {e}\n")
         import traceback
+
         traceback.print_exc()
         return 1
 

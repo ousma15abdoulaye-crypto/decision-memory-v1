@@ -11,6 +11,7 @@ CONFIDENCE_COLORS = {
     "error": "F8D7DA",
 }
 
+
 def apply_confidence_styling(cell: Cell, confidence_level: str) -> None:
     color = CONFIDENCE_COLORS.get(confidence_level)
     if not color:

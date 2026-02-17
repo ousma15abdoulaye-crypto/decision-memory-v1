@@ -1,6 +1,7 @@
 """
 Document upload, download, and memory endpoints.
 """
+
 import json
 from pathlib import Path
 
@@ -68,11 +69,13 @@ def search_memory(case_id: str, q: str):
     for entry in mem:
         blob = json.dumps(entry.get("content", {}), ensure_ascii=False).lower()
         if q in blob:
-            hits.append({
-                "id": entry["id"],
-                "entry_type": entry["entry_type"],
-                "created_at": entry["created_at"],
-                "preview": entry["content"]
-            })
+            hits.append(
+                {
+                    "id": entry["id"],
+                    "entry_type": entry["entry_type"],
+                    "created_at": entry["created_at"],
+                    "preview": entry["content"],
+                }
+            )
 
     return {"case_id": case_id, "q": q, "hits": hits}

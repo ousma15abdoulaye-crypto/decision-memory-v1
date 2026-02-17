@@ -3,6 +3,7 @@
 Constitution V2.1 : Pas de FastAPI-Users (ORM interdit).
 Implémentation manuelle avec python-jose + passlib.
 """
+
 import os
 from datetime import datetime, timedelta
 from functools import wraps
@@ -40,23 +41,31 @@ def get_password_hash(password: str) -> str:
 def get_user_by_username(username: str) -> Optional[dict]:
     """Récupère utilisateur par username."""
     with get_connection() as conn:
-        return db_execute_one(conn, """
-            SELECT u.*, r.name as role_name 
-            FROM users u 
-            JOIN roles r ON u.role_id = r.id 
+        return db_execute_one(
+            conn,
+            """
+            SELECT u.*, r.name as role_name
+            FROM users u
+            JOIN roles r ON u.role_id = r.id
             WHERE u.username = :username
-        """, {"username": username})
+        """,
+            {"username": username},
+        )
 
 
 def get_user_by_id(user_id: int) -> Optional[dict]:
     """Récupère utilisateur par ID."""
     with get_connection() as conn:
-        return db_execute_one(conn, """
-            SELECT u.*, r.name as role_name 
-            FROM users u 
-            JOIN roles r ON u.role_id = r.id 
+        return db_execute_one(
+            conn,
+            """
+            SELECT u.*, r.name as role_name
+            FROM users u
+            JOIN roles r ON u.role_id = r.id
             WHERE u.id = :id
-        """, {"id": user_id})
+        """,
+            {"id": user_id},
+        )
 
 
 def authenticate_user(username: str, password: str) -> Optional[dict]:
@@ -71,9 +80,10 @@ def authenticate_user(username: str, password: str) -> Optional[dict]:
 
     # Update last_login
     with get_connection() as conn:
-        db_execute(conn,
+        db_execute(
+            conn,
             "UPDATE users SET last_login = :ts WHERE id = :id",
-            {"ts": datetime.utcnow().isoformat(), "id": user["id"]}
+            {"ts": datetime.utcnow().isoformat(), "id": user["id"]},
         )
 
     return user
@@ -132,6 +142,7 @@ def get_user_role(user: dict) -> str:
 
 def require_roles(*allowed_roles: str):
     """Décorateur RBAC – vérifie rôles autorisés."""
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, current_user: dict = None, **kwargs):
@@ -145,12 +156,11 @@ def require_roles(*allowed_roles: str):
 
             user_role = get_user_role(current_user)
             if user_role not in allowed_roles and not current_user.get("is_superuser"):
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"Requires one of roles: {', '.join(allowed_roles)}"
-                )
+                raise HTTPException(status_code=403, detail=f"Requires one of roles: {', '.join(allowed_roles)}")
             return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
@@ -180,32 +190,43 @@ def create_user(email: str, username: str, password: str, role_id: int = 2, full
 
     with get_connection() as conn:
         # Vérifier unicité email/username
-        existing = db_execute_one(conn, """
+        existing = db_execute_one(
+            conn,
+            """
             SELECT id FROM users WHERE email = :email OR username = :username
-        """, {"email": email, "username": username})
+        """,
+            {"email": email, "username": username},
+        )
 
         if existing:
             raise HTTPException(409, "Email or username already exists")
 
         # Insérer utilisateur avec RETURNING pour PostgreSQL
-        result = conn.execute(text("""
+        result = conn.execute(
+            text("""
             INSERT INTO users (email, username, hashed_password, full_name, role_id, is_active, is_superuser, created_at)
             VALUES (:email, :username, :password, :name, :role, TRUE, FALSE, :ts)
             RETURNING id
-        """), {
-            "email": email,
-            "username": username,
-            "password": hashed_password,
-            "name": full_name,
-            "role": role_id,
-            "ts": timestamp
-        })
+        """),
+            {
+                "email": email,
+                "username": username,
+                "password": hashed_password,
+                "name": full_name,
+                "role": role_id,
+                "ts": timestamp,
+            },
+        )
 
         user_id = result.fetchone()[0]
         # Fetch the user data within the same transaction to avoid isolation issues
-        return db_execute_one(conn, """
-            SELECT u.*, r.name as role_name 
-            FROM users u 
-            JOIN roles r ON u.role_id = r.id 
+        return db_execute_one(
+            conn,
+            """
+            SELECT u.*, r.name as role_name
+            FROM users u
+            JOIN roles r ON u.role_id = r.id
             WHERE u.id = :id
-        """, {"id": user_id})
+        """,
+            {"id": user_id},
+        )
