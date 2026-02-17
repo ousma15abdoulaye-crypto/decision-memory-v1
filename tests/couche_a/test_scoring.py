@@ -278,7 +278,7 @@ class TestScoringEngine:
 
         profile = {
             "criteria": [
-                {"category": "essential", "weight": 0.0},
+                {"category": "essentials", "weight": 0.0},
                 {"category": "commercial", "weight": 0.50},
                 {"category": "capacity", "weight": 0.30},
                 {"category": "sustainability", "weight": 0.10},

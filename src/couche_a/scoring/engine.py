@@ -351,7 +351,7 @@ class ScoringEngine:
                             calculation_method, calculation_details, is_validated
                         ) VALUES (
                             :case_id, :supplier_name, :category, :score_value,
-                            :method, :details::jsonb, :validated
+                            :method, CAST(:details AS jsonb), :validated
                         )
                         ON CONFLICT (case_id, supplier_name, category)
                         DO UPDATE SET
