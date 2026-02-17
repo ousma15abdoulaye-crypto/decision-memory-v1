@@ -68,7 +68,7 @@ def test_retry_db_fails_after_max_attempts():
 
     with patch("src.db._get_raw_connection", side_effect=OperationalError("Dead")):
         with pytest.raises(OperationalError):
-            with get_connection() as conn:
+            with get_connection() as _:
                 pass
 
 
@@ -84,7 +84,7 @@ def test_circuit_breaker_opens_after_failures():
     for i in range(5):
         try:
             db_breaker.call(always_fail)
-        except:
+        except Exception:
             pass
 
     # 6e appel → circuit ouvert
@@ -105,7 +105,7 @@ def test_extraction_breaker_protects_llm():
     for i in range(3):
         try:
             extraction_breaker.call(failing_extraction)
-        except:
+        except Exception:
             pass
 
     with pytest.raises(Exception, match="temporarily unavailable"):

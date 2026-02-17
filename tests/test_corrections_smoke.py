@@ -18,10 +18,10 @@ from src.business.offer_processor import (
 def test_guess_supplier_name_order():
     """Test que l'ordre de fallback est correct"""
 
-    # Cas a) Filename valide et significatif
-    text_with_societe = """
+    # Cas a) Filename valide et significatif (texte avec Société conservé pour doc)
+    _ = """
     Société: OMEGA CORPORATION
-    
+
     Prix: 1000000 FCFA
     """
 
