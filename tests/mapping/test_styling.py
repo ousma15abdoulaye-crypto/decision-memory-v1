@@ -1,9 +1,9 @@
 """Unit tests for styling module."""
-import pytest
 from unittest.mock import MagicMock
+
 from openpyxl.styles import PatternFill
 
-from src.mapping.styling import apply_confidence_styling, CONFIDENCE_COLORS
+from src.mapping.styling import CONFIDENCE_COLORS, apply_confidence_styling
 
 
 class TestConfidenceColors:

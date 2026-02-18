@@ -2,12 +2,11 @@
 Comprehensive unit tests for offer_processor module.
 Tests detection, aggregation, extraction, and supplier name guessing.
 """
-import pytest
 from src.business.offer_processor import (
-    detect_offer_subtype,
     aggregate_supplier_packages,
-    guess_supplier_name,
+    detect_offer_subtype,
     extract_offer_data_guided,
+    guess_supplier_name,
 )
 from src.core.models import DAOCriterion
 
@@ -19,13 +18,13 @@ class TestDetectOfferSubtype:
         """Offer with financial, technical, and admin content should be COMBINED."""
         text = """
         OFFRE COMPLETE
-        
+
         Prix total: 50.000.000 FCFA
         Caractéristiques techniques: conformes aux spécifications
         Documents administratifs: attestation fiscale jointe
         """
         result = detect_offer_subtype(text, "offre_complete.pdf")
-        
+
         assert result.subtype == "COMBINED"
         assert result.has_financial is True
         assert result.has_technical is True
@@ -36,12 +35,12 @@ class TestDetectOfferSubtype:
         """Offer with only financial content should be FINANCIAL_ONLY."""
         text = """
         BORDEREAU DE PRIX
-        
+
         Montant total: 25.000.000 FCFA
         Délai de livraison: 30 jours
         """
         result = detect_offer_subtype(text, "document.pdf")
-        
+
         assert result.subtype == "FINANCIAL_ONLY"
         assert result.has_financial is True
         assert result.has_technical is False
@@ -51,13 +50,13 @@ class TestDetectOfferSubtype:
         """Offer with only technical content should be TECHNICAL_ONLY."""
         text = """
         OFFRE TECHNIQUE
-        
+
         Spécifications techniques détaillées
         Références clients: Projet ABC, Projet XYZ
         Capacité technique prouvée
         """
         result = detect_offer_subtype(text, "document.pdf")
-        
+
         assert result.subtype == "TECHNICAL_ONLY"
         assert result.has_financial is False
         assert result.has_technical is True
@@ -67,13 +66,13 @@ class TestDetectOfferSubtype:
         """Offer with only admin content should be ADMIN_ONLY."""
         text = """
         DOCUMENTS ADMINISTRATIFS
-        
+
         Attestation fiscale
         Registre de commerce RCCM
         Certificat de conformité
         """
         result = detect_offer_subtype(text, "document.pdf")
-        
+
         assert result.subtype == "ADMIN_ONLY"
         assert result.has_financial is False
         assert result.has_technical is False
@@ -83,7 +82,7 @@ class TestDetectOfferSubtype:
         """Should detect FINANCIAL_ONLY from filename when text is empty."""
         text = "no useful content here"
         result = detect_offer_subtype(text, "offre_financiere_lot1.pdf")
-        
+
         assert result.subtype == "FINANCIAL_ONLY"
         assert result.has_financial is True
 
@@ -91,7 +90,7 @@ class TestDetectOfferSubtype:
         """Should detect TECHNICAL_ONLY from filename when text is empty."""
         text = "no useful content here"
         result = detect_offer_subtype(text, "specification_technique.pdf")
-        
+
         assert result.subtype == "TECHNICAL_ONLY"
         assert result.has_technical is True
 
@@ -99,7 +98,7 @@ class TestDetectOfferSubtype:
         """Should detect ADMIN_ONLY from filename when text is empty."""
         text = "no useful content here"
         result = detect_offer_subtype(text, "documents_administratifs.pdf")
-        
+
         assert result.subtype == "ADMIN_ONLY"
         assert result.has_admin is True
 
@@ -107,7 +106,7 @@ class TestDetectOfferSubtype:
         """Should return UNKNOWN when no patterns match."""
         text = "some random text without keywords"
         result = detect_offer_subtype(text, "random.pdf")
-        
+
         assert result.subtype == "UNKNOWN"
         assert result.confidence == "LOW"
 
@@ -118,7 +117,7 @@ class TestDetectOfferSubtype:
         Références techniques: Projet Alpha
         """
         result = detect_offer_subtype(text, "offre.pdf")
-        
+
         assert result.subtype == "COMBINED"
         assert result.has_financial is True
         assert result.has_technical is True
@@ -147,7 +146,7 @@ class TestAggregateSupplierPackages:
             }
         ]
         packages = aggregate_supplier_packages(offers)
-        
+
         assert len(packages) == 1
         assert packages[0].supplier_name == "ACME Corp"
         assert packages[0].package_status == "COMPLETE"
@@ -174,7 +173,7 @@ class TestAggregateSupplierPackages:
             }
         ]
         packages = aggregate_supplier_packages(offers)
-        
+
         assert len(packages) == 1
         assert packages[0].package_status == "PARTIAL"
         assert "TECHNICAL" in packages[0].extracted_data["missing_parts"]
@@ -205,7 +204,7 @@ class TestAggregateSupplierPackages:
             },
         ]
         packages = aggregate_supplier_packages(offers)
-        
+
         assert len(packages) == 1
         pkg = packages[0]
         assert pkg.supplier_name == "GAMMA Ltd"
@@ -240,7 +239,7 @@ class TestAggregateSupplierPackages:
             },
         ]
         packages = aggregate_supplier_packages(offers)
-        
+
         assert len(packages) == 2
         names = {p.supplier_name for p in packages}
         assert names == {"ALPHA", "BETA"}
@@ -260,7 +259,7 @@ class TestAggregateSupplierPackages:
             }
         ]
         packages = aggregate_supplier_packages(offers)
-        
+
         assert len(packages) == 1
         assert packages[0].package_status == "MISSING"
 
@@ -279,7 +278,7 @@ class TestAggregateSupplierPackages:
             }
         ]
         packages = aggregate_supplier_packages(offers)
-        
+
         pkg = packages[0]
         assert "Prix total" in pkg.extracted_data["missing_extracted_fields"]
         assert "Validité offre" in pkg.extracted_data["missing_extracted_fields"]
@@ -311,7 +310,7 @@ class TestAggregateSupplierPackages:
             },
         ]
         packages = aggregate_supplier_packages(offers)
-        
+
         refs = packages[0].extracted_data["technical_refs"]
         assert len(refs) == 3
         assert set(refs) == {"Project A", "Project B", "Project C"}
@@ -330,7 +329,7 @@ class TestGuessSupplierName:
         """Should extract from 'Société: ...' pattern in text when filename is generic."""
         text = """
         Société: BETA SERVICES SARL
-        
+
         Some content here
         """
         # Use a filename that won't produce a valid supplier name after cleaning
@@ -349,9 +348,9 @@ class TestGuessSupplierName:
         """Should extract from uppercase line when no other patterns match."""
         text = """
         OFFRE TECHNIQUE
-        
+
         DELTA CORPORATION INTERNATIONAL
-        
+
         Some content here
         """
         name = guess_supplier_name(text, "123.pdf")
@@ -382,7 +381,7 @@ class TestGuessSupplierName:
         """Should skip section titles like 'OFFRE TECHNIQUE'."""
         text = """
         OFFRE TECHNIQUE
-        
+
         REAL SUPPLIER NAME HERE
         """
         name = guess_supplier_name(text, "doc.pdf")
@@ -418,9 +417,9 @@ class TestExtractOfferDataGuided:
             seuil_elimination=None,
             ordre_affichage=0
         )]
-        
+
         result = extract_offer_data_guided(text, criteria)
-        
+
         assert result["total_price"] is not None
         assert "50" in result["total_price"]
         assert "FCFA" in result["total_price"]
@@ -429,9 +428,9 @@ class TestExtractOfferDataGuided:
         """Should extract lead time in days."""
         text = "Délai de livraison: 45 jours"
         criteria = []
-        
+
         result = extract_offer_data_guided(text, criteria)
-        
+
         assert result["lead_time_days"] == 45
         assert "Délai" in result["lead_time_source"]
 
@@ -439,9 +438,9 @@ class TestExtractOfferDataGuided:
         """Should extract offer validity in days."""
         text = "Validité de l'offre: 90 jours"
         criteria = []
-        
+
         result = extract_offer_data_guided(text, criteria)
-        
+
         assert result["validity_days"] == 90
         assert "Validité" in result["validity_source"]
 
@@ -460,9 +459,9 @@ class TestExtractOfferDataGuided:
             seuil_elimination=None,
             ordre_affichage=0
         )]
-        
+
         result = extract_offer_data_guided(text, criteria)
-        
+
         assert len(result["technical_refs"]) > 0
 
     def test_missing_fields_tracked(self):
@@ -477,9 +476,9 @@ class TestExtractOfferDataGuided:
             seuil_elimination=None,
             ordre_affichage=0
         )]
-        
+
         result = extract_offer_data_guided(text, criteria)
-        
+
         assert "Prix total" in result["missing_fields"]
         assert "Délai livraison" in result["missing_fields"]
         assert "Validité offre" in result["missing_fields"]
@@ -496,7 +495,7 @@ class TestExtractOfferDataGuided:
             ("Total: 1.500.000 CFA", "1.500.000"),
             ("Prix: 2500000 XOF", "2500000"),
         ]
-        
+
         criteria = [DAOCriterion(
             categorie="commercial",
             critere_nom="Prix",
@@ -506,7 +505,7 @@ class TestExtractOfferDataGuided:
             seuil_elimination=None,
             ordre_affichage=0
         )]
-        
+
         for text, expected_amount in test_cases:
             result = extract_offer_data_guided(text, criteria)
             assert result["total_price"] is not None, f"Failed for: {text}"
@@ -523,8 +522,8 @@ class TestExtractOfferDataGuided:
             seuil_elimination=None,
             ordre_affichage=0
         )]
-        
+
         result = extract_offer_data_guided(text, criteria)
-        
+
         # Price should not be extracted since no commercial criteria
         assert result["total_price"] is None

@@ -2,11 +2,11 @@
 import pytest
 
 from src.mapping.column_calculator import (
+    SheetColRule,
     col_letter_from_index,
+    commercial_cols,
     supplier_col_index,
     supplier_col_letter,
-    commercial_cols,
-    SheetColRule,
 )
 
 
