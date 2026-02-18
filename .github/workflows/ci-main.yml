@@ -43,6 +43,7 @@ jobs:
       
       - name: Black check
         run: black --check src tests
+        continue-on-error: false
       
       - name: Python syntax check
         run: python -m compileall src -q
