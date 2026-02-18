@@ -49,7 +49,7 @@ def resolve_vendor(name: str, session: Optional[Session] = None) -> Optional[int
 
     if session is not None:
         return _query(session)
-    
+
     with get_session() as s:
         return _query(s)
 
@@ -90,7 +90,7 @@ def resolve_item(description: str, session: Optional[Session] = None) -> Optiona
 
     if session is not None:
         return _query(session)
-    
+
     with get_session() as s:
         return _query(s)
 
@@ -135,6 +135,6 @@ def resolve_zone(name: str, session: Optional[Session] = None) -> Optional[str]:
 
     if session is not None:
         return _query(session)
-    
+
     with get_session() as s:
         return _query(s)

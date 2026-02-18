@@ -65,7 +65,9 @@ def test_resolve_zone_exact_match(seed_zones, db_session):
 def test_resolve_zone_fuzzy_match(seed_zones, db_session):
     """Test fuzzy match with realistic typo (similarity ≥60%)"""
     # Test avec typo plausible : lettre manquante
-    zone_id = resolve_zone("Bamko", session=db_session)  # "Bamako" avec typo: manque 'a'
+    zone_id = resolve_zone(
+        "Bamko", session=db_session
+    )  # "Bamako" avec typo: manque 'a'
     assert (
         zone_id == "zone-bamako-1"
     ), "Should resolve 'Bamko' to 'Bamako' (typo tolerance)"
@@ -90,8 +92,12 @@ def test_resolve_zone_no_match(seed_zones, db_session):
 
 def test_resolve_zone_empty_string(seed_zones, db_session):
     """Test empty string handling."""
-    assert resolve_zone("", session=db_session) is None, "Empty string should return None"
-    assert resolve_zone("   ", session=db_session) is None, "Whitespace-only should return None"
+    assert (
+        resolve_zone("", session=db_session) is None
+    ), "Empty string should return None"
+    assert (
+        resolve_zone("   ", session=db_session) is None
+    ), "Whitespace-only should return None"
 
 
 def test_resolve_vendor_exact_match(seed_vendors, db_session):
@@ -118,8 +124,12 @@ def test_resolve_vendor_no_match(seed_vendors, db_session):
 
 def test_resolve_vendor_empty_string(seed_vendors, db_session):
     """Test empty string handling for vendor."""
-    assert resolve_vendor("", session=db_session) is None, "Empty string should return None"
-    assert resolve_vendor("   ", session=db_session) is None, "Whitespace-only should return None"
+    assert (
+        resolve_vendor("", session=db_session) is None
+    ), "Empty string should return None"
+    assert (
+        resolve_vendor("   ", session=db_session) is None
+    ), "Whitespace-only should return None"
 
 
 def test_resolve_item_exact_match(seed_items, db_session):
@@ -146,5 +156,9 @@ def test_resolve_item_no_match(seed_items, db_session):
 
 def test_resolve_item_empty_string(seed_items, db_session):
     """Test empty string handling for item."""
-    assert resolve_item("", session=db_session) is None, "Empty string should return None"
-    assert resolve_item("   ", session=db_session) is None, "Whitespace-only should return None"
+    assert (
+        resolve_item("", session=db_session) is None
+    ), "Empty string should return None"
+    assert (
+        resolve_item("   ", session=db_session) is None
+    ), "Whitespace-only should return None"
