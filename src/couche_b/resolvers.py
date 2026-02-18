@@ -6,15 +6,10 @@ Threshold: 60% (0.6) - balances typo tolerance with false positive prevention.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from src.db import get_session
-
-if TYPE_CHECKING:
-    pass
 
 # Production-safe threshold: tolerates 1-2 letter typos, rejects semantic variations
 SIMILARITY_THRESHOLD = 0.6
