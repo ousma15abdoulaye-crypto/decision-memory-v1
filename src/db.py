@@ -129,8 +129,7 @@ def db_fetchall(conn: Connection, sql: str, params: dict | None = None) -> list[
 def init_db_schema() -> None:
     """Create all tables if they do not exist."""
     with engine.connect() as conn:
-        conn.execute(
-            text("""
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS cases (
                 id TEXT PRIMARY KEY,
                 case_type TEXT NOT NULL,
@@ -139,10 +138,8 @@ def init_db_schema() -> None:
                 created_at TEXT NOT NULL,
                 status TEXT NOT NULL
             )
-        """)
-        )
-        conn.execute(
-            text("""
+        """))
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS artifacts (
                 id TEXT PRIMARY KEY,
                 case_id TEXT NOT NULL,
@@ -153,10 +150,8 @@ def init_db_schema() -> None:
                 meta_json TEXT,
                 FOREIGN KEY (case_id) REFERENCES cases(id)
             )
-        """)
-        )
-        conn.execute(
-            text("""
+        """))
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS memory_entries (
                 id TEXT PRIMARY KEY,
                 case_id TEXT NOT NULL,
@@ -165,10 +160,8 @@ def init_db_schema() -> None:
                 created_at TEXT NOT NULL,
                 FOREIGN KEY (case_id) REFERENCES cases(id)
             )
-        """)
-        )
-        conn.execute(
-            text("""
+        """))
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS dao_criteria (
                 id TEXT PRIMARY KEY,
                 case_id TEXT NOT NULL,
@@ -182,10 +175,8 @@ def init_db_schema() -> None:
                 created_at TEXT NOT NULL,
                 FOREIGN KEY (case_id) REFERENCES cases(id)
             )
-        """)
-        )
-        conn.execute(
-            text("""
+        """))
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS cba_template_schemas (
                 id TEXT PRIMARY KEY,
                 case_id TEXT NOT NULL,
@@ -195,10 +186,8 @@ def init_db_schema() -> None:
                 reused_count INTEGER DEFAULT 0,
                 FOREIGN KEY (case_id) REFERENCES cases(id)
             )
-        """)
-        )
-        conn.execute(
-            text("""
+        """))
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS offer_extractions (
                 id TEXT PRIMARY KEY,
                 case_id TEXT NOT NULL,
@@ -210,8 +199,7 @@ def init_db_schema() -> None:
                 FOREIGN KEY (case_id) REFERENCES cases(id),
                 FOREIGN KEY (artifact_id) REFERENCES artifacts(id)
             )
-        """)
-        )
+        """))
         conn.commit()
 
 
