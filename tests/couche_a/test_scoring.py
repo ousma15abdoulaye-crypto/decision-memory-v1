@@ -14,7 +14,7 @@ class TestScoringEngine:
     """Tests pour le moteur de scoring."""
 
     def test_score_result_creation(self):
-        """Test de création d'un résultat de scoring."""
+        """Test de crÃ©ation d'un rÃ©sultat de scoring."""
         score = ScoreResult(
             supplier_name="Fournisseur Test",
             category="commercial",
@@ -31,9 +31,9 @@ class TestScoringEngine:
         assert "price" in score.calculation_details
 
     def test_elimination_result_creation(self):
-        """Test de création d'un résultat d'élimination."""
+        """Test de crÃ©ation d'un rÃ©sultat d'Ã©limination."""
         elimination = EliminationResult(
-            supplier_name="Fournisseur Éliminé",
+            supplier_name="Fournisseur Ã‰liminÃ©",
             criterion_id="crit_123",
             criterion_name="Certification ISO 9001",
             criterion_category="essential",
@@ -41,7 +41,7 @@ class TestScoringEngine:
             eliminated_at=datetime.utcnow(),
         )
 
-        assert elimination.supplier_name == "Fournisseur Éliminé"
+        assert elimination.supplier_name == "Fournisseur Ã‰liminÃ©"
         assert elimination.criterion_name == "Certification ISO 9001"
         assert elimination.criterion_category == "essential"
         assert elimination.failure_reason == "Certification manquante"
@@ -55,7 +55,7 @@ class TestScoringEngine:
         assert engine.sustainability_method == "sustainability_certifications"
 
     def test_calculate_commercial_scores_basic(self):
-        """Test du calcul des scores commerciaux avec données basiques."""
+        """Test du calcul des scores commerciaux avec donnÃ©es basiques."""
         engine = ScoringEngine()
 
         suppliers = [
@@ -108,7 +108,7 @@ class TestScoringEngine:
         supplier_b_score = next(s for s in scores if s.supplier_name == "Fournisseur B")
         assert supplier_b_score.score_value == 100.0
 
-        # Fournisseur A devrait avoir un score basé sur la formule: (850/1000)*100 = 85
+        # Fournisseur A devrait avoir un score basÃ© sur la formule: (850/1000)*100 = 85
         supplier_a_score = next(s for s in scores if s.supplier_name == "Fournisseur A")
         assert supplier_a_score.score_value == 85.0
 
@@ -139,12 +139,12 @@ class TestScoringEngine:
         assert scores[0].calculation_details["error"] == "Aucun prix disponible"
 
     def test_calculate_capacity_scores(self):
-        """Test du calcul des scores de capacité."""
+        """Test du calcul des scores de capacitÃ©."""
         engine = ScoringEngine()
 
         suppliers = [
             SupplierPackage(
-                supplier_name="Fournisseur avec références",
+                supplier_name="Fournisseur avec rÃ©fÃ©rences",
                 offer_ids=["offer_1"],
                 documents=[],
                 package_status="COMPLETE",
@@ -152,12 +152,12 @@ class TestScoringEngine:
                 has_technical=True,
                 has_admin=True,
                 extracted_data={
-                    "technical_refs": ["Réf 1", "Réf 2", "Réf 3", "Réf 4", "Réf 5"]
+                    "technical_refs": ["RÃ©f 1", "RÃ©f 2", "RÃ©f 3", "RÃ©f 4", "RÃ©f 5"]
                 },
                 missing_fields=[],
             ),
             SupplierPackage(
-                supplier_name="Fournisseur sans références",
+                supplier_name="Fournisseur sans rÃ©fÃ©rences",
                 offer_ids=["offer_2"],
                 documents=[],
                 package_status="COMPLETE",
@@ -175,18 +175,18 @@ class TestScoringEngine:
         assert len(scores) == 2
 
         supplier_with_refs = next(
-            s for s in scores if s.supplier_name == "Fournisseur avec références"
+            s for s in scores if s.supplier_name == "Fournisseur avec rÃ©fÃ©rences"
         )
-        assert supplier_with_refs.score_value == 100.0  # 5 références = 100 points
+        assert supplier_with_refs.score_value == 100.0  # 5 rÃ©fÃ©rences = 100 points
         assert supplier_with_refs.calculation_details["technical_references_count"] == 5
 
         supplier_no_refs = next(
-            s for s in scores if s.supplier_name == "Fournisseur sans références"
+            s for s in scores if s.supplier_name == "Fournisseur sans rÃ©fÃ©rences"
         )
         assert supplier_no_refs.score_value == 0.0
 
     def test_calculate_sustainability_scores(self):
-        """Test du calcul des scores de durabilité."""
+        """Test du calcul des scores de durabilitÃ©."""
         engine = ScoringEngine()
 
         suppliers = [
@@ -204,7 +204,7 @@ class TestScoringEngine:
             SupplierPackage(
                 supplier_name="Fournisseur standard",
                 offer_ids=["offer_2"],
-                documents=["Document sans mots-clés"],
+                documents=["Document sans mots-clÃ©s"],
                 package_status="COMPLETE",
                 has_financial=True,
                 has_technical=True,
@@ -229,7 +229,7 @@ class TestScoringEngine:
         ) or "rse" in sustainable_supplier.calculation_details.get("found_keywords", [])
 
     def test_calculate_total_scores(self):
-        """Test du calcul des scores totaux pondérés."""
+        """Test du calcul des scores totaux pondÃ©rÃ©s."""
         engine = ScoringEngine()
 
         suppliers = [
@@ -246,7 +246,7 @@ class TestScoringEngine:
             )
         ]
 
-        # Scores simulés
+        # Scores simulÃ©s
         category_scores = [
             ScoreResult(
                 supplier_name="Fournisseur Test",
@@ -294,14 +294,14 @@ class TestScoringEngine:
         assert len(total_scores) == 1
         total_score = total_scores[0]
 
-        # Profil: essentials=0.0 → 80*0.5+70*0.3+90*0.1+100*0 = 70 (Constitution V3.3.2)
+        # Profil: essentials=0.0 â†’ 80*0.5+70*0.3+90*0.1+100*0 = 70 (Constitution V3.3.2)
         expected_score = 70.0
         assert abs(total_score.score_value - expected_score) < 0.01
         assert total_score.category == "total"
         assert total_score.calculation_method == "weighted_sum"
 
     def test_check_eliminatory_criteria(self):
-        """Test de la vérification des critères éliminatoires."""
+        """Test de la vÃ©rification des critÃ¨res Ã©liminatoires."""
         engine = ScoringEngine()
 
         suppliers = [
@@ -325,29 +325,29 @@ class TestScoringEngine:
                 description="Certification ISO 9001 obligatoire",
                 ponderation=0.0,
                 type_reponse="boolean",
-                seuil_elimination=1.0,  # Seuil d'élimination
+                seuil_elimination=1.0,  # Seuil d'Ã©limination
                 ordre_affichage=1,
             ),
             DAOCriterion(
                 categorie="commercial",
                 critere_nom="Prix maximum",
-                description="Prix ne doit pas dépasser 10000 XOF",
+                description="Prix ne doit pas dÃ©passer 10000 XOF",
                 ponderation=50.0,
                 type_reponse="numeric",
-                seuil_elimination=None,  # Pas éliminatoire
+                seuil_elimination=None,  # Pas Ã©liminatoire
                 ordre_affichage=2,
             ),
         ]
 
         eliminations = engine._check_eliminatory_criteria(suppliers, criteria)
 
-        # La méthode _meets_criterion retourne True par défaut (stub)
-        # Donc aucune élimination ne devrait être retournée
+        # La mÃ©thode _meets_criterion retourne True par dÃ©faut (stub)
+        # Donc aucune Ã©limination ne devrait Ãªtre retournÃ©e
         assert len(eliminations) == 0
 
     def test_save_scores_to_db(self):
-        """Test d'enregistrement des scores en base de données."""
-        # Ce test vérifie que la méthode ne plante pas
+        """Test d'enregistrement des scores en base de donnÃ©es."""
+        # Ce test vÃ©rifie que la mÃ©thode ne plante pas
         engine = ScoringEngine()
 
         scores = [
@@ -361,20 +361,20 @@ class TestScoringEngine:
             )
         ]
 
-        # Vérifier que la méthode s'exécute sans erreur
+        # VÃ©rifier que la mÃ©thode s'exÃ©cute sans erreur
         try:
             engine._save_scores_to_db("test_case_123", scores)
             assert True
         except Exception as e:
-            pytest.fail(f"_save_scores_to_db a échoué avec: {e}")
+            pytest.fail(f"_save_scores_to_db a Ã©chouÃ© avec: {e}")
 
     def test_save_eliminations_to_db(self):
-        """Test d'enregistrement des éliminations en base de données."""
+        """Test d'enregistrement des Ã©liminations en base de donnÃ©es."""
         engine = ScoringEngine()
 
         eliminations = [
             EliminationResult(
-                supplier_name="Fournisseur Éliminé",
+                supplier_name="Fournisseur Ã‰liminÃ©",
                 criterion_id="crit_123",
                 criterion_name="Certification manquante",
                 criterion_category="essential",
@@ -383,27 +383,27 @@ class TestScoringEngine:
             )
         ]
 
-        # Vérifier que la méthode s'exécute sans erreur
+        # VÃ©rifier que la mÃ©thode s'exÃ©cute sans erreur
         try:
             engine.save_eliminations_to_db("test_case_123", eliminations)
             assert True
         except Exception as e:
-            pytest.fail(f"save_eliminations_to_db a échoué avec: {e}")
+            pytest.fail(f"save_eliminations_to_db a Ã©chouÃ© avec: {e}")
 
 
 class TestScoringIntegration:
-    """Tests d'intégration pour le moteur de scoring."""
+    """Tests d'intÃ©gration pour le moteur de scoring."""
 
     def test_full_scoring_pipeline(self):
         """Test du pipeline complet de scoring."""
         engine = ScoringEngine()
 
-        # Critères DAO
+        # CritÃ¨res DAO
         criteria = [
             DAOCriterion(
                 categorie="essential",
                 critere_nom="Certification ISO 9001",
-                description="Certification qualité obligatoire",
+                description="Certification qualitÃ© obligatoire",
                 ponderation=0.0,
                 type_reponse="boolean",
                 seuil_elimination=1.0,
@@ -420,8 +420,8 @@ class TestScoringIntegration:
             ),
             DAOCriterion(
                 categorie="capacity",
-                critere_nom="Expérience",
-                description="Expérience similaire dans les 3 dernières années",
+                critere_nom="ExpÃ©rience",
+                description="ExpÃ©rience similaire dans les 3 derniÃ¨res annÃ©es",
                 ponderation=30.0,
                 type_reponse="numeric",
                 seuil_elimination=None,
@@ -430,7 +430,7 @@ class TestScoringIntegration:
             DAOCriterion(
                 categorie="sustainability",
                 critere_nom="Engagement RSE",
-                description="Politique RSE documentée",
+                description="Politique RSE documentÃ©e",
                 ponderation=10.0,
                 type_reponse="boolean",
                 seuil_elimination=None,
@@ -438,7 +438,7 @@ class TestScoringIntegration:
             ),
         ]
 
-        # Fournisseurs avec données extraites
+        # Fournisseurs avec donnÃ©es extraites
         suppliers = [
             SupplierPackage(
                 supplier_name="Fournisseur A",
@@ -476,30 +476,30 @@ class TestScoringIntegration:
             ),
         ]
 
-        # Exécuter le calcul complet
+        # ExÃ©cuter le calcul complet
         scores, eliminations = engine.calculate_scores_for_case(
             case_id="test_case_123", suppliers=suppliers, criteria=criteria
         )
 
-        # Vérifications de base
+        # VÃ©rifications de base
         assert isinstance(scores, list)
         assert isinstance(eliminations, list)
 
-        # Devrait avoir des scores pour chaque fournisseur et chaque catégorie
-        # (2 fournisseurs × 5 catégories = 10 scores)
+        # Devrait avoir des scores pour chaque fournisseur et chaque catÃ©gorie
+        # (2 fournisseurs Ã— 5 catÃ©gories = 10 scores)
         assert (
             len(scores) == 10
         )  # commercial, capacity, sustainability, essentials, total pour chaque fournisseur
 
-        # Vérifier que chaque fournisseur a un score total
+        # VÃ©rifier que chaque fournisseur a un score total
         total_scores = [s for s in scores if s.category == "total"]
         assert len(total_scores) == 2
 
-        # Vérifier que les scores commerciaux sont calculés
+        # VÃ©rifier que les scores commerciaux sont calculÃ©s
         commercial_scores = [s for s in scores if s.category == "commercial"]
         assert len(commercial_scores) == 2
 
-        # Fournisseur B devrait avoir le score commercial le plus élevé (prix le plus bas)
+        # Fournisseur B devrait avoir le score commercial le plus Ã©levÃ© (prix le plus bas)
         supplier_b_commercial = next(
             s for s in commercial_scores if s.supplier_name == "Fournisseur B"
         )
@@ -507,4 +507,4 @@ class TestScoringIntegration:
             s for s in commercial_scores if s.supplier_name == "Fournisseur A"
         )
         assert supplier_b_commercial.score_value == 100.0  # Prix le plus bas
-        assert supplier_a_commercial.score_value < 100.0  # Prix plus élevé
+        assert supplier_a_commercial.score_value < 100.0  # Prix plus Ã©levÃ©
