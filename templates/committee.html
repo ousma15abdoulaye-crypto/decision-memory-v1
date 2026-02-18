@@ -5,42 +5,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Revue Comité</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>body{position:relative}.skip-link{position:absolute;top:-40px;left:0;background:#4f46e5;color:white;padding:8px 16px;z-index:100;border-radius:0 0 4px 0}.skip-link:focus{top:0;outline:2px solid #6366f1;outline-offset:2px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #6366f1;outline-offset:2px}</style>
     <script src="/static/committee.js" defer></script>
   </head>
   <body class="bg-slate-50 text-slate-900">
-    <main class="max-w-4xl mx-auto py-10 px-6">
+    <a href="#main-content" class="skip-link">Aller au contenu principal</a>
+    <main id="main-content" class="max-w-4xl mx-auto py-10 px-6" role="main">
       <div class="flex items-center justify-between">
         <h1 class="text-2xl font-semibold">Revue Comité &amp; PV</h1>
-        <a class="text-indigo-600" href="/templates/index.html">Accueil</a>
+        <a class="text-indigo-600" href="/templates/index.html" aria-label="Retour à l'accueil">Accueil</a>
       </div>
 
       <section class="mt-6 bg-white shadow rounded-lg p-6 border border-slate-200">
         <h2 class="text-lg font-medium">Upload CBA complété</h2>
         <form id="cba-upload-form" class="mt-4 space-y-3">
-          <input class="w-full border rounded px-3 py-2" name="offer_id" placeholder="ID Offre" />
-          <input class="w-full border rounded px-3 py-2" name="reviewer" placeholder="Relecteur" />
-          <input class="w-full" type="file" name="file" />
-          <button class="bg-indigo-600 text-white px-4 py-2 rounded" type="submit">
+          <div>
+            <label for="offer_id" class="sr-only">ID Offre</label>
+            <input id="offer_id" class="w-full border rounded px-3 py-2" name="offer_id" placeholder="ID Offre" aria-label="ID Offre" />
+          </div>
+          <div>
+            <label for="reviewer" class="sr-only">Relecteur</label>
+            <input id="reviewer" class="w-full border rounded px-3 py-2" name="reviewer" placeholder="Relecteur" aria-label="Relecteur" />
+          </div>
+          <div>
+            <label for="cba-file" class="sr-only">Fichier CBA complété</label>
+            <input id="cba-file" class="w-full" type="file" name="file" aria-label="Sélectionner fichier CBA complété" />
+          </div>
+          <button class="bg-indigo-600 text-white px-4 py-2 rounded" type="submit" aria-label="Charger le CBA">
             Charger
           </button>
         </form>
-        <p id="upload-status" class="text-sm text-slate-500 mt-3"></p>
+        <p id="upload-status" class="text-sm text-slate-500 mt-3" role="alert" aria-live="assertive" aria-atomic="true" aria-label="Statut de l'upload"></p>
       </section>
 
       <section class="mt-6 bg-white shadow rounded-lg p-6 border border-slate-200">
         <h2 class="text-lg font-medium">PV automatiques</h2>
         <div class="mt-4 grid gap-3">
-          <input class="w-full border rounded px-3 py-2" id="pv-lot-id" placeholder="ID Lot" />
+          <label for="pv-lot-id" class="sr-only">ID Lot</label>
+          <input class="w-full border rounded px-3 py-2" id="pv-lot-id" placeholder="ID Lot" aria-label="ID Lot pour génération PV" />
           <div class="flex gap-3">
-            <button id="pv-ouverture" class="bg-emerald-600 text-white px-4 py-2 rounded">
+            <button id="pv-ouverture" class="bg-emerald-600 text-white px-4 py-2 rounded" aria-label="Générer PV Ouverture">
               Générer PV Ouverture
             </button>
-            <button id="pv-analyse" class="bg-blue-600 text-white px-4 py-2 rounded">
+            <button id="pv-analyse" class="bg-blue-600 text-white px-4 py-2 rounded" aria-label="Générer PV Analyse">
               Générer PV Analyse
             </button>
           </div>
         </div>
-        <p id="pv-status" class="text-sm text-slate-500 mt-3"></p>
+        <p id="pv-status" class="text-sm text-slate-500 mt-3" role="alert" aria-live="assertive" aria-atomic="true" aria-label="Statut de génération PV"></p>
       </section>
     </main>
   </body>

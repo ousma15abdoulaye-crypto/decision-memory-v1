@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from openpyxl.styles import PatternFill
 from openpyxl.cell.cell import Cell
+from openpyxl.styles import PatternFill
 
 CONFIDENCE_COLORS = {
     "high": None,
@@ -10,6 +10,7 @@ CONFIDENCE_COLORS = {
     "human_only": "FFE5CC",
     "error": "F8D7DA",
 }
+
 
 def apply_confidence_styling(cell: Cell, confidence_level: str) -> None:
     color = CONFIDENCE_COLORS.get(confidence_level)

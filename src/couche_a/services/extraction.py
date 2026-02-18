@@ -1,10 +1,11 @@
 """Document extraction service for Couche A."""
+
 from __future__ import annotations
 
 import asyncio
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from docx import Document as DocxDocument
 from openpyxl import load_workbook
@@ -14,7 +15,6 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from ..models import (
     audits_table,
-    deserialize_json,
     documents_table,
     ensure_schema,
     extractions_table,
@@ -38,7 +38,7 @@ def _extract_text_from_docx(path: Path) -> str:
 
 def _extract_text_from_xlsx(path: Path) -> str:
     workbook = load_workbook(str(path), read_only=True)
-    text_lines: List[str] = []
+    text_lines: list[str] = []
     for sheet in workbook.worksheets[:1]:
         for row in sheet.iter_rows(max_row=20, max_col=10):
             for cell in row:
@@ -68,9 +68,9 @@ def _normalize_amount(raw_amount: str) -> float:
         return 0.0
 
 
-def extract_fields(text: str) -> Tuple[Dict[str, Any], List[str]]:
+def extract_fields(text: str) -> tuple[dict[str, Any], list[str]]:
     """Extract structured fields from raw text."""
-    missing_fields: List[str] = []
+    missing_fields: list[str] = []
     supplier_match = re.search(
         r"(fournisseur|soumissionnaire)\s*[:\-]\s*([^\n]+)", text, re.IGNORECASE
     )
@@ -89,7 +89,9 @@ def extract_fields(text: str) -> Tuple[Dict[str, Any], List[str]]:
     zone_match = re.search(r"zone\s*[:\-]\s*([^\n]+)", text, re.IGNORECASE)
     zone = zone_match.group(1).strip() if zone_match else None
 
-    attachments = [line.strip() for line in text.splitlines() if "annexe" in line.lower()]
+    attachments = [
+        line.strip() for line in text.splitlines() if "annexe" in line.lower()
+    ]
 
     fields = {
         "fournisseur": supplier_name,
@@ -106,16 +108,25 @@ def extract_fields(text: str) -> Tuple[Dict[str, Any], List[str]]:
     return fields, missing_fields
 
 
-async def extract_and_store(document_id: str, llm_enabled: bool = False) -> Dict[str, Any]:
+async def extract_and_store(
+    document_id: str, llm_enabled: bool = False
+) -> dict[str, Any]:
     """Extract data from a document and store the results."""
-    def _process() -> Dict[str, Any]:
+
+    def _process() -> dict[str, Any]:
         engine = get_engine()
         ensure_schema(engine)
         try:
             with engine.begin() as conn:
-                doc_row = conn.execute(
-                    select(documents_table).where(documents_table.c.id == document_id)
-                ).mappings().first()
+                doc_row = (
+                    conn.execute(
+                        select(documents_table).where(
+                            documents_table.c.id == document_id
+                        )
+                    )
+                    .mappings()
+                    .first()
+                )
                 if not doc_row:
                     raise ValueError("Document introuvable.")
 
@@ -135,7 +146,7 @@ async def extract_and_store(document_id: str, llm_enabled: bool = False) -> Dict
                     )
                 )
 
-                update_payload: Dict[str, Any] = {}
+                update_payload: dict[str, Any] = {}
                 if extracted.get("fournisseur"):
                     update_payload["supplier_name"] = extracted["fournisseur"]
                 if extracted.get("montant") is not None:

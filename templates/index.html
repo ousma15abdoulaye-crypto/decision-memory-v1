@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DMS Couche A</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>body{position:relative}.skip-link{position:absolute;top:-40px;left:0;background:#4f46e5;color:white;padding:8px 16px;z-index:100;border-radius:0 0 4px 0}.skip-link:focus{top:0;outline:2px solid #6366f1;outline-offset:2px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #6366f1;outline-offset:2px}</style>
   </head>
   <body class="bg-slate-50 text-slate-900">
-    <main class="max-w-4xl mx-auto py-16 px-6">
+    <a href="#main-content" class="skip-link">Aller au contenu principal</a>
+    <main id="main-content" class="max-w-4xl mx-auto py-16 px-6" role="main">
       <h1 class="text-3xl font-semibold">Decision Memory System — Couche A</h1>
       <p class="mt-4 text-slate-600">
         Accédez aux dépôts, à la pré-analyse et aux flux comité depuis cette
@@ -17,6 +19,7 @@
         <a
           class="bg-white shadow rounded-lg p-6 border border-slate-200 hover:border-indigo-400"
           href="/templates/dashboard.html"
+          aria-label="Accéder au Dashboard Pré-analyse"
         >
           <h2 class="text-xl font-medium">Dashboard Pré-analyse</h2>
           <p class="text-sm text-slate-500 mt-2">
@@ -26,6 +29,7 @@
         <a
           class="bg-white shadow rounded-lg p-6 border border-slate-200 hover:border-indigo-400"
           href="/templates/committee.html"
+          aria-label="Accéder au Comité et PV"
         >
           <h2 class="text-xl font-medium">Comité &amp; PV</h2>
           <p class="text-sm text-slate-500 mt-2">

@@ -7,7 +7,8 @@
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
-  <div class="container">
+  <a href="#main-content" class="skip-link">Aller au contenu principal</a>
+  <div class="container" id="main-content" role="main">
     <h1>Decision Memory System — MVP A++ (Production)</h1>
     <p class="muted">
       DAO-driven extraction + Template-adaptive CBA/PV + Active Memory.
@@ -16,35 +17,35 @@
 
     <section class="card">
       <h2>Constitution & Santé</h2>
-      <button id="load_const">Afficher Constitution</button>
-      <button id="check_health">Vérifier Santé Système</button>
-      <pre id="system_info" class="mono"></pre>
+      <button id="load_const" aria-label="Afficher la Constitution du système">Afficher Constitution</button>
+      <button id="check_health" aria-label="Vérifier la santé du système">Vérifier Santé Système</button>
+      <pre id="system_info" class="mono" role="status" aria-live="polite" aria-atomic="true"></pre>
     </section>
 
     <section class="card">
       <h2>1) Créer un nouveau cas</h2>
       <div class="row">
-        <label>Type</label>
-        <select id="case_type">
+        <label for="case_type">Type</label>
+        <select id="case_type" aria-label="Type de cas">
           <option value="DAO">DAO</option>
           <option value="RFQ">RFQ</option>
         </select>
       </div>
       <div class="row">
-        <label>Titre</label>
-        <input id="case_title" placeholder="Ex: DAO MOPTI-2026-01 — Cartouches imprimantes" />
+        <label for="case_title">Titre</label>
+        <input id="case_title" placeholder="Ex: DAO MOPTI-2026-01 — Cartouches imprimantes" aria-label="Titre du cas" />
       </div>
       <div class="row">
-        <label>Lot (optionnel)</label>
-        <input id="case_lot" placeholder="Ex: Lot 1" />
+        <label for="case_lot">Lot (optionnel)</label>
+        <input id="case_lot" placeholder="Ex: Lot 1" aria-label="Lot optionnel" />
       </div>
-      <button id="create_case">Créer le cas</button>
+      <button id="create_case" aria-label="Créer le cas">Créer le cas</button>
     </section>
 
     <section class="card">
       <h2>2) Sélectionner un cas</h2>
-      <button id="refresh_cases">Rafraîchir la liste</button>
-      <div id="cases"></div>
+      <button id="refresh_cases" aria-label="Rafraîchir la liste des cas">Rafraîchir la liste</button>
+      <div id="cases" role="list" aria-label="Liste des cas"></div>
     </section>
 
     <section class="card">
@@ -56,37 +57,41 @@
 
       <div class="grid2">
         <div>
-          <h3>📄 DAO (docx/pdf)</h3>
-          <input type="file" id="dao_file" accept=".pdf,.docx" />
-          <button data-kind="dao" class="upload_btn">Upload DAO</button>
+          <h3><span aria-hidden="true">📄</span> DAO (docx/pdf)</h3>
+          <label for="dao_file" class="sr-only">Fichier DAO (docx ou pdf)</label>
+          <input type="file" id="dao_file" accept=".pdf,.docx" aria-label="Sélectionner fichier DAO docx ou pdf" />
+          <button data-kind="dao" class="upload_btn" aria-label="Upload du fichier DAO">Upload DAO</button>
         </div>
 
         <div>
-          <h3>📦 OFFRES (docx/pdf, multiples)</h3>
-          <input type="file" id="offer_files" multiple accept=".pdf,.docx" />
-          <button data-kind="offer" class="upload_btn">Upload OFFRES</button>
+          <h3><span aria-hidden="true">📦</span> OFFRES (docx/pdf, multiples)</h3>
+          <label for="offer_files" class="sr-only">Fichiers offres (docx ou pdf, multiples)</label>
+          <input type="file" id="offer_files" multiple accept=".pdf,.docx" aria-label="Sélectionner fichiers offres docx ou pdf" />
+          <button data-kind="offer" class="upload_btn" aria-label="Upload des fichiers offres">Upload OFFRES</button>
         </div>
 
         <div>
-          <h3>📊 Template CBA (xlsx) — SPÉCIFIQUE au DAO</h3>
-          <input type="file" id="cba_file" accept=".xlsx" />
-          <button data-kind="cba_template" class="upload_btn">Upload CBA Template</button>
+          <h3><span aria-hidden="true">📊</span> Template CBA (xlsx) — SPÉCIFIQUE au DAO</h3>
+          <label for="cba_file" class="sr-only">Template CBA (xlsx)</label>
+          <input type="file" id="cba_file" accept=".xlsx" aria-label="Sélectionner template CBA xlsx" />
+          <button data-kind="cba_template" class="upload_btn" aria-label="Upload du template CBA">Upload CBA Template</button>
         </div>
 
         <div>
-          <h3>📝 Template PV (docx) — SPÉCIFIQUE au DAO</h3>
-          <input type="file" id="pv_file" accept=".docx" />
-          <button data-kind="pv_template" class="upload_btn">Upload PV Template</button>
+          <h3><span aria-hidden="true">📝</span> Template PV (docx) — SPÉCIFIQUE au DAO</h3>
+          <label for="pv_file" class="sr-only">Template PV (docx)</label>
+          <input type="file" id="pv_file" accept=".docx" aria-label="Sélectionner template PV docx" />
+          <button data-kind="pv_template" class="upload_btn" aria-label="Upload du template PV">Upload PV Template</button>
         </div>
       </div>
     </section>
 
     <section class="card">
       <h2>4) Lancer l'analyse (DAO-driven)</h2>
-      <button id="analyze">🚀 Analyser et Générer CBA + PV</button>
-      <pre id="analyze_result" class="mono"></pre>
-      <div id="warnings" class="warnings"></div>
-      <div id="downloads"></div>
+      <button id="analyze" aria-label="Analyser et générer CBA et PV"><span aria-hidden="true">🚀</span> Analyser et Générer CBA + PV</button>
+      <pre id="analyze_result" class="mono" role="status" aria-live="polite" aria-atomic="true"></pre>
+      <div id="warnings" class="warnings" role="alert" aria-live="assertive" aria-atomic="true"></div>
+      <div id="downloads" role="region" aria-label="Téléchargements disponibles" aria-live="polite" aria-atomic="true"></div>
     </section>
 
     <section class="card">
@@ -95,29 +100,29 @@
         Le système ne recommande AUCUN fournisseur. La décision est 100% humaine.
       </p>
       <div class="row">
-        <label>Fournisseur choisi</label>
-        <input id="chosen_supplier" placeholder="Ex: COMPUTECH SARL" />
+        <label for="chosen_supplier">Fournisseur choisi</label>
+        <input id="chosen_supplier" placeholder="Ex: COMPUTECH SARL" aria-label="Fournisseur choisi" />
       </div>
       <div class="row">
-        <label>Justification</label>
-        <textarea id="decision_reason" placeholder="Raison du choix (prix, délai, capacité, etc.)"></textarea>
+        <label for="decision_reason">Justification</label>
+        <textarea id="decision_reason" placeholder="Raison du choix (prix, délai, capacité, etc.)" aria-label="Justification de la décision"></textarea>
       </div>
       <div class="row">
-        <label>Action suivante</label>
-        <input id="next_action" placeholder="Ex: Bon de commande émis" />
+        <label for="next_action">Action suivante</label>
+        <input id="next_action" placeholder="Ex: Bon de commande émis" aria-label="Action suivante" />
       </div>
-      <button id="decide">✅ Enregistrer décision + Régénérer PV final</button>
-      <pre id="decide_result" class="mono"></pre>
+      <button id="decide" aria-label="Enregistrer la décision et régénérer le PV final"><span aria-hidden="true">✅</span> Enregistrer décision + Régénérer PV final</button>
+      <pre id="decide_result" class="mono" role="status" aria-live="polite" aria-atomic="true"></pre>
     </section>
 
     <section class="card">
       <h2>6) Mémoire active (recherche)</h2>
       <div class="row">
-        <label>Rechercher</label>
-        <input id="mem_q" placeholder="Ex: prix, délai, IMAF, conformité..." />
+        <label for="mem_q">Rechercher</label>
+        <input id="mem_q" placeholder="Ex: prix, délai, IMAF, conformité..." aria-label="Recherche dans la mémoire" />
       </div>
-      <button id="search_mem">🔍 Chercher dans la mémoire</button>
-      <pre id="mem_hits" class="mono"></pre>
+      <button id="search_mem" aria-label="Chercher dans la mémoire"><span aria-hidden="true">🔍</span> Chercher dans la mémoire</button>
+      <pre id="mem_hits" class="mono" role="status" aria-live="polite" aria-atomic="true"></pre>
     </section>
 
     <p class="footer muted">

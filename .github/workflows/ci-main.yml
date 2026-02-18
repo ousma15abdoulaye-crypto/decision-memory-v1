@@ -2,21 +2,21 @@
 name: CI Main
 
 on:
-  push:
-    branches: [main, freeze-v3.3.2]
   pull_request:
-    branches: [main, freeze-v3.3.2]
+    branches: [main]
+  push:
+    branches: [main]
 
 jobs:
-  test:
+  lint-and-test:
     runs-on: ubuntu-latest
 
     services:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test_db
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: dmstest
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -28,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -37,17 +37,17 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install ruff black
+          pip install "ruff" "black==26.1.0"
 
       - name: Set PYTHONPATH
         run: echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
 
-      - name: Compile (compileall)
+      - name: Python syntax check
         run: python -m compileall src -q
 
       - name: Run migrations
         env:
-          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/test_db
+          DATABASE_URL: postgresql+psycopg://postgres:testpass@localhost:5432/dmstest
         run: alembic upgrade head
 
       - name: Ruff check
@@ -67,13 +67,17 @@ jobs:
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/test_db
-          PYTHONPATH: ${{ github.workspace }}
+          DATABASE_URL: postgresql+psycopg://postgres:testpass@localhost:5432/dmstest
           TESTING: "true"
         run: |
           pytest tests/ \
             --cov=src \
-            --cov-report=term \
             --cov-report=xml \
             --cov-fail-under=${{ steps.cov_gate.outputs.fail_under }} \
             -v --tb=short
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false

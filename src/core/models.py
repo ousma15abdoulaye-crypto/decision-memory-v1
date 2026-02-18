@@ -1,8 +1,10 @@
 """
 Pydantic models and dataclasses for Decision Memory System.
 """
-from typing import Dict, List, Optional, Any
+
 from dataclasses import dataclass
+from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -13,7 +15,7 @@ class CaseCreate(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
     case_type: str
     title: str
-    lot: Optional[str] = None
+    lot: str | None = None
 
 
 class AnalyzeRequest(BaseModel):
@@ -33,32 +35,35 @@ class DecideRequest(BaseModel):
 @dataclass
 class CBATemplateSchema:
     """Structure détectée d'un template CBA (adaptive)"""
+
     template_id: str
     template_name: str
     supplier_header_row: int
     supplier_name_row: int
-    supplier_cols: List[int]
+    supplier_cols: list[int]
     criteria_start_row: int
-    criteria_rows: List[Dict[str, Any]]
-    sheets: List[str]
-    meta: Dict[str, Any]
+    criteria_rows: list[dict[str, Any]]
+    sheets: list[str]
+    meta: dict[str, Any]
 
 
 @dataclass
 class DAOCriterion:
     """Critère structuré extrait du DAO"""
+
     categorie: str
     critere_nom: str
     description: str
     ponderation: float
     type_reponse: str
-    seuil_elimination: Optional[float]
+    seuil_elimination: float | None
     ordre_affichage: int
 
 
 @dataclass
 class OfferSubtype:
     """Classification automatique du type de document d'offre"""
+
     subtype: str  # FINANCIAL_ONLY | TECHNICAL_ONLY | ADMIN_ONLY | COMBINED
     has_financial: bool
     has_technical: bool
@@ -69,12 +74,13 @@ class OfferSubtype:
 @dataclass
 class SupplierPackage:
     """Agrégation de tous les documents d'un fournisseur"""
+
     supplier_name: str
-    offer_ids: List[str]
-    documents: List[dict]
+    offer_ids: list[str]
+    documents: list[dict]
     package_status: str  # COMPLETE | PARTIAL | MISSING
     has_financial: bool
     has_technical: bool
     has_admin: bool
-    extracted_data: Dict[str, Any]
-    missing_fields: List[str]
+    extracted_data: dict[str, Any]
+    missing_fields: list[str]

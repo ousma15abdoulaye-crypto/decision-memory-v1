@@ -1,4 +1,5 @@
 """Pytest fixtures for Couche A tests — PostgreSQL ONLY (DATABASE_URL)."""
+
 from __future__ import annotations
 
 import os

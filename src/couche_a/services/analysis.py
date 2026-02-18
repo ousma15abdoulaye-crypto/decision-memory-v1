@@ -1,8 +1,9 @@
 """Pre-analysis and scoring services for Couche A."""
+
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -25,7 +26,7 @@ STATUS_PARTIEL = "PARTIEL"
 STATUS_REVUE = "REVUE_MANUELLE"
 
 
-def _compute_scores(missing_fields: List[str]) -> Dict[str, float]:
+def _compute_scores(missing_fields: list[str]) -> dict[str, float]:
     """Compute placeholder scores based on missing fields."""
     base = 25.0
     penalty = 5.0 * len(missing_fields)
@@ -43,7 +44,7 @@ def _compute_scores(missing_fields: List[str]) -> Dict[str, float]:
     }
 
 
-def _derive_status(missing_fields: List[str]) -> str:
+def _derive_status(missing_fields: list[str]) -> str:
     if not missing_fields:
         return STATUS_CONFORME
     if "fournisseur" in missing_fields or "montant" in missing_fields:
@@ -51,24 +52,33 @@ def _derive_status(missing_fields: List[str]) -> str:
     return STATUS_PARTIEL
 
 
-async def analyze_offer(offer_id: str) -> Dict[str, Any]:
+async def analyze_offer(offer_id: str) -> dict[str, Any]:
     """Run the pre-analysis rules engine for an offer."""
-    def _process() -> Dict[str, Any]:
+
+    def _process() -> dict[str, Any]:
         engine = get_engine()
         ensure_schema(engine)
         try:
             with engine.begin() as conn:
-                offer_row = conn.execute(
-                    select(offers_table).where(offers_table.c.id == offer_id)
-                ).mappings().first()
+                offer_row = (
+                    conn.execute(
+                        select(offers_table).where(offers_table.c.id == offer_id)
+                    )
+                    .mappings()
+                    .first()
+                )
                 if not offer_row:
                     raise ValueError("Offre introuvable.")
 
-                extraction_row = conn.execute(
-                    select(extractions_table)
-                    .where(extractions_table.c.offer_id == offer_id)
-                    .order_by(extractions_table.c.created_at.desc())
-                ).mappings().first()
+                extraction_row = (
+                    conn.execute(
+                        select(extractions_table)
+                        .where(extractions_table.c.offer_id == offer_id)
+                        .order_by(extractions_table.c.created_at.desc())
+                    )
+                    .mappings()
+                    .first()
+                )
 
                 if not extraction_row:
                     status = STATUS_REVUE

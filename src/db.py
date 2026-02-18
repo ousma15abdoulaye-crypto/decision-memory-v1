@@ -2,16 +2,19 @@
 DMS Database Layer — PostgreSQL ONLY (Constitution V2.1 ONLINE-ONLY)
 No SQLite fallback. App refuses boot without DATABASE_URL.
 """
+
 from __future__ import annotations
 
-import os
 import logging
+import os
+from collections.abc import Iterator
+from contextlib import contextmanager
+from typing import Any
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.engine.base import Connection
-from contextlib import contextmanager
-from typing import Iterator, List, Any, Optional
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -53,13 +56,13 @@ def _get_raw_connection() -> Connection:
 def get_connection() -> Iterator[Connection]:
     """
     Context manager for a database connection with resilience.
-    
+
     Constitution V2.1 : Helpers synchrones uniquement.
     Tenacity : 3 tentatives avec backoff exponentiel.
     Circuit breaker : Protection contre échecs en cascade.
     """
-    from src.resilience import retry_db_operation, db_breaker
-    
+    from src.resilience import db_breaker, retry_db_operation
+
     @retry_db_operation
     def get_conn():
         try:
@@ -67,7 +70,7 @@ def get_connection() -> Iterator[Connection]:
         except Exception as e:
             logger.error(f"[DB] Échec connexion après retry: {e}")
             raise
-    
+
     conn = get_conn()
     try:
         yield conn
@@ -79,15 +82,16 @@ def get_connection() -> Iterator[Connection]:
         conn.close()
 
 
-def db_execute(conn: Connection, sql: str, params: Optional[dict] = None) -> None:
+def db_execute(conn: Connection, sql: str, params: dict | None = None) -> None:
     """
     Execute a statement (INSERT/UPDATE/DELETE) with retry.
-    
+
     Protège contre erreurs temporaires (network, lock timeout).
     """
+    from psycopg import DatabaseError, OperationalError
+
     from src.resilience import retry_db_operation
-    from psycopg import OperationalError, DatabaseError
-    
+
     @retry_db_operation
     def _execute():
         try:
@@ -95,7 +99,7 @@ def db_execute(conn: Connection, sql: str, params: Optional[dict] = None) -> Non
         except (OperationalError, DatabaseError) as e:
             logger.warning(f"[DB] Erreur temporaire: {e}")
             raise  # Tenacity va retry
-    
+
     _execute()
 
 
@@ -113,9 +117,8 @@ def db_execute_one(conn_or_sql, sql_or_params=None, params=None):
         return None
     return dict(row._mapping)
 
-def db_fetchall(
-    conn: Connection, sql: str, params: Optional[dict] = None
-) -> List[Any]:
+
+def db_fetchall(conn: Connection, sql: str, params: dict | None = None) -> list[Any]:
     """Execute and fetch all rows."""
     result = conn.execute(text(sql), params or {})
     rows = result.fetchall()
@@ -204,7 +207,7 @@ def init_db_schema() -> None:
 def get_session() -> Iterator[Session]:
     """
     Context manager for a SQLAlchemy ORM session.
-    
+
     Provides an ORM session for Couche B fuzzy resolution queries.
     Automatically commits on success, rolls back on error.
     """
@@ -218,4 +221,3 @@ def get_session() -> Iterator[Session]:
         raise
     finally:
         session.close()
-

@@ -24,7 +24,9 @@ def test_depot_dashboard_and_export(client: TestClient) -> None:
     response = client.post(
         "/api/depot",
         data={"case_id": "CASE1", "lot_id": "LOT1"},
-        files={"file": ("dao.txt", b"DAO FOURNISSEUR: ACME\nMontant 1000", "text/plain")},
+        files={
+            "file": ("dao.txt", b"DAO FOURNISSEUR: ACME\nMontant 1000", "text/plain")
+        },
     )
     assert response.status_code == 200
     payload = response.json()
