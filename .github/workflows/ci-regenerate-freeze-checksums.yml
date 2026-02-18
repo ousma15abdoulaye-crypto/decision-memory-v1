@@ -4,8 +4,6 @@ on:
   workflow_dispatch:  # Manual trigger only
   push:
     branches: [fix/audit-urgent]
-    paths:
-      - 'docs/freeze/v3.3.2/**'
 
 jobs:
   regenerate-checksums:
