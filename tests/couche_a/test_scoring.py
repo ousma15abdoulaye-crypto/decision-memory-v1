@@ -294,9 +294,8 @@ class TestScoringEngine:
         assert len(total_scores) == 1
         total_score = total_scores[0]
 
-        # Calcul attendu: (80 * 0.50) + (70 * 0.30) + (90 * 0.10) + (100 * 0.10) = 40 + 21 + 9 + 10 = 80
-        # Note: Le calcul inclut 'essentials' avec poids par défaut 0.10 (comportement conforme à la Constitution)
-        expected_score = (80.0 * 0.50) + (70.0 * 0.30) + (90.0 * 0.10) + (100.0 * 0.10)
+        # Profil: essentials=0.0 → 80*0.5+70*0.3+90*0.1+100*0 = 70 (Constitution V3.3.2)
+        expected_score = 70.0
         assert abs(total_score.score_value - expected_score) < 0.01
         assert total_score.category == "total"
         assert total_score.calculation_method == "weighted_sum"
