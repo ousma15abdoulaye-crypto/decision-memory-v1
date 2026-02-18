@@ -91,22 +91,22 @@ def test_missing_fields_separation():
     pkg = packages[0]
 
     # Vérifier missing_parts (sections non soumises)
-    assert (
-        "TECHNICAL" in pkg.extracted_data["missing_parts"]
-    ), "Should have TECHNICAL in missing_parts"
-    assert (
-        "ADMIN" in pkg.extracted_data["missing_parts"]
-    ), "Should have ADMIN in missing_parts"
+    assert "TECHNICAL" in pkg.extracted_data["missing_parts"], (
+        "Should have TECHNICAL in missing_parts"
+    )
+    assert "ADMIN" in pkg.extracted_data["missing_parts"], (
+        "Should have ADMIN in missing_parts"
+    )
 
     # Vérifier missing_extracted_fields (données manquantes dans sections soumises)
-    assert (
-        "Délai livraison" in pkg.extracted_data["missing_extracted_fields"]
-    ), "Should have Délai in missing_extracted_fields"
+    assert "Délai livraison" in pkg.extracted_data["missing_extracted_fields"], (
+        "Should have Délai in missing_extracted_fields"
+    )
 
     # missing_fields devrait contenir seulement les champs extraits manquants
-    assert pkg.missing_fields == [
-        "Délai livraison"
-    ], f"Expected ['Délai livraison'], got {pkg.missing_fields}"
+    assert pkg.missing_fields == ["Délai livraison"], (
+        f"Expected ['Délai livraison'], got {pkg.missing_fields}"
+    )
 
     print(f"✓ missing_parts: {pkg.extracted_data['missing_parts']}")
     print(
@@ -125,9 +125,9 @@ def test_no_id_in_supplier_name():
 
     # Filename vide après nettoyage
     name = guess_supplier_name("no pattern", "2026_offre_lot.pdf")
-    assert (
-        name == "FOURNISSEUR_INCONNU"
-    ), f"Empty filename should return FOURNISSEUR_INCONNU, got '{name}'"
+    assert name == "FOURNISSEUR_INCONNU", (
+        f"Empty filename should return FOURNISSEUR_INCONNU, got '{name}'"
+    )
     print(f"✓ Empty filename handled: {name}")
 
 
