@@ -1,4 +1,5 @@
 """Unit tests for column_calculator module."""
+
 import pytest
 
 from src.mapping.column_calculator import (

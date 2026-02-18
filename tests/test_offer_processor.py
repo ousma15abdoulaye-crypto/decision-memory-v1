@@ -2,6 +2,7 @@
 Comprehensive unit tests for offer_processor module.
 Tests detection, aggregation, extraction, and supplier name guessing.
 """
+
 from src.business.offer_processor import (
     aggregate_supplier_packages,
     detect_offer_subtype,
@@ -185,7 +186,11 @@ class TestAggregateSupplierPackages:
             {
                 "supplier_name": "GAMMA Ltd",
                 "artifact_id": "art-001",
-                "subtype": {"has_financial": True, "has_technical": False, "has_admin": False},
+                "subtype": {
+                    "has_financial": True,
+                    "has_technical": False,
+                    "has_admin": False,
+                },
                 "total_price": "75000 FCFA",
                 "currency": "XOF",
                 "lead_time_days": 45,
@@ -195,7 +200,11 @@ class TestAggregateSupplierPackages:
             {
                 "supplier_name": "GAMMA Ltd",
                 "artifact_id": "art-002",
-                "subtype": {"has_financial": False, "has_technical": True, "has_admin": False},
+                "subtype": {
+                    "has_financial": False,
+                    "has_technical": True,
+                    "has_admin": False,
+                },
                 "total_price": None,
                 "currency": "XOF",
                 "lead_time_days": None,
@@ -220,7 +229,11 @@ class TestAggregateSupplierPackages:
             {
                 "supplier_name": "ALPHA",
                 "artifact_id": "art-001",
-                "subtype": {"has_financial": True, "has_technical": False, "has_admin": False},
+                "subtype": {
+                    "has_financial": True,
+                    "has_technical": False,
+                    "has_admin": False,
+                },
                 "total_price": "100",
                 "currency": "XOF",
                 "lead_time_days": 30,
@@ -230,7 +243,11 @@ class TestAggregateSupplierPackages:
             {
                 "supplier_name": "BETA",
                 "artifact_id": "art-002",
-                "subtype": {"has_financial": True, "has_technical": True, "has_admin": False},
+                "subtype": {
+                    "has_financial": True,
+                    "has_technical": True,
+                    "has_admin": False,
+                },
                 "total_price": "200",
                 "currency": "XOF",
                 "lead_time_days": 60,
@@ -250,7 +267,11 @@ class TestAggregateSupplierPackages:
             {
                 "supplier_name": "DELTA",
                 "artifact_id": "art-001",
-                "subtype": {"has_financial": False, "has_technical": False, "has_admin": True},
+                "subtype": {
+                    "has_financial": False,
+                    "has_technical": False,
+                    "has_admin": True,
+                },
                 "total_price": None,
                 "currency": "XOF",
                 "lead_time_days": None,
@@ -269,7 +290,11 @@ class TestAggregateSupplierPackages:
             {
                 "supplier_name": "EPSILON",
                 "artifact_id": "art-001",
-                "subtype": {"has_financial": True, "has_technical": True, "has_admin": False},
+                "subtype": {
+                    "has_financial": True,
+                    "has_technical": True,
+                    "has_admin": False,
+                },
                 "total_price": None,  # Missing from financial section
                 "currency": "XOF",
                 "lead_time_days": 30,
@@ -291,7 +316,11 @@ class TestAggregateSupplierPackages:
             {
                 "supplier_name": "ZETA",
                 "artifact_id": "art-001",
-                "subtype": {"has_financial": False, "has_technical": True, "has_admin": False},
+                "subtype": {
+                    "has_financial": False,
+                    "has_technical": True,
+                    "has_admin": False,
+                },
                 "total_price": None,
                 "currency": "XOF",
                 "lead_time_days": None,
@@ -301,7 +330,11 @@ class TestAggregateSupplierPackages:
             {
                 "supplier_name": "ZETA",
                 "artifact_id": "art-002",
-                "subtype": {"has_financial": False, "has_technical": True, "has_admin": False},
+                "subtype": {
+                    "has_financial": False,
+                    "has_technical": True,
+                    "has_admin": False,
+                },
                 "total_price": None,
                 "currency": "XOF",
                 "lead_time_days": None,
@@ -408,15 +441,17 @@ class TestExtractOfferDataGuided:
     def test_extract_price_with_commercial_criteria(self):
         """Should extract price when commercial criteria present."""
         text = "Prix total: 50.000.000 FCFA"
-        criteria = [DAOCriterion(
-            categorie="commercial",
-            critere_nom="Prix",
-            description="Prix de l'offre",
-            ponderation=50.0,
-            type_reponse="number",
-            seuil_elimination=None,
-            ordre_affichage=0
-        )]
+        criteria = [
+            DAOCriterion(
+                categorie="commercial",
+                critere_nom="Prix",
+                description="Prix de l'offre",
+                ponderation=50.0,
+                type_reponse="number",
+                seuil_elimination=None,
+                ordre_affichage=0,
+            )
+        ]
 
         result = extract_offer_data_guided(text, criteria)
 
@@ -450,15 +485,17 @@ class TestExtractOfferDataGuided:
         Référence: Projet Infrastructure Dakar 2024
         Client: Ministère des Travaux Publics
         """
-        criteria = [DAOCriterion(
-            categorie="technique",
-            critere_nom="Expérience",
-            description="Références techniques",
-            ponderation=30.0,
-            type_reponse="text",
-            seuil_elimination=None,
-            ordre_affichage=0
-        )]
+        criteria = [
+            DAOCriterion(
+                categorie="technique",
+                critere_nom="Expérience",
+                description="Références techniques",
+                ponderation=30.0,
+                type_reponse="text",
+                seuil_elimination=None,
+                ordre_affichage=0,
+            )
+        ]
 
         result = extract_offer_data_guided(text, criteria)
 
@@ -467,15 +504,17 @@ class TestExtractOfferDataGuided:
     def test_missing_fields_tracked(self):
         """Should track missing fields."""
         text = "Some text without prices or dates"
-        criteria = [DAOCriterion(
-            categorie="commercial",
-            critere_nom="Prix",
-            description="Prix",
-            ponderation=50.0,
-            type_reponse="number",
-            seuil_elimination=None,
-            ordre_affichage=0
-        )]
+        criteria = [
+            DAOCriterion(
+                categorie="commercial",
+                critere_nom="Prix",
+                description="Prix",
+                ponderation=50.0,
+                type_reponse="number",
+                seuil_elimination=None,
+                ordre_affichage=0,
+            )
+        ]
 
         result = extract_offer_data_guided(text, criteria)
 
@@ -496,15 +535,17 @@ class TestExtractOfferDataGuided:
             ("Prix: 2500000 XOF", "2500000"),
         ]
 
-        criteria = [DAOCriterion(
-            categorie="commercial",
-            critere_nom="Prix",
-            description="Prix",
-            ponderation=50.0,
-            type_reponse="number",
-            seuil_elimination=None,
-            ordre_affichage=0
-        )]
+        criteria = [
+            DAOCriterion(
+                categorie="commercial",
+                critere_nom="Prix",
+                description="Prix",
+                ponderation=50.0,
+                type_reponse="number",
+                seuil_elimination=None,
+                ordre_affichage=0,
+            )
+        ]
 
         for text, expected_amount in test_cases:
             result = extract_offer_data_guided(text, criteria)
@@ -513,15 +554,17 @@ class TestExtractOfferDataGuided:
     def test_no_price_extraction_without_commercial_criteria(self):
         """Should not extract price when no commercial criteria."""
         text = "Prix total: 50.000.000 FCFA"
-        criteria = [DAOCriterion(
-            categorie="technique",
-            critere_nom="Technique",
-            description="Technique",
-            ponderation=50.0,
-            type_reponse="text",
-            seuil_elimination=None,
-            ordre_affichage=0
-        )]
+        criteria = [
+            DAOCriterion(
+                categorie="technique",
+                critere_nom="Technique",
+                description="Technique",
+                ponderation=50.0,
+                type_reponse="text",
+                seuil_elimination=None,
+                ordre_affichage=0,
+            )
+        ]
 
         result = extract_offer_data_guided(text, criteria)
 

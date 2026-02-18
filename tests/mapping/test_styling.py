@@ -1,4 +1,5 @@
 """Unit tests for styling module."""
+
 from unittest.mock import MagicMock
 
 from openpyxl.styles import PatternFill
