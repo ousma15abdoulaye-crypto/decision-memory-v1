@@ -360,7 +360,7 @@ class ScoringEngine:
                         DO UPDATE SET
                             score_value = EXCLUDED.score_value,
                             calculation_details = EXCLUDED.calculation_details,
-                            created_at = NOW()
+                            created_at = CURRENT_TIMESTAMP
                     """),
                     {
                         "case_id": case_id,
