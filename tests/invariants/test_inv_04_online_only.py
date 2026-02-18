@@ -31,7 +31,6 @@ def test_inv_04_database_url_required():
     # Vérifier que db.py lève une erreur si DATABASE_URL manque
     from src.db import _get_engine
     
-    import os
     original_db_url = os.environ.get("DATABASE_URL")
     
     try:

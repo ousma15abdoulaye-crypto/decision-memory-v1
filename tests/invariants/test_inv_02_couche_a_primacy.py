@@ -12,7 +12,6 @@ def test_inv_02_couche_a_independent():
     """La Couche A doit fonctionner sans Couche B."""
     # Vérifier qu'il n'y a pas d'imports Couche B dans Couche A
     import ast
-    import os
     
     couche_a_dir = "src/couche_a"
     if not os.path.exists(couche_a_dir):
@@ -34,6 +33,7 @@ def test_inv_02_couche_a_independent():
 def test_inv_02_no_couche_b_in_scoring():
     """Le scoring (Couche A) ne doit pas utiliser Couche B."""
     # Vérifier que le module scoring n'importe pas Couche B
+    import os
     scoring_file = "src/couche_a/scoring/engine.py"
     if os.path.exists(scoring_file):
         with open(scoring_file, "r", encoding="utf-8") as f:
