@@ -19,7 +19,7 @@ jobs:
       - name: Regenerate SHA256 checksums (Linux)
         run: |
           cd docs/freeze/v3.3.2
-          find . -type f -name "*.md" | sort | xargs sha256sum > SHA256SUMS.txt
+          find . -type f \( -name "*.md" -o -name "*.txt" \) ! -name "SHA256SUMS.txt" | sort | xargs sha256sum > SHA256SUMS.txt
           cat SHA256SUMS.txt
       
       - name: Verify checksums
