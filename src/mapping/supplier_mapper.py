@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Dict, List, Any
+from typing import Any
+
 from openpyxl.worksheet.worksheet import Worksheet
 
-from .column_calculator import supplier_col_letter, commercial_cols
+from .column_calculator import commercial_cols, supplier_col_letter
 from .styling import apply_confidence_styling
 
 
@@ -66,7 +67,7 @@ def populate_summary_supplier(
 
 
 def populate_essential_supplier(
-    ws: Worksheet, spec: dict, slot: int, conformity_data: Dict[str, Any]
+    ws: Worksheet, spec: dict, slot: int, conformity_data: dict[str, Any]
 ) -> None:
     s = spec["sheets"]["Essential Evaluation"]
     col = supplier_col_letter(s["supplier_start_col_index"], slot, width_per_slot=1)
@@ -83,7 +84,7 @@ def populate_essential_supplier(
     )
 
     # Critères : si data absente => "Pass" low confidence (à valider)
-    row = s["criteria_start_row"]
+    _ = s["criteria_start_row"]
     for k in range(s["criteria_start_row"], s["criteria_end_row"] + 1):
         # On mappe par ordre d'apparition des clés si fourni
         pass
@@ -102,7 +103,7 @@ def populate_essential_supplier(
 
 
 def populate_capability_supplier(
-    ws: Worksheet, spec: dict, slot: int, capacity_scores: Dict[str, Any]
+    ws: Worksheet, spec: dict, slot: int, capacity_scores: dict[str, Any]
 ) -> None:
     s = spec["sheets"]["Capability Evaluation"]
     col = supplier_col_letter(s["supplier_start_col_index"], slot, width_per_slot=1)
@@ -132,7 +133,7 @@ def populate_capability_supplier(
 
 
 def populate_sustainability_supplier(
-    ws: Worksheet, spec: dict, slot: int, sustainability_scores: Dict[str, Any]
+    ws: Worksheet, spec: dict, slot: int, sustainability_scores: dict[str, Any]
 ) -> None:
     s = spec["sheets"]["Sustainability Evaluation"]
     col = supplier_col_letter(s["supplier_start_col_index"], slot, width_per_slot=1)
@@ -163,7 +164,7 @@ def populate_sustainability_supplier(
 
 
 def populate_commercial_supplier(
-    ws: Worksheet, spec: dict, slot: int, line_items: List[Dict[str, Any]]
+    ws: Worksheet, spec: dict, slot: int, line_items: list[dict[str, Any]]
 ) -> None:
     s = spec["sheets"]["Commercial Evaluation"]
     price_col, total_col = commercial_cols(s["supplier_start_col_index"], slot)

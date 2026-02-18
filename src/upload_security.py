@@ -1,10 +1,10 @@
 """Upload security validation (M4F)."""
 
 import filetype
-from werkzeug.utils import secure_filename
 from fastapi import HTTPException, UploadFile
+from werkzeug.utils import secure_filename
 
-from src.db import get_connection, db_execute_one, db_execute
+from src.db import db_execute, db_execute_one, get_connection
 
 # Configuration
 MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB par fichier

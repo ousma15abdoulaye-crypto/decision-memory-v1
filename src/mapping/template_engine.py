@@ -2,20 +2,20 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Dict, Any, List
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 import openpyxl
 from openpyxl.workbook import Workbook
 
 from .column_calculator import commercial_cols, supplier_col_index
 from .supplier_mapper import (
-    populate_summary_supplier,
-    populate_essential_supplier,
     populate_capability_supplier,
-    populate_sustainability_supplier,
     populate_commercial_supplier,
+    populate_essential_supplier,
+    populate_summary_supplier,
+    populate_sustainability_supplier,
 )
 
 
@@ -69,8 +69,8 @@ class TemplateMappingEngine:
                     ws.column_dimensions[price_col].hidden = not (slot <= n_visible)
                     ws.column_dimensions[total_col].hidden = not (slot <= n_visible)
 
-    def populate_case(self, wb: Workbook, case_data: Dict[str, Any]) -> Workbook:
-        submissions: List[Dict[str, Any]] = case_data.get("submissions", [])
+    def populate_case(self, wb: Workbook, case_data: dict[str, Any]) -> Workbook:
+        submissions: list[dict[str, Any]] = case_data.get("submissions", [])
         n = len(submissions)
         n_visible = self._validate_num_suppliers(n)
 
@@ -117,7 +117,7 @@ class TemplateMappingEngine:
 
         return wb
 
-    def export_cba(self, case_data: Dict[str, Any], output_dir: str | Path) -> Path:
+    def export_cba(self, case_data: dict[str, Any], output_dir: str | Path) -> Path:
         wb = self._load_template()
         wb = self.populate_case(wb, case_data)
 

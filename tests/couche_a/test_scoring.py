@@ -2,10 +2,12 @@
 Tests unitaires pour le moteur de scoring M3B.
 """
 
-import pytest
 from datetime import datetime
-from src.couche_a.scoring.engine import ScoringEngine, ScoreResult, EliminationResult
+
+import pytest
+
 from src.core.models import DAOCriterion, SupplierPackage
+from src.couche_a.scoring.engine import EliminationResult, ScoreResult, ScoringEngine
 
 
 class TestScoringEngine:
@@ -292,8 +294,8 @@ class TestScoringEngine:
         assert len(total_scores) == 1
         total_score = total_scores[0]
 
-        # Calcul attendu: (80 * 0.50) + (70 * 0.30) + (90 * 0.10) = 40 + 21 + 9 = 70
-        expected_score = (80.0 * 0.50) + (70.0 * 0.30) + (90.0 * 0.10)
+        # Profil: essentials=0.0 → 80*0.5+70*0.3+90*0.1+100*0 = 70 (Constitution V3.3.2)
+        expected_score = 70.0
         assert abs(total_score.score_value - expected_score) < 0.01
         assert total_score.category == "total"
         assert total_score.calculation_method == "weighted_sum"

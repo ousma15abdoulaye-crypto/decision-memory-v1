@@ -5,24 +5,23 @@ Handles DAO/offer analysis and decision recording.
 
 import json
 import uuid
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import List
-from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException
 
-from src.db import get_connection, db_execute, db_execute_one, db_fetchall
-from src.core.models import AnalyzeRequest, DecideRequest, DAOCriterion
-from src.core.dependencies import get_artifacts, add_memory, register_artifact
 from src.business.extraction import extract_text_any
 from src.business.offer_processor import (
-    detect_offer_subtype,
     aggregate_supplier_packages,
-    guess_supplier_name,
+    detect_offer_subtype,
     extract_offer_data_guided,
+    guess_supplier_name,
 )
 from src.business.templates import fill_cba_adaptive, generate_pv_adaptive
+from src.core.dependencies import add_memory, get_artifacts, register_artifact
+from src.core.models import AnalyzeRequest, DAOCriterion, DecideRequest
+from src.db import db_execute, db_execute_one, db_fetchall, get_connection
 
 router = APIRouter(prefix="/api", tags=["analysis"])
 
@@ -30,7 +29,7 @@ router = APIRouter(prefix="/api", tags=["analysis"])
 # ⚠️ CRITICAL BUG: This function is called but not defined anywhere
 # It was removed in a previous refactoring but calls remain
 # For now, adding a stub - this needs to be fixed properly
-def extract_dao_criteria_structured(dao_text: str) -> List[DAOCriterion]:
+def extract_dao_criteria_structured(dao_text: str) -> list[DAOCriterion]:
     """
     STUB: This function was removed in previous refactoring but is still called.
     TODO: Either implement this function or remove calls to it.
@@ -72,7 +71,7 @@ def analyze(payload: AnalyzeRequest):
             db_execute(
                 conn,
                 """
-                INSERT INTO dao_criteria 
+                INSERT INTO dao_criteria
                 (id, case_id, categorie, critere_nom, description, ponderation, type_reponse, seuil_elimination, ordre_affichage, created_at)
                 VALUES (:id, :cid, :cat, :nom, :desc, :pond, :type_reponse, :seuil, :ordre, :ts)
             """,
@@ -97,7 +96,7 @@ def analyze(payload: AnalyzeRequest):
             status_code=400, detail="Missing OFFERS (upload kind=offer)"
         )
 
-    raw_offers: List[dict] = []
+    raw_offers: list[dict] = []
     for off in offer_arts:
         txt = extract_text_any(off["path"])
         supplier_name = guess_supplier_name(txt, off["filename"])
@@ -144,7 +143,7 @@ def analyze(payload: AnalyzeRequest):
     supplier_packages = aggregate_supplier_packages(raw_offers)
 
     # Conversion en format compatible avec le reste du système
-    suppliers: List[dict] = []
+    suppliers: list[dict] = []
     for pkg in supplier_packages:
         suppliers.append(
             {

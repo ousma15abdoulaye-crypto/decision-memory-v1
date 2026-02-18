@@ -1,0 +1,66 @@
+name: CI Main
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: dmstest
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      
+      - name: Install linting tools
+        run: pip install "ruff" "black==26.1.0"
+      
+      - name: Ruff check
+        run: ruff check src tests
+      
+      - name: Black check
+        run: black --check src tests
+        continue-on-error: false
+      
+      - name: Python syntax check
+        run: python -m compileall src -q
+      
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:testpass@localhost:5432/dmstest
+        run: alembic upgrade head
+      
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:testpass@localhost:5432/dmstest
+          TESTING: "true"
+        run: pytest tests/ -v --cov=src --cov-report=xml --cov-fail-under=40
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false

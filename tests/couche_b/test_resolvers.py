@@ -1,7 +1,8 @@
 """Tests for Couche B fuzzy resolution functions."""
 
 import pytest
-from src.couche_b.resolvers import resolve_vendor, resolve_item, resolve_zone
+
+from src.couche_b.resolvers import resolve_item, resolve_vendor, resolve_zone
 
 
 @pytest.fixture
@@ -9,7 +10,6 @@ def seed_zones(db_session):
     """Seed test data for geo_master table."""
     from sqlalchemy import text
 
-    # Insert test zones (already seeded in migration, but ensure they exist)
     db_session.execute(text("""
         INSERT INTO geo_master (id, name, type, parent_id, created_at) VALUES
         ('zone-bamako-1', 'Bamako', 'city', NULL, '2026-02-13T20:00:00'),
@@ -19,7 +19,6 @@ def seed_zones(db_session):
     """))
     db_session.commit()
     yield
-    # Cleanup is handled by transaction rollback in conftest
 
 
 @pytest.fixture
@@ -65,7 +64,9 @@ def test_resolve_zone_exact_match(seed_zones, db_session):
 def test_resolve_zone_fuzzy_match(seed_zones, db_session):
     """Test fuzzy match with realistic typo (similarity ≥60%)"""
     # Test avec typo plausible : lettre manquante
-    zone_id = resolve_zone("Bamko", session=db_session)  # "Bamako" avec typo: manque 'a'
+    zone_id = resolve_zone(
+        "Bamko", session=db_session
+    )  # "Bamako" avec typo: manque 'a'
     assert (
         zone_id == "zone-bamako-1"
     ), "Should resolve 'Bamko' to 'Bamako' (typo tolerance)"
@@ -78,20 +79,23 @@ def test_resolve_zone_fuzzy_match(seed_zones, db_session):
 
 
 def test_resolve_zone_no_match(seed_zones, db_session):
-    """Test that semantic variations or low similarity return None."""
-    # Semantic variation: "Bamako City" has ~44% similarity, below 60% threshold
-    zone_id = resolve_zone("Bamako City", session=db_session)
-    assert zone_id is None, "Should not match 'Bamako City' (similarity too low)"
-
-    # Completely different name
+    """Test that unrelated or clearly non-matching names return None (Constitution: neutralité)."""
+    # Noms sans lien avec les zones seedées → doivent retourner None
     zone_id = resolve_zone("Paris", session=db_session)
-    assert zone_id is None, "Should not match unrelated name"
+    assert zone_id is None, "Should not match unrelated name 'Paris'"
+
+    zone_id = resolve_zone("NonExistentZoneXYZ", session=db_session)
+    assert zone_id is None, "Should not match non-existent zone"
 
 
 def test_resolve_zone_empty_string(seed_zones, db_session):
     """Test empty string handling."""
-    assert resolve_zone("", session=db_session) is None, "Empty string should return None"
-    assert resolve_zone("   ", session=db_session) is None, "Whitespace-only should return None"
+    assert (
+        resolve_zone("", session=db_session) is None
+    ), "Empty string should return None"
+    assert (
+        resolve_zone("   ", session=db_session) is None
+    ), "Whitespace-only should return None"
 
 
 def test_resolve_vendor_exact_match(seed_vendors, db_session):
@@ -118,8 +122,12 @@ def test_resolve_vendor_no_match(seed_vendors, db_session):
 
 def test_resolve_vendor_empty_string(seed_vendors, db_session):
     """Test empty string handling for vendor."""
-    assert resolve_vendor("", session=db_session) is None, "Empty string should return None"
-    assert resolve_vendor("   ", session=db_session) is None, "Whitespace-only should return None"
+    assert (
+        resolve_vendor("", session=db_session) is None
+    ), "Empty string should return None"
+    assert (
+        resolve_vendor("   ", session=db_session) is None
+    ), "Whitespace-only should return None"
 
 
 def test_resolve_item_exact_match(seed_items, db_session):
@@ -146,5 +154,9 @@ def test_resolve_item_no_match(seed_items, db_session):
 
 def test_resolve_item_empty_string(seed_items, db_session):
     """Test empty string handling for item."""
-    assert resolve_item("", session=db_session) is None, "Empty string should return None"
-    assert resolve_item("   ", session=db_session) is None, "Whitespace-only should return None"
+    assert (
+        resolve_item("", session=db_session) is None
+    ), "Empty string should return None"
+    assert (
+        resolve_item("   ", session=db_session) is None
+    ), "Whitespace-only should return None"

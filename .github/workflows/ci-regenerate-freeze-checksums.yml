@@ -1,0 +1,40 @@
+name: Regenerate Freeze Checksums
+
+on:
+  workflow_dispatch:  # Manual trigger only
+  push:
+    branches: [fix/audit-urgent]
+
+jobs:
+  regenerate-checksums:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Regenerate SHA256 checksums (Linux)
+        run: |
+          cd docs/freeze/v3.3.2
+          find . -type f \( -name "*.md" -o -name "*.txt" \) ! -name "SHA256SUMS.txt" | sort | xargs sha256sum > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      
+      - name: Verify checksums
+        run: |
+          cd docs/freeze/v3.3.2
+          sha256sum -c SHA256SUMS.txt
+      
+      - name: Check if checksums changed
+        id: check-changes
+        run: |
+          git diff --quiet docs/freeze/v3.3.2/SHA256SUMS.txt && echo "changed=false" >> $GITHUB_OUTPUT || echo "changed=true" >> $GITHUB_OUTPUT
+      
+      - name: Commit updated checksums
+        if: github.ref == 'refs/heads/fix/audit-urgent' && steps.check-changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/freeze/v3.3.2/SHA256SUMS.txt
+          git commit -m "fix: regenerate freeze checksums under Linux (FIX-003)" || exit 0
+          git push || exit 0

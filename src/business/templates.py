@@ -3,18 +3,21 @@ Template generation functions for CBA and PV documents.
 Handles template-adaptive generation for procurement analysis.
 """
 
+import json
 import re
 import uuid
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any
 
+from docx import Document
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
-from docx import Document
 
-from src.core.models import CBATemplateSchema, DAOCriterion
 from src.core.config import OUTPUTS_DIR
+from src.core.models import CBATemplateSchema, DAOCriterion
+from src.db import db_execute, get_connection
 
 
 def analyze_cba_template(template_path: str) -> CBATemplateSchema:
@@ -24,7 +27,7 @@ def analyze_cba_template(template_path: str) -> CBATemplateSchema:
 
     supplier_header_row = None
     supplier_name_row = None
-    supplier_cols: List[int] = []
+    supplier_cols: list[int] = []
 
     # Detect supplier header
     for row_idx in range(1, min(12, ws.max_row + 1)):
@@ -45,13 +48,13 @@ def analyze_cba_template(template_path: str) -> CBATemplateSchema:
 
     # Detect criteria rows
     criteria_start_row = None
-    criteria_rows: List[Dict[str, Any]] = []
+    criteria_rows: list[dict[str, Any]] = []
 
     if supplier_name_row:
         for row_idx in range(
             supplier_name_row + 1, min(supplier_name_row + 40, ws.max_row + 1)
         ):
-            col_a = ws.cell(row_idx, 1).value or ""
+            _ = ws.cell(row_idx, 1).value or ""
             col_b = ws.cell(row_idx, 2).value or ""
 
             if isinstance(col_b, str) and len(col_b) > 5:
@@ -91,8 +94,8 @@ def analyze_cba_template(template_path: str) -> CBATemplateSchema:
 def fill_cba_adaptive(
     template_path: str,
     case_id: str,
-    suppliers: List[dict],
-    dao_criteria: List[DAOCriterion],
+    suppliers: list[dict],
+    dao_criteria: list[DAOCriterion],
 ) -> str:
     """
     Remplissage adaptatif basé sur structure template détectée.
@@ -169,7 +172,7 @@ def fill_cba_adaptive(
             cell = ws.cell(row_idx, col)
 
             # Vérifier le package_status du fournisseur
-            package_status = supplier.get("package_status", "UNKNOWN")
+            _ = supplier.get("package_status", "UNKNOWN")
             has_financial = supplier.get("has_financial", False)
 
             # Mapping guided by criteria
@@ -248,12 +251,12 @@ def fill_cba_adaptive(
 # PV Generation (Template-specific)
 # =========================
 def generate_pv_adaptive(
-    template_path: Optional[str],
+    template_path: str | None,
     case_id: str,
     case_title: str,
-    suppliers: List[dict],
-    dao_criteria: List[DAOCriterion],
-    decision: Optional[dict] = None,
+    suppliers: list[dict],
+    dao_criteria: list[DAOCriterion],
+    decision: dict | None = None,
 ) -> str:
     """
     Generate PV from template or create structured fallback.
@@ -269,7 +272,7 @@ def generate_pv_adaptive(
         doc.add_paragraph(f"Generated: {datetime.utcnow().isoformat()}")
 
     # Suppliers summary
-    lines: List[str] = []
+    lines: list[str] = []
     for s in suppliers:
         missing = s.get("missing_fields", [])
         status = "⚠️ Données incomplètes" if missing else "✓ Complet"
@@ -321,7 +324,7 @@ def generate_pv_adaptive(
         for c in dao_criteria:
             doc.add_paragraph(
                 f"• {c.critere_nom} ({c.categorie}) — "
-                f"{'Éliminatoire' if c.ponderation == 0 else f'{c.ponderation*100:.0f}%'}",
+                f"{'Éliminatoire' if c.ponderation == 0 else f'{c.ponderation * 100:.0f}%'}",
                 style="List Bullet",
             )
 

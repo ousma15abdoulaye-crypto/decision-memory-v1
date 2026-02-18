@@ -1,16 +1,17 @@
 """Authentication endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel, EmailStr, Field
 from datetime import timedelta
 
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel, EmailStr, Field
+
 from src.auth import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    CurrentUser,
     authenticate_user,
     create_access_token,
     create_user,
-    CurrentUser,
-    ACCESS_TOKEN_EXPIRE_MINUTES,
 )
 from src.ratelimit import limiter
 

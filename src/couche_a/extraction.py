@@ -2,14 +2,13 @@
 Extraction documentaire – M3A: Typed criterion extraction.
 """
 
-import uuid
 import logging
-from pathlib import Path
-from typing import List, Dict, Tuple
+import uuid
+from dataclasses import asdict, dataclass
 from datetime import datetime
-from dataclasses import dataclass, asdict
+from pathlib import Path
 
-from src.db import get_connection, db_execute
+from src.db import db_execute, get_connection
 from src.evaluation.profiles import get_min_weights
 
 logger = logging.getLogger(__name__)
@@ -36,8 +35,8 @@ class DaoCriterion:
 # ------------------------------------------------------------
 def extract_text_any(filepath: str) -> str:
     """Extract text from PDF, DOCX, or other supported formats."""
-    from pypdf import PdfReader
     from docx import Document as DocxDocument
+    from pypdf import PdfReader
 
     path = Path(filepath)
     suffix = path.suffix.lower()
@@ -161,7 +160,7 @@ def classify_criterion(text: str) -> str:
 # ------------------------------------------------------------
 # WEIGHTING VALIDATION
 # ------------------------------------------------------------
-def validate_criterion_weightings(criteria: List[Dict]) -> Tuple[bool, List[str]]:
+def validate_criterion_weightings(criteria: list[dict]) -> tuple[bool, list[str]]:
     """
     Valide les pondérations minimales (commercial ≥40%, durabilité ≥10%).
     Retourne (is_valid, liste_erreurs).
@@ -181,12 +180,12 @@ def validate_criterion_weightings(criteria: List[Dict]) -> Tuple[bool, List[str]
     if cat_weights["commercial"] < min_weights["commercial"] * 100:
         errors.append(
             f"Pondération commerciale trop faible: {cat_weights['commercial']:.1f}% "
-            f"(min {min_weights['commercial']*100}%)"
+            f"(min {min_weights['commercial'] * 100}%)"
         )
     if cat_weights["sustainability"] < min_weights["sustainability"] * 100:
         errors.append(
             f"Pondération durabilité trop faible: {cat_weights['sustainability']:.1f}% "
-            f"(min {min_weights['sustainability']*100}%)"
+            f"(min {min_weights['sustainability'] * 100}%)"
         )
 
     return len(errors) == 0, errors
@@ -195,7 +194,7 @@ def validate_criterion_weightings(criteria: List[Dict]) -> Tuple[bool, List[str]
 # ------------------------------------------------------------
 # STRUCTURED DAO EXTRACTION (stub for now)
 # ------------------------------------------------------------
-def extract_dao_criteria_structured(text: str) -> List[DaoCriterion]:
+def extract_dao_criteria_structured(text: str) -> list[DaoCriterion]:
     """
     Extract structured criteria from DAO text.
     This is a simplified stub - in production, this would use more sophisticated parsing.
@@ -275,8 +274,8 @@ def extract_dao_criteria_structured(text: str) -> List[DaoCriterion]:
 # TYPED EXTRACTION
 # ------------------------------------------------------------
 def extract_dao_criteria_typed(
-    case_id: str, extracted_criteria: List[Dict]
-) -> List[Dict]:
+    case_id: str, extracted_criteria: list[dict]
+) -> list[dict]:
     """
     Enrichit les critères extraits avec catégories, drapeau éliminatoire,
     et valide les pondérations.
@@ -321,7 +320,7 @@ def extract_dao_criteria_typed(
         db_execute(
             conn,
             """
-            INSERT INTO criteria_weighting_validation 
+            INSERT INTO criteria_weighting_validation
             (case_id, commercial_weight, sustainability_weight, is_valid, validation_errors, created_at)
             VALUES (:cid, :comm, :sust, :valid, :errors, :ts)
             """,
@@ -369,11 +368,11 @@ def extract_dao_content(case_id: str, artifact_id: str, filepath: str):
                 db_execute(
                     conn,
                     """
-                    INSERT INTO dao_criteria 
-                    (id, case_id, categorie, critere_nom, description, 
-                     criterion_category, is_eliminatory, ponderation, 
+                    INSERT INTO dao_criteria
+                    (id, case_id, categorie, critere_nom, description,
+                     criterion_category, is_eliminatory, ponderation,
                      type_reponse, seuil_elimination, ordre_affichage, created_at)
-                    VALUES (:id, :cid, :cat, :nom, :desc, 
+                    VALUES (:id, :cid, :cat, :nom, :desc,
                             :criterion_category, :is_eliminatory, :ponderation,
                             :type_reponse, :seuil, :ordre, :ts)
                     """,

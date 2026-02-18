@@ -6,13 +6,15 @@ Human validation required (is_validated=False by default).
 No automatic vendor ranking or recommendations.
 """
 
-from typing import List, Tuple
-from datetime import datetime
+import json
 import re
+from datetime import datetime
 
-from src.couche_a.scoring.models import ScoreResult, EliminationResult
-from src.core.models import DAOCriterion, SupplierPackage
 from sqlalchemy import text
+
+from src.core.models import DAOCriterion, SupplierPackage
+from src.couche_a.scoring.models import EliminationResult, ScoreResult
+from src.db import get_connection
 
 __all__ = ["ScoringEngine"]
 
@@ -38,9 +40,9 @@ class ScoringEngine:
     def calculate_scores_for_case(
         self,
         case_id: str,
-        suppliers: List[SupplierPackage],
-        criteria: List[DAOCriterion],
-    ) -> Tuple[List[ScoreResult], List[EliminationResult]]:
+        suppliers: list[SupplierPackage],
+        criteria: list[DAOCriterion],
+    ) -> tuple[list[ScoreResult], list[EliminationResult]]:
         """
         Calculate scores for all suppliers in a case.
 
@@ -90,7 +92,7 @@ class ScoringEngine:
 
         return (all_scores, eliminations)
 
-    def _build_evaluation_profile(self, criteria: List[DAOCriterion]) -> dict:
+    def _build_evaluation_profile(self, criteria: list[DAOCriterion]) -> dict:
         """Build evaluation profile from criteria."""
         profile = {"criteria": []}
 
@@ -108,8 +110,8 @@ class ScoringEngine:
         return profile
 
     def _calculate_commercial_scores(
-        self, suppliers: List[SupplierPackage], profile: dict
-    ) -> List[ScoreResult]:
+        self, suppliers: list[SupplierPackage], profile: dict
+    ) -> list[ScoreResult]:
         """Calculate commercial scores (price-based)."""
         scores = []
 
@@ -158,8 +160,8 @@ class ScoringEngine:
         return scores
 
     def _calculate_capacity_scores(
-        self, suppliers: List[SupplierPackage], profile: dict
-    ) -> List[ScoreResult]:
+        self, suppliers: list[SupplierPackage], profile: dict
+    ) -> list[ScoreResult]:
         """Calculate capacity scores (experience-based)."""
         scores = []
 
@@ -186,8 +188,8 @@ class ScoringEngine:
         return scores
 
     def _calculate_sustainability_scores(
-        self, suppliers: List[SupplierPackage], profile: dict
-    ) -> List[ScoreResult]:
+        self, suppliers: list[SupplierPackage], profile: dict
+    ) -> list[ScoreResult]:
         """Calculate sustainability scores (certifications/keywords)."""
         scores = []
 
@@ -230,8 +232,8 @@ class ScoringEngine:
         return scores
 
     def _calculate_essentials_scores(
-        self, suppliers: List[SupplierPackage], profile: dict
-    ) -> List[ScoreResult]:
+        self, suppliers: list[SupplierPackage], profile: dict
+    ) -> list[ScoreResult]:
         """Calculate essentials scores (completeness check)."""
         scores = []
 
@@ -256,10 +258,10 @@ class ScoringEngine:
 
     def _calculate_total_scores(
         self,
-        suppliers: List[SupplierPackage],
-        category_scores: List[ScoreResult],
+        suppliers: list[SupplierPackage],
+        category_scores: list[ScoreResult],
         profile: dict,
-    ) -> List[ScoreResult]:
+    ) -> list[ScoreResult]:
         """Calculate weighted total scores."""
         total_scores = []
 
@@ -308,8 +310,8 @@ class ScoringEngine:
         return total_scores
 
     def _check_eliminatory_criteria(
-        self, suppliers: List[SupplierPackage], criteria: List[DAOCriterion]
-    ) -> List[EliminationResult]:
+        self, suppliers: list[SupplierPackage], criteria: list[DAOCriterion]
+    ) -> list[EliminationResult]:
         """Check eliminatory criteria and return eliminations."""
         eliminations = []
 
@@ -340,9 +342,9 @@ class ScoringEngine:
         # For now, assume all suppliers meet criteria (no eliminations)
         return True
 
-    def _save_scores_to_db(self, case_id: str, scores: List[ScoreResult]) -> None:
+    def _save_scores_to_db(self, case_id: str, scores: list[ScoreResult]) -> None:
         """Save scores to database."""
-        with get_db_connection() as conn:
+        with get_connection() as conn:
             for score in scores:
                 conn.execute(
                     text("""
@@ -357,47 +359,72 @@ class ScoringEngine:
                         DO UPDATE SET
                             score_value = EXCLUDED.score_value,
                             calculation_details = EXCLUDED.calculation_details,
-                            created_at = NOW()
+                            created_at = CURRENT_TIMESTAMP
                     """),
                     {
                         "case_id": case_id,
                         "supplier_name": score.supplier_name,
                         "category": score.category,
-                        "score_value": score.score_value,
+                        "score_value": float(score.score_value),
                         "method": score.calculation_method,
-                        "details": str(score.calculation_details),
-                        "validated": score.is_validated,
+                        "details": (
+                            json.dumps(score.calculation_details)
+                            if isinstance(score.calculation_details, dict)
+                            else str(score.calculation_details)
+                        ),
+                        "validated": bool(score.is_validated),
                     },
                 )
             conn.commit()
 
     def save_eliminations_to_db(
-        self, case_id: str, eliminations: List[EliminationResult]
+        self, case_id: str, eliminations: list[EliminationResult]
     ) -> None:
-        """Save eliminations to database."""
+        """Save eliminations to database (grouped by supplier, JSONB)."""
         if not eliminations:
             return
 
-        with get_db_connection() as conn:
-            for elim in eliminations:
+        by_supplier: dict = {}
+        for elim in eliminations:
+            sn = elim.supplier_name
+            if sn not in by_supplier:
+                by_supplier[sn] = []
+            by_supplier[sn].append(elim)
+
+        with get_connection() as conn:
+            for supplier_name, group in by_supplier.items():
+                reason_codes = [
+                    {
+                        "criterion_id": e.criterion_id,
+                        "criterion_name": e.criterion_name,
+                        "category": e.criterion_category,
+                    }
+                    for e in group
+                ]
+                details = {
+                    "eliminations": [
+                        {
+                            "criterion_id": e.criterion_id,
+                            "failure_reason": e.failure_reason,
+                            "eliminated_at": (
+                                e.eliminated_at.isoformat()
+                                if hasattr(e.eliminated_at, "isoformat")
+                                else str(e.eliminated_at)
+                            ),
+                        }
+                        for e in group
+                    ]
+                }
                 conn.execute(
                     text("""
-                        INSERT INTO supplier_eliminations (
-                            case_id, supplier_name, criterion_id, criterion_name,
-                            criterion_category, failure_reason, eliminated_at
-                        ) VALUES (
-                            :case_id, :supplier_name, :criterion_id, :criterion_name,
-                            :category, :reason, :eliminated_at
-                        )
+                        INSERT INTO supplier_eliminations (case_id, supplier_name, reason_codes, details)
+                        VALUES (:case_id, :supplier_name, CAST(:reason_codes AS jsonb), CAST(:details AS jsonb))
                     """),
                     {
                         "case_id": case_id,
-                        "supplier_name": elim.supplier_name,
-                        "criterion_id": elim.criterion_id,
-                        "criterion_name": elim.criterion_name,
-                        "category": elim.criterion_category,
-                        "reason": elim.failure_reason,
-                        "eliminated_at": elim.eliminated_at,
+                        "supplier_name": supplier_name,
+                        "reason_codes": json.dumps(reason_codes),
+                        "details": json.dumps(details),
                     },
                 )
             conn.commit()

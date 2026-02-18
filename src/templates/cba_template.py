@@ -3,12 +3,12 @@ CBA Excel Generator – Save the Children Format (5 onglets)
 Constitution V2.1 § 4.1 – Manuel SCI SC-PR-02 § 5.3
 """
 
-from pathlib import Path
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
 from datetime import datetime
-from typing import Dict
+from pathlib import Path
+
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
 
 # === CHARTE SAVE THE CHILDREN ===
 HEADER_FILL = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
@@ -25,7 +25,7 @@ THIN_BORDER = Border(
 )
 
 
-def generate_cba_excel(case_data: Dict, output_dir: Path) -> Path:
+def generate_cba_excel(case_data: dict, output_dir: Path) -> Path:
     """
     Génère le fichier CBA Excel avec 5 onglets selon format SCI.
 
@@ -71,7 +71,7 @@ def generate_cba_excel(case_data: Dict, output_dir: Path) -> Path:
     return filepath
 
 
-def _build_info_sheet(wb: Workbook, data: Dict):
+def _build_info_sheet(wb: Workbook, data: dict):
     """Onglet 1: Informations Générales"""
     ws = wb.create_sheet("Info Générales", 0)
 
@@ -125,7 +125,7 @@ def _build_info_sheet(wb: Workbook, data: Dict):
             cell.border = THIN_BORDER
 
 
-def _build_registre_sheet(wb: Workbook, data: Dict):
+def _build_registre_sheet(wb: Workbook, data: dict):
     """Onglet 2: Registre Dépôt"""
     ws = wb.create_sheet("Registre Dépôt")
 
@@ -184,7 +184,7 @@ def _normalize_criteria_key(name: str) -> str:
     return "".join(c for c in nfd if unicodedata.category(c) != "Mn")
 
 
-def _build_technique_sheet(wb: Workbook, data: Dict):
+def _build_technique_sheet(wb: Workbook, data: dict):
     """Onglet 3: Analyse Technique (dynamique selon DAO)"""
     ws = wb.create_sheet("Analyse Technique")
 
@@ -250,7 +250,7 @@ def _build_technique_sheet(wb: Workbook, data: Dict):
         ws.cell(row_idx, total_col + 2, "")
 
 
-def _build_financiere_sheet(wb: Workbook, data: Dict):
+def _build_financiere_sheet(wb: Workbook, data: dict):
     """Onglet 4: Analyse Financière"""
     ws = wb.create_sheet("Analyse Financière")
 
@@ -284,7 +284,7 @@ def _build_financiere_sheet(wb: Workbook, data: Dict):
             ws.cell(row_idx, col).border = THIN_BORDER
 
 
-def _build_synthese_sheet(wb: Workbook, data: Dict):
+def _build_synthese_sheet(wb: Workbook, data: dict):
     """Onglet 5: Synthèse – Classement final"""
     ws = wb.create_sheet("Synthèse")
 

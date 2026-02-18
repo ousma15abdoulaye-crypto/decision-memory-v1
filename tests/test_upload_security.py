@@ -1,9 +1,11 @@
 """Tests uploads sécurisés (M4F)."""
 
-import pytest
-import uuid
 import io
+import uuid
+
+import pytest
 from fastapi.testclient import TestClient
+
 from main import app
 
 client = TestClient(app)
@@ -163,7 +165,7 @@ def test_rate_limit_upload_real():
     # we need to verify the rate limiter is properly configured for production
 
     # Alternative: We can verify the limiter configuration exists
-    from src.ratelimit import limiter, TESTING
+    from src.ratelimit import TESTING, limiter
 
     # In test mode, verify that rate limiting would work in production
     assert TESTING is True, "This test assumes TESTING mode is enabled"
@@ -180,6 +182,7 @@ def test_rate_limit_upload_real():
     # As a compromise, we can at least verify the endpoints have limits defined
     # by importing and checking the route decorators
     import inspect
+
     from src.couche_a import routers
 
     # Check that upload endpoints have rate limit decorators

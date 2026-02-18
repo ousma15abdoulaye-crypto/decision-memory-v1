@@ -3,26 +3,27 @@ Couche A – Endpoints d'upload (Manuel SCI §4)
 Constitution V2.1 : helpers synchrones src.db, pas de table SQLAlchemy.
 """
 
-from fastapi import (
-    APIRouter,
-    UploadFile,
-    File,
-    HTTPException,
-    BackgroundTasks,
-    Form,
-    Request,
-)
-from enum import Enum
-from pathlib import Path
-from datetime import datetime
 import hashlib
 import json
 import uuid
+from datetime import datetime
+from enum import StrEnum
+from pathlib import Path
 
-from src.db import get_connection, db_execute_one, db_execute
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+)
+
 from src.auth import CurrentUser, check_case_ownership
+from src.db import db_execute, db_execute_one, db_fetchall, get_connection
 from src.ratelimit import limiter
-from src.upload_security import validate_upload_security, update_case_quota
+from src.upload_security import update_case_quota, validate_upload_security
 
 router = APIRouter(prefix="/api/cases", tags=["Couche A Upload"])
 
@@ -37,7 +38,7 @@ ALLOWED_MIME_TYPES = {
 }
 
 
-class OfferType(str, Enum):
+class OfferType(StrEnum):
     TECHNIQUE = "technique"
     FINANCIERE = "financiere"
     ADMINISTRATIVE = "administrative"

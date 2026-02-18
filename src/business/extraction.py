@@ -3,11 +3,10 @@ Text extraction from different document formats (PDF, DOCX).
 """
 
 from pathlib import Path
-from typing import List
 
 from docx import Document
-from pypdf import PdfReader
 from fastapi import HTTPException
+from pypdf import PdfReader
 
 
 # =========================
@@ -15,7 +14,7 @@ from fastapi import HTTPException
 # =========================
 def extract_text_from_docx(path: str) -> str:
     doc = Document(path)
-    parts: List[str] = []
+    parts: list[str] = []
 
     for p in doc.paragraphs:
         t = (p.text or "").strip()
@@ -33,11 +32,11 @@ def extract_text_from_docx(path: str) -> str:
 
 def extract_text_from_pdf(path: str) -> str:
     reader = PdfReader(path)
-    out: List[str] = []
+    out: list[str] = []
     for i, page in enumerate(reader.pages):
         txt = (page.extract_text() or "").strip()
         if txt:
-            out.append(f"[PAGE {i+1}]\n{txt}\n")
+            out.append(f"[PAGE {i + 1}]\n{txt}\n")
     return "\n".join(out).strip()
 
 

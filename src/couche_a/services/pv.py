@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from docx import Document
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..models import (
+    analyses_table,
     audits_table,
     documents_table,
     ensure_schema,
@@ -18,7 +19,6 @@ from ..models import (
     get_engine,
     lots_table,
     offers_table,
-    analyses_table,
     serialize_json,
 )
 
@@ -36,21 +36,19 @@ def _build_pv_doc(kind: str, lot_name: str, offers: list[dict]) -> Document:
 
 
 async def generate_pv_ouverture(
-    lot_id: str, actor: Optional[str] = None
-) -> Dict[str, Any]:
+    lot_id: str, actor: str | None = None
+) -> dict[str, Any]:
     """Generate a PV d'ouverture for a lot."""
     return await _generate_pv(lot_id, "OUVERTURE", actor)
 
 
-async def generate_pv_analyse(
-    lot_id: str, actor: Optional[str] = None
-) -> Dict[str, Any]:
+async def generate_pv_analyse(lot_id: str, actor: str | None = None) -> dict[str, Any]:
     """Generate a PV d'analyse for a lot."""
     return await _generate_pv(lot_id, "ANALYSE", actor)
 
 
-async def _generate_pv(lot_id: str, kind: str, actor: Optional[str]) -> Dict[str, Any]:
-    def _process() -> Dict[str, Any]:
+async def _generate_pv(lot_id: str, kind: str, actor: str | None) -> dict[str, Any]:
+    def _process() -> dict[str, Any]:
         engine = get_engine()
         ensure_schema(engine)
         try:

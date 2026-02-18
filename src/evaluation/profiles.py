@@ -1,8 +1,8 @@
 """Profils d'évaluation pré‑encodés par catégorie d'achat (Manuel SCI)."""
 
-from typing import Dict, Any
+from typing import Any
 
-EVALUATION_PROFILES: Dict[str, Dict[str, Any]] = {
+EVALUATION_PROFILES: dict[str, dict[str, Any]] = {
     "GENERIC": {
         "criteria": [
             {"category": "essential", "weight": 0.0, "eliminatory": True},
@@ -107,11 +107,11 @@ EVALUATION_PROFILES: Dict[str, Dict[str, Any]] = {
 }
 
 
-def get_profile_for_category(category_code: str) -> Dict[str, Any]:
+def get_profile_for_category(category_code: str) -> dict[str, Any]:
     """Retourne le profil d'évaluation pour une catégorie donnée (défaut = GENERIC)."""
     return EVALUATION_PROFILES.get(category_code, EVALUATION_PROFILES["GENERIC"])
 
 
-def get_min_weights() -> Dict[str, float]:
+def get_min_weights() -> dict[str, float]:
     """Retourne les pondérations minimales exigées par le Manuel SCI."""
     return {"commercial": 0.40, "sustainability": 0.10}

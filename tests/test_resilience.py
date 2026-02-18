@@ -1,10 +1,11 @@
 """Tests resilience patterns (M4D)."""
 
 import os
-import pytest
-from unittest.mock import patch, MagicMock
-from psycopg import OperationalError
+from unittest.mock import MagicMock, patch
+
 import pybreaker
+import pytest
+from psycopg import OperationalError
 
 # Set DATABASE_URL before importing src.db
 os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost/test")
@@ -68,7 +69,7 @@ def test_retry_db_fails_after_max_attempts():
 
     with patch("src.db._get_raw_connection", side_effect=OperationalError("Dead")):
         with pytest.raises(OperationalError):
-            with get_connection() as conn:
+            with get_connection():
                 pass
 
 
@@ -84,7 +85,7 @@ def test_circuit_breaker_opens_after_failures():
     for i in range(5):
         try:
             db_breaker.call(always_fail)
-        except:
+        except Exception:
             pass
 
     # 6e appel → circuit ouvert
@@ -105,7 +106,7 @@ def test_extraction_breaker_protects_llm():
     for i in range(3):
         try:
             extraction_breaker.call(failing_extraction)
-        except:
+        except Exception:
             pass
 
     with pytest.raises(Exception, match="temporarily unavailable"):
@@ -114,8 +115,9 @@ def test_extraction_breaker_protects_llm():
 
 def test_logging_retry_attempts(caplog):
     """Vérifier logs retry - test direct de retry_db_operation sans circuit breaker."""
-    from src.resilience import retry_db_operation
     from psycopg import OperationalError
+
+    from src.resilience import retry_db_operation
 
     call_count = 0
 
