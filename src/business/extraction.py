@@ -36,7 +36,7 @@ def extract_text_from_pdf(path: str) -> str:
     for i, page in enumerate(reader.pages):
         txt = (page.extract_text() or "").strip()
         if txt:
-            out.append(f"[PAGE {i+1}]\n{txt}\n")
+            out.append(f"[PAGE {i + 1}]\n{txt}\n")
     return "\n".join(out).strip()
 
 

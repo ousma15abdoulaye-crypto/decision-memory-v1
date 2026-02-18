@@ -34,6 +34,7 @@ def test_inv_02_no_couche_b_in_scoring():
     """Le scoring (Couche A) ne doit pas utiliser Couche B."""
     # Vérifier que le module scoring n'importe pas Couche B
     import os
+
     scoring_file = "src/couche_a/scoring/engine.py"
     if os.path.exists(scoring_file):
         with open(scoring_file, encoding="utf-8") as f:

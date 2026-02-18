@@ -180,12 +180,12 @@ def validate_criterion_weightings(criteria: list[dict]) -> tuple[bool, list[str]
     if cat_weights["commercial"] < min_weights["commercial"] * 100:
         errors.append(
             f"Pondération commerciale trop faible: {cat_weights['commercial']:.1f}% "
-            f"(min {min_weights['commercial']*100}%)"
+            f"(min {min_weights['commercial'] * 100}%)"
         )
     if cat_weights["sustainability"] < min_weights["sustainability"] * 100:
         errors.append(
             f"Pondération durabilité trop faible: {cat_weights['sustainability']:.1f}% "
-            f"(min {min_weights['sustainability']*100}%)"
+            f"(min {min_weights['sustainability'] * 100}%)"
         )
 
     return len(errors) == 0, errors

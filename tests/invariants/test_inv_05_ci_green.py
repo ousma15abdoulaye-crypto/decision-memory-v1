@@ -40,8 +40,14 @@ def test_inv_05_ci_fails_on_error():
                             if "steps" in job_config:
                                 for step in job_config["steps"]:
                                     # Vérifier qu'il n'y a pas de continue-on-error sur les steps de test
-                                    if "run" in step and ("pytest" in step["run"] or "test" in step["run"].lower()):
-                                        assert step.get("continue-on-error", False) is False
+                                    if "run" in step and (
+                                        "pytest" in step["run"]
+                                        or "test" in step["run"].lower()
+                                    ):
+                                        assert (
+                                            step.get("continue-on-error", False)
+                                            is False
+                                        )
 
 
 def test_inv_05_required_checks():
@@ -56,4 +62,6 @@ def test_inv_05_required_checks():
     if os.path.exists(workflows_dir):
         existing_workflows = os.listdir(workflows_dir)
         for required in required_workflows:
-            assert required in existing_workflows, f"Workflow requis manquant: {required}"
+            assert required in existing_workflows, (
+                f"Workflow requis manquant: {required}"
+            )

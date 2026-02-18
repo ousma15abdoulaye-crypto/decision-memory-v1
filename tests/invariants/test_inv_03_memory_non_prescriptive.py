@@ -42,19 +42,34 @@ def test_inv_03_no_recommendations():
                         for node in ast.walk(tree):
                             if isinstance(node, ast.FunctionDef):
                                 # Vérifier le nom de la fonction
-                                if any(kw in node.name.lower() for kw in forbidden_keywords):
-                                    violations.append(f"{filepath}: function '{node.name}' contains forbidden keyword")
+                                if any(
+                                    kw in node.name.lower() for kw in forbidden_keywords
+                                ):
+                                    violations.append(
+                                        f"{filepath}: function '{node.name}' contains forbidden keyword"
+                                    )
                                 # Vérifier les appels de fonction dans le corps
                                 for stmt in ast.walk(node):
-                                    if isinstance(stmt, ast.Call) and isinstance(stmt.func, ast.Name):
-                                        if any(kw in stmt.func.id.lower() for kw in forbidden_keywords):
-                                            violations.append(f"{filepath}: function call '{stmt.func.id}' contains forbidden keyword")
+                                    if isinstance(stmt, ast.Call) and isinstance(
+                                        stmt.func, ast.Name
+                                    ):
+                                        if any(
+                                            kw in stmt.func.id.lower()
+                                            for kw in forbidden_keywords
+                                        ):
+                                            violations.append(
+                                                f"{filepath}: function call '{stmt.func.id}' contains forbidden keyword"
+                                            )
                     except SyntaxError:
                         # Si AST échoue, utiliser regex simple (moins précis mais fonctionne)
                         # Chercher des patterns de fonctions avec mots interdits
-                        func_pattern = rf"def\s+.*?({'|'.join(forbidden_keywords)}).*?\("
+                        func_pattern = (
+                            rf"def\s+.*?({'|'.join(forbidden_keywords)}).*?\("
+                        )
                         if re.search(func_pattern, content, re.IGNORECASE):
-                            violations.append(f"{filepath}: contains function with forbidden keyword")
+                            violations.append(
+                                f"{filepath}: contains function with forbidden keyword"
+                            )
 
     if violations:
         pytest.fail("Couche B contient des recommandations:\n" + "\n".join(violations))

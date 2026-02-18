@@ -42,9 +42,7 @@ async def generate_pv_ouverture(
     return await _generate_pv(lot_id, "OUVERTURE", actor)
 
 
-async def generate_pv_analyse(
-    lot_id: str, actor: str | None = None
-) -> dict[str, Any]:
+async def generate_pv_analyse(lot_id: str, actor: str | None = None) -> dict[str, Any]:
     """Generate a PV d'analyse for a lot."""
     return await _generate_pv(lot_id, "ANALYSE", actor)
 

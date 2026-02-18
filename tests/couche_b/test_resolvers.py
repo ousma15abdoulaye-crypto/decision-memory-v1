@@ -11,13 +11,15 @@ def seed_zones(db_session):
     from sqlalchemy import text
 
     # Insert test zones (already seeded in migration, but ensure they exist)
-    db_session.execute(text("""
+    db_session.execute(
+        text("""
         INSERT INTO geo_master (id, name, type, parent_id, created_at) VALUES
         ('zone-bamako-1', 'Bamako', 'city', NULL, '2026-02-13T20:00:00'),
         ('zone-kayes-1', 'Kayes', 'city', NULL, '2026-02-13T20:00:00'),
         ('zone-sikasso-1', 'Sikasso', 'city', NULL, '2026-02-13T20:00:00')
         ON CONFLICT (id) DO NOTHING
-    """))
+    """)
+    )
     db_session.commit()
     yield
     # Cleanup is handled by transaction rollback in conftest
@@ -28,12 +30,14 @@ def seed_vendors(db_session):
     """Seed test data for vendors table."""
     from sqlalchemy import text
 
-    db_session.execute(text("""
+    db_session.execute(
+        text("""
         INSERT INTO vendors (name, zone_id, created_at) VALUES
         ('Marché Central', 'zone-bamako-1', '2026-02-13T20:00:00'),
         ('Boutique Kayes', 'zone-kayes-1', '2026-02-13T20:00:00')
         ON CONFLICT DO NOTHING
-    """))
+    """)
+    )
     db_session.commit()
     yield
 
@@ -43,13 +47,15 @@ def seed_items(db_session):
     """Seed test data for items table."""
     from sqlalchemy import text
 
-    db_session.execute(text("""
+    db_session.execute(
+        text("""
         INSERT INTO items (description, category, unit_id, created_at) VALUES
         ('Riz local', 'Céréales', 1, '2026-02-13T20:00:00'),
         ('Tomate fraîche', 'Légumes', 1, '2026-02-13T20:00:00'),
         ('Mil', 'Céréales', 1, '2026-02-13T20:00:00')
         ON CONFLICT DO NOTHING
-    """))
+    """)
+    )
     db_session.commit()
     yield
 
@@ -67,15 +73,15 @@ def test_resolve_zone_fuzzy_match(seed_zones):
     """Test fuzzy match with realistic typo (similarity ≥60%)"""
     # Test avec typo plausible : lettre manquante
     zone_id = resolve_zone("Bamko")  # "Bamako" avec typo: manque 'a'
-    assert (
-        zone_id == "zone-bamako-1"
-    ), "Should resolve 'Bamko' to 'Bamako' (typo tolerance)"
+    assert zone_id == "zone-bamako-1", (
+        "Should resolve 'Bamko' to 'Bamako' (typo tolerance)"
+    )
 
     # Test avec typo plausible : lettre doublée
     zone_id = resolve_zone("Bamaako")  # "Bamako" avec double 'a'
-    assert (
-        zone_id == "zone-bamako-1"
-    ), "Should resolve 'Bamaako' to 'Bamako' (typo tolerance)"
+    assert zone_id == "zone-bamako-1", (
+        "Should resolve 'Bamaako' to 'Bamako' (typo tolerance)"
+    )
 
 
 def test_resolve_zone_no_match(seed_zones):

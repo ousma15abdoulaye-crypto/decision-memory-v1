@@ -367,7 +367,9 @@ class ScoringEngine:
                         "category": score.category,
                         "score_value": float(score.score_value),
                         "method": score.calculation_method,
-                        "details": json.dumps(score.calculation_details) if isinstance(score.calculation_details, dict) else str(score.calculation_details),
+                        "details": json.dumps(score.calculation_details)
+                        if isinstance(score.calculation_details, dict)
+                        else str(score.calculation_details),
                         "validated": bool(score.is_validated),
                     },
                 )
@@ -390,12 +392,24 @@ class ScoringEngine:
         with get_connection() as conn:
             for supplier_name, group in by_supplier.items():
                 reason_codes = [
-                    {"criterion_id": e.criterion_id, "criterion_name": e.criterion_name, "category": e.criterion_category}
+                    {
+                        "criterion_id": e.criterion_id,
+                        "criterion_name": e.criterion_name,
+                        "category": e.criterion_category,
+                    }
                     for e in group
                 ]
                 details = {
                     "eliminations": [
-                        {"criterion_id": e.criterion_id, "failure_reason": e.failure_reason, "eliminated_at": (e.eliminated_at.isoformat() if hasattr(e.eliminated_at, "isoformat") else str(e.eliminated_at))}
+                        {
+                            "criterion_id": e.criterion_id,
+                            "failure_reason": e.failure_reason,
+                            "eliminated_at": (
+                                e.eliminated_at.isoformat()
+                                if hasattr(e.eliminated_at, "isoformat")
+                                else str(e.eliminated_at)
+                            ),
+                        }
                         for e in group
                     ]
                 }

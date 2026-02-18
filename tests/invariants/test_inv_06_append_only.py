@@ -32,12 +32,16 @@ def test_inv_06_audit_tables_append_only():
                             if table in content.lower():
                                 break
                         else:
-                            pytest.fail(f"Migration {file} contient REVOKE mais pas sur table d'audit connue")
+                            pytest.fail(
+                                f"Migration {file} contient REVOKE mais pas sur table d'audit connue"
+                            )
 
         # Note: Si aucune migration append-only n'existe encore,
         # c'est un problème mais pas un échec de test (sera corrigé par FIX-004)
         if not found_append_only:
-            pytest.skip("Contraintes append-only pas encore implémentées (sera corrigé par FIX-004)")
+            pytest.skip(
+                "Contraintes append-only pas encore implémentées (sera corrigé par FIX-004)"
+            )
 
 
 def test_inv_06_no_delete_in_audit_code():
@@ -57,7 +61,9 @@ def test_inv_06_no_delete_in_audit_code():
                             # Pattern: DELETE FROM table ou DELETE table
                             pattern = rf"DELETE\s+(FROM\s+)?{table}"
                             if re.search(pattern, content, re.IGNORECASE):
-                                pytest.fail(f"DELETE détecté sur table d'audit {table} dans {filepath}")
+                                pytest.fail(
+                                    f"DELETE détecté sur table d'audit {table} dans {filepath}"
+                                )
 
 
 def test_inv_06_traceability_present():
@@ -74,7 +80,10 @@ def test_inv_06_traceability_present():
                 with open(filepath, encoding="utf-8") as f:
                     content = f.read()
                     for table in required_audit_tables:
-                        if f"CREATE TABLE.*{table}" in content or f"CREATE TABLE IF NOT EXISTS.*{table}" in content:
+                        if (
+                            f"CREATE TABLE.*{table}" in content
+                            or f"CREATE TABLE IF NOT EXISTS.*{table}" in content
+                        ):
                             found_tables.add(table)
 
         for table in required_audit_tables:

@@ -30,6 +30,7 @@ def test_inv_09_no_biases_in_scoring():
     violations = []
     for pattern in bias_patterns:
         import re
+
         if re.search(pattern, content, re.IGNORECASE):
             violations.append(f"Bias pattern detected: {pattern}")
 
@@ -64,7 +65,9 @@ def test_inv_09_transparent_calculations():
             content = f.read()
             # Vérifier qu'il y a des fonctions qui retournent des détails
             # (vérification structurelle)
-            assert "calculation_details" in content.lower() or "details" in content.lower()
+            assert (
+                "calculation_details" in content.lower() or "details" in content.lower()
+            )
 
 
 def test_inv_09_no_hidden_assumptions():
@@ -91,24 +94,33 @@ def test_inv_09_no_hidden_assumptions():
                     # Chercher des nombres magiques dans le code
                     for i, line in enumerate(lines, 1):
                         # Ignorer les commentaires et docstrings
-                        if line.strip().startswith("#") or '"""' in line or "'''" in line:
+                        if (
+                            line.strip().startswith("#")
+                            or '"""' in line
+                            or "'''" in line
+                        ):
                             continue
 
                         # Chercher des nombres qui ne sont pas dans common_values
-                        numbers = re.findall(r'\b(\d+\.?\d*)\b', line)
+                        numbers = re.findall(r"\b(\d+\.?\d*)\b", line)
                         for num_str in numbers:
                             try:
                                 num = float(num_str)
                                 if num not in common_values and num > 1:
                                     # Vérifier si c'est dans une constante ou commenté
                                     if "=" not in line and "#" not in line:
-                                        violations.append(f"{filepath}:{i} potential magic number: {num_str}")
+                                        violations.append(
+                                            f"{filepath}:{i} potential magic number: {num_str}"
+                                        )
                             except ValueError:
                                 pass
 
     # On ne fait qu'avertir, pas échouer (trop strict sinon)
     if len(violations) > 10:  # Seuil arbitraire
-        pytest.fail(f"Trop de magic numbers détectés ({len(violations)}):\n" + "\n".join(violations[:10]))
+        pytest.fail(
+            f"Trop de magic numbers détectés ({len(violations)}):\n"
+            + "\n".join(violations[:10])
+        )
 
 
 def test_inv_09_neutral_language():
@@ -144,20 +156,26 @@ def test_inv_09_neutral_language():
                         tree = ast.parse(content)
                         for node in ast.walk(tree):
                             # Vérifier les docstrings
-                            if isinstance(node, (ast.FunctionDef, ast.ClassDef, ast.Module)):
+                            if isinstance(
+                                node, (ast.FunctionDef, ast.ClassDef, ast.Module)
+                            ):
                                 docstring = ast.get_docstring(node)
                                 if docstring:
                                     doc_lower = docstring.lower()
                                     for term in biased_terms:
                                         if term in doc_lower:
-                                            violations.append(f"{filepath}: docstring contains '{term}'")
+                                            violations.append(
+                                                f"{filepath}: docstring contains '{term}'"
+                                            )
 
                             # Vérifier les chaînes littérales (messages d'erreur, etc.)
                             if isinstance(node, ast.Str):
                                 str_lower = node.s.lower()
                                 for term in biased_terms:
                                     if term in str_lower:
-                                        violations.append(f"{filepath}: string literal contains '{term}'")
+                                        violations.append(
+                                            f"{filepath}: string literal contains '{term}'"
+                                        )
                     except SyntaxError:
                         # Fallback: recherche simple
                         content_lower = content.lower()
@@ -166,8 +184,13 @@ def test_inv_09_neutral_language():
                                 # Vérifier que ce n'est pas dans un commentaire
                                 lines = content.splitlines()
                                 for i, line in enumerate(lines, 1):
-                                    if term in line.lower() and not line.strip().startswith("#"):
-                                        violations.append(f"{filepath}:{i} contains '{term}'")
+                                    if (
+                                        term in line.lower()
+                                        and not line.strip().startswith("#")
+                                    ):
+                                        violations.append(
+                                            f"{filepath}:{i} contains '{term}'"
+                                        )
                                         break
 
     if violations:

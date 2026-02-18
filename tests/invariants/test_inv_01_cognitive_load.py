@@ -37,14 +37,18 @@ def test_inv_01_no_complex_workflows():
 def test_inv_01_error_messages_clear():
     """Les messages d'erreur doivent être clairs et actionnables."""
     # Tester un endpoint avec données invalides
-    response = client.post("/api/cases/invalid-id/upload-dao", files={"file": ("test.pdf", b"content")})
+    response = client.post(
+        "/api/cases/invalid-id/upload-dao", files={"file": ("test.pdf", b"content")}
+    )
 
     # Le message d'erreur doit être compréhensible
     if response.status_code != 200:
         error_detail = response.json().get("detail", "")
         # Vérifier que le message n'est pas cryptique
         assert len(error_detail) > 0
-        assert "error" not in error_detail.lower() or "not found" in error_detail.lower()
+        assert (
+            "error" not in error_detail.lower() or "not found" in error_detail.lower()
+        )
 
 
 def test_inv_01_no_manual_configuration_required():

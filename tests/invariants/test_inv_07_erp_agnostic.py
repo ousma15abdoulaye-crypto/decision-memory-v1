@@ -30,8 +30,13 @@ def test_inv_07_no_erp_imports():
                         content = f.read().lower()
                         for erp_lib in erp_libraries:
                             # Vérifier qu'il n'y a pas d'imports ERP
-                            if f"import {erp_lib}" in content or f"from {erp_lib}" in content:
-                                pytest.fail(f"Import ERP détecté dans {filepath}: {erp_lib}")
+                            if (
+                                f"import {erp_lib}" in content
+                                or f"from {erp_lib}" in content
+                            ):
+                                pytest.fail(
+                                    f"Import ERP détecté dans {filepath}: {erp_lib}"
+                                )
 
 
 def test_inv_07_stack_clear():
@@ -42,7 +47,10 @@ def test_inv_07_stack_clear():
             requirements = f.read()
             # Vérifier que les dépendances principales sont présentes
             assert "fastapi" in requirements.lower()
-            assert "postgresql" in requirements.lower() or "psycopg" in requirements.lower()
+            assert (
+                "postgresql" in requirements.lower()
+                or "psycopg" in requirements.lower()
+            )
     else:
         pytest.fail("requirements.txt manquant")
 
@@ -67,4 +75,6 @@ def test_inv_07_no_external_api_dependencies():
                         content = f.read()
                         for domain in erp_domains:
                             if domain in content:
-                                pytest.fail(f"Référence à domaine ERP détectée dans {filepath}: {domain}")
+                                pytest.fail(
+                                    f"Référence à domaine ERP détectée dans {filepath}: {domain}"
+                                )

@@ -41,6 +41,7 @@ def test_inv_04_database_url_required():
         import importlib
 
         import src.db
+
         importlib.reload(src.db)
 
         # Tenter de créer l'engine doit échouer
@@ -53,6 +54,7 @@ def test_inv_04_database_url_required():
         import importlib
 
         import src.db
+
         importlib.reload(src.db)
 
 

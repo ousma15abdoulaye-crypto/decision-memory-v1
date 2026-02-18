@@ -324,7 +324,7 @@ def generate_pv_adaptive(
         for c in dao_criteria:
             doc.add_paragraph(
                 f"• {c.critere_nom} ({c.categorie}) — "
-                f"{'Éliminatoire' if c.ponderation == 0 else f'{c.ponderation*100:.0f}%'}",
+                f"{'Éliminatoire' if c.ponderation == 0 else f'{c.ponderation * 100:.0f}%'}",
                 style="List Bullet",
             )
 
