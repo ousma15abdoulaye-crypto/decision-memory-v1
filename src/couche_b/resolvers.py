@@ -26,14 +26,6 @@ def resolve_vendor(name: str, session: Session | None = None) -> int | None:
 
     Returns:
         vendor_id if match found with similarity >= 60%, None otherwise
-
-    Examples:
-        >>> resolve_vendor("Marché Central")  # exact match
-        1
-        >>> resolve_vendor("Marche Central")  # missing accent, still matches
-        1
-        >>> resolve_vendor("")  # empty string
-        None
     """
     if not name or not name.strip():
         return None
@@ -67,14 +59,6 @@ def resolve_item(description: str, session: Session | None = None) -> int | None
 
     Returns:
         item_id if match found with similarity >= 60%, None otherwise
-
-    Examples:
-        >>> resolve_item("Riz local")  # exact match
-        1
-        >>> resolve_item("Ris local")  # typo, still matches
-        1
-        >>> resolve_item("")  # empty string
-        None
     """
     if not description or not description.strip():
         return None
@@ -108,18 +92,6 @@ def resolve_zone(name: str, session: Session | None = None) -> str | None:
 
     Returns:
         zone_id if match found with similarity >= 60%, None otherwise
-
-    Examples:
-        >>> resolve_zone("Bamako")  # exact match
-        'zone-bamako-1'
-        >>> resolve_zone("Bamko")  # missing letter 'a', still matches (similarity ~83%)
-        'zone-bamako-1'
-        >>> resolve_zone("Bamaako")  # double 'a', still matches (similarity ~86%)
-        'zone-bamako-1'
-        >>> resolve_zone("Bamako City")  # semantic variation, does NOT match (similarity ~44%)
-        None
-        >>> resolve_zone("")  # empty string
-        None
     """
     if not name or not name.strip():
         return None
