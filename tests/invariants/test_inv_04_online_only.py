@@ -27,34 +27,21 @@ def test_inv_04_no_sqlite():
 
 
 def test_inv_04_database_url_required():
-    """DATABASE_URL doit être requis au démarrage."""
-    # Vérifier que db.py lève une erreur si DATABASE_URL manque
+    """DATABASE_URL doit être requis au démarrage (Constitution V3.3.2 §2 online-only)."""
+    import importlib
+
+    import src.db
 
     original_db_url = os.environ.get("DATABASE_URL")
-
     try:
-        # Supprimer DATABASE_URL temporairement
         if "DATABASE_URL" in os.environ:
             del os.environ["DATABASE_URL"]
-
-        # Réimporter pour forcer la réinitialisation
-        import importlib
-
-        import src.db
-
-        importlib.reload(src.db)
-
-        # Tenter de créer l'engine doit échouer
+        # reload(src.db) re-exécute le module et appelle _get_engine() au chargement → RuntimeError
         with pytest.raises(RuntimeError, match="DATABASE_URL"):
-            src.db._get_engine()
+            importlib.reload(src.db)
     finally:
-        # Restaurer DATABASE_URL
         if original_db_url:
             os.environ["DATABASE_URL"] = original_db_url
-        import importlib
-
-        import src.db
-
         importlib.reload(src.db)
 
 

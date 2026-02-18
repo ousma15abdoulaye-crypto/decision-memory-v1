@@ -1,6 +1,6 @@
-"""Test Invariant 9: Fidélité au réel & neutralité.
+"""Test Invariant 9: FidÃ©litÃ© au rÃ©el & neutralitÃ©.
 
-Constitution V3.3.2 §2: Le système doit refléter la réalité sans biais.
+Constitution V3.3.2 Â§2: Le systÃ¨me doit reflÃ©ter la rÃ©alitÃ© sans biais.
 """
 
 import os
@@ -19,33 +19,40 @@ def test_inv_09_no_biases_in_scoring():
     with open(scoring_file, encoding="utf-8") as f:
         content = f.read()
 
-    # Vérifier qu'il n'y a pas de comparaisons hardcodées avec des noms de fournisseurs
-    # Pattern: if supplier == "XXX" ou if supplier_name == "XXX"
+    # Constitution V3.3.2 §2: pas de biais (noms de fournisseurs hardcodés).
+    # On détecte les comparaisons du type supplier_name == "Nom", pas package_status == "COMPLETE".
+    import re
+
     bias_patterns = [
-        r'if\s+.*supplier.*==\s*["\']',
-        r'supplier.*==\s*["\'][A-Z]',  # Nom propre (commence par majuscule)
-        r'if\s+.*==\s*["\'](ACME|Best|Premium|Gold)',  # Noms suspects
+        (r'if\s+.*supplier.*==\s*["\']', "comparison supplier == literal"),
+        (r'supplier.*==\s*["\'][A-Z]', "supplier == proper-name literal"),
+        (r'if\s+.*==\s*["\'](ACME|Best|Premium|Gold)', "known bias name literal"),
     ]
+    # Faux positifs légitimes: comparaisons de statut, pas de noms
+    false_positive_markers = ("package_status", ".status", "COMPLETE", "INCOMPLETE")
 
     violations = []
-    for pattern in bias_patterns:
-        import re
+    for pattern, desc in bias_patterns:
+        for line in content.splitlines():
+            if not re.search(pattern, line, re.IGNORECASE):
+                continue
+            if any(m in line for m in false_positive_markers):
+                continue
+            violations.append(f"Bias pattern detected: {desc} ({pattern})")
+            break
 
-        if re.search(pattern, content, re.IGNORECASE):
-            violations.append(f"Bias pattern detected: {pattern}")
-
-    # Vérifier avec AST pour des conditions suspectes
+    # VÃ©rifier avec AST pour des conditions suspectes
     try:
         tree = ast.parse(content)
         for node in ast.walk(tree):
             if isinstance(node, ast.If):
-                # Vérifier si la condition compare avec une chaîne littérale
+                # VÃ©rifier si la condition compare avec une chaÃ®ne littÃ©rale
                 if isinstance(node.test, ast.Compare):
                     for comp in node.test.comparators:
                         if isinstance(comp, ast.Str) and len(comp.s) > 2:
-                            # Chaîne littérale dans une condition = potentiel biais
+                            # ChaÃ®ne littÃ©rale dans une condition = potentiel biais
                             # Mais on ne flagge que si c'est dans un contexte de supplier
-                            # (vérification simplifiée)
+                            # (vÃ©rification simplifiÃ©e)
                             pass
     except SyntaxError:
         pass
@@ -55,26 +62,26 @@ def test_inv_09_no_biases_in_scoring():
 
 
 def test_inv_09_transparent_calculations():
-    """Les calculs doivent être transparents et traçables."""
-    # Vérifier que les fonctions de calcul retournent des détails
-    # permettant de comprendre comment le résultat a été obtenu
+    """Les calculs doivent Ãªtre transparents et traÃ§ables."""
+    # VÃ©rifier que les fonctions de calcul retournent des dÃ©tails
+    # permettant de comprendre comment le rÃ©sultat a Ã©tÃ© obtenu
 
     scoring_file = "src/couche_a/scoring/engine.py"
     if os.path.exists(scoring_file):
         with open(scoring_file, encoding="utf-8") as f:
             content = f.read()
-            # Vérifier qu'il y a des fonctions qui retournent des détails
-            # (vérification structurelle)
+            # VÃ©rifier qu'il y a des fonctions qui retournent des dÃ©tails
+            # (vÃ©rification structurelle)
             assert (
                 "calculation_details" in content.lower() or "details" in content.lower()
             )
 
 
 def test_inv_09_no_hidden_assumptions():
-    """Le code ne doit pas contenir d'hypothèses cachées."""
+    """Le code ne doit pas contenir d'hypothÃ¨ses cachÃ©es."""
     import re
 
-    # Magic numbers suspects (valeurs numériques sans constante nommée)
+    # Magic numbers suspects (valeurs numÃ©riques sans constante nommÃ©e)
     # On ignore les valeurs communes (0, 1, -1, 100, etc.)
     common_values = {0, 1, -1, 100, 1000, 1024, 60, 3600, 24}
 
@@ -107,7 +114,7 @@ def test_inv_09_no_hidden_assumptions():
                             try:
                                 num = float(num_str)
                                 if num not in common_values and num > 1:
-                                    # Vérifier si c'est dans une constante ou commenté
+                                    # VÃ©rifier si c'est dans une constante ou commentÃ©
                                     if "=" not in line and "#" not in line:
                                         violations.append(
                                             f"{filepath}:{i} potential magic number: {num_str}"
@@ -115,10 +122,10 @@ def test_inv_09_no_hidden_assumptions():
                             except ValueError:
                                 pass
 
-    # On ne fait qu'avertir, pas échouer (trop strict sinon)
+    # On ne fait qu'avertir, pas Ã©chouer (trop strict sinon)
     if len(violations) > 10:  # Seuil arbitraire
         pytest.fail(
-            f"Trop de magic numbers détectés ({len(violations)}):\n"
+            f"Trop de magic numbers dÃ©tectÃ©s ({len(violations)}):\n"
             + "\n".join(violations[:10])
         )
 
@@ -155,9 +162,9 @@ def test_inv_09_neutral_language():
                     try:
                         tree = ast.parse(content)
                         for node in ast.walk(tree):
-                            # Vérifier les docstrings
+                            # VÃ©rifier les docstrings
                             if isinstance(
-                                node, (ast.FunctionDef, ast.ClassDef, ast.Module)
+                                node, ast.FunctionDef | ast.ClassDef | ast.Module
                             ):
                                 docstring = ast.get_docstring(node)
                                 if docstring:
@@ -168,7 +175,7 @@ def test_inv_09_neutral_language():
                                                 f"{filepath}: docstring contains '{term}'"
                                             )
 
-                            # Vérifier les chaînes littérales (messages d'erreur, etc.)
+                            # VÃ©rifier les chaÃ®nes littÃ©rales (messages d'erreur, etc.)
                             if isinstance(node, ast.Str):
                                 str_lower = node.s.lower()
                                 for term in biased_terms:
@@ -181,7 +188,7 @@ def test_inv_09_neutral_language():
                         content_lower = content.lower()
                         for term in biased_terms:
                             if term in content_lower:
-                                # Vérifier que ce n'est pas dans un commentaire
+                                # VÃ©rifier que ce n'est pas dans un commentaire
                                 lines = content.splitlines()
                                 for i, line in enumerate(lines, 1):
                                     if (
@@ -194,4 +201,4 @@ def test_inv_09_neutral_language():
                                         break
 
     if violations:
-        pytest.fail("Langage biaisé détecté:\n" + "\n".join(violations[:10]))
+        pytest.fail("Langage biaisÃ© dÃ©tectÃ©:\n" + "\n".join(violations[:10]))
