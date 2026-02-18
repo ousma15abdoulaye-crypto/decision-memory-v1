@@ -117,7 +117,7 @@ def resolve_zone(name: str) -> Optional[str]:
                 ORDER BY similarity(name, :search_name) DESC
                 LIMIT 1
             """),
-            {"search_name": name.strip(), "threshold": SIMILARITY_THRESHOLD},
+            {"search_name": name.strip(), "threshold": ZONE_SIMILARITY_THRESHOLD},
         ).fetchone()
 
         return result[0] if result else None
