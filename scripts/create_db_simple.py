@@ -16,7 +16,12 @@ from psycopg import sql
 def try_create_db():
     """Essaie de créer la DB avec différentes combinaisons."""
     
-    passwords = ["Babayaga02022", "Babayaga2022", ""]
+    # SECURITE: Ne pas hardcoder de mots de passe. Utiliser variable d'environnement ou prompt.
+    import os
+    passwords = [
+        os.environ.get("PGPASSWORD", ""),
+        "",  # Essayer sans mot de passe (trust local)
+    ]
     users = ["postgres", "abdoulaye.ousmane"]
     
     db_name = "dms"

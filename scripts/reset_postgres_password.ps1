@@ -1,8 +1,13 @@
 # Script pour réinitialiser le mot de passe PostgreSQL
-# Usage: powershell -ExecutionPolicy Bypass -File scripts\reset_postgres_password.ps1
+# Usage: powershell -ExecutionPolicy Bypass -File scripts\reset_postgres_password.ps1 -NewPassword "votre_mot_de_passe"
+# OU: $env:PGPASSWORD = "votre_mot_de_passe"; powershell -ExecutionPolicy Bypass -File scripts\reset_postgres_password.ps1 -NewPassword $env:PGPASSWORD
+#
+# SECURITE: Le mot de passe doit être fourni en paramètre ou via variable d'environnement.
+# Ne JAMAIS hardcoder un mot de passe dans ce script.
 
 param(
-    [string]$NewPassword = "Babayaga02022",
+    [Parameter(Mandatory=$true)]
+    [string]$NewPassword,
     [string]$PostgresUser = "postgres"
 )
 

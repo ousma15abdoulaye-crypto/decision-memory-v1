@@ -116,7 +116,7 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description="Setup DMS PostgreSQL avec mot de passe")
-    parser.add_argument("--password", default="Babayaga02022", help="Mot de passe PostgreSQL superuser")
+    parser.add_argument("--password", default="", help="Mot de passe PostgreSQL superuser (requis si non fourni via variable d'environnement PGPASSWORD)")
     parser.add_argument("--superuser", default="postgres", help="Nom de l'utilisateur superuser")
     parser.add_argument("--host", default="localhost", help="Host PostgreSQL")
     parser.add_argument("--port", type=int, default=5432, help="Port PostgreSQL")
@@ -126,9 +126,20 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
+    # Récupérer le mot de passe depuis l'argument ou la variable d'environnement
+    password = args.password
+    if not password:
+        import os
+        password = os.environ.get("PGPASSWORD", "")
+        if not password:
+            print("[ERREUR] Mot de passe requis. Fournissez-le via:")
+            print("  --password 'votre_mot_de_passe'")
+            print("  OU via variable d'environnement: $env:PGPASSWORD = 'votre_mot_de_passe'")
+            sys.exit(1)
+    
     # Essayer avec l'utilisateur fourni
     success = try_create_db(
-        password=args.password,
+        password=password,
         superuser=args.superuser,
         host=args.host,
         port=args.port,

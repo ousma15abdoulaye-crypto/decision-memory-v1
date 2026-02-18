@@ -25,8 +25,13 @@ jobs:
           cd docs/freeze/v3.3.2
           sha256sum -c SHA256SUMS.txt
       
+      - name: Check if checksums changed
+        id: check-changes
+        run: |
+          git diff --quiet docs/freeze/v3.3.2/SHA256SUMS.txt && echo "changed=false" >> $GITHUB_OUTPUT || echo "changed=true" >> $GITHUB_OUTPUT
+      
       - name: Commit updated checksums
-        if: github.ref == 'refs/heads/fix/audit-urgent'
+        if: github.ref == 'refs/heads/fix/audit-urgent' && steps.check-changes.outputs.changed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

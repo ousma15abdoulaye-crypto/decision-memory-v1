@@ -5,6 +5,7 @@ La Couche B ne peut pas influencer les décisions de la Couche A.
 """
 
 import pytest
+import os
 from unittest.mock import patch, MagicMock
 
 

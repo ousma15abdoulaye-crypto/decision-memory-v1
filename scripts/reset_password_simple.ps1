@@ -1,6 +1,11 @@
 # Script simple pour réinitialiser le mot de passe PostgreSQL
 # À EXÉCUTER EN TANT QU'ADMINISTRATEUR !
 # Clic droit sur PowerShell → Exécuter en tant qu'administrateur
+#
+# Usage: powershell -ExecutionPolicy Bypass -File scripts\reset_password_simple.ps1 -NewPassword "votre_mot_de_passe"
+# OU: $env:PGPASSWORD = "votre_mot_de_passe"; powershell -ExecutionPolicy Bypass -File scripts\reset_password_simple.ps1 -NewPassword $env:PGPASSWORD
+#
+# SECURITE: Le mot de passe doit être fourni en paramètre. Ne JAMAIS hardcoder un mot de passe.
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Reinitialisation mot de passe PostgreSQL" -ForegroundColor Cyan
@@ -9,11 +14,16 @@ Write-Host ""
 Write-Host "IMPORTANT: Ce script doit etre execute en tant qu'Administrateur!" -ForegroundColor Yellow
 Write-Host ""
 
+param(
+    [Parameter(Mandatory=$true)]
+    [string]$NewPassword
+)
+
 $serviceName = "postgresql-x64-15"
 $dataDir = "C:\Program Files\PostgreSQL\15\data"
 $pgHbaPath = "$dataDir\pg_hba.conf"
 $psqlPath = "C:\Program Files\PostgreSQL\15\bin\psql.exe"
-$newPassword = "Babayaga02022"
+$newPassword = $NewPassword
 
 # Vérifier les permissions admin
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
