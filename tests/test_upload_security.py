@@ -213,9 +213,9 @@ def test_case_quota_enforcement():
         files={"file": ("dao1.pdf", io.BytesIO(file_content), "application/pdf")},
         headers={"Authorization": f"Bearer {token}"},
     )
-    assert (
-        response1.status_code == 200
-    ), f"First upload should succeed: {response1.json() if response1.status_code != 200 else 'OK'}"
+    assert response1.status_code == 200, (
+        f"First upload should succeed: {response1.json() if response1.status_code != 200 else 'OK'}"
+    )
 
     # The test primarily verifies that:
     # 1. Individual files under 50MB are accepted
