@@ -40,9 +40,9 @@ def test_inv_08_documentation_present():
             with open(module_path, encoding="utf-8") as f:
                 content = f.read()
                 # Vérifier qu'il y a au moins une docstring
-                assert (
-                    '"""' in content or "'''" in content
-                ), f"Module {module_path} sans docstring"
+                assert '"""' in content or "'''" in content, (
+                    f"Module {module_path} sans docstring"
+                )
 
 
 def test_inv_08_migrations_versioned():
@@ -57,9 +57,9 @@ def test_inv_08_migrations_versioned():
             filepath = os.path.join(alembic_dir, migration_file)
             with open(filepath, encoding="utf-8") as f:
                 content = f.read()
-                assert (
-                    "revision = " in content
-                ), f"Migration {migration_file} sans revision ID"
+                assert "revision = " in content, (
+                    f"Migration {migration_file} sans revision ID"
+                )
 
 
 def test_inv_08_no_hardcoded_secrets():
