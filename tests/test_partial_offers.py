@@ -44,9 +44,9 @@ def test_detect_financial_only():
     print(f"Has Admin: {subtype.has_admin}")
     print(f"Confidence: {subtype.confidence}")
 
-    assert (
-        subtype.subtype == "FINANCIAL_ONLY"
-    ), f"Expected FINANCIAL_ONLY, got {subtype.subtype}"
+    assert subtype.subtype == "FINANCIAL_ONLY", (
+        f"Expected FINANCIAL_ONLY, got {subtype.subtype}"
+    )
     assert subtype.has_financial
     assert not subtype.has_technical
     assert not subtype.has_admin
@@ -163,9 +163,9 @@ def test_aggregate_three_financial_only():
         print(f"  Champs manquants: {pkg.missing_fields}")
 
         # Vérifications
-        assert (
-            pkg.package_status == "PARTIAL"
-        ), f"Expected PARTIAL, got {pkg.package_status}"
+        assert pkg.package_status == "PARTIAL", (
+            f"Expected PARTIAL, got {pkg.package_status}"
+        )
         assert pkg.has_financial
         assert not pkg.has_technical
 
