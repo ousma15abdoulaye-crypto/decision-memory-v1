@@ -57,7 +57,7 @@ def upgrade(engine: Optional[Engine] = None) -> None:
             is_validated BOOLEAN NOT NULL DEFAULT FALSE,
             validated_by TEXT,
             validated_at TEXT,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
             PRIMARY KEY (case_id, supplier_name, category)
         )
     """)
@@ -69,7 +69,7 @@ def upgrade(engine: Optional[Engine] = None) -> None:
             supplier_name TEXT NOT NULL,
             reason_codes JSONB NOT NULL,
             details JSONB NOT NULL,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
         )
     """)
     _execute_sql(bind, "CREATE INDEX IF NOT EXISTS idx_supplier_eliminations_case ON supplier_eliminations(case_id)")
