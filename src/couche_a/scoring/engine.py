@@ -367,9 +367,11 @@ class ScoringEngine:
                         "category": score.category,
                         "score_value": float(score.score_value),
                         "method": score.calculation_method,
-                        "details": json.dumps(score.calculation_details)
-                        if isinstance(score.calculation_details, dict)
-                        else str(score.calculation_details),
+                        "details": (
+                            json.dumps(score.calculation_details)
+                            if isinstance(score.calculation_details, dict)
+                            else str(score.calculation_details)
+                        ),
                         "validated": bool(score.is_validated),
                     },
                 )
