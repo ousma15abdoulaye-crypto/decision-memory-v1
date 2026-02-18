@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from docx import Document as DocxDocument
 from openpyxl import load_workbook
@@ -38,7 +38,7 @@ def _extract_text_from_docx(path: Path) -> str:
 
 def _extract_text_from_xlsx(path: Path) -> str:
     workbook = load_workbook(str(path), read_only=True)
-    text_lines: List[str] = []
+    text_lines: list[str] = []
     for sheet in workbook.worksheets[:1]:
         for row in sheet.iter_rows(max_row=20, max_col=10):
             for cell in row:
@@ -68,9 +68,9 @@ def _normalize_amount(raw_amount: str) -> float:
         return 0.0
 
 
-def extract_fields(text: str) -> Tuple[Dict[str, Any], List[str]]:
+def extract_fields(text: str) -> tuple[dict[str, Any], list[str]]:
     """Extract structured fields from raw text."""
-    missing_fields: List[str] = []
+    missing_fields: list[str] = []
     supplier_match = re.search(
         r"(fournisseur|soumissionnaire)\s*[:\-]\s*([^\n]+)", text, re.IGNORECASE
     )
@@ -110,10 +110,10 @@ def extract_fields(text: str) -> Tuple[Dict[str, Any], List[str]]:
 
 async def extract_and_store(
     document_id: str, llm_enabled: bool = False
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Extract data from a document and store the results."""
 
-    def _process() -> Dict[str, Any]:
+    def _process() -> dict[str, Any]:
         engine = get_engine()
         ensure_schema(engine)
         try:
@@ -146,7 +146,7 @@ async def extract_and_store(
                     )
                 )
 
-                update_payload: Dict[str, Any] = {}
+                update_payload: dict[str, Any] = {}
                 if extracted.get("fournisseur"):
                     update_payload["supplier_name"] = extracted["fournisseur"]
                 if extracted.get("montant") is not None:

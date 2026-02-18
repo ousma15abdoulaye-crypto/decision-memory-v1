@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Tuple
+
 from openpyxl.utils import get_column_letter
 
 
@@ -31,7 +31,7 @@ def supplier_col_letter(
     )
 
 
-def commercial_cols(start_col_index: int, slot_number: int) -> Tuple[str, str]:
+def commercial_cols(start_col_index: int, slot_number: int) -> tuple[str, str]:
     # bloc 2 colonnes : prix, total
     price_idx = supplier_col_index(start_col_index, slot_number, width_per_slot=2)
     total_idx = price_idx + 1

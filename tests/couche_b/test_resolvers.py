@@ -1,7 +1,8 @@
 """Tests for Couche B fuzzy resolution functions."""
 
 import pytest
-from src.couche_b.resolvers import resolve_vendor, resolve_item, resolve_zone
+
+from src.couche_b.resolvers import resolve_item, resolve_vendor, resolve_zone
 
 
 @pytest.fixture

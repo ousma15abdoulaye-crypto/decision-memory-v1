@@ -3,8 +3,9 @@
 Constitution V3.3.3 §2: Aucune PR ne doit être mergée avec CI rouge.
 """
 
-import pytest
 import os
+
+import pytest
 import yaml
 
 
@@ -13,11 +14,11 @@ def test_inv_05_no_force_success():
     workflows_dir = ".github/workflows"
     if not os.path.exists(workflows_dir):
         pytest.skip("Workflows directory not found")
-    
+
     for file in os.listdir(workflows_dir):
         if file.endswith(".yml") or file.endswith(".yaml"):
             filepath = os.path.join(workflows_dir, file)
-            with open(filepath, "r", encoding="utf-8") as f:
+            with open(filepath, encoding="utf-8") as f:
                 content = f.read()
                 # Vérifier qu'il n'y a pas de || true qui masque les erreurs
                 assert "|| true" not in content
@@ -32,7 +33,7 @@ def test_inv_05_ci_fails_on_error():
         for file in os.listdir(workflows_dir):
             if file.endswith(".yml") or file.endswith(".yaml"):
                 filepath = os.path.join(workflows_dir, file)
-                with open(filepath, "r", encoding="utf-8") as f:
+                with open(filepath, encoding="utf-8") as f:
                     workflow = yaml.safe_load(f)
                     if workflow and "jobs" in workflow:
                         for job_name, job_config in workflow["jobs"].items():
@@ -50,7 +51,7 @@ def test_inv_05_required_checks():
         "ci-main.yml",  # Workflow principal
         "ci-freeze-integrity.yml",  # Vérification freeze
     ]
-    
+
     workflows_dir = ".github/workflows"
     if os.path.exists(workflows_dir):
         existing_workflows = os.listdir(workflows_dir)

@@ -5,9 +5,9 @@ Implémentation manuelle avec python-jose + passlib.
 """
 
 import os
-from typing import Optional, Annotated
 from datetime import datetime, timedelta
 from functools import wraps
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -15,7 +15,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy import text
 
-from src.db import get_connection, db_execute_one, db_execute
+from src.db import db_execute, db_execute_one, get_connection
 
 # --- Configuration ---
 SECRET_KEY = os.getenv("JWT_SECRET", "CHANGE_IN_PRODUCTION_USE_OPENSSL_RAND_HEX_32")
@@ -38,37 +38,37 @@ def get_password_hash(password: str) -> str:
 
 
 # --- User helpers (synchrones, Constitution V2.1) ---
-def get_user_by_username(username: str) -> Optional[dict]:
+def get_user_by_username(username: str) -> dict | None:
     """Récupère utilisateur par username."""
     with get_connection() as conn:
         return db_execute_one(
             conn,
             """
-            SELECT u.*, r.name as role_name 
-            FROM users u 
-            JOIN roles r ON u.role_id = r.id 
+            SELECT u.*, r.name as role_name
+            FROM users u
+            JOIN roles r ON u.role_id = r.id
             WHERE u.username = :username
         """,
             {"username": username},
         )
 
 
-def get_user_by_id(user_id: int) -> Optional[dict]:
+def get_user_by_id(user_id: int) -> dict | None:
     """Récupère utilisateur par ID."""
     with get_connection() as conn:
         return db_execute_one(
             conn,
             """
-            SELECT u.*, r.name as role_name 
-            FROM users u 
-            JOIN roles r ON u.role_id = r.id 
+            SELECT u.*, r.name as role_name
+            FROM users u
+            JOIN roles r ON u.role_id = r.id
             WHERE u.id = :id
         """,
             {"id": user_id},
         )
 
 
-def authenticate_user(username: str, password: str) -> Optional[dict]:
+def authenticate_user(username: str, password: str) -> dict | None:
     """Authentifie utilisateur (username + password)."""
     user = get_user_by_username(username)
     if not user:
@@ -90,7 +90,7 @@ def authenticate_user(username: str, password: str) -> Optional[dict]:
 
 
 # --- JWT token helpers ---
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """Crée JWT access token."""
     to_encode = data.copy()
     expire = datetime.utcnow() + (
@@ -236,9 +236,9 @@ def create_user(
         return db_execute_one(
             conn,
             """
-            SELECT u.*, r.name as role_name 
-            FROM users u 
-            JOIN roles r ON u.role_id = r.id 
+            SELECT u.*, r.name as role_name
+            FROM users u
+            JOIN roles r ON u.role_id = r.id
             WHERE u.id = :id
         """,
             {"id": user_id},

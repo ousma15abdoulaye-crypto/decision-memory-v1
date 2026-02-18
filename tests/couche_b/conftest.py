@@ -7,7 +7,7 @@ import os
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
 
 @pytest.fixture(scope="session")

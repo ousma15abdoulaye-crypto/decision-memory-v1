@@ -12,8 +12,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.business.offer_processor import (
-    detect_offer_subtype,
     aggregate_supplier_packages,
+    detect_offer_subtype,
     guess_supplier_name,
 )
 
@@ -23,9 +23,9 @@ def test_detect_financial_only():
 
     text = """
     OFFRE FINANCIERE
-    
+
     Entreprise: SARL ALPHA CONSTRUCTION
-    
+
     Prix Total: 45.000.000 FCFA
     Délai de livraison: 60 jours
     Validité de l'offre: 90 jours
@@ -59,7 +59,7 @@ def test_supplier_name_extraction():
 
     text = """
     SOCIÉTÉ: BETA SERVICES SARL
-    
+
     Offre technique et financière
     """
 

@@ -2,12 +2,13 @@
 M3B Scoring API endpoints.
 """
 
-from fastapi import APIRouter, HTTPException
 import time
 
+from fastapi import APIRouter, HTTPException
+
 from src.auth import CurrentUser
-from src.db import get_connection, db_fetchall
 from src.couche_a.scoring.models import ScoringRequest, ScoringResponse
+from src.db import db_fetchall, get_connection
 
 router = APIRouter(prefix="/api/scoring", tags=["Scoring M3B"])
 

@@ -4,8 +4,9 @@ Uses PostgreSQL pg_trgm extension for similarity-based matching.
 Threshold: 60% (0.6) - balances typo tolerance with false positive prevention.
 """
 
-from typing import Optional
+
 from sqlalchemy import text
+
 from src.db import get_session
 
 # Production-safe threshold: tolerates 1-2 letter typos, rejects semantic variations
@@ -14,7 +15,7 @@ SIMILARITY_THRESHOLD = 0.6
 ZONE_SIMILARITY_THRESHOLD = 0.3
 
 
-def resolve_vendor(name: str) -> Optional[int]:
+def resolve_vendor(name: str) -> int | None:
     """Resolve vendor name to vendor_id using fuzzy matching.
 
     Args:
@@ -49,7 +50,7 @@ def resolve_vendor(name: str) -> Optional[int]:
         return result[0] if result else None
 
 
-def resolve_item(description: str) -> Optional[int]:
+def resolve_item(description: str) -> int | None:
     """Resolve item description to item_id using fuzzy matching.
 
     Args:
@@ -84,7 +85,7 @@ def resolve_item(description: str) -> Optional[int]:
         return result[0] if result else None
 
 
-def resolve_zone(name: str) -> Optional[str]:
+def resolve_zone(name: str) -> str | None:
     """Resolve zone name to zone_id using fuzzy matching.
 
     Args:

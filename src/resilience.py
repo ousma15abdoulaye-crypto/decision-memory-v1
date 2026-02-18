@@ -1,15 +1,16 @@
 """Resilience patterns: retry & circuit breaker (M4D)."""
 
 import logging
+
+import pybreaker
+from psycopg import DatabaseError, OperationalError
 from tenacity import (
+    before_sleep_log,
     retry,
+    retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type,
-    before_sleep_log,
 )
-import pybreaker
-from psycopg import OperationalError, DatabaseError
 
 logger = logging.getLogger(__name__)
 

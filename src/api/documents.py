@@ -5,16 +5,16 @@ Document upload, download, and memory endpoints.
 import json
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from src.core.dependencies import (
-    safe_save_upload,
-    register_artifact,
     get_artifacts,
     list_memory,
+    register_artifact,
+    safe_save_upload,
 )
-from src.db import get_connection, db_execute_one
+from src.db import db_execute_one, get_connection
 
 router = APIRouter(prefix="/api", tags=["documents"])
 

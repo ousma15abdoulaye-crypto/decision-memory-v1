@@ -6,15 +6,14 @@ Human validation required (is_validated=False by default).
 No automatic vendor ranking or recommendations.
 """
 
-from typing import List, Tuple
-from datetime import datetime
 import json
 import re
+from datetime import datetime
 
 from sqlalchemy import text
 
-from src.couche_a.scoring.models import EliminationResult, ScoreResult
 from src.core.models import DAOCriterion, SupplierPackage
+from src.couche_a.scoring.models import EliminationResult, ScoreResult
 from src.db import get_connection
 
 __all__ = ["ScoringEngine"]
@@ -41,9 +40,9 @@ class ScoringEngine:
     def calculate_scores_for_case(
         self,
         case_id: str,
-        suppliers: List[SupplierPackage],
-        criteria: List[DAOCriterion],
-    ) -> Tuple[List[ScoreResult], List[EliminationResult]]:
+        suppliers: list[SupplierPackage],
+        criteria: list[DAOCriterion],
+    ) -> tuple[list[ScoreResult], list[EliminationResult]]:
         """
         Calculate scores for all suppliers in a case.
 
@@ -93,7 +92,7 @@ class ScoringEngine:
 
         return (all_scores, eliminations)
 
-    def _build_evaluation_profile(self, criteria: List[DAOCriterion]) -> dict:
+    def _build_evaluation_profile(self, criteria: list[DAOCriterion]) -> dict:
         """Build evaluation profile from criteria."""
         profile = {"criteria": []}
 
@@ -111,8 +110,8 @@ class ScoringEngine:
         return profile
 
     def _calculate_commercial_scores(
-        self, suppliers: List[SupplierPackage], profile: dict
-    ) -> List[ScoreResult]:
+        self, suppliers: list[SupplierPackage], profile: dict
+    ) -> list[ScoreResult]:
         """Calculate commercial scores (price-based)."""
         scores = []
 
@@ -161,8 +160,8 @@ class ScoringEngine:
         return scores
 
     def _calculate_capacity_scores(
-        self, suppliers: List[SupplierPackage], profile: dict
-    ) -> List[ScoreResult]:
+        self, suppliers: list[SupplierPackage], profile: dict
+    ) -> list[ScoreResult]:
         """Calculate capacity scores (experience-based)."""
         scores = []
 
@@ -189,8 +188,8 @@ class ScoringEngine:
         return scores
 
     def _calculate_sustainability_scores(
-        self, suppliers: List[SupplierPackage], profile: dict
-    ) -> List[ScoreResult]:
+        self, suppliers: list[SupplierPackage], profile: dict
+    ) -> list[ScoreResult]:
         """Calculate sustainability scores (certifications/keywords)."""
         scores = []
 
@@ -233,8 +232,8 @@ class ScoringEngine:
         return scores
 
     def _calculate_essentials_scores(
-        self, suppliers: List[SupplierPackage], profile: dict
-    ) -> List[ScoreResult]:
+        self, suppliers: list[SupplierPackage], profile: dict
+    ) -> list[ScoreResult]:
         """Calculate essentials scores (completeness check)."""
         scores = []
 
@@ -259,10 +258,10 @@ class ScoringEngine:
 
     def _calculate_total_scores(
         self,
-        suppliers: List[SupplierPackage],
-        category_scores: List[ScoreResult],
+        suppliers: list[SupplierPackage],
+        category_scores: list[ScoreResult],
         profile: dict,
-    ) -> List[ScoreResult]:
+    ) -> list[ScoreResult]:
         """Calculate weighted total scores."""
         total_scores = []
 
@@ -311,8 +310,8 @@ class ScoringEngine:
         return total_scores
 
     def _check_eliminatory_criteria(
-        self, suppliers: List[SupplierPackage], criteria: List[DAOCriterion]
-    ) -> List[EliminationResult]:
+        self, suppliers: list[SupplierPackage], criteria: list[DAOCriterion]
+    ) -> list[EliminationResult]:
         """Check eliminatory criteria and return eliminations."""
         eliminations = []
 
@@ -343,7 +342,7 @@ class ScoringEngine:
         # For now, assume all suppliers meet criteria (no eliminations)
         return True
 
-    def _save_scores_to_db(self, case_id: str, scores: List[ScoreResult]) -> None:
+    def _save_scores_to_db(self, case_id: str, scores: list[ScoreResult]) -> None:
         """Save scores to database."""
         with get_connection() as conn:
             for score in scores:
@@ -375,7 +374,7 @@ class ScoringEngine:
             conn.commit()
 
     def save_eliminations_to_db(
-        self, case_id: str, eliminations: List[EliminationResult]
+        self, case_id: str, eliminations: list[EliminationResult]
     ) -> None:
         """Save eliminations to database (grouped by supplier, JSONB)."""
         if not eliminations:

@@ -5,9 +5,9 @@ Handles partial offers and supplier package management.
 
 import re
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any
 
-from src.core.models import OfferSubtype, SupplierPackage, DAOCriterion
+from src.core.models import DAOCriterion, OfferSubtype, SupplierPackage
 
 
 # =========================
@@ -95,20 +95,20 @@ def detect_offer_subtype(text: str, filename: str) -> OfferSubtype:
     )
 
 
-def aggregate_supplier_packages(offers: List[dict]) -> List[SupplierPackage]:
+def aggregate_supplier_packages(offers: list[dict]) -> list[SupplierPackage]:
     """
     Agrège les documents par fournisseur pour gérer les offres partielles.
     Un fournisseur peut soumettre plusieurs documents (financier, technique, admin).
     """
     # Grouper par nom de fournisseur
-    by_supplier: Dict[str, List[dict]] = {}
+    by_supplier: dict[str, list[dict]] = {}
     for offer in offers:
         supplier_name = offer.get("supplier_name", "UNKNOWN")
         if supplier_name not in by_supplier:
             by_supplier[supplier_name] = []
         by_supplier[supplier_name].append(offer)
 
-    packages: List[SupplierPackage] = []
+    packages: list[SupplierPackage] = []
 
     for supplier_name, docs in by_supplier.items():
         # Agréger les capacités
@@ -260,8 +260,8 @@ def guess_supplier_name(text: str, filename: str) -> str:
 
 
 def extract_offer_data_guided(
-    offer_text: str, criteria: List[DAOCriterion]
-) -> Dict[str, Any]:
+    offer_text: str, criteria: list[DAOCriterion]
+) -> dict[str, Any]:
     """
     Extraction GUIDÉE par critères DAO (pas aveugle).
     Retourne: données + sources + champs manquants.

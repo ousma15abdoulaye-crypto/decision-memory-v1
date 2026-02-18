@@ -4,8 +4,9 @@ Constitution V3.3.2 §2: La mémoire (Couche B) informe, n'ordonne pas.
 Elle ne peut pas influencer les scores ou décisions.
 """
 
-import pytest
 import os
+
+import pytest
 
 
 def test_inv_03_no_recommendations():
@@ -13,11 +14,11 @@ def test_inv_03_no_recommendations():
     # Vérifier qu'il n'y a pas de fonctions de "recommandation" dans Couche B
     import ast
     import re
-    
+
     couche_b_dir = "src/couche_b"
     if not os.path.exists(couche_b_dir):
         pytest.skip("Couche B directory not found")
-    
+
     forbidden_keywords = [
         "recommend",
         "suggest",
@@ -26,19 +27,18 @@ def test_inv_03_no_recommendations():
         "prefer",
         "advise",
     ]
-    
+
     violations = []
     for root, dirs, files in os.walk(couche_b_dir):
         for file in files:
             if file.endswith(".py"):
                 filepath = os.path.join(root, file)
-                with open(filepath, "r", encoding="utf-8") as f:
+                with open(filepath, encoding="utf-8") as f:
                     content = f.read()
                     # Analyser avec AST pour exclure commentaires/docstrings
                     try:
                         tree = ast.parse(content)
                         # Extraire seulement le code (sans commentaires/docstrings)
-                        code_lines = []
                         for node in ast.walk(tree):
                             if isinstance(node, ast.FunctionDef):
                                 # Vérifier le nom de la fonction
@@ -55,16 +55,16 @@ def test_inv_03_no_recommendations():
                         func_pattern = rf"def\s+.*?({'|'.join(forbidden_keywords)}).*?\("
                         if re.search(func_pattern, content, re.IGNORECASE):
                             violations.append(f"{filepath}: contains function with forbidden keyword")
-    
+
     if violations:
-        pytest.fail(f"Couche B contient des recommandations:\n" + "\n".join(violations))
+        pytest.fail("Couche B contient des recommandations:\n" + "\n".join(violations))
 
 
 def test_inv_03_memory_read_only():
     """La mémoire ne peut que lire et informer, pas décider."""
     # Vérifier que les fonctions Couche B sont read-only
     # Pas de fonctions qui modifient des scores ou classements
-    
+
     # Cette vérification est structurelle
     # Les endpoints Couche B doivent être GET uniquement (sauf POST /api/market-signals après validation)
     pass
@@ -78,7 +78,7 @@ def test_inv_03_no_scoring_in_couche_b():
             for file in files:
                 if file.endswith(".py"):
                     filepath = os.path.join(root, file)
-                    with open(filepath, "r", encoding="utf-8") as f:
+                    with open(filepath, encoding="utf-8") as f:
                         content = f.read().lower()
                         # Vérifier qu'il n'y a pas de fonctions de scoring
                         assert "def score" not in content

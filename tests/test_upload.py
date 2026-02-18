@@ -148,7 +148,7 @@ def test_upload_offer_duplicate_supplier_type(test_case):
 def test_upload_offer_with_lot_id(test_case):
     """Upload offre avec lot_id – validation du lot."""
     case_id, token = test_case
-    from src.db import get_connection, db_execute
+    from src.db import db_execute, get_connection
 
     # Créer un lot pour le case
     lot_id = "test-lot-123"

@@ -42,6 +42,9 @@ known-first-party = ["src"]
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Allow unused imports in __init__.py
 "tests/**/*.py" = ["E501"]  # Allow long lines in tests
+"src/business/templates.py" = ["N806"]  # Constants in functions (ORANGE_FILL, REVUE_MANUELLE)
+"src/db.py" = ["N806"]  # SessionLocal is a class-like factory function
+"tests/couche_b/conftest.py" = ["N806"]  # SessionLocal is a class-like factory function
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

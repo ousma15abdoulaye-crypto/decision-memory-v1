@@ -3,12 +3,12 @@ PV Word Generator – Ouverture et Analyse
 Constitution V2.1 § 4.1 – Manuel SCI SC-PR-02 § 4.3.2, §5.3
 """
 
-from pathlib import Path
-from docx import Document
-from docx.shared import Pt, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 from datetime import datetime
-from typing import Dict
+from pathlib import Path
+
+from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.shared import Pt, RGBColor
 
 
 def _format_date(val):
@@ -20,7 +20,7 @@ def _format_date(val):
     return str(val)
 
 
-def generate_pv_ouverture(case_data: Dict, output_dir: Path) -> Path:
+def generate_pv_ouverture(case_data: dict, output_dir: Path) -> Path:
     """
     Génère le PV d'ouverture des offres (format Word).
 
@@ -207,7 +207,7 @@ def generate_pv_ouverture(case_data: Dict, output_dir: Path) -> Path:
     return filepath
 
 
-def generate_pv_analyse(case_data: Dict, cba_summary: Dict, output_dir: Path) -> Path:
+def generate_pv_analyse(case_data: dict, cba_summary: dict, output_dir: Path) -> Path:
     """
     Génère le PV d'analyse des offres (format Word).
 

@@ -10,8 +10,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.business.offer_processor import (
-    guess_supplier_name,
     aggregate_supplier_packages,
+    guess_supplier_name,
 )
 
 
@@ -21,7 +21,7 @@ def test_guess_supplier_name_order():
     # Cas a) Filename valide et significatif
     _ = """
     Société: OMEGA CORPORATION
-    
+
     Prix: 1000000 FCFA
     """
 
@@ -33,9 +33,9 @@ def test_guess_supplier_name_order():
     # Cas b) Pattern Société dans texte (prioritaire sur ligne majuscule)
     text_with_both = """
     TITLE LINE IN CAPS
-    
+
     Société: BETA SERVICES SARL
-    
+
     ANOTHER CAPS LINE
     """
     name = guess_supplier_name(text_with_both, "123_offre.pdf")
@@ -45,9 +45,9 @@ def test_guess_supplier_name_order():
     # Cas c) Ligne majuscule non-titre
     text_caps_only = """
     OFFRE TECHNIQUE
-    
+
     GAMMA CONSTRUCTION SARL
-    
+
     Prix: 500000 FCFA
     """
     name = guess_supplier_name(text_caps_only, "doc.pdf")

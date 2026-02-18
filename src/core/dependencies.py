@@ -7,18 +7,17 @@ import json
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Tuple, List, Optional
 
-from fastapi import UploadFile, HTTPException
+from fastapi import HTTPException, UploadFile
 
-from src.db import get_connection, db_execute, db_fetchall
 from src.core.config import UPLOADS_DIR
+from src.db import db_execute, db_fetchall, get_connection
 
 
 # =========================
 # Storage Helpers
 # =========================
-def safe_save_upload(case_id: str, kind: str, up: UploadFile) -> Tuple[str, str]:
+def safe_save_upload(case_id: str, kind: str, up: UploadFile) -> tuple[str, str]:
     ext = Path(up.filename).suffix.lower()
     if ext not in [".pdf", ".docx", ".xlsx"]:
         raise HTTPException(status_code=400, detail=f"Unsupported file type: {ext}")
@@ -36,7 +35,7 @@ def safe_save_upload(case_id: str, kind: str, up: UploadFile) -> Tuple[str, str]
 
 
 def register_artifact(
-    case_id: str, kind: str, filename: str, path: str, meta: Optional[dict] = None
+    case_id: str, kind: str, filename: str, path: str, meta: dict | None = None
 ) -> str:
     artifact_id = str(uuid.uuid4())
     with get_connection() as conn:
@@ -59,7 +58,7 @@ def register_artifact(
     return artifact_id
 
 
-def get_artifacts(case_id: str, kind: Optional[str] = None) -> List[dict]:
+def get_artifacts(case_id: str, kind: str | None = None) -> list[dict]:
     with get_connection() as conn:
         if kind:
             rows = db_fetchall(
@@ -98,7 +97,7 @@ def add_memory(case_id: str, entry_type: str, content: dict) -> str:
     return mem_id
 
 
-def list_memory(case_id: str, entry_type: Optional[str] = None) -> List[dict]:
+def list_memory(case_id: str, entry_type: str | None = None) -> list[dict]:
     with get_connection() as conn:
         if entry_type:
             rows = db_fetchall(

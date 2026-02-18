@@ -1,10 +1,11 @@
 """Tests resilience patterns (M4D)."""
 
 import os
-import pytest
-from unittest.mock import patch, MagicMock
-from psycopg import OperationalError
+from unittest.mock import MagicMock, patch
+
 import pybreaker
+import pytest
+from psycopg import OperationalError
 
 # Set DATABASE_URL before importing src.db
 os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost/test")
@@ -114,8 +115,9 @@ def test_extraction_breaker_protects_llm():
 
 def test_logging_retry_attempts(caplog):
     """Vérifier logs retry - test direct de retry_db_operation sans circuit breaker."""
-    from src.resilience import retry_db_operation
     from psycopg import OperationalError
+
+    from src.resilience import retry_db_operation
 
     call_count = 0
 

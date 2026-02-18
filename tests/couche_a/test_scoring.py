@@ -2,10 +2,12 @@
 Tests unitaires pour le moteur de scoring M3B.
 """
 
-import pytest
 from datetime import datetime
-from src.couche_a.scoring.engine import ScoringEngine, ScoreResult, EliminationResult
+
+import pytest
+
 from src.core.models import DAOCriterion, SupplierPackage
+from src.couche_a.scoring.engine import EliminationResult, ScoreResult, ScoringEngine
 
 
 class TestScoringEngine:

@@ -2,8 +2,9 @@
 Pydantic models and dataclasses for Decision Memory System.
 """
 
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
+from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -14,7 +15,7 @@ class CaseCreate(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
     case_type: str
     title: str
-    lot: Optional[str] = None
+    lot: str | None = None
 
 
 class AnalyzeRequest(BaseModel):
@@ -39,11 +40,11 @@ class CBATemplateSchema:
     template_name: str
     supplier_header_row: int
     supplier_name_row: int
-    supplier_cols: List[int]
+    supplier_cols: list[int]
     criteria_start_row: int
-    criteria_rows: List[Dict[str, Any]]
-    sheets: List[str]
-    meta: Dict[str, Any]
+    criteria_rows: list[dict[str, Any]]
+    sheets: list[str]
+    meta: dict[str, Any]
 
 
 @dataclass
@@ -55,7 +56,7 @@ class DAOCriterion:
     description: str
     ponderation: float
     type_reponse: str
-    seuil_elimination: Optional[float]
+    seuil_elimination: float | None
     ordre_affichage: int
 
 
@@ -75,11 +76,11 @@ class SupplierPackage:
     """Agrégation de tous les documents d'un fournisseur"""
 
     supplier_name: str
-    offer_ids: List[str]
-    documents: List[dict]
+    offer_ids: list[str]
+    documents: list[dict]
     package_status: str  # COMPLETE | PARTIAL | MISSING
     has_financial: bool
     has_technical: bool
     has_admin: bool
-    extracted_data: Dict[str, Any]
-    missing_fields: List[str]
+    extracted_data: dict[str, Any]
+    missing_fields: list[str]

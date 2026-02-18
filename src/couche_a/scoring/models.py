@@ -3,8 +3,9 @@ Pydantic models for M3B Scoring Engine.
 Constitution V3 compliant: Non-prescriptive scoring.
 """
 
-from typing import Optional, Dict, Any
 from datetime import datetime
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 __all__ = ["ScoreResult", "EliminationResult", "ScoringRequest", "ScoringResponse"]
@@ -17,10 +18,10 @@ class ScoreResult(BaseModel):
     category: str  # 'commercial', 'capacity', 'sustainability', 'essentials', 'total'
     score_value: float = Field(..., ge=0, le=100)
     calculation_method: str
-    calculation_details: Dict[str, Any] = Field(default_factory=dict)
+    calculation_details: dict[str, Any] = Field(default_factory=dict)
     is_validated: bool = False
-    validated_by: Optional[str] = None
-    validated_at: Optional[datetime] = None
+    validated_by: str | None = None
+    validated_at: datetime | None = None
 
 
 class EliminationResult(BaseModel):

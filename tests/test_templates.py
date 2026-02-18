@@ -2,10 +2,12 @@
 Tests unitaires pour les générateurs de templates.
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
+
 from src.templates.cba_template import generate_cba_excel
-from src.templates.pv_template import generate_pv_ouverture, generate_pv_analyse
+from src.templates.pv_template import generate_pv_analyse, generate_pv_ouverture
 
 
 @pytest.fixture

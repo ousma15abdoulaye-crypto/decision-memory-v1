@@ -9,16 +9,15 @@ import uuid
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any
 
+from docx import Document
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
-from docx import Document
 
-from src.db import get_connection, db_execute
-
-from src.core.models import CBATemplateSchema, DAOCriterion
 from src.core.config import OUTPUTS_DIR
+from src.core.models import CBATemplateSchema, DAOCriterion
+from src.db import db_execute, get_connection
 
 
 def analyze_cba_template(template_path: str) -> CBATemplateSchema:
@@ -28,7 +27,7 @@ def analyze_cba_template(template_path: str) -> CBATemplateSchema:
 
     supplier_header_row = None
     supplier_name_row = None
-    supplier_cols: List[int] = []
+    supplier_cols: list[int] = []
 
     # Detect supplier header
     for row_idx in range(1, min(12, ws.max_row + 1)):
@@ -49,7 +48,7 @@ def analyze_cba_template(template_path: str) -> CBATemplateSchema:
 
     # Detect criteria rows
     criteria_start_row = None
-    criteria_rows: List[Dict[str, Any]] = []
+    criteria_rows: list[dict[str, Any]] = []
 
     if supplier_name_row:
         for row_idx in range(
@@ -95,8 +94,8 @@ def analyze_cba_template(template_path: str) -> CBATemplateSchema:
 def fill_cba_adaptive(
     template_path: str,
     case_id: str,
-    suppliers: List[dict],
-    dao_criteria: List[DAOCriterion],
+    suppliers: list[dict],
+    dao_criteria: list[DAOCriterion],
 ) -> str:
     """
     Remplissage adaptatif basé sur structure template détectée.
@@ -252,12 +251,12 @@ def fill_cba_adaptive(
 # PV Generation (Template-specific)
 # =========================
 def generate_pv_adaptive(
-    template_path: Optional[str],
+    template_path: str | None,
     case_id: str,
     case_title: str,
-    suppliers: List[dict],
-    dao_criteria: List[DAOCriterion],
-    decision: Optional[dict] = None,
+    suppliers: list[dict],
+    dao_criteria: list[DAOCriterion],
+    decision: dict | None = None,
 ) -> str:
     """
     Generate PV from template or create structured fallback.
@@ -273,7 +272,7 @@ def generate_pv_adaptive(
         doc.add_paragraph(f"Generated: {datetime.utcnow().isoformat()}")
 
     # Suppliers summary
-    lines: List[str] = []
+    lines: list[str] = []
     for s in suppliers:
         missing = s.get("missing_fields", [])
         status = "⚠️ Données incomplètes" if missing else "✓ Complet"
