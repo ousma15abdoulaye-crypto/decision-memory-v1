@@ -50,4 +50,5 @@ jobs:
         if: steps.gate.outputs.active == 'true'
         env:
           DATABASE_URL: postgresql+psycopg://postgres:testpass@localhost:5432/dmstest
+          TESTING: "true"
         run: pytest tests/invariants/ -v
