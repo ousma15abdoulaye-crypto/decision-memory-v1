@@ -7,15 +7,19 @@ on:
     branches: [main]
 
 jobs:
-  verify-freeze:
+  freeze-integrity:
     runs-on: ubuntu-latest
-    
     steps:
       - uses: actions/checkout@v4
-      
+
+      - name: Check freeze files exist
+        run: |
+          test -f docs/freeze/v3.3.2/SHA256SUMS.txt || (echo "Missing docs/freeze/v3.3.2/SHA256SUMS.txt" && exit 1)
+          test -f docs/freeze/v3.3.2/FREEZE_MANIFEST.md || (echo "Missing docs/freeze/v3.3.2/FREEZE_MANIFEST.md" && exit 1)
+
       - name: Verify freeze checksums
         run: sha256sum -c docs/freeze/v3.3.2/SHA256SUMS.txt
-      
+
       - name: Report status
         if: success()
         run: echo "✅ Freeze V3.3.2 integrity verified" >> $GITHUB_STEP_SUMMARY

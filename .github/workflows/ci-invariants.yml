@@ -1,3 +1,4 @@
+# V3.3.2 — CI Invariants (bloquant seulement si M-CI-INVARIANTS.done existe)
 name: CI Invariants
 
 on:
@@ -9,7 +10,7 @@ on:
 jobs:
   check-invariants:
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:15
@@ -23,18 +24,10 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-    
+
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-      
+
       - name: Check invariants gate
         id: gate
         run: |
@@ -43,12 +36,37 @@ jobs:
             echo "🔒 Invariants gate ACTIVE" >> $GITHUB_STEP_SUMMARY
           else
             echo "active=false" >> $GITHUB_OUTPUT
-            echo "ℹ️ Invariants gate not active" >> $GITHUB_STEP_SUMMARY
+            echo "ℹ️ Invariants gate not active (.milestones/M-CI-INVARIANTS.done missing)" >> $GITHUB_STEP_SUMMARY
           fi
-      
-      - name: Run invariants tests
+
+      - name: Report mode (gate inactive)
+        if: steps.gate.outputs.active == 'false'
+        run: |
+          echo "## CI Invariants — Report mode" >> $GITHUB_STEP_SUMMARY
+          echo "Gate inactive: \`.milestones/M-CI-INVARIANTS.done\` not present." >> $GITHUB_STEP_SUMMARY
+          echo "Workflow exits successfully (no block)." >> $GITHUB_STEP_SUMMARY
+
+      - name: Set up Python 3.11
+        if: steps.gate.outputs.active == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        if: steps.gate.outputs.active == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Require tests/invariants and run pytest
         if: steps.gate.outputs.active == 'true'
         env:
+          PYTHONPATH: ${{ github.workspace }}
           DATABASE_URL: postgresql+psycopg://postgres:testpass@localhost:5432/dmstest
           TESTING: "true"
-        run: pytest tests/invariants/ -v
+        run: |
+          if [ ! -d tests/invariants ]; then
+            echo "Gate active but tests/invariants/ is missing. Create the directory and add invariant tests."
+            exit 1
+          fi
+          pytest tests/invariants -v
