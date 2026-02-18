@@ -10,6 +10,8 @@ from src.db import get_session
 
 # Production-safe threshold: tolerates 1-2 letter typos, rejects semantic variations
 SIMILARITY_THRESHOLD = 0.6
+# Lower threshold for zone matching (short names like "Bamko" -> "Bamako")
+ZONE_SIMILARITY_THRESHOLD = 0.3
 
 
 def resolve_vendor(name: str) -> Optional[int]:

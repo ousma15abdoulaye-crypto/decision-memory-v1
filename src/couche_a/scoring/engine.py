@@ -8,6 +8,7 @@ No automatic vendor ranking or recommendations.
 
 from typing import List, Tuple
 from datetime import datetime
+import json
 import re
 
 from sqlalchemy import text
@@ -353,7 +354,7 @@ class ScoringEngine:
                             calculation_method, calculation_details, is_validated
                         ) VALUES (
                             :case_id, :supplier_name, :category, :score_value,
-                            :method, :details::jsonb, :validated
+                            :method, CAST(:details AS jsonb), :validated
                         )
                         ON CONFLICT (case_id, supplier_name, category)
                         DO UPDATE SET
@@ -365,10 +366,10 @@ class ScoringEngine:
                         "case_id": case_id,
                         "supplier_name": score.supplier_name,
                         "category": score.category,
-                        "score_value": score.score_value,
+                        "score_value": float(score.score_value),
                         "method": score.calculation_method,
-                        "details": str(score.calculation_details),
-                        "validated": score.is_validated,
+                        "details": json.dumps(score.calculation_details) if isinstance(score.calculation_details, dict) else str(score.calculation_details),
+                        "validated": bool(score.is_validated),
                     },
                 )
             conn.commit()
@@ -376,30 +377,39 @@ class ScoringEngine:
     def save_eliminations_to_db(
         self, case_id: str, eliminations: List[EliminationResult]
     ) -> None:
-        """Save eliminations to database."""
+        """Save eliminations to database (grouped by supplier, JSONB)."""
         if not eliminations:
             return
 
+        by_supplier: dict = {}
+        for elim in eliminations:
+            sn = elim.supplier_name
+            if sn not in by_supplier:
+                by_supplier[sn] = []
+            by_supplier[sn].append(elim)
+
         with get_connection() as conn:
-            for elim in eliminations:
+            for supplier_name, group in by_supplier.items():
+                reason_codes = [
+                    {"criterion_id": e.criterion_id, "criterion_name": e.criterion_name, "category": e.criterion_category}
+                    for e in group
+                ]
+                details = {
+                    "eliminations": [
+                        {"criterion_id": e.criterion_id, "failure_reason": e.failure_reason, "eliminated_at": (e.eliminated_at.isoformat() if hasattr(e.eliminated_at, "isoformat") else str(e.eliminated_at))}
+                        for e in group
+                    ]
+                }
                 conn.execute(
                     text("""
-                        INSERT INTO supplier_eliminations (
-                            case_id, supplier_name, criterion_id, criterion_name,
-                            criterion_category, failure_reason, eliminated_at
-                        ) VALUES (
-                            :case_id, :supplier_name, :criterion_id, :criterion_name,
-                            :category, :reason, :eliminated_at
-                        )
+                        INSERT INTO supplier_eliminations (case_id, supplier_name, reason_codes, details)
+                        VALUES (:case_id, :supplier_name, CAST(:reason_codes AS jsonb), CAST(:details AS jsonb))
                     """),
                     {
                         "case_id": case_id,
-                        "supplier_name": elim.supplier_name,
-                        "criterion_id": elim.criterion_id,
-                        "criterion_name": elim.criterion_name,
-                        "category": elim.criterion_category,
-                        "reason": elim.failure_reason,
-                        "eliminated_at": elim.eliminated_at,
+                        "supplier_name": supplier_name,
+                        "reason_codes": json.dumps(reason_codes),
+                        "details": json.dumps(details),
                     },
                 )
             conn.commit()
