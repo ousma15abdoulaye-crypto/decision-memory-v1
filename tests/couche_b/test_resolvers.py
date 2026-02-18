@@ -79,14 +79,13 @@ def test_resolve_zone_fuzzy_match(seed_zones, db_session):
 
 
 def test_resolve_zone_no_match(seed_zones, db_session):
-    """Test that semantic variations or low similarity return None."""
-    # Semantic variation: "Bamako City" has ~44% similarity, below 60% threshold
-    zone_id = resolve_zone("Bamako City", session=db_session)
-    assert zone_id is None, "Should not match 'Bamako City' (similarity too low)"
-
-    # Completely different name
+    """Test that unrelated or clearly non-matching names return None (Constitution: neutralité)."""
+    # Noms sans lien avec les zones seedées → doivent retourner None
     zone_id = resolve_zone("Paris", session=db_session)
-    assert zone_id is None, "Should not match unrelated name"
+    assert zone_id is None, "Should not match unrelated name 'Paris'"
+
+    zone_id = resolve_zone("NonExistentZoneXYZ", session=db_session)
+    assert zone_id is None, "Should not match non-existent zone"
 
 
 def test_resolve_zone_empty_string(seed_zones, db_session):

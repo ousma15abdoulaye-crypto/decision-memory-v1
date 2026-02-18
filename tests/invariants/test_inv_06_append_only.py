@@ -67,24 +67,26 @@ def test_inv_06_no_delete_in_audit_code():
 
 
 def test_inv_06_traceability_present():
-    """Les actions critiques doivent être tracées."""
-    # Vérifier que les tables d'audit existent dans les migrations
+    """Les actions critiques doivent être tracées (Constitution V3.3.2 §2 append-only)."""
     alembic_dir = "alembic/versions"
     required_audit_tables = ["audits"]
 
-    if os.path.exists(alembic_dir):
-        found_tables = set()
-        for file in os.listdir(alembic_dir):
-            if file.endswith(".py"):
-                filepath = os.path.join(alembic_dir, file)
-                with open(filepath, encoding="utf-8") as f:
-                    content = f.read()
-                    for table in required_audit_tables:
-                        if (
-                            f"CREATE TABLE.*{table}" in content
-                            or f"CREATE TABLE IF NOT EXISTS.*{table}" in content
-                        ):
-                            found_tables.add(table)
+    if not os.path.exists(alembic_dir):
+        pytest.skip("alembic/versions not found")
 
+    found_tables = set()
+    for file in os.listdir(alembic_dir):
+        if not file.endswith(".py"):
+            continue
+        filepath = os.path.join(alembic_dir, file)
+        with open(filepath, encoding="utf-8") as f:
+            content = f.read()
         for table in required_audit_tables:
-            assert table in found_tables, f"Table d'audit requise manquante: {table}"
+            if re.search(
+                rf"CREATE TABLE (IF NOT EXISTS )?.*\b{re.escape(table)}\b",
+                content,
+            ):
+                found_tables.add(table)
+
+    for table in required_audit_tables:
+        assert table in found_tables, f"Table d'audit requise manquante: {table}"
