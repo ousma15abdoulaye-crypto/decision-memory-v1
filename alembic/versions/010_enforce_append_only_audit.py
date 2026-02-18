@@ -19,7 +19,7 @@ except ImportError:
     op = None
 
 revision = "010_enforce_append_only_audit"
-down_revision = "009_supplier_scores_eliminations"
+down_revision = "caf949970819"
 branch_labels = None
 depends_on = None
 
