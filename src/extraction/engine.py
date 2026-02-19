@@ -75,7 +75,7 @@ def _get_document(document_id: str) -> dict:
     """
     with get_db_cursor() as cur:
         cur.execute("""
-            SELECT id, mime_type, storage_uri,
+            SELECT id, case_id, mime_type, storage_uri,
                    extraction_status, extraction_method
             FROM documents
             WHERE id = %s
@@ -126,18 +126,31 @@ def _store_extraction(
 ) -> None:
     """Persiste le résultat d'extraction en DB."""
     import json
+    import uuid
+    extraction_id = f"ext-{uuid.uuid4().hex[:12]}"
+    # Récupérer case_id depuis le document
+    doc = _get_document(document_id)
+    case_id = doc.get("case_id")
+    
     with get_db_cursor() as cur:
+        structured_json = json.dumps(structured_data)
         cur.execute("""
             INSERT INTO extractions
-                (document_id, raw_text, structured_data,
-                 extraction_method, confidence_score)
-            VALUES (%s, %s, %s::jsonb, %s, %s)
+                (id, case_id, document_id, raw_text, structured_data,
+                 extraction_method, confidence_score, extracted_at,
+                 data_json, extraction_type, created_at)
+            VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s, NOW(),
+                    %s, %s, NOW()::TEXT)
         """, (
+            extraction_id,
+            case_id,
             document_id,
             raw_text,
-            json.dumps(structured_data),
+            structured_json,
             method,
             confidence,
+            structured_json,  # data_json pour compatibilité
+            method,  # extraction_type pour compatibilité
         ))
 
 
@@ -322,6 +335,7 @@ def extract_async(document_id: str, method: str) -> dict:
         "document_id": document_id,
         "job_id": str(job["id"]),
         "status": "pending",
+        "method": method,
         "sla_class": "B",
         "message": (
             "Extraction OCR mise en queue. "
