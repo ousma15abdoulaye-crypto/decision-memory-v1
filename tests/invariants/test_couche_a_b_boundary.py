@@ -4,6 +4,7 @@ Gate : 🔴 BLOQUANT CI (actif dès M-SCORING-ENGINE.done)
 ADR  : ADR-0002 §2.4
 REF  : §7 Constitution V3.3.2
 """
+
 import ast
 from pathlib import Path
 
@@ -34,9 +35,9 @@ COUCHE_A_PATHS = [
 
 @pytest.mark.skip(
     reason="Actif dès M-SCORING-ENGINE.done (ADR-0002 §2.4). "
-           "Retirer le skip quand M-SCORING-ENGINE est implémenté. "
-           "Ce test analyse les imports Python statiquement (AST) "
-           "et bloque CI si un module Couche B est importé dans Couche A."
+    "Retirer le skip quand M-SCORING-ENGINE est implémenté. "
+    "Ce test analyse les imports Python statiquement (AST) "
+    "et bloque CI si un module Couche B est importé dans Couche A."
 )
 def test_no_couche_b_import_in_couche_a():
     """
@@ -61,21 +62,20 @@ def test_no_couche_b_import_in_couche_a():
             for node in ast.walk(tree):
                 if isinstance(node, ast.Import | ast.ImportFrom):
                     module = getattr(node, "module", "") or ""
-                    names = [
-                        alias.name
-                        for alias in getattr(node, "names", [])
-                    ]
+                    names = [alias.name for alias in getattr(node, "names", [])]
                     all_names = [module] + names
 
                     for forbidden in COUCHE_B_MODULES:
                         for name in all_names:
                             if forbidden in name.lower():
-                                violations.append({
-                                    "file": str(py_file),
-                                    "line": node.lineno,
-                                    "import": name,
-                                    "forbidden": forbidden,
-                                })
+                                violations.append(
+                                    {
+                                        "file": str(py_file),
+                                        "line": node.lineno,
+                                        "import": name,
+                                        "forbidden": forbidden,
+                                    }
+                                )
 
     assert not violations, (
         f"VIOLATION §7 — {len(violations)} import(s) Couche B "

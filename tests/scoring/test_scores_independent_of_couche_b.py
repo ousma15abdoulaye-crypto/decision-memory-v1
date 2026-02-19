@@ -4,14 +4,15 @@ Gate : 🔴 BLOQUANT CI (actif dès M-SCORING-ENGINE)
 ADR  : ADR-0002 §2.4
 INV  : INV-3 + §7 Constitution
 """
+
 import pytest
 
 
 @pytest.mark.skip(
     reason="À implémenter dans M-SCORING-ENGINE. "
-           "Vérifier que le score calculé est identique "
-           "qu'un Market Signal soit disponible ou non. "
-           "🔴 BLOQUE CI quand actif."
+    "Vérifier que le score calculé est identique "
+    "qu'un Market Signal soit disponible ou non. "
+    "🔴 BLOQUE CI quand actif."
 )
 def test_score_identical_with_and_without_market_signal():
     """
@@ -23,9 +24,7 @@ def test_score_identical_with_and_without_market_signal():
     pass
 
 
-@pytest.mark.skip(
-    reason="À implémenter dans M-SCORING-ENGINE."
-)
+@pytest.mark.skip(reason="À implémenter dans M-SCORING-ENGINE.")
 def test_scoring_engine_output_has_no_recommendation():
     """
     L'output du ScoringEngine ne doit contenir

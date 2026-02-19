@@ -3,6 +3,7 @@
 Connexion DB centralisée.
 Constitution V3.3.2 §3 : pas d'ORM, requêtes paramétrées.
 """
+
 import os
 from contextlib import contextmanager
 
@@ -22,9 +23,7 @@ def get_db_cursor():
     """
     database_url = os.environ.get("DATABASE_URL", "")
     # psycopg v3 : retirer le préfixe +psycopg si présent
-    database_url = database_url.replace(
-        "postgresql+psycopg://", "postgresql://"
-    )
+    database_url = database_url.replace("postgresql+psycopg://", "postgresql://")
 
     with psycopg.connect(database_url, row_factory=dict_row) as conn:
         with conn.cursor() as cur:

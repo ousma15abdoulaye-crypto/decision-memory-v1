@@ -4,14 +4,15 @@ Gate : 🔴 BLOQUANT CI (actif dès M-NORMALISATION-ITEMS)
 ADR  : ADR-0001 §2.4 + ADR-0002
 INV  : INV-2 (primauté Couche A)
 """
+
 import pytest
 
 
 @pytest.mark.skip(
     reason="À implémenter dans M-NORMALISATION-ITEMS. "
-           "Vérifier que le ScoringEngine lève une erreur "
-           "si des offres non normalisées lui sont passées. "
-           "🔴 BLOQUE CI quand actif."
+    "Vérifier que le ScoringEngine lève une erreur "
+    "si des offres non normalisées lui sont passées. "
+    "🔴 BLOQUE CI quand actif."
 )
 def test_scoring_engine_rejects_raw_offers():
     """
@@ -22,9 +23,7 @@ def test_scoring_engine_rejects_raw_offers():
     pass
 
 
-@pytest.mark.skip(
-    reason="À implémenter dans M-NORMALISATION-ITEMS."
-)
+@pytest.mark.skip(reason="À implémenter dans M-NORMALISATION-ITEMS.")
 def test_offers_must_pass_through_normalisation():
     """
     Toutes les offres doivent avoir requires_human_review=False

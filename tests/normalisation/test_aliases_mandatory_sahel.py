@@ -3,6 +3,7 @@ Test : Aliases obligatoires Sahel présents en DB
 Gate : 🔴 BLOQUANT CI (actif dès M-NORMALISATION-ITEMS)
 ADR  : ADR-0002 §2.1
 """
+
 import pytest
 
 CRITICAL_ALIASES_SAHEL = [
@@ -17,9 +18,9 @@ CRITICAL_ALIASES_SAHEL = [
 
 @pytest.mark.skip(
     reason="À implémenter dans M-NORMALISATION-ITEMS. "
-           "Vérifier que les aliases critiques Sahel (ADR-0002 §2.1) "
-           "sont présents dans la DB après le seed. "
-           "🔴 BLOQUE CI quand actif."
+    "Vérifier que les aliases critiques Sahel (ADR-0002 §2.1) "
+    "sont présents dans la DB après le seed. "
+    "🔴 BLOQUE CI quand actif."
 )
 def test_critical_aliases_sahel_present_in_db():
     """

@@ -5,6 +5,7 @@ src.db creates the engine at import time (Constitution V2.1). Without DATABASE_U
 any module that imports src.db (e.g. scoring engine) raises at collection time.
 This conftest runs first so collection succeeds; same URL as CI for local runs.
 """
+
 import os
 
 import pytest
@@ -12,6 +13,7 @@ import pytest
 # Load .env file if present
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass
@@ -20,11 +22,13 @@ except ImportError:
 try:
     import psycopg
     from psycopg.rows import dict_row
+
     PSYCOPG_VERSION = 3
 except ImportError:
     try:
         import psycopg2
         import psycopg2.extras
+
         PSYCOPG_VERSION = 2
     except ImportError:
         raise ImportError("Neither psycopg nor psycopg2 is installed")
@@ -44,7 +48,9 @@ def db_transaction():
     """
     if PSYCOPG_VERSION == 3:
         # psycopg v3 - remove +psycopg from URL
-        db_url = os.environ["DATABASE_URL"].replace("postgresql+psycopg://", "postgresql://")
+        db_url = os.environ["DATABASE_URL"].replace(
+            "postgresql+psycopg://", "postgresql://"
+        )
         conn = psycopg.connect(
             conninfo=db_url,
             row_factory=dict_row,

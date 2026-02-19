@@ -6,6 +6,7 @@ M-EXTRACTION-ENGINE ÉTAPE 3.
 Constitution V3.3.2 §9 (doctrine échec).
 ADR-0002 §2.5 (SLA deux classes).
 """
+
 import pytest
 
 from src.extraction.engine import (
@@ -18,6 +19,7 @@ from src.extraction.engine import (
 )
 
 # ── Classe 1 — detect_method ─────────────────────────────────────
+
 
 class TestDetectMethod:
     """Détection méthode sur magic bytes réels."""
@@ -43,9 +45,7 @@ class TestDetectMethod:
     def test_docx_magic_bytes(self):
         """ZIP avec word/ → docx_parser."""
         content = b"PK\x03\x04" + b"\x00" * 20 + b"word/document"
-        result = detect_method(
-            "application/vnd.openxmlformats", content
-        )
+        result = detect_method("application/vnd.openxmlformats", content)
         assert result == "docx_parser"
 
     def test_unknown_fallback_tesseract(self):
@@ -57,16 +57,16 @@ class TestDetectMethod:
 
 # ── Classe 2 — Validation SLA ────────────────────────────────────
 
+
 class TestSLAValidation:
     """extract_sync/async refusent les mauvaises méthodes."""
 
-    def test_extract_sync_rejette_methode_sla_b(
-        self, monkeypatch
-    ):
+    def test_extract_sync_rejette_methode_sla_b(self, monkeypatch):
         """
         extract_sync avec méthode SLA-B → ValueError immédiat.
         Pas de connexion DB nécessaire.
         """
+
         def fake_get_doc(doc_id):
             return {
                 "id": doc_id,
@@ -77,6 +77,7 @@ class TestSLAValidation:
             }
 
         import src.extraction.engine as eng
+
         monkeypatch.setattr(eng, "_get_document", fake_get_doc)
 
         with pytest.raises(ValueError) as exc:
@@ -96,9 +97,7 @@ class TestSLAValidation:
 
     def test_sla_a_methods_contient_trois_methodes(self):
         """SLA_A_METHODS = exactement 3 méthodes."""
-        assert SLA_A_METHODS == {
-            "native_pdf", "excel_parser", "docx_parser"
-        }
+        assert SLA_A_METHODS == {"native_pdf", "excel_parser", "docx_parser"}
 
     def test_sla_b_methods_contient_deux_methodes(self):
         """SLA_B_METHODS = exactement 2 méthodes."""
@@ -106,6 +105,7 @@ class TestSLAValidation:
 
 
 # ── Classe 3 — _compute_confidence ──────────────────────────────
+
 
 class TestComputeConfidence:
     """§9 : incertitude mesurée, jamais masquée."""
@@ -138,15 +138,14 @@ class TestComputeConfidence:
 
 # ── Classe 4 — Doctrine §9 ───────────────────────────────────────
 
+
 class TestDoctrineEchec:
     """
     §9 : incertitude signalée, échec explicite.
     Tests sans DB via monkeypatch.
     """
 
-    def test_confidence_faible_flags_requires_human(
-        self, monkeypatch
-    ):
+    def test_confidence_faible_flags_requires_human(self, monkeypatch):
         """
         confidence < 0.6 → _requires_human_review = True
         dans structured_data.
@@ -171,22 +170,14 @@ class TestDoctrineEchec:
         def fake_update_status(doc_id, status):
             calls[f"status_{status}"] = True
 
-        def fake_store_extraction(
-            doc_id, raw_text, structured, method, confidence
-        ):
+        def fake_store_extraction(doc_id, raw_text, structured, method, confidence):
             calls["structured"] = structured
             calls["confidence"] = confidence
 
         monkeypatch.setattr(eng, "_get_document", fake_get_doc)
-        monkeypatch.setattr(
-            eng, "_dispatch_extraction", fake_dispatch
-        )
-        monkeypatch.setattr(
-            eng, "_update_document_status", fake_update_status
-        )
-        monkeypatch.setattr(
-            eng, "_store_extraction", fake_store_extraction
-        )
+        monkeypatch.setattr(eng, "_dispatch_extraction", fake_dispatch)
+        monkeypatch.setattr(eng, "_update_document_status", fake_update_status)
+        monkeypatch.setattr(eng, "_store_extraction", fake_store_extraction)
 
         result = extract_sync("doc-test-low-conf")
 
@@ -219,24 +210,18 @@ class TestDoctrineEchec:
         def fake_update_status(doc_id, status):
             pass
 
-        def fake_store_error(
-            doc_id, job_id, error_code, detail
-        ):
-            errors_stored.append({
-                "error_code": error_code,
-                "detail": detail,
-            })
+        def fake_store_error(doc_id, job_id, error_code, detail):
+            errors_stored.append(
+                {
+                    "error_code": error_code,
+                    "detail": detail,
+                }
+            )
 
         monkeypatch.setattr(eng, "_get_document", fake_get_doc)
-        monkeypatch.setattr(
-            eng, "_dispatch_extraction", fake_dispatch
-        )
-        monkeypatch.setattr(
-            eng, "_update_document_status", fake_update_status
-        )
-        monkeypatch.setattr(
-            eng, "_store_error", fake_store_error
-        )
+        monkeypatch.setattr(eng, "_dispatch_extraction", fake_dispatch)
+        monkeypatch.setattr(eng, "_update_document_status", fake_update_status)
+        monkeypatch.setattr(eng, "_store_error", fake_store_error)
 
         with pytest.raises(RuntimeError, match="Parseur planté"):
             extract_sync("doc-test-exception")

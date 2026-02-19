@@ -4,6 +4,7 @@ Fixtures d'intégration — M-EXTRACTION-ENGINE.
 Données réelles en DB de test.
 Nettoyage automatique après chaque test.
 """
+
 import os
 import uuid
 
@@ -19,9 +20,7 @@ load_dotenv()
 
 
 def _get_conn():
-    url = os.environ["DATABASE_URL"].replace(
-        "postgresql+psycopg://", "postgresql://"
-    )
+    url = os.environ["DATABASE_URL"].replace("postgresql+psycopg://", "postgresql://")
     return psycopg.connect(
         url,
         row_factory=psycopg.rows.dict_row,
@@ -53,16 +52,19 @@ def test_case_id(db_conn):
     """
     case_id = f"integ-case-{uuid.uuid4().hex[:8]}"
     with db_conn.cursor() as cur:
-        cur.execute("""
+        cur.execute(
+            """
             INSERT INTO cases
                 (id, case_type, title, status, created_at)
             VALUES (%s, %s, %s, 'DRAFT', NOW()::TEXT)
             ON CONFLICT (id) DO NOTHING
-        """, (
-            case_id,
-            "INTEGRATION_TEST",
-            f"Case intégration {case_id}",
-        ))
+        """,
+            (
+                case_id,
+                "INTEGRATION_TEST",
+                f"Case intégration {case_id}",
+            ),
+        )
     yield case_id
     # Nettoyage
     with db_conn.cursor() as cur:
@@ -72,7 +74,7 @@ def test_case_id(db_conn):
                 "WHERE document_id IN ("
                 "  SELECT id FROM documents WHERE case_id = %s"
                 ")",
-                (case_id,)
+                (case_id,),
             )
         except Exception:
             pass  # Ignore permission errors
@@ -82,7 +84,7 @@ def test_case_id(db_conn):
                 "WHERE document_id IN ("
                 "  SELECT id FROM documents WHERE case_id = %s"
                 ")",
-                (case_id,)
+                (case_id,),
             )
         except Exception:
             pass
@@ -92,22 +94,16 @@ def test_case_id(db_conn):
                 "WHERE document_id IN ("
                 "  SELECT id FROM documents WHERE case_id = %s"
                 ")",
-                (case_id,)
+                (case_id,),
             )
         except Exception:
             pass
         try:
-            cur.execute(
-                "DELETE FROM documents WHERE case_id = %s",
-                (case_id,)
-            )
+            cur.execute("DELETE FROM documents WHERE case_id = %s", (case_id,))
         except Exception:
             pass
         try:
-            cur.execute(
-                "DELETE FROM cases WHERE id = %s",
-                (case_id,)
-            )
+            cur.execute("DELETE FROM cases WHERE id = %s", (case_id,))
         except Exception:
             pass
 
@@ -120,21 +116,24 @@ def test_doc_pdf(db_conn, test_case_id):
     """
     doc_id = f"integ-doc-pdf-{uuid.uuid4().hex[:8]}"
     with db_conn.cursor() as cur:
-        cur.execute("""
+        cur.execute(
+            """
             INSERT INTO documents
                 (id, case_id, filename, path, uploaded_at,
                  mime_type, storage_uri, extraction_status,
                  extraction_method)
             VALUES (%s, %s, %s, %s, NOW()::TEXT,
                     %s, %s, 'pending', 'native_pdf')
-        """, (
-            doc_id,
-            test_case_id,
-            "test_native.pdf",
-            "/tmp/test_native.pdf",
-            "application/pdf",
-            "/tmp/test_native.pdf",
-        ))
+        """,
+            (
+                doc_id,
+                test_case_id,
+                "test_native.pdf",
+                "/tmp/test_native.pdf",
+                "application/pdf",
+                "/tmp/test_native.pdf",
+            ),
+        )
     yield doc_id
 
 
@@ -146,21 +145,24 @@ def test_doc_scan(db_conn, test_case_id):
     """
     doc_id = f"integ-doc-scan-{uuid.uuid4().hex[:8]}"
     with db_conn.cursor() as cur:
-        cur.execute("""
+        cur.execute(
+            """
             INSERT INTO documents
                 (id, case_id, filename, path, uploaded_at,
                  mime_type, storage_uri, extraction_status,
                  extraction_method)
             VALUES (%s, %s, %s, %s, NOW()::TEXT,
                     %s, %s, 'pending', 'tesseract')
-        """, (
-            doc_id,
-            test_case_id,
-            "test_scan.tif",
-            "/tmp/test_scan.tif",
-            "image/tiff",
-            "/tmp/test_scan.tif",
-        ))
+        """,
+            (
+                doc_id,
+                test_case_id,
+                "test_scan.tif",
+                "/tmp/test_scan.tif",
+                "image/tiff",
+                "/tmp/test_scan.tif",
+            ),
+        )
     yield doc_id
 
 
@@ -171,39 +173,45 @@ def test_doc_already_extracted(db_conn, test_case_id):
     """
     doc_id = f"integ-doc-done-{uuid.uuid4().hex[:8]}"
     with db_conn.cursor() as cur:
-        cur.execute("""
+        cur.execute(
+            """
             INSERT INTO documents
                 (id, case_id, filename, path, uploaded_at,
                  mime_type, storage_uri, extraction_status,
                  extraction_method)
             VALUES (%s, %s, %s, %s, NOW()::TEXT,
                     %s, %s, 'done', 'native_pdf')
-        """, (
-            doc_id,
-            test_case_id,
-            "already_done.pdf",
-            "/tmp/already_done.pdf",
-            "application/pdf",
-            "/tmp/already_done.pdf",
-        ))
+        """,
+            (
+                doc_id,
+                test_case_id,
+                "already_done.pdf",
+                "/tmp/already_done.pdf",
+                "application/pdf",
+                "/tmp/already_done.pdf",
+            ),
+        )
         # Insérer aussi une extraction existante
         extraction_id = f"ext-{uuid.uuid4().hex[:8]}"
-        cur.execute("""
+        cur.execute(
+            """
             INSERT INTO extractions
                 (id, case_id, document_id, raw_text, structured_data,
                  extraction_method, confidence_score, extracted_at,
                  data_json, extraction_type, created_at)
             VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s, NOW(),
                     %s, %s, NOW()::TEXT)
-        """, (
-            extraction_id,
-            test_case_id,
-            doc_id,
-            "Texte déjà extrait.",
-            '{"doc_kind": null}',
-            "native_pdf",
-            0.85,
-            '{"doc_kind": null}',  # data_json
-            "native_pdf",  # extraction_type
-        ))
+        """,
+            (
+                extraction_id,
+                test_case_id,
+                doc_id,
+                "Texte déjà extrait.",
+                '{"doc_kind": null}',
+                "native_pdf",
+                0.85,
+                '{"doc_kind": null}',  # data_json
+                "native_pdf",  # extraction_type
+            ),
+        )
     yield doc_id

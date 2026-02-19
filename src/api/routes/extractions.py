@@ -4,6 +4,7 @@ Endpoints M-EXTRACTION-ENGINE.
 Constitution V3.3.2 §1 (Couche A) + §9 (doctrine échec).
 ADR-0002 §2.5 (SLA deux classes).
 """
+
 import json
 
 from fastapi import APIRouter, HTTPException
@@ -25,6 +26,7 @@ router = APIRouter(
 
 
 # ── Schemas Pydantic ─────────────────────────────────────────────
+
 
 class ExtractionResponse(BaseModel):
     document_id: str
@@ -62,6 +64,7 @@ class ExtractionResultResponse(BaseModel):
 
 
 # ── Endpoints ────────────────────────────────────────────────────
+
 
 @router.post(
     "/documents/{document_id}/extract",
@@ -141,7 +144,8 @@ def get_job_status(job_id: str) -> JobStatusResponse:
     §9 : 404 explicite si job inconnu.
     """
     with get_db_cursor() as cur:
-        cur.execute("""
+        cur.execute(
+            """
             SELECT
                 id,
                 document_id,
@@ -155,7 +159,9 @@ def get_job_status(job_id: str) -> JobStatusResponse:
                 error_message
             FROM extraction_jobs
             WHERE id = %s
-        """, (job_id,))
+        """,
+            (job_id,),
+        )
         job = cur.fetchone()
 
     if job is None:
@@ -171,13 +177,8 @@ def get_job_status(job_id: str) -> JobStatusResponse:
         method=job["method"],
         sla_class=job["sla_class"],
         queued_at=str(job["queued_at"]),
-        started_at=(
-            str(job["started_at"]) if job["started_at"] else None
-        ),
-        completed_at=(
-            str(job["completed_at"])
-            if job["completed_at"] else None
-        ),
+        started_at=(str(job["started_at"]) if job["started_at"] else None),
+        completed_at=(str(job["completed_at"]) if job["completed_at"] else None),
         duration_ms=job["duration_ms"],
         error_message=job["error_message"],
     )
@@ -197,7 +198,8 @@ def get_extraction_result(
          _warning si confidence faible (< 0.6).
     """
     with get_db_cursor() as cur:
-        cur.execute("""
+        cur.execute(
+            """
             SELECT
                 document_id,
                 raw_text,
@@ -209,7 +211,9 @@ def get_extraction_result(
             WHERE document_id = %s
             ORDER BY extracted_at DESC
             LIMIT 1
-        """, (document_id,))
+        """,
+            (document_id,),
+        )
         extraction = cur.fetchone()
 
     if extraction is None:
@@ -227,16 +231,11 @@ def get_extraction_result(
 
     # structured_data : désérialiser si string JSON
     if isinstance(result.get("structured_data"), str):
-        result["structured_data"] = json.loads(
-            result["structured_data"]
-        )
+        result["structured_data"] = json.loads(result["structured_data"])
 
     # §9 : signaler explicitement la confiance faible
     warning = None
-    if (
-        result.get("confidence_score") is not None
-        and result["confidence_score"] < 0.6
-    ):
+    if result.get("confidence_score") is not None and result["confidence_score"] < 0.6:
         warning = (
             "Confiance faible — revue humaine requise. "
             f"Score : {result['confidence_score']:.2f}"
@@ -249,8 +248,7 @@ def get_extraction_result(
         extraction_method=result.get("extraction_method"),
         confidence_score=result.get("confidence_score"),
         extracted_at=(
-            str(result["extracted_at"])
-            if result.get("extracted_at") else None
+            str(result["extracted_at"]) if result.get("extracted_at") else None
         ),
         warning=warning,
     )

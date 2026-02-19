@@ -5,6 +5,7 @@ Tests API — M-EXTRACTION-ENGINE endpoints.
 Constitution V3.3.2 §9 (doctrine échec).
 ADR-0002 §2.5 (SLA deux classes).
 """
+
 from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
@@ -93,17 +94,21 @@ FAKE_EXTRACTION_LOW_CONF = {
 
 # ── Classe 1 — POST /extract SLA-A ──────────────────────────────
 
+
 class TestTriggerExtractionSLAA:
     """SLA-A : extraction synchrone PDF natif."""
 
     def test_sla_a_returns_202_done(self):
         """PDF natif → 202 + status done + sla_class A."""
-        with patch(
-            "src.api.routes.extractions._get_document",
-            return_value=FAKE_DOC_PDF,
-        ), patch(
-            "src.api.routes.extractions.extract_sync",
-            return_value=FAKE_EXTRACT_RESULT_SLA_A,
+        with (
+            patch(
+                "src.api.routes.extractions._get_document",
+                return_value=FAKE_DOC_PDF,
+            ),
+            patch(
+                "src.api.routes.extractions.extract_sync",
+                return_value=FAKE_EXTRACT_RESULT_SLA_A,
+            ),
         ):
             response = client.post(
                 "/api/extractions/documents/doc-test-pdf-001/extract"
@@ -117,12 +122,15 @@ class TestTriggerExtractionSLAA:
 
     def test_sla_a_duration_sous_60s(self):
         """SLA-A : duration_ms < 60000 dans la réponse."""
-        with patch(
-            "src.api.routes.extractions._get_document",
-            return_value=FAKE_DOC_PDF,
-        ), patch(
-            "src.api.routes.extractions.extract_sync",
-            return_value=FAKE_EXTRACT_RESULT_SLA_A,
+        with (
+            patch(
+                "src.api.routes.extractions._get_document",
+                return_value=FAKE_DOC_PDF,
+            ),
+            patch(
+                "src.api.routes.extractions.extract_sync",
+                return_value=FAKE_EXTRACT_RESULT_SLA_A,
+            ),
         ):
             response = client.post(
                 "/api/extractions/documents/doc-test-pdf-001/extract"
@@ -133,12 +141,15 @@ class TestTriggerExtractionSLAA:
 
     def test_sla_a_timeout_returns_504(self):
         """SLA-A TimeoutError → 504."""
-        with patch(
-            "src.api.routes.extractions._get_document",
-            return_value=FAKE_DOC_PDF,
-        ), patch(
-            "src.api.routes.extractions.extract_sync",
-            side_effect=TimeoutError("SLA-A violé : 65000ms"),
+        with (
+            patch(
+                "src.api.routes.extractions._get_document",
+                return_value=FAKE_DOC_PDF,
+            ),
+            patch(
+                "src.api.routes.extractions.extract_sync",
+                side_effect=TimeoutError("SLA-A violé : 65000ms"),
+            ),
         ):
             response = client.post(
                 "/api/extractions/documents/doc-test-pdf-001/extract"
@@ -150,17 +161,21 @@ class TestTriggerExtractionSLAA:
 
 # ── Classe 2 — POST /extract SLA-B ──────────────────────────────
 
+
 class TestTriggerExtractionSLAB:
     """SLA-B : extraction asynchrone OCR."""
 
     def test_sla_b_returns_202_pending(self):
         """Scan OCR → 202 + status pending + job_id."""
-        with patch(
-            "src.api.routes.extractions._get_document",
-            return_value=FAKE_DOC_SCAN,
-        ), patch(
-            "src.api.routes.extractions.extract_async",
-            return_value=FAKE_EXTRACT_RESULT_SLA_B,
+        with (
+            patch(
+                "src.api.routes.extractions._get_document",
+                return_value=FAKE_DOC_SCAN,
+            ),
+            patch(
+                "src.api.routes.extractions.extract_async",
+                return_value=FAKE_EXTRACT_RESULT_SLA_B,
+            ),
         ):
             response = client.post(
                 "/api/extractions/documents/doc-test-scan-001/extract"
@@ -174,12 +189,15 @@ class TestTriggerExtractionSLAB:
 
     def test_sla_b_retourne_job_id(self):
         """SLA-B : job_id non null dans la réponse."""
-        with patch(
-            "src.api.routes.extractions._get_document",
-            return_value=FAKE_DOC_SCAN,
-        ), patch(
-            "src.api.routes.extractions.extract_async",
-            return_value=FAKE_EXTRACT_RESULT_SLA_B,
+        with (
+            patch(
+                "src.api.routes.extractions._get_document",
+                return_value=FAKE_DOC_SCAN,
+            ),
+            patch(
+                "src.api.routes.extractions.extract_async",
+                return_value=FAKE_EXTRACT_RESULT_SLA_B,
+            ),
         ):
             response = client.post(
                 "/api/extractions/documents/doc-test-scan-001/extract"
@@ -191,6 +209,7 @@ class TestTriggerExtractionSLAB:
 
 # ── Classe 3 — Erreurs §9 ────────────────────────────────────────
 
+
 class TestErreurs:
     """§9 : erreurs explicites jamais masquées."""
 
@@ -200,9 +219,7 @@ class TestErreurs:
             "src.api.routes.extractions._get_document",
             side_effect=ValueError("Document 'xyz' introuvable."),
         ):
-            response = client.post(
-                "/api/extractions/documents/xyz/extract"
-            )
+            response = client.post("/api/extractions/documents/xyz/extract")
 
         assert response.status_code == 404
         assert "introuvable" in response.json()["detail"].lower()
@@ -222,12 +239,15 @@ class TestErreurs:
 
     def test_exception_interne_returns_500(self):
         """Exception interne → 500 avec message."""
-        with patch(
-            "src.api.routes.extractions._get_document",
-            return_value=FAKE_DOC_PDF,
-        ), patch(
-            "src.api.routes.extractions.extract_sync",
-            side_effect=RuntimeError("Parseur planté"),
+        with (
+            patch(
+                "src.api.routes.extractions._get_document",
+                return_value=FAKE_DOC_PDF,
+            ),
+            patch(
+                "src.api.routes.extractions.extract_sync",
+                side_effect=RuntimeError("Parseur planté"),
+            ),
         ):
             response = client.post(
                 "/api/extractions/documents/doc-test-pdf-001/extract"
@@ -239,6 +259,7 @@ class TestErreurs:
 
 # ── Classe 4 — GET /jobs/{id}/status ────────────────────────────
 
+
 class TestJobStatus:
     """Statut des jobs SLA-B."""
 
@@ -247,22 +268,14 @@ class TestJobStatus:
         mock_cursor = MagicMock()
         mock_cursor.fetchone.return_value = FAKE_JOB
 
-        with patch(
-            "src.api.routes.extractions.get_db_cursor"
-        ) as mock_ctx:
+        with patch("src.api.routes.extractions.get_db_cursor") as mock_ctx:
             mock_ctx.return_value.__enter__ = lambda s: mock_cursor
-            mock_ctx.return_value.__exit__ = MagicMock(
-                return_value=False
-            )
-            response = client.get(
-                "/api/extractions/jobs/job-test-001/status"
-            )
+            mock_ctx.return_value.__exit__ = MagicMock(return_value=False)
+            response = client.get("/api/extractions/jobs/job-test-001/status")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] in (
-            "pending", "processing", "done", "failed"
-        )
+        assert data["status"] in ("pending", "processing", "done", "failed")
         assert "sla_class" in data
         assert "queued_at" in data
 
@@ -271,22 +284,17 @@ class TestJobStatus:
         mock_cursor = MagicMock()
         mock_cursor.fetchone.return_value = None
 
-        with patch(
-            "src.api.routes.extractions.get_db_cursor"
-        ) as mock_ctx:
+        with patch("src.api.routes.extractions.get_db_cursor") as mock_ctx:
             mock_ctx.return_value.__enter__ = lambda s: mock_cursor
-            mock_ctx.return_value.__exit__ = MagicMock(
-                return_value=False
-            )
-            response = client.get(
-                "/api/extractions/jobs/job-inexistant/status"
-            )
+            mock_ctx.return_value.__exit__ = MagicMock(return_value=False)
+            response = client.get("/api/extractions/jobs/job-inexistant/status")
 
         assert response.status_code == 404
         assert "introuvable" in response.json()["detail"].lower()
 
 
 # ── Classe 5 — GET /documents/{id} ──────────────────────────────
+
 
 class TestGetExtractionResult:
     """Résultats d'extraction."""
@@ -296,16 +304,10 @@ class TestGetExtractionResult:
         mock_cursor = MagicMock()
         mock_cursor.fetchone.return_value = FAKE_EXTRACTION_ROW
 
-        with patch(
-            "src.api.routes.extractions.get_db_cursor"
-        ) as mock_ctx:
+        with patch("src.api.routes.extractions.get_db_cursor") as mock_ctx:
             mock_ctx.return_value.__enter__ = lambda s: mock_cursor
-            mock_ctx.return_value.__exit__ = MagicMock(
-                return_value=False
-            )
-            response = client.get(
-                "/api/extractions/documents/doc-test-pdf-001"
-            )
+            mock_ctx.return_value.__exit__ = MagicMock(return_value=False)
+            response = client.get("/api/extractions/documents/doc-test-pdf-001")
 
         assert response.status_code == 200
         data = response.json()
@@ -318,16 +320,10 @@ class TestGetExtractionResult:
         mock_cursor = MagicMock()
         mock_cursor.fetchone.return_value = None
 
-        with patch(
-            "src.api.routes.extractions.get_db_cursor"
-        ) as mock_ctx:
+        with patch("src.api.routes.extractions.get_db_cursor") as mock_ctx:
             mock_ctx.return_value.__enter__ = lambda s: mock_cursor
-            mock_ctx.return_value.__exit__ = MagicMock(
-                return_value=False
-            )
-            response = client.get(
-                "/api/extractions/documents/doc-inexistant"
-            )
+            mock_ctx.return_value.__exit__ = MagicMock(return_value=False)
+            response = client.get("/api/extractions/documents/doc-inexistant")
 
         assert response.status_code == 404
 
@@ -336,16 +332,10 @@ class TestGetExtractionResult:
         mock_cursor = MagicMock()
         mock_cursor.fetchone.return_value = FAKE_EXTRACTION_LOW_CONF
 
-        with patch(
-            "src.api.routes.extractions.get_db_cursor"
-        ) as mock_ctx:
+        with patch("src.api.routes.extractions.get_db_cursor") as mock_ctx:
             mock_ctx.return_value.__enter__ = lambda s: mock_cursor
-            mock_ctx.return_value.__exit__ = MagicMock(
-                return_value=False
-            )
-            response = client.get(
-                "/api/extractions/documents/doc-test-pdf-001"
-            )
+            mock_ctx.return_value.__exit__ = MagicMock(return_value=False)
+            response = client.get("/api/extractions/documents/doc-test-pdf-001")
 
         assert response.status_code == 200
         data = response.json()

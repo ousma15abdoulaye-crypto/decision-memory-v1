@@ -10,6 +10,7 @@ SLA-A : native_pdf / excel_parser / docx_parser
 SLA-B : tesseract / azure
         → asynchrone via extraction_jobs
 """
+
 import time
 
 from src.db.connection import get_db_cursor
@@ -40,6 +41,7 @@ STRUCTURED_DATA_EMPTY: dict = {
 
 # ── Détection méthode ────────────────────────────────────────────
 
+
 def detect_method(mime_type: str, file_content: bytes) -> str:
     """
     Détecte la méthode d'extraction selon magic bytes réels.
@@ -66,18 +68,22 @@ def detect_method(mime_type: str, file_content: bytes) -> str:
 
 # ── Helpers privés ───────────────────────────────────────────────
 
+
 def _get_document(document_id: str) -> dict:
     """
     Charge un document depuis la DB.
     §9 : raise ValueError si introuvable.
     """
     with get_db_cursor() as cur:
-        cur.execute("""
+        cur.execute(
+            """
             SELECT id, case_id, mime_type, storage_uri,
                    extraction_status, extraction_method
             FROM documents
             WHERE id = %s
-        """, (document_id,))
+        """,
+            (document_id,),
+        )
         doc = cur.fetchone()
 
     if doc is None:
@@ -92,11 +98,14 @@ def _get_document(document_id: str) -> dict:
 def _update_document_status(document_id: str, status: str) -> None:
     """Met à jour extraction_status sur documents."""
     with get_db_cursor() as cur:
-        cur.execute("""
+        cur.execute(
+            """
             UPDATE documents
             SET extraction_status = %s
             WHERE id = %s
-        """, (status, document_id))
+        """,
+            (status, document_id),
+        )
 
 
 def _compute_confidence(
@@ -125,6 +134,7 @@ def _store_extraction(
     """Persiste le résultat d'extraction en DB."""
     import json
     import uuid
+
     extraction_id = f"ext-{uuid.uuid4().hex[:12]}"
     # Récupérer case_id depuis le document
     doc = _get_document(document_id)
@@ -132,24 +142,27 @@ def _store_extraction(
 
     with get_db_cursor() as cur:
         structured_json = json.dumps(structured_data)
-        cur.execute("""
+        cur.execute(
+            """
             INSERT INTO extractions
                 (id, case_id, document_id, raw_text, structured_data,
                  extraction_method, confidence_score, extracted_at,
                  data_json, extraction_type, created_at)
             VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s, NOW(),
                     %s, %s, NOW()::TEXT)
-        """, (
-            extraction_id,
-            case_id,
-            document_id,
-            raw_text,
-            structured_json,
-            method,
-            confidence,
-            structured_json,  # data_json pour compatibilité
-            method,  # extraction_type pour compatibilité
-        ))
+        """,
+            (
+                extraction_id,
+                case_id,
+                document_id,
+                raw_text,
+                structured_json,
+                method,
+                confidence,
+                structured_json,  # data_json pour compatibilité
+                method,  # extraction_type pour compatibilité
+            ),
+        )
 
 
 def _store_error(
@@ -163,14 +176,18 @@ def _store_error(
     Jamais silencieux.
     """
     with get_db_cursor() as cur:
-        cur.execute("""
+        cur.execute(
+            """
             INSERT INTO extraction_errors
                 (document_id, job_id, error_code, error_detail)
             VALUES (%s, %s, %s, %s)
-        """, (document_id, job_id, error_code, error_detail))
+        """,
+            (document_id, job_id, error_code, error_detail),
+        )
 
 
 # ── Parseurs ─────────────────────────────────────────────────────
+
 
 def _extract_native_pdf(storage_uri: str) -> tuple[str, dict]:
     """Extraction PDF natif via pdfplumber."""
@@ -192,9 +209,7 @@ def _extract_excel(storage_uri: str) -> tuple[str, dict]:
     raw_text = ""
     for sheet in wb.worksheets:
         for row in sheet.iter_rows(values_only=True):
-            row_text = " ".join(
-                str(c) for c in row if c is not None
-            )
+            row_text = " ".join(str(c) for c in row if c is not None)
             if row_text.strip():
                 raw_text += row_text + "\n"
 
@@ -206,9 +221,7 @@ def _extract_docx(storage_uri: str) -> tuple[str, dict]:
     from docx import Document  # type: ignore
 
     doc = Document(storage_uri)
-    raw_text = "\n".join(
-        p.text for p in doc.paragraphs if p.text.strip()
-    )
+    raw_text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
     return raw_text, dict(STRUCTURED_DATA_EMPTY)
 
 
@@ -224,12 +237,12 @@ def _dispatch_extraction(
     if method == "docx_parser":
         return _extract_docx(doc["storage_uri"])
     raise ValueError(
-        f"Méthode inconnue pour dispatch : '{method}'. "
-        f"SLA-A : {SLA_A_METHODS}"
+        f"Méthode inconnue pour dispatch : '{method}'. " f"SLA-A : {SLA_A_METHODS}"
     )
 
 
 # ── Fonctions publiques ──────────────────────────────────────────
+
 
 def extract_sync(document_id: str) -> dict:
     """
@@ -251,22 +264,20 @@ def extract_sync(document_id: str) -> dict:
     _update_document_status(document_id, "processing")
 
     try:
-        raw_text, structured_data = _dispatch_extraction(
-            doc, method
-        )
+        raw_text, structured_data = _dispatch_extraction(doc, method)
         duration_ms = (time.monotonic() * 1000) - start_ms
 
         # §9 : SLA-A violation → échec explicite
         if duration_ms > SLA_A_TIMEOUT_S * 1000:
             _store_error(
-                document_id, None,
+                document_id,
+                None,
                 "TIMEOUT_SLA_A",
                 f"SLA-A violé : {duration_ms:.0f}ms > 60000ms",
             )
             _update_document_status(document_id, "failed")
             raise TimeoutError(
-                f"SLA-A violé : {duration_ms:.0f}ms. "
-                f"Document {document_id}."
+                f"SLA-A violé : {duration_ms:.0f}ms. " f"Document {document_id}."
             )
 
         confidence = _compute_confidence(raw_text, structured_data)
@@ -280,8 +291,11 @@ def extract_sync(document_id: str) -> dict:
         structured_data["_sla_class"] = "A"
 
         _store_extraction(
-            document_id, raw_text,
-            structured_data, method, confidence,
+            document_id,
+            raw_text,
+            structured_data,
+            method,
+            confidence,
         )
         _update_document_status(document_id, "done")
 
@@ -292,9 +306,7 @@ def extract_sync(document_id: str) -> dict:
             "sla_class": "A",
             "duration_ms": duration_ms,
             "confidence": confidence,
-            "requires_human_review": structured_data[
-                "_requires_human_review"
-            ],
+            "requires_human_review": structured_data["_requires_human_review"],
         }
 
     except TimeoutError:
@@ -303,8 +315,10 @@ def extract_sync(document_id: str) -> dict:
         # §9 : échec explicite, jamais silencieux
         _update_document_status(document_id, "failed")
         _store_error(
-            document_id, None,
-            "PARSE_ERROR", str(exc),
+            document_id,
+            None,
+            "PARSE_ERROR",
+            str(exc),
         )
         raise
 
@@ -321,12 +335,15 @@ def extract_async(document_id: str, method: str) -> dict:
         )
 
     with get_db_cursor() as cur:
-        cur.execute("""
+        cur.execute(
+            """
             INSERT INTO extraction_jobs
                 (document_id, method, sla_class, status)
             VALUES (%s, %s, 'B', 'pending')
             RETURNING id
-        """, (document_id, method))
+        """,
+            (document_id, method),
+        )
         job = cur.fetchone()
 
     return {

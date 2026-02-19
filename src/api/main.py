@@ -3,6 +3,7 @@
 Application FastAPI — DMS
 Constitution V3.3.2
 """
+
 from fastapi import FastAPI
 
 from src.api.routes.extractions import router as extraction_router
