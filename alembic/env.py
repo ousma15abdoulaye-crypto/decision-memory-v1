@@ -6,6 +6,13 @@ DATABASE_URL requis pour toutes les opérations.
 from logging.config import fileConfig
 import os
 
+# Load .env file if present (python-dotenv)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
