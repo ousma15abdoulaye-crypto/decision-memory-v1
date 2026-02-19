@@ -1,0 +1,797 @@
+ADR-0002 — Bétonisation des Milestones V3.3.2 : Dictionnaire Procurement, Couche B Moat, Sécurité Systémique & Standard Sahel
+Status:        ACCEPTED
+Date:          2026-02-16
+Author:        Abdoulaye Ousmane (Founder & CTO)
+Constitution:  V3.3.2 (canonique)
+Précédent:     ADR-0001 (fusion M10-UX + M-SECURITY-CORE)
+Scope:         Bétonisation niveau standard — non refonte
+Objectif:      Rendre les milestones le bras armé quasi béton
+               de la Constitution V3.3.2
+Related:
+  docs/CONSTITUTION_DMS_V3.3.2.md
+  docs/MILESTONES_EXECUTION_PLAN_V3.3.2.md
+  docs/adrs/ADR-0001.md
+  docs/freeze/v3.3.2/FREEZE_MANIFEST.md
+1. Contexte & Diagnostic CTO
+1.1 — Ce que l'ADR-0001 a résolu
+ADR-0001 a réglé les problèmes structurels :
+
+Fusion registre dépôt → M10-UX-V2 ✅
+Création M-SECURITY-CORE distinct ✅
+Market Signal déclaré bloquant GO production ✅
+Dictionnaire non contournable déclaré ✅
+Discipline agents imposée ✅
+1.2 — Ce qui reste insuffisant pour un standard Sahel
+En tant que CTO senior + Procurement Analyst, je diagnostique 7 failles systémiques que ADR-0001 n'a pas fermées :
+
+ID	Faille	Couche	Impact
+FS-1	Dictionnaire déclaré "non contournable" mais non seedé, non structuré, sans couverture minimale opposable	B	Moat inexistant au lancement
+FS-2	Market Survey workflow décrit mais sans règles de collecte terrain opposables pour le Sahel	B	Signal non représentatif, adoption bloquée
+FS-3	Frontière A/B déclarée mais non testée par analyse statique d'imports	A/B	§7 violable silencieusement
+FS-4	SLA non différencié OCR vs natif dans les gates CI	A	Promesse non tenue sur scans terrain
+FS-5	Triggers PostgreSQL (LOCK comité, corrections append-only) déclarés mais sans tests DB-level dans CI	A	INV-6 violable
+FS-6	Doctrine d'échec §9 sans gate CI : exports incomplets non détectés	A	Non-conformité silencieuse
+FS-7	Règles de prédominance des 3 sources Market Signal non spécifiées de façon opposable	B	Agrégation arbitraire
+2. Décisions
+2.1 — Bétonisation M-NORMALISATION-ITEMS : Dictionnaire Procurement Sahel
+Décision
+Le dictionnaire procurement passe du statut "prévu" au statut composant critique seedé au déploiement. Il constitue le premier pilier du moat Couche B.
+
+Couverture minimale opposable
+Le dictionnaire doit couvrir au minimum les familles suivantes avant tout GO production :
+
+FAMILLES OBLIGATOIRES (couverture minimale GO production)
+
+  Famille 1 : Carburants & Énergie
+  ─────────────────────────────────
+  Items : gasoil, essence super, pétrole lampant,
+          gaz butane 6kg, gaz butane 12kg,
+          charbon de bois sac 100kg
+  Unités : litre, kg, unité
+  Criticité : CRITIQUE — tout processus minier,
+              ONG terrain, État utilise ces items
+  
+  Famille 2 : Construction — Liants hydrauliques
+  ───────────────────────────────────────────────
+  Items : ciment CPA 42.5, ciment CPA 32.5,
+          ciment M 32.5 R, plâtre d'importation,
+          ciment colle
+  Unités : tonne, sac 50kg
+  Criticité : CRITIQUE — DAO infrastructures
+  
+  Famille 3 : Construction — Agrégats
+  ─────────────────────────────────────
+  Items : sable fleuve, gravier 10/14, gravier 6/10,
+          latérite, tout venant, moellon
+  Unités : 7m³ (voyage), m³, tonne
+  Criticité : CRITIQUE — conversions voyage/m³
+              source principale d'erreur terrain
+  
+  Famille 4 : Construction — Fer & Profilés
+  ──────────────────────────────────────────
+  Items : fer HA 8mm, fer HA 10mm, fer HA 12mm,
+          fer HA 16mm, fer HA 20mm,
+          cornière 40×40, IPN 100
+  Unités : barre 12m, kg, tonne
+  Criticité : HAUTE — DAO bâtiment, routes
+  
+  Famille 5 : Véhicules & Deux-roues
+  ────────────────────────────────────
+  Items : Toyota Land Cruiser 4×4 HZJ78,
+          Toyota Hilux DC 4×4 diesel,
+          moto Jakarta 125cc,
+          moto TVS 125cc
+  Unités : unité
+  Criticité : HAUTE — ONG, mines, État
+  
+  Famille 6 : Informatique & Bureautique
+  ───────────────────────────────────────
+  Items : ordinateur portable Core i5 8Go 512SSD,
+          imprimante laser HP 107W,
+          photocopieuse Canon IR 2520,
+          onduleur 1000VA,
+          papier A4 80g
+  Unités : unité, rame
+  Criticité : HAUTE — tout appel d'offres bureau
+  
+  Famille 7 : Alimentation
+  ─────────────────────────
+  Items : riz gambiaka 100kg, riz parfumé 5kg,
+          huile végétale 20L, sucre poudre 50kg,
+          mil 100kg, lait Nido 400g,
+          eau minérale 1.5L carton
+  Unités : sac, bidon, carton, unité
+  Criticité : HAUTE — PAM, ONG humanitaire, État
+  
+  Famille 8 : Médicaments & Matériel médical
+  ────────────────────────────────────────────
+  Items : paracetamol 500mg cp boîte/100,
+          amoxicilline 500mg gel boîte/12,
+          SRO sachet boîte/20,
+          sérum physiologique 500ml,
+          gants chirurgicaux stériles 7.5,
+          cathéter IV G18,
+          seringue 5ml avec aiguille
+  Unités : boîte, unité, paire
+  Criticité : CRITIQUE — Ministère Santé,
+              ONG santé, UNFPA, UNICEF
+  
+  Famille 9 : Équipements techniques
+  ────────────────────────────────────
+  Items : groupe électrogène 15 KVA Perkins,
+          groupe électrogène 10 KVA,
+          climatiseur split 1.5 CV,
+          panneau solaire 250W,
+          pompe solaire immergée
+  Unités : unité
+  Criticité : HAUTE — mines, ONG terrain,
+              projets ruraux
+Aliases obligatoires (minimum seedé)
+# Critique: erreurs terrain les plus fréquentes
+# Source: mercuriale Bamako 2023 + retours terrain Mali
+
+ALIASES_MANDATORY_SAHEL = {
+
+    # ─── Carburants (terrain Sahel) ───────────────────────────
+    "gasoil": [
+        "gas oil", "diesel", "gaz oil", "gazole",
+        "GO", "gasoil ordinaire", "carburant diesel",
+        "fuel diesel", "gazoil"
+    ],
+    "essence super": [
+        "essence", "super", "SP95", "SP",
+        "carburant essence", "pétrole blanc",
+        "essence ordinaire"
+    ],
+    "pétrole lampant": [
+        "pétrole", "kerosene", "kérosène",
+        "lampant", "petroleum"
+    ],
+
+    # ─── Construction (confusions volumes/poids) ──────────────
+    "sable fleuve 7m3": [
+        "sable du fleuve", "sable rivière",
+        "sable naturel", "sable de fleuve",
+        "sable voyage", "sable 7m3",
+        "sable (voyage camion)"
+    ],
+    "gravier 10/14 7m3": [
+        "gravier concassé 10/14", "gravier 10-14",
+        "gravillon 10/14", "gravier carrière",
+        "gravier voyage", "gravier 7m3"
+    ],
+    "ciment CPA 42.5": [
+        "ciment 42.5", "CPA42,5", "ciment Portland 42.5",
+        "ciment ordinaire 42.5", "ciment 42,5 R",
+        "CPJ 42.5", "ciment gris 42.5",
+        "CPA 42,5 R", "ciment Portland 42,5"
+    ],
+    "fer HA 12mm barre 12m": [
+        "rond tor 12", "HA 12", "HA12",
+        "acier 12mm", "barre 12mm",
+        "fer 12", "tor 12", "HA 12mm",
+        "rond 12", "Ø12"
+    ],
+    "fer HA 10mm barre 12m": [
+        "rond tor 10", "HA 10", "HA10",
+        "acier 10mm", "fer 10", "tor 10", "Ø10"
+    ],
+
+    # ─── Véhicules (variantes nomenclature) ───────────────────
+    "Toyota Land Cruiser 4x4 HZJ78": [
+        "Land Cruiser 78", "LC 78", "LandCruiser HZJ78",
+        "Toyota 78", "LC78 HZJ", "Landcruiser diesel 4x4"
+    ],
+    "Toyota Hilux DC 4x4 diesel": [
+        "Hilux double cabine", "Hilux 4x4",
+        "Toyota Hilux", "Hilux DC diesel",
+        "pickup Toyota 4x4", "hilux dc 4x4"
+    ],
+    "moto Jakarta 125cc": [
+        "Jakarta 125", "moto Jakarta",
+        "Djakarta 125cc", "moto 125 Jakarta",
+        "jakarta moto"
+    ],
+
+    # ─── Informatique (marques vs génériques) ─────────────────
+    "papier photocopie A4 80g": [
+        "papier A4", "rame A4", "papier A4 80g",
+        "papier bureau", "rame photocopie",
+        "papier impression A4", "rame 80g",
+        "papier duplicateur A4"
+    ],
+    "imprimante laser HP LaserJet": [
+        "imprimante HP", "HP laser", "LaserJet",
+        "HP laserjet", "imprimante laser",
+        "imprimante laser noir"
+    ],
+
+    # ─── Médicaments (DCI vs marque) ──────────────────────────
+    "paracetamol 500mg comprimé": [
+        "doliprane 500", "efferalgan 500",
+        "paracet 500", "paracetamol 500",
+        "paracetamol 500 cp", "para 500",
+        "Doliprane", "Efferalgan"
+    ],
+    "amoxicilline 500mg gélule": [
+        "amoxicil 500", "amodex 500",
+        "clamoxyl 500", "amoxicilline 500",
+        "Amoxicilline 500mg", "amoxi 500",
+        "Clamoxyl 500mg"
+    ],
+    "solution de réhydratation orale sachet": [
+        "SRO", "sels de réhydratation",
+        "réhydratation orale", "ORS",
+        "sachet SRO"
+    ],
+
+    # ─── Alimentation (sacs, bidons, conditionnements) ────────
+    "riz gambiaka sac 100kg": [
+        "riz local 100kg", "riz gambiaka",
+        "Gambiaka 100kg", "riz blanc local 100kg"
+    ],
+    "huile végétale litre": [
+        "huile de cuisine", "huile alimentaire",
+        "huile végétale comestible", "huile",
+        "huile raffinée", "Dinor", "AYA",
+        "huile végétale 1L"
+    ],
+    "sucre en poudre sac 50kg": [
+        "sucre 50kg", "sucre blanc 50kg",
+        "sucre granulé 50kg", "sucre poudre"
+    ],
+
+    # ─── Équipements (confusion KVA/KW) ───────────────────────
+    "groupe électrogène 15 KVA Perkins": [
+        "GE 15KVA", "groupe 15kva",
+        "groupe électrogène 15kva Perkins",
+        "groupe 15 KVA", "genset 15KVA",
+        "générateur 15 KVA"
+    ],
+    "groupe électrogène 10 KVA": [
+        "GE 10KVA", "groupe 10kva",
+        "groupe électrogène 10kva",
+        "groupe 10 KVA", "genset 10KVA"
+    ]
+}
+Conversions d'unités critiques (Sahel)
+# Conversions sources d'erreur terrain documentées
+UNIT_CONVERSIONS_MANDATORY = {
+    # Construction (voyage ≠ m³ ≠ tonne)
+    ("voyage_camion_7m3", "m3"):    7.0,
+    ("voyage_bachee_7m3", "m3"):    7.0,
+    ("sac_50kg",          "tonne"): 0.05,
+    ("sac_50kg",          "kg"):    50.0,
+    ("barre_12m",         "ml"):    12.0,
+    
+    # Alimentation
+    ("sac_100kg",  "kg"):    100.0,
+    ("sac_50kg",   "kg"):    50.0,
+    ("carton_24u", "unite"): 24.0,
+    ("carton_12u", "unite"): 12.0,
+    
+    # Carburants
+    ("baril_200L", "litre"): 200.0,
+    ("fut_200L",   "litre"): 200.0,
+    
+    # Médical
+    ("boite_100cp",  "unite"):   100.0,
+    ("boite_12gelu", "unite"):   12.0,
+    ("boite_20sach", "unite"):   20.0,
+}
+Gate CI dictionnaire
+# tests/normalisation/test_dict_minimum_coverage.py
+# 🔴 BLOQUE CI si couverture insuffisante
+
+MANDATORY_FAMILIES = [
+    "carburants", "construction_liants", "construction_agregats",
+    "construction_fer", "vehicules", "informatique",
+    "alimentation", "medicaments", "equipements"
+]
+
+MINIMUM_ITEMS_PER_FAMILY = 5
+MINIMUM_ALIASES_PER_ITEM = 3
+
+def test_dict_minimum_coverage():
+    """
+    Garantit que le dictionnaire est suffisamment riche
+    pour couvrir les cas d'usage Sahel.
+    🔴 BLOQUE CI si non respecté.
+    """
+    for family in MANDATORY_FAMILIES:
+        items = get_items_by_family(family)
+        assert len(items) >= MINIMUM_ITEMS_PER_FAMILY, (
+            f"Famille '{family}': {len(items)} items "
+            f"< minimum {MINIMUM_ITEMS_PER_FAMILY}"
+        )
+        for item in items:
+            aliases = get_aliases(item.id)
+            assert len(aliases) >= MINIMUM_ALIASES_PER_ITEM, (
+                f"Item '{item.label_canonical}': "
+                f"{len(aliases)} aliases "
+                f"< minimum {MINIMUM_ALIASES_PER_ITEM}"
+            )
+2.2 — Bétonisation M-MARKET-SIGNAL-ENGINE : Règles de prédominance opposables (FS-7)
+Décision
+Les règles de prédominance des 3 sources sont gelées de façon opposable et implémentable.
+
+Règles canoniques
+RÈGLE MS-1 — Market Survey terrain (Source 1, priorité maximale)
+  Condition d'activation :
+    - date_survey ≤ 90 jours depuis date_processus
+    - nb_cotations_item ≥ 3
+    - zone_survey == zone_processus (ou zone parente validée)
+    - statut_survey == 'validated' (validé par responsable)
+  Si activée :
+    - price_reference = médiane des cotations terrain
+    - confidence = 'high'
+    - signal_label = 'TERRAIN_FRESH'
+
+RÈGLE MS-2 — Historique des décisions (Source 2, priorité intermédiaire)
+  Condition d'activation :
+    - Au moins 1 décision en DB pour cet item canonique
+    - dans la même zone (ou zone parente)
+    - dans les 24 derniers mois
+  Si activée (et MS-1 non activée) :
+    - price_reference = médiane des prix payés (24 mois)
+    - price_trend = (prix_moyen_12m - prix_moyen_24m) / prix_moyen_24m
+    - confidence = 'medium'
+    - signal_label = 'HISTORY_24M'
+
+RÈGLE MS-3 — Mercuriale officielle (Source 3, borne réglementaire)
+  Toujours disponible si item dans mercuriale.
+  Rôle : borne supérieure (prix plafond réglementaire).
+  Ne remplace jamais MS-1 ni MS-2.
+  confidence = 'regulatory'
+  signal_label = 'MERCURIALE_OFFICIAL'
+
+RÈGLE MS-DEGRADE — Dégradation (informatif, jamais bloquant scoring)
+  3 sources actives → signal_quality = 'COMPLETE'    ✅
+  2 sources actives → signal_quality = 'PARTIAL'     ⚠️
+  1 source active  → signal_quality = 'DEGRADED'    🔴
+  0 source active  → signal_quality = 'UNAVAILABLE' ⬛
+
+RÈGLE MS-ZERO — Interdiction absolue
+  Le MarketSignalEngine ne peut jamais :
+    - Modifier supplier_scores
+    - Appeler scoring_engine
+    - Écrire dans les tables Couche A
+    - Émettre une recommandation (INV-3)
+  Test CI bloquant : test_market_signal_read_only_couche_a.py
+2.3 — Bétonisation M-MARKET-SURVEY-WORKFLOW : Règles terrain Sahel (FS-2)
+Décision
+Le workflow Market Survey est bétonisé avec des règles terrain adaptées au contexte Mali/Sahel.
+
+RÈGLES MARKET SURVEY — STANDARD SAHEL
+
+  SR-1 : Minimum 3 cotations par item canonique
+         (pas par ligne brute — après normalisation)
+
+  SR-2 : Zone géographique obligatoire
+         Valeurs : district | cercle | région | national
+         Raison : les prix varient fortement entre Bamako
+                  et les zones périphériques (Kidal, Ménaka)
+
+  SR-3 : Date de collecte obligatoire
+         Validité : 90 jours depuis la date de collecte
+         Au-delà : survey marqué 'expired', non utilisable
+                   dans Market Signal
+
+  SR-4 : Source de la cotation obligatoire
+         Valeurs : fournisseur_local | grossiste | 
+                   prix_marche_central | importateur |
+                   autre (avec justification)
+
+  SR-5 : Validateur humain obligatoire
+         Le survey ne passe pas en 'validated' sans
+         validation explicite d'un responsable procurement
+         (RBAC : rôle buyer ou admin)
+
+  SR-6 : Cohérence de la devise
+         Devise par défaut : XOF
+         Si USD ou EUR : conversion automatique
+         avec taux BCE du jour de collecte (ou taux saisi)
+
+  SR-7 : Gate GO production
+         Un processus ne peut pas passer en 'evaluation'
+         si le Market Signal est UNAVAILABLE pour
+         les items à enjeu financier > seuil_alerte
+         (configurable par organisation)
+         NB : gate informatif, non bloquant pour scoring
+2.4 — Bétonisation frontière A/B : test par analyse statique (FS-3)
+Décision
+La frontière §7 est vérifiée par analyse statique des imports à chaque CI, pas seulement par tests unitaires.
+
+# tests/invariants/test_couche_a_b_boundary.py
+# 🔴 BLOQUE CI si violation
+
+import ast
+import os
+from pathlib import Path
+
+# Modules Couche B — aucun ne peut être importé dans Couche A
+COUCHE_B_MODULES = [
+    'market_signal',
+    'couche_b',
+    'market_survey',
+    'mercuriale',
+    'decision_history',
+    'context_panel',
+    'dict_fuzzy',
+]
+
+# Modules Couche A — où la violation est interdite
+COUCHE_A_PATHS = [
+    'app/scoring/',
+    'app/normalisation/',
+    'app/criteria/',
+    'app/extraction/',
+    'app/pipeline/',
+    'app/committee/',
+    'app/generation/',
+]
+
+def test_no_couche_b_import_in_couche_a():
+    """
+    §7 : La Couche B est strictement read-only
+    vis-à-vis de la Couche A.
+    Vérifié par analyse statique (AST).
+    🔴 BLOQUE CI si violation.
+    """
+    violations = []
+
+    for couche_a_path in COUCHE_A_PATHS:
+        for py_file in Path(couche_a_path).rglob('*.py'):
+            with open(py_file) as f:
+                try:
+                    tree = ast.parse(f.read())
+                except SyntaxError:
+                    continue
+
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.Import, ast.ImportFrom)):
+                    module = getattr(node, 'module', '') or ''
+                    names = [
+                        alias.name for alias in
+                        getattr(node, 'names', [])
+                    ]
+                    all_names = [module] + names
+
+                    for forbidden in COUCHE_B_MODULES:
+                        for name in all_names:
+                            if forbidden in name.lower():
+                                violations.append({
+                                    'file': str(py_file),
+                                    'line': node.lineno,
+                                    'import': name,
+                                    'forbidden': forbidden
+                                })
+
+    assert not violations, (
+        f"VIOLATION §7 — {len(violations)} import(s) "
+        f"Couche B détecté(s) dans Couche A :\n"
+        + '\n'.join(
+            f"  {v['file']}:{v['line']} "
+            f"→ import '{v['import']}' "
+            f"(module interdit: '{v['forbidden']}')"
+            for v in violations
+        )
+    )
+2.5 — Bétonisation SLA : deux classes opposables en CI (FS-4)
+Décision
+Deux gates CI distincts remplacent le SLA unique.
+
+# tests/pipeline/test_sla_classe_a.py
+# 🔴 BLOQUE CI si > 60s sur documents natifs
+
+import time
+import pytest
+
+@pytest.mark.slow
+def test_sla_classe_a_pdf_native(realistic_case_20_suppliers):
+    """
+    SLA-A : PDF natifs, XLSX, DOCX → < 60s
+    Fixture : case réaliste, 20+ fournisseurs, 10+ lots
+    🔴 BLOQUE CI si dépassement.
+    """
+    start = time.monotonic()
+    result = run_pipeline_a(
+        case_id=realistic_case_20_suppliers.id,
+        doc_types=['pdf_native', 'xlsx', 'docx']
+    )
+    elapsed = time.monotonic() - start
+
+    assert result.status in ('complete', 'incomplete_flagged'), (
+        f"Pipeline A échoué : {result.status}"
+    )
+    assert elapsed < 60.0, (
+        f"SLA-A violé : {elapsed:.2f}s > 60s. "
+        f"Optimiser extraction ou réduire scope. "
+        f"(SLA-A cible : PDF natifs / XLSX / DOCX)"
+    )
+
+
+# tests/pipeline/test_sla_classe_b.py
+def test_sla_classe_b_ocr_has_queue(scan_document_fixture):
+    """
+    SLA-B : Scans OCR → queue + progress + statut.
+    Vérifie que l'OCR ne bloque PAS le thread principal.
+    """
+    doc_id = upload_scan_document(scan_document_fixture)
+
+    # L'endpoint upload répond immédiatement
+    status = get_document_status(doc_id)
+    assert status in ('pending', 'processing'), (
+        "Le scan OCR doit être mis en queue, "
+        "pas traité synchronement."
+    )
+
+    # Le statut est consultable
+    progress = get_extraction_progress(doc_id)
+    assert 'status' in progress
+    assert 'estimated_completion' in progress
+
+
+def test_sla_classe_b_ocr_does_not_block_app(
+    scan_document_fixture,
+    another_native_pdf_fixture
+):
+    """
+    SLA-B : Un scan OCR en cours ne bloque pas
+    le traitement d'un PDF natif simultané.
+    """
+    ocr_doc_id = upload_scan_document(scan_document_fixture)
+    
+    start = time.monotonic()
+    native_result = run_pipeline_a_single_doc(another_native_pdf_fixture)
+    elapsed = time.monotonic() - start
+
+    assert elapsed < 60.0, (
+        f"PDF natif bloqué par OCR en cours : {elapsed:.2f}s"
+    )
+    assert native_result.status != 'blocked'
+2.6 — Bétonisation triggers PostgreSQL en CI (FS-5)
+Décision
+Les triggers PostgreSQL sont testés directement contre la DB de test dans CI, pas seulement via les endpoints.
+
+# tests/db_integrity/test_triggers_db_level.py
+# 🔴 TOUS BLOQUANTS CI
+
+import pytest
+from psycopg2 import errors as pg_errors
+
+class TestAppendOnlyTrigger:
+    """
+    Vérifie que le trigger enforce_corrections_append_only
+    est actif au niveau DB (pas seulement via API).
+    """
+
+    def test_trigger_blocks_update_directly(self, db_conn, sample_correction):
+        """🔴 BLOQUE CI"""
+        with pytest.raises(Exception) as exc_info:
+            db_conn.execute(
+                "UPDATE extraction_corrections "
+                "SET reason = 'tampered' WHERE id = %s",
+                (sample_correction.id,)
+            )
+        assert 'append-only' in str(exc_info.value).lower() or \
+               'INV-6' in str(exc_info.value), (
+            "Le trigger doit mentionner 'append-only' ou 'INV-6'"
+        )
+
+    def test_trigger_blocks_delete_directly(self, db_conn, sample_correction):
+        """🔴 BLOQUE CI"""
+        with pytest.raises(Exception):
+            db_conn.execute(
+                "DELETE FROM extraction_corrections WHERE id = %s",
+                (sample_correction.id,)
+            )
+
+
+class TestCommitteeLockTrigger:
+    """
+    Vérifie que le trigger enforce_committee_lock
+    est actif au niveau DB.
+    """
+
+    def test_trigger_blocks_member_insert_after_lock(
+        self, db_conn, locked_committee
+    ):
+        """🔴 BLOQUE CI"""
+        with pytest.raises(Exception) as exc_info:
+            db_conn.execute(
+                "INSERT INTO committee_members "
+                "(committee_id, role, last_name, first_name) "
+                "VALUES (%s, 'observer', 'Test', 'User')",
+                (locked_committee.id,)
+            )
+        assert 'verrouillé' in str(exc_info.value).lower() or \
+               'INV-6' in str(exc_info.value)
+
+    def test_trigger_blocks_member_update_after_lock(
+        self, db_conn, locked_committee
+    ):
+        """🔴 BLOQUE CI"""
+        member = get_first_member(locked_committee.id)
+        with pytest.raises(Exception):
+            db_conn.execute(
+                "UPDATE committee_members "
+                "SET function = 'tampered' WHERE id = %s",
+                (member.id,)
+            )
+
+    def test_trigger_blocks_committee_unlock(
+        self, db_conn, locked_committee
+    ):
+        """🔴 BLOQUE CI"""
+        with pytest.raises(Exception) as exc_info:
+            db_conn.execute(
+                "UPDATE committees SET status = 'draft' WHERE id = %s",
+                (locked_committee.id,)
+            )
+        assert 'déverrouillé' in str(exc_info.value).lower() or \
+               'INV-6' in str(exc_info.value)
+2.7 — Bétonisation doctrine d'échec §9 : gate CI exports (FS-6)
+Décision
+Les exports incomplets sont détectés et signalés explicitement avec gate CI.
+
+# tests/generation/test_doctrine_echec_exports.py
+
+class TestDoctrinEchecCBA:
+    """
+    §9 : Exports incomplets = marqués comme tels.
+    Calculs incertains = signalés.
+    PV douteux = non générés.
+    """
+
+    def test_incomplete_cba_marked_not_silenced(
+        self, case_with_missing_scores
+    ):
+        """
+        Un CBA avec scores manquants doit être marqué
+        'incomplete', pas généré partiellement en silence.
+        🔴 BLOQUE CI si non respecté.
+        """
+        result = generate_cba(case_with_missing_scores.id)
+
+        assert result.status == 'incomplete', (
+            "§9 violé : CBA incomplet généré sans marquage"
+        )
+        assert result.reason is not None, (
+            "§9 : La raison de l'incomplétude doit être fournie"
+        )
+        assert result.export_uri is None, (
+            "§9 : Un CBA incomplet ne doit pas produire de fichier"
+        )
+
+    def test_pv_without_locked_committee_rejected(
+        self, case_with_draft_committee
+    ):
+        """
+        Un PV ne peut pas être généré sans comité verrouillé.
+        §9 : PV douteux = non générés.
+        """
+        result = generate_pv(case_with_draft_committee.id)
+
+        assert result.status == 'blocked', (
+            "§9 violé : PV généré sans comité verrouillé"
+        )
+        assert 'committee' in result.reason.lower()
+
+    def test_uncertain_normalisation_flagged_in_cba(
+        self, case_with_low_confidence_items
+    ):
+        """
+        §9 : Calculs incertains (confidence < 0.75) = signalés
+        dans le CBA, pas masqués.
+        """
+        result = generate_cba(case_with_low_confidence_items.id)
+
+        # Le CBA peut être généré mais doit signaler l'incertitude
+        assert result.has_uncertainty_flags is True, (
+            "§9 : Items à faible confiance doivent être flaggés"
+        )
+        assert len(result.uncertainty_details) > 0
+3. Alternatives rejetées
+Alternative	Raison du rejet
+Dictionnaire "on the fly" sans seed au déploiement	Moat inexistant au lancement, adoption bloquée
+SLA unique 60s OCR+natif	Promesse non tenue sur scans terrain = crédibilité perdue
+Frontière A/B par convention de nommage uniquement	Contournable par import indirect ou alias
+Gate CI exports en review manuelle	§9 non opposable, audit impossible
+Market Signal avec règle de prédominance non documentée	Agrégation arbitraire, non défendable en comité
+4. Conséquences
+4.1 — Sur les milestones existants
+Milestone	Impact ADR-0002
+M-NORMALISATION-ITEMS	Scope étendu : seed obligatoire 9 familles + aliases SAHEL
+M-MARKET-SIGNAL-ENGINE	Règles MS-1/MS-2/MS-3/MS-DEGRADE opposables
+M-MARKET-SURVEY-WORKFLOW	Règles SR-1 à SR-7 opposables
+M-SCORING-ENGINE	Test analyse statique imports Couche B ajouté
+M-PIPELINE-A-E2E	SLA deux classes (A/B) remplace SLA unique
+M-COMMITTEE-CORE	Tests triggers DB-level ajoutés
+M-EXTRACTION-CORRECTIONS	Tests triggers DB-level ajoutés
+M-CBA-GEN / M-PV-GEN	Doctrine §9 testée en CI
+4.2 — Sur le registre des tests CI bloquants
+REGISTRE COMPLET POST ADR-0002
+(🔴 = BLOQUANT CI — aucune PR mergée si échec)
+
+PHASE 0 — Fondations:
+  🔴 test_corrections_append_only.py
+  🔴 test_trigger_blocks_update.py          [DB-level]
+  🔴 test_trigger_blocks_delete.py          [DB-level]
+  🔴 test_upload_magic_bytes.py
+
+PHASE 1 — Normalisation:
+  🔴 test_no_raw_offer_in_scoring.py
+  🔴 test_dict_minimum_coverage.py          [NOUVEAU ADR-0002]
+  🔴 test_aliases_mandatory_sahel.py        [NOUVEAU ADR-0002]
+
+PHASE 2 — Scoring + Comité:
+  🔴 test_couche_a_b_boundary.py            [NOUVEAU ADR-0002 — AST]
+  🔴 test_no_couche_b_import_in_couche_a.py [NOUVEAU ADR-0002 — AST]
+  🔴 test_scores_independent_of_couche_b.py
+  🔴 test_market_signal_no_impact_on_scores.py
+  🔴 test_market_signal_read_only_couche_a.py [NOUVEAU ADR-0002]
+  🔴 test_lock_prevents_member_insert.py    [DB-level]
+  🔴 test_lock_prevents_member_update.py    [DB-level]
+  🔴 test_lock_prevents_member_delete.py    [DB-level]
+  🔴 test_lock_is_irreversible.py           [DB-level]
+
+PHASE 3 — SLA + Génération:
+  🔴 test_sla_classe_a_60s.py               [PDF natifs/XLSX/DOCX]
+  🔴 test_sla_classe_b_has_queue.py         [NOUVEAU ADR-0002]
+  🔴 test_sla_classe_b_no_block.py          [NOUVEAU ADR-0002]
+  🔴 test_incomplete_cba_marked.py          [NOUVEAU ADR-0002 — §9]
+  🔴 test_pv_without_locked_committee.py    [NOUVEAU ADR-0002 — §9]
+
+PHASE 5 — Market Signal:
+  🔴 test_market_signal_rules_ms1_ms2_ms3.py [NOUVEAU ADR-0002]
+  🔴 test_survey_minimum_3_cotations.py      [NOUVEAU ADR-0002]
+  🔴 test_survey_zone_obligatoire.py         [NOUVEAU ADR-0002]
+  🔴 test_survey_validity_90j.py             [NOUVEAU ADR-0002]
+
+TOTAL : 24 gates CI bloquants
+5. Notes d'implémentation anti-contournement
+1. Emplacement ADR : docs/adrs/ADR-0002.md
+
+2. Le dictionnaire seed est versionné dans :
+   db/seeds/procurement_dict_v1.sql
+   (jamais dans le code applicatif — séparation stricte)
+
+3. Les règles Market Signal (MS-1 à MS-DEGRADE) sont 
+   implémentées comme données, pas comme code :
+   table market_signal_rules (rule_id, condition, priority, description)
+   → modifiable sans déploiement, auditée append-only
+
+4. Les aliases SAHEL sont seedés via migration Alembic dédiée :
+   alembic/versions/XXX_seed_aliases_sahel.py
+   (idempotent : INSERT IF NOT EXISTS)
+
+5. Les tests AST (analyse statique) font partie de la suite
+   tests/invariants/ et s'exécutent avant les tests unitaires
+   dans le pipeline CI (fail-fast)
+
+6. Seuil_alerte Market Survey (SR-7) est configurable par
+   organisation via table org_settings, valeur par défaut : 1 000 000 XOF
+6. Décision finale
+Cet ADR est ACCEPTÉ et constitue le complément opérationnel d'ADR-0001.
+
+Il ne refonde pas : il bétonise.
+
+Toute modification des règles définies dans cet ADR (règles Market Signal MS-x, règles Survey SR-x, couverture dictionnaire, gates CI) doit passer par :
+
+un nouvel ADR (ADR-0003+),
+une validation CTO explicite.
+STATUT FINAL
+────────────
+ADR-0002 : ACCEPTED
+Complète : ADR-0001
+Freeze :   À inclure dans tag v3.3.2-freeze (patch)
+Scope :    Bétonisation niveau standard Sahel
+           Non refonte — Non ajout de milestones
+
+Tests CI bloquants ajoutés : 11 (total cumulé : 24)
+Familles dictionnaire : 9 (couverture minimale opposable)
+Règles Market Signal : 4 (MS-1 à MS-DEGRADE)
+Règles Survey terrain : 7 (SR-1 à SR-7)
+
+© 2026 — Decision Memory System — ADR-0002
