@@ -6,8 +6,9 @@ Scénarios complets avec DB réelle.
 Constitution V3.3.2 §9 (doctrine échec).
 ADR-0002 §2.5 (SLA deux classes).
 """
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 
 # ── Classe 1 — SLA-A PDF natif ───────────────────────────────────

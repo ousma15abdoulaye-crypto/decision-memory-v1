@@ -5,9 +5,9 @@ Tests API — M-EXTRACTION-ENGINE endpoints.
 Constitution V3.3.2 §9 (doctrine échec).
 ADR-0002 §2.5 (SLA deux classes).
 """
-import pytest
+from unittest.mock import MagicMock, patch
+
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
 
 from src.api.main import app
 

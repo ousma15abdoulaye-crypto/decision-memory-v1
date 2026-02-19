@@ -5,8 +5,8 @@ src.db creates the engine at import time (Constitution V2.1). Without DATABASE_U
 any module that imports src.db (e.g. scoring engine) raises at collection time.
 This conftest runs first so collection succeeds; same URL as CI for local runs.
 """
-
 import os
+
 import pytest
 
 # Load .env file if present
@@ -37,7 +37,7 @@ if "DATABASE_URL" not in os.environ:
 @pytest.fixture
 def db_transaction():
     """Fixture pour tests DB-level avec rollback automatique.
-    
+
     Connexion psycopg/psycopg2 à la DB de test avec RealDictCursor.
     Rollback automatique après chaque test (isolation).
     Retourne un cursor actif utilisable dans les tests.

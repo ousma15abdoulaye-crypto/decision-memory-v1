@@ -5,7 +5,6 @@ Constitution V3.3.2 §1 (Couche A) + §9 (doctrine échec).
 ADR-0002 §2.5 (SLA deux classes).
 """
 import json
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -32,11 +31,11 @@ class ExtractionResponse(BaseModel):
     status: str
     method: str
     sla_class: str
-    job_id: Optional[str] = None
-    duration_ms: Optional[float] = None
-    confidence: Optional[float] = None
-    requires_human_review: Optional[bool] = None
-    message: Optional[str] = None
+    job_id: str | None = None
+    duration_ms: float | None = None
+    confidence: float | None = None
+    requires_human_review: bool | None = None
+    message: str | None = None
 
 
 class JobStatusResponse(BaseModel):
@@ -46,20 +45,20 @@ class JobStatusResponse(BaseModel):
     method: str
     sla_class: str
     queued_at: str
-    started_at: Optional[str] = None
-    completed_at: Optional[str] = None
-    duration_ms: Optional[int] = None
-    error_message: Optional[str] = None
+    started_at: str | None = None
+    completed_at: str | None = None
+    duration_ms: int | None = None
+    error_message: str | None = None
 
 
 class ExtractionResultResponse(BaseModel):
     document_id: str
-    raw_text: Optional[str] = None
-    structured_data: Optional[dict] = None
-    extraction_method: Optional[str] = None
-    confidence_score: Optional[float] = None
-    extracted_at: Optional[str] = None
-    warning: Optional[str] = None
+    raw_text: str | None = None
+    structured_data: dict | None = None
+    extraction_method: str | None = None
+    confidence_score: float | None = None
+    extracted_at: str | None = None
+    warning: str | None = None
 
 
 # ── Endpoints ────────────────────────────────────────────────────

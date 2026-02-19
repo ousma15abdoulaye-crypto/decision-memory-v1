@@ -11,7 +11,6 @@ SLA-B : tesseract / azure
         → asynchrone via extraction_jobs
 """
 import time
-from typing import Optional
 
 from src.db.connection import get_db_cursor
 
@@ -131,7 +130,7 @@ def _store_extraction(
     # Récupérer case_id depuis le document
     doc = _get_document(document_id)
     case_id = doc.get("case_id")
-    
+
     with get_db_cursor() as cur:
         structured_json = json.dumps(structured_data)
         cur.execute("""
@@ -156,7 +155,7 @@ def _store_extraction(
 
 def _store_error(
     document_id: str,
-    job_id: Optional[str],
+    job_id: str | None,
     error_code: str,
     error_detail: str,
 ) -> None:
