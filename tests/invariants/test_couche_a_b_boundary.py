@@ -9,7 +9,6 @@ from pathlib import Path
 
 import pytest
 
-
 # Modules Couche B — interdits dans Couche A
 COUCHE_B_MODULES = [
     "market_signal",

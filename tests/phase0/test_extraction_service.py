@@ -17,7 +17,6 @@ from src.extraction.engine import (
     extract_sync,
 )
 
-
 # ── Classe 1 — detect_method ─────────────────────────────────────
 
 class TestDetectMethod:

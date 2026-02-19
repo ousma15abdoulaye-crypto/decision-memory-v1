@@ -10,7 +10,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 # ── Classe 1 — SLA-A PDF natif ───────────────────────────────────
 
 class TestExtractionSLAAe2e:

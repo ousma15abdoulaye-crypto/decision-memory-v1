@@ -14,7 +14,6 @@ import time
 
 from src.db.connection import get_db_cursor
 
-
 # ── Constantes ───────────────────────────────────────────────────
 
 SLA_A_METHODS = {"native_pdf", "excel_parser", "docx_parser"}
