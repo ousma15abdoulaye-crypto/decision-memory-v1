@@ -123,7 +123,7 @@ def db_fetchall(conn: Connection, sql: str, params: dict | None = None) -> list[
     result = conn.execute(text(sql), params or {})
     rows = result.fetchall()
     keys = result.keys()
-    return [dict(zip(keys, row)) for row in rows]
+    return [dict(zip(keys, row, strict=True)) for row in rows]
 
 
 def init_db_schema() -> None:
