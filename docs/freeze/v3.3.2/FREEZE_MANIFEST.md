@@ -25,6 +25,7 @@ Toute modification nécessite :
 | CONSTITUTION_DMS_V3.3.2.md | v3.3.2-freeze | 2026-02-16 | CTO |
 | ADR-0001.md | v3.3.2-freeze-patch1 | 2026-02-16 | CTO |
 | ADR-0002.md | v3.3.2-freeze-patch2 | 2026-02-16 | CTO |
+| ADR-0003.md | v3.3.2-freeze-patch3 | 2026-02-16 | CTO |
 | SHA256SUMS.txt | auto-régénéré | 2026-02-16 | CI |
 
 ---
@@ -49,6 +50,14 @@ Résolution 7 conflits CI (C-1 à C-7).
 Dictionnaire Sahel 9 familles.
 Status : ACCEPTED + FROZEN.
 
+### ADR-0003.md
+Plan d'exécution CTO Grade.
+Séquence interne obligatoire (Migration → Tests DB → Service → Endpoint → Tests API).
+28 milestones avec durées estimées.
+Règles agent opposables (interdictions + obligations).
+3 Gates GO/NO-GO (Alpha Interne, Pilote Terrain, Production Externe).
+Status : ACCEPTED + FROZEN.
+
 ---
 
 ## SHA256 de vérification
@@ -66,6 +75,7 @@ Vérification locale :
 | v3.3.2-freeze | 2026-02-16 | Constitution initiale |
 | v3.3.2-freeze-patch1 | 2026-02-16 | ADR-0001 |
 | v3.3.2-freeze-patch2 | 2026-02-16 | ADR-0002 + CI bétonisée |
+| v3.3.2-freeze-patch3 | 2026-02-16 | ADR-0003 + Plan exécution CTO |
 
 ---
 *© 2026 — Decision Memory System — Freeze V3.3.2*
