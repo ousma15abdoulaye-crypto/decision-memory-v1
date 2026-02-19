@@ -7,7 +7,6 @@ Constitution V3.3.2 §8 (machine d'état) + §9 (doctrine échec).
 """
 import pytest
 
-
 # ── Helpers locaux ───────────────────────────────────────────────
 
 def _insert_job(cur, status="pending", method="native_pdf",

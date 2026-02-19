@@ -5,7 +5,6 @@ ADR  : ADR-0002 §2.1
 """
 import pytest
 
-
 MANDATORY_FAMILIES = [
     "carburants",
     "construction_liants",

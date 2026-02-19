@@ -5,7 +5,6 @@ ADR  : ADR-0002 §2.1
 """
 import pytest
 
-
 CRITICAL_ALIASES_SAHEL = [
     ("gasoil", ["gas oil", "diesel", "gaz oil", "GO"]),
     ("ciment CPA 42.5", ["ciment 42.5", "CPA42,5", "CPJ 42.5"]),
