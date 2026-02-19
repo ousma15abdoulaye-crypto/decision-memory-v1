@@ -10,8 +10,9 @@ SLA-A : native_pdf / excel_parser / docx_parser
 SLA-B : tesseract / azure
         → asynchrone via extraction_jobs
 """
-from src.db.connection import get_db_cursor
 import time
+
+from src.db.connection import get_db_cursor
 
 
 # ── Constantes ───────────────────────────────────────────────────

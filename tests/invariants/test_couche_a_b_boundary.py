@@ -5,8 +5,9 @@ ADR  : ADR-0002 §2.4
 REF  : §7 Constitution V3.3.2
 """
 import ast
-import pytest
 from pathlib import Path
+
+import pytest
 
 
 # Modules Couche B — interdits dans Couche A

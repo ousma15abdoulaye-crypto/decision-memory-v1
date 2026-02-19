@@ -6,6 +6,8 @@ M-EXTRACTION-ENGINE ÉTAPE 3.
 Constitution V3.3.2 §9 (doctrine échec).
 ADR-0002 §2.5 (SLA deux classes).
 """
+import pytest
+
 from src.extraction.engine import (
     SLA_A_METHODS,
     SLA_B_METHODS,
@@ -14,7 +16,6 @@ from src.extraction.engine import (
     extract_async,
     extract_sync,
 )
-import pytest
 
 
 # ── Classe 1 — detect_method ─────────────────────────────────────
