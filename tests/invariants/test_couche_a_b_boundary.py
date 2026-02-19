@@ -5,9 +5,8 @@ ADR  : ADR-0002 §2.4
 REF  : §7 Constitution V3.3.2
 """
 import ast
-from pathlib import Path
-
 import pytest
+from pathlib import Path
 
 
 # Modules Couche B — interdits dans Couche A
@@ -60,7 +59,7 @@ def test_no_couche_b_import_in_couche_a():
                     continue
 
             for node in ast.walk(tree):
-                if isinstance(node, (ast.Import, ast.ImportFrom)):
+                if isinstance(node, ast.Import | ast.ImportFrom):
                     module = getattr(node, "module", "") or ""
                     names = [
                         alias.name
