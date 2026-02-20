@@ -173,4 +173,8 @@ class TestFSMTransitionsInvalides:
                 """
                 UPDATE extraction_jobs
                 SET status = 'pending'
-                WHERE id
+                WHERE id = %s
+            """,
+                (job_id,),
+            )
+
