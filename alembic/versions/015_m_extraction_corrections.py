@@ -45,10 +45,6 @@ def upgrade():
         END $$;
     """)
     op.execute("""
-        CREATE INDEX IF NOT EXISTS idx_extraction_corrections_document_id
-        ON extraction_corrections(document_id);
-    """)
-    op.execute("""
         CREATE INDEX IF NOT EXISTS idx_extraction_corrections_extraction_id
         ON extraction_corrections(extraction_id);
     """)
@@ -117,6 +113,7 @@ def upgrade():
 
 
 def downgrade():
+    op.execute("DROP INDEX IF EXISTS idx_extraction_corrections_document_id")
     op.execute("DROP VIEW IF EXISTS extraction_corrections_history")
     op.execute("DROP VIEW IF EXISTS structured_data_effective")
     op.execute("DROP TRIGGER IF EXISTS trg_extraction_corrections_append_only ON extraction_corrections")
