@@ -163,3 +163,63 @@ def run_migrations_before_db_integrity_tests():
     finally:
         conn.close()
     yield
+
+
+@pytest.fixture
+def extraction_correction_fixture(db_conn):
+    """Document + extraction + correction pour M-EXTRACTION-CORRECTIONS."""
+    doc_id = f"corr-fixture-{uuid.uuid4().hex[:8]}"
+    case_id = f"corr-case-{uuid.uuid4().hex[:8]}"
+    offer_id = f"corr-offer-{uuid.uuid4().hex[:8]}"
+    extraction_id = f"ext-{uuid.uuid4().hex[:12]}"
+    with db_conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO cases (id, case_type, title, created_at, status)
+            VALUES (%s, 'CORR_TEST', 'Fixture corrections', NOW()::TEXT, 'draft')
+            ON CONFLICT (id) DO NOTHING
+            """,
+            (case_id,),
+        )
+        cur.execute(
+            """
+            INSERT INTO offers (id, case_id, supplier_name, offer_type, submitted_at, created_at)
+            VALUES (%s, %s, 'Fixture', 'technical', NOW()::TEXT, NOW()::TEXT)
+            ON CONFLICT (id) DO NOTHING
+            """,
+            (offer_id, case_id),
+        )
+        cur.execute(
+            """
+            INSERT INTO documents (id, case_id, offer_id, filename, path, uploaded_at)
+            VALUES (%s, %s, %s, 'fixture.pdf', '/tmp/fixture.pdf', NOW()::TEXT)
+            ON CONFLICT (id) DO NOTHING
+            """,
+            (doc_id, case_id, offer_id),
+        )
+        cur.execute(
+            """
+            INSERT INTO extractions
+                (id, case_id, document_id, raw_text, structured_data,
+                 extraction_method, confidence_score, extracted_at,
+                 data_json, extraction_type, created_at)
+            VALUES (%s, %s, %s, '', '{}'::jsonb, 'native_pdf', 0.9, NOW(),
+                    '{}', 'native_pdf', NOW()::TEXT)
+            ON CONFLICT (id) DO NOTHING
+            """,
+            (extraction_id, case_id, doc_id),
+        )
+        cur.execute(
+            """
+            INSERT INTO extraction_corrections
+                (extraction_id, structured_data,
+                 confidence_override, correction_reason, corrected_by)
+            VALUES (%s, '{"corrected": true}'::jsonb, 0.95, 'test', 'fixture-user')
+            RETURNING id
+            """,
+            (extraction_id,),
+        )
+        row = cur.fetchone()
+        assert row is not None, "Failed to create correction fixture"
+        correction_id = str(row["id"])
+    yield (doc_id, extraction_id, correction_id)
