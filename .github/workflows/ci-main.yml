@@ -63,7 +63,7 @@ jobs:
               id            VARCHAR PRIMARY KEY DEFAULT gen_random_uuid()::text,
               document_id   VARCHAR NOT NULL REFERENCES documents(id),
               status        VARCHAR NOT NULL DEFAULT 'pending'
-                                CHECK (status IN ('pending','running','done','failed')),
+                                CHECK (status IN ('pending','running','processing','done','failed')),
               method        VARCHAR NOT NULL
                                 CHECK (method IN ('native_pdf','excel_parser','docx_parser','tesseract','azure')),
               sla_class     VARCHAR NOT NULL CHECK (sla_class IN ('A','B')),
@@ -92,6 +92,15 @@ jobs:
               structured_data  JSONB,
               confidence_score FLOAT,
               extracted_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+          CREATE TABLE IF NOT EXISTS extraction_corrections (
+              id                VARCHAR PRIMARY KEY DEFAULT gen_random_uuid()::text,
+              extraction_id     VARCHAR NOT NULL REFERENCES extractions(id),
+              structured_data   JSONB NOT NULL,
+              confidence_override FLOAT,
+              corrected_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+              corrected_by      VARCHAR NOT NULL,
+              correction_reason TEXT NOT NULL
           );
           EOF
           echo "=== Tables vérifiées ==="

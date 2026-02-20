@@ -298,7 +298,7 @@ class TestErreurse2e:
         with db_conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT error_code, error_detail, requires_human
+                SELECT error_code, error_message, requires_human_review
                 FROM extraction_errors
                 WHERE document_id = %s
                 ORDER BY created_at DESC
@@ -310,8 +310,8 @@ class TestErreurse2e:
 
         assert error is not None, "§9 : l'erreur doit être persistée en DB"
         assert error["error_code"] == "PARSE_ERROR"
-        assert "Parseur pdfplumber planté" in error["error_detail"]
-        assert error["requires_human"] is True
+        assert "Parseur pdfplumber planté" in error["error_message"]
+        assert error["requires_human_review"] is True
 
     def test_echec_extraction_status_failed(
         self, integration_client, test_doc_pdf, db_conn
