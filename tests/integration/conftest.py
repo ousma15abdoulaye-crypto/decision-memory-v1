@@ -7,6 +7,7 @@ Nettoyage automatique après chaque test.
 
 import logging
 import os
+import subprocess
 import uuid
 
 import psycopg
@@ -20,6 +21,26 @@ from src.api.main import app
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def run_migrations_before_integration_tests():
+    """
+    Garantit que toutes les migrations sont appliquées
+    avant les tests d'intégration.
+    """
+    result = subprocess.run(
+        ["alembic", "upgrade", "head"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        pytest.fail(
+            "Migrations Alembic échouées — tests impossibles.\n"
+            f"stderr: {result.stderr}\n"
+            f"stdout: {result.stdout}"
+        )
+    yield
 
 
 def _get_conn():

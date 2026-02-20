@@ -20,7 +20,28 @@ from src.db.connection import get_db_cursor
 
 logger = logging.getLogger(__name__)
 
-_DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+
+def _get_database_url() -> str:
+    """
+    Lit DATABASE_URL. Crash explicite si absent.
+    Constitution §9 : échec explicite > silence.
+    """
+    url = os.environ.get("DATABASE_URL")
+    if not url or not url.strip():
+        raise RuntimeError(
+            "DATABASE_URL manquant. "
+            "PostgreSQL requis — Constitution INV-4."
+        )
+    url = url.strip()
+    if "sqlite" in url.lower():
+        raise RuntimeError(
+            "SQLite interdit — Constitution INV-4. "
+            "Utiliser PostgreSQL uniquement."
+        )
+    return url
+
+
+_DATABASE_URL = _get_database_url()
 
 
 def _normalize_url(url: str) -> str:
