@@ -215,7 +215,7 @@ def create_user(
             raise HTTPException(409, "Email or username already exists")
 
         # Insérer utilisateur avec RETURNING pour PostgreSQL
-        result = conn.execute(
+        conn.execute(
             text("""
             INSERT INTO users (email, username, hashed_password, full_name, role_id, is_active, is_superuser, created_at)
             VALUES (:email, :username, :password, :name, :role, TRUE, FALSE, :ts)
@@ -230,11 +230,10 @@ def create_user(
                 "ts": timestamp,
             },
         )
-
-        row = result.fetchone()
+        row = conn.fetchone()
         if row is None:
             raise RuntimeError(f"create_user: INSERT vide pour {username}")
-        user_id = row[0]
+        user_id = row["id"] if isinstance(row, dict) else row[0]
         # Fetch the user data within the same transaction to avoid isolation issues
         return db_execute_one(
             conn,
