@@ -177,4 +177,3 @@ class TestFSMTransitionsInvalides:
             """,
                 (job_id,),
             )
-
