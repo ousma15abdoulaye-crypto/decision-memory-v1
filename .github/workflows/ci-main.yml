@@ -1,6 +1,3 @@
-Voici le workflow final complet — il ajoute --sql pour voir ce qu'Alembic génère, alembic current pour confirmer la révision atteinte, et un step SQL direct de sécurité qui crée les tables avant les tests indépendamment d'Alembic :
-
-text
 # V3.3.2 — CI principale (Python 3.11, Postgres 15, tests, lint) — gates dynamiques
 name: CI Main
 
