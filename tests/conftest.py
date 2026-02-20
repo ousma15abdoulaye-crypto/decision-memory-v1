@@ -38,6 +38,22 @@ if "DATABASE_URL" not in os.environ:
     raise RuntimeError("DATABASE_URL must be set in .env or environment")
 
 
+def _get_db_conn():
+    """Connexion DB autocommit — UN SEUL endroit (racine)."""
+    url = os.environ["DATABASE_URL"].replace("postgresql+psycopg://", "postgresql://")
+    conn = psycopg.connect(conninfo=url, row_factory=dict_row)
+    conn.autocommit = True
+    return conn
+
+
+@pytest.fixture
+def db_conn():
+    """Connexion DB autocommit — partagée par db_integrity, integration, invariants."""
+    conn = _get_db_conn()
+    yield conn
+    conn.close()
+
+
 @pytest.fixture
 def db_transaction():
     """Fixture pour tests DB-level avec rollback automatique.
