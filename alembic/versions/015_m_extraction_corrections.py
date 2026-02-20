@@ -19,12 +19,24 @@ def upgrade():
     # pgcrypto déjà en 012 — gen_random_uuid() disponible
     op.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")
 
+    # ── Aligner extraction_errors : error_detail→error_message, requires_human→requires_human_review ──
+    op.execute("""
+        DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='extraction_errors' AND column_name='error_detail') THEN
+                ALTER TABLE extraction_errors RENAME COLUMN error_detail TO error_message;
+            END IF;
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='extraction_errors' AND column_name='requires_human') THEN
+                ALTER TABLE extraction_errors RENAME COLUMN requires_human TO requires_human_review;
+            END IF;
+        END $$;
+    """)
+
     # ── Table extraction_corrections (append-only) ─────────────────────
     op.execute("""
         CREATE TABLE IF NOT EXISTS extraction_corrections (
             id                   VARCHAR PRIMARY KEY DEFAULT gen_random_uuid()::text,
             extraction_id         TEXT NOT NULL,
-            document_id           TEXT NOT NULL,
             structured_data       JSONB NOT NULL,
             confidence_override   REAL,
             correction_reason     TEXT,
@@ -41,6 +53,15 @@ def upgrade():
                 ALTER TABLE extraction_corrections
                 ADD CONSTRAINT extraction_corrections_extraction_id_fkey
                 FOREIGN KEY (extraction_id) REFERENCES extractions(id) ON DELETE CASCADE;
+            END IF;
+        END $$;
+    """)
+    # Supprimer document_id si présent (alignement safety net)
+    op.execute("""
+        DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='extraction_corrections' AND column_name='document_id') THEN
+                ALTER TABLE extraction_corrections DROP COLUMN document_id;
             END IF;
         END $$;
     """)

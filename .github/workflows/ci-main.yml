@@ -102,6 +102,27 @@ jobs:
               corrected_by      VARCHAR NOT NULL,
               correction_reason TEXT NOT NULL
           );
+          CREATE OR REPLACE FUNCTION enforce_extraction_job_fsm()
+          RETURNS TRIGGER AS $$
+          DECLARE
+              valid_transitions JSONB := '{"pending":["processing","failed"],"processing":["done","failed"],"done":[],"failed":["pending"]}'::jsonb;
+              allowed JSONB;
+          BEGIN
+              IF OLD.status = NEW.status THEN RETURN NEW; END IF;
+              allowed := valid_transitions -> OLD.status;
+              IF NOT (allowed @> to_jsonb(NEW.status)) THEN
+                  RAISE EXCEPTION 'Transition extraction_job invalide : % → % (Constitution §8)', OLD.status, NEW.status;
+              END IF;
+              IF NEW.status = 'processing' THEN NEW.started_at := NOW(); END IF;
+              IF NEW.status IN ('done','failed') THEN NEW.completed_at := NOW(); END IF;
+              RETURN NEW;
+          END;
+          $$ LANGUAGE plpgsql;
+          DROP TRIGGER IF EXISTS enforce_extraction_job_fsm_trigger ON extraction_jobs;
+          CREATE TRIGGER enforce_extraction_job_fsm_trigger
+          BEFORE UPDATE ON extraction_jobs
+          FOR EACH ROW WHEN (OLD.status IS DISTINCT FROM NEW.status)
+          EXECUTE FUNCTION enforce_extraction_job_fsm();
           EOF
           echo "=== Tables vérifiées ==="
           psql -h localhost -U postgres -d dmstest -c "\dt extraction*"

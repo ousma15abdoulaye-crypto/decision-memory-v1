@@ -215,12 +215,12 @@ def extraction_correction_fixture(db_conn):
         cur.execute(
             """
             INSERT INTO extraction_corrections
-                (extraction_id, document_id, structured_data,
+                (extraction_id, structured_data,
                  confidence_override, correction_reason, corrected_by)
-            VALUES (%s, %s, '{"corrected": true}'::jsonb, 0.95, 'test', 'fixture-user')
+            VALUES (%s, '{"corrected": true}'::jsonb, 0.95, 'test', 'fixture-user')
             RETURNING id
             """,
-            (extraction_id, doc_id),
+            (extraction_id,),
         )
         row = cur.fetchone()
         correction_id = str(row["id"]) if row else None
