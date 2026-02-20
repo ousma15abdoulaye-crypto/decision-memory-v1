@@ -167,6 +167,7 @@ def run_migrations_before_db_integrity_tests():
 
 # db_conn fourni par tests/conftest.py (racine)
 
+
 @pytest.fixture
 def extraction_correction_fixture(db_conn):
     """Document + extraction + correction pour M-EXTRACTION-CORRECTIONS."""
