@@ -170,7 +170,9 @@ class TestDoctrineEchec:
         def fake_update_status(doc_id, status):
             calls[f"status_{status}"] = True
 
-        def fake_store_extraction(doc_id, raw_text, structured, method, confidence, case_id=None):
+        def fake_store_extraction(
+            doc_id, raw_text, structured, method, confidence, case_id=None
+        ):
             calls["structured"] = structured
             calls["confidence"] = confidence
 

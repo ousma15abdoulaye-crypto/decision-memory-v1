@@ -16,6 +16,7 @@ from sqlalchemy import create_engine, text
 def _get_conn():
     try:
         from dotenv import load_dotenv
+
         load_dotenv()
     except ImportError:
         pass
@@ -49,20 +50,60 @@ def _ensure_base_schema():
     mod.upgrade(engine=engine)
     # Colonnes M-EXTRACTION-ENGINE (013) sur documents/extractions
     with engine.connect() as cx:
-        cx.execute(text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS mime_type TEXT"))
-        cx.execute(text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS storage_uri TEXT"))
-        cx.execute(text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS extraction_status TEXT DEFAULT 'pending'"))
-        cx.execute(text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS extraction_method TEXT"))
+        cx.execute(
+            text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS mime_type TEXT")
+        )
+        cx.execute(
+            text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS storage_uri TEXT")
+        )
+        cx.execute(
+            text(
+                "ALTER TABLE documents ADD COLUMN IF NOT EXISTS extraction_status TEXT DEFAULT 'pending'"
+            )
+        )
+        cx.execute(
+            text(
+                "ALTER TABLE documents ADD COLUMN IF NOT EXISTS extraction_method TEXT"
+            )
+        )
         # extractions (pour tests intégration)
-        cx.execute(text("ALTER TABLE extractions ALTER COLUMN artifact_id DROP NOT NULL"))
-        cx.execute(text("ALTER TABLE extractions ALTER COLUMN extraction_type DROP NOT NULL"))
-        cx.execute(text("ALTER TABLE extractions ADD COLUMN IF NOT EXISTS document_id TEXT"))
-        cx.execute(text("ALTER TABLE extractions ADD COLUMN IF NOT EXISTS raw_text TEXT"))
-        cx.execute(text("ALTER TABLE extractions ADD COLUMN IF NOT EXISTS structured_data JSONB"))
-        cx.execute(text("ALTER TABLE extractions ADD COLUMN IF NOT EXISTS extraction_method TEXT"))
-        cx.execute(text("ALTER TABLE extractions ADD COLUMN IF NOT EXISTS confidence_score REAL"))
-        cx.execute(text("ALTER TABLE extractions ADD COLUMN IF NOT EXISTS extracted_at TIMESTAMPTZ DEFAULT NOW()"))
-        cx.execute(text("CREATE INDEX IF NOT EXISTS idx_extractions_document_id ON extractions(document_id)"))
+        cx.execute(
+            text("ALTER TABLE extractions ALTER COLUMN artifact_id DROP NOT NULL")
+        )
+        cx.execute(
+            text("ALTER TABLE extractions ALTER COLUMN extraction_type DROP NOT NULL")
+        )
+        cx.execute(
+            text("ALTER TABLE extractions ADD COLUMN IF NOT EXISTS document_id TEXT")
+        )
+        cx.execute(
+            text("ALTER TABLE extractions ADD COLUMN IF NOT EXISTS raw_text TEXT")
+        )
+        cx.execute(
+            text(
+                "ALTER TABLE extractions ADD COLUMN IF NOT EXISTS structured_data JSONB"
+            )
+        )
+        cx.execute(
+            text(
+                "ALTER TABLE extractions ADD COLUMN IF NOT EXISTS extraction_method TEXT"
+            )
+        )
+        cx.execute(
+            text(
+                "ALTER TABLE extractions ADD COLUMN IF NOT EXISTS confidence_score REAL"
+            )
+        )
+        cx.execute(
+            text(
+                "ALTER TABLE extractions ADD COLUMN IF NOT EXISTS extracted_at TIMESTAMPTZ DEFAULT NOW()"
+            )
+        )
+        cx.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_extractions_document_id ON extractions(document_id)"
+            )
+        )
         cx.commit()
 
 

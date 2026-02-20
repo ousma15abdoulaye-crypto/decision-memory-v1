@@ -38,18 +38,42 @@ def _ensure_documents_extraction_columns():
                 return
         with conn.cursor() as cur:
             cur.execute("ALTER TABLE documents ADD COLUMN IF NOT EXISTS mime_type TEXT")
-            cur.execute("ALTER TABLE documents ADD COLUMN IF NOT EXISTS storage_uri TEXT")
-            cur.execute("ALTER TABLE documents ADD COLUMN IF NOT EXISTS extraction_status TEXT DEFAULT 'pending'")
-            cur.execute("ALTER TABLE documents ADD COLUMN IF NOT EXISTS extraction_method TEXT")
-            cur.execute("ALTER TABLE extractions ALTER COLUMN artifact_id DROP NOT NULL")
-            cur.execute("ALTER TABLE extractions ALTER COLUMN extraction_type DROP NOT NULL")
-            cur.execute("ALTER TABLE extractions ADD COLUMN IF NOT EXISTS document_id TEXT")
-            cur.execute("ALTER TABLE extractions ADD COLUMN IF NOT EXISTS raw_text TEXT")
-            cur.execute("ALTER TABLE extractions ADD COLUMN IF NOT EXISTS structured_data JSONB")
-            cur.execute("ALTER TABLE extractions ADD COLUMN IF NOT EXISTS extraction_method TEXT")
-            cur.execute("ALTER TABLE extractions ADD COLUMN IF NOT EXISTS confidence_score REAL")
-            cur.execute("ALTER TABLE extractions ADD COLUMN IF NOT EXISTS extracted_at TIMESTAMPTZ DEFAULT NOW()")
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_extractions_document_id ON extractions(document_id)")
+            cur.execute(
+                "ALTER TABLE documents ADD COLUMN IF NOT EXISTS storage_uri TEXT"
+            )
+            cur.execute(
+                "ALTER TABLE documents ADD COLUMN IF NOT EXISTS extraction_status TEXT DEFAULT 'pending'"
+            )
+            cur.execute(
+                "ALTER TABLE documents ADD COLUMN IF NOT EXISTS extraction_method TEXT"
+            )
+            cur.execute(
+                "ALTER TABLE extractions ALTER COLUMN artifact_id DROP NOT NULL"
+            )
+            cur.execute(
+                "ALTER TABLE extractions ALTER COLUMN extraction_type DROP NOT NULL"
+            )
+            cur.execute(
+                "ALTER TABLE extractions ADD COLUMN IF NOT EXISTS document_id TEXT"
+            )
+            cur.execute(
+                "ALTER TABLE extractions ADD COLUMN IF NOT EXISTS raw_text TEXT"
+            )
+            cur.execute(
+                "ALTER TABLE extractions ADD COLUMN IF NOT EXISTS structured_data JSONB"
+            )
+            cur.execute(
+                "ALTER TABLE extractions ADD COLUMN IF NOT EXISTS extraction_method TEXT"
+            )
+            cur.execute(
+                "ALTER TABLE extractions ADD COLUMN IF NOT EXISTS confidence_score REAL"
+            )
+            cur.execute(
+                "ALTER TABLE extractions ADD COLUMN IF NOT EXISTS extracted_at TIMESTAMPTZ DEFAULT NOW()"
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_extractions_document_id ON extractions(document_id)"
+            )
     except Exception as exc:
         logger.warning("Ensure columns ignoré : %s", exc)
     finally:
