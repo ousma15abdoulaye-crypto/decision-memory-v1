@@ -165,17 +165,7 @@ def run_migrations_before_db_integrity_tests():
     yield
 
 
-@pytest.fixture
-def db_conn():
-    """
-    Connexion DB autocommit — UN SEUL endroit (Action 1).
-    Utilisé par db_integrity, integration (via pytest_plugins), invariants.
-    """
-    conn = _get_conn()
-    conn.autocommit = True
-    yield conn
-    conn.close()
-
+# db_conn fourni par tests/conftest.py (racine)
 
 @pytest.fixture
 def extraction_correction_fixture(db_conn):
