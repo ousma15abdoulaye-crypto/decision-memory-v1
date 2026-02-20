@@ -85,6 +85,14 @@ jobs:
               requires_human_review BOOLEAN NOT NULL DEFAULT TRUE,
               created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
           );
+          CREATE TABLE IF NOT EXISTS extractions (
+              id               VARCHAR PRIMARY KEY DEFAULT gen_random_uuid()::text,
+              document_id      VARCHAR NOT NULL REFERENCES documents(id),
+              extraction_method VARCHAR NOT NULL,
+              structured_data  JSONB,
+              confidence_score FLOAT,
+              extracted_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
           EOF
           echo "=== Tables vérifiées ==="
           psql -h localhost -U postgres -d dmstest -c "\dt extraction*"
