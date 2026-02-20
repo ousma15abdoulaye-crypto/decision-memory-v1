@@ -1,6 +1,5 @@
 # src/extraction/engine.py
-"""
-ExtractionEngine — M-EXTRACTION-ENGINE
+"""ExtractionEngine — M-EXTRACTION-ENGINE
 Constitution V3.3.2 §1 (Couche A) + §9 (doctrine échec).
 ADR-0002 §2.5 (SLA deux classes).
 ADR-0003 §2.2 (ordre exécution).
@@ -11,8 +10,20 @@ SLA-B : tesseract / azure
         → asynchrone via extraction_jobs
 """
 
-import time
+from __future__ import annotations
 
+# stdlib
+import json
+import os
+import time
+import uuid
+
+# third-party
+import openpyxl  # type: ignore
+import pdfplumber  # type: ignore
+from docx import Document  # type: ignore
+
+# local
 from src.db.connection import get_db_cursor
 
 # ── Constantes ───────────────────────────────────────────────────
@@ -69,7 +80,7 @@ def detect_method(mime_type: str, file_content: bytes) -> str:
 # ── Helpers privés ───────────────────────────────────────────────
 
 
-def _get_document(document_id: str) -> dict:
+def get_document(document_id: str) -> dict:
     """
     Charge un document depuis la DB.
     §9 : raise ValueError si introuvable.
@@ -124,21 +135,32 @@ def _compute_confidence(
     return 0.85
 
 
+def _validate_storage_uri(storage_uri: str) -> str:
+    """Vérifie existence et chemin dans zone autorisée."""
+    if not os.path.exists(storage_uri):
+        raise FileNotFoundError(f"Document introuvable : {storage_uri}")
+    real_uri = os.path.realpath(storage_uri)
+    allowed_base = os.environ.get("STORAGE_BASE_PATH", "/tmp")
+    real_base = os.path.realpath(allowed_base)
+    if not real_uri.startswith(real_base):
+        raise PermissionError(f"Chemin hors zone autorisée : {storage_uri}")
+    return real_uri
+
+
 def _store_extraction(
     document_id: str,
     raw_text: str,
     structured_data: dict,
     method: str,
     confidence: float,
+    case_id: str | None = None,
 ) -> None:
     """Persiste le résultat d'extraction en DB."""
-    import json
-    import uuid
+    if case_id is None:
+        doc = get_document(document_id)
+        case_id = doc.get("case_id")
 
     extraction_id = f"ext-{uuid.uuid4().hex[:12]}"
-    # Récupérer case_id depuis le document
-    doc = _get_document(document_id)
-    case_id = doc.get("case_id")
 
     with get_db_cursor() as cur:
         structured_json = json.dumps(structured_data)
@@ -191,8 +213,7 @@ def _store_error(
 
 def _extract_native_pdf(storage_uri: str) -> tuple[str, dict]:
     """Extraction PDF natif via pdfplumber."""
-    import pdfplumber  # type: ignore
-
+    _validate_storage_uri(storage_uri)
     raw_text = ""
     with pdfplumber.open(storage_uri) as pdf:
         for page in pdf.pages:
@@ -203,23 +224,23 @@ def _extract_native_pdf(storage_uri: str) -> tuple[str, dict]:
 
 def _extract_excel(storage_uri: str) -> tuple[str, dict]:
     """Extraction XLSX via openpyxl."""
-    import openpyxl  # type: ignore
-
+    _validate_storage_uri(storage_uri)
     wb = openpyxl.load_workbook(storage_uri, data_only=True)
-    raw_text = ""
-    for sheet in wb.worksheets:
-        for row in sheet.iter_rows(values_only=True):
-            row_text = " ".join(str(c) for c in row if c is not None)
-            if row_text.strip():
-                raw_text += row_text + "\n"
-
-    return raw_text, dict(STRUCTURED_DATA_EMPTY)
+    try:
+        raw_text = ""
+        for sheet in wb.worksheets:
+            for row in sheet.iter_rows(values_only=True):
+                row_text = " ".join(str(c) for c in row if c is not None)
+                if row_text.strip():
+                    raw_text += row_text + "\n"
+        return raw_text, dict(STRUCTURED_DATA_EMPTY)
+    finally:
+        wb.close()
 
 
 def _extract_docx(storage_uri: str) -> tuple[str, dict]:
     """Extraction DOCX via python-docx."""
-    from docx import Document  # type: ignore
-
+    _validate_storage_uri(storage_uri)
     doc = Document(storage_uri)
     raw_text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
     return raw_text, dict(STRUCTURED_DATA_EMPTY)
@@ -252,7 +273,7 @@ def extract_sync(document_id: str) -> dict:
     """
     start_ms = time.monotonic() * 1000
 
-    doc = _get_document(document_id)
+    doc = get_document(document_id)
     method = doc.get("extraction_method") or "native_pdf"
 
     if method not in SLA_A_METHODS:
@@ -296,6 +317,7 @@ def extract_sync(document_id: str) -> dict:
             structured_data,
             method,
             confidence,
+            case_id=doc.get("case_id"),
         )
         _update_document_status(document_id, "done")
 

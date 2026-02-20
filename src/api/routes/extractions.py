@@ -14,9 +14,9 @@ from src.db.connection import get_db_cursor
 from src.extraction.engine import (
     SLA_A_METHODS,
     SLA_B_METHODS,
-    _get_document,
     extract_async,
     extract_sync,
+    get_document,
 )
 
 router = APIRouter(
@@ -84,7 +84,7 @@ def trigger_extraction(document_id: str) -> ExtractionResponse:
     """
     # §9 : document inconnu → 404 explicite
     try:
-        doc = _get_document(document_id)
+        doc = get_document(document_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 

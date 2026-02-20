@@ -5,6 +5,7 @@ Données réelles en DB de test.
 Nettoyage automatique après chaque test.
 """
 
+import logging
 import os
 import uuid
 
@@ -17,6 +18,8 @@ from fastapi.testclient import TestClient
 from src.api.main import app
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 def _get_conn():
@@ -76,8 +79,12 @@ def test_case_id(db_conn):
                 ")",
                 (case_id,),
             )
-        except Exception:
-            pass  # Ignore permission errors
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Cleanup extraction_errors ignoré : %s "
+                "(acceptable en test — table peut ne pas exister)",
+                exc,
+            )
         try:
             cur.execute(
                 "DELETE FROM extraction_jobs "
@@ -86,8 +93,12 @@ def test_case_id(db_conn):
                 ")",
                 (case_id,),
             )
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Cleanup extraction_jobs ignoré : %s "
+                "(acceptable en test — table peut ne pas exister)",
+                exc,
+            )
         try:
             cur.execute(
                 "DELETE FROM extractions "
@@ -96,16 +107,28 @@ def test_case_id(db_conn):
                 ")",
                 (case_id,),
             )
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Cleanup extractions ignoré : %s "
+                "(acceptable en test — table peut ne pas exister)",
+                exc,
+            )
         try:
             cur.execute("DELETE FROM documents WHERE case_id = %s", (case_id,))
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Cleanup documents ignoré : %s "
+                "(acceptable en test — table peut ne pas exister)",
+                exc,
+            )
         try:
             cur.execute("DELETE FROM cases WHERE id = %s", (case_id,))
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Cleanup cases ignoré : %s "
+                "(acceptable en test — table peut ne pas exister)",
+                exc,
+            )
 
 
 @pytest.fixture

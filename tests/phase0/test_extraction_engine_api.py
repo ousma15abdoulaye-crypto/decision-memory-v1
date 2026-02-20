@@ -102,7 +102,7 @@ class TestTriggerExtractionSLAA:
         """PDF natif → 202 + status done + sla_class A."""
         with (
             patch(
-                "src.api.routes.extractions._get_document",
+                "src.api.routes.extractions.get_document",
                 return_value=FAKE_DOC_PDF,
             ),
             patch(
@@ -124,7 +124,7 @@ class TestTriggerExtractionSLAA:
         """SLA-A : duration_ms < 60000 dans la réponse."""
         with (
             patch(
-                "src.api.routes.extractions._get_document",
+                "src.api.routes.extractions.get_document",
                 return_value=FAKE_DOC_PDF,
             ),
             patch(
@@ -143,7 +143,7 @@ class TestTriggerExtractionSLAA:
         """SLA-A TimeoutError → 504."""
         with (
             patch(
-                "src.api.routes.extractions._get_document",
+                "src.api.routes.extractions.get_document",
                 return_value=FAKE_DOC_PDF,
             ),
             patch(
@@ -169,7 +169,7 @@ class TestTriggerExtractionSLAB:
         """Scan OCR → 202 + status pending + job_id."""
         with (
             patch(
-                "src.api.routes.extractions._get_document",
+                "src.api.routes.extractions.get_document",
                 return_value=FAKE_DOC_SCAN,
             ),
             patch(
@@ -191,7 +191,7 @@ class TestTriggerExtractionSLAB:
         """SLA-B : job_id non null dans la réponse."""
         with (
             patch(
-                "src.api.routes.extractions._get_document",
+                "src.api.routes.extractions.get_document",
                 return_value=FAKE_DOC_SCAN,
             ),
             patch(
@@ -216,7 +216,7 @@ class TestErreurs:
     def test_document_inconnu_returns_404(self):
         """Document inexistant → 404 avec message explicite."""
         with patch(
-            "src.api.routes.extractions._get_document",
+            "src.api.routes.extractions.get_document",
             side_effect=ValueError("Document 'xyz' introuvable."),
         ):
             response = client.post("/api/extractions/documents/xyz/extract")
@@ -227,7 +227,7 @@ class TestErreurs:
     def test_document_deja_extrait_returns_409(self):
         """Document déjà extrait → 409 Conflict."""
         with patch(
-            "src.api.routes.extractions._get_document",
+            "src.api.routes.extractions.get_document",
             return_value=FAKE_DOC_DONE,
         ):
             response = client.post(
@@ -241,7 +241,7 @@ class TestErreurs:
         """Exception interne → 500 avec message."""
         with (
             patch(
-                "src.api.routes.extractions._get_document",
+                "src.api.routes.extractions.get_document",
                 return_value=FAKE_DOC_PDF,
             ),
             patch(

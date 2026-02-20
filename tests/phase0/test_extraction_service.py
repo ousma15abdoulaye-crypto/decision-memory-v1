@@ -78,7 +78,7 @@ class TestSLAValidation:
 
         import src.extraction.engine as eng
 
-        monkeypatch.setattr(eng, "_get_document", fake_get_doc)
+        monkeypatch.setattr(eng, "get_document", fake_get_doc)
 
         with pytest.raises(ValueError) as exc:
             extract_sync("doc-test-001")
@@ -174,7 +174,7 @@ class TestDoctrineEchec:
             calls["structured"] = structured
             calls["confidence"] = confidence
 
-        monkeypatch.setattr(eng, "_get_document", fake_get_doc)
+        monkeypatch.setattr(eng, "get_document", fake_get_doc)
         monkeypatch.setattr(eng, "_dispatch_extraction", fake_dispatch)
         monkeypatch.setattr(eng, "_update_document_status", fake_update_status)
         monkeypatch.setattr(eng, "_store_extraction", fake_store_extraction)
@@ -218,7 +218,7 @@ class TestDoctrineEchec:
                 }
             )
 
-        monkeypatch.setattr(eng, "_get_document", fake_get_doc)
+        monkeypatch.setattr(eng, "get_document", fake_get_doc)
         monkeypatch.setattr(eng, "_dispatch_extraction", fake_dispatch)
         monkeypatch.setattr(eng, "_update_document_status", fake_update_status)
         monkeypatch.setattr(eng, "_store_error", fake_store_error)

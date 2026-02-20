@@ -7,8 +7,6 @@ Create Date: 2026-02-19
 M-EXTRACTION-ENGINE — Colonnes manquantes pour documents et extractions.
 """
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB
 
 revision = "013_m_extraction_docs"
 down_revision = "012_m_extraction_engine"
@@ -69,11 +67,29 @@ def upgrade():
 
 
 def downgrade():
+    # Supprimer index
     op.execute("DROP INDEX IF EXISTS idx_extractions_document_id")
+    # Colonnes ajoutées à extractions
+    op.execute("""
+        ALTER TABLE extractions
+        DROP COLUMN IF EXISTS document_id,
+        DROP COLUMN IF EXISTS raw_text,
+        DROP COLUMN IF EXISTS structured_data,
+        DROP COLUMN IF EXISTS extraction_method,
+        DROP COLUMN IF EXISTS confidence_score,
+        DROP COLUMN IF EXISTS extracted_at;
+    """)
+    # Colonnes ajoutées à documents
     op.execute("""
         ALTER TABLE documents
         DROP COLUMN IF EXISTS mime_type,
         DROP COLUMN IF EXISTS storage_uri,
         DROP COLUMN IF EXISTS extraction_status,
         DROP COLUMN IF EXISTS extraction_method;
+    """)
+    # Restaurer NOT NULL sur artifact_id et extraction_type
+    op.execute("""
+        ALTER TABLE extractions
+        ALTER COLUMN artifact_id SET NOT NULL,
+        ALTER COLUMN extraction_type SET NOT NULL
     """)

@@ -1,0 +1,13 @@
+# M-DOCS-CORE — Milestone DONE
+
+**Date complétion :** 2026-02-19  
+**PR :** #83 (mergée)  
+**Commit :** 29b5120  
+**Référence :** ADR-0004 §2 — Phase 0 corrigée
+
+**Livrables :**
+- ✅ `docs/ARCHITECTURE.md` — Architecture complète V3.3.2
+- ✅ `docs/GLOSSAIRE.md` — Glossaire des termes DMS
+- ✅ `docs/CONTRIBUTING.md` — Guide de contribution
+
+**Statut :** ✅ COMPLÉTÉ avant création ADR-0004, maintenant documenté dans séquence Phase 0

@@ -48,7 +48,9 @@ class _ConnectionWrapper:
 
     def execute(self, sql: str, params: dict[str, Any] | None = None) -> None:
         p = params or {}
-        self._cur.execute(_sql_to_psycopg_style(sql, p), p)
+        # Accept SQLAlchemy text() clause from callers (e.g. scoring engine)
+        sql_str = str(sql) if not isinstance(sql, str) else sql
+        self._cur.execute(_sql_to_psycopg_style(sql_str, p), p)
 
     def fetchone(self) -> dict[str, Any] | None:
         row = self._cur.fetchone()
