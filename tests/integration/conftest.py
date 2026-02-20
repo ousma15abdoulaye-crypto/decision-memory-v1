@@ -20,7 +20,7 @@ from fastapi.testclient import TestClient
 
 from src.api.main import app
 
-pytest_plugins = ["tests.db_integrity.conftest"]
+# db_conn chargé via pytest_plugins dans tests/conftest.py (racine)
 
 load_dotenv()
 

@@ -38,7 +38,8 @@ if "DATABASE_URL" not in os.environ:
     raise RuntimeError("DATABASE_URL must be set in .env or environment")
 
 # db_conn : UN SEUL endroit — tests/db_integrity/conftest.py
-# (integration/invariants utilisent pytest_plugins pour le charger)
+# Doit être en conftest racine (pytest_plugins interdit dans conftest non-top-level)
+pytest_plugins = ["tests.db_integrity.conftest"]
 
 
 @pytest.fixture
