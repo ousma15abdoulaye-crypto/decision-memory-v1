@@ -29,12 +29,12 @@ def upgrade():
     op.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")
 
     # ── Table extraction_jobs (queue OCR asynchrone SLA-B) ──────
+    # FK documents(id) reportée en 013 : 002 peut ne pas avoir créé documents si migration partielle
     op.execute("""
         CREATE TABLE IF NOT EXISTS extraction_jobs (
             id              UUID PRIMARY KEY
                                 DEFAULT gen_random_uuid(),
-            document_id     TEXT NOT NULL
-                                REFERENCES documents(id),
+            document_id     TEXT NOT NULL,
             status          VARCHAR NOT NULL DEFAULT 'pending'
                                 CHECK (status IN (
                                     'pending',
@@ -64,12 +64,12 @@ def upgrade():
     """)
 
     # ── Table extraction_errors (§9 doctrine échec explicite) ───
+    # FK documents(id) reportée en 013 : idem extraction_jobs
     op.execute("""
         CREATE TABLE IF NOT EXISTS extraction_errors (
             id              UUID PRIMARY KEY
                                 DEFAULT gen_random_uuid(),
-            document_id     TEXT NOT NULL
-                                REFERENCES documents(id),
+            document_id     TEXT NOT NULL,
             job_id          UUID
                                 REFERENCES extraction_jobs(id),
             error_code      VARCHAR NOT NULL
@@ -149,6 +149,7 @@ def upgrade():
         END;
         $$ LANGUAGE plpgsql;
 
+        DROP TRIGGER IF EXISTS enforce_extraction_job_fsm_trigger ON extraction_jobs;
         CREATE TRIGGER enforce_extraction_job_fsm_trigger
         BEFORE UPDATE ON extraction_jobs
         FOR EACH ROW

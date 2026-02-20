@@ -1,4 +1,4 @@
-"""Add supplier_scores and supplier_eliminations for M3B engine.
+﻿"""Add supplier_scores and supplier_eliminations for M3B engine.
 
 Revision ID: 009_supplier_scores_eliminations
 Revises: 008_merge_heads
@@ -18,6 +18,7 @@ except ImportError:
     op = None
 
 revision = "009_supplier_scores_eliminations"
+down_revision = "008_merge_heads"
 down_revision = "008_merge_heads"
 branch_labels = None
 depends_on = None
@@ -81,3 +82,4 @@ def downgrade(engine: Optional[Engine] = None) -> None:
     _execute_sql(bind, "DROP TABLE IF EXISTS supplier_scores CASCADE")
     _execute_sql(bind, "DROP INDEX IF EXISTS idx_supplier_eliminations_case")
     _execute_sql(bind, "DROP INDEX IF EXISTS idx_supplier_scores_case")
+
