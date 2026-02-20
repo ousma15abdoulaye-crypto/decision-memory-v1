@@ -22,6 +22,10 @@ def get_db_cursor():
     Rollback automatique si exception.
     """
     database_url = os.environ.get("DATABASE_URL", "")
+    if not database_url or not database_url.strip():
+        raise RuntimeError("DATABASE_URL manquant.")
+    if "sqlite" in database_url.lower():
+        raise RuntimeError("SQLite interdit — PostgreSQL uniquement.")
     # psycopg v3 : retirer le préfixe +psycopg si présent
     database_url = database_url.replace("postgresql+psycopg://", "postgresql://")
 

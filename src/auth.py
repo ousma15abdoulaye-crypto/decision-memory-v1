@@ -231,7 +231,10 @@ def create_user(
             },
         )
 
-        user_id = result.fetchone()[0]
+        row = result.fetchone()
+        if row is None:
+            raise RuntimeError(f"create_user: INSERT vide pour {username}")
+        user_id = row[0]
         # Fetch the user data within the same transaction to avoid isolation issues
         return db_execute_one(
             conn,
