@@ -1,0 +1,15 @@
+# M-SCHEMA-CORE — Milestone DONE
+
+**Date complétion :** 2026-02-19  
+**PR :** #84 (mergée)  
+**Commit :** e1ab995  
+**Migration :** `alembic/versions/011_add_missing_schema.py`  
+**Documentation :** `docs/SCHEMA.md`
+
+**Référence :** ADR-0004 §2 — Phase 0 corrigée
+
+**Livrables :**
+- ✅ Migration Alembic créant tables `dictionary` et `market_data`
+- ✅ Documentation schéma DB complète
+
+**Exception documentée :** Nommage migration 011 non conforme ADR-0003 §3.2 (voir ADR-0004 §4)

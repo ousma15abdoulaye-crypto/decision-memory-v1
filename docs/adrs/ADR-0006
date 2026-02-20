@@ -1,0 +1,1410 @@
+# ADR-0006 — Append-Only Global + Modèle d’État Cohérent (FINAL FREEZE — CTO-Grade)
+
+**Identifiant** : ADR-0006  
+**Statut** : **FROZEN ✅**  
+**Date freeze** : 2026-02-20  
+**Auteur** : Abdoulaye Ousmane (Founder & CTO)  
+**Constitution** : V3.3.2 (canonique, frozen)  
+**Précédents** : ADR-0001 · ADR-0002 · ADR-0003 · ADR-0004 · ADR-0005  
+**Objet** : Append-only global + modèle d’état par événements  
+→ vues `current_*` / `effective_*` → **zéro UPDATE métier**  
+**Fichier** : `docs/adrs/ADR-0006.md`  
+**Freeze tag** : `v3.3.2-adr0006-frozen`  
+**Intégrations** : Audit Senior + Review ChatGPT + Errata CTO (présent document)
+
+---
+
+## 0. Évaluation de la review ChatGPT (intégrée)
+
+**Verdict** : 4 ajouts légitimes, 0 contradiction avec la version audit senior.
+
+| Critique / Suggestion | Verdict | Action |
+|---|---:|---|
+| FSM **DB-level** pour `case_events` et `offer_events` (pas seulement `document_events`) | ✅ Juste | Intégré §3 |
+| Vue `current_document_state` (status + payload complet) | ✅ Utile | Intégré §3 |
+| Gates CI : vérifier **triggers FSM** en plus des triggers append-only | ✅ Juste | Intégré §6 |
+| Tests DB-level “avocat-proof” : prouver UPDATE/DELETE **réellement bloqués** | ✅ Essentiel | Intégré §6 |
+| Renumérotation CBA → ADR-0008 | ✅ Correct | Acté §10 |
+| `ORDER BY created_at DESC, id DESC` uniforme dans toutes les vues | ✅ Robustesse | Intégré §3 |
+| Double verrou Python + DB (documenté et opposable) | ✅ Canonique | Intégré §4 |
+
+---
+
+## 1. Règle universelle (opposable : tout agent, tout humain, toute opération)
+
+### RÈGLE ADR-0006 — INV-9 OPÉRATIONNALISÉ
+
+1. Toute modification d’état ou de données métier = **INSERT append-only** dans :
+   - `*_events` (changements d’état / actions)
+   - `*_corrections` (corrections métier sans mutation de l’original)
+
+2. L’état courant = **vue canonique** :
+   - `current_*` (dernier événement par entité)
+   - `effective_*` (original + dernière correction)
+
+3. L’API lit **TOUJOURS** via ces vues — jamais `SELECT status FROM cases`.
+
+4. `UPDATE` direct sur table métier = **INTERDIT**
+   → **bloqué DB-level** par trigger (pas seulement en Python)
+
+5. `DELETE` sur table métier = **INTERDIT**
+   → **bloqué DB-level** par trigger
+
+6. Soft-delete **uniquement** via événement (`cancelled`, `archived`)  
+   → jamais de `DELETE` physique
+
+7. FSM **validée en DB** (trigger `BEFORE INSERT` sur `*_events`) **ET** en Python (`state_machine.py`)  
+   → **double verrou obligatoire** (ni l’un ni l’autre seul ne suffit)
+
+---
+
+## 2. Machines à états (FSM)
+
+### 2.1 `cases` — FSM
+
+
+created ──► opened ──► evaluation_started ──► closed (terminal)
+│ │ │
+└───────────┴───────────────┴──► cancelled (terminal)
+
+
+Transitions valides :
+- `created` → `opened` | `cancelled`
+- `opened` → `evaluation_started` | `cancelled`
+- `evaluation_started` → `closed` | `cancelled`
+- `closed` → (aucune)
+- `cancelled` → (aucune)
+
+Événements non-status (traçage, sans changer le “statut métier”) :
+- `metadata_updated`
+- `collaborator_added`
+
+Règles :
+- `reason` obligatoire pour `cancelled`
+- FSM validée DB (`trg_case_fsm`) + Python (`state_machine.py`)
+
+---
+
+### 2.2 `documents` — FSM
+
+
+uploaded ──► processing_started ──► extracted ──► archived (terminal)
+│ │
+└───────────────┴──► extraction_failed ──► retry_queued ──► processing_started
+
+
+Transitions valides :
+- (init) → `uploaded`
+- `uploaded` → `processing_started` | `extraction_failed`
+- `processing_started` → `extracted` | `extraction_failed`
+- `extraction_failed` → `retry_queued`
+- `retry_queued` → `processing_started`
+- `extracted` → `archived`
+- `archived` → (aucune)
+
+FSM validée DB (`trg_document_fsm`) + Python
+
+---
+
+### 2.3 `offers` — FSM
+
+
+submitted ─► review_started ─► technically_compliant ─► financially_evaluated ─► ranked (terminal)
+│ │ │
+└───────────────────┴───────────────────────┴──► eliminated (terminal)
+
+
+Transitions valides :
+- (init) → `submitted`
+- `submitted` → `review_started`
+- `review_started` → `technically_compliant` | `eliminated`
+- `technically_compliant` → `financially_evaluated` | `eliminated`
+- `financially_evaluated` → `ranked` | `eliminated`
+- `eliminated` → (aucune)
+- `ranked` → (aucune)
+
+Règles :
+- `reason` obligatoire pour `eliminated`
+- FSM validée DB (`trg_offer_fsm`) + Python
+
+---
+
+## 3. Migration 016 — complète et inattaquable (DB-level)
+
+**Fichier** : `alembic/versions/016_m_appendonly_global.py`
+
+> Objectif : créer `*_events`, FSM DB-level, triggers append-only, vues `current_*`/`effective_*`,
+> et triggers “no UPDATE/DELETE” sur tables métier.  
+> **Invariant** : toute mutation métier est impossible via SQL direct.
+
+```python
+# alembic/versions/016_m_appendonly_global.py
+"""
+ADR-0006 : Append-only global.
+Crée *_events, FSM DB-level, triggers bloquants, vues current_* / effective_*.
+Constitution V3.3.2 — INV-9.
+"""
+from alembic import op
+
+revision = "016"
+down_revision = "015"
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    """
+    Ordre strict :
+      1) Tables *_events + indexes
+      2) Fonctions FSM (validate_*_fsm)
+      3) Triggers FSM (BEFORE INSERT sur *_events)
+      4) Fonctions append-only *_events
+      5) Triggers append-only sur *_events (BEFORE UPDATE/DELETE)
+      6) Vues current_* / effective_* (ORDER BY created_at DESC, id DESC uniforme)
+      7) Fonctions no-UPDATE/DELETE sur tables métier
+      8) Triggers no-UPDATE/DELETE sur tables métier
+    """
+
+    # ═══════════════════════════════════════════════════════════
+    # 1) TABLES ÉVÉNEMENTS + INDEXES
+    # ═══════════════════════════════════════════════════════════
+
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS case_events (
+            id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            case_id     UUID NOT NULL REFERENCES cases(id),
+            event_type  VARCHAR(50) NOT NULL
+                        CHECK (event_type IN (
+                            'created', 'opened', 'evaluation_started',
+                            'closed', 'cancelled',
+                            'metadata_updated', 'collaborator_added'
+                        )),
+            payload     JSONB NOT NULL DEFAULT '{}'::jsonb,
+            created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+            created_by  UUID NOT NULL REFERENCES users(id),
+            reason      TEXT
+        );
+    """)
+    op.execute("""
+        CREATE INDEX IF NOT EXISTS ix_case_events_case_created
+        ON case_events (case_id, created_at DESC, id DESC);
+    """)
+
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS document_events (
+            id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            document_id  UUID NOT NULL REFERENCES documents(id),
+            event_type   VARCHAR(50) NOT NULL
+                         CHECK (event_type IN (
+                             'uploaded', 'processing_started',
+                             'extracted', 'extraction_failed',
+                             'archived', 'retry_queued'
+                         )),
+            payload      JSONB NOT NULL DEFAULT '{}'::jsonb,
+            created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+            created_by   UUID NOT NULL REFERENCES users(id)
+        );
+    """)
+    op.execute("""
+        CREATE INDEX IF NOT EXISTS ix_document_events_doc_created
+        ON document_events (document_id, created_at DESC, id DESC);
+    """)
+
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS offer_events (
+            id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            offer_id    UUID NOT NULL REFERENCES offers(id),
+            event_type  VARCHAR(60) NOT NULL
+                        CHECK (event_type IN (
+                            'submitted', 'review_started',
+                            'technically_compliant', 'eliminated',
+                            'financially_evaluated', 'ranked'
+                        )),
+            payload     JSONB NOT NULL DEFAULT '{}'::jsonb,
+            created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+            created_by  UUID NOT NULL REFERENCES users(id),
+            reason      TEXT,
+            CONSTRAINT offer_elimination_reason
+                CHECK (
+                    event_type != 'eliminated'
+                    OR (reason IS NOT NULL AND trim(reason) != '')
+                )
+        );
+    """)
+    op.execute("""
+        CREATE INDEX IF NOT EXISTS ix_offer_events_offer_created
+        ON offer_events (offer_id, created_at DESC, id DESC);
+    """)
+
+    # ═══════════════════════════════════════════════════════════
+    # 2) + 3) FSM DB-LEVEL — validate_*_fsm() + triggers BEFORE INSERT
+    # ═══════════════════════════════════════════════════════════
+
+    # CASES FSM
+    op.execute("""
+        CREATE OR REPLACE FUNCTION validate_case_fsm()
+        RETURNS TRIGGER AS $$
+        DECLARE
+            last_event VARCHAR(50);
+        BEGIN
+            SELECT event_type INTO last_event
+            FROM case_events
+            WHERE case_id = NEW.case_id
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1;
+
+            -- reason obligatoire pour cancelled
+            IF NEW.event_type = 'cancelled'
+               AND (NEW.reason IS NULL OR trim(NEW.reason) = '') THEN
+                RAISE EXCEPTION
+                    'VIOLATION INV-9 [table=case_events op=INSERT] : reason obligatoire pour cancelled. Constitution V3.3.2.';
+            END IF;
+
+            -- états terminaux : closed, cancelled
+            IF last_event IN ('closed', 'cancelled') THEN
+                RAISE EXCEPTION
+                    'VIOLATION INV-9 [table=case_events op=INSERT] : état terminal (%). Aucune transition autorisée. Constitution V3.3.2.',
+                    last_event;
+            END IF;
+
+            -- transitions status
+            IF NOT (
+                (last_event IS NULL AND NEW.event_type = 'created')
+             OR (last_event = 'created' AND NEW.event_type IN ('opened', 'cancelled', 'metadata_updated', 'collaborator_added'))
+             OR (last_event = 'opened' AND NEW.event_type IN ('evaluation_started', 'cancelled', 'metadata_updated', 'collaborator_added'))
+             OR (last_event = 'evaluation_started' AND NEW.event_type IN ('closed', 'cancelled', 'metadata_updated', 'collaborator_added'))
+            ) THEN
+                RAISE EXCEPTION
+                    'VIOLATION INV-9 [table=case_events op=INSERT] : transition % -> % interdite. Constitution V3.3.2.',
+                    COALESCE(last_event, 'NULL'), NEW.event_type;
+            END IF;
+
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+
+        DROP TRIGGER IF EXISTS trg_case_fsm ON case_events;
+        CREATE TRIGGER trg_case_fsm
+        BEFORE INSERT ON case_events
+        FOR EACH ROW EXECUTE FUNCTION validate_case_fsm();
+    """)
+
+    # DOCUMENTS FSM
+    op.execute("""
+        CREATE OR REPLACE FUNCTION validate_document_fsm()
+        RETURNS TRIGGER AS $$
+        DECLARE
+            last_event VARCHAR(50);
+        BEGIN
+            SELECT event_type INTO last_event
+            FROM document_events
+            WHERE document_id = NEW.document_id
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1;
+
+            -- état terminal : archived
+            IF last_event = 'archived' THEN
+                RAISE EXCEPTION
+                    'VIOLATION INV-9 [table=document_events op=INSERT] : état terminal (archived). Aucune transition autorisée. Constitution V3.3.2.';
+            END IF;
+
+            IF NOT (
+                (last_event IS NULL AND NEW.event_type = 'uploaded')
+             OR (last_event = 'uploaded' AND NEW.event_type IN ('processing_started', 'extraction_failed'))
+             OR (last_event = 'processing_started' AND NEW.event_type IN ('extracted', 'extraction_failed'))
+             OR (last_event = 'extraction_failed' AND NEW.event_type = 'retry_queued')
+             OR (last_event = 'retry_queued' AND NEW.event_type = 'processing_started')
+             OR (last_event = 'extracted' AND NEW.event_type = 'archived')
+            ) THEN
+                RAISE EXCEPTION
+                    'VIOLATION INV-9 [table=document_events op=INSERT] : transition % -> % interdite. Constitution V3.3.2.',
+                    COALESCE(last_event, 'NULL'), NEW.event_type;
+            END IF;
+
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+
+        DROP TRIGGER IF EXISTS trg_document_fsm ON document_events;
+        CREATE TRIGGER trg_document_fsm
+        BEFORE INSERT ON document_events
+        FOR EACH ROW EXECUTE FUNCTION validate_document_fsm();
+    """)
+
+    # OFFERS FSM
+    op.execute("""
+        CREATE OR REPLACE FUNCTION validate_offer_fsm()
+        RETURNS TRIGGER AS $$
+        DECLARE
+            last_event VARCHAR(60);
+        BEGIN
+            SELECT event_type INTO last_event
+            FROM offer_events
+            WHERE offer_id = NEW.offer_id
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1;
+
+            -- reason obligatoire pour eliminated
+            IF NEW.event_type = 'eliminated'
+               AND (NEW.reason IS NULL OR trim(NEW.reason) = '') THEN
+                RAISE EXCEPTION
+                    'VIOLATION INV-9 [table=offer_events op=INSERT] : reason obligatoire pour eliminated. Constitution V3.3.2.';
+            END IF;
+
+            -- états terminaux : eliminated, ranked
+            IF last_event IN ('eliminated', 'ranked') THEN
+                RAISE EXCEPTION
+                    'VIOLATION INV-9 [table=offer_events op=INSERT] : état terminal (%). Aucune transition autorisée. Constitution V3.3.2.',
+                    last_event;
+            END IF;
+
+            IF NOT (
+                (last_event IS NULL AND NEW.event_type = 'submitted')
+             OR (last_event = 'submitted' AND NEW.event_type = 'review_started')
+             OR (last_event = 'review_started' AND NEW.event_type IN ('technically_compliant', 'eliminated'))
+             OR (last_event = 'technically_compliant' AND NEW.event_type IN ('financially_evaluated', 'eliminated'))
+             OR (last_event = 'financially_evaluated' AND NEW.event_type IN ('ranked', 'eliminated'))
+            ) THEN
+                RAISE EXCEPTION
+                    'VIOLATION INV-9 [table=offer_events op=INSERT] : transition % -> % interdite. Constitution V3.3.2.',
+                    COALESCE(last_event, 'NULL'), NEW.event_type;
+            END IF;
+
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+
+        DROP TRIGGER IF EXISTS trg_offer_fsm ON offer_events;
+        CREATE TRIGGER trg_offer_fsm
+        BEFORE INSERT ON offer_events
+        FOR EACH ROW EXECUTE FUNCTION validate_offer_fsm();
+    """)
+
+    # ═══════════════════════════════════════════════════════════
+    # 4) + 5) APPEND-ONLY STRICT SUR *_events (UPDATE/DELETE interdits)
+    # ═══════════════════════════════════════════════════════════
+
+    for table in ("case_events", "document_events", "offer_events"):
+        fn = f"enforce_appendonly_{table}"
+        trig = f"trg_appendonly_{table}"
+        op.execute(f"""
+            CREATE OR REPLACE FUNCTION {fn}()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                RAISE EXCEPTION
+                    'VIOLATION INV-9 [table={table} op=%] : table immuable. UPDATE/DELETE interdits. Constitution V3.3.2.',
+                    TG_OP;
+            END;
+            $$ LANGUAGE plpgsql;
+
+            DROP TRIGGER IF EXISTS {trig} ON {table};
+            CREATE TRIGGER {trig}
+            BEFORE UPDATE OR DELETE ON {table}
+            FOR EACH ROW EXECUTE FUNCTION {fn}();
+        """)
+
+    # ═══════════════════════════════════════════════════════════
+    # 6) VUES current_* / effective_* (ORDER BY uniforme)
+    # ═══════════════════════════════════════════════════════════
+
+    op.execute("""
+        CREATE OR REPLACE VIEW current_case_status AS
+        SELECT DISTINCT ON (case_id)
+            case_id,
+            event_type      AS current_status,
+            created_at      AS status_set_at,
+            created_by      AS status_set_by,
+            reason,
+            payload
+        FROM case_events
+        ORDER BY case_id, created_at DESC, id DESC;
+    """)
+
+    op.execute("""
+        CREATE OR REPLACE VIEW current_document_status AS
+        SELECT DISTINCT ON (document_id)
+            document_id,
+            event_type      AS current_status,
+            created_at      AS status_set_at,
+            created_by      AS status_set_by,
+            payload
+        FROM document_events
+        ORDER BY document_id, created_at DESC, id DESC;
+    """)
+
+    # Vue étendue — extraction champs depuis payload (safe casts)
+    op.execute("""
+        CREATE OR REPLACE VIEW current_document_state AS
+        SELECT DISTINCT ON (document_id)
+            document_id,
+            event_type                                  AS current_status,
+            created_at                                  AS status_set_at,
+            created_by                                  AS status_set_by,
+            payload,
+            payload->>'storage_uri'                     AS storage_uri,
+            payload->>'error_code'                      AS last_error_code,
+            payload->>'error_message'                   AS last_error_message,
+            CASE
+                WHEN (payload ? 'retry_count')
+                  AND (payload->>'retry_count') ~ '^[0-9]+$'
+                THEN (payload->>'retry_count')::int
+                ELSE NULL
+            END                                         AS retry_count
+        FROM document_events
+        ORDER BY document_id, created_at DESC, id DESC;
+    """)
+
+    op.execute("""
+        CREATE OR REPLACE VIEW current_offer_status AS
+        SELECT DISTINCT ON (offer_id)
+            offer_id,
+            event_type      AS current_status,
+            created_at      AS status_set_at,
+            created_by      AS status_set_by,
+            reason,
+            payload
+        FROM offer_events
+        ORDER BY offer_id, created_at DESC, id DESC;
+    """)
+
+    # Criteria effectifs : original + dernière correction (déjà prévu ADR-0004)
+    op.execute("""
+        CREATE OR REPLACE VIEW effective_criteria AS
+        SELECT
+            c.id,
+            c.case_id,
+            COALESCE(cc.label_override,     c.label)     AS label,
+            COALESCE(cc.weight_override,    c.weight)    AS weight,
+            COALESCE(cc.type_override,      c.type)      AS type,
+            COALESCE(cc.threshold_override, c.threshold) AS threshold,
+            c.is_eliminatoire,
+            c.created_at,
+            cc.corrected_at,
+            cc.corrected_by,
+            cc.correction_reason
+        FROM criteria c
+        LEFT JOIN LATERAL (
+            SELECT *
+            FROM criteria_corrections cc2
+            WHERE cc2.criteria_id = c.id
+            ORDER BY cc2.corrected_at DESC, cc2.id DESC
+            LIMIT 1
+        ) cc ON true;
+    """)
+
+    # Extractions effectives : original + dernière correction
+    op.execute("""
+        CREATE OR REPLACE VIEW effective_extraction AS
+        SELECT DISTINCT ON (e.document_id)
+            e.id,
+            e.document_id,
+            e.case_id,
+            COALESCE(ec.structured_data_override, e.structured_data) AS structured_data,
+            COALESCE(ec.confidence_override,      e.confidence_score) AS confidence_score,
+            e.extraction_method,
+            e.extracted_at,
+            ec.corrected_at,
+            ec.corrected_by,
+            ec.correction_reason
+        FROM extractions e
+        LEFT JOIN LATERAL (
+            SELECT *
+            FROM extraction_corrections ec2
+            WHERE ec2.extraction_id = e.id
+            ORDER BY ec2.corrected_at DESC, ec2.id DESC
+            LIMIT 1
+        ) ec ON true
+        ORDER BY e.document_id, e.extracted_at DESC, e.id DESC;
+    """)
+
+    # ═══════════════════════════════════════════════════════════
+    # 7) + 8) TRIGGERS BLOQUANTS SUR TABLES MÉTIER
+    # ═══════════════════════════════════════════════════════════
+
+    # CASES : DELETE interdit + UPDATE champs métier interdits
+    # NOTE CTO : liste des champs métier à étendre si le schéma évolue.
+    op.execute("""
+        CREATE OR REPLACE FUNCTION enforce_appendonly_cases()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            IF TG_OP = 'DELETE' THEN
+                RAISE EXCEPTION
+                    'VIOLATION INV-9 [table=cases op=DELETE] : DELETE interdit. Utiliser case_events(cancelled). Constitution V3.3.2.';
+            END IF;
+
+            IF TG_OP = 'UPDATE' AND (
+                OLD.title            IS DISTINCT FROM NEW.title OR
+                OLD.procurement_type IS DISTINCT FROM NEW.procurement_type OR
+                OLD.estimated_amount IS DISTINCT FROM NEW.estimated_amount
+            ) THEN
+                RAISE EXCEPTION
+                    'VIOLATION INV-9 [table=cases op=UPDATE] : UPDATE champs métier interdit. Utiliser case_events(metadata_updated). Constitution V3.3.2.';
+            END IF;
+
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+
+        DROP TRIGGER IF EXISTS trg_appendonly_cases ON cases;
+        CREATE TRIGGER trg_appendonly_cases
+        BEFORE UPDATE OR DELETE ON cases
+        FOR EACH ROW EXECUTE FUNCTION enforce_appendonly_cases();
+    """)
+
+    # DOCUMENTS / OFFERS / CRITERIA / EXTRACTIONS : strict immuable (UPDATE/DELETE interdits)
+    for table, via in [
+        ("documents",   "document_events"),
+        ("offers",      "offer_events"),
+        ("criteria",    "criteria_corrections"),
+        ("extractions", "extraction_corrections"),
+    ]:
+        fn = f"enforce_appendonly_{table}"
+        trig = f"trg_appendonly_{table}"
+        op.execute(f"""
+            CREATE OR REPLACE FUNCTION {fn}()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                RAISE EXCEPTION
+                    'VIOLATION INV-9 [table={table} op=%] : table immuable. Utiliser {via}. Constitution V3.3.2.',
+                    TG_OP;
+            END;
+            $$ LANGUAGE plpgsql;
+
+            DROP TRIGGER IF EXISTS {trig} ON {table};
+            CREATE TRIGGER {trig}
+            BEFORE UPDATE OR DELETE ON {table}
+            FOR EACH ROW EXECUTE FUNCTION {fn}();
+        """)
+
+
+def downgrade() -> None:
+    # Ordre inverse et complet
+
+    # 1) triggers tables métier
+    for trig, tbl in [
+        ("trg_appendonly_extractions", "extractions"),
+        ("trg_appendonly_criteria",    "criteria"),
+        ("trg_appendonly_offers",      "offers"),
+        ("trg_appendonly_documents",   "documents"),
+        ("trg_appendonly_cases",       "cases"),
+    ]:
+        op.execute(f"DROP TRIGGER IF EXISTS {trig} ON {tbl};")
+
+    # 2) triggers append-only events
+    for trig, tbl in [
+        ("trg_appendonly_offer_events",    "offer_events"),
+        ("trg_appendonly_document_events", "document_events"),
+        ("trg_appendonly_case_events",     "case_events"),
+    ]:
+        op.execute(f"DROP TRIGGER IF EXISTS {trig} ON {tbl};")
+
+    # 3) triggers FSM
+    for trig, tbl in [
+        ("trg_offer_fsm",    "offer_events"),
+        ("trg_document_fsm", "document_events"),
+        ("trg_case_fsm",     "case_events"),
+    ]:
+        op.execute(f"DROP TRIGGER IF EXISTS {trig} ON {tbl};")
+
+    # 4) views
+    for view in [
+        "effective_extraction",
+        "effective_criteria",
+        "current_offer_status",
+        "current_document_state",
+        "current_document_status",
+        "current_case_status",
+    ]:
+        op.execute(f"DROP VIEW IF EXISTS {view};")
+
+    # 5) functions
+    for fn in [
+        "enforce_appendonly_extractions",
+        "enforce_appendonly_criteria",
+        "enforce_appendonly_offers",
+        "enforce_appendonly_documents",
+        "enforce_appendonly_cases",
+        "enforce_appendonly_offer_events",
+        "enforce_appendonly_document_events",
+        "enforce_appendonly_case_events",
+        "validate_offer_fsm",
+        "validate_document_fsm",
+        "validate_case_fsm",
+    ]:
+        op.execute(f"DROP FUNCTION IF EXISTS {fn}();")
+
+    # 6) tables events
+    for tbl in ["offer_events", "document_events", "case_events"]:
+        op.execute(f"DROP TABLE IF EXISTS {tbl} CASCADE;")
+4. Service Python — state_machine.py (double verrou Python + DB)
+
+Fichier : src/couche_a/services/state_machine.py
+
+Invariant : aucune transition d’état ne doit être effectuée via SQL direct dans le code applicatif.
+Toutes les transitions passent par ce module, qui :
+
+valide côté Python (cohérence API)
+
+insère un event append-only
+
+se fait revalider par la DB via FSM triggers (anti-contournement)
+
+Errata CTO (critique) : document_events n’a pas de colonne reason.
+Donc : deux fonctions d’insert :
+
+_insert_event_with_reason() pour case_events et offer_events
+
+_insert_event_no_reason() pour document_events
+
+# src/couche_a/services/state_machine.py
+"""
+Transitions d'état via événements append-only.
+Double verrou : Python valide + DB revalide (FSM trigger).
+Constitution V3.3.2 — INV-9.
+"""
+from __future__ import annotations
+
+import logging
+from fastapi import HTTPException
+from src.db.core import get_db_cursor
+
+logger = logging.getLogger(__name__)
+
+# ─────────────────────────────────────────────────────────────────────
+# FSM miroirs côté Python (doivent rester isomorphes aux triggers DB)
+# ─────────────────────────────────────────────────────────────────────
+
+CASE_TRANSITIONS: dict[str | None, list[str]] = {
+    None:                 ["created"],
+    "created":            ["opened", "cancelled", "metadata_updated", "collaborator_added"],
+    "opened":             ["evaluation_started", "cancelled", "metadata_updated", "collaborator_added"],
+    "evaluation_started": ["closed", "cancelled", "metadata_updated", "collaborator_added"],
+    "closed":             [],
+    "cancelled":          [],
+}
+
+DOCUMENT_TRANSITIONS: dict[str | None, list[str]] = {
+    None:                 ["uploaded"],
+    "uploaded":           ["processing_started", "extraction_failed"],
+    "processing_started": ["extracted", "extraction_failed"],
+    "extraction_failed":  ["retry_queued"],
+    "retry_queued":       ["processing_started"],
+    "extracted":          ["archived"],
+    "archived":           [],
+}
+
+OFFER_TRANSITIONS: dict[str | None, list[str]] = {
+    None:                    ["submitted"],
+    "submitted":             ["review_started"],
+    "review_started":        ["technically_compliant", "eliminated"],
+    "technically_compliant": ["financially_evaluated", "eliminated"],
+    "financially_evaluated": ["ranked", "eliminated"],
+    "eliminated":            [],
+    "ranked":                [],
+}
+
+
+def _get_last_event(table: str, fk_col: str, fk_val: str) -> str | None:
+    """Récupère le dernier event_type depuis une table *_events."""
+    with get_db_cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT event_type
+            FROM {table}
+            WHERE {fk_col} = %s
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            """,
+            (fk_val,),
+        )
+        row = cur.fetchone()
+    if not row:
+        return None
+    # row peut être dict-like selon le driver
+    return row["event_type"] if isinstance(row, dict) else row[0]
+
+
+def _insert_event_with_reason(
+    table: str,
+    fk_col: str,
+    fk_val: str,
+    event_type: str,
+    user_id: str,
+    payload: dict,
+    reason: str | None,
+) -> dict:
+    """INSERT canonique dans case_events / offer_events (avec reason)."""
+    with get_db_cursor() as cur:
+        cur.execute(
+            f"""
+            INSERT INTO {table}
+              ({fk_col}, event_type, payload, created_by, reason)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id, created_at
+            """,
+            (fk_val, event_type, payload, user_id, reason),
+        )
+        row = cur.fetchone()
+    return dict(row) if isinstance(row, dict) else {"id": row[0], "created_at": row[1]}
+
+
+def _insert_event_no_reason(
+    table: str,
+    fk_col: str,
+    fk_val: str,
+    event_type: str,
+    user_id: str,
+    payload: dict,
+) -> dict:
+    """INSERT canonique dans document_events (sans reason)."""
+    with get_db_cursor() as cur:
+        cur.execute(
+            f"""
+            INSERT INTO {table}
+              ({fk_col}, event_type, payload, created_by)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id, created_at
+            """,
+            (fk_val, event_type, payload, user_id),
+        )
+        row = cur.fetchone()
+    return dict(row) if isinstance(row, dict) else {"id": row[0], "created_at": row[1]}
+
+
+# ─────────────────────────────────────────────────────────────────────
+# CASES
+# ─────────────────────────────────────────────────────────────────────
+
+def transition_case(
+    case_id: str,
+    to_event: str,
+    user_id: str,
+    payload: dict | None = None,
+    reason: str | None = None,
+) -> dict:
+    """
+    Transite un dossier d'achat via case_events (append-only).
+    - Valide en Python (409/422)
+    - DB revalide via trg_case_fsm (anti-contournement)
+    """
+    if to_event == "cancelled" and not reason:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "REASON_REQUIRED", "message": "reason obligatoire pour annuler un dossier"},
+        )
+
+    current = _get_last_event("case_events", "case_id", case_id)
+    allowed = CASE_TRANSITIONS.get(current, [])
+
+    if to_event not in allowed:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "TRANSITION_INVALIDE",
+                "current_status": current,
+                "requested": to_event,
+                "allowed": allowed,
+                "message": f"Transition '{current}' → '{to_event}' interdite. Autorisées : {allowed}",
+            },
+        )
+
+    result = _insert_event_with_reason(
+        table="case_events",
+        fk_col="case_id",
+        fk_val=case_id,
+        event_type=to_event,
+        user_id=user_id,
+        payload=payload or {},
+        reason=reason,
+    )
+
+    logger.info("Case %s : %s → %s (event=%s user=%s)", case_id, current, to_event, result["id"], user_id)
+
+    return {
+        "case_id": case_id,
+        "event_id": str(result["id"]),
+        "previous_status": current,
+        "new_status": to_event,
+        "created_at": result["created_at"].isoformat() if hasattr(result["created_at"], "isoformat") else str(result["created_at"]),
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────
+# DOCUMENTS
+# ─────────────────────────────────────────────────────────────────────
+
+def transition_document(
+    document_id: str,
+    to_event: str,
+    user_id: str,
+    payload: dict | None = None,
+) -> dict:
+    """
+    Transite un document via document_events (append-only).
+    - Valide en Python (409)
+    - DB revalide via trg_document_fsm
+    """
+    current = _get_last_event("document_events", "document_id", document_id)
+    allowed = DOCUMENT_TRANSITIONS.get(current, [])
+
+    if to_event not in allowed:
+        raise HTTPException(
+            status_code=409,
+            detail={"error": "TRANSITION_INVALIDE", "current_status": current, "requested": to_event, "allowed": allowed},
+        )
+
+    result = _insert_event_no_reason(
+        table="document_events",
+        fk_col="document_id",
+        fk_val=document_id,
+        event_type=to_event,
+        user_id=user_id,
+        payload=payload or {},
+    )
+
+    logger.info("Document %s : %s → %s (event=%s)", document_id, current, to_event, result["id"])
+
+    return {
+        "document_id": document_id,
+        "event_id": str(result["id"]),
+        "previous_status": current,
+        "new_status": to_event,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────
+# OFFERS
+# ─────────────────────────────────────────────────────────────────────
+
+def transition_offer(
+    offer_id: str,
+    to_event: str,
+    user_id: str,
+    payload: dict | None = None,
+    reason: str | None = None,
+) -> dict:
+    """
+    Transite une offre via offer_events (append-only).
+    - reason obligatoire pour eliminated (422)
+    - transition invalide (409)
+    - DB revalide via trg_offer_fsm
+    """
+    if to_event == "eliminated" and not reason:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "REASON_REQUIRED", "message": "reason obligatoire pour éliminer une offre"},
+        )
+
+    current = _get_last_event("offer_events", "offer_id", offer_id)
+    allowed = OFFER_TRANSITIONS.get(current, [])
+
+    if to_event not in allowed:
+        raise HTTPException(
+            status_code=409,
+            detail={"error": "TRANSITION_INVALIDE", "current_status": current, "requested": to_event, "allowed": allowed},
+        )
+
+    result = _insert_event_with_reason(
+        table="offer_events",
+        fk_col="offer_id",
+        fk_val=offer_id,
+        event_type=to_event,
+        user_id=user_id,
+        payload=payload or {},
+        reason=reason,
+    )
+
+    logger.info("Offer %s : %s → %s (event=%s reason=%s)", offer_id, current, to_event, result["id"], reason)
+
+    return {
+        "offer_id": offer_id,
+        "event_id": str(result["id"]),
+        "previous_status": current,
+        "new_status": to_event,
+        "reason": reason,
+    }
+5. Endpoints API transitions (voie unique et opposable)
+
+Fichier : src/api/routes/transitions.py
+
+Règle : aucun endpoint ne doit muter cases/documents/offers directement.
+Tous passent par state_machine.transition_*.
+
+# src/api/routes/transitions.py
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
+
+from src.auth import get_current_user, User
+from src.couche_a.services.state_machine import (
+    transition_case,
+    transition_document,
+    transition_offer,
+)
+
+router = APIRouter(prefix="/api", tags=["transitions"])
+
+
+class CaseTransitionRequest(BaseModel):
+    event_type: str
+    reason: str | None = None
+    payload: dict = Field(default_factory=dict)
+
+
+class DocumentTransitionRequest(BaseModel):
+    event_type: str
+    payload: dict = Field(default_factory=dict)
+
+
+class OfferTransitionRequest(BaseModel):
+    event_type: str
+    reason: str | None = None
+    payload: dict = Field(default_factory=dict)
+
+
+@router.post("/cases/{case_id}/transitions")
+def transit_case(
+    case_id: str,
+    body: CaseTransitionRequest,
+    current_user: User = Depends(get_current_user),
+):
+    return transition_case(
+        case_id=case_id,
+        to_event=body.event_type,
+        user_id=str(current_user.id),
+        payload=body.payload,
+        reason=body.reason,
+    )
+
+
+@router.post("/documents/{document_id}/transitions")
+def transit_document(
+    document_id: str,
+    body: DocumentTransitionRequest,
+    current_user: User = Depends(get_current_user),
+):
+    return transition_document(
+        document_id=document_id,
+        to_event=body.event_type,
+        user_id=str(current_user.id),
+        payload=body.payload,
+    )
+
+
+@router.post("/offers/{offer_id}/transitions")
+def transit_offer(
+    offer_id: str,
+    body: OfferTransitionRequest,
+    current_user: User = Depends(get_current_user),
+):
+    return transition_offer(
+        offer_id=offer_id,
+        to_event=body.event_type,
+        user_id=str(current_user.id),
+        payload=body.payload,
+        reason=body.reason,
+    )
+6. Gates CI — 10 gates bloquants (DB-proof + code-proof)
+
+Fichier : tests/invariants/test_appendonly_global.py
+
+Objectif : interdire toute régression.
+
+Code : pas de UPDATE/DELETE / pas de status SET / pas d’UPSERT
+
+DB : triggers append-only présents + triggers FSM présents + vues présentes
+
+DB “avocat-proof” : prouver blocage réel UPDATE/DELETE
+
+# tests/invariants/test_appendonly_global.py
+"""
+ADR-0006 — 10 gates CI bloquants.
+Constitution V3.3.2 — INV-9.
+"""
+from __future__ import annotations
+
+import pathlib
+import re
+import pytest
+
+IMMUTABLE_TABLES = {
+    "cases",
+    "documents",
+    "extractions",
+    "offers",
+    "criteria",
+    "score_runs",
+    "audit_log",
+    "case_events",
+    "document_events",
+    "offer_events",
+}
+
+_SQL_MUTATE = re.compile(r"\b(UPDATE|DELETE\s+FROM)\s+(\w+)", re.IGNORECASE)
+_SET_STATUS = re.compile(r"\bSET\s+status\s*=", re.IGNORECASE)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# GATE A1 — Zéro UPDATE/DELETE direct sur tables immuables dans src/
+# ─────────────────────────────────────────────────────────────────────
+
+def test_gate_a1_no_direct_update_delete():
+    violations: list[str] = []
+    for py_file in pathlib.Path("src").rglob("*.py"):
+        source = py_file.read_text(errors="ignore")
+        for m in _SQL_MUTATE.finditer(source):
+            table = m.group(2).lower()
+            if table in IMMUTABLE_TABLES:
+                line = source[: m.start()].count("\n") + 1
+                violations.append(f"{py_file}:{line} — {m.group(1).upper()} interdit sur '{table}'")
+    assert not violations, "VIOLATION ADR-0006 Gate A1 :\n" + "\n".join(violations)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# GATE A2 — SET status = interdit (transitions via state_machine)
+# ─────────────────────────────────────────────────────────────────────
+
+def test_gate_a2_no_set_status_direct():
+    violations: list[str] = []
+    for py_file in pathlib.Path("src").rglob("*.py"):
+        source = py_file.read_text(errors="ignore")
+        if _SET_STATUS.search(source):
+            violations.append(str(py_file))
+    assert not violations, (
+        "VIOLATION ADR-0006 Gate A2 — SET status = direct interdit.\n"
+        "Utiliser state_machine.transition_*().\n"
+        + "\n".join(violations)
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# GATE B — Triggers append-only présents en DB
+# ─────────────────────────────────────────────────────────────────────
+
+EXPECTED_APPENDONLY_TRIGGERS = {
+    "cases": "trg_appendonly_cases",
+    "documents": "trg_appendonly_documents",
+    "extractions": "trg_appendonly_extractions",
+    "offers": "trg_appendonly_offers",
+    "criteria": "trg_appendonly_criteria",
+    "score_runs": "trigger_append_only_score_runs",
+    "case_events": "trg_appendonly_case_events",
+    "document_events": "trg_appendonly_document_events",
+    "offer_events": "trg_appendonly_offer_events",
+}
+
+
+def test_gate_b_appendonly_triggers(db_conn):
+    missing: list[str] = []
+    with db_conn.cursor() as cur:
+        for table, trigger in EXPECTED_APPENDONLY_TRIGGERS.items():
+            cur.execute(
+                """
+                SELECT COUNT(*) AS cnt
+                FROM information_schema.triggers
+                WHERE event_object_table = %s
+                  AND trigger_name = %s
+                """,
+                (table, trigger),
+            )
+            row = cur.fetchone()
+            cnt = row["cnt"] if isinstance(row, dict) else row[0]
+            if cnt == 0:
+                missing.append(f"  {table} → '{trigger}' absent")
+    assert not missing, "VIOLATION ADR-0006 Gate B — Triggers append-only manquants :\n" + "\n".join(missing)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# GATE C — Triggers FSM présents en DB
+# ─────────────────────────────────────────────────────────────────────
+
+EXPECTED_FSM_TRIGGERS = {
+    "case_events": "trg_case_fsm",
+    "document_events": "trg_document_fsm",
+    "offer_events": "trg_offer_fsm",
+}
+
+
+def test_gate_c_fsm_triggers(db_conn):
+    missing: list[str] = []
+    with db_conn.cursor() as cur:
+        for table, trigger in EXPECTED_FSM_TRIGGERS.items():
+            cur.execute(
+                """
+                SELECT COUNT(*) AS cnt
+                FROM information_schema.triggers
+                WHERE event_object_table = %s
+                  AND trigger_name = %s
+                """,
+                (table, trigger),
+            )
+            row = cur.fetchone()
+            cnt = row["cnt"] if isinstance(row, dict) else row[0]
+            if cnt == 0:
+                missing.append(f"  {table} → '{trigger}' absent")
+    assert not missing, "VIOLATION ADR-0006 Gate C — Triggers FSM manquants :\n" + "\n".join(missing)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# GATE D — Vues current_* / effective_* existent en DB
+# ─────────────────────────────────────────────────────────────────────
+
+EXPECTED_VIEWS = [
+    "current_case_status",
+    "current_document_status",
+    "current_document_state",
+    "current_offer_status",
+    "current_supplier_scores",  # ADR-0005
+    "effective_criteria",
+    "effective_extraction",
+]
+
+
+def test_gate_d_views_exist(db_conn):
+    missing: list[str] = []
+    with db_conn.cursor() as cur:
+        for view in EXPECTED_VIEWS:
+            cur.execute(
+                """
+                SELECT COUNT(*) AS cnt
+                FROM information_schema.views
+                WHERE table_name = %s
+                """,
+                (view,),
+            )
+            row = cur.fetchone()
+            cnt = row["cnt"] if isinstance(row, dict) else row[0]
+            if cnt == 0:
+                missing.append(view)
+    assert not missing, "VIOLATION ADR-0006 Gate D — Vues manquantes :\n" + "\n".join(f"  {v}" for v in missing)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# GATE E — DB-level : UPDATE cases bloqué (test réel)
+# ─────────────────────────────────────────────────────────────────────
+
+def test_gate_e_update_cases_blocked_at_db_level(db_conn):
+    """
+    Test avocat-proof : on prouve qu'un UPDATE métier sur cases est bloqué par trigger DB.
+    Hypothèse de test : au moins un case existe en DB de test (seed/fixture).
+    """
+    with db_conn.cursor() as cur:
+        cur.execute("SELECT id FROM cases LIMIT 1;")
+        row = cur.fetchone()
+    assert row is not None, (
+        "VIOLATION ADR-0006 Gate E — Aucun case en DB de test. "
+        "Le seed/fixture de test doit créer au moins 1 case."
+    )
+    case_id = row["id"] if isinstance(row, dict) else row[0]
+
+    with pytest.raises(Exception) as exc_info:
+        with db_conn.cursor() as cur:
+            cur.execute("UPDATE cases SET title = 'HACK' WHERE id = %s", (case_id,))
+        db_conn.commit()
+
+    db_conn.rollback()
+    msg = str(exc_info.value)
+    assert ("INV-9" in msg) or ("VIOLATION" in msg), (
+        "VIOLATION ADR-0006 Gate E — UPDATE cases n'a pas été bloqué par trigger DB."
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# GATE F — DB-level : DELETE offers bloqué (test réel)
+# ─────────────────────────────────────────────────────────────────────
+
+def test_gate_f_delete_offers_blocked_at_db_level(db_conn):
+    """
+    Test avocat-proof : on prouve qu'un DELETE sur offers est bloqué par trigger DB.
+    Hypothèse de test : au moins une offer existe en DB de test (seed/fixture).
+    """
+    with db_conn.cursor() as cur:
+        cur.execute("SELECT id FROM offers LIMIT 1;")
+        row = cur.fetchone()
+    assert row is not None, (
+        "VIOLATION ADR-0006 Gate F — Aucune offer en DB de test. "
+        "Le seed/fixture de test doit créer au moins 1 offer."
+    )
+    offer_id = row["id"] if isinstance(row, dict) else row[0]
+
+    with pytest.raises(Exception) as exc_info:
+        with db_conn.cursor() as cur:
+            cur.execute("DELETE FROM offers WHERE id = %s", (offer_id,))
+        db_conn.commit()
+
+    db_conn.rollback()
+    msg = str(exc_info.value)
+    assert ("INV-9" in msg) or ("VIOLATION" in msg), (
+        "VIOLATION ADR-0006 Gate F — DELETE offers n'a pas été bloqué par trigger DB."
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# GATE G1 — FSM : closed terminal (Python)
+# ─────────────────────────────────────────────────────────────────────
+
+def test_gate_g1_case_fsm_closed_is_terminal():
+    from src.couche_a.services.state_machine import CASE_TRANSITIONS
+    assert "opened" not in CASE_TRANSITIONS.get("closed", []), (
+        "VIOLATION ADR-0006 Gate G1 — CASE_TRANSITIONS permet closed→opened."
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# GATE G2 — reason obligatoire pour eliminated (Python)
+# ─────────────────────────────────────────────────────────────────────
+
+def test_gate_g2_offer_elimination_requires_reason():
+    from fastapi import HTTPException
+    from src.couche_a.services.state_machine import transition_offer
+
+    with pytest.raises(HTTPException) as exc_info:
+        transition_offer(
+            offer_id="00000000-0000-0000-0000-000000000000",
+            to_event="eliminated",
+            user_id="00000000-0000-0000-0000-000000000001",
+            reason=None,
+        )
+    assert exc_info.value.status_code == 422
+    assert "REASON_REQUIRED" in str(exc_info.value.detail)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# GATE H — Pas d’UPSERT sur tables immuables
+# ─────────────────────────────────────────────────────────────────────
+
+def test_gate_h_no_upsert_on_immutable_tables():
+    violations: list[str] = []
+    for py_file in pathlib.Path("src").rglob("*.py"):
+        source = py_file.read_text(errors="ignore")
+        upper = source.upper()
+        if "ON CONFLICT" not in upper or "DO UPDATE" not in upper:
+            continue
+        # Heuristique stricte : si le fichier mentionne une table immuable, c'est suspect.
+        for table in IMMUTABLE_TABLES:
+            if table in source.lower():
+                violations.append(f"{py_file} — UPSERT interdit sur '{table}'")
+                break
+    assert not violations, "VIOLATION ADR-0006 Gate H :\n" + "\n".join(violations)
+7. Registre canonique des vues d’état (opposables)
+
+VUES D’ÉTAT ADR-0006 — CANONIQUES
+
+current_case_status
+→ dernier event par case_id (statut + reason + payload)
+
+current_document_status
+→ dernier event par document_id (statut + payload)
+
+current_document_state
+→ dernier event par document_id (statut + payload complet + champs dérivés safe)
+
+current_offer_status
+→ dernier event par offer_id (statut + reason + payload)
+
+current_supplier_scores
+→ dernier score_run par (case_id, supplier_id)
+(référence ADR-0005)
+
+effective_criteria
+→ critère + dernière correction (criteria_corrections)
+
+effective_extraction
+→ extraction + dernière correction (extraction_corrections)
+
+RÈGLE OPPOSABLE :
+
+Toute API qui retourne un “état courant” lit depuis ces vues.
+
+Interdits :
+
+SELECT status FROM cases
+
+SELECT status FROM documents
+
+SELECT status FROM offers
+
+8. Registre des gates ADR-0006 (tous bloquants 🔴)
+
+🔴 Gate A1 — test_gate_a1_no_direct_update_delete
+
+🔴 Gate A2 — test_gate_a2_no_set_status_direct
+
+🔴 Gate B — test_gate_b_appendonly_triggers (9 triggers)
+
+🔴 Gate C — test_gate_c_fsm_triggers (3 triggers FSM)
+
+🔴 Gate D — test_gate_d_views_exist (7 vues)
+
+🔴 Gate E — test_gate_e_update_cases_blocked_at_db_level
+
+🔴 Gate F — test_gate_f_delete_offers_blocked_at_db_level
+
+🔴 Gate G1 — test_gate_g1_case_fsm_closed_is_terminal
+
+🔴 Gate G2 — test_gate_g2_offer_elimination_requires_reason
+
+🔴 Gate H — test_gate_h_no_upsert_on_immutable_tables
+
+TOTAL ADR-0006 : 10 gates
+TOTAL CUMULÉ (ADR-0001 → ADR-0006) : 57 gates bloquants
+
+9. Séquence agent (implémentation reproductible)
+ÉTAPE 1 — Migration
+
+Créer alembic/versions/016_m_appendonly_global.py (§3) puis :
+
+alembic upgrade head
+git add alembic/versions/016_m_appendonly_global.py
+git commit -m "migration(016): append-only global — FSM DB + events + vues current_*"
+ÉTAPE 2 — Service state_machine
+
+Créer src/couche_a/services/state_machine.py (§4) :
+
+git add src/couche_a/services/state_machine.py
+git commit -m "feat(M-APPENDONLY): state_machine.py — double verrou Python+DB"
+ÉTAPE 3 — Endpoints transitions
+
+Créer src/api/routes/transitions.py (§5) :
+
+git add src/api/routes/transitions.py
+git commit -m "feat(M-APPENDONLY): endpoints /transitions cases/documents/offers"
+ÉTAPE 4 — Gates CI
+
+Créer tests/invariants/test_appendonly_global.py (§6) :
+
+git add tests/invariants/test_appendonly_global.py
+git commit -m "test(ADR-0006): 10 gates CI append-only global"
+ÉTAPE 5 — Vérification
+pytest tests/invariants/test_appendonly_global.py -v
+pytest tests/ -q
+git push origin feat/M-APPENDONLY-GLOBAL
+
+touch .milestones/M-APPENDONLY-GLOBAL.done
+git add .milestones/M-APPENDONLY-GLOBAL.done
+git commit -m "milestone(M-APPENDONLY-GLOBAL): DONE"
+git push
+10. Gouvernance ADR et renumérotation actée
+
+RENUMÉROTATION ACTÉE :
+
+ADR-0007 : Pipeline mercuriale complet + critères par défaut + seuils Code Marchés Mali
+
+ADR-0008 : CBA Excel generator (template embarqué)
+
+ADR-0006 : FROZEN ✅
+
+Intégrations confirmées :
+
+✅ FSM DB-level pour case_events et offer_events (en plus de document_events)
+
+✅ Vue current_document_state (payload complet + champs dérivés safe)
+
+✅ Gates E/F “avocat-proof” : UPDATE/DELETE réellement bloqués (DB-level)
+
+✅ ORDER BY created_at DESC, id DESC uniforme (anti-collision)
+
+✅ Renumérotation CBA → ADR-0008
+
+✅ Double verrou Python + DB (documenté et opposable)

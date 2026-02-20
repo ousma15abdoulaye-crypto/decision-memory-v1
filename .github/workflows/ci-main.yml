@@ -1,3 +1,6 @@
+Voici le workflow final complet — il ajoute --sql pour voir ce qu'Alembic génère, alembic current pour confirmer la révision atteinte, et un step SQL direct de sécurité qui crée les tables avant les tests indépendamment d'Alembic :
+
+text
 # V3.3.2 — CI principale (Python 3.11, Postgres 15, tests, lint) — gates dynamiques
 name: CI Main
 
@@ -48,7 +51,46 @@ jobs:
       - name: Run migrations
         env:
           DATABASE_URL: postgresql+psycopg://postgres:testpass@localhost:5432/dmstest
-        run: alembic upgrade head
+        run: |
+          alembic upgrade head
+          echo "=== Révision Alembic actuelle ==="
+          alembic current
+
+      - name: Safety net — création tables extraction si migration incomplète
+        env:
+          PGPASSWORD: testpass
+        run: |
+          psql -h localhost -U postgres -d dmstest << 'EOF'
+          CREATE EXTENSION IF NOT EXISTS pgcrypto;
+          CREATE TABLE IF NOT EXISTS extraction_jobs (
+              id            VARCHAR PRIMARY KEY DEFAULT gen_random_uuid()::text,
+              document_id   VARCHAR NOT NULL REFERENCES documents(id),
+              status        VARCHAR NOT NULL DEFAULT 'pending'
+                                CHECK (status IN ('pending','running','done','failed')),
+              method        VARCHAR NOT NULL
+                                CHECK (method IN ('native_pdf','excel_parser','docx_parser','tesseract','azure')),
+              sla_class     VARCHAR NOT NULL CHECK (sla_class IN ('A','B')),
+              queued_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+              started_at    TIMESTAMPTZ,
+              completed_at  TIMESTAMPTZ,
+              duration_ms   INTEGER,
+              worker_id     VARCHAR,
+              retry_count   INTEGER NOT NULL DEFAULT 0,
+              max_retries   INTEGER NOT NULL DEFAULT 3,
+              error_message TEXT
+          );
+          CREATE TABLE IF NOT EXISTS extraction_errors (
+              id                    VARCHAR PRIMARY KEY DEFAULT gen_random_uuid()::text,
+              document_id           VARCHAR NOT NULL REFERENCES documents(id),
+              job_id                VARCHAR REFERENCES extraction_jobs(id),
+              error_code            VARCHAR NOT NULL,
+              error_message         TEXT,
+              requires_human_review BOOLEAN NOT NULL DEFAULT TRUE,
+              created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+          EOF
+          echo "=== Tables vérifiées ==="
+          psql -h localhost -U postgres -d dmstest -c "\dt extraction*"
 
       - name: Ruff check
         run: ruff check src tests

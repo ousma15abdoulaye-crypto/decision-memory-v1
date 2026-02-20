@@ -14,6 +14,7 @@
 - `docs/freeze/v3.3.2/MILESTONES_EXECUTION_PLAN_V3.3.2.md`
 - `docs/freeze/v3.3.2/INVARIANTS.md`
 - `docs/freeze/v3.3.2/adrs/ADR-0001.md`
+- `docs/freeze/v3.3.2/adrs/ADR-0004.md`
 
 ## Checksums
 
@@ -23,6 +24,7 @@
 | docs/freeze/v3.3.2/MILESTONES_EXECUTION_PLAN_V3.3.2.md | 90b64e0b155aa544a42d6161957f875061cb1fbc9197402124d3aacd5516489e |
 | docs/freeze/v3.3.2/INVARIANTS.md | fe32fc0485afc303ab8508b8e5369e908f94106d71fb9eca48a12602b9bfda54 |
 | docs/freeze/v3.3.2/adrs/ADR-0001.md | e3a32be97e3c6a3b0e17a73ce581b8de806f488d9ab12f3962804833829688f0 |
+| docs/freeze/v3.3.2/adrs/ADR-0004.md | 3add6013efd74a3cd58bcf15d1aa71801fd4941858c4200217be2fa18bb0c8b3 |
 
 Référence complète : `docs/freeze/v3.3.2/SHA256SUMS.txt`.
 

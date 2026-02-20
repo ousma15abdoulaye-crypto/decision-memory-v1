@@ -1,2 +1,5 @@
 # Freeze: always LF so sha256sum matches on Linux (CI)
 docs/freeze/** text eol=lf
+
+docs/freeze/**/*.md text eol=lf
+docs/freeze/**/SHA256SUMS.txt text eol=lf

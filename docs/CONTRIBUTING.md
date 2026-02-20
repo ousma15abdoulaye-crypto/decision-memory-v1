@@ -1,6 +1,6 @@
 # Guide de contribution — Decision Memory System (DMS) V3.3.2
 
-**Référence :** Constitution V3.3.2 (freeze actif et opposable) + ADR-0003  
+**Référence :** Constitution V3.3.2 (freeze actif et opposable) + ADR-0003 + ADR-0004  
 **Date :** 2026-02-19  
 **Phase :** Zéro — Milestone M-DOCS-CORE
 
@@ -14,8 +14,9 @@ Ce guide s'applique à **tous les contributeurs**, qu'ils soient humains ou agen
 
 **Documents de référence obligatoires (à lire avant tout code) :**
 1. `docs/freeze/v3.3.2/CONSTITUTION_DMS_V3.3.2.md`
-2. `docs/freeze/v3.3.2/adrs/ADR-0003.md`
-3. `docs/freeze/v3.3.2/MILESTONES_EXECUTION_PLAN_V3.3.2.md`
+2. `docs/freeze/v3.3.2/MILESTONES_EXECUTION_PLAN_V3.3.2.md`
+3. `docs/freeze/v3.3.2/adrs/ADR-0003.md`
+4. `docs/adrs/ADR-0004.md`
 
 **Vérification de l'état du projet :**
 ```bash
@@ -174,7 +175,7 @@ make milestone-status  # Identifier le milestone actif
 
 ### Référence à ADR-0003 pour les règles d'escalade
 
-**Règles d'escalade (ADR-0003 §7.3) :**
+**Règles d'escalade (ADR-0003 §7.3 + ADR-0004) :**
 
 Toute modification du plan d'exécution (durées, séquence, règles agent, gates) nécessite :
 1. Un nouvel ADR (ADR-0004+)
@@ -188,7 +189,9 @@ Toute modification du plan d'exécution (durées, séquence, règles agent, gate
 
 **Principe :** Toute déviation du plan est une erreur. Toute erreur doit être corrigée par ADR numéroté, pas par improvisation en cours de session.
 
-**Référence :** `docs/freeze/v3.3.2/adrs/ADR-0003.md` §7.3 — Sur les modifications futures
+**Référence :** 
+- `docs/freeze/v3.3.2/adrs/ADR-0003.md` §7.3 — Sur les modifications futures  
+- `docs/adrs/ADR-0004.md` §2 et §4 — Phase 0 corrigée & exception migration 011
 
 ---
 
