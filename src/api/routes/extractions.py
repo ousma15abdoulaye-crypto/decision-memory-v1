@@ -1,15 +1,17 @@
 # src/api/routes/extractions.py
 """
-Endpoints M-EXTRACTION-ENGINE.
+Endpoints M-EXTRACTION-ENGINE + M-EXTRACTION-CORRECTIONS.
 Constitution V3.3.2 §1 (Couche A) + §9 (doctrine échec).
-ADR-0002 §2.5 (SLA deux classes).
+ADR-0002 §2.5 (SLA deux classes). ADR-0007 (corrections append-only).
 """
 
+import hashlib
 import json
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from src.auth import get_current_user
 from src.db.connection import get_db_cursor
 from src.extraction.engine import (
     SLA_A_METHODS,
@@ -61,6 +63,35 @@ class ExtractionResultResponse(BaseModel):
     confidence_score: float | None = None
     extracted_at: str | None = None
     warning: str | None = None
+
+
+class EffectiveDataResponse(BaseModel):
+    document_id: str
+    extraction_id: str
+    structured_data: dict
+    confidence_score: float | None
+    content_hash: str
+
+
+class CorrectionCreate(BaseModel):
+    structured_data: dict
+    confidence_override: float | None = None
+    correction_reason: str | None = None
+    expected_content_hash: str | None = None
+
+
+class CorrectionResponse(BaseModel):
+    id: str
+    extraction_id: str
+    document_id: str
+    corrected_by: str
+    corrected_at: str
+
+
+def _content_hash(data: dict) -> str:
+    """SHA256 sur JSON sérialisé (ADR-0007)."""
+    payload = json.dumps(data, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
 
 
 # ── Endpoints ────────────────────────────────────────────────────
@@ -252,3 +283,178 @@ def get_extraction_result(
         ),
         warning=warning,
     )
+
+
+# ── M-EXTRACTION-CORRECTIONS (ADR-0007) ────────────────────────────
+
+
+@router.get(
+    "/documents/{document_id}/effective",
+    response_model=EffectiveDataResponse,
+    summary="Données effectives (extraction + corrections)",
+)
+def get_effective_data(document_id: str) -> EffectiveDataResponse:
+    """
+    Retourne structured_data_effective + content_hash.
+    Vue : structured_data_effective (dernière correction ou original).
+    """
+    with get_db_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                extraction_id,
+                document_id,
+                structured_data,
+                confidence_score
+            FROM structured_data_effective
+            WHERE document_id = %s
+            LIMIT 1
+        """,
+            (document_id,),
+        )
+        row = cur.fetchone()
+
+    if row is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Aucune extraction pour le document '{document_id}'.",
+        )
+
+    structured_data = row["structured_data"]
+    if isinstance(structured_data, str):
+        structured_data = json.loads(structured_data)
+    elif structured_data is None:
+        structured_data = {}
+
+    content_hash = _content_hash(structured_data)
+
+    return EffectiveDataResponse(
+        document_id=str(row["document_id"]),
+        extraction_id=str(row["extraction_id"]),
+        structured_data=structured_data,
+        confidence_score=row["confidence_score"],
+        content_hash=content_hash,
+    )
+
+
+@router.post(
+    "/documents/{document_id}/corrections",
+    response_model=CorrectionResponse,
+    status_code=201,
+    summary="Créer une correction humaine",
+)
+async def post_correction(
+    document_id: str,
+    body: CorrectionCreate,
+    current_user: dict = Depends(get_current_user),
+) -> CorrectionResponse:
+    """
+    Enregistre une correction append-only.
+    Si expected_content_hash fourni et ≠ hash effectif courant → 409 Conflict.
+    """
+    corrected_by = str(current_user.get("id", current_user.get("username", "unknown")))
+
+    with get_db_cursor() as cur:
+        cur.execute(
+            """
+            SELECT extraction_id, structured_data
+            FROM structured_data_effective
+            WHERE document_id = %s
+            LIMIT 1
+        """,
+            (document_id,),
+        )
+        row = cur.fetchone()
+
+    if row is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Aucune extraction pour le document '{document_id}'.",
+        )
+
+    extraction_id = str(row["extraction_id"])
+    current_structured = row["structured_data"]
+    if isinstance(current_structured, str):
+        current_structured = json.loads(current_structured)
+    current_hash = _content_hash(current_structured or {})
+
+    if body.expected_content_hash and body.expected_content_hash != current_hash:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Conflit : état effectif modifié. "
+                f"expected_hash={body.expected_content_hash[:16]}... "
+                f"current_hash={current_hash[:16]}..."
+            ),
+        )
+
+    with get_db_cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO extraction_corrections
+                (extraction_id, document_id, structured_data,
+                 confidence_override, correction_reason, corrected_by)
+            VALUES (%s, %s, %s::jsonb, %s, %s, %s)
+            RETURNING id, extraction_id, document_id, corrected_by, corrected_at
+        """,
+            (
+                extraction_id,
+                document_id,
+                json.dumps(body.structured_data),
+                body.confidence_override,
+                body.correction_reason,
+                corrected_by,
+            ),
+        )
+        r = cur.fetchone()
+
+    return CorrectionResponse(
+        id=str(r["id"]),
+        extraction_id=str(r["extraction_id"]),
+        document_id=str(r["document_id"]),
+        corrected_by=str(r["corrected_by"]),
+        corrected_at=str(r["corrected_at"]),
+    )
+
+
+@router.get(
+    "/documents/{document_id}/corrections/history",
+    summary="Historique des corrections",
+)
+def get_corrections_history(document_id: str) -> list[dict]:
+    """Historique des corrections pour le document (extraction_corrections_history)."""
+    with get_db_cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, extraction_id, document_id,
+                   structured_data, confidence_override, correction_reason,
+                   corrected_by, corrected_at
+            FROM extraction_corrections
+            WHERE document_id = %s
+            ORDER BY corrected_at DESC
+        """,
+            (document_id,),
+        )
+        rows = cur.fetchall()
+
+    result = []
+    for r in rows:
+        sd = r.get("structured_data")
+        if isinstance(sd, str):
+            try:
+                sd = json.loads(sd)
+            except json.JSONDecodeError:
+                sd = {}
+        result.append(
+            {
+                "id": str(r["id"]),
+                "extraction_id": str(r["extraction_id"]),
+                "document_id": str(r["document_id"]),
+                "structured_data": sd,
+                "confidence_override": r.get("confidence_override"),
+                "correction_reason": r.get("correction_reason"),
+                "corrected_by": str(r["corrected_by"]),
+                "corrected_at": str(r["corrected_at"]),
+            }
+        )
+    return result

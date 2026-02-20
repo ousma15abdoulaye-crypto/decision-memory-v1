@@ -37,6 +37,9 @@ except ImportError:
 if "DATABASE_URL" not in os.environ:
     raise RuntimeError("DATABASE_URL must be set in .env or environment")
 
+# db_conn : UN SEUL endroit — tests/db_integrity/conftest.py
+# (integration/invariants utilisent pytest_plugins pour le charger)
+
 
 @pytest.fixture
 def db_transaction():
