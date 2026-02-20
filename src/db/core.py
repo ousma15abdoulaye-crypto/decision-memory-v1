@@ -1,7 +1,8 @@
 # src/db/core.py
 """
 DMS Database Layer — PostgreSQL ONLY (Constitution V2.1, ADR-0003 §3.1).
-No ORM. psycopg only. Helpers: get_connection, db_execute, db_fetchall, init_db_schema.
+No ORM, no SQLAlchemy, no sessionmaker. psycopg only.
+Helpers: get_connection, db_execute, db_fetchall, init_db_schema.
 """
 
 from __future__ import annotations
