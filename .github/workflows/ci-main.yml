@@ -1,6 +1,3 @@
-Voici le workflow final complet — il ajoute --sql pour voir ce qu'Alembic génère, alembic current pour confirmer la révision atteinte, et un step SQL direct de sécurité qui crée les tables avant les tests indépendamment d'Alembic :
-
-text
 # V3.3.2 — CI principale (Python 3.11, Postgres 15, tests, lint) — gates dynamiques
 name: CI Main
 
@@ -28,6 +25,10 @@ jobs:
         ports:
           - 5432:5432
 
+    env:
+      DATABASE_URL: postgresql+psycopg://postgres:testpass@localhost:5432/dmstest
+      PGPASSWORD: testpass
+
     steps:
       - uses: actions/checkout@v4
 
@@ -48,49 +49,77 @@ jobs:
       - name: Python syntax check
         run: python -m compileall src -q
 
-      - name: Run migrations
-        env:
-          DATABASE_URL: postgresql+psycopg://postgres:testpass@localhost:5432/dmstest
+      - name: Proof — drivers versions
+        run: |
+          echo "=== Versions drivers (preuve C) ==="
+          pip show alembic sqlalchemy psycopg | grep -E "^(Name|Version):"
+
+      - name: Proof — Alembic heads/current (before upgrade)
+        run: |
+          echo "=== Alembic heads (before upgrade) ==="
+          alembic heads
+          echo "=== Alembic current (before upgrade) ==="
+          alembic current 2>&1 && echo "(current OK)" || echo "(no current revision yet — DB empty, expected)"
+
+      - name: Run migrations (alembic upgrade head)
         run: |
           alembic upgrade head
-          echo "=== Révision Alembic actuelle ==="
+          echo "=== Alembic current (after upgrade) ==="
           alembic current
 
-      - name: Safety net — création tables extraction si migration incomplète
-        env:
-          PGPASSWORD: testpass
+      - name: Proof — alembic_version in DB (DB-level)
         run: |
-          psql -h localhost -U postgres -d dmstest << 'EOF'
-          CREATE EXTENSION IF NOT EXISTS pgcrypto;
-          CREATE TABLE IF NOT EXISTS extraction_jobs (
-              id            VARCHAR PRIMARY KEY DEFAULT gen_random_uuid()::text,
-              document_id   VARCHAR NOT NULL REFERENCES documents(id),
-              status        VARCHAR NOT NULL DEFAULT 'pending'
-                                CHECK (status IN ('pending','running','done','failed')),
-              method        VARCHAR NOT NULL
-                                CHECK (method IN ('native_pdf','excel_parser','docx_parser','tesseract','azure')),
-              sla_class     VARCHAR NOT NULL CHECK (sla_class IN ('A','B')),
-              queued_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-              started_at    TIMESTAMPTZ,
-              completed_at  TIMESTAMPTZ,
-              duration_ms   INTEGER,
-              worker_id     VARCHAR,
-              retry_count   INTEGER NOT NULL DEFAULT 0,
-              max_retries   INTEGER NOT NULL DEFAULT 3,
-              error_message TEXT
-          );
-          CREATE TABLE IF NOT EXISTS extraction_errors (
-              id                    VARCHAR PRIMARY KEY DEFAULT gen_random_uuid()::text,
-              document_id           VARCHAR NOT NULL REFERENCES documents(id),
-              job_id                VARCHAR REFERENCES extraction_jobs(id),
-              error_code            VARCHAR NOT NULL,
-              error_message         TEXT,
-              requires_human_review BOOLEAN NOT NULL DEFAULT TRUE,
-              created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
-          );
-          EOF
-          echo "=== Tables vérifiées ==="
-          psql -h localhost -U postgres -d dmstest -c "\dt extraction*"
+          echo "=== alembic_version (DB-level) ==="
+          psql -h localhost -U postgres -d dmstest -c "SELECT version_num FROM alembic_version;"
+
+      - name: Verify DB objects post-migration (forensic)
+        run: |
+          echo "=== Q1 — db + schema ==="
+          psql -h localhost -U postgres -d dmstest -c \
+            "SELECT current_database() AS db, current_schema() AS schema;"
+
+          echo "=== Q2 — extraction_corrections (to_regclass) ==="
+          psql -h localhost -U postgres -d dmstest -c \
+            "SELECT to_regclass('public.extraction_corrections') AS extraction_corrections;"
+
+          echo "=== Q3 — structured_data_effective (to_regclass) ==="
+          psql -h localhost -U postgres -d dmstest -c \
+            "SELECT to_regclass('public.structured_data_effective') AS structured_data_effective;"
+
+          echo "=== Q4 — triggers sur extraction_corrections ==="
+          psql -h localhost -U postgres -d dmstest -c \
+            "SELECT trigger_name FROM information_schema.triggers WHERE event_object_table='extraction_corrections' ORDER BY trigger_name;"
+
+          echo "=== Q5 — colonnes de extraction_corrections ==="
+          psql -h localhost -U postgres -d dmstest -c \
+            "SELECT column_name FROM information_schema.columns WHERE table_name='extraction_corrections' ORDER BY ordinal_position;"
+
+          echo "=== Q6 — nombre de vues corrections ==="
+          psql -h localhost -U postgres -d dmstest -c \
+            "SELECT COUNT(*) AS views_cnt FROM information_schema.views WHERE table_name IN ('structured_data_effective','extraction_corrections_history');"
+
+          # ── Assertions bloquantes ──────────────────────────────────
+          TABLE=$(psql -h localhost -U postgres -d dmstest -t -A -c \
+            "SELECT (to_regclass('public.extraction_corrections') IS NOT NULL)::text;")
+          [ "$TABLE" = "true" ] || { echo "FAIL: table extraction_corrections absente"; exit 1; }
+
+          VIEW=$(psql -h localhost -U postgres -d dmstest -t -A -c \
+            "SELECT (to_regclass('public.structured_data_effective') IS NOT NULL)::text;")
+          [ "$VIEW" = "true" ] || { echo "FAIL: vue structured_data_effective absente"; exit 1; }
+
+          TRG=$(psql -h localhost -U postgres -d dmstest -t -A -c \
+            "SELECT COUNT(*) FROM information_schema.triggers WHERE event_object_table='extraction_corrections';")
+          [ "$TRG" -gt 0 ] || { echo "FAIL: aucun trigger sur extraction_corrections"; exit 1; }
+
+          DOCID=$(psql -h localhost -U postgres -d dmstest -t -A -c \
+            "SELECT COUNT(*) FROM information_schema.columns WHERE table_name='extraction_corrections' AND column_name='document_id';")
+          [ "$DOCID" = "0" ] || { echo "FAIL: colonne document_id présente (fantôme)"; exit 1; }
+
+          VIEWS=$(psql -h localhost -U postgres -d dmstest -t -A -c \
+            "SELECT COUNT(*) FROM information_schema.views WHERE table_name IN ('structured_data_effective','extraction_corrections_history');")
+          [ "$VIEWS" = "2" ] || { echo "FAIL: vues attendues=2 trouvées=$VIEWS"; exit 1; }
+
+          echo "=== TOUTES LES ASSERTIONS DB PASSÉES — forensic OK ==="
 
       - name: Ruff check
         run: ruff check src tests
@@ -109,7 +138,6 @@ jobs:
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql+psycopg://postgres:testpass@localhost:5432/dmstest
           TESTING: "true"
         run: |
           pytest tests/ \

@@ -201,7 +201,7 @@ def _store_error(
         cur.execute(
             """
             INSERT INTO extraction_errors
-                (document_id, job_id, error_code, error_detail)
+                (document_id, job_id, error_code, error_message)
             VALUES (%s, %s, %s, %s)
         """,
             (document_id, job_id, error_code, error_detail),

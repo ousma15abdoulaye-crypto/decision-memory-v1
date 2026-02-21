@@ -3,10 +3,11 @@ import os
 import re
 import uuid
 
-# Load .env before db import (DATABASE_URL required)
+# Load .env and .env.local before db import (DATABASE_URL required)
 try:
     from dotenv import load_dotenv
     load_dotenv()
+    load_dotenv(".env.local")
 except ImportError:
     pass
 
@@ -37,6 +38,7 @@ from src.core.models import (
     CBATemplateSchema, DAOCriterion, OfferSubtype, SupplierPackage
 )
 from src.api import health, cases, documents, analysis
+from src.api.routes.extractions import router as extraction_router
 
 # ❌ REMOVED: from src.couche_a.procurement import router as procurement_router (M2-Extended)
 
@@ -62,6 +64,7 @@ app.include_router(health.router)
 app.include_router(cases.router)
 app.include_router(documents.router)
 app.include_router(analysis.router)
+app.include_router(extraction_router)
 from src.couche_a.scoring import api as scoring_api
 app.include_router(scoring_api.router)
 # ❌ REMOVED: app.include_router(procurement_router) (M2-Extended)

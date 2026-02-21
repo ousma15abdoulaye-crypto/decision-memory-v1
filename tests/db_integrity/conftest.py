@@ -66,7 +66,6 @@ def _ensure_base_schema():
                 "ALTER TABLE documents ADD COLUMN IF NOT EXISTS extraction_method TEXT"
             )
         )
-        # extractions (pour tests intégration)
         cx.execute(
             text("ALTER TABLE extractions ALTER COLUMN artifact_id DROP NOT NULL")
         )
@@ -107,6 +106,42 @@ def _ensure_base_schema():
         cx.commit()
 
 
+def _ensure_structured_data_effective_view():
+    """Create structured_data_effective view if missing (M-EXTRACTION-CORRECTIONS 015/016)."""
+    conn = _get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM information_schema.views "
+                "WHERE table_schema='public' AND table_name='structured_data_effective'"
+            )
+            if cur.fetchone() is None:
+                cur.execute("""
+                    CREATE OR REPLACE VIEW structured_data_effective AS
+                    SELECT DISTINCT ON (e.document_id)
+                        e.id AS extraction_id,
+                        e.document_id,
+                        COALESCE(ec.structured_data, e.structured_data) AS structured_data,
+                        COALESCE(ec.confidence_override, e.confidence_score) AS confidence_score,
+                        e.extraction_method,
+                        e.extracted_at,
+                        ec.corrected_at,
+                        ec.corrected_by,
+                        ec.correction_reason
+                    FROM extractions e
+                    LEFT JOIN LATERAL (
+                        SELECT * FROM extraction_corrections ec2
+                        WHERE ec2.extraction_id = e.id
+                        ORDER BY ec2.corrected_at DESC, ec2.id DESC
+                        LIMIT 1
+                    ) ec ON true
+                    ORDER BY e.document_id, e.extracted_at DESC NULLS LAST, e.id
+                    """)
+                conn.commit()
+    finally:
+        conn.close()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def run_migrations_before_db_integrity_tests():
     """
@@ -127,6 +162,7 @@ def run_migrations_before_db_integrity_tests():
             f"stdout: {result.stdout}"
         )
     _ensure_base_schema()
+    _ensure_structured_data_effective_view()
     # Insérer un document minimal si documents est vide (requis pour FSM/§9 tests)
     conn = _get_conn()
     conn.autocommit = True

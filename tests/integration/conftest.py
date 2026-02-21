@@ -3,6 +3,8 @@
 Fixtures d'intégration — M-EXTRACTION-ENGINE.
 Données réelles en DB de test.
 Nettoyage automatique après chaque test.
+
+db_conn : chargé via pytest_plugins (Action 1 — un seul endroit).
 """
 
 import logging
@@ -17,6 +19,8 @@ from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 
 from src.api.main import app
+
+# db_conn fourni par tests/conftest.py (racine)
 
 load_dotenv()
 
@@ -115,16 +119,7 @@ def integration_client():
     return TestClient(app)
 
 
-@pytest.fixture
-def db_conn():
-    """
-    Connexion DB avec autocommit pour setup/teardown.
-    Utilisé uniquement pour insérer/lire des fixtures.
-    """
-    conn = _get_conn()
-    conn.autocommit = True
-    yield conn
-    conn.close()
+# db_conn fourni par tests.db_integrity.conftest (pytest_plugins)
 
 
 @pytest.fixture

@@ -54,4 +54,6 @@ python_functions = ["test_*"]
 addopts = "-v --tb=short"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "smoke: marks tests as smoke tests",
+    "db_integrity: marks tests requiring DB integrity (triggers, migrations)",
 ]
