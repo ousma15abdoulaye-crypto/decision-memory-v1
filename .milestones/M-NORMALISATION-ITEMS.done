@@ -1,0 +1,36 @@
+MILESTONE    : M-NORMALISATION-ITEMS
+STATUS       : DONE
+DATE         : 2026-02-21
+DMS_VERSION  : V3.3.2
+ADR_FREEZE   : 0001→0007
+
+ÉTAPES COMPLÉTÉES
+─────────────────
+021 : tables couche_b.procurement_dict_* + vues public.dict_*    ✅
+022 : seed procurement_dict_v1.sql (idempotent)                  ✅
+N1  : test_dict_minimum_coverage — 1 passed                      ✅
+N2  : test_aliases_mandatory_sahel — 1 passed                    ✅
+N3  : test_no_raw_offer_in_scoring — 2 skipped (M-SCORING-ENGINE)✅
+
+DONNÉES SEEDÉES
+───────────────
+Familles    : 9  (ADR-0002 §2.1 mandatory)
+Items actifs: 51
+Aliases     : 157 (UNIQUE normalized_alias, seed_sahel + seed_min)
+Conversions : 13 (mandatory Sahel)
+
+DÉCISIONS ARCHITECTURALES
+──────────────────────────
+Tables dans schema couche_b (autorité PostgreSQL, Couche B)
+Vues public.dict_* pour découplage tests/schéma
+alias_raw = forme terrain | normalized_alias = ASCII lowercase UNIQUE
+Seed versionné db/seeds/procurement_dict_v1.sql (ADR-0002)
+Revision IDs raccourcis pour VARCHAR(32) alembic_version :
+  021 = 021_m_normalisation_items_tables (32 chars)
+  022 = 022_seed_dict_sahel (19 chars)
+FK criteria.canonical_item_id → couche_b : reportée à M-CRITERIA-FK
+
+TICKET OUVERT
+─────────────
+test_no_raw_offer_in_scoring.py : 2 tests skippés → M-SCORING-ENGINE
+14 tests pré-existants en échec (test_auth/test_rbac/test_upload) : hors scope M-NORMALISATION-ITEMS
