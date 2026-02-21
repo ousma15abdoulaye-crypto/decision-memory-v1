@@ -1,4 +1,4 @@
-﻿"""Fix 015 -- create missing view + append-only trigger (CI proof).
+"""Fix 015 -- create missing view + append-only trigger (CI proof).
 
 Revision ID: 016_fix_015_views_triggers
 Revises: 015_m_extraction_corrections
