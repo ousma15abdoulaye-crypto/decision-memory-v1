@@ -50,12 +50,12 @@ def test_corrections_can_be_inserted(db_conn, extraction_correction_fixture):
         cur.execute(
             """
             INSERT INTO extraction_corrections
-                (extraction_id, document_id, structured_data,
+                (extraction_id, structured_data,
                  confidence_override, correction_reason, corrected_by)
-            VALUES (%s, %s, '{"new": true}'::jsonb, 0.99, 'insert test', 'test-user')
+            VALUES (%s, '{"new": true}'::jsonb, 0.99, 'insert test', 'test-user')
             RETURNING id
             """,
-            (extraction_id, doc_id),
+            (extraction_id,),
         )
         row = cur.fetchone()
     assert row is not None and row.get("id") is not None

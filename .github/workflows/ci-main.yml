@@ -49,6 +49,8 @@ jobs:
         env:
           DATABASE_URL: postgresql+psycopg://postgres:testpass@localhost:5432/dmstest
         run: |
+          echo "=== Versions drivers (preuve C) ==="
+          pip show alembic sqlalchemy psycopg | grep -E "^(Name|Version):"
           alembic upgrade head
           echo "=== Révision Alembic actuelle ==="
           alembic current
@@ -126,6 +128,57 @@ jobs:
           EOF
           echo "=== Tables vérifiées ==="
           psql -h localhost -U postgres -d dmstest -c "\dt extraction*"
+
+      - name: Verify DB objects post-migration (forensic)
+        env:
+          PGPASSWORD: testpass
+        run: |
+          echo "=== Q1 — db + schema ==="
+          psql -h localhost -U postgres -d dmstest -c \
+            "SELECT current_database() AS db, current_schema() AS schema;"
+
+          echo "=== Q2 — extraction_corrections (to_regclass) ==="
+          psql -h localhost -U postgres -d dmstest -c \
+            "SELECT to_regclass('public.extraction_corrections') AS extraction_corrections;"
+
+          echo "=== Q3 — structured_data_effective (to_regclass) ==="
+          psql -h localhost -U postgres -d dmstest -c \
+            "SELECT to_regclass('public.structured_data_effective') AS structured_data_effective;"
+
+          echo "=== Q4 — triggers sur extraction_corrections ==="
+          psql -h localhost -U postgres -d dmstest -c \
+            "SELECT trigger_name FROM information_schema.triggers WHERE event_object_table='extraction_corrections' ORDER BY trigger_name;"
+
+          echo "=== Q5 — colonnes de extraction_corrections ==="
+          psql -h localhost -U postgres -d dmstest -c \
+            "SELECT column_name FROM information_schema.columns WHERE table_name='extraction_corrections' ORDER BY ordinal_position;"
+
+          echo "=== Q6 — nombre de vues corrections ==="
+          psql -h localhost -U postgres -d dmstest -c \
+            "SELECT COUNT(*) AS views_cnt FROM information_schema.views WHERE table_name IN ('structured_data_effective','extraction_corrections_history');"
+
+          # ── Assertions bloquantes ──────────────────────────────────
+          TABLE=$(psql -h localhost -U postgres -d dmstest -t -A -c \
+            "SELECT (to_regclass('public.extraction_corrections') IS NOT NULL)::text;")
+          [ "$TABLE" = "true" ] || { echo "FAIL: table extraction_corrections absente"; exit 1; }
+
+          VIEW=$(psql -h localhost -U postgres -d dmstest -t -A -c \
+            "SELECT (to_regclass('public.structured_data_effective') IS NOT NULL)::text;")
+          [ "$VIEW" = "true" ] || { echo "FAIL: vue structured_data_effective absente"; exit 1; }
+
+          TRG=$(psql -h localhost -U postgres -d dmstest -t -A -c \
+            "SELECT COUNT(*) FROM information_schema.triggers WHERE event_object_table='extraction_corrections';")
+          [ "$TRG" -gt 0 ] || { echo "FAIL: aucun trigger sur extraction_corrections"; exit 1; }
+
+          DOCID=$(psql -h localhost -U postgres -d dmstest -t -A -c \
+            "SELECT COUNT(*) FROM information_schema.columns WHERE table_name='extraction_corrections' AND column_name='document_id';")
+          [ "$DOCID" = "0" ] || { echo "FAIL: colonne document_id présente (fantôme)"; exit 1; }
+
+          VIEWS=$(psql -h localhost -U postgres -d dmstest -t -A -c \
+            "SELECT COUNT(*) FROM information_schema.views WHERE table_name IN ('structured_data_effective','extraction_corrections_history');")
+          [ "$VIEWS" = "2" ] || { echo "FAIL: vues attendues=2 trouvées=$VIEWS"; exit 1; }
+
+          echo "=== TOUTES LES ASSERTIONS DB PASSÉES — forensic OK ==="
 
       - name: Ruff check
         run: ruff check src tests
