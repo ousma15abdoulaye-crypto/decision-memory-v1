@@ -66,3 +66,9 @@ coverage.xml
 *.cover
 .pytest_cache/
 
+# Alembic cache (évite révisions fantômes)
+alembic/__pycache__/
+alembic/versions/__pycache__/
+
+# dms.log explicite
+dms.log
