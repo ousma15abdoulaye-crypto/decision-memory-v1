@@ -45,7 +45,7 @@ def test_corrections_cannot_be_deleted(db_conn, extraction_correction_fixture):
 @pytest.mark.db_integrity
 def test_corrections_can_be_inserted(db_conn, extraction_correction_fixture):
     """Un INSERT valide doit réussir (append autorisé)."""
-    doc_id, extraction_id, _ = extraction_correction_fixture
+    _doc_id, extraction_id, _ = extraction_correction_fixture
     with db_conn.cursor() as cur:
         cur.execute(
             """
