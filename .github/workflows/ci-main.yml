@@ -59,7 +59,7 @@ jobs:
           echo "=== Alembic heads (before upgrade) ==="
           alembic heads
           echo "=== Alembic current (before upgrade) ==="
-          alembic current || true
+          alembic current 2>&1 && echo "(current OK)" || echo "(no current revision yet — DB empty, expected)"
 
       - name: Run migrations (alembic upgrade head)
         run: |
