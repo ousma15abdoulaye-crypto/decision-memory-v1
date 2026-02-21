@@ -84,3 +84,4 @@ def downgrade():
         "DROP TRIGGER IF EXISTS trg_extraction_corrections_append_only ON extraction_corrections;"
     )
     op.execute("DROP FUNCTION IF EXISTS enforce_extraction_corrections_append_only()")
+
