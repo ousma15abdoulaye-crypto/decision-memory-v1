@@ -1,88 +1,185 @@
-"""
-Test : Append-only corrections humaines
-Gate : BLOQUANT CI (M-EXTRACTION-CORRECTIONS)
-ADR  : ADR-0002 §6.2, ADR-0007
-INV  : INV-6 (append-only) + INV-9 (fidélité au réel)
+﻿"""Test extraction_corrections append-only semantics (INV-6, ADR-0006)."""
 
-Consolidé : ex-invariants/phase0/test_corrections_append_only.py
-"""
-
+import uuid
 import json
-
 import pytest
+import psycopg
 
 
-@pytest.mark.db_integrity
-def test_corrections_cannot_be_updated(db_conn, extraction_correction_fixture):
-    """
-    Un UPDATE sur extraction_corrections doit lever une exception.
-    Trigger : enforce_extraction_corrections_append_only
-    """
-    _doc_id, _ext_id, correction_id = extraction_correction_fixture
-    with db_conn.cursor() as cur:
-        with pytest.raises(Exception) as exc_info:
-            cur.execute(
-                "UPDATE extraction_corrections SET correction_reason = 'x' WHERE id = %s",
-                (correction_id,),
-            )
-        msg = str(exc_info.value).lower()
-        assert "append-only" in msg or "inv-6" in msg or "violation" in msg
+@pytest.fixture
+def setup_base_data(db_conn):
+    """Create users → cases → documents → extractions (fixtures)."""
+    cur = db_conn.cursor()
+    
+    user_id = str(uuid.uuid4())
+    case_id = str(uuid.uuid4())
+    doc_id = str(uuid.uuid4())
+    
+    # Insert user
+    cur.execute(
+        "INSERT INTO users (id, email, password_hash, role) "
+        "VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
+        (user_id, "test@test.com", "hash", "admin")
+    )
+    
+    # Insert case
+    cur.execute(
+        "INSERT INTO cases (id, code, owner_user_id, status) "
+        "VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
+        (case_id, f"TEST-{uuid.uuid4().hex[:4]}", user_id, "active")
+    )
+    
+    # Insert document
+    cur.execute(
+        "INSERT INTO documents (id, case_id, filename, mimetype, file_size) "
+        "VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+        (doc_id, case_id, "test.pdf", "application/pdf", 1024)
+    )
+    
+    db_conn.commit()
+    return user_id, case_id, doc_id
 
 
-@pytest.mark.db_integrity
-def test_corrections_cannot_be_deleted(db_conn, extraction_correction_fixture):
-    """Un DELETE sur extraction_corrections doit lever une exception."""
-    _doc_id, _ext_id, correction_id = extraction_correction_fixture
-    with db_conn.cursor() as cur:
-        with pytest.raises(Exception) as exc_info:
-            cur.execute(
-                "DELETE FROM extraction_corrections WHERE id = %s", (correction_id,)
-            )
-        msg = str(exc_info.value).lower()
-        assert "append-only" in msg or "inv-6" in msg or "violation" in msg
-
-
-@pytest.mark.db_integrity
-def test_corrections_can_be_inserted(db_conn, extraction_correction_fixture):
-    """Un INSERT valide doit réussir (append autorisé)."""
-    _doc_id, extraction_id, _ = extraction_correction_fixture
-    with db_conn.cursor() as cur:
+def test_corrections_cannot_be_updated(db_conn, setup_base_data):
+    """INVARIANT INV-6: extraction_corrections is append-only → UPDATE forbidden."""
+    cur = db_conn.cursor()
+    user_id, case_id, doc_id = setup_base_data
+    
+    ext_id = str(uuid.uuid4())
+    cor_id = str(uuid.uuid4())
+    
+    # Insert extraction
+    cur.execute(
+        "INSERT INTO extractions (id, document_id, structured_data, confidence_score) "
+        "VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
+        (ext_id, doc_id, json.dumps({"test": "data"}), 0.8)
+    )
+    
+    # Insert correction
+    cur.execute(
+        "INSERT INTO extraction_corrections "
+        "(id, extraction_id, structured_data, corrected_by, correction_reason) "
+        "VALUES (%s, %s, %s, %s, %s)",
+        (cor_id, ext_id, json.dumps({"corrected": "v1"}), user_id, "initial fix")
+    )
+    db_conn.commit()
+    
+    # Try UPDATE → must raise EXCEPTION
+    with pytest.raises(psycopg.Error) as exc_info:
         cur.execute(
-            """
-            INSERT INTO extraction_corrections
-                (extraction_id, structured_data,
-                 confidence_override, correction_reason, corrected_by)
-            VALUES (%s, '{"new": true}'::jsonb, 0.99, 'insert test', 'test-user')
-            RETURNING id
-            """,
-            (extraction_id,),
+            "UPDATE extraction_corrections SET structured_data = %s WHERE id = %s",
+            (json.dumps({"corrected": "v2"}), cor_id)
         )
-        row = cur.fetchone()
-    assert row is not None and row.get("id") is not None
+        db_conn.commit()
+    
+    assert "append-only" in str(exc_info.value).lower() or "INV-6" in str(exc_info.value)
+    db_conn.rollback()
 
 
-@pytest.mark.db_integrity
-def test_effective_view_applies_corrections_in_order(
-    db_conn, extraction_correction_fixture
-):
-    """
-    La vue structured_data_effective retourne la correction
-    (dernière correction appliquée) et non l'original.
-    """
-    doc_id, _extraction_id, _ = extraction_correction_fixture
-    with db_conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT structured_data, confidence_score
-            FROM structured_data_effective
-            WHERE document_id = %s
-            """,
-            (doc_id,),
-        )
-        row = cur.fetchone()
-    assert row is not None
-    sd = row.get("structured_data")
-    if isinstance(sd, str):
-        sd = json.loads(sd)
-    assert sd is not None
-    assert sd.get("corrected") is True or row.get("confidence_score") >= 0.95
+def test_corrections_cannot_be_deleted(db_conn, setup_base_data):
+    """INVARIANT INV-6: extraction_corrections is append-only → DELETE forbidden."""
+    cur = db_conn.cursor()
+    user_id, case_id, doc_id = setup_base_data
+    
+    ext_id = str(uuid.uuid4())
+    cor_id = str(uuid.uuid4())
+    
+    # Insert extraction + correction
+    cur.execute(
+        "INSERT INTO extractions (id, document_id, structured_data, confidence_score) "
+        "VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
+        (ext_id, doc_id, json.dumps({"test": "data"}), 0.8)
+    )
+    cur.execute(
+        "INSERT INTO extraction_corrections "
+        "(id, extraction_id, structured_data, corrected_by) "
+        "VALUES (%s, %s, %s, %s)",
+        (cor_id, ext_id, json.dumps({"corrected": "v1"}), user_id)
+    )
+    db_conn.commit()
+    
+    # Try DELETE → must raise EXCEPTION
+    with pytest.raises(psycopg.Error) as exc_info:
+        cur.execute("DELETE FROM extraction_corrections WHERE id = %s", (cor_id,))
+        db_conn.commit()
+    
+    assert "append-only" in str(exc_info.value).lower() or "INV-6" in str(exc_info.value)
+    db_conn.rollback()
+
+
+def test_corrections_can_be_inserted(db_conn, setup_base_data):
+    """INSERT into extraction_corrections must succeed (append operation)."""
+    cur = db_conn.cursor()
+    user_id, case_id, doc_id = setup_base_data
+    
+    ext_id = str(uuid.uuid4())
+    cor_id = str(uuid.uuid4())
+    
+    # Insert extraction
+    cur.execute(
+        "INSERT INTO extractions (id, document_id, structured_data, confidence_score) "
+        "VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
+        (ext_id, doc_id, json.dumps({"test": "data"}), 0.8)
+    )
+    
+    # Insert correction
+    cur.execute(
+        "INSERT INTO extraction_corrections "
+        "(id, extraction_id, structured_data, corrected_by, correction_reason) "
+        "VALUES (%s, %s, %s, %s, %s)",
+        (cor_id, ext_id, json.dumps({"corrected": "data"}), user_id, "fix typo")
+    )
+    db_conn.commit()
+    
+    # Verify inserted
+    cur.execute("SELECT id FROM extraction_corrections WHERE id = %s", (cor_id,))
+    result = cur.fetchone()
+    assert result is not None
+    assert result[0] == cor_id
+
+
+def test_effective_view_applies_corrections_in_order(db_conn, setup_base_data):
+    """ADR-0006: View structured_data_effective shows latest correction."""
+    cur = db_conn.cursor()
+    user_id, case_id, doc_id = setup_base_data
+    
+    ext_id = str(uuid.uuid4())
+    
+    # Insert extraction with original data
+    cur.execute(
+        "INSERT INTO extractions (id, document_id, structured_data, confidence_score) "
+        "VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
+        (ext_id, doc_id, json.dumps({"original": "v0"}), 0.5)
+    )
+    
+    # Correction 1
+    cur.execute(
+        "INSERT INTO extraction_corrections "
+        "(id, extraction_id, structured_data, corrected_by) "
+        "VALUES (%s, %s, %s, %s)",
+        (str(uuid.uuid4()), ext_id, json.dumps({"v": "1"}), user_id)
+    )
+    
+    # Correction 2 (latest — view should show this)
+    cur.execute(
+        "INSERT INTO extraction_corrections "
+        "(id, extraction_id, structured_data, corrected_by) "
+        "VALUES (%s, %s, %s, %s)",
+        (str(uuid.uuid4()), ext_id, json.dumps({"v": "2"}), user_id)
+    )
+    db_conn.commit()
+    
+    # View should return LATEST correction (v=2)
+    cur.execute(
+        "SELECT structured_data FROM structured_data_effective WHERE extraction_id = %s",
+        (ext_id,)
+    )
+    result = cur.fetchone()
+    assert result is not None
+    
+    # Handle both JSON string and dict
+    data = result[0]
+    if isinstance(data, str):
+        data = json.loads(data)
+    
+    assert data.get("v") == "2", f"Expected latest correction (v=2), got {data}"
