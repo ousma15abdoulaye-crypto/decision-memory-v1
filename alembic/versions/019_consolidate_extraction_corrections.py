@@ -23,7 +23,7 @@ from __future__ import annotations
 from alembic import op
 
 
-revision = "019_consolidate_extraction_corrections"
+revision = "019_consolidate_ec"
 down_revision = "016_fix_015_views_triggers"
 branch_labels = None
 depends_on = None
