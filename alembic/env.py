@@ -10,6 +10,7 @@ import os
 try:
     from dotenv import load_dotenv
     load_dotenv()
+    load_dotenv(".env.local")
 except ImportError:
     pass
 

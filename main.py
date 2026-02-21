@@ -3,10 +3,11 @@ import os
 import re
 import uuid
 
-# Load .env before db import (DATABASE_URL required)
+# Load .env and .env.local before db import (DATABASE_URL required)
 try:
     from dotenv import load_dotenv
     load_dotenv()
+    load_dotenv(".env.local")
 except ImportError:
     pass
 

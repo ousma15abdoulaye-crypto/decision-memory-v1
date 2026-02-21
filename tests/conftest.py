@@ -10,11 +10,12 @@ import os
 
 import pytest
 
-# Load .env file if present
+# Load .env and .env.local (local overrides) if present
 try:
     from dotenv import load_dotenv
 
     load_dotenv()
+    load_dotenv(".env.local")
 except ImportError:
     pass
 
