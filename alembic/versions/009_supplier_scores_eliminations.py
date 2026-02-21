@@ -1,4 +1,4 @@
-﻿"""Add supplier_scores and supplier_eliminations for M3B engine.
+"""Add supplier_scores and supplier_eliminations for M3B engine.
 
 Revision ID: 009_supplier_scores_eliminations
 Revises: 008_merge_heads

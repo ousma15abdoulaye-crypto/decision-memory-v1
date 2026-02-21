@@ -1,4 +1,4 @@
-﻿"""Merge Alembic heads: caf949... + 016_fix_015_views_triggers.
+"""Merge Alembic heads: caf949... + 016_fix_015_views_triggers.
 
 Revision ID: 017_merge_heads_caf_016
 Revises: caf949970819_merge_heads_for_single_alembic_revision_, 016_fix_015_views_triggers
@@ -11,7 +11,7 @@ from alembic import op
 
 revision = "017_merge_heads_caf_016"
 down_revision = (
-    "caf949970819_merge_heads_for_single_alembic_revision_",
+    "caf949970819",
     "016_fix_015_views_triggers",
 )
 branch_labels = None

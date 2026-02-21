@@ -1,4 +1,4 @@
-﻿"""Ensure extraction_jobs and extraction_errors exist (idempotent safety net).
+"""Ensure extraction_jobs and extraction_errors exist (idempotent safety net).
 
 Revision ID: 014_ensure_extraction_tables
 Revises: 013_m_extraction_docs
