@@ -1,10 +1,8 @@
 """
 Test : Couverture minimale dictionnaire procurement Sahel
-Gate : 🔴 BLOQUANT CI (actif dès M-NORMALISATION-ITEMS)
+Gate : BLOQUANT CI
 ADR  : ADR-0002 §2.1
 """
-
-import pytest
 
 MANDATORY_FAMILIES = [
     "carburants",
@@ -22,23 +20,45 @@ MINIMUM_ITEMS_PER_FAMILY = 5
 MINIMUM_ALIASES_PER_ITEM = 3
 
 
-@pytest.mark.skip(
-    reason="À implémenter dans M-NORMALISATION-ITEMS. "
-    "Vérifier que le dictionnaire contient au minimum "
-    "5 items par famille et 3 aliases par item "
-    "pour les 9 familles Sahel obligatoires (ADR-0002 §2.1). "
-    "🔴 BLOQUE CI quand actif."
-)
-def test_dict_minimum_coverage_all_families():
+def test_dict_minimum_coverage_all_families(db_conn):
     """
-    Garantit la couverture minimale du dictionnaire procurement.
-    9 familles × 5 items × 3 aliases minimum.
-    🔴 BLOQUE CI quand actif.
+    9 familles x >= 5 items actifs x >= 3 aliases chacun.
+    ADR-0002 §2.1
     """
+    cur = db_conn.cursor()
+
     for family in MANDATORY_FAMILIES:
-        # items = get_items_by_family(family)
-        # assert len(items) >= MINIMUM_ITEMS_PER_FAMILY
-        # for item in items:
-        #     aliases = get_aliases(item.id)
-        #     assert len(aliases) >= MINIMUM_ALIASES_PER_ITEM
-        pass
+        cur.execute(
+            """
+            SELECT COUNT(*) AS n
+            FROM couche_b.procurement_dict_items
+            WHERE family_id = %s
+              AND active = TRUE
+            """,
+            (family,),
+        )
+        item_count = cur.fetchone()["n"]
+        assert item_count >= MINIMUM_ITEMS_PER_FAMILY, (
+            f"Famille '{family}' : {item_count} items actifs "
+            f"(minimum : {MINIMUM_ITEMS_PER_FAMILY}) — ADR-0002 §2.1"
+        )
+
+        cur.execute(
+            """
+            SELECT i.item_id, COUNT(a.alias_id) AS alias_count
+            FROM couche_b.procurement_dict_items i
+            LEFT JOIN couche_b.procurement_dict_aliases a
+                   ON a.item_id = i.item_id
+            WHERE i.family_id = %s
+              AND i.active = TRUE
+            GROUP BY i.item_id
+            HAVING COUNT(a.alias_id) < %s
+            """,
+            (family, MINIMUM_ALIASES_PER_ITEM),
+        )
+        under_aliased = cur.fetchall()
+        assert len(under_aliased) == 0, (
+            f"Famille '{family}' — items avec < {MINIMUM_ALIASES_PER_ITEM} "
+            f"aliases : {[r['item_id'] for r in under_aliased]} "
+            f"— ADR-0002 §2.1"
+        )
