@@ -1,0 +1,8 @@
+done=2026-02-21
+milestone=M-EXTRACTION-CORRECTIONS
+head=019_consolidate_ec
+ci=green
+tests=272 passed, 37 skipped, 0 failed
+invariants=INV-6 OK, INV-9 OK
+adr=ADR-0006 compliant
+objects=table:extraction_corrections, triggers:2, views:2

@@ -1,0 +1,14 @@
+MILESTONE    : M-CRITERIA-TYPING
+STATUS       : DONE
+DATE         : 2026-02-21
+DMS_VERSION  : V3.3.2
+ADR_FREEZE   : 0001-0007
+
+EVIDENCE
+- Alembic : head = m_criteria_typing (020)
+- DB-level tests : 16/16 passed
+- API tests : 29/29 passed
+- CI gate : 281 passed, 37 skipped, 0 failed
+- API prefix : /cases/{case_id}/criteria
+- row_factory : dict_row enforced (row[key] only)
+- rate-limit bypass : TESTING=true via conftest + _is_testing fn

@@ -24,7 +24,7 @@ from alembic import op
 
 
 revision = "019_consolidate_ec"
-down_revision = "016_fix_015_views_triggers"
+down_revision = "018_fix_alembic_heads"
 branch_labels = None
 depends_on = None
 
@@ -81,7 +81,8 @@ def upgrade() -> None:
                     ADD CONSTRAINT extraction_corrections_extraction_id_fkey
                     FOREIGN KEY (extraction_id)
                     REFERENCES extractions(id)
-                    ON DELETE CASCADE;
+                    ON DELETE CASCADE
+                    NOT VALID;
             END IF;
         END $$;
     """)
