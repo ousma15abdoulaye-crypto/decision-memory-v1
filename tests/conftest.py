@@ -8,6 +8,9 @@ This conftest runs first so collection succeeds; same URL as CI for local runs.
 
 import os
 
+# Doit être posé AVANT tout import src.* (ratelimit.py lu à l'import de l'app)
+os.environ.setdefault("TESTING", "true")
+
 import pytest
 
 # Load .env and .env.local (local overrides) if present

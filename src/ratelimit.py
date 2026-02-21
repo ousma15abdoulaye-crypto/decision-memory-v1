@@ -2,6 +2,7 @@
 
 import logging
 import os
+from functools import wraps
 
 from fastapi import FastAPI
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -10,13 +11,20 @@ from slowapi.util import get_remote_address
 
 logger = logging.getLogger(__name__)
 
-# Check if we're in test mode
-TESTING = os.getenv("TESTING", "false").lower() == "true"
 
-# Limiter configuration
+def _is_testing() -> bool:
+    """Lit l'env var au moment de l'appel — jamais figé au chargement du module."""
+    return os.environ.get("TESTING", "false").lower() == "true"
+
+
+# Backward-compat export : True uniquement si TESTING est déjà posé avant cet import
+# (garantie par tests/conftest.py → os.environ.setdefault("TESTING", "true"))
+TESTING = _is_testing()
+
+# Limiter configuration — default_limits évalué au chargement, mais après conftest
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=[] if TESTING else ["100/minute"],  # Disable in tests
+    default_limits=[] if _is_testing() else ["100/minute"],
     storage_uri="memory://",  # Utiliser Redis en production
 )
 
@@ -26,7 +34,7 @@ def init_rate_limit(app: FastAPI):
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-    if TESTING:
+    if _is_testing():
         logger.info("Rate limiting DISABLED (test mode)")
     else:
         logger.info("Rate limiting initialized (slowapi)")
@@ -37,20 +45,25 @@ _original_limit = limiter.limit
 
 
 def conditional_limit(rate_limit: str):
-    """Conditional rate limiting - disabled in test mode.
+    """Décorateur rate-limit conditionnel.
 
-    Note: In test mode, we return the original function unchanged,
-    which naturally preserves all function metadata (name, docstring, signature).
-    No need for @wraps since we're not creating a wrapper.
+    TESTING=true  → no-op (retourne func tel quel — préserve async + metadata).
+    PROD          → comportement SlowAPI normal.
+
+    _is_testing() est appelé au moment où le décorateur est appliqué
+    (import du module décoré), pas au chargement de ratelimit.py.
     """
 
     def decorator(func):
-        if TESTING:
-            # In test mode, return original function unchanged (preserves async + metadata)
+        if _is_testing():
+            # no-op : fonction originale inchangée (async, __name__, __doc__ préservés)
             return func
-        else:
-            # In production, apply the rate limit
-            return _original_limit(rate_limit)(func)
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+
+        return _original_limit(rate_limit)(wrapper)
 
     return decorator
 

@@ -4,15 +4,22 @@ Application FastAPI — DMS
 Constitution V3.3.2 — Tous les routers montés explicitement.
 """
 from fastapi import FastAPI
-from src.api.routes.extractions import router as extraction_router
+from src.couche_a.criteria.router import router as criteria_router
 
 # Routers optionnels — ImportError = milestone pas encore actif (normal)
 # Toute autre exception remonte (bug réel — ne pas masquer — règle CTO)
+_extraction_router = None
 _auth_router = None
 _cases_router = None
 _documents_router = None
 _health_router = None
 _analysis_router = None
+
+try:
+    from src.api.routes.extractions import router as extraction_router
+    _extraction_router = extraction_router
+except ImportError:
+    pass
 
 try:
     from src.auth_router import router as auth_router
@@ -50,11 +57,12 @@ app = FastAPI(
     description="Decision Memory System — Constitution V3.3.2",
 )
 
-# Router obligatoire
-app.include_router(extraction_router)
+# Router obligatoire M-CRITERIA-TYPING
+app.include_router(criteria_router)
 
 # Routers conditionnels
 for _router in [
+    _extraction_router,
     _auth_router,
     _cases_router,
     _documents_router,
