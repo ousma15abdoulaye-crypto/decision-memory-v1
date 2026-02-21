@@ -25,7 +25,7 @@ from src.db.core import get_connection, init_db_schema
 analyses_table: str = "analyses"
 audits_table: str = "audits"
 documents_table: str = "documents"
-extractions_table: str = "offer_extractions"
+extractions_table: str = "extractions"
 lots_table: str = "lots"
 offers_table: str = "offers"
 
