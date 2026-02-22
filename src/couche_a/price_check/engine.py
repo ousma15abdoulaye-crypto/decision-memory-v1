@@ -17,7 +17,7 @@ Isolation (INV-02 / DT-006) :
 from __future__ import annotations
 
 import importlib as _importlib
-from typing import Callable
+from collections.abc import Callable
 
 from src.couche_a.price_check.schemas import OffreInput, PriceCheckResult, PriceVerdict
 
@@ -123,7 +123,9 @@ def analyze_batch(
     if not offres:
         return []
 
-    _fn: Callable = normalize_batch_fn if normalize_batch_fn is not None else normalize_batch
+    _fn: Callable = (
+        normalize_batch_fn if normalize_batch_fn is not None else normalize_batch
+    )
 
     # -- Step 1: normalize all aliases (1 batch call) --
     alias_list = [o.alias_raw for o in offres]

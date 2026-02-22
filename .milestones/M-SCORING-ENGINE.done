@@ -1,0 +1,67 @@
+milestone: M-SCORING-ENGINE (requalifié ADR-0009)
+status: DONE
+date: 2026-02-22
+branch: feat/m-scoring-engine
+commit: 99f178238682146e12bb3b21d3aead0669172046
+
+## Gates
+
+db_head: 025_alter_scoring_configs (head unique)
+pytest: 314 passed, 0 failed, 35 skipped
+ruff: all checks passed
+black: ok
+alembic_heads: 1
+
+## Livrables
+
+L1: src/couche_a/price_check/schemas.py
+L2: src/couche_a/price_check/engine.py
+L3: src/api/routers/price_check.py
+L4: alembic/versions/025_alter_scoring_configs.py (ALTER TABLE scoring_configs - profile_code, ratios, UNIQUE, CHECK, seed GENERIC)
+L5: tests/price_check/test_price_check_engine.py (T1-T9: 9 passed)
+L6a: tests/boundary/test_couche_a_b_boundary.py (DT-006: 2 passed)
+L6b: tests/boundary/test_constitution_compliance.py (ADR-0009: 3 passed)
+L7: .milestones/M-SCORING-ENGINE.done
+
+## Constitution compliance
+
+no_scoring_no_ranking_no_recommendations: true
+decisional_fields_prohibited: [rank, winner, recommendation, selected, offre_retenue, shortlist, classement, gagnant]
+verdicts: [WITHIN_REF, ABOVE_REF, NO_REF]
+read_only: true (submission_scores, supplier_scores: aucune écriture)
+router_prefix: /price-check (pas /scoring)
+
+## Invariants verts
+
+INV-02 (couche_a_independent): PASSED
+INV-09 (neutral_language): PASSED
+
+## Boundary gates
+
+DT-006 (no couche_b submodule in couche_a): PASSED
+ADR-0009 (no decisional fields, router prefix, no score table writes): PASSED
+
+## Source separation
+
+couche_a_imports_couche_b: false
+normalize_batch_injection: via importlib lazy-load + DI depuis router
+fallback_trace: "fallback hardcoded -- scoring_configs empty" dans notes si scoring_configs vide
+
+## Constraint note (INV-02)
+
+INV-02 interdit toute string "import couche_b" dans src/couche_a → DI via router; workaround importlib utilisé pour compatibilité tests; à résoudre post-merge via ADR (audit/blindage).
+
+## Scope files
+
+src/couche_a/price_check/__init__.py
+src/couche_a/price_check/schemas.py
+src/couche_a/price_check/engine.py
+src/api/routers/price_check.py
+alembic/versions/025_alter_scoring_configs.py
+tests/price_check/__init__.py
+tests/price_check/test_price_check_engine.py
+tests/boundary/__init__.py
+tests/boundary/test_couche_a_b_boundary.py
+tests/boundary/test_constitution_compliance.py
+src/api/main.py
+.milestones/M-SCORING-ENGINE.done

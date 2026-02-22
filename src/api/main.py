@@ -17,6 +17,7 @@ _documents_router = None
 _health_router = None
 _analysis_router = None
 _mercuriale_router = None
+_price_check_router = None
 
 try:
     from src.api.routes.extractions import router as extraction_router
@@ -67,6 +68,13 @@ try:
 except ImportError:
     pass
 
+try:
+    from src.api.routers.price_check import router as price_check_router
+
+    _price_check_router = price_check_router
+except ImportError:
+    pass
+
 app = FastAPI(
     title="DMS API",
     version="0.1.0",
@@ -85,6 +93,7 @@ for _router in [
     _health_router,
     _analysis_router,
     _mercuriale_router,
+    _price_check_router,
 ]:
     if _router is not None:
         app.include_router(_router)
