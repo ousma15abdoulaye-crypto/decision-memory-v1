@@ -112,7 +112,7 @@ def analyze_batch(
     Performance contract:
       - 1 call to normalize_batch_fn() for all aliases.
       - 1 query to mercuriale_raw_queue for all resolved item_ids.
-      - 1 query to scoring_configs per distinct profile_code (cached).
+      - 1 query to scoring_configs per distinct profile_code in the current batch (cached).
 
     Args:
         offres: list of offers to analyze.
