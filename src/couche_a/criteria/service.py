@@ -313,11 +313,13 @@ def validate_weight_sum(case_id: str, org_id: str) -> dict:
         "delta": delta,
         "is_valid": is_valid,
         "status": "ok" if is_valid else "invalid",
-        "message": None
-        if is_valid
-        else (
-            f"Somme poids non-essentiels = {total:.2f}%. "
-            f"Doit etre 100%. Delta : {delta:.2f}%."
+        "message": (
+            None
+            if is_valid
+            else (
+                f"Somme poids non-essentiels = {total:.2f}%. "
+                f"Doit etre 100%. Delta : {delta:.2f}%."
+            )
         ),
     }
 
@@ -339,15 +341,17 @@ def _row_to_record(row: dict) -> CriterionRecord:
         label=str(row["label"]),
         category=str(row["category"]),
         weight_pct=float(row["weight_pct"]),
-        min_weight_pct=float(row["min_weight_pct"])
-        if row["min_weight_pct"] is not None
-        else None,
+        min_weight_pct=(
+            float(row["min_weight_pct"]) if row["min_weight_pct"] is not None else None
+        ),
         is_essential=bool(row["is_essential"]),
         threshold=float(row["threshold"]) if row["threshold"] is not None else None,
         scoring_method=str(row["scoring_method"]),
-        canonical_item_id=str(row["canonical_item_id"])
-        if row["canonical_item_id"] is not None
-        else None,
+        canonical_item_id=(
+            str(row["canonical_item_id"])
+            if row["canonical_item_id"] is not None
+            else None
+        ),
         currency=str(row["currency"]),
         description=str(row["description"]) if row["description"] is not None else None,
         created_at=str(row["created_at"]),
