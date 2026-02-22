@@ -29,12 +29,12 @@ def _get_database_url() -> str:
     url = os.environ.get("DATABASE_URL")
     if not url or not url.strip():
         raise RuntimeError(
-            "DATABASE_URL manquant. " "PostgreSQL requis — Constitution INV-4."
+            "DATABASE_URL manquant. PostgreSQL requis — Constitution INV-4."
         )
     url = url.strip()
     if "sqlite" in url.lower():
         raise RuntimeError(
-            "SQLite interdit — Constitution INV-4. " "Utiliser PostgreSQL uniquement."
+            "SQLite interdit — Constitution INV-4. Utiliser PostgreSQL uniquement."
         )
     return url
 

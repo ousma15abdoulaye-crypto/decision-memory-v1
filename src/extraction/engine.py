@@ -258,7 +258,7 @@ def _dispatch_extraction(
     if method == "docx_parser":
         return _extract_docx(doc["storage_uri"])
     raise ValueError(
-        f"Méthode inconnue pour dispatch : '{method}'. " f"SLA-A : {SLA_A_METHODS}"
+        f"Méthode inconnue pour dispatch : '{method}'. SLA-A : {SLA_A_METHODS}"
     )
 
 
@@ -298,7 +298,7 @@ def extract_sync(document_id: str) -> dict:
             )
             _update_document_status(document_id, "failed")
             raise TimeoutError(
-                f"SLA-A violé : {duration_ms:.0f}ms. " f"Document {document_id}."
+                f"SLA-A violé : {duration_ms:.0f}ms. Document {document_id}."
             )
 
         confidence = _compute_confidence(raw_text, structured_data)

@@ -8,7 +8,7 @@ import pytest
 
 
 @pytest.mark.skip(
-    reason="À implémenter dans M-MARKET-SURVEY-WORKFLOW. " "🔴 BLOQUE CI quand actif."
+    reason="À implémenter dans M-MARKET-SURVEY-WORKFLOW. 🔴 BLOQUE CI quand actif."
 )
 def test_sr1_minimum_3_cotations_per_item():
     """

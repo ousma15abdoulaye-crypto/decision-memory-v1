@@ -1,4 +1,4 @@
-﻿"""Test Invariant 1: RÃ©duction de charge cognitive.
+"""Test Invariant 1: RÃ©duction de charge cognitive.
 
 Constitution V3.3.2 Â§2: Le systÃ¨me doit rÃ©duire la charge cognitive,
 pas l'augmenter.

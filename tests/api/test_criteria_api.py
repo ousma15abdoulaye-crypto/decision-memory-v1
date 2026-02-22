@@ -18,16 +18,15 @@ Règles :
   - Isolation multi-tenant (R7)
   - Gouvernance : DELETE interdit si dossier hors 'draft'
 """
+
 from __future__ import annotations
 
 import uuid
 
-import pytest
-
-
 # ─────────────────────────────────────────────────────────────
 # HELPERS
 # ─────────────────────────────────────────────────────────────
+
 
 def _create_test_case(db_conn, status: str = "draft") -> str:
     """Crée un dossier de test et retourne son case_id."""
@@ -93,6 +92,7 @@ def _post_criterion(
 # ─────────────────────────────────────────────────────────────
 # POST — Créer un critère
 # ─────────────────────────────────────────────────────────────
+
 
 class TestPostCriterion:
     def test_creation_nominale_201(self, test_client, db_conn):
@@ -194,7 +194,8 @@ class TestPostCriterion:
         case_id = _create_test_case(db_conn, "draft")
         try:
             resp = _post_criterion(
-                test_client, case_id,
+                test_client,
+                case_id,
                 category="essential",
                 is_essential=True,
                 weight_pct=0.0,
@@ -208,6 +209,7 @@ class TestPostCriterion:
 # ─────────────────────────────────────────────────────────────
 # GET — Lister les critères d'un dossier
 # ─────────────────────────────────────────────────────────────
+
 
 class TestGetCriteriaList:
     def test_liste_vide(self, test_client, db_conn):
@@ -265,6 +267,7 @@ class TestGetCriteriaList:
 # GET /validate/weights — Somme des poids (R1)
 # ─────────────────────────────────────────────────────────────
 
+
 class TestValidateWeights:
     def test_somme_valide_100_pct(self, test_client, db_conn):
         """validate/weights — somme = 100% → is_valid=True (R1)."""
@@ -312,7 +315,8 @@ class TestValidateWeights:
             _post_criterion(test_client, case_id, weight_pct=100.0)
             # Critère essentiel : hors somme
             _post_criterion(
-                test_client, case_id,
+                test_client,
+                case_id,
                 label="Essentiel",
                 category="essential",
                 weight_pct=0.0,
@@ -333,9 +337,7 @@ class TestValidateWeights:
         """validate/weights sans org_id → 422."""
         case_id = _create_test_case(db_conn, "draft")
         try:
-            resp = test_client.get(
-                f"/cases/{case_id}/criteria/validate/weights"
-            )
+            resp = test_client.get(f"/cases/{case_id}/criteria/validate/weights")
             assert resp.status_code == 422
         finally:
             _cleanup(db_conn, case_id)
@@ -359,6 +361,7 @@ class TestValidateWeights:
 # ─────────────────────────────────────────────────────────────
 # GET /{criterion_id} — Récupérer un critère
 # ─────────────────────────────────────────────────────────────
+
 
 class TestGetCriterionById:
     def test_get_criterion_ok(self, test_client, db_conn):
@@ -395,9 +398,7 @@ class TestGetCriterionById:
         """GET /{criterion_id} sans org_id → 422."""
         case_id = _create_test_case(db_conn, "draft")
         try:
-            resp = test_client.get(
-                f"/cases/{case_id}/criteria/{uuid.uuid4()}"
-            )
+            resp = test_client.get(f"/cases/{case_id}/criteria/{uuid.uuid4()}")
             assert resp.status_code == 422
         finally:
             _cleanup(db_conn, case_id)
@@ -406,6 +407,7 @@ class TestGetCriterionById:
 # ─────────────────────────────────────────────────────────────
 # DELETE /{criterion_id}
 # ─────────────────────────────────────────────────────────────
+
 
 class TestDeleteCriterion:
     def test_delete_criterion_204(self, test_client, db_conn):
@@ -446,9 +448,7 @@ class TestDeleteCriterion:
         case_id = _create_test_case(db_conn, "draft")
         try:
             # Créer critère avec poids 100% pour satisfaire le trigger DEFERRED
-            created = _post_criterion(
-                test_client, case_id, weight_pct=100.0
-            ).json()
+            created = _post_criterion(test_client, case_id, weight_pct=100.0).json()
             criterion_id = created["id"]
             # Passer en evaluation (trigger poids actif au commit)
             with db_conn.cursor() as cur:
@@ -468,9 +468,7 @@ class TestDeleteCriterion:
         """DELETE sans org_id → 422."""
         case_id = _create_test_case(db_conn, "draft")
         try:
-            resp = test_client.delete(
-                f"/cases/{case_id}/criteria/{uuid.uuid4()}"
-            )
+            resp = test_client.delete(f"/cases/{case_id}/criteria/{uuid.uuid4()}")
             assert resp.status_code == 422
         finally:
             _cleanup(db_conn, case_id)
@@ -479,6 +477,7 @@ class TestDeleteCriterion:
 # ─────────────────────────────────────────────────────────────
 # ISOLATION MULTI-TENANT (R7)
 # ─────────────────────────────────────────────────────────────
+
 
 class TestMultiTenantIsolation:
     def test_org_a_ne_voit_pas_criteres_org_b(self, test_client, db_conn):

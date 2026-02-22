@@ -11,6 +11,7 @@ Ce module expose les symboles attendus par les services Couche A :
   - generate_id    : générateur d'identifiants UUID4
   - serialize_json / deserialize_json : utilitaires JSON
 """
+
 from __future__ import annotations
 
 import json
@@ -32,6 +33,7 @@ offers_table: str = "offers"
 # ---------------------------------------------------------------------------
 # Ponts DB — conformes ADR-0003
 # ---------------------------------------------------------------------------
+
 
 def get_engine():
     """
@@ -57,6 +59,7 @@ def ensure_schema() -> None:
 # ---------------------------------------------------------------------------
 # Utilitaires
 # ---------------------------------------------------------------------------
+
 
 def generate_id() -> str:
     """Génère un identifiant UUID4 unique."""

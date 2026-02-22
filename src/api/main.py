@@ -3,7 +3,9 @@
 Application FastAPI — DMS
 Constitution V3.3.2 — Tous les routers montés explicitement.
 """
+
 from fastapi import FastAPI
+
 from src.couche_a.criteria.router import router as criteria_router
 
 # Routers optionnels — ImportError = milestone pas encore actif (normal)
@@ -17,36 +19,42 @@ _analysis_router = None
 
 try:
     from src.api.routes.extractions import router as extraction_router
+
     _extraction_router = extraction_router
 except ImportError:
     pass
 
 try:
     from src.auth_router import router as auth_router
+
     _auth_router = auth_router
 except ImportError:
     pass
 
 try:
     from src.api.cases import router as cases_router
+
     _cases_router = cases_router
 except ImportError:
     pass
 
 try:
     from src.api.documents import router as documents_router
+
     _documents_router = documents_router
 except ImportError:
     pass
 
 try:
     from src.api.health import router as health_router
+
     _health_router = health_router
 except ImportError:
     pass
 
 try:
     from src.api.analysis import router as analysis_router
+
     _analysis_router = analysis_router
 except ImportError:
     pass

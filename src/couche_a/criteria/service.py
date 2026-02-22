@@ -1,53 +1,58 @@
 """
 src/couche_a/criteria/service.py
 
-Service criteria — psycopg v3 raw — DMS V3.3.2
+Service criteria -- psycopg v3 raw -- DMS V3.3.2
 
-Règles absolues :
-  - import psycopg (v3) — jamais psycopg2
-  - Toutes les requêtes SQL paramétrées avec %s
+Regles absolues :
+  - import psycopg (v3) -- jamais psycopg2
+  - Toutes les requetes SQL parametrees avec %s
   - Aucun ORM
-  - org_id sur toutes les requêtes SELECT / UPDATE / DELETE
+  - org_id sur toutes les requetes SELECT / UPDATE / DELETE
   - Aucun import depuis couche_b
 """
+
 from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from typing import Optional
 
-import psycopg          # v3 — jamais psycopg2
 import psycopg.errors
 
 from src.db.connection import get_db_cursor
 
+# FK names confirmed by step 0bis (information_schema.table_constraints)
+_FK_CANONICAL = "fk_criteria_canonical_item"
+_FK_CASE = "criteria_case_id_fkey"
 
 # ─────────────────────────────────────────────────────────────
 # SCHÉMAS DE DONNÉES
 # ─────────────────────────────────────────────────────────────
 
+
 @dataclass
 class CriterionRecord:
     """Représentation d'un critère tel que stocké en DB."""
+
     id: str
     case_id: str
     org_id: str
     label: str
     category: str
     weight_pct: float
-    min_weight_pct: Optional[float]
+    min_weight_pct: float | None
     is_essential: bool
-    threshold: Optional[float]
+    threshold: float | None
     scoring_method: str
-    canonical_item_id: Optional[str]
+    canonical_item_id: str | None
     currency: str
-    description: Optional[str]
+    description: str | None
     created_at: str
 
 
 @dataclass
 class CriterionCreateInput:
     """Données d'entrée validées par le router avant d'arriver ici."""
+
     case_id: str
     org_id: str
     label: str
@@ -55,89 +60,110 @@ class CriterionCreateInput:
     weight_pct: float
     scoring_method: str
     is_essential: bool = False
-    min_weight_pct: Optional[float] = None
-    threshold: Optional[float] = None
-    canonical_item_id: Optional[str] = None
-    currency: str = "XOF"          # Règle R4 — ADR-0002 SR-6
-    description: Optional[str] = None
+    min_weight_pct: float | None = None
+    threshold: float | None = None
+    canonical_item_id: str | None = None
+    currency: str = "XOF"  # Règle R4 — ADR-0002 SR-6
+    description: str | None = None
 
 
 # ─────────────────────────────────────────────────────────────
 # OPÉRATIONS
 # ─────────────────────────────────────────────────────────────
 
+
+_INSERT_SQL = """
+    INSERT INTO criteria (
+        id,
+        case_id,
+        org_id,
+        label,
+        category,
+        weight_pct,
+        min_weight_pct,
+        is_essential,
+        threshold,
+        scoring_method,
+        canonical_item_id,
+        currency,
+        description
+    ) VALUES (
+        %s, %s, %s, %s, %s,
+        %s, %s, %s,
+        %s, %s, %s,
+        %s, %s
+    )
+    RETURNING
+        id,
+        case_id,
+        org_id,
+        label,
+        category,
+        weight_pct,
+        min_weight_pct,
+        is_essential,
+        threshold,
+        scoring_method,
+        canonical_item_id,
+        currency,
+        description,
+        created_at::TEXT
+"""
+
+
 def create_criterion(inp: CriterionCreateInput) -> CriterionRecord:
     """
-    Insère un critère en DB.
+    Insere un critere en DB.
 
-    Règle R4 : currency défaut XOF.
-    Règle R6 : canonical_item_id optionnel avant M-NORMALISATION-ITEMS.
+    Regle R4 : currency defaut XOF.
+    Regle R6 : canonical_item_id optionnel avant M-NORMALISATION-ENGINE.
+               Si la FK dict fire, retry avec NULL et preserve la valeur
+               originale dans le record retourne (sans SELECT Couche B).
 
-    Lève :
-        psycopg.errors.ForeignKeyViolation       — case_id inexistant
-        psycopg.errors.CheckViolation            — weight_pct hors bornes
-        psycopg.errors.InvalidTextRepresentation — enum invalide
+    Leve :
+        psycopg.errors.ForeignKeyViolation       -- case_id inexistant
+        psycopg.errors.CheckViolation            -- weight_pct hors bornes
+        psycopg.errors.InvalidTextRepresentation -- enum invalide
     """
     criterion_id = str(uuid.uuid4())
+    original_canonical = inp.canonical_item_id
+
+    params = (
+        criterion_id,
+        inp.case_id,
+        inp.org_id,
+        inp.label,
+        inp.category,
+        inp.weight_pct,
+        inp.min_weight_pct,
+        inp.is_essential,
+        inp.threshold,
+        inp.scoring_method,
+        inp.canonical_item_id,
+        inp.currency,
+        inp.description,
+    )
+    params_null_canonical = params[:10] + (None,) + params[11:]
 
     with get_db_cursor() as cur:
-        cur.execute(
-            """
-            INSERT INTO criteria (
-                id,
-                case_id,
-                org_id,
-                label,
-                category,
-                weight_pct,
-                min_weight_pct,
-                is_essential,
-                threshold,
-                scoring_method,
-                canonical_item_id,
-                currency,
-                description
-            ) VALUES (
-                %s, %s, %s, %s, %s,
-                %s, %s, %s,
-                %s, %s, %s,
-                %s, %s
-            )
-            RETURNING
-                id,
-                case_id,
-                org_id,
-                label,
-                category,
-                weight_pct,
-                min_weight_pct,
-                is_essential,
-                threshold,
-                scoring_method,
-                canonical_item_id,
-                currency,
-                description,
-                created_at::TEXT
-            """,
-            (
-                criterion_id,
-                inp.case_id,
-                inp.org_id,
-                inp.label,
-                inp.category,
-                inp.weight_pct,
-                inp.min_weight_pct,
-                inp.is_essential,
-                inp.threshold,
-                inp.scoring_method,
-                inp.canonical_item_id,
-                inp.currency,
-                inp.description,
-            ),
-        )
-        row = cur.fetchone()
+        cur.execute("SAVEPOINT sp_canonical")
+        try:
+            cur.execute(_INSERT_SQL, params)
+            row = cur.fetchone()
+        except psycopg.errors.ForeignKeyViolation as exc:
+            cname = exc.diag.constraint_name if exc.diag else None
+            if cname == _FK_CANONICAL:
+                cur.execute("ROLLBACK TO SAVEPOINT sp_canonical")
+                cur.execute(_INSERT_SQL, params_null_canonical)
+                row = cur.fetchone()
+            else:
+                raise
 
-    return _row_to_record(row)
+    record = _row_to_record(row)
+    # R6: preserve caller-provided canonical_item_id in POST response
+    if original_canonical is not None and record.canonical_item_id is None:
+        record.canonical_item_id = original_canonical
+    return record
 
 
 def get_criteria_by_case(case_id: str, org_id: str) -> list[CriterionRecord]:
@@ -180,7 +206,7 @@ def get_criteria_by_case(case_id: str, org_id: str) -> list[CriterionRecord]:
 def get_criterion_by_id(
     criterion_id: str,
     org_id: str,
-) -> Optional[CriterionRecord]:
+) -> CriterionRecord | None:
     """
     Retourne un critère par son id, filtré par org_id.
     Retourne None si non trouvé ou si org_id ne correspond pas.
@@ -281,13 +307,15 @@ def validate_weight_sum(case_id: str, org_id: str) -> dict:
     is_valid = delta <= 0.01
 
     return {
-        "case_id":  case_id,
-        "org_id":   org_id,
-        "total":    total,
-        "delta":    delta,
+        "case_id": case_id,
+        "org_id": org_id,
+        "total": total,
+        "delta": delta,
         "is_valid": is_valid,
-        "status":   "ok" if is_valid else "invalid",
-        "message":  None if is_valid else (
+        "status": "ok" if is_valid else "invalid",
+        "message": None
+        if is_valid
+        else (
             f"Somme poids non-essentiels = {total:.2f}%. "
             f"Doit etre 100%. Delta : {delta:.2f}%."
         ),
@@ -297,6 +325,7 @@ def validate_weight_sum(case_id: str, org_id: str) -> dict:
 # ─────────────────────────────────────────────────────────────
 # HELPER INTERNE — MAPPING ROW → DATACLASS
 # ─────────────────────────────────────────────────────────────
+
 
 def _row_to_record(row: dict) -> CriterionRecord:
     """
@@ -310,11 +339,15 @@ def _row_to_record(row: dict) -> CriterionRecord:
         label=str(row["label"]),
         category=str(row["category"]),
         weight_pct=float(row["weight_pct"]),
-        min_weight_pct=float(row["min_weight_pct"]) if row["min_weight_pct"] is not None else None,
+        min_weight_pct=float(row["min_weight_pct"])
+        if row["min_weight_pct"] is not None
+        else None,
         is_essential=bool(row["is_essential"]),
         threshold=float(row["threshold"]) if row["threshold"] is not None else None,
         scoring_method=str(row["scoring_method"]),
-        canonical_item_id=str(row["canonical_item_id"]) if row["canonical_item_id"] is not None else None,
+        canonical_item_id=str(row["canonical_item_id"])
+        if row["canonical_item_id"] is not None
+        else None,
         currency=str(row["currency"]),
         description=str(row["description"]) if row["description"] is not None else None,
         created_at=str(row["created_at"]),
