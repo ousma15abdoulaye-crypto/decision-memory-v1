@@ -60,15 +60,15 @@ def test_resolve_zone_fuzzy_match(seed_zones, db_cursor):
     """Test fuzzy match with realistic typo (similarity ≥60%)"""
     # Test avec typo plausible : lettre manquante
     zone_id = resolve_zone("Bamko", cursor=db_cursor)  # "Bamako" avec typo: manque 'a'
-    assert (
-        zone_id == "zone-bamako-1"
-    ), "Should resolve 'Bamko' to 'Bamako' (typo tolerance)"
+    assert zone_id == "zone-bamako-1", (
+        "Should resolve 'Bamko' to 'Bamako' (typo tolerance)"
+    )
 
     # Test avec typo plausible : lettre doublée
     zone_id = resolve_zone("Bamaako", cursor=db_cursor)  # "Bamako" avec double 'a'
-    assert (
-        zone_id == "zone-bamako-1"
-    ), "Should resolve 'Bamaako' to 'Bamako' (typo tolerance)"
+    assert zone_id == "zone-bamako-1", (
+        "Should resolve 'Bamaako' to 'Bamako' (typo tolerance)"
+    )
 
 
 def test_resolve_zone_no_match(seed_zones, db_cursor):
@@ -84,9 +84,9 @@ def test_resolve_zone_no_match(seed_zones, db_cursor):
 def test_resolve_zone_empty_string(seed_zones, db_cursor):
     """Test empty string handling."""
     assert resolve_zone("", cursor=db_cursor) is None, "Empty string should return None"
-    assert (
-        resolve_zone("   ", cursor=db_cursor) is None
-    ), "Whitespace-only should return None"
+    assert resolve_zone("   ", cursor=db_cursor) is None, (
+        "Whitespace-only should return None"
+    )
 
 
 def test_resolve_vendor_exact_match(seed_vendors, db_cursor):
@@ -113,12 +113,12 @@ def test_resolve_vendor_no_match(seed_vendors, db_cursor):
 
 def test_resolve_vendor_empty_string(seed_vendors, db_cursor):
     """Test empty string handling for vendor."""
-    assert (
-        resolve_vendor("", cursor=db_cursor) is None
-    ), "Empty string should return None"
-    assert (
-        resolve_vendor("   ", cursor=db_cursor) is None
-    ), "Whitespace-only should return None"
+    assert resolve_vendor("", cursor=db_cursor) is None, (
+        "Empty string should return None"
+    )
+    assert resolve_vendor("   ", cursor=db_cursor) is None, (
+        "Whitespace-only should return None"
+    )
 
 
 def test_resolve_item_exact_match(seed_items, db_cursor):
@@ -146,6 +146,6 @@ def test_resolve_item_no_match(seed_items, db_cursor):
 def test_resolve_item_empty_string(seed_items, db_cursor):
     """Test empty string handling for item."""
     assert resolve_item("", cursor=db_cursor) is None, "Empty string should return None"
-    assert (
-        resolve_item("   ", cursor=db_cursor) is None
-    ), "Whitespace-only should return None"
+    assert resolve_item("   ", cursor=db_cursor) is None, (
+        "Whitespace-only should return None"
+    )

@@ -9,7 +9,7 @@ import pytest
 
 
 @pytest.mark.skip(
-    reason="À implémenter dans M-MARKET-SIGNAL-ENGINE. " "🔴 BLOQUE CI quand actif."
+    reason="À implémenter dans M-MARKET-SIGNAL-ENGINE. 🔴 BLOQUE CI quand actif."
 )
 def test_ms1_survey_terrain_has_priority(fresh_survey, history, mercuriale):
     """

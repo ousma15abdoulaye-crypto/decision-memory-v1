@@ -62,6 +62,6 @@ def test_inv_05_required_checks():
     if os.path.exists(workflows_dir):
         existing_workflows = os.listdir(workflows_dir)
         for required in required_workflows:
-            assert (
-                required in existing_workflows
-            ), f"Workflow requis manquant: {required}"
+            assert required in existing_workflows, (
+                f"Workflow requis manquant: {required}"
+            )

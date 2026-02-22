@@ -1,4 +1,5 @@
 """Fixtures pour tests API criteria — M-CRITERIA-TYPING."""
+
 from __future__ import annotations
 
 import pytest
