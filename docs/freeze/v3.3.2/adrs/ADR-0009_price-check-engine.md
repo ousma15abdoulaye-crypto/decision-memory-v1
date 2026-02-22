@@ -192,5 +192,3 @@ Le numéro **#7 reste gelé** (plan inviolable). Les livrables sont renommés po
 | Constitution V3.3.2 | `no_scoring_no_ranking_no_recommendations=true` |
 | DT-006              | Boundary AST test (Couche A/B)                  |
 
-```
-```
