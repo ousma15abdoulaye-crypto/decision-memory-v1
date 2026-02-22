@@ -37,7 +37,6 @@ Avant gel définitif des verdicts, **preuve DB obligatoire** :
 -- Adapter <colonne_verdict> au schéma réel si elle existe
 SELECT DISTINCT <colonne_verdict> FROM submission_scores;
 SELECT DISTINCT <colonne_verdict> FROM supplier_scores;
-````
 
 * Si nomenclature existante → **l'adopter** (pas de 3ème nomenclature).
 * Si rien d'existant → nomenclature ADR-0009 :
