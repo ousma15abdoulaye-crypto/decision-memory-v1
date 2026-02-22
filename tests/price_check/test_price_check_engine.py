@@ -86,8 +86,8 @@ def _mock_norm(item_id: str | None):
             self.item_id = iid
             self.score = 1.0 if iid else 0.0
             self.strategy = "exact" if iid else "unresolved"
-            self.alias_raw = "test"
-            self.normalized_alias = "test"
+            self.input_raw = "test"
+            self.normalized_input = "test"
 
     return _FakeNorm(item_id)
 
