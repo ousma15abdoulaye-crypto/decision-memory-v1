@@ -1,0 +1,26 @@
+milestone      : M-NORMALISATION-ENGINE
+date           : 2026-02-22
+dms_version    : V3.3.2
+db_head        : 023_m_criteria_fk
+adr_freeze     : ADR-0001 / ADR-0002
+commit         : 8549c9c
+
+gates
+  ci           : 287 passed / 0 failed / 35 skipped
+  schemas      : NormalisationResult + NormStrategy
+  engine       : normalize() -> NormalisationResult (toujours)
+  unresolved   : structure, jamais None
+  write_db     : zero
+  lint         : ruff + black clean
+
+dettes_liquidees
+  DT-002       : Moteur normalize()
+
+dettes_debloquees
+  DT-003       : Parsing mercuriale (debloque)
+
+notes
+  - Matching exact only (alias_raw, normalized_alias). Fuzzy hors scope.
+  - Batch query unique conservee (no N+1).
+  - conn injectee par l'appelant (pas d'ouverture DB dans engine).
+  - NormStrategy utilise StrEnum (Python 3.11+, equivalent a str+Enum).
