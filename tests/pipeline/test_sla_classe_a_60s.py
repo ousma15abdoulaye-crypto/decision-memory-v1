@@ -28,6 +28,6 @@ def test_pipeline_a_sla_classe_a_under_60s(realistic_case_20_suppliers):
     # result = run_pipeline_a(realistic_case_20_suppliers.id)
     elapsed = time.monotonic() - start
 
-    assert elapsed < 60.0, (
-        f"SLA-A violé : {elapsed:.2f}s > 60s. Optimiser extraction ou réduire scope."
-    )
+    assert (
+        elapsed < 60.0
+    ), f"SLA-A violé : {elapsed:.2f}s > 60s. Optimiser extraction ou réduire scope."

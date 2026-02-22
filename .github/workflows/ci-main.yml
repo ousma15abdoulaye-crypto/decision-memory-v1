@@ -54,12 +54,17 @@ jobs:
           echo "=== Versions drivers (preuve C) ==="
           pip show alembic sqlalchemy psycopg | grep -E "^(Name|Version):"
 
-      - name: Proof — Alembic heads/current (before upgrade)
+      - name: Guard — single Alembic head (anti-multihead)
         run: |
-          echo "=== Alembic heads (before upgrade) ==="
-          alembic heads
+          echo "=== Alembic heads verbose ==="
+          python -m alembic heads -v
+          echo "=== alembic/ filesystem (Linux view) ==="
+          find alembic -maxdepth 2 -type f -name "*.py" | sort
           echo "=== Alembic current (before upgrade) ==="
-          alembic current 2>&1 && echo "(current OK)" || echo "(no current revision yet — DB empty, expected)"
+          python -m alembic current 2>&1 && echo "(current OK)" || echo "(no current revision yet — DB empty, expected)"
+          HEAD_COUNT=$(python -m alembic heads | wc -l)
+          echo "HEAD_COUNT=$HEAD_COUNT"
+          [ "$HEAD_COUNT" -eq 1 ] || { echo "FAIL: alembic heads returned $HEAD_COUNT heads — merge migration required"; exit 1; }
 
       - name: Run migrations (alembic upgrade head)
         run: |
