@@ -11,9 +11,8 @@ Règles absolues :
   - Aucune logique DB directe — service.py exclusivement
   - Aucun import depuis couche_b
 """
-from __future__ import annotations
 
-from typing import Optional
+from __future__ import annotations
 
 import psycopg.errors
 from fastapi import APIRouter, HTTPException, Query, status
@@ -58,6 +57,7 @@ _SCORING_METHOD_VALUES: set[str] = {
 # SCHÉMAS PYDANTIC v2
 # ─────────────────────────────────────────────────────────────
 
+
 class CriterionCreateRequest(BaseModel):
     """
     Body du POST /cases/{case_id}/criteria.
@@ -65,17 +65,18 @@ class CriterionCreateRequest(BaseModel):
     org_id présent — isolation multi-tenant Règle R7.
     currency défaut XOF — Règle R4 ADR-0002 SR-6.
     """
+
     org_id: str
     label: str = Field(min_length=1, max_length=500)
     category: str
     weight_pct: float = Field(ge=0.0, le=100.0)
     scoring_method: str
     is_essential: bool = False
-    min_weight_pct: Optional[float] = Field(default=None, ge=0.0)
-    threshold: Optional[float] = None
-    canonical_item_id: Optional[str] = None
+    min_weight_pct: float | None = Field(default=None, ge=0.0)
+    threshold: float | None = None
+    canonical_item_id: str | None = None
     currency: str = "XOF"
-    description: Optional[str] = None
+    description: str | None = None
 
     @field_validator("category")
     @classmethod
@@ -103,13 +104,13 @@ class CriterionResponse(BaseModel):
     label: str
     category: str
     weight_pct: float
-    min_weight_pct: Optional[float]
+    min_weight_pct: float | None
     is_essential: bool
-    threshold: Optional[float]
+    threshold: float | None
     scoring_method: str
-    canonical_item_id: Optional[str]
+    canonical_item_id: str | None
     currency: str
-    description: Optional[str]
+    description: str | None
     created_at: str
 
 
@@ -120,7 +121,7 @@ class WeightSumResponse(BaseModel):
     delta: float
     is_valid: bool
     status: str
-    message: Optional[str]
+    message: str | None
 
 
 # ─────────────────────────────────────────────────────────────
@@ -128,6 +129,7 @@ class WeightSumResponse(BaseModel):
 # Ordre de déclaration non négociable :
 #   POST "" → GET "" → GET "/validate/weights" → GET "/{id}" → DELETE "/{id}"
 # ─────────────────────────────────────────────────────────────
+
 
 @router.post(
     "",
@@ -161,11 +163,23 @@ def create_criterion_endpoint(
                 description=body.description,
             )
         )
-    except psycopg.errors.ForeignKeyViolation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="case_id introuvable",
-        )
+    except psycopg.errors.ForeignKeyViolation as exc:
+        cname = exc.diag.constraint_name if exc.diag else None
+        if cname == "criteria_case_id_fkey" or cname is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="case_id introuvable",
+            )
+        elif cname == "fk_criteria_canonical_item":
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="canonical_item_id introuvable dans dictionnaire",
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Foreign key violation",
+            )
     except psycopg.errors.CheckViolation as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -267,6 +281,7 @@ def delete_criterion_endpoint(
 # ─────────────────────────────────────────────────────────────
 # HELPER INTERNE
 # ─────────────────────────────────────────────────────────────
+
 
 def _record_to_response(r: CriterionRecord) -> CriterionResponse:
     return CriterionResponse(
