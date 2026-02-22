@@ -35,20 +35,6 @@ def upgrade():
             END IF;
         END $$;
     """)
-    # Add UNIQUE on profile_code if absent
-    op.execute("""
-        DO $$
-        BEGIN
-            IF NOT EXISTS (
-                SELECT 1 FROM pg_constraint
-                WHERE conname = 'uq_scoring_configs_profile_code'
-            ) THEN
-                ALTER TABLE public.scoring_configs
-                  ADD CONSTRAINT uq_scoring_configs_profile_code
-                  UNIQUE (profile_code);
-            END IF;
-        END $$;
-    """)
     # Seed GENERIC if absent
     op.execute("""
         INSERT INTO public.scoring_configs (
@@ -75,10 +61,6 @@ def downgrade():
     op.execute("""
         ALTER TABLE public.scoring_configs
           DROP CONSTRAINT IF EXISTS chk_scoring_configs_ratios;
-    """)
-    op.execute("""
-        ALTER TABLE public.scoring_configs
-          DROP CONSTRAINT IF EXISTS uq_scoring_configs_profile_code;
     """)
     op.execute("""
         ALTER TABLE public.scoring_configs
