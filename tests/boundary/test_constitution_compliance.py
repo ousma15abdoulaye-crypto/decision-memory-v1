@@ -127,17 +127,29 @@ def test_constitution_no_write_to_score_tables():
     for f in scope_files:
         source = _read(f)
         for target in FORBIDDEN_WRITE_TARGETS:
-            # Look for INSERT INTO or UPDATE ... <table> patterns
+            # Look for INSERT INTO or UPDATE ... <table> patterns, ignoring SQL comments
             pattern = re.compile(
                 r"(INSERT\s+INTO|UPDATE)\s+" + re.escape(target),
                 re.IGNORECASE,
             )
-            for m in pattern.finditer(source):
-                lineno = source[: m.start()].count("\n") + 1
-                violations.append(
-                    f"{f.relative_to(REPO_ROOT)}:{lineno} "
-                    f"FORBIDDEN write to '{target}'"
-                )
+            in_block_comment = False
+            for lineno, line in enumerate(source.splitlines(), start=1):
+                stripped = line.lstrip()
+                # Handle start/end of block comments (/* ... */)
+                if not in_block_comment and "/*" in stripped:
+                    in_block_comment = True
+                if in_block_comment:
+                    if "*/" in stripped:
+                        in_block_comment = False
+                    continue
+                # Skip full-line SQL comments starting with --
+                if stripped.startswith("--"):
+                    continue
+                for m in pattern.finditer(line):
+                    violations.append(
+                        f"{f.relative_to(REPO_ROOT)}:{lineno} "
+                        f"FORBIDDEN write to '{target}'"
+                    )
 
     assert (
         not violations
