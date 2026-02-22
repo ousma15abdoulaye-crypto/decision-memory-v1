@@ -10,7 +10,6 @@ T6 : batch conserve l'ordre (3 offres)
 T7 : batch appelle normalize_batch une seule fois (spy)
 T8 : fallback hardcode trace si scoring_configs vide
 T9 : prix_total_soumis = prix_unitaire * quantite
-T10: verdict NO_REF si mercuriale vide pour item connu
 
 Seed explicite : couche_b.mercuriale_raw_queue + public.scoring_configs.
 Cleanup : DELETE WHERE source = 't-pricecheck-*' / profile_code='TEST_PROFILE'.
