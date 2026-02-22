@@ -261,7 +261,7 @@ class TestErreurse2e:
         Vérification contre DB réelle.
         """
         response = integration_client.post(
-            f"/api/extractions/documents/" f"{test_doc_already_extracted}/extract"
+            f"/api/extractions/documents/{test_doc_already_extracted}/extract"
         )
 
         assert response.status_code == 409
@@ -270,7 +270,7 @@ class TestErreurse2e:
     def test_document_inexistant_404(self, integration_client):
         """Document inexistant → 404 avec message explicite."""
         response = integration_client.post(
-            "/api/extractions/documents/" "doc-qui-nexiste-vraiment-pas/extract"
+            "/api/extractions/documents/doc-qui-nexiste-vraiment-pas/extract"
         )
 
         assert response.status_code == 404
