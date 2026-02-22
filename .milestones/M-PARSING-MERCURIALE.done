@@ -1,0 +1,83 @@
+milestone: M-PARSING-MERCURIALE
+date: 2026-02-22
+dms_version: V3.3.2
+branch: feat/M-PARSING-MERCURIALE
+adr_applied: ADR-0001, ADR-0002, ADR-0008
+
+db_head: 024_mercuriale_raw_queue (head)
+pytest: 297 passed, 0 failed, 35 skipped
+ruff: All checks passed
+black: All done (7 files unchanged)
+
+batch_no_n_plus_one: true
+dict_write_prohibited: true
+
+gates:
+  - id: G1_ruff
+    status: PASS
+    detail: "ruff check src tests -- All checks passed"
+  - id: G2_conftest
+    status: PASS
+    detail: "os.environ.setdefault(TESTING, true) AVANT tout import src.*"
+  - id: G3_pytest
+    status: PASS
+    detail: "297 passed, 35 skipped, 0 failed"
+  - id: G4_alembic_head
+    status: PASS
+    detail: "024_mercuriale_raw_queue (head) -- une seule tete"
+  - id: G5_black
+    status: PASS
+    detail: "black --check -- 7 files would be left unchanged"
+  - id: G6_t1_t10
+    status: PASS
+    detail: "10/10 tests mercuriale passed"
+
+parse_rules_enforced:
+  PARSE-001: raw_line toujours conservee (T6)
+  PARSE-002: erreurs dans parse_errors jamais silencieuses
+  PARSE-003: nombres avec espaces + virgules (T2, T3)
+  PARSE-004: 3 prix consecutifs -> min/avg/max (T1)
+  PARSE-005: normalize_batch appelee une seule fois (T8)
+  PARSE-006: multi-ligne concatenation deterministe (T4)
+
+scope_files:
+  - src/couche_b/mercuriale/schemas.py        # L1
+  - src/couche_b/mercuriale/parser.py         # L2
+  - src/api/routers/mercuriale.py             # L3
+  - tests/mercuriale/test_mercuriale_parser.py # L4
+  - alembic/versions/024_mercuriale_raw_queue.py # L5
+  - .milestones/M-PARSING-MERCURIALE.done     # L6
+  - src/couche_b/mercuriale/__init__.py       # infra package
+  - tests/mercuriale/__init__.py              # infra package
+
+debts_liquidated:
+  - DT-003: couche_b.mercuriale_raw_queue creee (migration 024)
+
+commit: 3a5aebcb5b7991236b671206a6406d326d7e28c2
+
+# -- OPPOSABILITE ADR-0008 (ajout post-commit) --
+
+db_head_final: 024_mercuriale_raw_queue (head)
+pytest_final: 297 passed, 0 failed, 35 skipped
+ruff_final: All checks passed
+black_final: 7 files unchanged
+
+source_separation:
+  MS-1: zero import Couche A dans src/couche_b/mercuriale/
+  MS-2: zero ecriture procurement_dict_* (interdit absolu)
+  MS-3: normalize_batch = 1 requete DB par batch (PARSE-005, prouve T8)
+  melange_interdit: aucun scoring, aucun pipeline, aucune criteria
+
+scope_files:
+  - src/couche_b/mercuriale/__init__.py
+  - src/couche_b/mercuriale/schemas.py
+  - src/couche_b/mercuriale/parser.py
+  - src/api/routers/mercuriale.py
+  - tests/mercuriale/__init__.py
+  - tests/mercuriale/test_mercuriale_parser.py
+  - alembic/versions/024_mercuriale_raw_queue.py
+  - .milestones/M-PARSING-MERCURIALE.done
+
+scope_exception:
+  __init__.py files (2): infrastructure package Python -- non comptes comme livrables substantiels
+  conftest.py: non modifie -- CONFTEST-001 intacte (verifie gate G2)
