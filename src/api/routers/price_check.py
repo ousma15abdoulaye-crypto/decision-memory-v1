@@ -11,7 +11,6 @@ from fastapi import APIRouter
 
 from src.couche_a.price_check.engine import analyze_batch
 from src.couche_a.price_check.schemas import OffreInput, PriceCheckResult
-from src.couche_b.normalisation.engine import normalize_batch as _normalize_batch
 from src.db.connection import get_db_cursor
 
 router = APIRouter(prefix="/price-check", tags=["price-check"])
@@ -22,7 +21,7 @@ def analyze_one(body: OffreInput) -> PriceCheckResult:
     """Analyze a single offer against mercuriale reference prices."""
     with get_db_cursor() as cur:
         conn = cur.connection
-        results = analyze_batch([body], conn, normalize_batch_fn=_normalize_batch)
+        results = analyze_batch([body], conn)
         return results[0]
 
 
@@ -33,4 +32,4 @@ def analyze_many(body: list[OffreInput]) -> list[PriceCheckResult]:
         return []
     with get_db_cursor() as cur:
         conn = cur.connection
-        return analyze_batch(body, conn, normalize_batch_fn=_normalize_batch)
+        return analyze_batch(body, conn)

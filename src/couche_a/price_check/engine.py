@@ -3,15 +3,15 @@ PriceCheck Engine -- Couche A (DMS V3.3.2 / ADR-0009).
 
 Règles :
   - READ-ONLY : aucune écriture DB.
-  - normalize_batch_fn() appelé une seule fois par lot (injecté par le router).
+  - normalize_batch() appelé une seule fois par lot (module-level via importlib).
   - 1 requête mercuriale pour tous les item_ids résolus.
   - 1 requête scoring_configs par profil distinct (cache local).
   - Retourne toujours PriceCheckResult (jamais None).
   - Fallback hardcodé tracé dans notes si scoring_configs vide.
 
 Isolation (INV-02 / DT-006) :
-  - Aucune dépendance couche_b dans ce fichier.
-  - normalize_batch_fn injecté par l'appelant (router ou test).
+  - Aucune dépendance statique couche_b dans ce fichier.
+  - normalize_batch chargé via importlib (patchable en tests).
 """
 
 from __future__ import annotations
