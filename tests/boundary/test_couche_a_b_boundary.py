@@ -2,14 +2,14 @@
 DT-006 -- Boundary gate: Couche A must NOT import Couche B business sub-modules.
 
 Rule (prefix-based):
-  Forbidden: imports from couche_b sub-modules EXCEPT normalisation
+  Forbidden: imports from couche_b business sub-modules EXCEPT normalisation
              (mercuriale, procurement_dict, resolvers, etc.)
   Allowed:
     - `import src.couche_b` / `from src.couche_b import ...` (facade)
-    - `from src.couche_b.normalisation...` (public normalization API --
-      DT-006 exception: facade does not re-export normalize_batch in V3.3.2;
-      documented in M-SCORING-ENGINE milestone)
-
+    - `from src.couche_b.normalisation...` (public normalisation API;
+      DT-006 explicit exception: `normalize_batch` is currently consumed via
+      `src.couche_b.normalisation.engine` as documented in the
+      M-SCORING-ENGINE milestone)
 Forbidden sub-modules (couche_b business logic Couche A must NOT touch):
   mercuriale, procurement_dict, resolvers (direct sub-module bypass)
 
