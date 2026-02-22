@@ -56,10 +56,14 @@ jobs:
 
       - name: Proof — Alembic heads/current (before upgrade)
         run: |
-          echo "=== Alembic heads (before upgrade) ==="
-          alembic heads
+          echo "=== Alembic heads verbose (before upgrade) ==="
+          python -m alembic heads -v
           echo "=== Alembic current (before upgrade) ==="
-          alembic current 2>&1 && echo "(current OK)" || echo "(no current revision yet — DB empty, expected)"
+          python -m alembic current 2>&1 && echo "(current OK)" || echo "(no current revision yet — DB empty, expected)"
+          echo "=== alembic/ filesystem (Linux view) ==="
+          find alembic -maxdepth 2 -type f -name "*.py" | sort
+          echo "=== HEAD count ==="
+          python -m alembic heads | wc -l
 
       - name: Run migrations (alembic upgrade head)
         run: |
