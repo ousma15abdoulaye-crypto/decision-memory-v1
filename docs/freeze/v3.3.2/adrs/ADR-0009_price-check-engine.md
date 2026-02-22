@@ -1,10 +1,11 @@
 # ADR-0009 — PRICECHECK ENGINE & EVALUATION PROFILES (Couche A)
-**Status     :** ACCEPTED  
+**Status     :** DRAFT — to be moved out of `docs/freeze/v3.3.2/` into a new freeze version (e.g. `docs/freeze/v3.3.3/`)  
 **Date       :** 2026-02-22  
 **Décideur   :** CTO Abdoulaye Ousmane  
 **Contexte   :** DMS V3.3.2 — bloquants D1/D2/D3 identifiés à l'Étape 0 de #7 (ex-M-SCORING-ENGINE)  
-**Références :** ADR-0001, ADR-0002, ADR-0008, Constitution V3.3.2 (`no_scoring_no_ranking_no_recommendations=true`), DT-006 
+**Références :** ADR-0001, ADR-0002, ADR-0008, Constitution V3.3.2 (`no_scoring_no_ranking_no_recommendations=true`), DT-006  
 
+> NOTE: `docs/freeze/v3.3.2/` is treated as immutable. ADR-0009 must not remain in this directory and should be added instead to a new freeze version with an updated `FREEZE_MANIFEST.md` and regenerated `SHA256SUMS.txt`.  
 ## 1. Problème
 
 Trois bloquants opposables détectés à l'Étape 0 :
