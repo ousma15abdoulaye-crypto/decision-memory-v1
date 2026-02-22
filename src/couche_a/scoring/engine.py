@@ -337,42 +337,50 @@ class ScoringEngine:
     def _meets_criterion(
         self, supplier: SupplierPackage, criterion: DAOCriterion
     ) -> bool:
-        """Check if supplier meets a criterion (stub for now)."""
-        # TODO: Implement actual criterion checking logic
-        # For now, assume all suppliers meet criteria (no eliminations)
-        return True
+        """Check if supplier meets an eliminatory criterion.
+
+        Called only for criteria where seuil_elimination is not None.
+        Logic is based on proven SupplierPackage fields (documents availability).
+        Defensive: missing data yields False (elimination).
+        """
+        cat = (criterion.categorie or "").lower()
+
+        if cat == "commercial":
+            return supplier.has_financial
+        if cat in ("capacity", "capacite", "technique"):
+            return supplier.has_technical
+        if cat in ("admin", "administratif"):
+            return supplier.has_admin
+        if cat == "essentials":
+            return supplier.package_status == "COMPLETE"
+        # Unknown category: eliminate if any required fields are missing
+        return not bool(supplier.missing_fields)
 
     def _save_scores_to_db(self, case_id: str, scores: list[ScoreResult]) -> None:
-        """Save scores to database."""
+        """Save scores to database (append-only via score_runs — ADR-0006/INV-6)."""
         with get_connection() as conn:
             for score in scores:
+                details_json = (
+                    json.dumps(score.calculation_details)
+                    if isinstance(score.calculation_details, dict)
+                    else str(score.calculation_details)
+                )
                 conn.execute(
                     text("""
-                        INSERT INTO supplier_scores (
-                            case_id, supplier_name, category, score_value,
-                            calculation_method, calculation_details, is_validated
+                        INSERT INTO public.score_runs (
+                            case_id, supplier_name, category,
+                            score_value, calculation_details
                         ) VALUES (
-                            :case_id, :supplier_name, :category, :score_value,
-                            :method, CAST(:details AS jsonb), :validated
+                            :case_id, :supplier_name, :category,
+                            :score_value, CAST(:details AS jsonb)
                         )
-                        ON CONFLICT (case_id, supplier_name, category)
-                        DO UPDATE SET
-                            score_value = EXCLUDED.score_value,
-                            calculation_details = EXCLUDED.calculation_details,
-                            created_at = CURRENT_TIMESTAMP
                     """),
                     {
                         "case_id": case_id,
                         "supplier_name": score.supplier_name,
                         "category": score.category,
                         "score_value": float(score.score_value),
-                        "method": score.calculation_method,
-                        "details": (
-                            json.dumps(score.calculation_details)
-                            if isinstance(score.calculation_details, dict)
-                            else str(score.calculation_details)
-                        ),
-                        "validated": bool(score.is_validated),
+                        "details": details_json,
                     },
                 )
             conn.commit()
