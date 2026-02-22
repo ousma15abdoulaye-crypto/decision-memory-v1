@@ -49,7 +49,7 @@ fallback_trace: "fallback hardcoded -- scoring_configs empty" dans notes si scor
 
 ## Constraint note (INV-02)
 
-INV-02 interdit toute string "import couche_b" dans src/couche_a → DI via router; workaround importlib utilisé pour compatibilité tests; à résoudre post-merge via ADR (audit/blindage).
+INV-02 interdit toute string "import couche_b" dans src/couche_a → DI via router; workaround importlib utilisé pour compatibilité tests (lazy-load couche_b depuis engine.py); TODO: traiter ce contournement dans une ADR dédiée + ticket GitHub #SCORING-ENGINE-INV02 (audit/blindage de l’indépendance de couche_a).
 
 ## Scope files
 
