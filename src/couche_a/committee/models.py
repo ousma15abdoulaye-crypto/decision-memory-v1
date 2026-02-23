@@ -61,7 +61,7 @@ class SetDecisionRequest(BaseModel):
 
 class SealRequest(BaseModel):
     sealed_by: str
-    zone: str
+    zone: str = Field(..., min_length=1)
     currency: str = "XOF"
     alias_raw: str
     quantity: float | None = None
