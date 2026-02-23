@@ -11,8 +11,9 @@ import os
 # Doit être posé AVANT tout import src.* (ratelimit.py lu à l'import)
 os.environ.setdefault("TESTING", "true")
 
-from datetime import datetime, timezone
 import uuid
+import warnings
+from datetime import datetime, timezone
 
 import pytest
 
@@ -141,5 +142,8 @@ def case_factory(db_conn):
                     "DELETE FROM public.cases WHERE id = ANY(%s)",
                     (created_ids,),
                 )
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            warnings.warn(
+                f"case_factory teardown failed — {len(created_ids)} row(s) may persist: {exc}",
+                stacklevel=2,
+            )
