@@ -106,7 +106,7 @@ def case_factory(db_conn):
     Scope: function (isolation maximale).
 
     Contrat sonde (NOT NULL sans default) :
-      id (text), case_type (text), title (text), created_at (text)
+      id (text), case_type (text), title (text), created_at (text), currency (text)
     db_conn est autocommit=True — pas de commit/rollback explicite.
     """
     created_ids: list[str] = []
