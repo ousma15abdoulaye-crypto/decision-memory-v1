@@ -1,0 +1,107 @@
+# M-COMMITTEE-CORE — DONE
+
+**Date :** 2026-02-23
+**Branche :** feat/m-committee-core
+**Constitution :** DMS V3.3.2
+
+---
+
+## Definition of Done — Checklist
+
+- [x] ADR-0011 créé, ACCEPTED, SHA-256 inscrit, commité
+- [x] Migrations 028/029/030/031 appliquées (alembic current = 031_committee_terminal_status, head unique)
+- [x] Triggers DB actifs et prouvés par tests :
+  - [x] trg_committee_events_append_only
+  - [x] trg_decision_snapshots_append_only
+  - [x] trg_committee_members_lock
+  - [x] trg_committee_decisions_lock
+  - [x] trg_committees_terminal_status_lock
+- [x] enforce_committee_lock autorise la transition de seal (PATCH-1)
+- [x] seal_committee_decision() atomique (seal + snapshot = une transaction)
+- [x] DecisionSnapshot neutre (pas de champs interdits, raw/canonical conforme)
+- [x] Frontière A/B AST verte sur src/couche_a/committee/**
+- [x] ruff, black, pytest tests\ → 0 failed
+- [x] .milestones/M-COMMITTEE-CORE.done créé
+
+---
+
+## Inventaire des fichiers livrés
+
+### Migrations (4)
+- alembic/versions/028_create_committee_tables.py
+- alembic/versions/029_create_decision_snapshots.py
+- alembic/versions/030_committee_lock_trigger.py
+- alembic/versions/031_committee_terminal_status.py
+
+### src/ (5)
+- src/couche_a/committee/__init__.py
+- src/couche_a/committee/models.py
+- src/couche_a/committee/router.py
+- src/couche_a/committee/service.py
+- src/couche_a/committee/snapshot.py
+
+### tests/ (10)
+- tests/committee/__init__.py
+- tests/committee/test_committee_lifecycle.py           (T3)
+- tests/committee/test_committee_no_couche_b_import.py  (T1 AST)
+- tests/committee/test_committee_readiness_preconditions.py (T4)
+- tests/committee/test_committee_seal_transaction.py    (T5)
+- tests/decision_snapshot/__init__.py
+- tests/decision_snapshot/test_decision_snapshots_append_only.py (T6a)
+- tests/decision_snapshot/test_snapshot_created_on_seal.py       (T6b)
+- tests/decision_snapshot/test_snapshot_schema_neutrality.py     (T6c)
+
+### tests/ modifiés (2)
+- tests/conftest.py          (_tx + committee_factory + case_factory status param)
+- tests/db_integrity/test_triggers_db_level.py  (TestCommitteeLockTrigger T2)
+
+### docs/ (1)
+- docs/adr/ADR-0011_decision-snapshot-log.md
+
+**Total : 22 fichiers**
+
+**Justification (> 20)** : Scope M-COMMITTEE-CORE complet — migrations (4) + module comité (5) +
+suite de tests exhaustive (10+2) + ADR + .done = 22 fichiers. Chaque fichier est nécessaire.
+
+---
+
+## SHA-256 ADR-0011
+
+```
+BB02FD03D396C7B0A7939A3143D58A67614003E1A9BE70E3F2DBDA64C01A20CB
+```
+
+(hash du fichier avec la valeur `380E59...` inscrite)
+
+---
+
+## Résultat CI final
+
+```
+406 passed / 0 failed / 35 skipped
+```
+
+---
+
+## Triggers DB (post-migration probe)
+
+```
+committees                               : True
+committee_members                        : True
+committee_decisions                      : True
+committee_events                         : True
+decision_snapshots                       : True
+
+enforce_committee_events_append_only     : True
+enforce_decision_snapshots_append_only   : True
+enforce_committee_lock                   : True
+enforce_committee_terminal_status        : True
+
+trg_committee_events_append_only         : True
+trg_decision_snapshots_append_only       : True
+trg_committee_members_lock               : True
+trg_committee_decisions_lock             : True
+trg_committees_terminal_status_lock      : True
+
+alembic head : 031_committee_terminal_status
+```
