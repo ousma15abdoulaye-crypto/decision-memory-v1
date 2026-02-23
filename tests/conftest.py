@@ -11,8 +11,8 @@ import os
 # Doit être posé AVANT tout import src.* (ratelimit.py lu à l'import)
 os.environ.setdefault("TESTING", "true")
 
-from datetime import datetime, timezone
 import uuid
+from datetime import UTC, datetime
 
 import pytest
 
@@ -125,7 +125,7 @@ def case_factory(db_conn):
                     case_id,
                     "test",
                     f"test-factory-{case_id[:8]}",
-                    datetime.now(timezone.utc).isoformat(),
+                    datetime.now(UTC).isoformat(),
                     currency,
                 ),
             )
