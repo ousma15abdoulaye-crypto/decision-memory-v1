@@ -111,15 +111,15 @@ def case_factory(db_conn):
     """
     created_ids: list[str] = []
 
-    def _factory(currency: str = "XOF") -> str:
+    def _factory(currency: str = "XOF", status: str = "draft") -> str:
         case_id = str(uuid.uuid4())
         with db_conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO public.cases
-                    (id, case_type, title, created_at, currency)
+                    (id, case_type, title, created_at, currency, status)
                 VALUES
-                    (%s, %s, %s, %s, %s)
+                    (%s, %s, %s, %s, %s, %s)
                 """,
                 (
                     case_id,
@@ -127,6 +127,7 @@ def case_factory(db_conn):
                     f"test-factory-{case_id[:8]}",
                     datetime.now(UTC).isoformat(),
                     currency,
+                    status,
                 ),
             )
         created_ids.append(case_id)
@@ -143,3 +144,51 @@ def case_factory(db_conn):
                 )
         except Exception:
             pass
+
+
+@pytest.fixture
+def _tx(db_conn):
+    """Isolation rollback-only: toutes les mutations du test sont annulées en fin.
+
+    Aucun DELETE teardown nécessaire sur tables append-only.
+    Compatible avec committee_factory et case_factory.
+    """
+    db_conn.autocommit = False
+    try:
+        yield
+    finally:
+        db_conn.rollback()
+        db_conn.autocommit = True
+
+
+@pytest.fixture
+def committee_factory(db_conn):
+    """Factory comité draft — rollback-only, zéro DELETE teardown.
+
+    Usage : committee_id = committee_factory(case_id=..., status='open')
+    """
+
+    def _factory(
+        case_id: str,
+        org_id: str = "org-test",
+        committee_type: str = "achat",
+        created_by: str = "test-user",
+        status: str = "draft",
+    ) -> str:
+        committee_id = str(uuid.uuid4())
+        with db_conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO public.committees "
+                "(committee_id, case_id, org_id, committee_type, created_by, status) "
+                "VALUES (%s, %s, %s, %s, %s, %s)",
+                (committee_id, case_id, org_id, committee_type, created_by, status),
+            )
+            cur.execute(
+                "INSERT INTO public.committee_events "
+                "(committee_id, event_type, payload, created_by) "
+                "VALUES (%s, 'committee_created', '{}', %s)",
+                (committee_id, created_by),
+            )
+        return committee_id
+
+    yield _factory
