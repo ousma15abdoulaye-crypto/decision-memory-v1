@@ -9,9 +9,11 @@ from datetime import datetime
 from pathlib import Path
 
 from src.db import db_execute, get_connection
-from src.evaluation.profiles import get_min_weights
 
 logger = logging.getLogger(__name__)
+
+# ADR-0010 D3 -- no evaluation import in couche_a; values inlined from procurement rules
+_MIN_WEIGHTS: dict[str, float] = {"commercial": 0.40, "sustainability": 0.10}
 
 
 # ------------------------------------------------------------
@@ -165,7 +167,7 @@ def validate_criterion_weightings(criteria: list[dict]) -> tuple[bool, list[str]
     Valide les pondérations minimales (commercial ≥40%, durabilité ≥10%).
     Retourne (is_valid, liste_erreurs).
     """
-    min_weights = get_min_weights()
+    min_weights = _MIN_WEIGHTS
     errors = []
 
     # Somme des poids par catégorie

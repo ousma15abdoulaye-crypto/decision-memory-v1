@@ -15,8 +15,71 @@ from sqlalchemy import text
 from src.core.models import DAOCriterion, SupplierPackage
 from src.couche_a.scoring.models import EliminationResult, ScoreResult
 from src.db import get_connection
+from src.db.connection import get_db_cursor
 
 __all__ = ["ScoringEngine"]
+
+_DEFAULT_WEIGHTS: dict[str, float] = {
+    "commercial": 0.50,
+    "capacity": 0.30,
+    "sustainability": 0.10,
+    "essentials": 0.10,
+}
+
+_SCORING_VERSION = "V3.3.2"
+
+
+def _get_case_currency(conn, case_id: str | None) -> tuple[str, bool, str | None]:
+    """Read cases.currency from DB (ADR-0010 D2).
+
+    Returns (currency, is_fallback, fallback_reason).
+    Fallback 'XOF' only if case_id absent or row not found.
+    Caller MUST record is_fallback + fallback_reason in scoring_meta.
+    """
+    if not case_id:
+        return "XOF", True, "case_id absent"
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT currency FROM public.cases WHERE id = %s",
+            (case_id,),
+        )
+        row = cur.fetchone()
+    if not row:
+        return "XOF", True, f"case '{case_id}' not found in public.cases"
+    return row["currency"], False, None
+
+
+def _load_weights(conn, profile_code: str | None) -> tuple[dict[str, float], bool]:
+    """Load scoring weights from scoring_configs (ADR-0010 D2).
+
+    Returns (weights_dict, is_fallback).
+    is_fallback=True means profile absent -> caller MUST trace in scoring_meta.
+    """
+    if not profile_code:
+        return _DEFAULT_WEIGHTS.copy(), True
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT commercial_weight, capacity_weight,
+                   sustainability_weight, essentials_weight
+            FROM public.scoring_configs
+            WHERE profile_code = %s
+            LIMIT 1
+            """,
+            (profile_code,),
+        )
+        row = cur.fetchone()
+
+    if not row:
+        return _DEFAULT_WEIGHTS.copy(), True
+
+    return {
+        "commercial": float(row["commercial_weight"]),
+        "capacity": float(row["capacity_weight"]),
+        "sustainability": float(row["sustainability_weight"]),
+        "essentials": float(row["essentials_weight"]),
+    }, False
 
 
 class ScoringEngine:
@@ -42,6 +105,7 @@ class ScoringEngine:
         case_id: str,
         suppliers: list[SupplierPackage],
         criteria: list[DAOCriterion],
+        profile_code: str = "GENERIC",
     ) -> tuple[list[ScoreResult], list[EliminationResult]]:
         """
         Calculate scores for all suppliers in a case.
@@ -49,6 +113,29 @@ class ScoringEngine:
         Returns:
             (scores, eliminations) tuple
         """
+        # 0. Read currency + weights from DB (ADR-0010 D2 -- no hardcode)
+        with get_db_cursor() as cur:
+            conn = cur.connection
+            currency, currency_is_fallback, currency_fallback_reason = (
+                _get_case_currency(conn, case_id)
+            )
+            weights, is_fallback = _load_weights(conn, profile_code)
+
+        scoring_meta = {
+            "fallback": is_fallback,
+            "fallback_reason": (
+                f"profile '{profile_code}' not found in scoring_configs"
+                if is_fallback
+                else None
+            ),
+            "fallback_weights": _DEFAULT_WEIGHTS if is_fallback else None,
+            "profile_used": "hardcoded" if is_fallback else profile_code,
+            "scoring_version": _SCORING_VERSION,
+            "currency": currency,
+            "currency_is_fallback": currency_is_fallback,
+            "currency_fallback_reason": currency_fallback_reason,
+        }
+
         # 1. Check eliminatory criteria first
         eliminations = self._check_eliminatory_criteria(suppliers, criteria)
 
@@ -65,7 +152,9 @@ class ScoringEngine:
         profile = self._build_evaluation_profile(criteria)
 
         # 3. Calculate category scores
-        commercial_scores = self._calculate_commercial_scores(active_suppliers, profile)
+        commercial_scores = self._calculate_commercial_scores(
+            active_suppliers, profile, currency=currency
+        )
         capacity_scores = self._calculate_capacity_scores(active_suppliers, profile)
         sustainability_scores = self._calculate_sustainability_scores(
             active_suppliers, profile
@@ -80,7 +169,11 @@ class ScoringEngine:
             + essentials_scores
         )
         total_scores = self._calculate_total_scores(
-            active_suppliers, all_category_scores, profile
+            active_suppliers,
+            all_category_scores,
+            profile,
+            weights=weights,
+            scoring_meta=scoring_meta,
         )
 
         # 5. Combine all scores
@@ -110,9 +203,19 @@ class ScoringEngine:
         return profile
 
     def _calculate_commercial_scores(
-        self, suppliers: list[SupplierPackage], profile: dict
+        self,
+        suppliers: list[SupplierPackage],
+        profile: dict,
+        currency: str | None = None,
     ) -> list[ScoreResult]:
-        """Calculate commercial scores (price-based)."""
+        """Calculate commercial scores (price-based).
+
+        currency must come from cases.currency (ADR-0010 D2) -- never hardcoded.
+        If not provided, falls back to _get_case_currency(None, None) -> 'XOF'.
+        """
+        effective_currency = (
+            currency if currency is not None else _get_case_currency(None, None)[0]
+        )
         scores = []
 
         # Extract prices
@@ -132,7 +235,10 @@ class ScoringEngine:
                         category="commercial",
                         score_value=0.0,
                         calculation_method=self.commercial_method,
-                        calculation_details={"error": "Aucun prix disponible"},
+                        calculation_details={
+                            "error": "Aucun prix disponible",
+                            "currency": effective_currency,
+                        },
                     )
                 )
             return scores
@@ -152,7 +258,7 @@ class ScoringEngine:
                     calculation_details={
                         "price": price,
                         "lowest_price": lowest_price,
-                        "currency": "XOF",
+                        "currency": effective_currency,
                     },
                 )
             )
@@ -261,24 +367,26 @@ class ScoringEngine:
         suppliers: list[SupplierPackage],
         category_scores: list[ScoreResult],
         profile: dict,
+        weights: dict[str, float] | None = None,
+        scoring_meta: dict | None = None,
     ) -> list[ScoreResult]:
-        """Calculate weighted total scores."""
+        """Calculate weighted total scores.
+
+        weights and scoring_meta come from _load_weights() via calculate_scores_for_case.
+        scoring_meta is always present in calculation_details (INV-9 traceability).
+        """
         total_scores = []
 
-        # Get weights from profile
-        weights = {
-            "commercial": 0.50,
-            "capacity": 0.30,
-            "sustainability": 0.10,
-            "essentials": 0.10,
-        }
+        # Use weights from DB (via _load_weights) or fall back to defaults
+        effective_weights = weights if weights is not None else _DEFAULT_WEIGHTS.copy()
 
-        # Override with profile if available
-        for criterion in profile.get("criteria", []):
-            category = criterion.get("category")
-            weight = criterion.get("weight", 0.0)
-            if category and category in weights:
-                weights[category] = weight
+        # Per-criterion profile overrides apply only when no DB weights provided (legacy path)
+        if weights is None:
+            for criterion in profile.get("criteria", []):
+                category = criterion.get("category")
+                weight = criterion.get("weight", 0.0)
+                if category and category in effective_weights:
+                    effective_weights[category] = weight
 
         # Calculate for each supplier
         for supplier in suppliers:
@@ -291,7 +399,7 @@ class ScoringEngine:
             # Weighted sum
             total = sum(
                 supplier_scores.get(cat, 0.0) * weight
-                for cat, weight in weights.items()
+                for cat, weight in effective_weights.items()
             )
 
             total_scores.append(
@@ -301,8 +409,9 @@ class ScoringEngine:
                     score_value=round(total, 2),
                     calculation_method="weighted_sum",
                     calculation_details={
-                        "weights": weights,
+                        "weights": effective_weights,
                         "category_scores": supplier_scores,
+                        "scoring_meta": scoring_meta or {},
                     },
                 )
             )
