@@ -11,8 +11,8 @@ import os
 # Doit être posé AVANT tout import src.* (ratelimit.py lu à l'import)
 os.environ.setdefault("TESTING", "true")
 
-import uuid
 from datetime import datetime, timezone
+import uuid
 
 import pytest
 
