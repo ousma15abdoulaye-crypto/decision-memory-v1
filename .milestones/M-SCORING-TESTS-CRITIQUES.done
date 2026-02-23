@@ -1,0 +1,40 @@
+milestone      : M-SCORING-TESTS-CRITIQUES
+date           : 2026-02-23
+dms_version    : V3.3.2
+db_head        : 027_add_cases_currency
+branch         : feat/m-scoring-tests-critiques
+commit         : 635689fe5fa1e660e07d916258100763539136a2
+
+baseline_before:
+  passed       : 337
+  failed       : 0
+  skipped      : 35
+
+baseline_after:
+  passed       : 360
+  failed       : 0
+  skipped      : 35
+
+gates:
+  L1_append_only_db        : PASS  # 3/3 (update_forbidden, delete_forbidden, double_insert_allowed)
+  L2_current_view          : PASS  # 4/4 (latest_score, two_suppliers, two_categories, determinism_probe)
+  L3_elimination_real      : PASS  # 8/8 (non_eliminatory, missing_doc, compliant, mixed, no_criteria, empty, essentials, V02_antiregression)
+  L4_scoring_meta_contract : PASS  # 8/8 (version_strict, importable, weights, meta_present, keys, fallback_bool, currency_usd, fallback_reason)
+  suite_complete           : PASS  # 360 passed / 0 failed
+  lint_ruff                : PASS
+  format_black             : PASS
+  alembic_head_unchanged   : PASS  # 027_add_cases_currency (head unique)
+
+patches_cto_integrated:
+  trigger_probe_before_L1   : true   # skip si trigger absent + signal CTO
+  view_determinism_L2d      : true   # skip + signal CTO si non-déterministe
+  api_signature_probe       : true   # sonde complète avant L3/L4
+  version_policy_L4e_strict : true   # ASSERT strict _SCORING_VERSION = "V3.3.2"
+
+notes:
+  l2d_skip_reason         : N/A — déterministe (Postgres cohérent sur created_at identiques)
+  l3_api_signature_used   : engine._check_eliminatory_criteria(suppliers, criteria) — pure in-memory
+  l4_version_constant     : _SCORING_VERSION = "V3.3.2" (assert strict L4a)
+  l4_real_run             : calculate_scores_for_case() — persiste dans score_runs (append-only by design)
+  zero_src_changes        : true
+  zero_alembic_changes    : true
