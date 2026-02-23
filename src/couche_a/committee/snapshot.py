@@ -14,11 +14,11 @@ SNAPSHOT_HASH_VERSION = "v1"
 # qui interdit les string literals contenant "best" ou "recommended".
 FORBIDDEN_SNAPSHOT_FIELDS = {
     "winner",
-    "be" + "st_offer",       # best_offer
+    "be" + "st_offer",  # best_offer
     "rank",
     "ranking",
     "recommendation",
-    "recomm" + "ended",       # recommended
+    "recomm" + "ended",  # recommended
     "shortlist",
     "shortlisted",
     "position",
