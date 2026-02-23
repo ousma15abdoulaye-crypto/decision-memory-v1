@@ -11,6 +11,9 @@ import os
 # Doit être posé AVANT tout import src.* (ratelimit.py lu à l'import)
 os.environ.setdefault("TESTING", "true")
 
+import uuid
+from datetime import datetime, timezone
+
 import pytest
 
 # Load .env and .env.local (local overrides) if present
@@ -93,3 +96,50 @@ def db_transaction():
         conn.rollback()
         cur.close()
         conn.close()
+
+
+@pytest.fixture
+def case_factory(db_conn):
+    """
+    DB factory: crée un Case minimal dans public.cases et retourne case_id.
+    Unblocks #8 (tests DB-level scoring).
+    Scope: function (isolation maximale).
+
+    Contrat sonde (NOT NULL sans default) :
+      id (text), case_type (text), title (text), created_at (text)
+    db_conn est autocommit=True — pas de commit/rollback explicite.
+    """
+    created_ids: list[str] = []
+
+    def _factory(currency: str = "XOF") -> str:
+        case_id = str(uuid.uuid4())
+        with db_conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO public.cases
+                    (id, case_type, title, created_at, currency)
+                VALUES
+                    (%s, %s, %s, %s, %s)
+                """,
+                (
+                    case_id,
+                    "test",
+                    f"test-factory-{case_id[:8]}",
+                    datetime.now(timezone.utc).isoformat(),
+                    currency,
+                ),
+            )
+        created_ids.append(case_id)
+        return case_id
+
+    yield _factory
+
+    if created_ids:
+        try:
+            with db_conn.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM public.cases WHERE id = ANY(%s)",
+                    (created_ids,),
+                )
+        except Exception:
+            pass
