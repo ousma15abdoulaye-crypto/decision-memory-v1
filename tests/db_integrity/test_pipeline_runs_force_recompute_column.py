@@ -75,18 +75,16 @@ def test_force_recompute_type_boolean(db_conn):
     """pipeline_runs.force_recompute doit être BOOLEAN."""
     info = _column_info(db_conn, "pipeline_runs", "force_recompute")
     assert info is not None
-    assert info["data_type"] == "boolean", (
-        f"Type attendu 'boolean', obtenu {info['data_type']!r}"
-    )
+    assert (
+        info["data_type"] == "boolean"
+    ), f"Type attendu 'boolean', obtenu {info['data_type']!r}"
 
 
 def test_force_recompute_not_nullable(db_conn):
     """pipeline_runs.force_recompute doit être NOT NULL."""
     info = _column_info(db_conn, "pipeline_runs", "force_recompute")
     assert info is not None
-    assert info["is_nullable"] == "NO", (
-        "force_recompute doit être NOT NULL (INV-P18)"
-    )
+    assert info["is_nullable"] == "NO", "force_recompute doit être NOT NULL (INV-P18)"
 
 
 def test_force_recompute_default_false(db_conn):
@@ -94,24 +92,24 @@ def test_force_recompute_default_false(db_conn):
     info = _column_info(db_conn, "pipeline_runs", "force_recompute")
     assert info is not None
     default = (info["column_default"] or "").lower()
-    assert "false" in default, (
-        f"DEFAULT FALSE attendu, obtenu {info['column_default']!r}"
-    )
+    assert (
+        "false" in default
+    ), f"DEFAULT FALSE attendu, obtenu {info['column_default']!r}"
 
 
 def test_force_recompute_index_exists(db_conn):
     """Index idx_pipeline_runs_force_recompute doit exister."""
-    assert _index_exists(db_conn, "idx_pipeline_runs_force_recompute"), (
-        "Index idx_pipeline_runs_force_recompute absent"
-    )
+    assert _index_exists(
+        db_conn, "idx_pipeline_runs_force_recompute"
+    ), "Index idx_pipeline_runs_force_recompute absent"
 
 
 def test_force_recompute_comment_present(db_conn):
     """Commentaire ADR-0013 présent sur force_recompute."""
     comment = _column_comment(db_conn, "pipeline_runs", "force_recompute")
-    assert comment is not None and len(comment) > 10, (
-        "Commentaire manquant sur pipeline_runs.force_recompute"
-    )
-    assert "ADR-0013" in comment, (
-        f"Commentaire doit mentionner ADR-0013 — obtenu : {comment!r}"
-    )
+    assert (
+        comment is not None and len(comment) > 10
+    ), "Commentaire manquant sur pipeline_runs.force_recompute"
+    assert (
+        "ADR-0013" in comment
+    ), f"Commentaire doit mentionner ADR-0013 — obtenu : {comment!r}"
