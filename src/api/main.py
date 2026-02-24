@@ -75,6 +75,14 @@ try:
 except ImportError:
     pass
 
+_pipeline_a_router = None
+try:
+    from src.couche_a.pipeline.router import router as pipeline_a_router
+
+    _pipeline_a_router = pipeline_a_router
+except ImportError:
+    pass
+
 app = FastAPI(
     title="DMS API",
     version="0.1.0",
@@ -94,6 +102,7 @@ for _router in [
     _analysis_router,
     _mercuriale_router,
     _price_check_router,
+    _pipeline_a_router,
 ]:
     if _router is not None:
         app.include_router(_router)
