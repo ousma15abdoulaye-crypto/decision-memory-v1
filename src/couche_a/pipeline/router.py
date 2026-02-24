@@ -7,6 +7,10 @@ Convention HTTP (ADR-0012) :
   Aucun 409/422/500 pour des statuts métier (blocked/incomplete/failed).
   HTTP 404 uniquement sur GET /last si aucun run trouvé.
   Zéro logique métier dans le router.
+
+Compat backward #10 (INV-API-11-01) :
+  POST /run sans body → mode='partial', force_recompute=False.
+  Body minimal {"triggered_by": "..."} accepté.
 """
 
 from __future__ import annotations
@@ -19,7 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from psycopg.rows import dict_row
 
 from . import service
-from .models import PipelineLastRunResponse, PipelineResult
+from .models import PipelineLastRunResponse, PipelineResult, PipelineRunRequest
 
 router = APIRouter(prefix="/api/cases", tags=["pipeline"])
 
@@ -43,18 +47,28 @@ def _get_conn() -> Generator[psycopg.Connection, None, None]:
 @router.post("/{case_id}/pipeline/a/run", response_model=PipelineResult)
 def run_pipeline_a(
     case_id: str,
-    triggered_by: str = "api",
+    body: PipelineRunRequest = Depends(),
     conn: psycopg.Connection = Depends(_get_conn),
 ) -> PipelineResult:
     """
-    Lance le pipeline A (mode partial) pour un dossier.
+    Lance le pipeline A pour un dossier.
 
+    Dispatch vers run_pipeline_a_partial ou run_pipeline_a_e2e selon body.mode.
+    Compat backward #10 : body optionnel, mode='partial', force_recompute=False.
     Toujours HTTP 200 — le statut métier est dans PipelineResult.status.
     blocked/incomplete/failed ne sont pas des erreurs HTTP.
+    INV-API-11-01 : zéro logique métier ici.
     """
+    if body.mode == "e2e":
+        return service.run_pipeline_a_e2e(
+            case_id=case_id,
+            triggered_by=body.triggered_by,
+            conn=conn,
+            force_recompute=body.force_recompute,
+        )
     return service.run_pipeline_a_partial(
         case_id=case_id,
-        triggered_by=triggered_by,
+        triggered_by=body.triggered_by,
         conn=conn,
     )
 
