@@ -19,7 +19,7 @@ import os
 from collections.abc import Generator
 
 import psycopg
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from psycopg.rows import dict_row
 
 from . import service
@@ -47,7 +47,7 @@ def _get_conn() -> Generator[psycopg.Connection, None, None]:
 @router.post("/{case_id}/pipeline/a/run", response_model=PipelineResult)
 def run_pipeline_a(
     case_id: str,
-    body: PipelineRunRequest = Depends(),
+    body: PipelineRunRequest = Body(default_factory=PipelineRunRequest),
     conn: psycopg.Connection = Depends(_get_conn),
 ) -> PipelineResult:
     """
