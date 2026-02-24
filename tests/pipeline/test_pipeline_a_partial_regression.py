@@ -44,9 +44,9 @@ def _extract_function_source(src_text: str, func_name: str) -> str:
 
 def _normalize(source: str) -> str:
     """Normalise le source pour le hash : supprime commentaires + espaces superflus."""
-    source = re.sub(r'#[^\n]*', '', source)
-    source = re.sub(r'""".*?"""', '', source, flags=re.DOTALL)
-    source = re.sub(r"'''.*?'''", '', source, flags=re.DOTALL)
+    source = re.sub(r"#[^\n]*", "", source)
+    source = re.sub(r'""".*?"""', "", source, flags=re.DOTALL)
+    source = re.sub(r"'''.*?'''", "", source, flags=re.DOTALL)
     lines = [ln.rstrip() for ln in source.splitlines() if ln.strip()]
     return "\n".join(lines)
 
@@ -80,9 +80,11 @@ def test_partial_signature_unchanged():
     """Signature run_pipeline_a_partial : 3 params positionnels (case_id, triggered_by, conn)."""
     sig = inspect.signature(run_pipeline_a_partial)
     params = list(sig.parameters.keys())
-    assert params == ["case_id", "triggered_by", "conn"], (
-        f"Signature modifiée — attendu ['case_id', 'triggered_by', 'conn'], obtenu {params}"
-    )
+    assert params == [
+        "case_id",
+        "triggered_by",
+        "conn",
+    ], f"Signature modifiée — attendu ['case_id', 'triggered_by', 'conn'], obtenu {params}"
 
 
 # ---------------------------------------------------------------------------
@@ -99,15 +101,12 @@ def test_partial_returns_pipeline_result_mode_partial(db_conn, case_factory):
 
     case_id = case_factory()
 
-    with patch(
-        "src.couche_a.pipeline.service._load_extraction_summary"
-    ) as mock_ex, patch(
-        "src.couche_a.pipeline.service._load_criteria_summary"
-    ) as mock_cr, patch(
-        "src.couche_a.pipeline.service._load_normalization_summary"
-    ) as mock_nr, patch(
-        "src.couche_a.pipeline.service._run_scoring_step"
-    ) as mock_sc:
+    with (
+        patch("src.couche_a.pipeline.service._load_extraction_summary") as mock_ex,
+        patch("src.couche_a.pipeline.service._load_criteria_summary") as mock_cr,
+        patch("src.couche_a.pipeline.service._load_normalization_summary") as mock_nr,
+        patch("src.couche_a.pipeline.service._run_scoring_step") as mock_sc,
+    ):
         from src.couche_a.pipeline.models import StepOutcome
 
         mock_ex.return_value = StepOutcome(status="ok", meta={"extractions_count": 0})
@@ -136,12 +135,12 @@ def test_partial_returns_pipeline_result_mode_partial(db_conn, case_factory):
             conn.close()
 
     assert isinstance(result, PipelineResult)
-    assert result.mode == "partial", (
-        f"Compat backward #10 : mode attendu 'partial', obtenu {result.mode!r}"
-    )
-    assert result.force_recompute is False, (
-        "Compat backward #10 : force_recompute doit être False par défaut"
-    )
+    assert (
+        result.mode == "partial"
+    ), f"Compat backward #10 : mode attendu 'partial', obtenu {result.mode!r}"
+    assert (
+        result.force_recompute is False
+    ), "Compat backward #10 : force_recompute doit être False par défaut"
     assert result.status != "complete", "INV-P16 : 'complete' interdit dans #11"
 
 
@@ -159,15 +158,12 @@ def test_partial_complete_status_never_returned(db_conn, case_factory):
 
     case_id = case_factory()
 
-    with patch(
-        "src.couche_a.pipeline.service._load_extraction_summary"
-    ) as mock_ex, patch(
-        "src.couche_a.pipeline.service._load_criteria_summary"
-    ) as mock_cr, patch(
-        "src.couche_a.pipeline.service._load_normalization_summary"
-    ) as mock_nr, patch(
-        "src.couche_a.pipeline.service._run_scoring_step"
-    ) as mock_sc:
+    with (
+        patch("src.couche_a.pipeline.service._load_extraction_summary") as mock_ex,
+        patch("src.couche_a.pipeline.service._load_criteria_summary") as mock_cr,
+        patch("src.couche_a.pipeline.service._load_normalization_summary") as mock_nr,
+        patch("src.couche_a.pipeline.service._run_scoring_step") as mock_sc,
+    ):
         from src.couche_a.pipeline.models import StepOutcome
 
         for m in (mock_ex, mock_cr, mock_nr):
@@ -194,7 +190,7 @@ def test_partial_complete_status_never_returned(db_conn, case_factory):
         finally:
             conn.close()
 
-    assert result.status != "complete", (
-        "INV-P16 : status='complete' interdit dans #10/#11 — réservé #14"
-    )
+    assert (
+        result.status != "complete"
+    ), "INV-P16 : status='complete' interdit dans #10/#11 — réservé #14"
     assert result.status in ("partial_complete", "blocked", "incomplete", "failed")

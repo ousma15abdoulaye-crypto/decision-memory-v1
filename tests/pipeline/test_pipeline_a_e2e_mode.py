@@ -82,11 +82,12 @@ def test_e2e_incomplete_propagates_globally(db_conn, pipeline_case_with_dao_and_
     """INV-P16 : un step incomplete → statut global 'incomplete' en mode e2e."""
     case_id = pipeline_case_with_dao_and_offers
 
-    with patch(
-        "src.couche_a.pipeline.service._run_scoring_step"
-    ) as mock_scoring, patch(
-        "src.couche_a.pipeline.service._load_extraction_summary"
-    ) as mock_extraction:
+    with (
+        patch("src.couche_a.pipeline.service._run_scoring_step") as mock_scoring,
+        patch(
+            "src.couche_a.pipeline.service._load_extraction_summary"
+        ) as mock_extraction,
+    ):
         from src.couche_a.pipeline.models import StepOutcome
 
         mock_extraction.return_value = StepOutcome(
@@ -113,9 +114,9 @@ def test_e2e_incomplete_propagates_globally(db_conn, pipeline_case_with_dao_and_
         finally:
             conn.close()
 
-    assert result.status == "incomplete", (
-        f"INV-P16 : statut global attendu 'incomplete', obtenu {result.status!r}"
-    )
+    assert (
+        result.status == "incomplete"
+    ), f"INV-P16 : statut global attendu 'incomplete', obtenu {result.status!r}"
     assert result.mode == "e2e"
     assert result.status != "complete", "INV-P16 : 'complete' interdit dans #11"
 
@@ -129,26 +130,17 @@ def test_e2e_partial_complete_when_all_ok(db_conn, pipeline_case_with_dao_and_of
     """Tous les steps ok → partial_complete en mode e2e."""
     case_id = pipeline_case_with_dao_and_offers
 
-    with patch(
-        "src.couche_a.pipeline.service._load_extraction_summary"
-    ) as mock_ex, patch(
-        "src.couche_a.pipeline.service._load_criteria_summary"
-    ) as mock_cr, patch(
-        "src.couche_a.pipeline.service._load_normalization_summary"
-    ) as mock_nr, patch(
-        "src.couche_a.pipeline.service._run_scoring_step"
-    ) as mock_sc:
+    with (
+        patch("src.couche_a.pipeline.service._load_extraction_summary") as mock_ex,
+        patch("src.couche_a.pipeline.service._load_criteria_summary") as mock_cr,
+        patch("src.couche_a.pipeline.service._load_normalization_summary") as mock_nr,
+        patch("src.couche_a.pipeline.service._run_scoring_step") as mock_sc,
+    ):
         from src.couche_a.pipeline.models import StepOutcome
 
-        mock_ex.return_value = StepOutcome(
-            status="ok", meta={"extractions_count": 2}
-        )
-        mock_cr.return_value = StepOutcome(
-            status="ok", meta={"criteria_count": 2}
-        )
-        mock_nr.return_value = StepOutcome(
-            status="ok", meta={"normalized_count": 2}
-        )
+        mock_ex.return_value = StepOutcome(status="ok", meta={"extractions_count": 2})
+        mock_cr.return_value = StepOutcome(status="ok", meta={"criteria_count": 2})
+        mock_nr.return_value = StepOutcome(status="ok", meta={"normalized_count": 2})
         mock_sc.return_value = StepOutcome(
             status="ok",
             meta={"scores_count": 2, "eliminations_count": 0, "score_entries": []},
@@ -182,9 +174,7 @@ def test_e2e_force_recompute_persisted(db_conn, case_factory):
     """INV-P18 : force_recompute=True tracé dans pipeline_runs.force_recompute."""
     case_id = case_factory()
 
-    with patch(
-        "src.couche_a.pipeline.service._run_scoring_step"
-    ) as mock_sc:
+    with patch("src.couche_a.pipeline.service._run_scoring_step") as mock_sc:
         from src.couche_a.pipeline.models import StepOutcome
 
         mock_sc.return_value = StepOutcome(
@@ -210,9 +200,9 @@ def test_e2e_force_recompute_persisted(db_conn, case_factory):
     assert result.force_recompute is True
     row = _get_pipeline_run(db_conn, result.run_id)
     assert row is not None
-    assert row["force_recompute"] is True, (
-        "INV-P18 : force_recompute=True doit être tracé dans pipeline_runs"
-    )
+    assert (
+        row["force_recompute"] is True
+    ), "INV-P18 : force_recompute=True doit être tracé dans pipeline_runs"
 
 
 # ---------------------------------------------------------------------------
@@ -224,15 +214,12 @@ def test_e2e_complete_status_forbidden(db_conn, case_factory):
     """INV-P16 : status='complete' interdit en mode e2e (#11, réservé #14)."""
     case_id = case_factory()
 
-    with patch(
-        "src.couche_a.pipeline.service._load_extraction_summary"
-    ) as mock_ex, patch(
-        "src.couche_a.pipeline.service._load_criteria_summary"
-    ) as mock_cr, patch(
-        "src.couche_a.pipeline.service._load_normalization_summary"
-    ) as mock_nr, patch(
-        "src.couche_a.pipeline.service._run_scoring_step"
-    ) as mock_sc:
+    with (
+        patch("src.couche_a.pipeline.service._load_extraction_summary") as mock_ex,
+        patch("src.couche_a.pipeline.service._load_criteria_summary") as mock_cr,
+        patch("src.couche_a.pipeline.service._load_normalization_summary") as mock_nr,
+        patch("src.couche_a.pipeline.service._run_scoring_step") as mock_sc,
+    ):
         from src.couche_a.pipeline.models import StepOutcome
 
         for m in (mock_ex, mock_cr, mock_nr):
@@ -256,6 +243,4 @@ def test_e2e_complete_status_forbidden(db_conn, case_factory):
         finally:
             conn.close()
 
-    assert result.status != "complete", (
-        "INV-P16 : status='complete' interdit dans #11"
-    )
+    assert result.status != "complete", "INV-P16 : status='complete' interdit dans #11"

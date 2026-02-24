@@ -51,14 +51,16 @@ def test_force_recompute_true_always_calculates():
     """INV-P15A : force_recompute=True → calculate_scores_for_case toujours appelé."""
     conn = _mock_conn_with_rows()
 
-    with patch(
-        "src.couche_a.pipeline.service.ScoringEngine"
-    ) as mock_engine, patch(
-        "src.couche_a.pipeline.service._build_supplier_packages_from_extractions",
-        return_value=[],
-    ), patch(
-        "src.couche_a.pipeline.service._build_dao_criteria_from_rows",
-        return_value=[],
+    with (
+        patch("src.couche_a.pipeline.service.ScoringEngine") as mock_engine,
+        patch(
+            "src.couche_a.pipeline.service._build_supplier_packages_from_extractions",
+            return_value=[],
+        ),
+        patch(
+            "src.couche_a.pipeline.service._build_dao_criteria_from_rows",
+            return_value=[],
+        ),
     ):
         engine_instance = mock_engine.return_value
         engine_instance.calculate_scores_for_case.return_value = ([], [])
@@ -78,14 +80,16 @@ def test_force_recompute_false_tries_cache_first():
     """INV-P14 : force_recompute=False → get_latest_score_run tenté en premier."""
     conn = _mock_conn_with_rows()
 
-    with patch(
-        "src.couche_a.pipeline.service.ScoringEngine"
-    ) as mock_engine, patch(
-        "src.couche_a.pipeline.service._build_supplier_packages_from_extractions",
-        return_value=[],
-    ), patch(
-        "src.couche_a.pipeline.service._build_dao_criteria_from_rows",
-        return_value=[],
+    with (
+        patch("src.couche_a.pipeline.service.ScoringEngine") as mock_engine,
+        patch(
+            "src.couche_a.pipeline.service._build_supplier_packages_from_extractions",
+            return_value=[],
+        ),
+        patch(
+            "src.couche_a.pipeline.service._build_dao_criteria_from_rows",
+            return_value=[],
+        ),
     ):
         engine_instance = mock_engine.return_value
         engine_instance.get_latest_score_run.return_value = {
@@ -108,14 +112,16 @@ def test_force_recompute_false_fallback_on_missing_method():
     """ADR-0013 : get_latest_score_run absent → fallback calculate_scores_for_case."""
     conn = _mock_conn_with_rows()
 
-    with patch(
-        "src.couche_a.pipeline.service.ScoringEngine"
-    ) as mock_engine, patch(
-        "src.couche_a.pipeline.service._build_supplier_packages_from_extractions",
-        return_value=[],
-    ), patch(
-        "src.couche_a.pipeline.service._build_dao_criteria_from_rows",
-        return_value=[],
+    with (
+        patch("src.couche_a.pipeline.service.ScoringEngine") as mock_engine,
+        patch(
+            "src.couche_a.pipeline.service._build_supplier_packages_from_extractions",
+            return_value=[],
+        ),
+        patch(
+            "src.couche_a.pipeline.service._build_dao_criteria_from_rows",
+            return_value=[],
+        ),
     ):
         engine_instance = mock_engine.return_value
         del engine_instance.get_latest_score_run
@@ -139,14 +145,16 @@ def test_lookup_warning_initialized_no_name_error():
     """PATCH-10 : _lookup_warning initialisé à None — pas de NameError."""
     conn = _mock_conn_with_rows()
 
-    with patch(
-        "src.couche_a.pipeline.service.ScoringEngine"
-    ) as mock_engine, patch(
-        "src.couche_a.pipeline.service._build_supplier_packages_from_extractions",
-        return_value=[],
-    ), patch(
-        "src.couche_a.pipeline.service._build_dao_criteria_from_rows",
-        return_value=[],
+    with (
+        patch("src.couche_a.pipeline.service.ScoringEngine") as mock_engine,
+        patch(
+            "src.couche_a.pipeline.service._build_supplier_packages_from_extractions",
+            return_value=[],
+        ),
+        patch(
+            "src.couche_a.pipeline.service._build_dao_criteria_from_rows",
+            return_value=[],
+        ),
     ):
         engine_instance = mock_engine.return_value
         engine_instance.calculate_scores_for_case.return_value = ([], [])
@@ -166,14 +174,16 @@ def test_force_recompute_traced_in_meta():
     """force_recompute doit être tracé dans StepOutcome.meta."""
     conn = _mock_conn_with_rows()
 
-    with patch(
-        "src.couche_a.pipeline.service.ScoringEngine"
-    ) as mock_engine, patch(
-        "src.couche_a.pipeline.service._build_supplier_packages_from_extractions",
-        return_value=[],
-    ), patch(
-        "src.couche_a.pipeline.service._build_dao_criteria_from_rows",
-        return_value=[],
+    with (
+        patch("src.couche_a.pipeline.service.ScoringEngine") as mock_engine,
+        patch(
+            "src.couche_a.pipeline.service._build_supplier_packages_from_extractions",
+            return_value=[],
+        ),
+        patch(
+            "src.couche_a.pipeline.service._build_dao_criteria_from_rows",
+            return_value=[],
+        ),
     ):
         engine_instance = mock_engine.return_value
         engine_instance.calculate_scores_for_case.return_value = ([], [])
