@@ -451,8 +451,6 @@ def _run_scoring_step(
             suppliers=supplier_packages,
             criteria=criteria,
         )
-        if scores:
-            engine._save_scores_to_db(case_id, scores)
 
     score_entries = [
         {
