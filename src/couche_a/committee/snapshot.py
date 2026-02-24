@@ -26,6 +26,20 @@ FORBIDDEN_SNAPSHOT_FIELDS = {
 }
 
 
+def _resolve_supplier_name_raw(decision: dict[str, Any], alias_raw: str) -> str:
+    """Résout supplier_name_raw pour le snapshot.
+
+    no_award : aucun fournisseur sélectionné → valeur explicite et neutre.
+    awarded  : supplier_name_raw de la décision, sinon alias comme dernier recours.
+
+    Interdit : injecter alias_raw comme nom de fournisseur sur une décision no_award
+               (corruption sémantique — alias_raw est un libellé article, pas un fournisseur).
+    """
+    if decision.get("decision_status") == "no_award":
+        return "Aucun fournisseur — no_award"
+    return decision.get("supplier_name_raw") or alias_raw
+
+
 def assert_no_forbidden_fields(snapshot_data: dict[str, Any]) -> None:
     """Lève ValueError si snapshot_data contient un champ interdit (ADR-0011)."""
     found = FORBIDDEN_SNAPSHOT_FIELDS & set(snapshot_data.keys())
