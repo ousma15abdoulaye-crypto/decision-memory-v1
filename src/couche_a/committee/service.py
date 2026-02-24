@@ -17,7 +17,11 @@ from .models import (
     SealResult,
     SetDecisionRequest,
 )
-from .snapshot import assert_no_forbidden_fields, compute_snapshot_hash
+from .snapshot import (
+    _resolve_supplier_name_raw,
+    assert_no_forbidden_fields,
+    compute_snapshot_hash,
+)
 
 # ------------------------------------------------------------------ helpers internes
 
@@ -26,10 +30,20 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-def _get_committee_or_raise(committee_id: str, conn) -> dict[str, Any]:
+def _get_committee_or_raise(
+    committee_id: str, conn, for_update: bool = False
+) -> dict[str, Any]:
+    """Charge un comité depuis la DB.
+
+    for_update=True : SELECT FOR UPDATE — verrou pessimiste.
+    À utiliser UNIQUEMENT sur le chemin seal pour éviter
+    la race condition entre deux requêtes simultanées.
+    Le trigger enforce_committee_terminal_status fait le reste.
+    """
+    lock_clause = "FOR UPDATE" if for_update else ""
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT * FROM public.committees WHERE committee_id = %s",
+            f"SELECT * FROM public.committees WHERE committee_id = %s {lock_clause}",
             (committee_id,),
         )
         row = cur.fetchone()
@@ -327,7 +341,9 @@ def seal_committee_decision(committee_id: str, req: SealRequest, conn) -> SealRe
     """
     _assert_committee_sealable(committee_id, conn)
 
-    committee = _get_committee_or_raise(committee_id, conn)
+    # FOR UPDATE : verrou pessimiste pour prévenir la race condition
+    # entre deux seal simultanés qui auraient tous deux passé _assert_committee_sealable.
+    committee = _get_committee_or_raise(committee_id, conn, for_update=True)
     decision = _get_decision_candidate_or_raise(committee_id, conn)
 
     seal_id = str(uuid.uuid4())
@@ -365,7 +381,7 @@ def seal_committee_decision(committee_id: str, req: SealRequest, conn) -> SealRe
         "unit": req.unit,
         "price_paid": req.price_paid,
         "supplier_id": req.supplier_id,
-        "supplier_name_raw": (decision["supplier_name_raw"] or req.alias_raw),
+        "supplier_name_raw": _resolve_supplier_name_raw(decision, req.alias_raw),
         "source_hashes": req.source_hashes,
         "scoring_meta": req.scoring_meta,
     }

@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # ------------------------------------------------------------------ Enums (texte)
 
@@ -60,6 +60,12 @@ class SetDecisionRequest(BaseModel):
 
 
 class SealRequest(BaseModel):
+    """Requête de scellement comité.
+
+    sealed_by : champ d'audit obligatoire — ne peut pas être vide.
+    Un scellement avec sealed_by="" rendrait l'audit trail inutilisable.
+    """
+
     sealed_by: str
     zone: str = Field(..., min_length=1)
     currency: str = "XOF"
@@ -71,6 +77,16 @@ class SealRequest(BaseModel):
     supplier_id: str | None = None
     source_hashes: dict[str, Any] = Field(default_factory=dict)
     scoring_meta: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("sealed_by")
+    @classmethod
+    def sealed_by_not_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError(
+                "sealed_by ne peut pas être vide — "
+                "champ d'audit obligatoire pour la traçabilité du scellement"
+            )
+        return v.strip()
 
 
 # ------------------------------------------------------------------ Output DTOs

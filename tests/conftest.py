@@ -148,17 +148,18 @@ def case_factory(db_conn):
 
 @pytest.fixture
 def _tx(db_conn):
-    """Isolation rollback-only: toutes les mutations du test sont annulées en fin.
+    """Transaction rollback-only — zéro DELETE teardown.
 
-    Aucun DELETE teardown nécessaire sur tables append-only.
-    Compatible avec committee_factory et case_factory.
+    Sauvegarde et restaure autocommit pour ne pas contaminer
+    les fixtures suivantes si la valeur originale n'était pas True.
     """
+    original_autocommit = db_conn.autocommit
     db_conn.autocommit = False
     try:
         yield
     finally:
         db_conn.rollback()
-        db_conn.autocommit = True
+        db_conn.autocommit = original_autocommit
 
 
 @pytest.fixture
