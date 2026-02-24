@@ -70,9 +70,9 @@ def _json_safe(v: Any) -> Any:
     JSON natifs inchangés. datetime/date/UUID/Decimal → str.
     Fallback → str.
     """
-    if v is None or isinstance(v, (bool, int, float, str)):
+    if v is None or isinstance(v, bool | int | float | str):
         return v
-    if isinstance(v, (datetime,)):
+    if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, Decimal):
         return float(v)
