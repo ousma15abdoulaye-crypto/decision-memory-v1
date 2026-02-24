@@ -382,13 +382,23 @@ def _build_dao_criteria_from_rows(rows: list[dict[str, Any]]) -> list[DAOCriteri
     ]
 
 
-def _run_scoring_step(case_id: str, conn: Any) -> StepOutcome:
+def _run_scoring_step(
+    case_id: str,
+    conn: Any,
+    force_recompute: bool = False,
+) -> StepOutcome:
     """
     Délègue le scoring au ScoringEngine existant.
-    Charge offer_extractions + dao_criteria depuis DB.
+
+    force_recompute=True  (INV-P15A) : appelle toujours calculate_scores_for_case.
+    force_recompute=False (INV-P14)  : tente get_latest_score_run() en premier
+                                        puis calcul si non trouvé (fallback).
     ScoringEngine gère ses propres connexions DB (score_runs append-only).
     Lecture des données de base via la connexion injectée.
+    PATCH-10 : _lookup_warning initialisé explicitement à None.
     """
+    _lookup_warning: str | None = None  # PATCH-10
+
     with conn.cursor() as cur:
         cur.execute(
             "SELECT id, supplier_name, extracted_data_json "
@@ -417,16 +427,30 @@ def _run_scoring_step(case_id: str, conn: Any) -> StepOutcome:
 
     supplier_packages = _build_supplier_packages_from_extractions(extractions)
     criteria = _build_dao_criteria_from_rows(criteria_rows)
-
     engine = ScoringEngine()
-    scores, eliminations = engine.calculate_scores_for_case(
-        case_id=case_id,
-        suppliers=supplier_packages,
-        criteria=criteria,
-    )
 
-    if scores:
-        engine._save_scores_to_db(case_id, scores)
+    scores = None
+    eliminations: list[Any] = []
+
+    if not force_recompute:
+        # INV-P14 : tentative de réutilisation du dernier score_run valide.
+        # get_latest_score_run absent dans l'implémentation actuelle → fallback.
+        try:
+            cached = engine.get_latest_score_run(case_id)  # type: ignore[attr-defined]
+            if cached is not None:
+                scores = cached.get("scores", [])
+                eliminations = cached.get("eliminations", [])
+                _lookup_warning = "SCORE_REUSED_FROM_CACHE"
+        except AttributeError:
+            # ADR-0013 : get_latest_score_run absent → calcul systématique.
+            _lookup_warning = "SCORE_CACHE_UNAVAILABLE_FALLBACK"
+
+    if scores is None:
+        scores, eliminations = engine.calculate_scores_for_case(
+            case_id=case_id,
+            suppliers=supplier_packages,
+            criteria=criteria,
+        )
 
     score_entries = [
         {
@@ -437,17 +461,22 @@ def _run_scoring_step(case_id: str, conn: Any) -> StepOutcome:
         for s in scores
     ]
 
+    meta: dict[str, Any] = {
+        "scores_count": len(scores),
+        "eliminations_count": len(eliminations),
+        "score_entries": score_entries,
+        "force_recompute": force_recompute,
+    }
+    if _lookup_warning:
+        meta["lookup_warning"] = _lookup_warning
+
     return StepOutcome(
         status="ok" if scores else "incomplete",
         reason_code=None if scores else "NO_SCORES_COMPUTED",
         reason_message=(
             None if scores else f"Aucun score calculé pour case_id={case_id!r}"
         ),
-        meta={
-            "scores_count": len(scores),
-            "eliminations_count": len(eliminations),
-            "score_entries": score_entries,
-        },
+        meta=meta,
     )
 
 
@@ -573,12 +602,16 @@ def _persist_pipeline_run_and_steps(
     duration_ms: int,
     steps: list[PipelineStepResult],
     cas: CaseAnalysisSnapshot | None,
+    force_recompute: bool = False,
+    mode: str = "partial",
 ) -> None:
     """
     Insère pipeline_runs + pipeline_step_runs de manière atomique.
     Pattern B : pas de conn.commit() — le context manager du router commit.
     Les violations de contrainte DB remontent volontairement (fail-fast).
     INV-P6 : pipeline_run sans steps = état interdit.
+    PATCH-07 : force_recompute + mode ajoutés avec defaults compat #10 callers.
+    INV-P18  : force_recompute tracé dans pipeline_runs.force_recompute.
     """
     result_jsonb = json.dumps(_json_safe(cas.model_dump()) if cas else {})
     error_jsonb = "[]"
@@ -589,14 +622,15 @@ def _persist_pipeline_run_and_steps(
             INSERT INTO public.pipeline_runs
                 (pipeline_run_id, case_id, pipeline_type, mode, status,
                  started_at, finished_at, duration_ms, triggered_by,
-                 result_jsonb, error_jsonb)
-            VALUES (%s, %s, 'A', 'partial', %s,
+                 result_jsonb, error_jsonb, force_recompute)
+            VALUES (%s, %s, 'A', %s, %s,
                     %s, %s, %s, %s,
-                    %s::jsonb, %s::jsonb)
+                    %s::jsonb, %s::jsonb, %s)
             """,
             (
                 run_id,
                 case_id,
+                mode,
                 status,
                 started_at,
                 finished_at,
@@ -604,6 +638,7 @@ def _persist_pipeline_run_and_steps(
                 triggered_by,
                 result_jsonb,
                 error_jsonb,
+                force_recompute,
             ),
         )
 
@@ -764,6 +799,165 @@ def run_pipeline_a_partial(
         started_at=started_at,
         finished_at=finished_at,
         duration_ms=dur,
+        errors=errors,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Orchestrateur E2E (#11) — INV-P16 (strict)
+# ---------------------------------------------------------------------------
+
+
+def run_pipeline_a_e2e(
+    case_id: str,
+    triggered_by: str,
+    conn: Any,
+    force_recompute: bool = False,
+) -> PipelineResult:
+    """
+    Orchestre l'exécution du pipeline A en mode e2e.
+
+    Séquence : preflight → extraction_summary → criteria_summary
+               → normalization_summary → scoring → build CAS v1 → persist.
+
+    INV-P16 (strict) : tout step 'incomplete' → statut global 'incomplete'.
+    Contrairement au mode partial, aucun step incomplet ne donne 'partial_complete'.
+    'complete' toujours interdit dans #11 (réservé #14).
+    force_recompute tracé dans pipeline_runs (INV-P18, ADR-0013).
+    """
+    run_id = str(uuid.uuid4())
+    started_at = _now()
+    steps: list[PipelineStepResult] = []
+
+    # ---- Step 1 : Preflight ------------------------------------------------
+    pf_start = _now()
+    pf_outcome = _safe_step("preflight", _preflight_case_a_partial, case_id, conn)
+    steps.append(_to_step_result("preflight", pf_outcome, pf_start))
+
+    if pf_outcome.status == "blocked":
+        finished_at = _now()
+        dur = _duration_ms(started_at, finished_at)
+        _persist_pipeline_run_and_steps(
+            conn,
+            run_id,
+            case_id,
+            triggered_by,
+            "blocked",
+            started_at,
+            finished_at,
+            dur,
+            steps,
+            None,
+            force_recompute=force_recompute,
+            mode="e2e",
+        )
+        return PipelineResult(
+            run_id=run_id,
+            case_id=case_id,
+            status="blocked",
+            mode="e2e",
+            force_recompute=force_recompute,
+            steps=steps,
+            cas=None,
+            triggered_by=triggered_by,
+            started_at=started_at,
+            finished_at=finished_at,
+            duration_ms=dur,
+            errors=[pf_outcome.reason_message or pf_outcome.reason_code or "blocked"],
+        )
+
+    case_row = _load_case_row(case_id, conn) or {}
+
+    # ---- Step 2 : Extraction summary ---------------------------------------
+    ex_start = _now()
+    ex_outcome = _safe_step(
+        "extraction_summary", _load_extraction_summary, case_id, conn
+    )
+    steps.append(_to_step_result("extraction_summary", ex_outcome, ex_start))
+
+    # ---- Step 3 : Criteria summary -----------------------------------------
+    cr_start = _now()
+    cr_outcome = _safe_step("criteria_summary", _load_criteria_summary, case_id, conn)
+    steps.append(_to_step_result("criteria_summary", cr_outcome, cr_start))
+
+    # ---- Step 4 : Normalization summary ------------------------------------
+    nr_start = _now()
+    nr_outcome = _safe_step(
+        "normalization_summary", _load_normalization_summary, case_id, conn
+    )
+    steps.append(_to_step_result("normalization_summary", nr_outcome, nr_start))
+
+    # ---- Step 5 : Scoring --------------------------------------------------
+    sc_start = _now()
+    sc_outcome = _safe_step(
+        "scoring", _run_scoring_step, case_id, conn, force_recompute
+    )
+    steps.append(_to_step_result("scoring", sc_outcome, sc_start))
+
+    # ---- Build CAS v1 ------------------------------------------------------
+    cas = _build_case_analysis_snapshot(case_id, steps, case_row)
+
+    # ---- Déterminer statut pipeline (INV-P16 strict) -----------------------
+    step_statuses = {s.status for s in steps}
+    if "failed" in step_statuses:
+        pipeline_status = "failed"
+    elif "blocked" in step_statuses:
+        pipeline_status = "blocked"
+    elif "incomplete" in step_statuses:
+        # INV-P16 strict : incomplete propagé au niveau global
+        pipeline_status = "incomplete"
+    else:
+        pipeline_status = "partial_complete"
+
+    # Collecter warnings pour les steps non-ok (sans bloquer)
+    warnings: list[dict[str, Any]] = [
+        {
+            "step": s.step_name,
+            "reason_code": s.reason_code,
+            "reason_message": s.reason_message,
+        }
+        for s in steps
+        if s.status not in ("ok", "skipped") and s.reason_code
+    ]
+
+    finished_at = _now()
+    dur = _duration_ms(started_at, finished_at)
+
+    # ---- Persist atomique --------------------------------------------------
+    _persist_pipeline_run_and_steps(
+        conn,
+        run_id,
+        case_id,
+        triggered_by,
+        pipeline_status,
+        started_at,
+        finished_at,
+        dur,
+        steps,
+        cas,
+        force_recompute=force_recompute,
+        mode="e2e",
+    )
+
+    errors: list[str] = [
+        s.reason_message or s.reason_code or ""
+        for s in steps
+        if s.status in ("failed", "blocked") and s.reason_code
+    ]
+
+    return PipelineResult(
+        run_id=run_id,
+        case_id=case_id,
+        status=pipeline_status,
+        mode="e2e",
+        force_recompute=force_recompute,
+        steps=steps,
+        cas=cas,
+        triggered_by=triggered_by,
+        started_at=started_at,
+        finished_at=finished_at,
+        duration_ms=dur,
+        warnings=warnings,
         errors=errors,
     )
 

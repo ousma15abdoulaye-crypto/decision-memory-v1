@@ -3,10 +3,11 @@
 Modèles Pydantic du pipeline A — contrat CaseAnalysisSnapshot v1.
 
 Invariants Pydantic enforced ici :
-  INV-P7  : CAS v1 rejette winner/rank/recommandation/meilleure-offre
-  INV-P8  : export_ready = Literal[False] TOUJOURS dans #10
-  INV-P11 : triggered_by non-vide + ≤ 255 caractères
-  RÈGLE   : complete absent de PipelineResult.status
+  INV-P7   : CAS v1 rejette winner/rank/recommandation/meilleure-offre
+  INV-P8   : export_ready = Literal[False] TOUJOURS dans #10/#11
+  INV-P11  : triggered_by non-vide + max 255 caractères
+  INV-P16  : status='complete' interdit dans #10/#11 (réservé #14)
+  INV-API-11-01 : body minimal {"triggered_by":"..."} valide (compat backward)
 """
 
 from __future__ import annotations
@@ -30,6 +31,8 @@ PipelineStepName = Literal[
 ]
 
 PipelineStatus = Literal["partial_complete", "blocked", "incomplete", "failed"]
+
+PipelineMode = Literal["partial", "e2e"]
 
 StepStatus = Literal["ok", "blocked", "incomplete", "failed", "skipped"]
 
@@ -174,19 +177,54 @@ class CaseAnalysisSnapshot(BaseModel):
 class PipelineResult(BaseModel):
     """
     Résultat complet d'une exécution du pipeline A.
-    status = 'complete' est interdit dans #10 (INV reservé #14).
+    status='complete' interdit dans #10/#11 (INV-P16 réservé #14).
+    mode/force_recompute ajoutés en #11 avec defaults backward-compat.
+    warnings liste structurée (PATCH-09) — errors reste list[str] compat #10.
     """
 
     run_id: str
     case_id: str
     status: PipelineStatus
+    mode: PipelineMode = "partial"
+    force_recompute: bool = False
     steps: list[PipelineStepResult] = Field(default_factory=list)
     cas: CaseAnalysisSnapshot | None = None
     triggered_by: str
     started_at: datetime
     finished_at: datetime
     duration_ms: int = Field(ge=0)
+    warnings: list[dict[str, Any]] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
+
+    @field_validator("triggered_by")
+    @classmethod
+    def triggered_by_not_empty(cls, v: str) -> str:
+        """INV-P11 : triggered_by non-vide + ≤ 255 caractères."""
+        if not v or not v.strip():
+            raise ValueError("triggered_by ne peut pas être vide (INV-P11)")
+        if len(v.strip()) > 255:
+            raise ValueError(
+                "triggered_by ne peut pas dépasser 255 caractères (INV-P11)"
+            )
+        return v.strip()
+
+
+# ---------------------------------------------------------------------------
+# Requête POST /run (body optionnel — INV-API-11-01)
+# ---------------------------------------------------------------------------
+
+
+class PipelineRunRequest(BaseModel):
+    """
+    Body de la requête POST /run.
+    Tous les champs ont des defaults pour assurer la compat backward #10.
+    mode='partial' + force_recompute=False = comportement identique #10.
+    INV-API-11-01 : body minimal {"triggered_by":"..."} accepté.
+    """
+
+    triggered_by: str = "api"
+    mode: PipelineMode = "partial"
+    force_recompute: bool = False
 
     @field_validator("triggered_by")
     @classmethod

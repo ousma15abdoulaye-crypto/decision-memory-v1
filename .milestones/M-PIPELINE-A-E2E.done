@@ -1,0 +1,30 @@
+milestone: M-PIPELINE-A-E2E
+mandat: #11 M-PIPELINE-A-E2E V1.2 FINALE OPPOSABLE
+date: 2026-02-24
+branch: fix/scoring-engine-neutrality
+
+livrables:
+  L1: alembic/versions/034_add_force_recompute_pipeline_runs.py  DONE  revision=034_pipeline_force_recompute
+  L2: src/couche_a/pipeline/models.py                            DONE  PipelineMode + PipelineRunRequest + PipelineResult étendu
+  L3: src/couche_a/pipeline/service.py                           DONE  _run_scoring_step + _persist + run_pipeline_a_e2e
+  L4: src/couche_a/pipeline/router.py                            DONE  dispatch partial/e2e + compat backward
+  L5: tests/db_integrity/test_pipeline_runs_force_recompute_column.py  DONE
+  L6: tests/pipeline/test_pipeline_a_e2e_mode.py                 DONE
+  L7: tests/pipeline/test_pipeline_force_recompute.py            DONE
+  L8: tests/pipeline/test_pipeline_a_partial_regression.py       DONE
+  L9: docs/adrs/ADR-0013_force-recompute-contract.md             DONE
+  L10: .milestones/M-PIPELINE-A-E2E.done                         DONE (ce fichier)
+
+invariants validés:
+  INV-P14   : force_recompute=False → tentative cache + fallback calcul
+  INV-P15A  : force_recompute=True  → calcul systématique
+  INV-P16   : mode e2e strict — incomplete propagé globalement
+  INV-P17   : run_pipeline_a_partial INCHANGÉE (GUARD-OPS-01 hash intact)
+  INV-P18   : force_recompute tracé dans pipeline_runs.force_recompute
+  INV-API-11-01 : POST /run backward compat #10 clients
+  PATCH-07  : _persist avec force_recompute=False default
+  PATCH-09  : PipelineResult.warnings Field(default_factory=list)
+  PATCH-10  : _lookup_warning initialisé à None
+
+guard:
+  GUARD-OPS-01: b76a23fd1725b14e883f3046f002501beed8de7d361b0389d6d51d7b5b423c44
