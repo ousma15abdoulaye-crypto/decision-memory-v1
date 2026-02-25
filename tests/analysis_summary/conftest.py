@@ -19,7 +19,6 @@ def pipeline_run_factory(db_conn, case_factory):
     """
     Crée un pipeline_run avec CAS v1 minimal valide dans result_jsonb.
     Retourne {pipeline_run_id: str, case_id: str}.
-    Cleanup : rollback (table append-only).
 
     Structure CAS v1 conforme ADR-0012.
     """
