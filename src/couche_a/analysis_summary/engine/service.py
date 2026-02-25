@@ -250,6 +250,9 @@ def _compute_result_hash(summary: SummaryDocument) -> str:
     data.pop("result_hash", None)
     data.pop("summary_id", None)
     data.pop("generated_at", None)
+    # Champs purement audit/appelant exclus du hash pour garantir :
+    #   même contenu CAS v1 → même result_hash (idempotence par contenu).
+    data.pop("triggered_by", None)
     canonical = json.dumps(data, sort_keys=True, default=str, ensure_ascii=False)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
