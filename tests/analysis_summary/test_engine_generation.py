@@ -146,6 +146,25 @@ def test_summary_section_rejects_best_offer_in_content():
         )
 
 
+def test_summary_section_rejects_nested_forbidden_fields_in_content():
+    """INV-AS10 : champ interdit imbriqué dans content → ValidationError.
+    Scénario : {'meta': {'winner': 'Alpha'}} contourne un scan superficiel.
+    """
+    with pytest.raises(ValidationError):
+        SummarySection(
+            section_type="scoring",
+            title="Scoring",
+            content={"meta": {"winner": "Alpha"}},
+        )
+
+    with pytest.raises(ValidationError):
+        SummarySection(
+            section_type="offers",
+            title="Offres",
+            content={"details": [{"rank": 1, "label": "A"}]},
+        )
+
+
 # ── Test 5 ─────────────────────────────────────────────────
 
 

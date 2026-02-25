@@ -48,6 +48,19 @@ _FORBIDDEN_IN_CONTENT: frozenset[str] = frozenset(
 )
 
 
+def _collect_all_keys(obj: Any) -> list[str]:
+    """Collecte récursivement toutes les clés de dict imbriqués dans obj."""
+    keys: list[str] = []
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            keys.append(k)
+            keys.extend(_collect_all_keys(v))
+    elif isinstance(obj, list):
+        for item in obj:
+            keys.extend(_collect_all_keys(item))
+    return keys
+
+
 # ─────────────────────────────────────────────────────────────
 # SOUS-MODÈLES
 # ─────────────────────────────────────────────────────────────
@@ -67,7 +80,9 @@ class SummarySection(BaseModel):
     @model_validator(mode="after")
     def no_forbidden_fields_in_content(self) -> SummarySection:
         """INV-AS10 : neutralité des sections — app guide."""
-        violations = [k for k in self.content if k in _FORBIDDEN_IN_CONTENT]
+        violations = [
+            k for k in _collect_all_keys(self.content) if k in _FORBIDDEN_IN_CONTENT
+        ]
         if violations:
             raise ValueError(
                 f"SummarySection '{self.section_type}' — "
