@@ -1,0 +1,50 @@
+milestone: M-ANALYSIS-SUMMARY
+date: 2026-02-24
+branch: feat/m-analysis-summary
+ci: 478 passed / 0 failed / 35 skipped
+alembic_head: 035_create_analysis_summaries
+tests_added: 20
+adr_0014: ACCEPTED — hash: 2B91181EA547E77021AFF7C15B81A67122986806C753542F874C0125313B4553
+adr_0015: ACCEPTED — hash: 358B327652D7217C9979D0A30448E1F4E045D7A10F257507E163D239B34AFBD5
+
+livrables:
+  L1  alembic/versions/035_create_analysis_summaries.py
+  L2  src/couche_a/analysis_summary/engine/models.py
+  L3  src/couche_a/analysis_summary/engine/builder.py
+  L4  src/couche_a/analysis_summary/engine/service.py
+  L5  src/couche_a/analysis_summary/engine/__init__.py
+  L6  src/couche_a/analysis_summary/router.py
+  L7  src/couche_a/analysis_summary/__init__.py
+  L8  src/api/main.py (modifié — brancher analysis_summary_router)
+  L9  tests/analysis_summary/conftest.py
+  L10 tests/analysis_summary/test_engine_generation.py
+  L11 tests/analysis_summary/test_engine_contracts_ast.py
+  L12 tests/db_integrity/test_analysis_summaries_append_only.py
+  L13 docs/adrs/ADR-0014_milestone-resequencing.md
+  L14 docs/adrs/ADR-0015_analysis-summary-contract.md
+  L15 .milestones/M-ANALYSIS-SUMMARY.done
+
+invariants_verified:
+  INV-AS1  SummaryDocument sans champ client-spécifique ou ONG
+  INV-AS2  SummaryDocument dérivé uniquement de CAS v1 (pipeline_runs.result_jsonb)
+  INV-AS3  analysis_summaries append-only — trigger DB-level — 4 tests verts
+  INV-AS4  summary_version == "v1" — Literal[str] enforced Pydantic
+  INV-AS5  result_jsonb en DB contient SummaryDocument complet — probe DB confirmé
+  INV-AS6  engine/* sans référence client-spécifique — test AST vert
+  INV-AS7  API publique generate_summary(case_id, triggered_by, conn, pipeline_run_id=None)
+  INV-AS8  moteur sans appel pipeline execution — test AST vert
+  INV-AS9  result_hash = sha256(SummaryDocument canonicalisé) — déterministe
+  INV-AS9b UNIQUE(result_hash) en DB — idempotence deux niveaux prouvée
+  INV-AS10 SummarySection.content sans champs de jugement — ValidationError enforced
+  INV-AS11 SummaryDocument v1 = contrat unique d'entrée M13 — ADR-0015
+  INV-AS12 M12 sans import couche présentation/export — test AST vert
+  INV-AS13 AST prouve séparation engine ↔ futurs renderers/adaptateurs
+
+mu01: result_hash — convention unique gravée partout (source_result_hash banni)
+mg02: errors/warnings list[dict[str,Any]] — structurés alignés M10
+mg03: OPTION A — dict + validation locale — découplé pipeline/models.py
+
+commit_strategy: CAS_A (autocommit=True — NE PAS appeler conn.commit() dans service)
+
+dod_checked: true
+scope_files: 15 exactement
