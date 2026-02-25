@@ -17,7 +17,7 @@ import json
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 # ─────────────────────────────────────────────────────────────
 # TYPES FERMÉS
@@ -62,7 +62,7 @@ class SummarySection(BaseModel):
     section_type: SummarySectionType
     title: str
     content: dict[str, Any]
-    warnings: list[str] = []
+    warnings: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def no_forbidden_fields_in_content(self) -> SummarySection:
@@ -112,11 +112,11 @@ class SummaryDocument(BaseModel):
     source_pipeline_status: str | None = None
     source_cas_version: str | None = None
 
-    sections: list[SummarySection] = []
+    sections: list[SummarySection] = Field(default_factory=list)
 
     # MG-02 : structurés — pas list[str]
-    warnings: list[dict[str, Any]] = []
-    errors: list[dict[str, Any]] = []
+    warnings: list[dict[str, Any]] = Field(default_factory=list)
+    errors: list[dict[str, Any]] = Field(default_factory=list)
 
     # INV-AS9 — convention MG-01 : result_hash partout — source_result_hash BANNI
     result_hash: str
