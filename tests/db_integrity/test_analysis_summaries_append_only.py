@@ -16,8 +16,8 @@ import pytest
 def analysis_summary_row(db_conn, case_factory):
     """
     Insère une ligne minimale dans analysis_summaries.
-    Cleanup via db_conn (autocommit=True — pas de rollback explicite).
-    Teardown : DELETE explicite sur la ligne insérée.
+    Pas de rollback explicite dans la fixture.
+    Aucun DELETE de teardown : analysis_summaries est append-only by design.
     """
     case_id = case_factory("XOF")
     summary_id = str(uuid.uuid4())
