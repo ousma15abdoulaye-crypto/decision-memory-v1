@@ -13,12 +13,11 @@ Prouve :
 
 from __future__ import annotations
 
-import uuid
 from unittest.mock import patch
 
 from src.couche_a.pipeline.models import PipelineResult, StepOutcome
 from src.couche_a.pipeline.service import (
-    RC_CASE_NOT_FOUND,
+    RC_DAO_MISSING,
     _safe_step,
     run_pipeline_a_partial,
 )
@@ -28,9 +27,9 @@ from src.couche_a.pipeline.service import (
 # ---------------------------------------------------------------------------
 
 
-def test_pipeline_status_blocked_when_preflight_blocked(db_conn):
-    """Case inexistant → PipelineResult.status == 'blocked'."""
-    case_id = f"ghost-{uuid.uuid4()}"
+def test_pipeline_status_blocked_when_preflight_blocked(db_conn, case_factory):
+    """Case sans DAO ni offres → PipelineResult.status == 'blocked'."""
+    case_id = case_factory()
     result = run_pipeline_a_partial(
         case_id=case_id, triggered_by="test-runner", conn=db_conn
     )
@@ -43,9 +42,9 @@ def test_pipeline_status_blocked_when_preflight_blocked(db_conn):
 # ---------------------------------------------------------------------------
 
 
-def test_pipeline_result_is_typed_even_when_blocked(db_conn):
+def test_pipeline_result_is_typed_even_when_blocked(db_conn, case_factory):
     """PipelineResult est une instance Pydantic valide même en cas de blocked."""
-    case_id = f"ghost-{uuid.uuid4()}"
+    case_id = case_factory()
     result = run_pipeline_a_partial(
         case_id=case_id, triggered_by="test-runner", conn=db_conn
     )
@@ -62,9 +61,9 @@ def test_pipeline_result_is_typed_even_when_blocked(db_conn):
 # ---------------------------------------------------------------------------
 
 
-def test_pipeline_blocked_contains_only_preflight_step(db_conn):
+def test_pipeline_blocked_contains_only_preflight_step(db_conn, case_factory):
     """preflight blocked → steps contient uniquement le step 'preflight'."""
-    case_id = f"ghost-{uuid.uuid4()}"
+    case_id = case_factory()
     result = run_pipeline_a_partial(
         case_id=case_id, triggered_by="test-runner", conn=db_conn
     )
@@ -75,7 +74,7 @@ def test_pipeline_blocked_contains_only_preflight_step(db_conn):
     )
     assert result.steps[0].step_name == "preflight"
     assert result.steps[0].status == "blocked"
-    assert result.steps[0].reason_code == RC_CASE_NOT_FOUND
+    assert result.steps[0].reason_code == RC_DAO_MISSING
 
 
 # ---------------------------------------------------------------------------
@@ -104,9 +103,9 @@ def test_safe_step_captures_exception_as_failed():
 # ---------------------------------------------------------------------------
 
 
-def test_pipeline_duration_ms_non_negative(db_conn):
+def test_pipeline_duration_ms_non_negative(db_conn, case_factory):
     """duration_ms >= 0 sur run et chaque step (INV-P12)."""
-    case_id = f"ghost-{uuid.uuid4()}"
+    case_id = case_factory()
     result = run_pipeline_a_partial(
         case_id=case_id, triggered_by="test-runner", conn=db_conn
     )

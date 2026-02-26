@@ -1,7 +1,7 @@
 # TECHNICAL_DEBT.md — DMS V4.1.0
 **Généré :** 2026-02-26
-**Milestone :** M0 FIX-CI & REPO TRUTH SYNC
-**Branche :** feat/m0-fix-ci
+**Milestone :** M0 / M0B
+**Branche :** feat/m0b-db-hardening
 **Ref :** docs/freeze/DMS_V4.1.0_FREEZE.md
 
 ---
@@ -55,14 +55,32 @@ fixture_residue : aucune
 
 | Table source | Colonne | Table cible | Statut |
 |---|---|---|---|
-| `pipeline_runs` | `case_id` | `cases` | Aucune contrainte FK définie dans les migrations (colonne ajoutée en 032, lien logique uniquement) |
-| `analysis_summaries` | `case_id` | `cases` | Aucune contrainte FK définie dans les migrations (colonne ajoutée en 035, lien logique uniquement) |
-| `score_runs` | `case_id` | `cases` | Aucune FK explicite dans les migrations à ce jour — à confirmer via inspection du schéma DB actuel |
-| `offers` | `case_id` | `cases` | Table `public.offers` absente du schéma actuel — voir section "Tables ambiguës" |
+| `pipeline_runs` | `case_id` | `cases` | FK créée NOT VALID (M0B) — voir section "FK non validées" |
+| `analysis_summaries` | `case_id` | `cases` | FK existante via migration 035 |
+| `score_runs` | `case_id` | `cases` | À confirmer par inspection schéma DB actuel |
+| `offers` | `case_id` | `cases` | présente — créée par 002_add_couche_a |
 
-> Note : La table `public.offers` est référencée dans `src/couche_a/pipeline/service.py` (preflight check)
-> mais absente du schéma Alembic courant. Les tests preflight concernés sont marqués SKIPPED.
-> Création de cette table : hors scope M0, nécessite instruction explicite (STOP-4 potentiel).
+---
+
+## FK non validées (NOT VALID)
+
+| Contrainte | Table | Référence | Cause | Action |
+|---|---|---|---|---|
+| fk_pipeline_runs_case_id | pipeline_runs | cases(id) | Lignes orphelines détectées au PROBE-SQL-01 M0B | Auditer pipeline_runs.case_id orphelins → supprimer si sans valeur → VALIDATE CONSTRAINT |
+
+Commande de validation future :
+```sql
+ALTER TABLE pipeline_runs
+  VALIDATE CONSTRAINT fk_pipeline_runs_case_id;
+```
+
+Commande d'audit orphelins :
+```sql
+SELECT pr.id, pr.case_id
+FROM pipeline_runs pr
+LEFT JOIN cases c ON c.id = pr.case_id
+WHERE c.id IS NULL;
+```
 
 ---
 
@@ -70,12 +88,19 @@ fixture_residue : aucune
 
 | Nom référencé dans le code | Statut | Fichier source | Note |
 |---|---|---|---|
-| `public.offers` | **ABSENTE** du schéma Alembic | `src/couche_a/pipeline/service.py:preflight` | Référencée dans COUNT(*) preflight ; tests associés SKIPPED |
+| `public.offers` | présente — créée par 002_add_couche_a | `src/couche_a/pipeline/service.py:preflight` | aucune action requise |
 | `public.scoring_configs` | À confirmer | `src/couche_a/scoring/engine.py` | Chargement des poids scoring |
 | `public.criteria` | Existante (migration antérieure) | `src/couche_a/criteria/service.py` | Colonne `is_essential` (pas `is_eliminatory`) |
-| `public.pipeline_runs` | Existante — migration 035 | `src/couche_a/pipeline/service.py` | Append-only, trigger DB |
-| `public.analysis_summaries` | Existante — migration 035 | `src/couche_a/analysis_summary/engine/service.py` | Append-only, trigger DB |
+| `public.pipeline_runs` | créée par 032_create_pipeline_runs.py | `src/couche_a/pipeline/service.py` | FK case_id NOT VALID — M0B |
+| `public.analysis_summaries` | créée par 035 | `src/couche_a/analysis_summary/engine/service.py` | Append-only, trigger DB |
 | `public.committee_snapshots` | À confirmer | `src/couche_a/committee/snapshot.py` | Snapshot scellé comité |
+| `public.audit_log` | Absente — PROBE-SQL-01 M0B | — | Trigger append-only en attente |
+| `public.score_history` | Absente — PROBE-SQL-01 M0B | — | Trigger append-only en attente |
+| `public.elimination_log` | Absente — PROBE-SQL-01 M0B | — | Trigger append-only en attente |
+| `public.decision_history` | Absente — PROBE-SQL-01 M0B | — | Trigger append-only en attente |
+| `public.submission_registries` | Absente — PROBE-SQL-01 M0B | — | Triggers SRE attachés à M16A |
+| `public.submission_registry_events` | Absente — PROBE-SQL-01 M0B | — | Triggers SRE attachés à M16A |
+| `public.mercurials` | Absente — PROBE-SQL-01 M0B | — | Index conditionnel 036 |
 
 ---
 
@@ -83,13 +108,14 @@ fixture_residue : aucune
 
 | Invariant | Statut couverture | Note |
 |---|---|---|
-| `public.offers` preflight complet | Tests SKIPPED | Table absente — réactivation post-création `offers` |
+| `public.offers` preflight complet | Tests SKIPPED | Table présente (002_add_couche_a) — skipped par configuration |
 | SLA-B extraction (Tesseract/Azure) | 2 tests SKIPPED (`test_sla_classe_b_has_queue`) | Queue déclarée, non implémentée — M10A |
 | SLA-A timing 60s | 1 test SKIPPED (`test_sla_classe_a_60s`) | Test de performance désactivé |
 | Market signal impact scoring | 1 test SKIPPED | Hors scope M0 |
 | LLM router (`llm_router.py`) | Absent | Module non créé — défini dans freeze V4.1.0, M10A |
 | `ExtractionField` / `TDRExtractionResult` | Absent | Modèles définis dans freeze V4.1.0, M10A |
 | Annotation protocol | Absent | Hors scope beta |
+| VALIDATE CONSTRAINT fk_pipeline_runs_case_id | Absent | Après nettoyage données orphelines |
 
 ---
 
@@ -129,3 +155,54 @@ fixture_residue : aucune
 | winner/rank/recommendation src/ → 0 violation | **VERT** |
 | AUCUNE migration créée dans alembic/versions/ | **VERT** |
 | AUCUN fichier hors périmètre modifié | **VERT** |
+
+---
+
+## Types PK non conformes au freeze (text vs uuid)
+
+| Table | Colonne | Type réel | Type freeze | Action post-beta |
+|---|---|---|---|---|
+| procurement_references | id | text | UUID | Normaliser UUID — migration dédiée post-beta |
+| documents | id | text | UUID | Normaliser UUID — migration dédiée post-beta |
+| committee_members | PK | member_id | id | Aligner nom sur freeze — renommer post-beta |
+
+---
+
+## Colonnes ajoutées nullable (backfill requis)
+
+| Table | Colonne | Ajouté par | Statut | Action |
+|---|---|---|---|---|
+| documents | sha256 | 036_db_hardening | nullable | Backfill hash SHA256 fichiers existants → ALTER COLUMN SET NOT NULL |
+
+Commande backfill (hors scope M0B) :
+```sql
+UPDATE documents
+SET sha256 = encode(digest(storage_uri, 'sha256'), 'hex')
+WHERE sha256 IS NULL;
+-- À valider avec données réelles avant NOT NULL
+```
+
+---
+
+## Risque de flakiness CI multi-worker — test_upgrade_downgrade
+
+| Fichier | Fonction | Risque | Priorité |
+|---|---|---|---|
+| `tests/couche_a/test_migration.py` | `_restore_schema` | Écriture `alembic_version` non atomique avec les DDL 002 → 036 | Faible (CI séquentielle) |
+
+**Détail :** `_restore_schema` s'exécute en deux transactions séparées :
+1. `migration_002.upgrade(engine)` — crée les tables (`engine.begin()` propre)
+2. `engine.begin()` — stamp `alembic_version = 036` + colonnes critiques
+
+**Fenêtre de risque :** entre les deux `BEGIN`, `alembic_version` = état post-downgrade (036 déjà stamped ou vide) mais le schéma est dans l'état 002 (sans `sha256`, sans `document_id`, etc.). Un worker parallèle lisant `alembic_version = 036` trouverait un schéma incomplet.
+
+**Mitigation actuelle :** CI séquentielle (pas de `pytest-xdist -n auto`). Si multi-worker activé → refactoriser `_restore_schema` en une seule transaction avec `engine.begin()`.
+
+---
+
+## Dettes d'environnement
+
+| Item | Local | Cible repo | Action |
+|---|---|---|---|
+| Python | 3.11.0 | 3.11.9 (runtime.txt) | Aligner env local avant M1 |
+| REVOKE app_user | app_user absent (PROBE-SQL-01 M0B) | Rôle DB à créer | Reporté M1 |

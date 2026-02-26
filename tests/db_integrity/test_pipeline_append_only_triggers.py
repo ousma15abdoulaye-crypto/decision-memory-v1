@@ -90,12 +90,12 @@ def test_pr_trigger_present(db_conn):
 # ---------------------------------------------------------------------------
 
 
-def test_pr_update_forbidden(db_conn):
+def test_pr_update_forbidden(db_conn, case_factory):
     """UPDATE sur pipeline_runs lève psycopg.Error 'append-only' (trigger BEFORE UPDATE)."""
     if not _trigger_present(db_conn, "pipeline_runs", "trg_pipeline_runs_append_only"):
         pytest.skip("Trigger absent — test non pertinent")
 
-    case_id = str(uuid.uuid4())
+    case_id = case_factory()
     run_id = _insert_pipeline_run(db_conn, case_id)
 
     with pytest.raises(psycopg.Error) as exc:
@@ -117,12 +117,12 @@ def test_pr_update_forbidden(db_conn):
 # ---------------------------------------------------------------------------
 
 
-def test_pr_delete_forbidden(db_conn):
+def test_pr_delete_forbidden(db_conn, case_factory):
     """DELETE sur pipeline_runs lève psycopg.Error 'append-only' (trigger BEFORE DELETE)."""
     if not _trigger_present(db_conn, "pipeline_runs", "trg_pipeline_runs_append_only"):
         pytest.skip("Trigger absent — test non pertinent")
 
-    case_id = str(uuid.uuid4())
+    case_id = case_factory()
     run_id = _insert_pipeline_run(db_conn, case_id)
 
     with pytest.raises(psycopg.Error) as exc:
@@ -143,9 +143,9 @@ def test_pr_delete_forbidden(db_conn):
 # ---------------------------------------------------------------------------
 
 
-def test_pr_insert_valid(db_conn):
+def test_pr_insert_valid(db_conn, case_factory):
     """INSERT valide dans pipeline_runs fonctionne (trigger ne bloque pas INSERT)."""
-    case_id = str(uuid.uuid4())
+    case_id = case_factory()
     run_id = _insert_pipeline_run(db_conn, case_id)
 
     with db_conn.cursor() as cur:
@@ -181,14 +181,14 @@ def test_psr_trigger_present(db_conn):
 # ---------------------------------------------------------------------------
 
 
-def test_psr_update_forbidden(db_conn):
+def test_psr_update_forbidden(db_conn, case_factory):
     """UPDATE sur pipeline_step_runs lève psycopg.Error 'append-only' (BEFORE UPDATE)."""
     if not _trigger_present(
         db_conn, "pipeline_step_runs", "trg_pipeline_step_runs_append_only"
     ):
         pytest.skip("Trigger absent — test non pertinent")
 
-    case_id = str(uuid.uuid4())
+    case_id = case_factory()
     run_id = _insert_pipeline_run(db_conn, case_id)
     step_id = _insert_pipeline_step_run(db_conn, run_id)
 
@@ -211,14 +211,14 @@ def test_psr_update_forbidden(db_conn):
 # ---------------------------------------------------------------------------
 
 
-def test_psr_delete_forbidden(db_conn):
+def test_psr_delete_forbidden(db_conn, case_factory):
     """DELETE sur pipeline_step_runs lève psycopg.Error 'append-only' (BEFORE DELETE)."""
     if not _trigger_present(
         db_conn, "pipeline_step_runs", "trg_pipeline_step_runs_append_only"
     ):
         pytest.skip("Trigger absent — test non pertinent")
 
-    case_id = str(uuid.uuid4())
+    case_id = case_factory()
     run_id = _insert_pipeline_run(db_conn, case_id)
     step_id = _insert_pipeline_step_run(db_conn, run_id)
 
@@ -240,9 +240,9 @@ def test_psr_delete_forbidden(db_conn):
 # ---------------------------------------------------------------------------
 
 
-def test_psr_insert_valid(db_conn):
+def test_psr_insert_valid(db_conn, case_factory):
     """INSERT valide dans pipeline_step_runs fonctionne (trigger ne bloque pas INSERT)."""
-    case_id = str(uuid.uuid4())
+    case_id = case_factory()
     run_id = _insert_pipeline_run(db_conn, case_id)
     step_id = _insert_pipeline_step_run(db_conn, run_id)
 

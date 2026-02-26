@@ -15,6 +15,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import psycopg
+import pytest
 from psycopg.rows import dict_row
 
 from src.couche_a.pipeline.models import PipelineResult
@@ -47,30 +48,24 @@ def _get_pipeline_run(db_conn, run_id: str) -> dict | None:
 # ---------------------------------------------------------------------------
 
 
-def test_e2e_blocked_on_missing_case(db_conn):
-    """Preflight bloqué → statut 'blocked', mode='e2e' tracé."""
-    conn = _make_conn(db_conn)
-    try:
-        result = run_pipeline_a_e2e(
-            case_id="case-inexistant-e2e",
-            triggered_by="test-e2e-blocked",
-            conn=conn,
-        )
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+def test_fk_rejects_ghost_case_id(db_conn):
+    """FK fk_pipeline_runs_case_id rejette un case_id inexistant (post-M0B).
 
-    assert isinstance(result, PipelineResult)
-    assert result.status == "blocked"
-    assert result.mode == "e2e"
-    assert result.case_id == "case-inexistant-e2e"
-
-    row = _get_pipeline_run(db_conn, result.run_id)
-    assert row is not None
-    assert row["mode"] == "e2e"
+    Avant M0B : pipeline_runs acceptait n'importe quel case_id.
+    Après M0B  : case_id doit référencer un case réel — FK NOT VALID protège
+                 les nouveaux inserts.
+    """
+    with pytest.raises(psycopg.errors.ForeignKeyViolation):
+        with db_conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO pipeline_runs
+                    (case_id, pipeline_type, mode, status, triggered_by,
+                     result_jsonb, error_jsonb)
+                VALUES ('ghost-case-inexistant', 'A', 'e2e', 'blocked',
+                        'test-fk', '{}'::jsonb, '[]'::jsonb)
+                """
+            )
 
 
 # ---------------------------------------------------------------------------
