@@ -184,6 +184,22 @@ WHERE sha256 IS NULL;
 
 ---
 
+## Risque de flakiness CI multi-worker — test_upgrade_downgrade
+
+| Fichier | Fonction | Risque | Priorité |
+|---|---|---|---|
+| `tests/couche_a/test_migration.py` | `_restore_schema` | Écriture `alembic_version` non atomique avec les DDL 002 → 036 | Faible (CI séquentielle) |
+
+**Détail :** `_restore_schema` s'exécute en deux transactions séparées :
+1. `migration_002.upgrade(engine)` — crée les tables (`engine.begin()` propre)
+2. `engine.begin()` — stamp `alembic_version = 036` + colonnes critiques
+
+**Fenêtre de risque :** entre les deux `BEGIN`, `alembic_version` = état post-downgrade (036 déjà stamped ou vide) mais le schéma est dans l'état 002 (sans `sha256`, sans `document_id`, etc.). Un worker parallèle lisant `alembic_version = 036` trouverait un schéma incomplet.
+
+**Mitigation actuelle :** CI séquentielle (pas de `pytest-xdist -n auto`). Si multi-worker activé → refactoriser `_restore_schema` en une seule transaction avec `engine.begin()`.
+
+---
+
 ## Dettes d'environnement
 
 | Item | Local | Cible repo | Action |
