@@ -1,0 +1,46 @@
+## PROBE M0 — DMS V4.1.0
+## Date : 2026-02-26
+## Branche : feat/m0-fix-ci
+
+=== ALEMBIC HEADS ===
+035_create_analysis_summaries (head)
+
+HEAD COUNT : 1 — OK (pas de STOP-1)
+
+=== PYTEST RÉSULTAT ===
+platform win32 -- Python 3.11.0, pytest-9.0.2, pluggy-1.6.0
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.12.1, cov-7.0.0
+collected 514 items
+
+479 passed, 35 skipped, 1 warning in ~102s
+
+=== DÉTAIL SKIPPED (35) ===
+tests/couche_a/test_endpoints.py::test_depot_dashboard_and_export           SKIPPED
+tests/invariants/test_no_couche_b_import_in_couche_a.py                     1 SKIPPED
+tests/market_signal/test_market_signal_rules.py                             6 SKIPPED
+tests/market_signal/test_survey_validity.py                                 4 SKIPPED
+tests/normalisation/test_no_raw_offer_in_scoring.py                         2 SKIPPED
+tests/pipeline/test_sla_classe_a_60s.py                                     1 SKIPPED
+tests/pipeline/test_sla_classe_b_has_queue.py                               2 SKIPPED
+tests/scoring/test_market_signal_no_impact_on_scores.py                     1 SKIPPED
+tests/scoring/test_scores_independent_of_couche_b.py                        2 SKIPPED
+tests/test_upload.py                                                        1 SKIPPED
+tests/test_upload_security.py                                               2 SKIPPED
+(autres skipped dispersés dans les autres modules)
+
+=== WARNING (1) ===
+tests/test_rbac.py::test_procurement_officer_can_create_case
+  PytestReturnNotNoneWarning: Test returns <class 'str'> au lieu de None.
+  Cause probable : `return` au lieu de `assert`. Hors scope M0.
+
+=== CLASSIFICATION ERREURS ===
+import_error    : aucune
+schema_mismatch : aucune
+logic_error     : aucune
+fixture_residue : aucune
+
+=== VERDICT ===
+CI VERTE — 0 failed / 0 errors
+Aucune correction applicative requise en M0.
