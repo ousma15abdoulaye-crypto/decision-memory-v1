@@ -55,9 +55,9 @@ fixture_residue : aucune
 
 | Table source | Colonne | Table cible | Statut |
 |---|---|---|---|
-| `pipeline_runs` | `case_id` | `cases` | FK existante via migration 035 |
-| `analysis_summaries` | `case_id` | `cases` | FK existante via migration 035 |
-| `score_runs` | `case_id` | `cases` | À confirmer par inspection schéma DB actuel |
+| `pipeline_runs` | `case_id` | `cases` | Aucune contrainte FK définie dans les migrations (colonne ajoutée en 032, lien logique uniquement) |
+| `analysis_summaries` | `case_id` | `cases` | Aucune contrainte FK définie dans les migrations (colonne ajoutée en 035, lien logique uniquement) |
+| `score_runs` | `case_id` | `cases` | Aucune FK explicite dans les migrations à ce jour — à confirmer via inspection du schéma DB actuel |
 | `offers` | `case_id` | `cases` | Table `public.offers` absente du schéma actuel — voir section "Tables ambiguës" |
 
 > Note : La table `public.offers` est référencée dans `src/couche_a/pipeline/service.py` (preflight check)
