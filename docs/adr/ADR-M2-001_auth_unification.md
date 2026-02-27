@@ -137,16 +137,16 @@ Commit séparé : `"feat(m2): extract DB auth helpers to src/api/auth_helpers.py
 
 ### Ordre de migration des 6 fichiers
 
-Ordre choisi : du plus simple (aucun usage métier du user) vers le plus complexe (ownership, helpers DB).
+Ordre choisi (décision CTO 2026-02-27) : import orphelin éliminé en premier, cœur legacy (`src/auth_router.py`) touché en dernier. Si un STOP-M2-* survient sur `src/auth_router.py`, les 5 autres fichiers sont déjà propres — scope résiduel minimal.
 
 | Ordre | Fichier | Complexité | Justification |
 |---|---|---|---|
-| 1 | `src/couche_a/scoring/api.py` | Minimale | `CurrentUser` utilisé pour présence seulement — cast direct vers `UserClaims` |
-| 2 | `src/api/cases.py` | Faible | `user["id"]` → `int(current_user.user_id)` — user_id = str(int) confirmé safe |
-| 3 | `src/api/routes/extractions.py` | Faible | `get_current_user` (dict) → `get_current_user` (UserClaims) — adapter `.get("id")` |
-| 4 | `src/couche_a/routers.py` | Moyenne | `CurrentUser` + `check_case_ownership` → inline de la logique ownership |
-| 5 | `src/auth_router.py` | Haute | 3 endpoints `/auth/*` + rechargement DB pour `GET /me` + émission token V4.1.0 |
-| 6 | `main.py` (racine) | Triviale | Supprimer import orphelin ligne 31 |
+| 1 | `main.py` (racine) | Triviale | Import orphelin ligne 31 — éliminé en premier, ne protège rien |
+| 2 | `src/couche_a/scoring/api.py` | Minimale | `CurrentUser` utilisé pour présence seulement — cast direct vers `UserClaims` |
+| 3 | `src/api/cases.py` | Faible | `user["id"]` → `int(current_user.user_id)` — user_id = str(int) confirmé safe |
+| 4 | `src/api/routes/extractions.py` | Faible | `get_current_user` (dict) → `get_current_user` (UserClaims) — adapter `.get("id")` |
+| 5 | `src/couche_a/routers.py` | Moyenne | `CurrentUser` + `check_case_ownership` → inline de la logique ownership |
+| 6 | `src/auth_router.py` | Haute | 3 endpoints `/auth/*` + rechargement DB pour `GET /me` + émission token V4.1.0 · touché en dernier |
 
 Les tests legacy sont adaptés à chaque étape de migration de l'endpoint correspondant.
 
@@ -280,13 +280,13 @@ Si conditions non remplies sur un endpoint :
 
 ```
 commit 1  feat(m2): ADR-M2-001 auth unification
-commit 2  feat(m2): migrate scoring/api.py to couche_a auth
-commit 3  feat(m2): migrate cases.py to couche_a auth
-commit 4  feat(m2): migrate extractions.py to couche_a auth
-commit 5  feat(m2): migrate couche_a/routers.py — inline check_case_ownership
-commit 6  feat(m2): extract DB auth helpers to src/api/auth_helpers.py
-commit 7  feat(m2): migrate auth_router.py to couche_a auth — /auth/* endpoints
-commit 8  feat(m2): remove orphan import in main.py
+commit 2  feat(m2): remove orphan import in main.py
+commit 3  feat(m2): migrate scoring/api.py to couche_a auth
+commit 4  feat(m2): migrate cases.py to couche_a auth
+commit 5  feat(m2): migrate extractions.py to couche_a auth
+commit 6  feat(m2): migrate couche_a/routers.py — inline check_case_ownership
+commit 7  feat(m2): extract DB auth helpers to src/api/auth_helpers.py
+commit 8  feat(m2): migrate auth_router.py to couche_a auth — /auth/* endpoints
 commit 9  feat(m2): remove legacy src/auth.py — DETTE-M1-02 soldée
 commit 10 feat(m2): update TECHNICAL_DEBT.md — DETTE-M1-02 soldée
 ```
