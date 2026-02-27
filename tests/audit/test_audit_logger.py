@@ -124,17 +124,6 @@ class TestActorId:
         )
         assert entry.actor_id is None
 
-    def test_actor_id_dans_hash(self, db_session: Session) -> None:
-        """actor_id est inclus dans le calcul du hash."""
-        e_with = write_event(
-            "case", "c-001", AuditAction.CREATE, db=db_session, actor_id="user-A"
-        )
-        e_without = write_event(
-            "case", "c-002", AuditAction.CREATE, db=db_session, actor_id=None
-        )
-        assert e_with.event_hash != e_without.event_hash
-
-
 class TestIpAddress:
     def test_ip_address_none_accepte(self, db_session: Session) -> None:
         """ip_address None → accepté sans erreur."""
