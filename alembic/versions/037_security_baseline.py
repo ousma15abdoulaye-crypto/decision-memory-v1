@@ -26,10 +26,38 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # ── 1. users — colonnes additives uniquement
+    # ── 1. users — colonnes additives uniquement (RÈGLE : jamais DROP, jamais ALTER TYPE)
+    # Approche en 4 étapes pour être idempotente quelle que soit la situation initiale :
+    #   - colonne absente      → ADD COLUMN crée avec DEFAULT
+    #   - colonne existe NULL  → UPDATE backfill + SET NOT NULL + CHECK
+    #   - colonne existe déjà  → opérations IF NOT EXISTS / idempotentes
     op.execute("""
         ALTER TABLE users
-          ADD COLUMN IF NOT EXISTS role TEXT;
+          ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'viewer';
+    """)
+    # Backfill NULLs éventuels avant SET NOT NULL
+    op.execute("""
+        UPDATE users SET role = 'viewer' WHERE role IS NULL;
+    """)
+    op.execute("""
+        ALTER TABLE users ALTER COLUMN role SET NOT NULL;
+    """)
+    op.execute("""
+        ALTER TABLE users ALTER COLUMN role SET DEFAULT 'viewer';
+    """)
+    # CHECK constraint — idempotente via DO block
+    op.execute("""
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.constraint_column_usage
+            WHERE constraint_name = 'chk_users_role'
+              AND table_name = 'users'
+          ) THEN
+            ALTER TABLE users
+              ADD CONSTRAINT chk_users_role
+              CHECK (role IN ('admin','manager','buyer','viewer','auditor'));
+          END IF;
+        END $$;
     """)
     op.execute("""
         ALTER TABLE users

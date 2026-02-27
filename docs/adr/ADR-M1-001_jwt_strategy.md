@@ -98,10 +98,38 @@ Aucune nouvelle dépendance requise.
 
 ---
 
+## Cohabitation legacy — stratégie M2
+
+**Situation M1 :**
+
+Deux systèmes auth coexistent intentionnellement (décision CTO 2026-02-27) :
+
+| Système | Fichier | TTL | Claims | Révocation |
+|---|---|---|---|---|
+| Legacy | `src/auth.py` | 8h | `sub=username`, `role_id=int` | Aucune |
+| V4.1.0 | `src/couche_a/auth/jwt_handler.py` | 30min/7j | `sub=user_id`, `role=str`, `jti` | `token_blacklist` |
+
+**Isolation garantie :**
+- Aucune dépendance croisée entre les deux modules
+- `tests/test_rbac.py` (legacy) : 5 tests sur `/auth/token`, `/auth/register`, `/auth/me`
+- `tests/auth/` (V4.1.0) : fixtures propres, zéro appel aux endpoints legacy
+
+**Stratégie de basculement M2 UNIFY SYSTEM :**
+1. Raccorder `src/couche_a/auth/` aux endpoints existants (`/auth/token`, `/auth/me`)
+2. Migrer les 5 tests legacy vers les nouvelles fixtures
+3. Supprimer `src/auth.py` après validation complète
+4. `DROP COLUMN role_id` sur `users` (DETTE-M1-04)
+
+**Condition bloquante :** décision humaine explicite avant toute bascule.
+
+---
+
 ## Dette documentée
 
 | Item | Réf TECHNICAL_DEBT |
 |---|---|
-| Raccordement nouveau moteur → endpoints existants | Section M1 — migration dédiée |
-| Remplacement `src/auth.py` par `src/couche_a/auth/` | Mandat post-M1 |
-| Migration `users.id` integer → UUID | Section types PK post-beta |
+| Raccordement nouveau moteur → endpoints existants | DETTE-M1-02 — M2 UNIFY SYSTEM |
+| Remplacement `src/auth.py` par `src/couche_a/auth/` | DETTE-M1-02 |
+| Migration `users.id` integer → UUID | DETTE-M1-01 — post-beta |
+| `users.created_at` TEXT → TIMESTAMPTZ | DETTE-M1-03 — post-beta |
+| `users.role_id` → DROP COLUMN | DETTE-M1-04 — M2 |

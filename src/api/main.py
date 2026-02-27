@@ -97,6 +97,19 @@ app = FastAPI(
     description="Decision Memory System — Constitution V3.3.2",
 )
 
+# ── Middlewares sécurité M1 (src/couche_a/auth/middleware.py)
+# Ajout non-destructif — src/auth.py legacy non modifié.
+try:
+    from src.couche_a.auth.middleware import (
+        RedisRateLimitMiddleware,
+        SecurityHeadersMiddleware,
+    )
+
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(RedisRateLimitMiddleware)
+except ImportError:
+    pass
+
 # Router obligatoire M-CRITERIA-TYPING
 app.include_router(criteria_router)
 
