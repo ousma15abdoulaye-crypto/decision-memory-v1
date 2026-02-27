@@ -12,8 +12,6 @@ Pattern  : db_conn (autocommit=True, conftest racine).
 
 from __future__ import annotations
 
-import uuid
-
 import psycopg
 import pytest
 

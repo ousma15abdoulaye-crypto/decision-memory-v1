@@ -18,7 +18,6 @@ import psycopg
 import pytest
 from psycopg.rows import dict_row
 
-from src.couche_a.pipeline.models import PipelineResult
 from src.couche_a.pipeline.service import run_pipeline_a_e2e
 
 # ---------------------------------------------------------------------------
