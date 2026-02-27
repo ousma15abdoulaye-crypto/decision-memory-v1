@@ -3,6 +3,7 @@ Tests M0B — DB Hardening
 Fixtures : db_transaction (cursor psycopg dict_row, rollback automatique).
 Accès lignes : row["column_name"] (dict_row — pas d'index numérique).
 """
+
 import pytest
 
 
@@ -81,7 +82,13 @@ def test_extraction_jobs_all_async_columns(db_transaction):
     """)
     rows = db_transaction.fetchall()
     columns = {r["column_name"] for r in rows}
-    required = {"retry_count", "max_retries", "next_retry_at", "queued_at", "fallback_used"}
+    required = {
+        "retry_count",
+        "max_retries",
+        "next_retry_at",
+        "queued_at",
+        "fallback_used",
+    }
     missing = required - columns
     assert not missing, f"Colonnes manquantes : {missing}"
 
@@ -123,14 +130,21 @@ def test_append_only_trigger_on_dict_collision_log(db_transaction):
           ('test_a', 'test_b', 0.85, true, true, 'unresolved')
     """)
     with pytest.raises(Exception, match="append-only"):
-        db_transaction.execute("DELETE FROM dict_collision_log WHERE raw_text_1 = 'test_a'")
+        db_transaction.execute(
+            "DELETE FROM dict_collision_log WHERE raw_text_1 = 'test_a'"
+        )
 
 
 def test_append_only_conditional_absent_tables(db_transaction):
     """
     Tables absentes (PROBE) → pas de trigger fantôme créé par 036.
     """
-    absent_tables = ["audit_log", "score_history", "elimination_log", "decision_history"]
+    absent_tables = [
+        "audit_log",
+        "score_history",
+        "elimination_log",
+        "decision_history",
+    ]
     for table in absent_tables:
         db_transaction.execute(f"""
             SELECT EXISTS (
@@ -160,13 +174,16 @@ def test_fn_sre_functions_created(db_transaction):
         "fn_sync_registry_on_committee_lock",
     ]
     for fn in functions:
-        db_transaction.execute("""
+        db_transaction.execute(
+            """
             SELECT EXISTS (
               SELECT 1 FROM pg_proc p
               JOIN pg_namespace n ON n.oid = p.pronamespace
               WHERE n.nspname = 'public' AND p.proname = %s
             ) AS exists
-        """, (fn,))
+        """,
+            (fn,),
+        )
         row = db_transaction.fetchone()
         assert row["exists"], f"Fonction manquante : {fn}"
 
@@ -175,12 +192,15 @@ def test_indexes_created(db_transaction):
     """Indexes sur tables présentes créés par 036."""
     expected = ["idx_documents_case_id", "idx_extraction_jobs_doc"]
     for idx in expected:
-        db_transaction.execute("""
+        db_transaction.execute(
+            """
             SELECT EXISTS (
               SELECT 1 FROM pg_indexes
               WHERE schemaname = 'public' AND indexname = %s
             ) AS exists
-        """, (idx,))
+        """,
+            (idx,),
+        )
         row = db_transaction.fetchone()
         assert row["exists"], f"Index manquant : {idx}"
 
@@ -189,6 +209,6 @@ def test_alembic_head_is_036(db_transaction):
     """Head = 036_db_hardening après migration."""
     db_transaction.execute("SELECT version_num FROM alembic_version")
     row = db_transaction.fetchone()
-    assert row["version_num"] == "036_db_hardening", (
-        f"Head attendu : 036_db_hardening — réel : {row['version_num']}"
-    )
+    assert (
+        row["version_num"] == "036_db_hardening"
+    ), f"Head attendu : 036_db_hardening — réel : {row['version_num']}"

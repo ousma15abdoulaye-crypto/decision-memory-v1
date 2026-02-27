@@ -56,15 +56,13 @@ def test_fk_rejects_ghost_case_id(db_conn):
     """
     with pytest.raises(psycopg.errors.ForeignKeyViolation):
         with db_conn.cursor() as cur:
-            cur.execute(
-                """
+            cur.execute("""
                 INSERT INTO pipeline_runs
                     (case_id, pipeline_type, mode, status, triggered_by,
                      result_jsonb, error_jsonb)
                 VALUES ('ghost-case-inexistant', 'A', 'e2e', 'blocked',
                         'test-fk', '{}'::jsonb, '[]'::jsonb)
-                """
-            )
+                """)
 
 
 # ---------------------------------------------------------------------------

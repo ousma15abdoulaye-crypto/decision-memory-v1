@@ -47,7 +47,9 @@ def _restore_schema(engine) -> None:
     with engine.begin() as cx:
         cx.execute(sa.text("DELETE FROM alembic_version"))
         cx.execute(
-            sa.text("INSERT INTO alembic_version (version_num) VALUES ('036_db_hardening')")
+            sa.text(
+                "INSERT INTO alembic_version (version_num) VALUES ('036_db_hardening')"
+            )
         )
 
         # ── documents : colonnes ajoutées par migrations 013 et 036
@@ -64,9 +66,11 @@ def _restore_schema(engine) -> None:
         # artifact_id et extraction_type deviennent nullable (migration 013)
         for nullable_col in ["artifact_id", "extraction_type"]:
             try:
-                cx.execute(sa.text(
-                    f"ALTER TABLE extractions ALTER COLUMN {nullable_col} DROP NOT NULL"
-                ))
+                cx.execute(
+                    sa.text(
+                        f"ALTER TABLE extractions ALTER COLUMN {nullable_col} DROP NOT NULL"
+                    )
+                )
             except Exception:
                 pass
         for col_sql in [
@@ -104,9 +108,11 @@ def _restore_schema(engine) -> None:
         """))
 
         # ── Index et contrainte unique de 036
-        cx.execute(sa.text(
-            "CREATE INDEX IF NOT EXISTS idx_documents_case_id ON documents(case_id)"
-        ))
+        cx.execute(
+            sa.text(
+                "CREATE INDEX IF NOT EXISTS idx_documents_case_id ON documents(case_id)"
+            )
+        )
         cx.execute(sa.text("""
             DO $$ BEGIN
               IF NOT EXISTS (
