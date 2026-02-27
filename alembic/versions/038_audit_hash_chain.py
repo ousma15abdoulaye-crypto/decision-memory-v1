@@ -84,6 +84,7 @@ def upgrade() -> None:
             IF NOT EXISTS (
                 SELECT 1 FROM pg_trigger
                 WHERE tgname = 'trg_audit_log_no_delete_update'
+                  AND tgrelid = 'public.audit_log'::regclass
             ) THEN
                 CREATE TRIGGER trg_audit_log_no_delete_update
                 BEFORE DELETE OR UPDATE ON audit_log
@@ -100,6 +101,7 @@ def upgrade() -> None:
             IF NOT EXISTS (
                 SELECT 1 FROM pg_trigger
                 WHERE tgname = 'trg_audit_log_no_truncate'
+                  AND tgrelid = 'public.audit_log'::regclass
             ) THEN
                 CREATE TRIGGER trg_audit_log_no_truncate
                 BEFORE TRUNCATE ON audit_log
