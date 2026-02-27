@@ -2,14 +2,16 @@
 
 Vérifie fn_verify_audit_chain() DB + verify_chain() Python.
 Test croisé Python ↔ DB : valide l'identité timestamp_canonical.
+Architecture DB : psycopg uniquement (ADR-0003).
 """
 
 from __future__ import annotations
 
 import hashlib
+import uuid
+from datetime import UTC, datetime
 
-from sqlalchemy import text
-from sqlalchemy.orm import Session
+import psycopg
 
 from src.couche_a.audit.logger import (
     AuditAction,
@@ -20,19 +22,19 @@ from src.couche_a.audit.logger import (
 
 
 class TestVerifyChainDB:
-    def test_chaine_une_entree_integre(self, db_session: Session) -> None:
+    def test_chaine_une_entree_integre(self, db_audit: psycopg.Connection) -> None:
         """Chaîne d'une entrée → fn_verify_audit_chain() = True."""
-        write_event("case", "c-001", AuditAction.CREATE, db=db_session)
-        assert verify_chain(db_session) is True
+        write_event("case", "c-001", AuditAction.CREATE, db=db_audit)
+        assert verify_chain(db_audit) is True
 
-    def test_chaine_cinq_entrees_integre(self, db_session: Session) -> None:
+    def test_chaine_cinq_entrees_integre(self, db_audit: psycopg.Connection) -> None:
         """Chaîne de 5 entrées non altérées → fn_verify_audit_chain() = True."""
         for i in range(5):
-            write_event("case", f"c-{i:03d}", AuditAction.CREATE, db=db_session)
-        assert verify_chain(db_session) is True
+            write_event("case", f"c-{i:03d}", AuditAction.CREATE, db=db_audit)
+        assert verify_chain(db_audit) is True
 
     def test_event_hash_altere_detecte(
-        self, db_session: Session, audit_entry_factory
+        self, db_audit: psycopg.Connection, audit_entry_factory
     ) -> None:
         """event_hash altéré manuellement → fn_verify_audit_chain() = False."""
         entry = audit_entry_factory(
@@ -42,16 +44,16 @@ class TestVerifyChainDB:
             prev_hash="GENESIS",
             event_hash="deadbeef" * 8,
         )
-        result = db_session.execute(
-            text(
-                "SELECT fn_verify_audit_chain(:p_from, :p_to)",
-            ),
-            {"p_from": entry["chain_seq"], "p_to": entry["chain_seq"]},
-        ).scalar()
+        with db_audit.cursor() as cur:
+            cur.execute(
+                "SELECT fn_verify_audit_chain(%s, %s) AS result",
+                (entry["chain_seq"], entry["chain_seq"]),
+            )
+            result = cur.fetchone()["result"]
         assert result is False
 
     def test_prev_hash_altere_detecte(
-        self, db_session: Session, audit_entry_factory
+        self, db_audit: psycopg.Connection, audit_entry_factory
     ) -> None:
         """prev_hash altéré → fn_verify_audit_chain() = False."""
         e1 = audit_entry_factory(
@@ -68,26 +70,27 @@ class TestVerifyChainDB:
             prev_hash="wrong_prev_hash",
             event_hash="b" * 64,
         )
-        result = db_session.execute(
-            text("SELECT fn_verify_audit_chain(:p_from, :p_to)"),
-            {"p_from": e1["chain_seq"], "p_to": e1["chain_seq"] + 1},
-        ).scalar()
+        with db_audit.cursor() as cur:
+            cur.execute(
+                "SELECT fn_verify_audit_chain(%s, %s) AS result",
+                (e1["chain_seq"], e1["chain_seq"] + 1),
+            )
+            result = cur.fetchone()["result"]
         assert result is False
 
     def test_payload_canonical_altere_detecte(
-        self, db_session: Session, audit_entry_factory
+        self, db_audit: psycopg.Connection, audit_entry_factory
     ) -> None:
         """payload_canonical altéré → fn_verify_audit_chain() = False."""
-        from datetime import UTC, datetime
-
         ts = datetime.now(UTC)
         ts_canonical = _timestamp_canonical(ts)
 
         real_payload_canonical = '{"amount":100}'
         prev = "GENESIS"
-        chain_seq_val = db_session.execute(
-            text("SELECT nextval('audit_log_chain_seq_seq')")
-        ).scalar()
+
+        with db_audit.cursor() as cur:
+            cur.execute("SELECT nextval('audit_log_chain_seq_seq') AS chain_seq")
+            chain_seq_val = cur.fetchone()["chain_seq"]
 
         real_hash = hashlib.sha256(
             (
@@ -102,59 +105,62 @@ class TestVerifyChainDB:
             ).encode("utf-8")
         ).hexdigest()
 
-        import uuid
-
-        db_session.execute(
-            text("""
+        with db_audit.cursor() as cur:
+            cur.execute(
+                """
                 INSERT INTO audit_log (
                     id, chain_seq, entity, entity_id, action,
                     actor_id, payload, payload_canonical,
                     ip_address, timestamp, prev_hash, event_hash
                 ) VALUES (
-                    :id, :chain_seq, 'case', 'c-001', 'CREATE',
-                    NULL, NULL, :payload_canonical,
-                    NULL, :timestamp, :prev_hash, :event_hash
+                    %s, %s, 'case', 'c-001', 'CREATE',
+                    NULL, NULL, %s,
+                    NULL, %s, %s, %s
                 )
-            """),
-            {
-                "id": str(uuid.uuid4()),
-                "chain_seq": chain_seq_val,
-                "payload_canonical": "TAMPERED_CANONICAL",
-                "timestamp": ts,
-                "prev_hash": prev,
-                "event_hash": real_hash,
-            },
-        )
-
-        result = db_session.execute(
-            text("SELECT fn_verify_audit_chain(:p_from, :p_to)"),
-            {"p_from": chain_seq_val, "p_to": chain_seq_val},
-        ).scalar()
+                """,
+                (
+                    str(uuid.uuid4()),
+                    chain_seq_val,
+                    "TAMPERED_CANONICAL",
+                    ts,
+                    prev,
+                    real_hash,
+                ),
+            )
+            cur.execute(
+                "SELECT fn_verify_audit_chain(%s, %s) AS result",
+                (chain_seq_val, chain_seq_val),
+            )
+            result = cur.fetchone()["result"]
         assert result is False
 
 
 class TestVerifyChainPython:
-    def test_verify_chain_python_appelle_db(self, db_session: Session) -> None:
+    def test_verify_chain_python_appelle_db(self, db_audit: psycopg.Connection) -> None:
         """verify_chain() Python délègue à fn_verify_audit_chain() DB → True."""
-        write_event("case", "c-001", AuditAction.CREATE, db=db_session)
-        assert verify_chain(db_session) is True
+        write_event("case", "c-001", AuditAction.CREATE, db=db_audit)
+        assert verify_chain(db_audit) is True
 
-    def test_verify_chain_plage_vide_true(self, db_session: Session) -> None:
+    def test_verify_chain_plage_vide_true(self, db_audit: psycopg.Connection) -> None:
         """verify_chain() sur plage inexistante (chain_seq très grand) → True."""
-        result = verify_chain(db_session, from_seq=999999999, to_seq=999999999)
+        result = verify_chain(db_audit, from_seq=999999999, to_seq=999999999)
         assert result is True
 
-    def test_verify_chain_from_to_seq_filtre(self, db_session: Session) -> None:
+    def test_verify_chain_from_to_seq_filtre(
+        self, db_audit: psycopg.Connection
+    ) -> None:
         """verify_chain() avec from_seq/to_seq filtre correctement."""
-        e1 = write_event("case", "c-001", AuditAction.CREATE, db=db_session)
-        write_event("case", "c-002", AuditAction.CREATE, db=db_session)
+        e1 = write_event("case", "c-001", AuditAction.CREATE, db=db_audit)
+        write_event("case", "c-002", AuditAction.CREATE, db=db_audit)
         assert (
-            verify_chain(db_session, from_seq=e1.chain_seq, to_seq=e1.chain_seq) is True
+            verify_chain(db_audit, from_seq=e1.chain_seq, to_seq=e1.chain_seq) is True
         )
 
 
 class TestCroisePythonDB:
-    def test_croise_timestamp_canonical_identique(self, db_session: Session) -> None:
+    def test_croise_timestamp_canonical_identique(
+        self, db_audit: psycopg.Connection
+    ) -> None:
         """Test croisé Python ↔ DB : timestamp_canonical identique des deux côtés.
 
         Écrit via write_event() Python, puis vérifie que fn_verify_audit_chain() DB
@@ -164,7 +170,7 @@ class TestCroisePythonDB:
             entity="case",
             entity_id="c-croise",
             action=AuditAction.CREATE,
-            db=db_session,
+            db=db_audit,
             actor_id="user-audit",
             payload={"ref": "DMS-2026"},
         )
@@ -188,7 +194,7 @@ class TestCroisePythonDB:
         )
 
         db_valid = verify_chain(
-            db_session,
+            db_audit,
             from_seq=entry.chain_seq,
             to_seq=entry.chain_seq,
         )

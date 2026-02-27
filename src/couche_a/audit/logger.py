@@ -8,6 +8,9 @@ Contrats immuables (ADR-M1B-001) :
   - Contrat 5 : prev_hash = "GENESIS" si première entrée
   - Contrat 6 : mono-insert — nextval() → calcul → INSERT unique, zéro UPDATE post-insert
 
+Architecture DB : psycopg uniquement (ADR-0003 §3.1 — zéro SQLAlchemy, zéro ORM).
+Accepte psycopg.Connection (autocommit ou dans transaction appelante).
+
 Zéro touche à src/auth.py · src/couche_a/auth/ · token_blacklist (RÈGLE-ORG-07).
 """
 
@@ -19,8 +22,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import text
-from sqlalchemy.orm import Session
+import psycopg
 
 
 class AuditAction:
@@ -96,7 +98,7 @@ def write_event(
     entity: str,
     entity_id: str,
     action: str,
-    db: Session,
+    db: psycopg.Connection,
     actor_id: str | None = None,
     payload: dict | None = None,
     ip_address: str | None = None,
@@ -113,64 +115,68 @@ def write_event(
 
     Sécurité : zéro secret dans payload (token, password, clé).
     Masquer AVANT d'appeler write_event().
+
+    Args:
+        db: connexion psycopg active (autocommit ou dans transaction appelante).
     """
-    # ── 1. chain_seq via nextval — connu avant INSERT ────────────────────────
-    chain_seq: int = db.execute(
-        text("SELECT nextval('audit_log_chain_seq_seq')")
-    ).scalar()
+    with db.cursor() as cur:
+        # ── 1. chain_seq via nextval — connu avant INSERT ────────────────────
+        cur.execute("SELECT nextval('audit_log_chain_seq_seq') AS chain_seq")
+        chain_seq: int = cur.fetchone()["chain_seq"]
 
-    # ── 2. Canonicalisation ──────────────────────────────────────────────────
-    p_canonical = _payload_canonical(payload)
-    ts = datetime.now(UTC)
-    ts_canonical = _timestamp_canonical(ts)
+        # ── 2. Canonicalisation ──────────────────────────────────────────────
+        p_canonical = _payload_canonical(payload)
+        ts = datetime.now(UTC)
+        ts_canonical = _timestamp_canonical(ts)
 
-    # ── 3. prev_hash — Contrat 5 ─────────────────────────────────────────────
-    row = db.execute(
-        text("SELECT event_hash FROM audit_log ORDER BY chain_seq DESC LIMIT 1")
-    ).fetchone()
-    prev_hash = row[0] if row else "GENESIS"
+        # ── 3. prev_hash — Contrat 5 ─────────────────────────────────────────
+        cur.execute("SELECT event_hash FROM audit_log ORDER BY chain_seq DESC LIMIT 1")
+        row = cur.fetchone()
+        prev_hash = row["event_hash"] if row else "GENESIS"
 
-    # ── 4. event_hash — Contrats 1 + 4 ──────────────────────────────────────
-    event_hash = _compute_event_hash(
-        entity=entity,
-        entity_id=entity_id,
-        action=action,
-        actor_id=actor_id,
-        payload_canonical=p_canonical,
-        timestamp_canonical=ts_canonical,
-        chain_seq=chain_seq,
-        prev_hash=prev_hash,
-    )
+        # ── 4. event_hash — Contrats 1 + 4 ──────────────────────────────────
+        event_hash = _compute_event_hash(
+            entity=entity,
+            entity_id=entity_id,
+            action=action,
+            actor_id=actor_id,
+            payload_canonical=p_canonical,
+            timestamp_canonical=ts_canonical,
+            chain_seq=chain_seq,
+            prev_hash=prev_hash,
+        )
 
-    # ── 5. INSERT unique et complet — zéro UPDATE post-insert ────────────────
-    entry_id = str(uuid.uuid4())
-    db.execute(
-        text("""
+        # ── 5. INSERT unique et complet — zéro UPDATE post-insert ────────────
+        entry_id = str(uuid.uuid4())
+        payload_json = json.dumps(payload) if payload is not None else None
+
+        cur.execute(
+            """
             INSERT INTO audit_log (
                 id, chain_seq, entity, entity_id, action,
                 actor_id, payload, payload_canonical,
                 ip_address, timestamp, prev_hash, event_hash
             ) VALUES (
-                :id, :chain_seq, :entity, :entity_id, :action,
-                :actor_id, CAST(:payload AS jsonb), :payload_canonical,
-                CAST(:ip_address AS inet), :timestamp, :prev_hash, :event_hash
+                %s, %s, %s, %s, %s,
+                %s, %s::jsonb, %s,
+                %s::inet, %s, %s, %s
             )
-        """),
-        {
-            "id": entry_id,
-            "chain_seq": chain_seq,
-            "entity": entity,
-            "entity_id": entity_id,
-            "action": action,
-            "actor_id": actor_id,
-            "payload": json.dumps(payload) if payload is not None else None,
-            "payload_canonical": p_canonical,
-            "ip_address": ip_address,
-            "timestamp": ts,
-            "prev_hash": prev_hash,
-            "event_hash": event_hash,
-        },
-    )
+            """,
+            (
+                entry_id,
+                chain_seq,
+                entity,
+                entity_id,
+                action,
+                actor_id,
+                payload_json,
+                p_canonical,
+                ip_address,
+                ts,
+                prev_hash,
+                event_hash,
+            ),
+        )
 
     return AuditLogEntry(
         id=entry_id,
@@ -189,7 +195,7 @@ def write_event(
 
 
 def verify_chain(
-    db: Session,
+    db: psycopg.Connection,
     from_seq: int | None = None,
     to_seq: int | None = None,
 ) -> bool:
@@ -198,7 +204,7 @@ def verify_chain(
     Délègue à fn_verify_audit_chain() côté DB (pgcrypto + to_char UTC).
 
     Args:
-        db: session SQLAlchemy active.
+        db: connexion psycopg active.
         from_seq: chain_seq de début (inclusif). None → 0.
         to_seq: chain_seq de fin (inclusif). None → BIGINT MAX.
 
@@ -208,8 +214,10 @@ def verify_chain(
     p_from = from_seq if from_seq is not None else 0
     p_to = to_seq if to_seq is not None else 9223372036854775807
 
-    result = db.execute(
-        text("SELECT fn_verify_audit_chain(:p_from, :p_to)"),
-        {"p_from": p_from, "p_to": p_to},
-    ).scalar()
+    with db.cursor() as cur:
+        cur.execute(
+            "SELECT fn_verify_audit_chain(%s, %s) AS result",
+            (p_from, p_to),
+        )
+        result = cur.fetchone()["result"]
     return bool(result)
