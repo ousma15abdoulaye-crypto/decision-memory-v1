@@ -153,16 +153,29 @@ calculer `event_hash`. Deux approches possibles :
 2. Calcul Python de `event_hash` avec `chain_seq` retourné
 3. `UPDATE audit_log SET event_hash = %s WHERE id = %s`
 
-**Décision : Option A retenue** (plus lisible, même résultat).
-L'UPDATE sur `event_hash` ne déclenche pas le trigger append-only car le trigger
-bloque DELETE/UPDATE **sur les lignes complètes** — l'UPDATE ciblé sur `event_hash`
-seul est une phase d'initialisation de l'entrée, pas une mutation post-création.
+_Remarque : les Options A et B ont été envisagées au design mais **ne sont pas**
+implémentées dans la version actuelle. La migration crée un trigger
+`BEFORE UPDATE` qui rejette tout `UPDATE` sur `audit_log`, rendant ces
+stratégies en deux temps (INSERT puis UPDATE) inapplicables._
 
-**Note de sécurité** : l'UPDATE n'est possible que dans la même transaction que
-l'INSERT. Toute tentative d'UPDATE ultérieure sera bloquée par le trigger.
-Ce comportement est accepté et documenté. Si un audit plus strict est requis,
-une colonne `hash_finalized BOOLEAN` peut être ajoutée (post-M1B).
+**Option C — mono-INSERT (implémentation actuelle)** :
+1. Récupération de `chain_seq` (via `nextval`/IDENTITY ou équivalent) côté
+   application avant l'écriture
+2. Calcul Python de `event_hash` avec le `chain_seq` réel et le hash précédent
+3. `INSERT INTO audit_log (..., chain_seq, event_hash, ...) VALUES (...)`
 
+**Décision : Option C retenue**.
+Cette option est alignée avec le trigger append-only `BEFORE UPDATE` : aucune
+mise à jour de ligne (y compris de `event_hash`) n'est autorisée après l'INSERT.
+Le hash doit donc être définitif au moment de l'écriture.
+
+**Note de sécurité** : toute tentative d'`UPDATE` (y compris sur `event_hash`
+seul) est bloquée par le trigger append-only. L'intégrité repose sur :
+- le calcul correct de `event_hash` côté application avant l'INSERT ;
+- le fait que les lignes sont strictement append-only (pas de DELETE/UPDATE).
+Si un audit plus strict est requis (par ex. matérialiser l'état de
+finalisation), une colonne `hash_finalized BOOLEAN` peut être ajoutée
+ultérieurement (post-M1B).
 ### 7. `actor_id` : TEXT nullable — FK reportée
 
 `actor_id` est `TEXT` nullable pour deux raisons :
