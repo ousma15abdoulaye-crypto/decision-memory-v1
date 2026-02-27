@@ -222,6 +222,12 @@ WHERE sha256 IS NULL;
 | Milestone cible | Post-beta ou dédié (décision humaine requise) |
 | Risque | Toutes les FK pointant vers `users.id` à recréer lors du basculement |
 
+**Extension M1B — `actor_id` FK reportée (ADR-M1B-001)** :
+- `audit_log.actor_id` est `TEXT` nullable — pas de FK formelle vers `users(id)`
+- Motif : `users.id` est `INTEGER`, incompatible avec UUID cible du freeze
+- La FK `actor_id → users(id)` sera ajoutée lors de la résolution de cette dette
+- Certaines actions système (jobs, triggers) n'ont pas d'acteur humain → nullable assumé
+
 ### DETTE-M1-02 — Double système auth (cohabitation intentionnelle)
 
 | Attribut | Valeur |
