@@ -87,7 +87,7 @@ def upgrade() -> None:
                   AND tgrelid = 'public.audit_log'::regclass
             ) THEN
                 CREATE TRIGGER trg_audit_log_no_delete_update
-                BEFORE DELETE OR UPDATE ON audit_log
+                BEFORE DELETE OR UPDATE ON public.audit_log
                 FOR EACH ROW EXECUTE FUNCTION fn_reject_audit_mutation();
             END IF;
         END;
@@ -104,7 +104,7 @@ def upgrade() -> None:
                   AND tgrelid = 'public.audit_log'::regclass
             ) THEN
                 CREATE TRIGGER trg_audit_log_no_truncate
-                BEFORE TRUNCATE ON audit_log
+                BEFORE TRUNCATE ON public.audit_log
                 FOR EACH STATEMENT EXECUTE FUNCTION fn_reject_audit_mutation();
             END IF;
         END;
