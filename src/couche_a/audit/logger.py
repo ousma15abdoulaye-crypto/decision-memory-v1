@@ -106,12 +106,17 @@ def write_event(
     """Écrit un événement dans audit_log avec chaînage cryptographique.
 
     Séquence mono-insert (Contrat 6) :
-      1. nextval() → chain_seq connu avant l'INSERT
-      2. Calculer payload_canonical, timestamp_canonical, prev_hash, event_hash
-      3. INSERT unique et complet — zéro UPDATE post-insert
+      1. pg_advisory_xact_lock → sérialise les écritures concurrentes
+      2. nextval() → chain_seq connu avant l'INSERT
+      3. Calculer payload_canonical, timestamp_canonical, prev_hash, event_hash
+      4. INSERT unique et complet — zéro UPDATE post-insert
 
     Atomicité : tout dans la même transaction que l'opération métier appelante.
     Si write_event() échoue → rollback de l'opération métier.
+
+    Concurrence : pg_advisory_xact_lock garantit qu'une seule transaction à la fois
+    lit prev_hash et insère, évitant les ruptures de chaîne non déterministes.
+    Le verrou est libéré automatiquement à la fin de la transaction appelante.
 
     Sécurité : zéro secret dans payload (token, password, clé).
     Masquer AVANT d'appeler write_event().
@@ -120,6 +125,12 @@ def write_event(
         db: connexion psycopg active (autocommit ou dans transaction appelante).
     """
     with db.cursor() as cur:
+        # ── 0. Verrou d'écriture — sérialise les writes concurrents ──────────
+        # Clé 64-bit stable via md5 : évite la troncature de hashtext() (int4).
+        cur.execute(
+            "SELECT pg_advisory_xact_lock(('x' || md5('audit_log:write_event'))::bit(64)::bigint)"
+        )
+
         # ── 1. chain_seq via nextval — connu avant INSERT ────────────────────
         cur.execute("SELECT nextval('audit_log_chain_seq_seq') AS chain_seq")
         chain_seq: int = cur.fetchone()["chain_seq"]
