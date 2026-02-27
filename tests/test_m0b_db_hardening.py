@@ -206,9 +206,9 @@ def test_indexes_created(db_transaction):
 
 
 def test_alembic_head_is_current(db_transaction):
-    """Head = 037_security_baseline (head courante après M1)."""
+    """Head = 038_audit_hash_chain (head courante après M1B)."""
     db_transaction.execute("SELECT version_num FROM alembic_version")
     row = db_transaction.fetchone()
     assert (
-        row["version_num"] == "037_security_baseline"
-    ), f"Head attendu : 037_security_baseline — réel : {row['version_num']}"
+        row["version_num"] == "038_audit_hash_chain"
+    ), f"Head attendu : 038_audit_hash_chain — réel : {row['version_num']}"
