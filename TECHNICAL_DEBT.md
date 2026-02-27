@@ -206,3 +206,49 @@ WHERE sha256 IS NULL;
 |---|---|---|---|
 | Python | 3.11.0 | 3.11.9 (runtime.txt) | Aligner env local avant M1 |
 | REVOKE app_user | app_user absent (PROBE-SQL-01 M0B) | Rôle DB à créer | Reporté M1 |
+
+---
+
+## Dettes M1 — Security Baseline
+
+### DETTE-M1-01 — `users.id` = integer (legacy)
+
+| Attribut | Valeur |
+|---|---|
+| État réel | `id INTEGER` (auto-increment) |
+| Freeze cible | `id UUID DEFAULT gen_random_uuid()` |
+| Bloquant pour | FK UUID vers `users` dans schéma cible |
+| Action | Migration dédiée post-beta avec backfill complet |
+| Milestone cible | Post-beta ou dédié (décision humaine requise) |
+| Risque | Toutes les FK pointant vers `users.id` à recréer lors du basculement |
+
+### DETTE-M1-02 — Double système auth (cohabitation intentionnelle)
+
+| Attribut | Valeur |
+|---|---|
+| Legacy | `src/auth.py` — opérationnel (TTL 8h, `role_id` int, passlib) |
+| V4.1.0 | `src/couche_a/auth/` — nouveau moteur (30min/7j, `jti`, rotation) |
+| Cohabitation | Assumée et intentionnelle — décision CTO 2026-02-27 |
+| Action | Basculement complet à **M2 UNIFY SYSTEM** |
+| Condition | Décision humaine explicite avant toute bascule |
+| Tests legacy | `tests/test_rbac.py` — 5 tests sur le système legacy (non modifiés) |
+
+### DETTE-M1-03 — `users.created_at` = TEXT (legacy)
+
+| Attribut | Valeur |
+|---|---|
+| État réel | `created_at TEXT` |
+| Freeze cible | `created_at TIMESTAMPTZ NOT NULL DEFAULT now()` |
+| Bloquant pour | Requêtes temporelles sur `users`, ORDER BY dates |
+| Action | `ALTER TYPE` + backfill post-beta |
+| Milestone cible | Lors de la migration dédiée `users` (DETTE-M1-01) |
+
+### DETTE-M1-04 — `users.role_id` = integer FK → `roles` (legacy)
+
+| Attribut | Valeur |
+|---|---|
+| État réel | `role_id INTEGER FK → roles(id)` |
+| Freeze cible | `role TEXT CHECK (role IN ('admin','manager','buyer','viewer','auditor'))` |
+| Cohabitation | `role TEXT` ajouté en M1 (cohabite avec `role_id`) |
+| Action | `DROP COLUMN role_id` lors du basculement M2 (après bascule auth) |
+| Condition | DETTE-M1-02 résolue en premier |

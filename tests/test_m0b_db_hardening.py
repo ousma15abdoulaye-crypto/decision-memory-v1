@@ -205,10 +205,10 @@ def test_indexes_created(db_transaction):
         assert row["exists"], f"Index manquant : {idx}"
 
 
-def test_alembic_head_is_036(db_transaction):
-    """Head = 036_db_hardening après migration."""
+def test_alembic_head_is_current(db_transaction):
+    """Head = 037_security_baseline (head courante après M1)."""
     db_transaction.execute("SELECT version_num FROM alembic_version")
     row = db_transaction.fetchone()
     assert (
-        row["version_num"] == "036_db_hardening"
-    ), f"Head attendu : 036_db_hardening — réel : {row['version_num']}"
+        row["version_num"] == "037_security_baseline"
+    ), f"Head attendu : 037_security_baseline — réel : {row['version_num']}"
