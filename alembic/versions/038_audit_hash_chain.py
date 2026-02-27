@@ -52,10 +52,6 @@ def upgrade() -> None:
 
     # ── 4. Index ─────────────────────────────────────────────────────────────
     op.execute("""
-        CREATE INDEX IF NOT EXISTS idx_audit_log_chain_seq
-            ON audit_log(chain_seq);
-    """)
-    op.execute("""
         CREATE INDEX IF NOT EXISTS idx_audit_log_entity
             ON audit_log(entity, entity_id);
     """)
