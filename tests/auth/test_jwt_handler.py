@@ -1,6 +1,6 @@
 """Tests jwt_handler — moteur JWT V4.1.0.
 
-RÈGLE-07 : Zéro .... Assertions explicites.
+RÈGLE-07 : Assertions explicites.
 RÈGLE-21 : Zéro appel API réel.
 """
 
