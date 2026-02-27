@@ -6,10 +6,12 @@ ADR-M1-001 · ADR-M1-002.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import os
+from collections.abc import Callable, Generator
 from dataclasses import dataclass
 
 import psycopg
+from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -28,19 +30,22 @@ class UserClaims:
     jti: str
 
 
-def _get_db_conn() -> psycopg.Connection:
-    """Fournit une connexion psycopg.
+def _get_db_conn() -> Generator[psycopg.Connection, None, None]:
+    """Fournit une connexion psycopg avec fermeture garantie.
+
+    Générateur FastAPI : la connexion est fermée dans le bloc finally
+    après que la dépendance a été libérée par le framework.
 
     À remplacer par injection de dépendance FastAPI réelle lors du
     raccordement du nouveau moteur aux endpoints (mandat post-M1).
     """
-    import os
-
-    from dotenv import load_dotenv
-
     load_dotenv()
     url = os.environ["DATABASE_URL"].replace("postgresql+psycopg://", "postgresql://")
-    return psycopg.connect(url, autocommit=True)
+    conn = psycopg.connect(url, autocommit=True)
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def get_current_user(

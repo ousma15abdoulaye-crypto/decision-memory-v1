@@ -20,6 +20,8 @@ from typing import Any
 import psycopg
 from jose import JWTError, jwt
 
+VALID_ROLES = frozenset({"admin", "manager", "buyer", "viewer", "auditor"})
+
 
 def _secret_key() -> str:
     key = os.environ.get("SECRET_KEY") or os.environ.get("JWT_SECRET")
@@ -59,14 +61,32 @@ def _build_claims(
     }
 
 
+def _validate_role(role: str) -> None:
+    if role not in VALID_ROLES:
+        raise ValueError(
+            f"Rôle invalide : '{role}'. "
+            f"Valeurs acceptées : {sorted(VALID_ROLES)}"
+        )
+
+
 def create_access_token(user_id: str, role: str) -> str:
-    """Émet un access token signé HS256."""
+    """Émet un access token signé HS256.
+
+    Raises:
+        ValueError: rôle non reconnu ou SECRET_KEY absent.
+    """
+    _validate_role(role)
     claims = _build_claims(user_id, role, "access", timedelta(minutes=_access_ttl()))
     return jwt.encode(claims, _secret_key(), algorithm=ALGORITHM)
 
 
 def create_refresh_token(user_id: str, role: str) -> str:
-    """Émet un refresh token signé HS256."""
+    """Émet un refresh token signé HS256.
+
+    Raises:
+        ValueError: rôle non reconnu ou SECRET_KEY absent.
+    """
+    _validate_role(role)
     claims = _build_claims(user_id, role, "refresh", timedelta(days=_refresh_ttl()))
     return jwt.encode(claims, _secret_key(), algorithm=ALGORITHM)
 
