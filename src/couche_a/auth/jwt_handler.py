@@ -146,7 +146,7 @@ def rotate_refresh_token(
     payload = verify_token(refresh_token, "refresh", db_conn)
 
     exp_ts = payload["exp"]
-    if isinstance(exp_ts, (int, float)):
+    if isinstance(exp_ts, int | float):
         expires_at = datetime.fromtimestamp(exp_ts, tz=UTC)
     else:
         expires_at = exp_ts
