@@ -64,8 +64,7 @@ def _build_claims(
 def _validate_role(role: str) -> None:
     if role not in VALID_ROLES:
         raise ValueError(
-            f"Rôle invalide : '{role}'. "
-            f"Valeurs acceptées : {sorted(VALID_ROLES)}"
+            f"Rôle invalide : '{role}'. " f"Valeurs acceptées : {sorted(VALID_ROLES)}"
         )
 
 
