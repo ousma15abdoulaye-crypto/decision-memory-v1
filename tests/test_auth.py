@@ -1,4 +1,4 @@
-"""Tests authentification JWT (M4A)."""
+"""Tests authentification JWT (M4A) — migré M2 vers moteur V4.1.0."""
 
 import uuid
 
@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 from jose import jwt
 
 from main import app
-from src.auth import ALGORITHM, SECRET_KEY
 
 client = TestClient(app)
 
@@ -132,14 +131,16 @@ def test_protected_endpoint_with_token():
 
 
 def test_token_expiration():
-    """Test que le token contient un champ exp."""
-    # Login
+    """Test que le token V4.1.0 contient les claims obligatoires."""
     login_response = client.post(
         "/auth/token", data={"username": "admin", "password": "admin123"}
     )
     token = login_response.json()["access_token"]
 
-    # Décoder sans vérifier l'expiration pour inspecter le payload
-    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    assert "sub" in payload  # User ID
-    assert "exp" in payload  # Expiration
+    # Inspecter le payload sans vérifier la signature
+    payload = jwt.get_unverified_claims(token)
+    assert "sub" in payload  # user_id
+    assert "exp" in payload  # expiration
+    assert "jti" in payload  # révocation
+    assert "role" in payload  # RBAC
+    assert payload.get("type") == "access"
