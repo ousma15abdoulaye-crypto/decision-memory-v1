@@ -80,10 +80,6 @@ def upgrade() -> None:
 
     # ── 3. Index token_blacklist
     op.execute("""
-        CREATE INDEX IF NOT EXISTS idx_token_blacklist_jti
-          ON token_blacklist(token_jti);
-    """)
-    op.execute("""
         CREATE INDEX IF NOT EXISTS idx_token_blacklist_expires
           ON token_blacklist(expires_at);
     """)
