@@ -9,10 +9,12 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import (
     APIRouter,
     BackgroundTasks,
+    Depends,
     File,
     Form,
     HTTPException,
@@ -20,7 +22,7 @@ from fastapi import (
     UploadFile,
 )
 
-from src.auth import CurrentUser, check_case_ownership
+from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.db import db_execute, db_execute_one, db_fetchall, get_connection
 from src.ratelimit import limiter
 from src.upload_security import update_case_quota, validate_upload_security
@@ -43,6 +45,22 @@ class OfferType(StrEnum):
     FINANCIERE = "financiere"
     ADMINISTRATIVE = "administrative"
     REGISTRE = "registre"
+
+
+def _check_case_ownership(case_id: str, user: UserClaims) -> None:
+    """Vérifie ownership — admin bypass (role) ou owner_id match. Inliné depuis src/auth.py (ADR-M2-001)."""
+    if user.role == "admin":
+        return
+
+    with get_connection() as conn:
+        case = db_execute_one(
+            conn, "SELECT owner_id FROM cases WHERE id = :id", {"id": case_id}
+        )
+        if not case:
+            raise HTTPException(404, "Case not found")
+
+        if case["owner_id"] != int(user.user_id):
+            raise HTTPException(403, "You do not own this case")
 
 
 def compute_file_hash(file_path: Path) -> str:
@@ -84,13 +102,13 @@ def register_artifact(
 async def upload_dao(
     request: Request,
     case_id: str,
-    user: CurrentUser,
+    user: Annotated[UserClaims, Depends(get_current_user)],
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
 ):
     """Upload du DAO – un seul par case (409 si existant). Requiert authentification."""
     # Ownership check
-    check_case_ownership(case_id, user)
+    _check_case_ownership(case_id, user)
 
     with get_connection() as conn:
         case = db_execute_one(
@@ -128,7 +146,7 @@ async def upload_dao(
         "mime_type": mime,
         "hash": file_hash,
         "upload_timestamp": timestamp.isoformat(),
-        "uploaded_by": user["id"],
+        "uploaded_by": user.user_id,
     }
     artifact_id = register_artifact(case_id, "dao", file.filename, str(file_path), meta)
 
@@ -152,7 +170,7 @@ async def upload_dao(
 async def upload_offer(
     request: Request,
     case_id: str,
-    user: CurrentUser,
+    user: Annotated[UserClaims, Depends(get_current_user)],
     background_tasks: BackgroundTasks,
     supplier_name: str = Form(...),
     offer_type: OfferType = Form(...),
@@ -161,7 +179,7 @@ async def upload_offer(
 ):
     """Upload offre avec classification obligatoire et lot optionnel. Requiert authentification."""
     # Ownership check
-    check_case_ownership(case_id, user)
+    _check_case_ownership(case_id, user)
 
     with get_connection() as conn:
         case = db_execute_one(
@@ -249,7 +267,7 @@ async def upload_offer(
         "upload_timestamp": timestamp.isoformat(),
         "lot_id": lot_id,
         "is_late": is_late,
-        "uploaded_by": user["id"],
+        "uploaded_by": user.user_id,
     }
     artifact_id = register_artifact(
         case_id, "offer", file.filename, str(file_path), meta
@@ -278,10 +296,14 @@ async def upload_offer(
 
 @router.get("/{case_id}/criteria/validation")
 @limiter.limit("10/minute")
-async def get_criteria_validation(request: Request, case_id: str, user: CurrentUser):
+async def get_criteria_validation(
+    request: Request,
+    case_id: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+):
     """Récupère la dernière validation des pondérations pour un case."""
     # Ownership check
-    check_case_ownership(case_id, user)
+    _check_case_ownership(case_id, user)
 
     with get_connection() as conn:
         row = db_execute_one(
@@ -310,10 +332,14 @@ async def get_criteria_validation(request: Request, case_id: str, user: CurrentU
 
 @router.get("/{case_id}/criteria/by-category")
 @limiter.limit("10/minute")
-async def get_criteria_by_category(request: Request, case_id: str, user: CurrentUser):
+async def get_criteria_by_category(
+    request: Request,
+    case_id: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+):
     """Retourne les critères groupés par catégorie."""
     # Ownership check
-    check_case_ownership(case_id, user)
+    _check_case_ownership(case_id, user)
 
     with get_connection() as conn:
         rows = db_fetchall(

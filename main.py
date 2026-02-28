@@ -28,7 +28,6 @@ from src.db import get_connection, db_execute, db_execute_one, db_fetchall, init
 from src.couche_a.routers import router as upload_router
 from src.auth_router import router as auth_router
 from src.ratelimit import init_rate_limit, limiter
-from src.auth import CurrentUser
 from src.core.config import (
     APP_TITLE, APP_VERSION, BASE_DIR, DATA_DIR, UPLOADS_DIR, OUTPUTS_DIR, 
     STATIC_DIR, INVARIANTS

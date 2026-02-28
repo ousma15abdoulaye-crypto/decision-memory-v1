@@ -7,11 +7,12 @@ ADR-0002 §2.5 (SLA deux classes). ADR-0007 (corrections append-only).
 
 import hashlib
 import json
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from src.auth import get_current_user
+from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.db.connection import get_db_cursor
 from src.extraction.engine import (
     SLA_A_METHODS,
@@ -346,13 +347,13 @@ def get_effective_data(document_id: str) -> EffectiveDataResponse:
 async def post_correction(
     document_id: str,
     body: CorrectionCreate,
-    current_user: dict = Depends(get_current_user),
+    current_user: Annotated[UserClaims, Depends(get_current_user)],
 ) -> CorrectionResponse:
     """
     Enregistre une correction append-only.
     Si expected_content_hash fourni et ≠ hash effectif courant → 409 Conflict.
     """
-    corrected_by = str(current_user.get("id", current_user.get("username", "unknown")))
+    corrected_by = current_user.user_id
 
     with get_db_cursor() as cur:
         cur.execute(

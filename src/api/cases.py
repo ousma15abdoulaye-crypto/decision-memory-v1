@@ -4,12 +4,13 @@ Case management endpoints.
 
 import uuid
 from datetime import datetime
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
-from src.auth import CurrentUser
 from src.core.dependencies import get_artifacts, list_memory
 from src.core.models import CaseCreate
+from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.db import db_execute, db_execute_one, db_fetchall, get_connection
 from src.ratelimit import limiter
 
@@ -18,7 +19,11 @@ router = APIRouter(prefix="/api/cases", tags=["cases"])
 
 @router.post("")
 @limiter.limit("10/minute")
-async def create_case(request: Request, payload: CaseCreate, user: CurrentUser):
+async def create_case(
+    request: Request,
+    payload: CaseCreate,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+):
     """Crée nouveau case (requiert authentification)."""
     case_type = payload.case_type.strip().upper()
     if case_type not in {"DAO", "RFQ"}:
@@ -26,6 +31,7 @@ async def create_case(request: Request, payload: CaseCreate, user: CurrentUser):
 
     case_id = str(uuid.uuid4())
     now = datetime.utcnow().isoformat()
+    owner_id = int(user.user_id)
 
     with get_connection() as conn:
         db_execute(
@@ -41,7 +47,7 @@ async def create_case(request: Request, payload: CaseCreate, user: CurrentUser):
                 "lot": payload.lot,
                 "ts": now,
                 "status": "open",
-                "owner": user["id"],
+                "owner": owner_id,
             },
         )
 
@@ -52,7 +58,7 @@ async def create_case(request: Request, payload: CaseCreate, user: CurrentUser):
         "lot": payload.lot,
         "created_at": now,
         "status": "open",
-        "owner_id": user["id"],
+        "owner_id": owner_id,
     }
 
 

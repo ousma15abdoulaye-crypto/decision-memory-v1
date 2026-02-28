@@ -3,10 +3,11 @@ M3B Scoring API endpoints.
 """
 
 import time
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-from src.auth import CurrentUser
+from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.couche_a.scoring.models import ScoringRequest, ScoringResponse
 from src.db import db_fetchall, get_connection
 
@@ -14,7 +15,10 @@ router = APIRouter(prefix="/api/scoring", tags=["Scoring M3B"])
 
 
 @router.post("/calculate", response_model=ScoringResponse)
-async def calculate_scores(request: ScoringRequest, user: CurrentUser):
+async def calculate_scores(
+    request: ScoringRequest,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+):
     """
     Calculate scores for a case (async background task in production).
     Constitution V3: Non-prescriptive, validation humaine requise.
@@ -41,7 +45,10 @@ async def calculate_scores(request: ScoringRequest, user: CurrentUser):
 
 
 @router.get("/{case_id}/scores")
-async def get_scores(case_id: str, user: CurrentUser):
+async def get_scores(
+    case_id: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+):
     """Retrieve calculated scores for a case."""
     try:
         with get_connection() as conn:

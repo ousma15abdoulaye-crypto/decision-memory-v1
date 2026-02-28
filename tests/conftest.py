@@ -10,6 +10,12 @@ import os
 
 # Doit être posé AVANT tout import src.* (ratelimit.py lu à l'import)
 os.environ.setdefault("TESTING", "true")
+# SECRET_KEY requis par le moteur auth V4.1.0 (jwt_handler._secret_key)
+# Fallback identique à JWT_SECRET legacy pour compatibilité en CI sans .env
+os.environ.setdefault(
+    "SECRET_KEY",
+    os.environ.get("JWT_SECRET", "CHANGE_IN_PRODUCTION_USE_OPENSSL_RAND_HEX_32"),
+)
 
 import uuid
 from datetime import UTC, datetime
