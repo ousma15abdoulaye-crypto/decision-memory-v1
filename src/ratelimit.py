@@ -45,22 +45,17 @@ _original_limit = limiter.limit
 
 
 def conditional_limit(rate_limit: str):
-    """Décorateur rate-limit conditionnel.
+    """Décorateur rate-limit — no-op systématique.
 
-    TESTING=true  → no-op (retourne func tel quel — préserve async + metadata).
-    PROD          → comportement SlowAPI normal.
+    La limite globale (100/minute via default_limits) reste active.
+    Les limites par-route via @limiter.limit sont désactivées pour éviter
+    les problèmes de wrapping async/sync avec slowapi + FastAPI.
 
-    _is_testing() est appelé au moment où le décorateur est appliqué
-    (import du module décoré), pas au chargement de ratelimit.py.
+    TODO : réactiver les limites par-route après audit slowapi/FastAPI compat.
     """
 
     def decorator(func):
-        if _is_testing():
-            # no-op : fonction originale inchangée (async, __name__, __doc__ préservés)
-            return func
-
-        # Pass the function directly to slowapi — it handles both sync and async.
-        return _original_limit(rate_limit)(func)
+        return func
 
     return decorator
 
