@@ -1,7 +1,5 @@
 """Rate limiting with slowapi."""
 
-import asyncio
-import inspect
 import logging
 import os
 from functools import wraps
@@ -61,17 +59,8 @@ def conditional_limit(rate_limit: str):
             # no-op : fonction originale inchangée (async, __name__, __doc__ préservés)
             return func
 
-        if inspect.iscoroutinefunction(func):
-            @wraps(func)
-            async def async_wrapper(*args, **kwargs):
-                return await func(*args, **kwargs)
-            return _original_limit(rate_limit)(async_wrapper)
-
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            return func(*args, **kwargs)
-
-        return _original_limit(rate_limit)(wrapper)
+        # Pass the function directly to slowapi — it handles both sync and async.
+        return _original_limit(rate_limit)(func)
 
     return decorator
 
