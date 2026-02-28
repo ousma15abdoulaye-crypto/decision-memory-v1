@@ -261,3 +261,60 @@ WHERE sha256 IS NULL;
 | Fait en M2 | `create_user(role_id=2)` intentionnellement conservé (schéma inchangé M2) |
 | Reporté M2B | `DROP COLUMN role_id` + nettoyage table `roles` legacy |
 | Condition DROP | Migration dédiée M2B · schéma `users` stabilisé |
+
+---
+
+## Dettes M2 — Unify Auth System
+
+### DETTE-M2-01 — Hash admin tronqué dans migration 004
+
+| Attribut | Valeur |
+|---|---|
+| Origine | `alembic/versions/004_users_rbac.py` — seed admin user |
+| Symptôme | `bcrypt.checkpw` échoue pour `admin/admin123` → 500 en production |
+| Cause | Hash bcrypt tronqué à 52 caractères (bcrypt valide = 60 caractères) dans le SQL de seed |
+| Contournement M2 | Smoke test utilise un compte créé via `/auth/register` (hash correct) |
+| Action M2B | Corriger le hash dans `004_users_rbac.py` + migration correctrice si nécessaire |
+| Risque | Compte `admin` inutilisable en production jusqu'à correction |
+| Priorité | P1 — bloquant pour toute opération admin manuelle en prod |
+
+### DETTE-M2-02 — `conditional_limit` désactivé (no-op) — rate limiting per-route hors service
+
+| Attribut | Valeur |
+|---|---|
+| Origine | `src/ratelimit.py` — `conditional_limit` wrappait `async def` dans `sync def` → coroutine non awaitée |
+| Symptôme Railway | `RuntimeWarning: coroutine 'login' was never awaited` · `ResponseValidationError 500` |
+| Fix M2 | `conditional_limit` rendu no-op (`return func`) — rate limits per-route désactivés |
+| Protections restantes | Limite globale `100/minute` (slowapi middleware) — active |
+| Décision bcrypt | **Définitive** — `passlib[bcrypt]` conservé dans `requirements.txt` pour rétrocompatibilité mais non utilisé pour hash/verify. `bcrypt` direct (`bcrypt==4.2.0`) est le chemin de code actif. La dépendance `passlib[bcrypt]==1.7.4` peut être retirée en M3 après audit complet des imports. |
+| Action M2B / M3 | Réécrire `conditional_limit` en version native `async` OU supprimer la feature et rester sur le middleware global |
+| Priorité | P2 — protection globale active · pas bloquant fonctionnel |
+
+### DETTE-M2-03 — 36 tests skipped non audités
+
+| Attribut | Valeur |
+|---|---|
+| Origine | Tests créés en M0/M0B/M1 pour features non encore implémentées |
+| Nombre | 36 skipped (574 passed · 36 skipped · 0 failed — CI M2 finale) |
+| Catégories identifiées | Voir tableau ci-dessous |
+| Action M2B | Audit complet · classifier chaque skip · éliminer les orphelins |
+| Priorité | P2 — pas bloquant CI · risque de masquage de régressions |
+
+**Tableau de classification provisoire (36 skipped) :**
+
+| Catégorie | Fichiers / Tests | Type |
+|---|---|---|
+| Lock committee DB (psycopg2 absent) | `tests/db_integrity/test_lock_committee_db_level.py` (4 tests) | Skip légitime — dépendance env |
+| SLA-A performance 60s | `tests/pipeline/test_sla_classe_a_60s.py` (1 test) | Skip légitime — feature M10A |
+| SLA-B queue asynchrone | `tests/pipeline/test_sla_classe_b_has_queue.py` (2 tests) | Skip légitime — feature M10A |
+| Magic bytes upload | `tests/invariants/phase0/test_upload_magic_bytes.py` (5 tests) | Skip légitime — feature non implémentée |
+| Boundary couche A/B | `tests/invariants/test_couche_a_b_boundary.py` + `test_no_couche_b_import_in_couche_a.py` (2 tests) | À auditer — SCORING-ENGINE dépendance |
+| Market signal rules | `tests/market_signal/test_market_signal_rules.py` (6 tests) | Skip légitime — feature Couche B |
+| Survey validity | `tests/market_signal/test_survey_validity.py` (4 tests) | Skip légitime — feature Couche B |
+| Scoring independence | `tests/scoring/test_scores_independent_of_couche_b.py` + `test_market_signal_no_impact_on_scores.py` (3 tests) | Skip légitime — Market Signal absent |
+| Doctrine échec exports | `tests/generation/test_doctrine_echec_exports.py` (3 tests) | Skip CI guard — BLOQUE CI si actif |
+| Raw offer in scoring | `tests/normalisation/test_no_raw_offer_in_scoring.py` (2 tests) | Skip CI guard — BLOQUE CI si actif |
+| Append-only tables absentes | `tests/test_m0b_db_hardening.py::test_append_only_conditional_absent_tables` (1 test) | À auditer — tables créées en M1B |
+| Upload lot_id | `tests/test_upload.py::test_upload_offer_with_lot_id` (1 test) | À auditer — table `lots` absente |
+| Rate limit upload | `tests/test_upload_security.py::test_rate_limit_upload` (1 test) | Skip TESTING mode — DETTE-M2-02 liée |
+| Dashboard dépôt | `tests/couche_a/test_endpoints.py::test_depot_dashboard_and_export` (1 test) | À auditer |
