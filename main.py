@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import uuid
@@ -48,6 +49,33 @@ from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app):
+    # Optional Alembic migration at startup.
+    # Activate by setting RUN_MIGRATIONS_ON_STARTUP=true in the environment.
+    # Prefer Railway Release Command or start.sh for migrations to avoid
+    # concurrent runs across workers.  This block is a fallback for deployments
+    # where the Procfile / Release Command cannot be used.
+    # TESTING=true (parsed as boolean) skips this block in test environments.
+    _logger = logging.getLogger(__name__)
+    _run_mig = os.environ.get("RUN_MIGRATIONS_ON_STARTUP", "").lower() == "true"
+    _is_testing = os.environ.get("TESTING", "false").lower() == "true"
+    if _run_mig and not _is_testing:
+        import subprocess
+        import sys
+        _logger.info("[lifespan] RUN_MIGRATIONS_ON_STARTUP=true — running alembic upgrade head")
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "alembic", "upgrade", "head"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            _logger.info("[lifespan] alembic upgrade head OK:\n%s", result.stdout)
+        except subprocess.CalledProcessError as exc:
+            _logger.error(
+                "[lifespan] alembic upgrade head FAILED (rc=%d):\n%s",
+                exc.returncode, exc.stderr or exc.stdout,
+            )
+            raise RuntimeError("Alembic migration failed, aborting startup") from exc
     init_db_schema()
     yield
 
