@@ -266,17 +266,18 @@ WHERE sha256 IS NULL;
 
 ## Dettes M2 — Unify Auth System
 
-### DETTE-M2-01 — Hash admin tronqué dans migration 004
+### DETTE-M2-01 — Hash admin migration 004 ✅ FERMÉE post-M2
 
 | Attribut | Valeur |
 |---|---|
 | Origine | `alembic/versions/004_users_rbac.py` — seed admin user |
-| Symptôme | `bcrypt.checkpw` échoue pour `admin/admin123` → 500 en production |
-| Cause | Hash bcrypt tronqué à 52 caractères (bcrypt valide = 60 caractères) dans le SQL de seed |
-| Contournement M2 | Smoke test utilise un compte créé via `/auth/register` (hash correct) |
-| Action M2B | Corriger le hash dans `004_users_rbac.py` + migration correctrice si nécessaire |
-| Risque | Compte `admin` inutilisable en production jusqu'à correction |
-| Priorité | P1 — bloquant pour toute opération admin manuelle en prod |
+| Symptôme initial | Smoke M2 utilisait email comme username (`admin@dms.local`) → 401 incorrect |
+| Analyse post-M2 | Hash en prod = `$2b$12$n19Pj...XFvDG` — 60 chars — valide |
+| Vérification locale | `bcrypt.checkpw(b"admin123", hash)` → `True` |
+| Test prod | `POST /auth/token` `username=admin` `password=admin123` → HTTP 200 · `role=admin` |
+| Cause réelle de DETTE-M2-01 | Le smoke utilisait `admin@dms.local` au lieu de `username=admin` — field mismatch |
+| Statut | **FERMÉE** — hash correct · login admin fonctionnel |
+| Note résiduelle | Le smoke script `_smoke_m2.py` crée des comptes en prod — voir DETTE-M2-04 |
 
 ### DETTE-M2-02 — `conditional_limit` désactivé (no-op) — rate limiting per-route hors service
 
@@ -289,6 +290,40 @@ WHERE sha256 IS NULL;
 | Décision bcrypt | **Définitive** — `passlib[bcrypt]` conservé dans `requirements.txt` pour rétrocompatibilité mais non utilisé pour hash/verify. `bcrypt` direct (`bcrypt==4.2.0`) est le chemin de code actif. La dépendance `passlib[bcrypt]==1.7.4` peut être retirée en M3 après audit complet des imports. |
 | Action M2B / M3 | Réécrire `conditional_limit` en version native `async` OU supprimer la feature et rester sur le middleware global |
 | Priorité | P2 — protection globale active · pas bloquant fonctionnel |
+
+### DETTE-M2-04 — Comptes smoke créés en base de données prod
+
+| Attribut | Valeur |
+|---|---|
+| Origine | `scripts/_smoke_m2.py` — crée `POST /auth/register` sur l'URL prod directement |
+| Impact | 9 comptes `smoke_*@smoke-test.com` et `dbg_*@test.com` créés en prod pendant M2 |
+| Action immédiate | `DELETE FROM users WHERE email LIKE '%@smoke-test.com' OR email LIKE '%@test.com' OR username LIKE 'smoke_%' OR username LIKE 'dbg_%' OR username LIKE 'test_%'` |
+| Script de nettoyage | `scripts/_cleanup_prod_smoke_users.py <PUBLIC_DATABASE_URL>` |
+| SQL Railway console | Voir bloc ci-dessous |
+| Décision architecture | Option A (CTO) — service Railway staging séparé avec DB dédiée — planifié M2B/M3 |
+| Prévention immédiate | Smoke avec teardown : `DELETE` auto après chaque run |
+| Priorité | P1 — nettoyage immédiat avant M2B |
+
+**SQL nettoyage Railway console :**
+```sql
+-- Vérifier avant DELETE
+SELECT id, username, email FROM users
+WHERE email LIKE '%@smoke-test.com'
+   OR email LIKE '%@test.com'
+   OR username LIKE 'smoke_%'
+   OR username LIKE 'dbg_%'
+   OR username LIKE 'test_%'
+ORDER BY id;
+
+-- Exécuter si preview correct
+DELETE FROM users
+WHERE email LIKE '%@smoke-test.com'
+   OR email LIKE '%@test.com'
+   OR username LIKE 'smoke_%'
+   OR username LIKE 'dbg_%'
+   OR username LIKE 'test_%';
+-- Résultat attendu : DELETE 9
+```
 
 ### DETTE-M2-03 — 36 tests skipped non audités
 
