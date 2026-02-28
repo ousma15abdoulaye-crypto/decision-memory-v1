@@ -228,16 +228,17 @@ WHERE sha256 IS NULL;
 - La FK `actor_id → users(id)` sera ajoutée lors de la résolution de cette dette
 - Certaines actions système (jobs, triggers) n'ont pas d'acteur humain → nullable assumé
 
-### DETTE-M1-02 — Double système auth (cohabitation intentionnelle)
+### DETTE-M1-02 — Double système auth ✅ SOLDÉE — M2
 
 | Attribut | Valeur |
 |---|---|
-| Legacy | `src/auth.py` — opérationnel (TTL 8h, `role_id` int, passlib) |
-| V4.1.0 | `src/couche_a/auth/` — nouveau moteur (30min/7j, `jti`, rotation) |
-| Cohabitation | Assumée et intentionnelle — décision CTO 2026-02-27 |
-| Action | Basculement complet à **M2 UNIFY SYSTEM** |
-| Condition | Décision humaine explicite avant toute bascule |
-| Tests legacy | `tests/test_rbac.py` — 5 tests sur le système legacy (non modifiés) |
+| ~~Legacy~~ | ~~`src/auth.py` — opérationnel (TTL 8h, `role_id` int, passlib)~~ |
+| V4.1.0 | `src/couche_a/auth/` — moteur unique · tous endpoints migrés |
+| Statut | **SOLDÉE** — `src/auth.py` supprimé · commit `971af4a` |
+| Date | 2026-02-28 |
+| CI finale | 574 passed · 36 skipped · 0 failed |
+| Commits M2 | `9e39353` → `971af4a` (9 commits) |
+| Tests | `tests/test_rbac.py` · `tests/test_auth.py` — migrés V4.1.0 · 574 passed |
 
 ### DETTE-M1-03 — `users.created_at` = TEXT (legacy)
 
@@ -249,12 +250,14 @@ WHERE sha256 IS NULL;
 | Action | `ALTER TYPE` + backfill post-beta |
 | Milestone cible | Lors de la migration dédiée `users` (DETTE-M1-01) |
 
-### DETTE-M1-04 — `users.role_id` = integer FK → `roles` (legacy)
+### DETTE-M1-04 — `users.role_id` = integer FK → `roles` (legacy) — PARTIELLEMENT SOLDÉE M2
 
 | Attribut | Valeur |
 |---|---|
-| État réel | `role_id INTEGER FK → roles(id)` |
+| État réel | `role_id INTEGER FK → roles(id)` — colonne toujours présente en DB |
 | Freeze cible | `role TEXT CHECK (role IN ('admin','manager','buyer','viewer','auditor'))` |
-| Cohabitation | `role TEXT` ajouté en M1 (cohabite avec `role_id`) |
-| Action | `DROP COLUMN role_id` lors du basculement M2 (après bascule auth) |
-| Condition | DETTE-M1-02 résolue en premier |
+| Fait en M2 | Lectures de rôle → `UserClaims.role` (moteur V4.1.0) · `role TEXT` utilisé dans tokens |
+| Fait en M2 | Role mapping `procurement_officer → buyer` — commit `0cb2a06` |
+| Fait en M2 | `create_user(role_id=2)` intentionnellement conservé (schéma inchangé M2) |
+| Reporté M2B | `DROP COLUMN role_id` + nettoyage table `roles` legacy |
+| Condition DROP | Migration dédiée M2B · schéma `users` stabilisé |
