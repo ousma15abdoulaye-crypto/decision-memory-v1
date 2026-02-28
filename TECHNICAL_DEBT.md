@@ -373,15 +373,24 @@ WHERE email LIKE '%@smoke-test.com'
 | Migration 038 downgrade | Complet — `audit_log` + séquence + fonctions + triggers droppés |
 | Statut | **FERMÉE** — 2026-02-26 · PROBE 6 M2B |
 
-### DETTE-M0B-01 — FK NOT VALID `pipeline_runs.case_id` — EN COURS M2B
+### DETTE-M0B-01 — FK NOT VALID `pipeline_runs.case_id` — PARTIELLEMENT TRAITÉE M2B
 
 | Attribut | Valeur |
 |---|---|
 | Contrainte | `fk_pipeline_runs_case_id` · `convalidated = false` |
-| DB locale | 166 orphelins · 1930 total `pipeline_runs` · 8.6% orphelins |
-| Prod Railway | Orphan_count inconnu — PROBE requis avant VALIDATE |
-| Runbook local | `scripts/runbook_m2b_local.sql` — prêt · ACTE 3 M2B |
-| Décision | Les 166 orphelins DB locale sont des artefacts fixtures tests — purge autorisée |
-| Condition VALIDATE | `orphan_count = 0` prouvé · GO humain requis |
-| Statut | **EN COURS** — runbook local à exécuter (ACTE 3) · prod en attente backup + GO |
-| ADR | `docs/adr/ADR-M2B-001_hardening_db_scope.md` |
+| DB locale | NOT VALID — **assumé et documenté** |
+| Cause locale | 166 fixtures tests créent des `pipeline_runs` avec `case_id` orphelins (case_id non présents dans `cases`). Trigger `trg_pipeline_runs_append_only` (ADR-0012) BEFORE DELETE empêche toute purge. Conflit fixture design vs doctrine prod. **La doctrine prod gagne — trigger non désactivé.** |
+| Prod Railway | VALIDATE CONSTRAINT à exécuter en ACTE 6 si et seulement si `orphan_count prod = 0` |
+| Fermée | Uniquement après VALIDATE prod confirmé |
+| ADR | `docs/adr/ADR-M2B-001_hardening_db_scope.md` — section STOP-M2B-3 |
+
+### DETTE-FIXTURE-01 — Fixtures tests `pipeline_runs` non conformes — OUVERTE
+
+| Attribut | Valeur |
+|---|---|
+| Origine | Fixtures écrites avant existence de la FK `fk_pipeline_runs_case_id` (contexte M0B) |
+| Symptôme | Les `pipeline_runs` fixtures référencent des `case_id` inexistants dans `cases` |
+| Effet | FK NOT VALID non validable en local · VALIDATE CONSTRAINT impossible sans violer ADR-0012 |
+| Action | Refactorer les fixtures pour créer les `cases` correspondants avant les `pipeline_runs`, ou utiliser des `case_id` existants |
+| Périmètre | Post-M2B · M3 ou milestone dédié fixtures |
+| Priorité | P2 — non bloquant prod |

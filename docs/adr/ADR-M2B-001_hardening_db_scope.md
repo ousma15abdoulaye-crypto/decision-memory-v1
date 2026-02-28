@@ -35,14 +35,15 @@ STOP-M2B-2 levé :
   Raison : cast::timestamptz brut dépend du TimeZone de session.
   Formulation UTC explicite = déterministe entre environnements.
 
-STOP-M2B-3 levé après runbook :
-  Les 166 orphelins sont des artefacts de fixtures de test DB locale.
-  Purge autorisée via runbook local scripts/runbook_m2b_local.sql.
-  VALIDATE CONSTRAINT exécuté après preuve orphan_count = 0.
-  La purge et le VALIDATE ne sont PAS dans la migration 039.
-  Raison : une migration s'applique à tous les environnements.
-  Le succès de VALIDATE dépend de l'état des données.
-  Couplage données/schéma dans une migration = non déterministe.
+STOP-M2B-3 — résolution finale :
+  Le DELETE des 166 orphelins DB locale est impossible.
+  Raison : trigger trg_pipeline_runs_append_only (ADR-0012)
+           BEFORE DELETE sur pipeline_runs lève une exception.
+  Décision : ADR-0012 prime. Trigger non désactivé.
+  DB locale : NOT VALID assumé et documenté — DETTE-M0B-01 ouverte.
+  DB prod   : VALIDATE CONSTRAINT déplacé en ACTE 6
+              après PROBE orphelins prod.
+  Nouvelle dette : DETTE-FIXTURE-01 tracée.
 
 ## Périmètre retenu
 
