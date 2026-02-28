@@ -240,17 +240,19 @@ WHERE sha256 IS NULL;
 | Commits M2 | `9e39353` → `971af4a` (9 commits) |
 | Tests | `tests/test_rbac.py` · `tests/test_auth.py` — migrés V4.1.0 · 574 passed |
 
-### DETTE-M1-03 — `users.created_at` = TEXT (legacy)
+### DETTE-M1-03 — `users.created_at` = TEXT (legacy) — EN COURS M2B
 
 | Attribut | Valeur |
 |---|---|
-| État réel | `created_at TEXT` |
+| État réel | `created_at TEXT` · formats mixtes : ISO datetime + date-only |
 | Freeze cible | `created_at TIMESTAMPTZ NOT NULL DEFAULT now()` |
 | Bloquant pour | Requêtes temporelles sur `users`, ORDER BY dates |
-| Action | `ALTER TYPE` + backfill post-beta |
-| Milestone cible | Lors de la migration dédiée `users` (DETTE-M1-01) |
+| Décision M2B | Migration 039 autorisée · `USING created_at::timestamp AT TIME ZONE 'UTC'` |
+| Statut | **EN COURS** — migration 039 prête à créer après GO humain sur ACTE 4 |
+| Bloquant | Backup Railway requis avant exécution prod |
+| ADR | `docs/adr/ADR-M2B-001_hardening_db_scope.md` |
 
-### DETTE-M1-04 — `users.role_id` = integer FK → `roles` (legacy) — PARTIELLEMENT SOLDÉE M2
+### DETTE-M1-04 — `users.role_id` = integer FK → `roles` (legacy) — ACTIVE · DROP BLOQUÉ
 
 | Attribut | Valeur |
 |---|---|
@@ -259,8 +261,10 @@ WHERE sha256 IS NULL;
 | Fait en M2 | Lectures de rôle → `UserClaims.role` (moteur V4.1.0) · `role TEXT` utilisé dans tokens |
 | Fait en M2 | Role mapping `procurement_officer → buyer` — commit `0cb2a06` |
 | Fait en M2 | `create_user(role_id=2)` intentionnellement conservé (schéma inchangé M2) |
-| Reporté M2B | `DROP COLUMN role_id` + nettoyage table `roles` legacy |
-| Condition DROP | Migration dédiée M2B · schéma `users` stabilisé |
+| Statut M2B | **ACTIVE — DROP BLOQUÉ** — 7 usages runtime confirmés par PROBE 3 M2B |
+| Usages runtime | `src/auth_router.py:83` · `src/api/auth_helpers.py` (6 usages) |
+| Condition DROP | Extinction usages + CI verte + backup Railway + GO humain explicite |
+| Périmètre | Post-M2B — conditions non réunies en M2B |
 
 ---
 
@@ -291,18 +295,19 @@ WHERE sha256 IS NULL;
 | Action M2B / M3 | Réécrire `conditional_limit` en version native `async` OU supprimer la feature et rester sur le middleware global |
 | Priorité | P2 — protection globale active · pas bloquant fonctionnel |
 
-### DETTE-M2-04 — Comptes smoke créés en base de données prod
+### DETTE-M2-04 — Comptes smoke créés en base de données prod — EN COURS M2B
 
 | Attribut | Valeur |
 |---|---|
 | Origine | `scripts/_smoke_m2.py` — crée `POST /auth/register` sur l'URL prod directement |
 | Impact | 9 comptes `smoke_*@smoke-test.com` et `dbg_*@test.com` créés en prod pendant M2 |
-| Action immédiate | `DELETE FROM users WHERE email LIKE '%@smoke-test.com' OR email LIKE '%@test.com' OR username LIKE 'smoke_%' OR username LIKE 'dbg_%' OR username LIKE 'test_%'` |
-| Script de nettoyage | `scripts/_cleanup_prod_smoke_users.py <PUBLIC_DATABASE_URL>` |
-| SQL Railway console | Voir bloc ci-dessous |
+| DB locale M2B | Propre — aucun compte smoke/debug détecté (PROBE 5 M2B) |
+| Prod Railway | PROBE requis — script prêt `scripts/probe_m2b.py <PUBLIC_DB_URL>` |
+| Script nettoyage | `scripts/_cleanup_prod_smoke_users.py <PUBLIC_DATABASE_URL>` |
+| Règle DELETE prod | Sur IDs explicites validés humainement uniquement — pas de DELETE par pattern |
 | Décision architecture | Option A (CTO) — service Railway staging séparé avec DB dédiée — planifié M2B/M3 |
-| Prévention immédiate | Smoke avec teardown : `DELETE` auto après chaque run |
-| Priorité | P1 — nettoyage immédiat avant M2B |
+| Statut | **EN COURS** — exécution humaine sur Railway prod requise (ACTE 6 M2B) |
+| Priorité | P1 — nettoyage avant clôture M2B |
 
 **SQL nettoyage Railway console :**
 ```sql
@@ -352,4 +357,31 @@ WHERE email LIKE '%@smoke-test.com'
 | Append-only tables absentes | `tests/test_m0b_db_hardening.py::test_append_only_conditional_absent_tables` (1 test) | À auditer — tables créées en M1B |
 | Upload lot_id | `tests/test_upload.py::test_upload_offer_with_lot_id` (1 test) | À auditer — table `lots` absente |
 | Rate limit upload | `tests/test_upload_security.py::test_rate_limit_upload` (1 test) | Skip TESTING mode — DETTE-M2-02 liée |
-| Dashboard dépôt | `tests/couche_a/test_endpoints.py::test_depot_dashboard_and_export` (1 test) | À auditer |
+| Dashboard dépôt | `tests/couche_a/test_endpoints.py::test_depot_dashboard_and_export` (1 test) | **Légitime M2B** — skip corrigé → "prévu M5" · commit `1f8fd32` |
+
+---
+
+## Dettes M2B — Hardening DB + Migrations
+
+### DETTE-ALEMBIC-01 — Downgrades migrations récentes ✅ FERMÉE — M2B
+
+| Attribut | Valeur |
+|---|---|
+| Origine | Downgrades 037 et 038 non testés fonctionnellement avant M2B |
+| Preuve | Cycle `alembic downgrade -1` → `alembic upgrade head` → `pytest` : **574 passed · 0 failed** |
+| Migration 037 downgrade | Partiel par doctrine M0B — `token_blacklist` droppée · colonnes `role/organization` conservées (idempotent) |
+| Migration 038 downgrade | Complet — `audit_log` + séquence + fonctions + triggers droppés |
+| Statut | **FERMÉE** — 2026-02-26 · PROBE 6 M2B |
+
+### DETTE-M0B-01 — FK NOT VALID `pipeline_runs.case_id` — EN COURS M2B
+
+| Attribut | Valeur |
+|---|---|
+| Contrainte | `fk_pipeline_runs_case_id` · `convalidated = false` |
+| DB locale | 166 orphelins · 1930 total `pipeline_runs` · 8.6% orphelins |
+| Prod Railway | Orphan_count inconnu — PROBE requis avant VALIDATE |
+| Runbook local | `scripts/runbook_m2b_local.sql` — prêt · ACTE 3 M2B |
+| Décision | Les 166 orphelins DB locale sont des artefacts fixtures tests — purge autorisée |
+| Condition VALIDATE | `orphan_count = 0` prouvé · GO humain requis |
+| Statut | **EN COURS** — runbook local à exécuter (ACTE 3) · prod en attente backup + GO |
+| ADR | `docs/adr/ADR-M2B-001_hardening_db_scope.md` |
