@@ -293,6 +293,49 @@ commit 10 feat(m2): update TECHNICAL_DEBT.md — DETTE-M1-02 soldée
 
 ---
 
+## Role mapping legacy → V4.1.0
+
+**Contexte :**
+Migration 037 a ajouté `users.role TEXT DEFAULT 'viewer'` avec un CHECK sur les valeurs V4.1.0.
+Tous les utilisateurs existants ont `users.role = 'viewer'` (DEFAULT appliqué aux lignes existantes).
+La colonne `role_name` issue du JOIN avec `roles` (legacy) contient des valeurs hors VALID_ROLES V4.1.0.
+
+**Table `roles` (legacy) constatée en DB :**
+
+| id | name |
+|----|------|
+| 1  | admin |
+| 2  | procurement_officer |
+| 3  | viewer |
+
+**VALID_ROLES V4.1.0 :** `admin`, `auditor`, `buyer`, `manager`, `viewer`
+
+**Mapping officiel — Décision CTO 2026-02-28 :**
+
+| Legacy `roles.name`  | V4.1.0 VALID_ROLES | Justification                              |
+|----------------------|--------------------|--------------------------------------------|
+| `admin`              | `admin`            | Identique                                  |
+| `procurement_officer`| `buyer`            | Agent d'achat → rôle achat générique V4.1.0|
+| `viewer`             | `viewer`           | Identique                                  |
+| autre / inconnu      | `viewer`           | Fallback défensif                          |
+
+**Implémentation :** `src/auth_router.py` — fonction `login()`, variable `_role_mapping`.
+
+**Comportement `viewer` par défaut :**
+Dégradation contrôlée et intentionnelle. Un rôle legacy inconnu obtient `viewer` :
+accès préservé (peut créer des cases), admin bypass non accordé.
+Ce n'est pas une dégradation silencieuse — le mapping est explicite et versionné.
+
+**Test couvrant la décision :**
+`tests/test_auth.py::test_procurement_officer_token_carries_buyer_role`
+Assert : `payload["role"] == "buyer"` et `payload["role"] != "viewer"`.
+Ce test ne peut pas être supprimé sans décision explicite.
+
+**Commit :** `0cb2a06` — `fix(m2): map procurement_officer to buyer role — DETTE-M1-04`
+
+---
+
 **Date :** 2026-02-27
 **Auteur :** Agent DMS V4.1.0 — mandat M2 UNIFY SYSTEM
 **Validé par :** Abdoulaye Ousmane — CTO/Founder (après ÉTAPE 0)
+**Mis à jour :** 2026-02-28 — correction ordre migration + section role mapping
