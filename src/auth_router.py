@@ -29,14 +29,14 @@ class UserRegister(BaseModel):
     email: EmailStr
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=8)
-    full_name: str = None
+    full_name: str | None = None
 
 
 class UserResponse(BaseModel):
     id: int
     email: str
     username: str
-    full_name: str = None
+    full_name: str | None = None
     role_name: str
     is_active: bool
     is_superuser: bool
@@ -54,9 +54,13 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    _v410_roles = {"admin", "manager", "buyer", "viewer", "auditor"}
+    _role_mapping = {
+        "admin": "admin",
+        "procurement_officer": "buyer",
+        "viewer": "viewer",
+    }
     role_raw = user.get("role_name", user.get("role", "viewer"))
-    role = role_raw if role_raw in _v410_roles else "viewer"
+    role = _role_mapping.get(role_raw, "viewer")
     access_token = create_access_token(str(user["id"]), role)
     return {"access_token": access_token, "token_type": "bearer"}
 

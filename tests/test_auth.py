@@ -144,3 +144,35 @@ def test_token_expiration():
     assert "jti" in payload  # révocation
     assert "role" in payload  # RBAC
     assert payload.get("type") == "access"
+
+
+def test_procurement_officer_token_carries_buyer_role():
+    """procurement_officer legacy → role='buyer' dans token V4.1.0 (ADR-M2-001 mapping).
+
+    Décision CTO : ROLE_MAPPING["procurement_officer"] = "buyer".
+    Ce test ne peut pas être supprimé sans décision explicite.
+    roles table : id=2 → procurement_officer → mapped → buyer.
+    """
+    unique_username = f"po_{uuid.uuid4().hex[:8]}"
+    unique_email = f"po_{uuid.uuid4().hex[:8]}@example.com"
+
+    reg = client.post(
+        "/auth/register",
+        json={
+            "email": unique_email,
+            "username": unique_username,
+            "password": "testpass123",
+        },
+    )
+    assert reg.status_code == 201
+    assert reg.json()["role_name"] == "procurement_officer"
+
+    login_response = client.post(
+        "/auth/token", data={"username": unique_username, "password": "testpass123"}
+    )
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+
+    payload = jwt.get_unverified_claims(token)
+    assert payload["role"] == "buyer", f"Attendu 'buyer', obtenu '{payload['role']}'"
+    assert payload["role"] != "viewer"
