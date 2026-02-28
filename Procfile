@@ -1,1 +1,1 @@
-web: uvicorn main:app
+web: bash start.sh

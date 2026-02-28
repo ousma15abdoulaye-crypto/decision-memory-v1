@@ -61,7 +61,7 @@ async def lifespan(app):
     if _run_mig and not _is_testing:
         import subprocess
         import sys
-        print("[lifespan] Running alembic upgrade head...", flush=True)
+        _logger.info("[lifespan] RUN_MIGRATIONS_ON_STARTUP=true — running alembic upgrade head")
         try:
             result = subprocess.run(
                 [sys.executable, "-m", "alembic", "upgrade", "head"],
@@ -69,11 +69,12 @@ async def lifespan(app):
                 text=True,
                 check=True,
             )
-            print("[lifespan] alembic upgrade head OK", flush=True)
+            _logger.info("[lifespan] alembic upgrade head OK:\n%s", result.stdout)
         except subprocess.CalledProcessError as exc:
-            print(f"[lifespan] alembic FAILED (rc={exc.returncode}):", flush=True)
-            print(exc.stderr or exc.stdout, flush=True)
-            # Fail fast so the service does not start against an unexpected schema.
+            _logger.error(
+                "[lifespan] alembic upgrade head FAILED (rc=%d):\n%s",
+                exc.returncode, exc.stderr or exc.stdout,
+            )
             raise RuntimeError("Alembic migration failed, aborting startup") from exc
     init_db_schema()
     yield
