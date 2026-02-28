@@ -61,7 +61,13 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
     }
     role_raw = user.get("role_name", user.get("role", "viewer"))
     role = _role_mapping.get(role_raw, "viewer")
-    access_token = create_access_token(str(user["id"]), role)
+    try:
+        access_token = create_access_token(str(user["id"]), role)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        ) from exc
     return {"access_token": access_token, "token_type": "bearer"}
 
 
