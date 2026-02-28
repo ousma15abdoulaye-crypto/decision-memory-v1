@@ -390,3 +390,16 @@ WHERE email LIKE '%@smoke-test.com'
 | Action | Refactorer les fixtures pour créer les `cases` correspondants avant les `pipeline_runs`, ou utiliser des `case_id` existants |
 | Périmètre | Post-M2B · M3 ou milestone dédié fixtures |
 | Priorité | P2 — non bloquant prod |
+
+### DETTE-UTC-01 -- Timestamps naifs code applicatif
+
+| Attribut | Valeur |
+|---|---|
+| Statut | **OUVERTE** -- post-M2B |
+| Decouverte | PR review Copilot -- commentaire post-merge M2B |
+| Probleme | Le code applicatif utilise `datetime.utcnow().isoformat()` (timestamp naif, sans offset timezone). Apres migration 039 (`created_at TIMESTAMPTZ`), un INSERT avec timestamp naif est interprete selon le TimeZone de session PostgreSQL -- non deterministe entre environnements. Pas de `SET TIME ZONE UTC` sur les connexions SQLAlchemy. |
+| Risque | Timestamps decales selon l environnement d execution |
+| Options | A) `SET TIME ZONE UTC` sur connexions SQLAlchemy · B) `datetime.now(timezone.utc)` partout · C) `DEFAULT now()` + ne plus fournir `created_at` depuis l app |
+| Action | Audit des usages `datetime.utcnow()` + decision architecturale |
+| Perimetre | M3 ou milestone dedie |
+| Priorite | P1 -- impacte la fiabilite des timestamps en prod |

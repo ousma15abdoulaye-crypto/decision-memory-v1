@@ -1,6 +1,6 @@
 """hardening_created_at_timestamptz
 
-Revision ID: 039
+Revision ID: 039_created_at_timestamptz
 Revises: 038_audit_hash_chain
 Create Date: 2026-02-26
 
@@ -17,7 +17,7 @@ comme '2026-02-21T00:00:00.000000' — précision non récupérable après upgra
 
 from alembic import op
 
-revision = "039"
+revision = "039_created_at_timestamptz"
 down_revision = "038_audit_hash_chain"
 branch_labels = None
 depends_on = None

@@ -53,7 +53,14 @@ A1. Correction skip reason test_depot_dashboard_and_export
     "Endpoint non encore implémenté (Milestone 2B / M5)"
     →  "Endpoint non encore implémenté — prévu M5"
 
-A2. Création scripts/runbook_m2b_local.sql
+A2. Creation scripts/runbook_m2b_local.sql
+    Contenu : diagnostic orphelins (COUNT + SELECT).
+    Les etapes DELETE et VALIDATE CONSTRAINT sont commentees
+    et marquees INAPPLICABLE LOCAL -- protegees par trigger
+    trg_pipeline_runs_append_only (ADR-0012).
+    En local : FK fk_pipeline_runs_case_id reste NOT VALID -- assume.
+    En prod  : VALIDATE execute en ACTE 6 apres PROBE orphan_count = 0.
+    Strategie locale future : DETTE-FIXTURE-01 -- refactorer fixtures.
     Contenu : COUNT orphelins · DELETE orphelins · COUNT post-purge
               VALIDATE CONSTRAINT · SELECT confirmation
 

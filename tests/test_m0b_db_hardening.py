@@ -206,9 +206,9 @@ def test_indexes_created(db_transaction):
 
 
 def test_alembic_head_is_current(db_transaction):
-    """Head = 039 (head courante après M2B — migration users.created_at TIMESTAMPTZ)."""
+    """Head = 039_created_at_timestamptz (head courante après M2B — migration users.created_at TIMESTAMPTZ)."""
     db_transaction.execute("SELECT version_num FROM alembic_version")
     row = db_transaction.fetchone()
     assert (
-        row["version_num"] == "039"
-    ), f"Head attendu : 039 — réel : {row['version_num']}"
+        row["version_num"] == "039_created_at_timestamptz"
+    ), f"Head attendu : 039_created_at_timestamptz — réel : {row['version_num']}"
