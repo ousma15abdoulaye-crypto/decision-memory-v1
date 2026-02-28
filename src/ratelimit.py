@@ -2,7 +2,6 @@
 
 import logging
 import os
-from functools import wraps
 
 from fastapi import FastAPI
 from slowapi import Limiter, _rate_limit_exceeded_handler
