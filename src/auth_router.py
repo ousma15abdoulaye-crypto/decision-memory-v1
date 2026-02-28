@@ -54,7 +54,9 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    role = user.get("role", "viewer")
+    _v410_roles = {"admin", "manager", "buyer", "viewer", "auditor"}
+    role_raw = user.get("role_name", user.get("role", "viewer"))
+    role = role_raw if role_raw in _v410_roles else "viewer"
     access_token = create_access_token(str(user["id"]), role)
     return {"access_token": access_token, "token_type": "bearer"}
 
