@@ -240,17 +240,18 @@ WHERE sha256 IS NULL;
 | Commits M2 | `9e39353` → `971af4a` (9 commits) |
 | Tests | `tests/test_rbac.py` · `tests/test_auth.py` — migrés V4.1.0 · 574 passed |
 
-### DETTE-M1-03 — `users.created_at` = TEXT (legacy)
+### DETTE-M1-03 — `users.created_at` = TEXT (legacy) ✅ SOLDÉE — M2B
 
 | Attribut | Valeur |
 |---|---|
-| État réel | `created_at TEXT` |
-| Freeze cible | `created_at TIMESTAMPTZ NOT NULL DEFAULT now()` |
-| Bloquant pour | Requêtes temporelles sur `users`, ORDER BY dates |
-| Action | `ALTER TYPE` + backfill post-beta |
-| Milestone cible | Lors de la migration dédiée `users` (DETTE-M1-01) |
+| État réel post-M2B | `created_at TIMESTAMPTZ` — local + prod Railway |
+| Migration | `039_hardening_created_at_timestamptz` · commit `206361d` |
+| Cast utilisé | `USING created_at::timestamp AT TIME ZONE 'UTC'` |
+| Downgrade | `to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US')` |
+| Statut | **SOLDÉE** — 2026-02-26 · M2B |
+| Prod Railway | `data_type = timestamp with time zone` · `alembic_version = 039` |
 
-### DETTE-M1-04 — `users.role_id` = integer FK → `roles` (legacy) — PARTIELLEMENT SOLDÉE M2
+### DETTE-M1-04 — `users.role_id` = integer FK → `roles` (legacy) — ACTIVE · DROP BLOQUÉ
 
 | Attribut | Valeur |
 |---|---|
@@ -259,8 +260,10 @@ WHERE sha256 IS NULL;
 | Fait en M2 | Lectures de rôle → `UserClaims.role` (moteur V4.1.0) · `role TEXT` utilisé dans tokens |
 | Fait en M2 | Role mapping `procurement_officer → buyer` — commit `0cb2a06` |
 | Fait en M2 | `create_user(role_id=2)` intentionnellement conservé (schéma inchangé M2) |
-| Reporté M2B | `DROP COLUMN role_id` + nettoyage table `roles` legacy |
-| Condition DROP | Migration dédiée M2B · schéma `users` stabilisé |
+| Statut M2B | **ACTIVE — DROP BLOQUÉ** — 7 usages runtime confirmés par PROBE 3 M2B |
+| Usages runtime | `src/auth_router.py:83` · `src/api/auth_helpers.py` (6 usages) |
+| Condition DROP | Extinction usages + CI verte + backup Railway + GO humain explicite |
+| Périmètre | Post-M2B — conditions non réunies en M2B |
 
 ---
 
@@ -291,18 +294,16 @@ WHERE sha256 IS NULL;
 | Action M2B / M3 | Réécrire `conditional_limit` en version native `async` OU supprimer la feature et rester sur le middleware global |
 | Priorité | P2 — protection globale active · pas bloquant fonctionnel |
 
-### DETTE-M2-04 — Comptes smoke créés en base de données prod
+### DETTE-M2-04 — Comptes smoke créés en base de données prod ✅ SOLDÉE — M2B
 
 | Attribut | Valeur |
 |---|---|
-| Origine | `scripts/_smoke_m2.py` — crée `POST /auth/register` sur l'URL prod directement |
-| Impact | 9 comptes `smoke_*@smoke-test.com` et `dbg_*@test.com` créés en prod pendant M2 |
-| Action immédiate | `DELETE FROM users WHERE email LIKE '%@smoke-test.com' OR email LIKE '%@test.com' OR username LIKE 'smoke_%' OR username LIKE 'dbg_%' OR username LIKE 'test_%'` |
-| Script de nettoyage | `scripts/_cleanup_prod_smoke_users.py <PUBLIC_DATABASE_URL>` |
-| SQL Railway console | Voir bloc ci-dessous |
-| Décision architecture | Option A (CTO) — service Railway staging séparé avec DB dédiée — planifié M2B/M3 |
-| Prévention immédiate | Smoke avec teardown : `DELETE` auto après chaque run |
-| Priorité | P1 — nettoyage immédiat avant M2B |
+| Origine | `scripts/_smoke_m2.py` — comptes smoke + case créés en prod pendant M2 |
+| Supprimés | `users.id=10` (`smoke_0b6609bc@smoke-test.com`) + `cases.id=c035e6fb...` (`Smoke M2`) |
+| Méthode | DELETE sur IDs explicites validés CTO — séquence case → user (FK respectée) |
+| Post-DELETE | `total_users = 1` (admin) · `total_cases = 0` · FK NOT VALID = 0 rows |
+| Statut | **SOLDÉE** — 2026-02-26 · M2B · ACTE 6 |
+| Architecture | Staging Railway séparé planifié M3 pour éviter les smoke en prod |
 
 **SQL nettoyage Railway console :**
 ```sql
@@ -352,4 +353,53 @@ WHERE email LIKE '%@smoke-test.com'
 | Append-only tables absentes | `tests/test_m0b_db_hardening.py::test_append_only_conditional_absent_tables` (1 test) | À auditer — tables créées en M1B |
 | Upload lot_id | `tests/test_upload.py::test_upload_offer_with_lot_id` (1 test) | À auditer — table `lots` absente |
 | Rate limit upload | `tests/test_upload_security.py::test_rate_limit_upload` (1 test) | Skip TESTING mode — DETTE-M2-02 liée |
-| Dashboard dépôt | `tests/couche_a/test_endpoints.py::test_depot_dashboard_and_export` (1 test) | À auditer |
+| Dashboard dépôt | `tests/couche_a/test_endpoints.py::test_depot_dashboard_and_export` (1 test) | **Légitime M2B** — skip corrigé → "prévu M5" · commit `1f8fd32` |
+
+---
+
+## Dettes M2B — Hardening DB + Migrations
+
+### DETTE-ALEMBIC-01 — Downgrades migrations récentes ✅ FERMÉE — M2B
+
+| Attribut | Valeur |
+|---|---|
+| Origine | Downgrades 037 et 038 non testés fonctionnellement avant M2B |
+| Preuve | Cycle `alembic downgrade -1` → `alembic upgrade head` → `pytest` : **574 passed · 0 failed** |
+| Migration 037 downgrade | Partiel par doctrine M0B — `token_blacklist` droppée · colonnes `role/organization` conservées (idempotent) |
+| Migration 038 downgrade | Complet — `audit_log` + séquence + fonctions + triggers droppés |
+| Statut | **FERMÉE** — 2026-02-26 · PROBE 6 M2B |
+
+### DETTE-M0B-01 — FK NOT VALID `pipeline_runs.case_id` ✅ SOLDÉE PROD — M2B
+
+| Attribut | Valeur |
+|---|---|
+| Contrainte | `fk_pipeline_runs_case_id` · `convalidated = false` |
+| DB locale | NOT VALID — **assumé et documenté** |
+| DB locale | NOT VALID — assumé · trigger append-only ADR-0012 empêche purge fixtures · DETTE-FIXTURE-01 |
+| Prod Railway | `convalidated = True` — `orphan_count prod = 0` · VALIDATE exécuté ACTE 6 |
+| Statut | **SOLDÉE sur prod** — 2026-02-26 · M2B · FK NOT VALID = 0 rows confirmé |
+| ADR | `docs/adr/ADR-M2B-001_hardening_db_scope.md` |
+
+### DETTE-FIXTURE-01 — Fixtures tests `pipeline_runs` non conformes — OUVERTE
+
+| Attribut | Valeur |
+|---|---|
+| Origine | Fixtures écrites avant existence de la FK `fk_pipeline_runs_case_id` (contexte M0B) |
+| Symptôme | Les `pipeline_runs` fixtures référencent des `case_id` inexistants dans `cases` |
+| Effet | FK NOT VALID non validable en local · VALIDATE CONSTRAINT impossible sans violer ADR-0012 |
+| Action | Refactorer les fixtures pour créer les `cases` correspondants avant les `pipeline_runs`, ou utiliser des `case_id` existants |
+| Périmètre | Post-M2B · M3 ou milestone dédié fixtures |
+| Priorité | P2 — non bloquant prod |
+
+### DETTE-UTC-01 -- Timestamps naifs code applicatif
+
+| Attribut | Valeur |
+|---|---|
+| Statut | **OUVERTE** -- post-M2B |
+| Decouverte | PR review Copilot -- commentaire post-merge M2B |
+| Probleme | Le code applicatif utilise `datetime.utcnow().isoformat()` (timestamp naif, sans offset timezone). Apres migration 039 (`created_at TIMESTAMPTZ`), un INSERT avec timestamp naif est interprete selon le TimeZone de session PostgreSQL -- non deterministe entre environnements. Pas de `SET TIME ZONE UTC` sur les connexions SQLAlchemy. |
+| Risque | Timestamps decales selon l environnement d execution |
+| Options | A) `SET TIME ZONE UTC` sur connexions SQLAlchemy · B) `datetime.now(timezone.utc)` partout · C) `DEFAULT now()` + ne plus fournir `created_at` depuis l app |
+| Action | Audit des usages `datetime.utcnow()` + decision architecturale |
+| Perimetre | M3 ou milestone dedie |
+| Priorite | P1 -- impacte la fiabilite des timestamps en prod |
