@@ -15,21 +15,30 @@ Note DETTE-M1-04 : create_user utilise role_id INTEGER (legacy).
 
 from datetime import datetime
 
+import bcrypt as _bcrypt
 from fastapi import HTTPException
-from passlib.context import CryptContext
 from sqlalchemy import text
 
 from src.db import db_execute, db_execute_one, get_connection
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    """Verify password against bcrypt hash — uses bcrypt directly (passlib-free)."""
+    try:
+        return _bcrypt.checkpw(
+            plain_password.encode("utf-8"),
+            hashed_password.encode("utf-8"),
+        )
+    except Exception:
+        return False
 
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    """Hash password with bcrypt — uses bcrypt directly (passlib-free)."""
+    return _bcrypt.hashpw(
+        password.encode("utf-8"),
+        _bcrypt.gensalt(rounds=12),
+    ).decode("utf-8")
 
 
 def get_user_by_username(username: str) -> dict | None:
