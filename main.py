@@ -54,16 +54,19 @@ async def lifespan(app):
         import subprocess
         import sys
         print("[lifespan] Running alembic upgrade head...", flush=True)
-        result = subprocess.run(
-            [sys.executable, "-m", "alembic", "upgrade", "head"],
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode != 0:
-            print(f"[lifespan] alembic FAILED (rc={result.returncode}):", flush=True)
-            print(result.stderr or result.stdout, flush=True)
-        else:
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "alembic", "upgrade", "head"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
             print("[lifespan] alembic upgrade head OK", flush=True)
+        except subprocess.CalledProcessError as exc:
+            print(f"[lifespan] alembic FAILED (rc={exc.returncode}):", flush=True)
+            print(exc.stderr or exc.stdout, flush=True)
+            # Fail fast so the service does not start against an unexpected schema.
+            raise RuntimeError("Alembic migration failed, aborting startup") from exc
     init_db_schema()
     yield
 
