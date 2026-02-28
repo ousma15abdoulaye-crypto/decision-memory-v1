@@ -240,17 +240,16 @@ WHERE sha256 IS NULL;
 | Commits M2 | `9e39353` → `971af4a` (9 commits) |
 | Tests | `tests/test_rbac.py` · `tests/test_auth.py` — migrés V4.1.0 · 574 passed |
 
-### DETTE-M1-03 — `users.created_at` = TEXT (legacy) — EN COURS M2B
+### DETTE-M1-03 — `users.created_at` = TEXT (legacy) ✅ SOLDÉE — M2B
 
 | Attribut | Valeur |
 |---|---|
-| État réel | `created_at TEXT` · formats mixtes : ISO datetime + date-only |
-| Freeze cible | `created_at TIMESTAMPTZ NOT NULL DEFAULT now()` |
-| Bloquant pour | Requêtes temporelles sur `users`, ORDER BY dates |
-| Décision M2B | Migration 039 autorisée · `USING created_at::timestamp AT TIME ZONE 'UTC'` |
-| Statut | **EN COURS** — migration 039 prête à créer après GO humain sur ACTE 4 |
-| Bloquant | Backup Railway requis avant exécution prod |
-| ADR | `docs/adr/ADR-M2B-001_hardening_db_scope.md` |
+| État réel post-M2B | `created_at TIMESTAMPTZ` — local + prod Railway |
+| Migration | `039_hardening_created_at_timestamptz` · commit `206361d` |
+| Cast utilisé | `USING created_at::timestamp AT TIME ZONE 'UTC'` |
+| Downgrade | `to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US')` |
+| Statut | **SOLDÉE** — 2026-02-26 · M2B |
+| Prod Railway | `data_type = timestamp with time zone` · `alembic_version = 039` |
 
 ### DETTE-M1-04 — `users.role_id` = integer FK → `roles` (legacy) — ACTIVE · DROP BLOQUÉ
 
@@ -295,19 +294,16 @@ WHERE sha256 IS NULL;
 | Action M2B / M3 | Réécrire `conditional_limit` en version native `async` OU supprimer la feature et rester sur le middleware global |
 | Priorité | P2 — protection globale active · pas bloquant fonctionnel |
 
-### DETTE-M2-04 — Comptes smoke créés en base de données prod — EN COURS M2B
+### DETTE-M2-04 — Comptes smoke créés en base de données prod ✅ SOLDÉE — M2B
 
 | Attribut | Valeur |
 |---|---|
-| Origine | `scripts/_smoke_m2.py` — crée `POST /auth/register` sur l'URL prod directement |
-| Impact | 9 comptes `smoke_*@smoke-test.com` et `dbg_*@test.com` créés en prod pendant M2 |
-| DB locale M2B | Propre — aucun compte smoke/debug détecté (PROBE 5 M2B) |
-| Prod Railway | PROBE requis — script prêt `scripts/probe_m2b.py <PUBLIC_DB_URL>` |
-| Script nettoyage | `scripts/_cleanup_prod_smoke_users.py <PUBLIC_DATABASE_URL>` |
-| Règle DELETE prod | Sur IDs explicites validés humainement uniquement — pas de DELETE par pattern |
-| Décision architecture | Option A (CTO) — service Railway staging séparé avec DB dédiée — planifié M2B/M3 |
-| Statut | **EN COURS** — exécution humaine sur Railway prod requise (ACTE 6 M2B) |
-| Priorité | P1 — nettoyage avant clôture M2B |
+| Origine | `scripts/_smoke_m2.py` — comptes smoke + case créés en prod pendant M2 |
+| Supprimés | `users.id=10` (`smoke_0b6609bc@smoke-test.com`) + `cases.id=c035e6fb...` (`Smoke M2`) |
+| Méthode | DELETE sur IDs explicites validés CTO — séquence case → user (FK respectée) |
+| Post-DELETE | `total_users = 1` (admin) · `total_cases = 0` · FK NOT VALID = 0 rows |
+| Statut | **SOLDÉE** — 2026-02-26 · M2B · ACTE 6 |
+| Architecture | Staging Railway séparé planifié M3 pour éviter les smoke en prod |
 
 **SQL nettoyage Railway console :**
 ```sql
@@ -373,16 +369,16 @@ WHERE email LIKE '%@smoke-test.com'
 | Migration 038 downgrade | Complet — `audit_log` + séquence + fonctions + triggers droppés |
 | Statut | **FERMÉE** — 2026-02-26 · PROBE 6 M2B |
 
-### DETTE-M0B-01 — FK NOT VALID `pipeline_runs.case_id` — PARTIELLEMENT TRAITÉE M2B
+### DETTE-M0B-01 — FK NOT VALID `pipeline_runs.case_id` ✅ SOLDÉE PROD — M2B
 
 | Attribut | Valeur |
 |---|---|
 | Contrainte | `fk_pipeline_runs_case_id` · `convalidated = false` |
 | DB locale | NOT VALID — **assumé et documenté** |
-| Cause locale | 166 fixtures tests créent des `pipeline_runs` avec `case_id` orphelins (case_id non présents dans `cases`). Trigger `trg_pipeline_runs_append_only` (ADR-0012) BEFORE DELETE empêche toute purge. Conflit fixture design vs doctrine prod. **La doctrine prod gagne — trigger non désactivé.** |
-| Prod Railway | VALIDATE CONSTRAINT à exécuter en ACTE 6 si et seulement si `orphan_count prod = 0` |
-| Fermée | Uniquement après VALIDATE prod confirmé |
-| ADR | `docs/adr/ADR-M2B-001_hardening_db_scope.md` — section STOP-M2B-3 |
+| DB locale | NOT VALID — assumé · trigger append-only ADR-0012 empêche purge fixtures · DETTE-FIXTURE-01 |
+| Prod Railway | `convalidated = True` — `orphan_count prod = 0` · VALIDATE exécuté ACTE 6 |
+| Statut | **SOLDÉE sur prod** — 2026-02-26 · M2B · FK NOT VALID = 0 rows confirmé |
+| ADR | `docs/adr/ADR-M2B-001_hardening_db_scope.md` |
 
 ### DETTE-FIXTURE-01 — Fixtures tests `pipeline_runs` non conformes — OUVERTE
 
