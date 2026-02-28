@@ -48,27 +48,22 @@ from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app):
-    # Run Alembic migrations on startup when deployed (Railway sets RAILWAY_ENVIRONMENT).
-    # Ensures users/roles/token_blacklist tables exist regardless of Start Command.
-    if os.environ.get("RAILWAY_ENVIRONMENT"):
+    # Run Alembic migrations on startup unless in test mode.
+    # Railway sets RAILWAY_PROJECT_ID; locally TESTING=true skips this.
+    if not os.environ.get("TESTING"):
         import subprocess
         import sys
+        print("[lifespan] Running alembic upgrade head...", flush=True)
         result = subprocess.run(
             [sys.executable, "-m", "alembic", "upgrade", "head"],
             capture_output=True,
             text=True,
         )
         if result.returncode != 0:
-            import logging
-            logging.getLogger(__name__).error(
-                "[lifespan] alembic upgrade head FAILED:\n%s\n%s",
-                result.stdout, result.stderr,
-            )
+            print(f"[lifespan] alembic FAILED (rc={result.returncode}):", flush=True)
+            print(result.stderr or result.stdout, flush=True)
         else:
-            import logging
-            logging.getLogger(__name__).info(
-                "[lifespan] alembic upgrade head OK:\n%s", result.stdout
-            )
+            print("[lifespan] alembic upgrade head OK", flush=True)
     init_db_schema()
     yield
 
