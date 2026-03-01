@@ -390,6 +390,38 @@ WHERE email LIKE '%@smoke-test.com'
 | Solution | `case_factory()` réutilisée dans tous les tests pipeline · isolation transactionnelle via rollback dans `db_transaction` · aucun `DELETE teardown` sur `pipeline_runs` |
 | CI M2B-PATCH | 57 passed · 0 failed sur `pytest -k pipeline` |
 
+---
+
+## Notes architecturales M3
+
+### NOTE-ARCH-M3-001 — Schéma géographique normalisé 7 tables (M3 GEO MASTER MALI)
+
+| Attribut | Valeur |
+|---|---|
+| Décision | Schéma normalisé 7 tables remplace l'approche monolithique `geo_master` |
+| Tables | `geo_countries`, `geo_regions`, `geo_cercles`, `geo_communes`, `geo_localites`, `geo_zones_operationnelles`, `geo_zone_commune_mapping` |
+| Migration | `040_geo_master_mali` — raw SQL (`op.execute()`) — downgrade explicite |
+| Neutralité | Schéma agnostique : zéro DEFAULT organisationnel, zéro hardcode ONG |
+| Colonne-clé | `organisation_code TEXT NOT NULL` (pas de DEFAULT) sur `geo_zones_operationnelles` — unicité `(code, organisation_code)` |
+| Zones M3 | `geo_zones_operationnelles` existe au schéma mais n'est pas seedée en M3 — données chargées dans un jalon ultérieur |
+| Endpoint | `GET /geo/zones/{zone_id}/communes` hors périmètre M3 — reporté (pas d'API zombie) |
+| Milestone | M3 · 2026-03-01 |
+
+---
+
+### DETTE-ARCH-01 — Hardcodes organisationnels legacy hors périmètre M3
+
+| Attribut | Valeur |
+|---|---|
+| Statut | **ACTIVE** |
+| Nature | Occurrences organisationnelles hardcodées (`SCI`, `WFP`, `UNICEF`, etc.) détectées hors périmètre M3 |
+| Fichiers concernés | `alembic/versions/003_add_procurement_extensions.py` · `alembic/versions/004_users_rbac.py` · `src/templates/pv_template.py` · `src/couche_a/routers.py` · `src/templates/cba_template.py` · `src/evaluation/profiles.py` |
+| Règle | Migrations historiques non réécrites — faits historiques opposables |
+| Action | Corriger uniquement dans le code applicatif futur concerné ; ne pas réécrire les migrations 003/004 et antérieures |
+| Détecté | PROBE ACTE 1 — MANDAT CORRECTIF M3 · 2026-03-01 |
+
+---
+
 ### DETTE-UTC-01 — Timestamps naïfs code applicatif — SOLDÉE
 
 | Attribut | Valeur |
