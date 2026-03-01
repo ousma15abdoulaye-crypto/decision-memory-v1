@@ -1,6 +1,9 @@
 """
 Tests seed Mali — M3.
 Prouve que le seed minimal réel est présent et cohérent.
+
+Périmètre M3 : pays, régions, cercles Mopti, communes minimales.
+geo_zones_operationnelles non seedée en M3 (table existe, données chargées hors M3).
 """
 
 from __future__ import annotations
@@ -11,7 +14,6 @@ from src.geo.seed_mali import (
     MALI_REGIONS,
     MOPTI_CERCLES,
     MOPTI_COMMUNES_MIN,
-    SCI_ZONES_OPERATIONNELLES,
 )
 
 # ── Pays ─────────────────────────────────────────────────────────────────────
@@ -122,31 +124,21 @@ def test_commune_present(db_conn, geo_seed, commune):
     assert row["type_commune"] == commune["type_commune"]
 
 
-# ── Zones SCI ────────────────────────────────────────────────────────────────
+# ── Zones opérationnelles — non seedées en M3 ────────────────────────────────
 
 
-def test_sci_zones_count(db_conn, geo_seed):
-    """4 zones SCI doivent être seedées."""
+def test_zones_table_exists_but_empty_in_m3(db_conn, geo_seed):
+    """geo_zones_operationnelles existe mais n'est pas seedée en M3."""
     with db_conn.cursor() as cur:
-        cur.execute(
-            "SELECT COUNT(*) AS cnt FROM geo_zones_operationnelles WHERE organisation = 'SCI'"
-        )
+        cur.execute("SELECT COUNT(*) AS cnt FROM geo_zones_operationnelles")
         row = cur.fetchone()
-    assert row["cnt"] == len(SCI_ZONES_OPERATIONNELLES)  # 4
+    assert row["cnt"] == 0, (
+        "geo_zones_operationnelles doit rester vide en M3 "
+        "(données organisationnelles hors périmètre M3)"
+    )
 
 
-@pytest.mark.parametrize("zone", SCI_ZONES_OPERATIONNELLES)
-def test_zone_sci_present(db_conn, geo_seed, zone):
-    """Chaque zone SCI du seed doit exister en DB."""
-    with db_conn.cursor() as cur:
-        cur.execute(
-            "SELECT * FROM geo_zones_operationnelles WHERE code = %(code)s",
-            {"code": zone["code"]},
-        )
-        row = cur.fetchone()
-    assert row is not None
-    assert row["organisation"] == "SCI"
-    assert row["type_zone"] == zone["type_zone"]
+# ── Idempotence ───────────────────────────────────────────────────────────────
 
 
 def test_seed_idempotent(db_conn, geo_seed):

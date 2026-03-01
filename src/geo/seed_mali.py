@@ -2,6 +2,17 @@
 Seed Mali — données réelles bornées.
 M3 prouve le réel. M3 n'épuise pas le référentiel national.
 
+Seed M3 = géographie Mali officielle uniquement :
+  - pays Mali
+  - 11 régions officielles
+  - cercles critiques Mopti
+  - communes minimales de preuve
+
+NOTE : geo_zones_operationnelles existe au schéma en M3
+mais n'est pas seedée à ce jalon.
+Les données organisationnelles et leurs mappings
+seront chargés dans un jalon ultérieur, hors M3.
+
 NOTE : code_instat ici = code interne DMS provisoire pour seed minimal M3.
 Les codes INSTAT officiels Mali ne sont pas encore intégrés à ce jalon
 et seront traités dans un jalon de données plus riche ultérieur.
@@ -69,33 +80,6 @@ MOPTI_COMMUNES_MIN: list[dict] = [
         "type_commune": "urbaine",
         "chef_lieu": "Bandiagara",
         "cercle_code": "MOP-BAN",
-    },
-]
-
-SCI_ZONES_OPERATIONNELLES: list[dict] = [
-    {
-        "code": "ZOP-SCI-MOPTI-NORD",
-        "name_fr": "Zone Nord Mopti",
-        "organisation": "SCI",
-        "type_zone": "intervention",
-    },
-    {
-        "code": "ZOP-SCI-MOPTI-SUD",
-        "name_fr": "Zone Sud Mopti",
-        "organisation": "SCI",
-        "type_zone": "intervention",
-    },
-    {
-        "code": "ZOP-SCI-GAO",
-        "name_fr": "Zone Gao",
-        "organisation": "SCI",
-        "type_zone": "intervention",
-    },
-    {
-        "code": "ZOP-SCI-BAMAKO",
-        "name_fr": "Zone Bamako",
-        "organisation": "SCI",
-        "type_zone": "logistique",
     },
 ]
 
@@ -202,17 +186,7 @@ def run_seed(conn) -> dict:
         )
     counts["communes"] = len(MOPTI_COMMUNES_MIN)
 
-    # 5. Zones SCI
-    for zone in SCI_ZONES_OPERATIONNELLES:
-        _exec(
-            """
-            INSERT INTO geo_zones_operationnelles
-                (code, name_fr, organisation, type_zone)
-            VALUES (%(code)s, %(name_fr)s, %(organisation)s, %(type_zone)s)
-            ON CONFLICT (code) DO NOTHING
-            """,
-            zone,
-        )
-    counts["zones"] = len(SCI_ZONES_OPERATIONNELLES)
+    # geo_zones_operationnelles non seedée en M3 — voir NOTE en tête de fichier
+    counts["zones"] = 0
 
     return counts

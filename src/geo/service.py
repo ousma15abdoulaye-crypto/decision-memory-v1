@@ -34,17 +34,10 @@ def list_communes(cercle_id: str) -> list[dict]:
 
 
 def search_communes(q: str) -> list[dict]:
-    if not q or len(q.strip()) < 2:
-        raise HTTPException(
-            status_code=400,
-            detail="Paramètre q requis (2 caractères minimum)",
-        )
+    # Validation déléguée au router (FastAPI Query min_length=2).
+    # Le service suppose une entrée déjà valide.
     return repository.search_communes(q.strip())
 
 
 def list_zones() -> list[dict]:
     return repository.get_zones(active_only=True)
-
-
-def list_communes_by_zone(zone_id: str) -> list[dict]:
-    return repository.get_communes_by_zone(zone_id)

@@ -1,6 +1,17 @@
 """
 Tests endpoints GET /geo/* — M3.
 Prouve que tous les endpoints retournent 200 et des données non vides.
+
+Périmètre M3 :
+  GET /geo/countries
+  GET /geo/countries/{iso2}/regions
+  GET /geo/regions/{region_id}/cercles
+  GET /geo/cercles/{cercle_id}/communes
+  GET /geo/communes/search
+  GET /geo/zones
+
+Hors périmètre M3 (pas d'API zombie) :
+  Communes par zone — reporté au jalon de chargement des zones organisationnelles
 """
 
 from __future__ import annotations
@@ -86,32 +97,10 @@ def test_search_communes_no_q_422(test_client, geo_seed):
 
 
 def test_get_zones_200(test_client, geo_seed):
-    """GET /geo/zones doit retourner 200 et 4 zones SCI."""
+    """GET /geo/zones doit retourner 200 (liste vide en M3 — table non seedée)."""
     resp = test_client.get("/geo/zones")
     assert resp.status_code == 200
     data = resp.json()
     assert isinstance(data, list)
-    assert len(data) >= 4
-
-
-def test_get_zones_sci_present(test_client, geo_seed):
-    """Les codes ZOP-SCI-* doivent être présents dans GET /geo/zones."""
-    resp = test_client.get("/geo/zones")
-    assert resp.status_code == 200
-    codes = [z["code"] for z in resp.json()]
-    assert "ZOP-SCI-MOPTI-NORD" in codes
-    assert "ZOP-SCI-BAMAKO" in codes
-
-
-def test_get_communes_by_zone_200(test_client, geo_seed, db_conn):
-    """GET /geo/zones/{id}/communes doit retourner 200."""
-    with db_conn.cursor() as cur:
-        cur.execute(
-            "SELECT id FROM geo_zones_operationnelles WHERE code = 'ZOP-SCI-MOPTI-NORD'"
-        )
-        row = cur.fetchone()
-    zone_id = str(row["id"])
-
-    resp = test_client.get(f"/geo/zones/{zone_id}/communes")
-    assert resp.status_code == 200
-    assert isinstance(resp.json(), list)
+    # Table existe, mais non seedée en M3
+    assert len(data) == 0

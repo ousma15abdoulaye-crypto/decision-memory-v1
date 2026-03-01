@@ -49,7 +49,5 @@ def get_zones() -> list[dict]:
     return service.list_zones()
 
 
-@router.get("/zones/{zone_id}/communes")
-def get_communes_by_zone(zone_id: str) -> list[dict]:
-    """Retourne les communes mappées à une zone opérationnelle."""
-    return service.list_communes_by_zone(zone_id)
+# Endpoint communes-par-zone hors périmètre M3.
+# Reporté au jalon où les zones et leurs mappings seront réellement chargés.

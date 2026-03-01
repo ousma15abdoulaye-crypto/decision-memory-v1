@@ -4,9 +4,10 @@ Revision ID: 040_geo_master_mali
 Revises: 039_created_at_timestamptz
 Create Date: 2026-03-01
 
-Scope M3 : création du référentiel géographique canonique Mali (7 tables)
-Décision  : NOTE-ARCH-M3-001 — schéma normalisé 7 tables vs geo_master monolithique
-SQL brut uniquement — zéro autogenerate (RÈGLE-12)
+Scope M3 : création du référentiel géographique canonique Mali (7 tables).
+Schéma agnostique — aucun DEFAULT organisationnel.
+NOTE-ARCH-M3-001 : schéma normalisé 7 tables remplace geo_master monolithique.
+SQL brut uniquement — zéro autogenerate (RÈGLE-12).
 """
 
 from alembic import op
@@ -97,39 +98,41 @@ def upgrade() -> None:
 
     op.execute("""
         CREATE TABLE geo_zones_operationnelles (
-            id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            code         TEXT NOT NULL UNIQUE,
-            name_fr      TEXT NOT NULL,
-            description  TEXT,
-            organisation TEXT NOT NULL DEFAULT 'SCI',
-            type_zone    TEXT NOT NULL
-                         CHECK (type_zone IN (
-                             'intervention', 'logistique', 'securite', 'administrative'
-                         )),
-            is_active    BOOLEAN NOT NULL DEFAULT TRUE,
-            created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-            updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+            id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            code              TEXT NOT NULL,
+            name_fr           TEXT NOT NULL,
+            description       TEXT,
+            organisation_code TEXT NOT NULL,
+            type_zone         TEXT NOT NULL
+                              CHECK (type_zone IN (
+                                  'intervention', 'logistique',
+                                  'securite', 'administrative'
+                              )),
+            is_active         BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+            UNIQUE (code, organisation_code)
         )
     """)
 
     op.execute("""
         CREATE TABLE geo_zone_commune_mapping (
-            id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            zone_id    UUID NOT NULL REFERENCES geo_zones_operationnelles(id),
-            commune_id UUID NOT NULL REFERENCES geo_communes(id),
-            valid_from TIMESTAMPTZ NOT NULL DEFAULT now(),
+            id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            zone_id     UUID NOT NULL REFERENCES geo_zones_operationnelles(id),
+            commune_id  UUID NOT NULL REFERENCES geo_communes(id),
+            valid_from  TIMESTAMPTZ NOT NULL DEFAULT now(),
             valid_until TIMESTAMPTZ,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
             UNIQUE (zone_id, commune_id, valid_from)
         )
     """)
 
     # ── 2. Index ─────────────────────────────────────────────────────────────
+    # UNIQUE(code_instat) sur geo_communes crée déjà l'index utile — pas d'index redondant.
 
     op.execute("CREATE INDEX idx_geo_regions_country ON geo_regions(country_id)")
     op.execute("CREATE INDEX idx_geo_cercles_region ON geo_cercles(region_id)")
     op.execute("CREATE INDEX idx_geo_communes_cercle ON geo_communes(cercle_id)")
-    op.execute("CREATE INDEX idx_geo_communes_code_instat ON geo_communes(code_instat)")
     op.execute("CREATE INDEX idx_geo_localites_commune ON geo_localites(commune_id)")
     op.execute("""
         CREATE INDEX idx_geo_localites_coords
