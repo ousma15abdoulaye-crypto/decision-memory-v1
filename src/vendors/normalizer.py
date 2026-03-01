@@ -54,7 +54,9 @@ def normalize_email(s: str | None) -> str | None:
     if email in _PLACEHOLDER_EMAILS:
         return None
     for placeholder in _PLACEHOLDER_EMAILS:
-        if placeholder in email:
+        # Only treat email-like placeholders (containing '@') as substrings;
+        # non-email placeholders such as "0" are matched by equality only.
+        if "@" in placeholder and placeholder in email:
             return None
     if "@" not in email or "." not in email.split("@")[-1]:
         return None
