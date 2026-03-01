@@ -8,7 +8,7 @@ No automatic vendor ranking or recommendations.
 
 import json
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import text
 
@@ -437,7 +437,7 @@ class ScoringEngine:
                             criterion_name=criterion.critere_nom,
                             criterion_category=criterion.categorie,
                             failure_reason=f"Ne satisfait pas: {criterion.description}",
-                            eliminated_at=datetime.utcnow(),
+                            eliminated_at=datetime.now(UTC),
                         )
                     )
 

@@ -7,7 +7,7 @@ import json
 import re
 import uuid
 from dataclasses import asdict
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -85,7 +85,7 @@ def analyze_cba_template(template_path: str) -> CBATemplateSchema:
         criteria_start_row=criteria_start_row or 0,
         criteria_rows=criteria_rows,
         sheets=wb.sheetnames,
-        meta={"detected_at": datetime.utcnow().isoformat()},
+        meta={"detected_at": datetime.now(UTC).isoformat()},
     )
 
     return schema
@@ -122,7 +122,7 @@ def fill_cba_adaptive(
                 "cid": case_id,
                 "tname": schema.template_name,
                 "struct": json.dumps(asdict(schema), ensure_ascii=False),
-                "ts": datetime.utcnow().isoformat(),
+                "ts": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -139,7 +139,7 @@ def fill_cba_adaptive(
     # Metadata section (top)
     ws["A1"] = "Decision Memory System — CBA Adaptatif"
     ws["A2"] = f"Case ID: {case_id}"
-    ws["A3"] = f"Generated: {datetime.utcnow().isoformat()}"
+    ws["A3"] = f"Generated: {datetime.now(UTC).isoformat()}"
     ws["A4"] = f"Template: {schema.template_name}"
 
     # Fill supplier names (detected row/cols) - NOMS RÉELS uniquement
@@ -269,7 +269,7 @@ def generate_pv_adaptive(
         doc.add_heading("Procès-Verbal — Decision Memory System", level=1)
         doc.add_paragraph(f"Case: {case_title}")
         doc.add_paragraph(f"Case ID: {case_id}")
-        doc.add_paragraph(f"Generated: {datetime.utcnow().isoformat()}")
+        doc.add_paragraph(f"Generated: {datetime.now(UTC).isoformat()}")
 
     # Suppliers summary
     lines: list[str] = []
@@ -288,7 +288,7 @@ def generate_pv_adaptive(
     repl = {
         "{{CASE_ID}}": case_id,
         "{{CASE_TITLE}}": case_title,
-        "{{GENERATED_AT}}": datetime.utcnow().isoformat(),
+        "{{GENERATED_AT}}": datetime.now(UTC).isoformat(),
         "{{SUPPLIERS_TABLE}}": suppliers_block,
         "{{CRITERIA_COUNT}}": str(len(dao_criteria)),
         "{{OFFERS_COUNT}}": str(len(suppliers)),

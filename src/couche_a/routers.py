@@ -6,7 +6,7 @@ Constitution V2.1 : helpers synchrones src.db, pas de table SQLAlchemy.
 import hashlib
 import json
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
@@ -89,7 +89,7 @@ def register_artifact(
                 "kind": kind,
                 "filename": filename,
                 "path": path,
-                "ts": datetime.utcnow().isoformat(),
+                "ts": datetime.now(UTC).isoformat(),
                 "meta": json.dumps(meta, ensure_ascii=False),
                 "created_by": created_by,
             },
