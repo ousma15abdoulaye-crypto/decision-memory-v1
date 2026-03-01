@@ -1,6 +1,8 @@
 """
 Router vendors — GET /vendors uniquement.
 Lecture seule M4. Pas d'écriture · pas de couverture · pas de scoring.
+
+Patch M4 : filtre activity_status ajouté avec validation canonique.
 """
 
 from __future__ import annotations
@@ -11,16 +13,39 @@ from src.vendors import service
 
 router = APIRouter(prefix="/vendors", tags=["vendors"])
 
+_VALID_ACTIVITY_STATUSES = {
+    "VERIFIED_ACTIVE",
+    "UNVERIFIED",
+    "INACTIVE",
+    "GHOST_SUSPECTED",
+}
+
 
 @router.get("")
 def list_vendors(
     region: str | None = Query(None, description="Code région ex: BKO"),
+    activity_status: str | None = Query(
+        None,
+        description=(
+            "Filtre par statut : VERIFIED_ACTIVE · "
+            "UNVERIFIED · INACTIVE · GHOST_SUSPECTED"
+        ),
+    ),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ) -> list[dict]:
     """Liste paginée des fournisseurs actifs."""
+    if activity_status and activity_status not in _VALID_ACTIVITY_STATUSES:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"activity_status invalide : {activity_status!r}. "
+                f"Valeurs acceptées : {sorted(_VALID_ACTIVITY_STATUSES)}"
+            ),
+        )
     return service.list_vendors(
         region_code=region,
+        activity_status=activity_status,
         limit=limit,
         offset=offset,
     )
