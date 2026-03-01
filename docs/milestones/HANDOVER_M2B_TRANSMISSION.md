@@ -1,10 +1,10 @@
 # NOTE DE TRANSMISSION — M2B HARDENING DB + MIGRATIONS
 
 ```
-Date       : 2026-02-26
+Date       : 2026-02-27
 Milestone  : M2B — Hardening DB + Migrations
-Branche    : feat/m2b-hardening-db-migrations (mergée sur main)
-Statut     : DONE — tag v4.1.0-m2b-done posé sur main
+Branche    : feat/m2b-hardening-db-migrations — SUPPRIMÉE (local + remote)
+Statut     : DONE — tag v4.1.0-m2b-done posé sur main (commit 7b0f430)
 Agent      : DMS V4.1.0
 Successeur : Agent M3 (données réelles — géographie Mali · fournisseurs)
 ```
@@ -15,14 +15,15 @@ Successeur : Agent M3 (données réelles — géographie Mali · fournisseurs)
 
 | Élément | État |
 |---|---|
-| Branche active | `main` |
-| Alembic head | `039` (`039_hardening_created_at_timestamptz`) — exactement 1 |
-| CI locale | **574 passed · 36 skipped · 0 failed** |
+| Branche active | `main` (commit `7b0f430`) |
+| Alembic head | `039_created_at_timestamptz` — exactement 1 |
+| CI locale post-merge | **561 passed · 36 skipped · 0 failed** |
 | ruff | 0 erreur |
 | black | 0 erreur |
-| Tag | `v4.1.0-m2b-done` — posé sur `main` |
+| Tag | `v4.1.0-m2b-done` — posé sur `main` + pushé origin |
+| Branche feat/m2b | SUPPRIMÉE — local + remote (GitHub auto-delete post-merge PR#139) |
 | DB locale | `users.created_at = TIMESTAMPTZ` · FK NOT VALID local (doctrine ADR-0012) |
-| DB prod Railway | `users.created_at = TIMESTAMPTZ` · `convalidated = True` · 1 user · 0 cases |
+| DB prod Railway | `users.created_at = TIMESTAMPTZ` · `convalidated = True` · 1 user admin · 0 cases |
 
 ---
 
@@ -53,14 +54,14 @@ Zéro violation de doctrine. Zéro fichier hors périmètre. Prod propre.
 |---|---|
 | `TECHNICAL_DEBT.md` | 6 entrées reclassées (voir §VI) |
 | `tests/couche_a/test_endpoints.py` | Skip reason `"Endpoint non encore implémenté (Milestone 2B / M5)"` → `"Endpoint non encore implémenté — prévu M5"` |
-| `tests/test_m0b_db_hardening.py` | `test_alembic_head_is_current` → head attendu `039` (était `038_audit_hash_chain`) |
+| `tests/test_m0b_db_hardening.py` | `test_alembic_head_is_current` → head attendu `039_created_at_timestamptz` (était `038_audit_hash_chain`) |
 
 ---
 
 ### Migration 039 — détail complet
 
 ```python
-revision      = "039"
+revision      = "039_created_at_timestamptz"   # 26 chars — VARCHAR(32) respecté
 down_revision = "038_audit_hash_chain"
 
 def upgrade() -> None:
@@ -97,6 +98,7 @@ Décision CTO documentée dans ADR-M2B-001.
 | ACTE 4 | Migration 039 créée · contenu validé CTO · `to_char` downgrade corrigé | Committée |
 | ACTE 5 | Cycle `downgrade -1` → `upgrade head` → pytest → 574+ passed | DETTE-ALEMBIC-01 SOLDÉE |
 | ACTE 6 | Runbook prod Railway : 039 upgradé · VALIDATE CONSTRAINT · DELETE smoke | 4 dettes soldées |
+| CORRECTIONS POST-PR#139 | revision slug `039_created_at_timestamptz` · runbook annoté · DETTE-UTC-01 · test head fixé | commit `14a8124` |
 
 ---
 
@@ -122,7 +124,7 @@ DETTE-FIXTURE-01 : OUVERTE — refactor fixtures à planifier M3+.
 ### Migration 039 prod
 
 ```
-alembic_version prod : 039
+alembic_version prod : 039_created_at_timestamptz
 users.created_at     : timestamp with time zone
 ```
 
@@ -165,6 +167,7 @@ ETAPE 8  FK NOT VALID = 0 rows                                   ✅
 | DETTE-M2-04 | 9 comptes smoke en prod | Active | **SOLDÉE** — DELETE id=10 + case associée IDs explicites |
 | DETTE-ALEMBIC-01 | Downgrades 037+038 défaillants | Active | **SOLDÉE** — cycle complet vert |
 | DETTE-FIXTURE-01 | Fixtures `pipeline_runs` non conformes | Inexistante | **OUVERTE** P2 — post-M2B, planifier M3+ |
+| DETTE-UTC-01 | Timestamps naïfs `datetime.utcnow()` | Inexistante | **OUVERTE** P1 — post-M2B · audit usages + décision SQLAlchemy TZ |
 
 ---
 
@@ -231,7 +234,20 @@ Séquence obligatoire avant DROP :
 # Tester si slowapi gère async nativement sur la version installée
 ```
 
-**4. Audit 36 skipped complet** (priorité P3)
+**4. DETTE-UTC-01 — Timestamps naïfs `datetime.utcnow()`** (priorité P1)
+
+```python
+# Le code applicatif utilise datetime.utcnow().isoformat() — timestamp naïf.
+# Après migration 039 (created_at TIMESTAMPTZ), un INSERT avec timestamp naïf
+# est interprété selon le TimeZone de session PostgreSQL — non déterministe.
+# Options :
+#   A) SET TIME ZONE 'UTC' sur les connexions SQLAlchemy
+#   B) datetime.now(timezone.utc) partout dans le code
+#   C) DEFAULT now() + ne plus fournir created_at depuis l'app
+# Audit : grep -rn "datetime.utcnow" src/
+```
+
+**5. Audit 36 skipped complet** (priorité P3)
 
 ```bash
 pytest -rs tests/ 2>&1 | grep "SKIPPED"
@@ -267,7 +283,7 @@ tables actives :
   pipeline_stages — (M0B)
   documents       — (M0B)
 
-alembic head : 039_hardening_created_at_timestamptz
+alembic head : 039_created_at_timestamptz
 
 colonnes legacy :
   users.role_id   — INTEGER FK → roles · 7 usages runtime · DROP bloqué (DETTE-M1-04)
@@ -281,11 +297,11 @@ colonnes legacy :
 ```bash
 # État migrations
 alembic heads
-# → 039 (head) — DOIT rester 039 jusqu'à M3 migration suivante
+# → 039_created_at_timestamptz (head) — DOIT rester jusqu'à M3 migration suivante
 
 # CI complète
 pytest --tb=short -q
-# → 574 passed · 36 skipped · 0 failed
+# → 561 passed · 36 skipped · 0 failed
 
 # Qualité statique
 ruff check src/ tests/
@@ -322,6 +338,8 @@ psql $DATABASE_URL -c "
 | PowerShell `&&` invalide | PS ne supporte pas `&&` | Séparer les commandes ou utiliser Git Bash |
 | Scripts Python inline en PowerShell | `UnicodeEncodeError` · `SyntaxError` heredoc | Créer des fichiers `.py` séparés · `$env:PYTHONIOENCODING="utf-8"` |
 | `psycopg` v3 vs v2 API | `.fetchone()` retourne `dict` ou `tuple` selon `row_factory` | Utiliser `dict_row` de `psycopg.rows` |
+| `datetime.utcnow()` + TIMESTAMPTZ | Timestamp naïf interprété selon TZ session PostgreSQL | `datetime.now(timezone.utc)` ou `SET TIME ZONE 'UTC'` SQLAlchemy (DETTE-UTC-01) |
+| `alembic_version` VARCHAR(32) | Slug revision > 32 chars → `StringDataRightTruncation` pytest | Toujours vérifier `len(revision)` ≤ 32 avant commit |
 
 ---
 
