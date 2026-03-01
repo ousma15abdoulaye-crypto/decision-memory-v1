@@ -206,9 +206,9 @@ def test_indexes_created(db_transaction):
 
 
 def test_alembic_head_is_current(db_transaction):
-    """Head = 040_geo_master_mali (head courante après M3 — référentiel géographique Mali)."""
+    """Head = 041_vendor_identities (head courante après M4 — vendor importer Mali)."""
     db_transaction.execute("SELECT version_num FROM alembic_version")
     row = db_transaction.fetchone()
     assert (
-        row["version_num"] == "040_geo_master_mali"
-    ), f"Head attendu : 040_geo_master_mali — réel : {row['version_num']}"
+        row["version_num"] == "041_vendor_identities"
+    ), f"Head attendu : 041_vendor_identities — réel : {row['version_num']}"
