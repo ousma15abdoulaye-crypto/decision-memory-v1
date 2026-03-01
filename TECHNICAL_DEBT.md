@@ -422,6 +422,36 @@ WHERE email LIKE '%@smoke-test.com'
 
 ---
 
+### TD-001 · vendor_id MAX()+1 non atomique
+
+| Attribut | Valeur |
+|---|---|
+| Statut | **ACTIVE** |
+| Sévérité | Modérée |
+| Contexte | M4 import séquentiel opérateur |
+| Fichier | `src/vendors/repository.py` · `get_next_sequence()` |
+
+**Problème :**
+Le calcul du prochain numéro de séquence par région utilise
+`MAX(CAST(SPLIT_PART(vendor_id,'-',4) AS INTEGER)) + 1`.
+Cette opération n'est pas atomique.
+Deux imports parallèles dans la même région peuvent obtenir
+la même séquence et provoquer une collision UNIQUE sur `vendor_id`.
+
+**Mitigation M4 :**
+Import séquentiel · un opérateur · un process.
+Risque faible mais réel si jamais lancé en parallèle.
+
+**Solution M5+ :**
+- Option A : `pg_try_advisory_xact_lock(hashtext(region_code))`
+- Option B : table `vendor_sequences(region_code TEXT PK, current_seq INT)`
+  avec `SELECT current_seq FROM vendor_sequences WHERE region_code = :rc FOR UPDATE`
+  puis `UPDATE vendor_sequences SET current_seq = current_seq + 1`
+
+**Propriétaire :** CTO · à résoudre avant tout import concurrent.
+
+---
+
 ### DETTE-UTC-01 — Timestamps naïfs code applicatif — SOLDÉE
 
 | Attribut | Valeur |

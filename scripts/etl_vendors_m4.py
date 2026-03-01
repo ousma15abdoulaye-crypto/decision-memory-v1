@@ -25,9 +25,7 @@ import pandas as pd
 
 # Force UTF-8 sur Windows (PowerShell cp1252)
 if sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf_8"):
-    sys.stdout = io.TextIOWrapper(
-        sys.stdout.buffer, encoding="utf-8", errors="replace"
-    )
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
 # Assure que src/ est dans le path quand lancé depuis la racine
 ROOT = Path(__file__).parent.parent
@@ -75,7 +73,7 @@ class ETLReport:
     imported: int = 0
     skipped_duplicate: int = 0
     skipped_no_name: int = 0
-    skipped_no_region: int = 0
+    # skipped_no_region supprimé (Patch M4) — cas sans région → rejected[]
     rejected: list[dict] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     vendor_ids: list[str] = field(default_factory=list)
@@ -148,6 +146,10 @@ def run_etl(dry_run: bool = False) -> ETLReport:
                 email=email,
                 phone=phone,
                 email_verified=bool(email),
+                # Lots SCI verifies terrain → VERIFIED_ACTIVE
+                activity_status="VERIFIED_ACTIVE",
+                verified_by="SCI_FIELD_TEAM_MALI",
+                verification_source="SCI_FIELD_VISIT",
             )
             if vendor_id is None:
                 report.skipped_duplicate += 1
@@ -184,7 +186,7 @@ def print_report(report: ETLReport, dry_run: bool) -> None:
     print(f"Importés             : {report.imported}")
     print(f"Doublons détectés    : {report.skipped_duplicate}")
     print(f"Sans nom             : {report.skipped_no_name}")
-    print(f"Zones inconnues      : {len(report.rejected)}")
+    print(f"Zones inconnues (rej): {len(report.rejected)}")
     print(f"Taux de rejet        : {report.rejection_rate:.1%}")
 
     if report.rejected:

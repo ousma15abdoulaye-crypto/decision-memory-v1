@@ -21,13 +21,13 @@ def test_vendor_identities_table_exists(db_conn):
     assert row["cnt"] == 1, "Table vendor_identities manquante"
 
 
-def test_alembic_head_is_041(db_conn):
-    """alembic_version doit pointer sur 041_vendor_identities."""
+def test_alembic_head_is_current(db_conn):
+    """alembic_version doit pointer sur 043_vendor_activity_badge (head M4-patch)."""
     with db_conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert row is not None
-    assert row["version_num"] == "041_vendor_identities"
+    assert row["version_num"] == "043_vendor_activity_badge"
 
 
 def test_chk_vendor_id_format_active(db_conn):

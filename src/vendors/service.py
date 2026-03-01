@@ -10,11 +10,13 @@ from src.vendors import repository
 
 def list_vendors(
     region_code: str | None = None,
+    activity_status: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> list[dict]:
     return repository.list_vendors(
         region_code=region_code,
+        activity_status=activity_status,
         limit=limit,
         offset=offset,
     )
