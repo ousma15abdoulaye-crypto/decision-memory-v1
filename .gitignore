@@ -41,7 +41,12 @@ env/
 *~
 
 # DMS specific
-data/
+# data/ ignoré sélectivement — .gitkeep et README.md restent trackés
+data/**/*.xlsx
+data/**/*.xls
+data/**/*.csv
+data/**/*.json
+data/**/*.zip
 *.sqlite3
 *.db
 uploads/
@@ -72,3 +77,6 @@ alembic/versions/__pycache__/
 
 # dms.log explicite
 dms.log
+
+# CSV processés — optionnel selon décision CTO
+# data/processed/
