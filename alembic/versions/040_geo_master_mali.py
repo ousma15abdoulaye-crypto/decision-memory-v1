@@ -8,6 +8,8 @@ Scope M3 : création du référentiel géographique canonique Mali (7 tables).
 Schéma agnostique — aucun DEFAULT organisationnel.
 NOTE-ARCH-M3-001 : schéma normalisé 7 tables remplace geo_master monolithique.
 SQL brut uniquement — zéro autogenerate (RÈGLE-12).
+Hotfix PROD-HOTFIX-001 : CREATE TABLE IF NOT EXISTS — migration idempotente
+(force rebuild Railway + résilience si upgrade rejoué sur schéma existant).
 """
 
 from alembic import op
@@ -22,7 +24,7 @@ def upgrade() -> None:
     # ── 1. Tables géographiques ──────────────────────────────────────────────
 
     op.execute("""
-        CREATE TABLE geo_countries (
+        CREATE TABLE IF NOT EXISTS geo_countries (
             id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             iso2        CHAR(2)  NOT NULL UNIQUE,
             iso3        CHAR(3)  NOT NULL UNIQUE,
@@ -35,7 +37,7 @@ def upgrade() -> None:
     """)
 
     op.execute("""
-        CREATE TABLE geo_regions (
+        CREATE TABLE IF NOT EXISTS geo_regions (
             id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             country_id  UUID NOT NULL REFERENCES geo_countries(id),
             code        TEXT NOT NULL,
@@ -50,7 +52,7 @@ def upgrade() -> None:
     """)
 
     op.execute("""
-        CREATE TABLE geo_cercles (
+        CREATE TABLE IF NOT EXISTS geo_cercles (
             id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             region_id   UUID NOT NULL REFERENCES geo_regions(id),
             code        TEXT NOT NULL,
@@ -64,7 +66,7 @@ def upgrade() -> None:
     """)
 
     op.execute("""
-        CREATE TABLE geo_communes (
+        CREATE TABLE IF NOT EXISTS geo_communes (
             id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             cercle_id    UUID NOT NULL REFERENCES geo_cercles(id),
             code_instat  TEXT NOT NULL UNIQUE,
@@ -79,7 +81,7 @@ def upgrade() -> None:
     """)
 
     op.execute("""
-        CREATE TABLE geo_localites (
+        CREATE TABLE IF NOT EXISTS geo_localites (
             id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             commune_id     UUID NOT NULL REFERENCES geo_communes(id),
             name_fr        TEXT NOT NULL,
@@ -97,7 +99,7 @@ def upgrade() -> None:
     """)
 
     op.execute("""
-        CREATE TABLE geo_zones_operationnelles (
+        CREATE TABLE IF NOT EXISTS geo_zones_operationnelles (
             id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             code              TEXT NOT NULL,
             name_fr           TEXT NOT NULL,
@@ -116,7 +118,7 @@ def upgrade() -> None:
     """)
 
     op.execute("""
-        CREATE TABLE geo_zone_commune_mapping (
+        CREATE TABLE IF NOT EXISTS geo_zone_commune_mapping (
             id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             zone_id     UUID NOT NULL REFERENCES geo_zones_operationnelles(id),
             commune_id  UUID NOT NULL REFERENCES geo_communes(id),
@@ -130,17 +132,17 @@ def upgrade() -> None:
     # ── 2. Index ─────────────────────────────────────────────────────────────
     # UNIQUE(code_instat) sur geo_communes crée déjà l'index utile — pas d'index redondant.
 
-    op.execute("CREATE INDEX idx_geo_regions_country ON geo_regions(country_id)")
-    op.execute("CREATE INDEX idx_geo_cercles_region ON geo_cercles(region_id)")
-    op.execute("CREATE INDEX idx_geo_communes_cercle ON geo_communes(cercle_id)")
-    op.execute("CREATE INDEX idx_geo_localites_commune ON geo_localites(commune_id)")
+    op.execute("CREATE INDEX IF NOT EXISTS idx_geo_regions_country ON geo_regions(country_id)")
+    op.execute("CREATE INDEX IF NOT EXISTS idx_geo_cercles_region ON geo_cercles(region_id)")
+    op.execute("CREATE INDEX IF NOT EXISTS idx_geo_communes_cercle ON geo_communes(cercle_id)")
+    op.execute("CREATE INDEX IF NOT EXISTS idx_geo_localites_commune ON geo_localites(commune_id)")
     op.execute("""
-        CREATE INDEX idx_geo_localites_coords
+        CREATE INDEX IF NOT EXISTS idx_geo_localites_coords
             ON geo_localites(latitude, longitude)
             WHERE latitude IS NOT NULL AND longitude IS NOT NULL
     """)
     op.execute("""
-        CREATE INDEX idx_zone_commune_active
+        CREATE INDEX IF NOT EXISTS idx_zone_commune_active
             ON geo_zone_commune_mapping(zone_id, commune_id)
             WHERE valid_until IS NULL
     """)
@@ -168,7 +170,7 @@ def upgrade() -> None:
         "geo_zones_operationnelles",
     ):
         op.execute(f"""
-            CREATE TRIGGER trg_{table}_updated_at
+            CREATE OR REPLACE TRIGGER trg_{table}_updated_at
                 BEFORE UPDATE ON {table}
                 FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at()
         """)
