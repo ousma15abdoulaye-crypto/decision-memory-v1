@@ -396,7 +396,7 @@ WHERE email LIKE '%@smoke-test.com'
 |---|---|
 | Statut | **SOLDÉE** — M2B-PATCH · 2026-02-28 |
 | Découverte | PR#139 review Copilot — commentaire post-merge M2B |
-| Solution | `datetime.now(timezone.utc)` remplace `datetime.utcnow()` dans 8 fichiers `src/` |
+| Solution | `datetime.now(UTC)` remplace `datetime.utcnow()` dans 8 fichiers `src/` (`UTC` alias de `timezone.utc` importé depuis `datetime`) |
 | Fichiers corrigés | `src/api/cases.py` · `src/couche_a/routers.py` · `src/core/dependencies.py` · `src/couche_a/scoring/models.py` · `src/couche_a/scoring/engine.py` · `src/api/analysis.py` · `src/couche_a/extraction.py` · `src/business/templates.py` |
 | Exclu intentionnel | `src/api/auth_helpers.py` — hors périmètre M2B-PATCH (DETTE-M1-04 active) |
 | Résidu | 2 occurrences `utcnow()` dans `auth_helpers.py` — accepté · traitement avec DETTE-M1-04 |
