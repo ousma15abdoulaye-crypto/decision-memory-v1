@@ -5,7 +5,7 @@ Storage, artifacts, and memory management.
 
 import json
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
@@ -51,7 +51,7 @@ def register_artifact(
                 "kind": kind,
                 "fname": filename,
                 "path": path,
-                "ts": datetime.utcnow().isoformat(),
+                "ts": datetime.now(UTC).isoformat(),
                 "meta": json.dumps(meta or {}, ensure_ascii=False),
             },
         )
@@ -91,7 +91,7 @@ def add_memory(case_id: str, entry_type: str, content: dict) -> str:
                 "cid": case_id,
                 "etype": entry_type,
                 "content": json.dumps(content, ensure_ascii=False),
-                "ts": datetime.utcnow().isoformat(),
+                "ts": datetime.now(UTC).isoformat(),
             },
         )
     return mem_id

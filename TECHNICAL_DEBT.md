@@ -380,26 +380,23 @@ WHERE email LIKE '%@smoke-test.com'
 | Statut | **SOLDÉE sur prod** — 2026-02-26 · M2B · FK NOT VALID = 0 rows confirmé |
 | ADR | `docs/adr/ADR-M2B-001_hardening_db_scope.md` |
 
-### DETTE-FIXTURE-01 — Fixtures tests `pipeline_runs` non conformes — OUVERTE
+### DETTE-FIXTURE-01 — Fixtures tests `pipeline_runs` non conformes — SOLDÉE
 
 | Attribut | Valeur |
 |---|---|
+| Statut | **SOLDÉE** — M2B-PATCH · 2026-02-28 |
 | Origine | Fixtures écrites avant existence de la FK `fk_pipeline_runs_case_id` (contexte M0B) |
-| Symptôme | Les `pipeline_runs` fixtures référencent des `case_id` inexistants dans `cases` |
-| Effet | FK NOT VALID non validable en local · VALIDATE CONSTRAINT impossible sans violer ADR-0012 |
-| Action | Refactorer les fixtures pour créer les `cases` correspondants avant les `pipeline_runs`, ou utiliser des `case_id` existants |
-| Périmètre | Post-M2B · M3 ou milestone dédié fixtures |
-| Priorité | P2 — non bloquant prod |
+| Résolution | Probe M2B-PATCH confirme que les tests actuels utilisent `case_factory()` (case réel) avant tout INSERT dans `pipeline_runs`. Les tests avec `case_id` fantôme (`ghost-case-inexistant`, `00000000-...`) utilisent `pytest.raises(ForeignKeyViolation)` — tests délibérés de rejet FK, aucun orphelin créé. Les 166 orphelins historiques sont du legacy pré-FK (non supprimables ADR-0012). |
+| Solution | `case_factory()` réutilisée dans tous les tests pipeline · isolation transactionnelle via rollback dans `db_transaction` · aucun `DELETE teardown` sur `pipeline_runs` |
+| CI M2B-PATCH | 57 passed · 0 failed sur `pytest -k pipeline` |
 
-### DETTE-UTC-01 -- Timestamps naifs code applicatif
+### DETTE-UTC-01 — Timestamps naïfs code applicatif — SOLDÉE
 
 | Attribut | Valeur |
 |---|---|
-| Statut | **OUVERTE** -- post-M2B |
-| Decouverte | PR review Copilot -- commentaire post-merge M2B |
-| Probleme | Le code applicatif utilise `datetime.utcnow().isoformat()` (timestamp naif, sans offset timezone). Apres migration 039 (`created_at TIMESTAMPTZ`), un INSERT avec timestamp naif est interprete selon le TimeZone de session PostgreSQL -- non deterministe entre environnements. Pas de `SET TIME ZONE UTC` sur les connexions SQLAlchemy. |
-| Risque | Timestamps decales selon l environnement d execution |
-| Options | A) `SET TIME ZONE UTC` sur connexions SQLAlchemy · B) `datetime.now(timezone.utc)` partout · C) `DEFAULT now()` + ne plus fournir `created_at` depuis l app |
-| Action | Audit des usages `datetime.utcnow()` + decision architecturale |
-| Perimetre | M3 ou milestone dedie |
-| Priorite | P1 -- impacte la fiabilite des timestamps en prod |
+| Statut | **SOLDÉE** — M2B-PATCH · 2026-02-28 |
+| Découverte | PR#139 review Copilot — commentaire post-merge M2B |
+| Solution | `datetime.now(UTC)` remplace `datetime.utcnow()` dans 8 fichiers `src/` (`UTC` alias de `timezone.utc` importé depuis `datetime`) |
+| Fichiers corrigés | `src/api/cases.py` · `src/couche_a/routers.py` · `src/core/dependencies.py` · `src/couche_a/scoring/models.py` · `src/couche_a/scoring/engine.py` · `src/api/analysis.py` · `src/couche_a/extraction.py` · `src/business/templates.py` |
+| Exclu intentionnel | `src/api/auth_helpers.py` — hors périmètre M2B-PATCH (DETTE-M1-04 active) |
+| Résidu | 2 occurrences `utcnow()` dans `auth_helpers.py` — accepté · traitement avec DETTE-M1-04 |

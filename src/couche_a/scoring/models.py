@@ -3,7 +3,7 @@ Pydantic models for M3B Scoring Engine.
 Constitution V3 compliant: Non-prescriptive scoring.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -32,7 +32,7 @@ class EliminationResult(BaseModel):
     criterion_name: str
     criterion_category: str
     failure_reason: str
-    eliminated_at: datetime = Field(default_factory=datetime.utcnow)
+    eliminated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class ScoringRequest(BaseModel):

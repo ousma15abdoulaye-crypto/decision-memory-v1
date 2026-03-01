@@ -6,7 +6,7 @@ Handles DAO/offer analysis and decision recording.
 import json
 import uuid
 from dataclasses import asdict
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
@@ -85,7 +85,7 @@ def analyze(payload: AnalyzeRequest):
                     "type_reponse": c.type_reponse,
                     "seuil": c.seuil_elimination,
                     "ordre": c.ordre_affichage,
-                    "ts": datetime.utcnow().isoformat(),
+                    "ts": datetime.now(UTC).isoformat(),
                 },
             )
 
@@ -135,7 +135,7 @@ def analyze(payload: AnalyzeRequest):
                     "missing": json.dumps(
                         offer_data.get("missing_fields", []), ensure_ascii=False
                     ),
-                    "ts": datetime.utcnow().isoformat(),
+                    "ts": datetime.now(UTC).isoformat(),
                 },
             )
 
@@ -267,7 +267,7 @@ def decide(payload: DecideRequest):
         "chosen_supplier": payload.chosen_supplier.strip(),
         "decision_reason": payload.decision_reason.strip(),
         "next_action": payload.next_action.strip(),
-        "decided_at": datetime.utcnow().isoformat(),
+        "decided_at": datetime.now(UTC).isoformat(),
         "human_final": True,
     }
     add_memory(case_id, "decision", decision)

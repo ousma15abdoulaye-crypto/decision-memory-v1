@@ -3,7 +3,7 @@ Case management endpoints.
 """
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -30,7 +30,7 @@ async def create_case(
         raise HTTPException(status_code=400, detail="case_type must be DAO or RFQ")
 
     case_id = str(uuid.uuid4())
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(UTC).isoformat()
     owner_id = int(user.user_id)
 
     with get_connection() as conn:

@@ -5,7 +5,7 @@ Extraction documentaire – M3A: Typed criterion extraction.
 import logging
 import uuid
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from src.db import db_execute, get_connection
@@ -332,7 +332,7 @@ def extract_dao_criteria_typed(
                 "sust": sust_weight,
                 "valid": is_valid,
                 "errors": "\n".join(errors) if errors else None,
-                "ts": datetime.utcnow().isoformat(),
+                "ts": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -390,7 +390,7 @@ def extract_dao_content(case_id: str, artifact_id: str, filepath: str):
                         "type_reponse": crit["type_reponse"],
                         "seuil": crit["seuil_elimination"],
                         "ordre": crit["ordre_affichage"],
-                        "ts": datetime.utcnow().isoformat(),
+                        "ts": datetime.now(UTC).isoformat(),
                     },
                 )
 
