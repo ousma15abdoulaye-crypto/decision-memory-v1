@@ -91,6 +91,14 @@ try:
 except ImportError:
     pass
 
+_geo_router = None
+try:
+    from src.geo.router import router as geo_router
+
+    _geo_router = geo_router
+except ImportError:
+    pass
+
 app = FastAPI(
     title="DMS API",
     version="0.1.0",
@@ -125,6 +133,7 @@ for _router in [
     _price_check_router,
     _pipeline_a_router,
     _analysis_summary_router,
+    _geo_router,
 ]:
     if _router is not None:
         app.include_router(_router)
