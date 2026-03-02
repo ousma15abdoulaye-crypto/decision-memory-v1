@@ -230,13 +230,13 @@ def test_p9_td001_documented_in_technical_debt():
 
 
 def test_p10_alembic_head_is_043(db_conn):
-    """P10 : alembic_version doit pointer sur m4_patch_a_vendor_structure_v410."""
+    """P10 : alembic_version doit pointer sur m4_patch_a_fix."""
     with db_conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert (
-        row["version_num"] == "m4_patch_a_vendor_structure_v410"
-    ), f"Head attendu : m4_patch_a_vendor_structure_v410 — réel : {row['version_num']}"
+        row["version_num"] == "m4_patch_a_fix"
+    ), f"Head attendu : m4_patch_a_fix — réel : {row['version_num']}"
 
 
 # ── P11 : trigger rebuilt sans OR REPLACE ────────────────────────

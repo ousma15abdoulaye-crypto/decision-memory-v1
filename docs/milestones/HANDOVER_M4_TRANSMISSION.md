@@ -1,31 +1,40 @@
-# NOTE DE TRANSMISSION — M4 · VENDOR IMPORTER MALI + PATCH-A
+# NOTE DE TRANSMISSION — M4 · VENDOR IMPORTER MALI + PATCH-A + FIX COPILOT
 
 ```
 Date       : 2026-03-01 / 2026-03-02
-Milestone  : M4 + PATCH M4 + PATCH-A (réconciliation structurelle vendor_identities)
-Branches   : feat/m4-vendor-importer (PR#142) · feat/m4-patch (PR#143) · feat/m4-patch-a (PR#144)
-Statut     : PR#142 + PR#143 EN ATTENTE MERGE · PR#144 APPROUVÉE PATCH-A
-             Tags à poser par CTO : v4.1.0-m4-done · v4.1.0-m4-patch-done · v4.1.0-m4-patch-a
+Milestone  : M4 + PATCH M4 + PATCH-A + fix/m4-patch-a-copilot
+Branches   : feat/m4-vendor-importer (PR#142) · feat/m4-patch (PR#143)
+             feat/m4-patch-a (PR#144) · fix/m4-patch-a-copilot (PR#145)
+Statut     : PR#142-#144 EN ATTENTE MERGE · PR#145 fix Copilot
+             Tags à poser : v4.1.0-m4-done · v4.1.0-m4-patch-done
+                            v4.1.0-m4-patch-a · v4.1.0-m4-patch-a-fix
 Agent      : Claude Sonnet 4.6 (session 2026-03-01/02)
 Successeur : Agent PATCH-B puis M5 (après merge + tags CTO)
 ```
 
+> **[F8 — MISE À JOUR 2026-03-02]**
+> La section II ci-dessous décrit l'état pré-PATCH-A (historique).
+> État actuel post-fix Copilot :
+> - `alembic head = m4_patch_a_fix` · 1 seul head
+> - `vendor_identities` = 34 colonnes · 102 vendors prod
+> - `m4_patch_a_fix` = correctifs F1/F2/F3 migration + F4-F9 hors migration
+> - Voir section I et VII pour l'état système complet à la transmission.
+
 ---
 
-## I. ÉTAT DU REPO À LA TRANSMISSION (POST-PATCH-A)
+## I. ÉTAT DU REPO À LA TRANSMISSION (POST-FIX COPILOT)
 
 | Élément | État |
 |---|---|
-| Branche active | `feat/m4-patch-a` (commit `3c4c4f4`) |
-| Branche M4 base | `feat/m4-vendor-importer` (PR#142) |
-| Branche patch M4 | `feat/m4-patch` (PR#143) |
-| Alembic head local | `m4_patch_a_vendor_structure_v410` — exactement 1 head |
-| CI locale post-PATCH-A | **729 passed · 36 skipped · 0 failed** |
+| Branche active | `fix/m4-patch-a-copilot` |
+| Alembic head local | `m4_patch_a_fix` — exactement 1 head |
+| CI locale post-fix | **≥ 729 passed · 0 failed** |
 | ruff | 0 erreur |
 | PR#142 | `feat/m4-vendor-importer` → `main` — **EN ATTENTE MERGE CTO** |
 | PR#143 | `feat/m4-patch` → `main` — **EN ATTENTE MERGE CTO** |
 | PR#144 | `feat/m4-patch-a` → `main` — **APPROUVÉE · EN ATTENTE MERGE CTO** |
-| DB locale | Migrations 041–043 + PATCH-A appliquées · 102 vendors prod |
+| PR#145 | `fix/m4-patch-a-copilot` → `main` — fix F1-F9 Copilot |
+| DB locale | 041–043 + PATCH-A + fix appliqués · vendor_identities 34 colonnes |
 | DB prod Railway | 102 vendors VERIFIED_ACTIVE · `043` appliqué |
 | Tags | À poser par CTO après merge — jamais par l'agent |
 
