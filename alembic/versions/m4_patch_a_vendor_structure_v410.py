@@ -18,7 +18,8 @@ NOTES ARCHITECTURE :
   INACTIVE → registered (PAS suspended).
   suspended = acte explicite de compliance · jamais auto-mappé terrain.
 
-  pg_trgm = hors scope · TD-002 · sera activé avant M11.
+  Extension pg_trgm déjà créée en amont (ex: 005_add_couche_b) ;
+  hors scope ici = index GIN trigram sur canonical_name / matching vendor.
 
   Probe P3 garantit l'absence de doublons name_normalized
   avant que cette migration pose UNIQUE(canonical_name).
