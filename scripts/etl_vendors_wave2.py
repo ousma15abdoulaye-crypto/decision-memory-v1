@@ -54,16 +54,20 @@ ROOT = Path(__file__).parent.parent
 REJECT_WARN = 0.05
 REJECT_STOP = 0.15
 
-# ── À COMPLÉTER APRÈS PROBE PB0.3 + VALIDATION CTO ──────────────
-# _guard_config() bloque tout lancement si ces variables sont vides.
+# ── CONFIGURÉ PATCH-B · 2026-03-02 · VALIDÉ CTO ─────────────────
 
 FILES_WAVE2: list[Path] = [
-    # ROOT / "data/imports/m4/NOM_REEL_FICHIER_WAVE2.xlsx",
+    ROOT / "data/imports/m4/SUPPLIER DATA  Mali FINAL.xlsx",
 ]
 
 COLUMN_MAP: dict[str, str] = {
-    # "Colonne xlsx réelle" : "champ interne"
-    # Rempli après probe PB0.3 + validation CTO
+    "Supplier Name": "name_raw",
+    "Supplier Email Address": "email_raw",
+    "Supplier Phone Number": "phone_raw",
+    "Supplier Zone": "zone_raw",
+    "Catégorie de Marché": "category_raw",
+    # "COUNTRY" → ignoré (toujours Mali)
+    # "Bureau de Couverture" → ignoré (redondant avec Supplier Zone)
 }
 
 # ─────────────────────────────────────────────────────────────────
