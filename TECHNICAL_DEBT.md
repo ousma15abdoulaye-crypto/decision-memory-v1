@@ -551,6 +551,140 @@ Exécuter avant toute logique M5 qui lirait la table vendors.
 
 ---
 
+---
+
+## Dettes pré-M5 — Audit architecture agent (ADR-M5-PRE-001)
+
+> Identifiées lors de l'audit technique de clôture sprint M4/PATCH.
+> Ref complète : `docs/adr/ADR-M5-PRE-001_pre-m5-hardening.md`
+> Date : 2026-03-02
+
+### TD-005 · DATABASE_URL évalué à l'import module — ACTIF · planifié Phase 1
+
+|| Attribut | Valeur |
+||---|---|
+|| Statut | **ACTIF · Phase 1 M5** |
+|| Sévérité | Haute |
+|| Fichier | `src/db/core.py` ligne 42 |
+|| Ref ADR | ADR-M5-PRE-001 § D1.1 |
+
+**Problème :**
+```python
+_DATABASE_URL = _get_database_url()  # ligne 42 — exécuté à l'import
+```
+Tout environnement sans `DATABASE_URL` (build CI sans DB, test unitaire pur)
+plante à l'import du module. Couplage startup/runtime inacceptable.
+
+**Solution :**
+Lazy init via `_get_or_init_db_url()` avec cache `_DB_URL_CACHE`.
+L'évaluation se fait au premier appel `get_connection()`, pas à l'import.
+
+**Propriétaire :** CTO · résoudre en Phase 1 M5.
+
+---
+
+### TD-006 · SELECT * exposé en API vendor — ACTIF · planifié Phase 1
+
+|| Attribut | Valeur |
+||---|---|
+|| Statut | **ACTIF · Phase 1 M5** |
+|| Sévérité | Haute (données sensibles) |
+|| Fichier | `src/vendors/repository.py` · `list_vendors()` · `get_vendor_by_id()` |
+|| Ref ADR | ADR-M5-PRE-001 § D1.2 |
+
+**Problème :**
+`SELECT * FROM vendor_identities` expose automatiquement toute nouvelle colonne
+via `GET /vendors`, y compris `nif`, `rib`, `rccm`, `verified_by`, `verification_source`.
+En contexte Mali avec données fournisseurs réelles — risque RGPD/sécurité.
+
+**Solution :**
+Constante `_PUBLIC_COLUMNS` dans `repository.py` avec liste explicite des colonnes safe.
+Endpoint `/vendors/{id}/details` (admin RBAC, M6+) pour les colonnes complètes.
+
+**Propriétaire :** CTO · résoudre en Phase 1 M5.
+
+---
+
+### TD-007 · Absence de connection pooling — ACTIF · planifié Phase 2
+
+|| Attribut | Valeur |
+||---|---|
+|| Statut | **ACTIF · Phase 2 M6+** |
+|| Sévérité | Haute (performance sous charge) |
+|| Fichier | `src/db/core.py` · `get_connection()` |
+|| Ref ADR | ADR-M5-PRE-001 § D2.1 |
+
+**Problème :**
+Chaque `get_connection()` ouvre/ferme une connexion psycopg raw.
+Railway Starter PostgreSQL = 25 connexions max.
+À charge >10 req/s concurrentes, saturation et `OperationalError` inévitables.
+
+**Solution :**
+`psycopg_pool.ConnectionPool` synchrone (`min_size=2, max_size=10`).
+Instance singleton initialisée au démarrage FastAPI.
+Interface `_ConnectionWrapper` inchangée — zéro impact callers.
+
+**Mitigation actuelle :** faible charge opérateur unique. Acceptable jusqu'à M6.
+
+**Propriétaire :** CTO · résoudre avant activation API write ou charge >1 opérateur.
+
+---
+
+### TD-008 · ImportError silencieux dans main.py — ACTIF · planifié Phase 1
+
+|| Attribut | Valeur |
+||---|---|
+|| Statut | **ACTIF · Phase 1 M5** |
+|| Sévérité | Modérée |
+|| Fichier | `src/api/main.py` · 12 blocs try/except ImportError |
+|| Ref ADR | ADR-M5-PRE-001 § D1.3 |
+
+**Problème :**
+12 blocs `try: from x import y except ImportError: pass` avalent silencieusement
+les bugs réels (circular imports, NameError, dépendances manquantes).
+Un router peut disparaître en production sans alerte.
+
+**Solution :**
+- Routers obligatoires (auth, cases, health) : import direct sans try/except.
+- Routers optionnels : conserver try/except mais logger WARNING avec détail.
+- `startup_check()` dans `@app.on_event("startup")` liste les routers actifs.
+
+**Propriétaire :** CTO · résoudre en Phase 1 M5.
+
+---
+
+### TD-009 · Chaîne Alembic hors convention séquentielle — ACTIF · BLOQUANT M5
+
+|| Attribut | Valeur |
+||---|---|
+|| Statut | **ACTIF · BLOQUANT M5** |
+|| Sévérité | Haute |
+|| Fichiers | `m4_patch_a_vendor_structure_v410.py` · `m4_patch_a_fix.py` |
+|| Ref ADR | ADR-M5-PRE-001 § D0.1 |
+
+**Problème :**
+Les deux dernières migrations ne suivent pas la convention `NNN_nom.py`.
+La prochaine migration `044_` DOIT déclarer `down_revision = "m4_patch_a_fix"`
+explicitement (nom complet, pas numéro). Si un agent oublie et met
+`down_revision = "043_vendor_activity_badge"`, le résultat est un **double head**
+et un crash deploy Railway identique à PROD-HOTFIX-001.
+
+**Solution :**
+- Ne PAS renommer les fichiers existants (déployés en prod — règle absolue).
+- Toute migration `04X_` vérifie `alembic heads` avant push.
+- `down_revision = "m4_patch_a_fix"` dans `044_consolidate_vendors.py`.
+- Documenter dans `docs/dev/migration-checklist.md`.
+
+**Vérification immédiate :**
+```bash
+alembic heads
+# DOIT retourner exactement 1 résultat
+```
+
+**Propriétaire :** CTO · vérifier avant premier commit M5.
+
+---
+
 ### DETTE-UTC-01 — Timestamps naïfs code applicatif — SOLDÉE
 
 | Attribut | Valeur |

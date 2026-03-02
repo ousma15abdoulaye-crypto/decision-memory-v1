@@ -340,6 +340,63 @@ Probe obligatoire avant tout import :
 
 ---
 
+## IX. ÉVALUATION TECHNIQUE PRÉ-M5 — AUDIT AGENT
+
+```
+Date    : 2026-03-02
+Auteur  : Agent Claude Sonnet 4.6 — auto-évaluation pré-M5
+Ref ADR : ADR-M5-PRE-001_pre-m5-hardening
+```
+
+### Verdict global
+
+Le système est **solide pour une beta terrain mono-opérateur**.
+La discipline psycopg (ADR-0003), la chaîne de migrations, le fingerprint SHA256,
+la résilience circuit-breaker/retry, et le TECHNICAL_DEBT.md sont au niveau.
+
+Il n'est **pas encore enterprise-grade** sur deux axes :
+1. **Concurrence** — aucun composant (vendor_id, connexion, locks) n'est conçu pour >1 process simultané.
+2. **Fail-loud** — trop d'endroits avalent les erreurs silencieusement.
+
+### Failles identifiées
+
+| ID   | Faille                                      | Sévérité | Bloquant M5 | Dette associée |
+|------|---------------------------------------------|----------|-------------|----------------|
+| F1   | `DATABASE_URL` évalué à l'import du module  | Haute    | Non         | TD-005         |
+| F2   | Race condition vendor_id silencieuse        | Haute    | Non (séq.)  | TD-001 (existant) |
+| F3   | `SELECT *` exposé en API                    | Haute    | Non         | TD-006         |
+| F4   | Pas de connection pooling                   | Haute    | Non (faible charge) | TD-007  |
+| F5   | `ImportError` avalés en silence dans main.py | Modérée | Non         | TD-008         |
+| F6   | Service layer vendor vide (pass-through)    | Faible   | Non         | —              |
+| F7   | Chaîne Alembic sans numéros séquentiels     | Haute    | **OUI**     | TD-009         |
+| F8   | Table `vendors` legacy bloque le renommage  | Haute    | **OUI**     | TD-004 (existant) |
+| F9   | Codes `KLK`/`INT` non documentés           | Faible   | Non         | —              |
+
+### Plan d'attaque (résumé)
+
+```
+PHASE 0 — PRÉ-M5 OBLIGATOIRE (2h estimée)
+  F7 · TD-009 : documenter down_revision de m4_patch_a_fix pour que 044_ soit correct
+  F8 · TD-004 : migration 044_consolidate_vendors · DROP vendors legacy + RENAME
+
+PHASE 1 — M5 SCOPE (4h estimée)
+  F1 · TD-005 : lazy init DATABASE_URL (import → premier appel get_connection)
+  F3 · TD-006 : SELECT * → colonnes explicites dans repository.py
+  F5 · TD-008 : fail-loud au démarrage dans main.py (supprimer ImportError silencieux)
+
+PHASE 2 — M6+ (décision CTO)
+  F4 · TD-007 : connection pooling psycopg_pool.ConnectionPool
+  F2 · TD-001 : vendor_id atomique (vendor_sequences table + SELECT FOR UPDATE)
+
+PHASE 3 — HOUSEKEEPING (au fil de l'eau)
+  F6 : enrichir service.py vendor quand logique métier M5 s'ajoute
+  F9 : documenter KLK/INT ou les supprimer si aucune zone ne les référence
+```
+
+Décisions complètes : **`docs/adr/ADR-M5-PRE-001_pre-m5-hardening.md`**
+
+---
+
 ## VIII. RÉSUMÉ SPRINT
 
 ```
