@@ -469,7 +469,7 @@ Sans `pg_trgm`, `vendor_match_rate` ne peut pas être calculé en SQL.
 Pas de matching en M4. Déduplication par fingerprint uniquement.
 
 **Solution M11+ :**
-1. `CREATE EXTENSION IF NOT EXISTS pg_trgm;`
+1. Vérifier que l’extension `pg_trgm` est disponible (normalement activée par la migration `005_add_couche_b` ; pour les environnements où cette migration n’est pas appliquée, l’activation doit être gérée par l’infra ou les scripts d’init de base).
 2. `CREATE INDEX idx_vi_trgm ON vendor_identities USING gin(canonical_name gin_trgm_ops);`
 3. `match_vendor_by_name()` dans `repository.py` avec `rapidfuzz ≥ 80` en fallback Python.
 
