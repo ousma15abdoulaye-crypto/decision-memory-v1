@@ -1,31 +1,32 @@
-# NOTE DE TRANSMISSION — M4 · VENDOR IMPORTER MALI + PATCH
+# NOTE DE TRANSMISSION — M4 · VENDOR IMPORTER MALI + PATCH-A
 
 ```
 Date       : 2026-03-01 / 2026-03-02
-Milestone  : M4 — VENDOR IMPORTER MALI + PATCH M4
-Branches   : feat/m4-vendor-importer (PR#142) · feat/m4-patch (PR#143)
-Statut     : EN ATTENTE MERGE CTO — PR#142 puis PR#143
-             Tags à poser par CTO : v4.1.0-m4-done · v4.1.0-m4-patch-done
+Milestone  : M4 + PATCH M4 + PATCH-A (réconciliation structurelle vendor_identities)
+Branches   : feat/m4-vendor-importer (PR#142) · feat/m4-patch (PR#143) · feat/m4-patch-a (PR#144)
+Statut     : PR#142 + PR#143 EN ATTENTE MERGE · PR#144 APPROUVÉE PATCH-A
+             Tags à poser par CTO : v4.1.0-m4-done · v4.1.0-m4-patch-done · v4.1.0-m4-patch-a
 Agent      : Claude Sonnet 4.6 (session 2026-03-01/02)
-Successeur : Agent M5 (après merge + tag CTO)
+Successeur : Agent PATCH-B puis M5 (après merge + tags CTO)
 ```
 
 ---
 
-## I. ÉTAT DU REPO À LA TRANSMISSION
+## I. ÉTAT DU REPO À LA TRANSMISSION (POST-PATCH-A)
 
 | Élément | État |
 |---|---|
-| Branche active | `feat/m4-patch` (commit `262991f`) |
-| Branche M4 base | `feat/m4-vendor-importer` (commit `aaad4a9`) |
-| Alembic head local | `043_vendor_activity_badge` — exactement 1 head |
-| CI locale M4 + patch | **702 passed · 36 skipped · 0 failed** |
+| Branche active | `feat/m4-patch-a` (commit `3c4c4f4`) |
+| Branche M4 base | `feat/m4-vendor-importer` (PR#142) |
+| Branche patch M4 | `feat/m4-patch` (PR#143) |
+| Alembic head local | `m4_patch_a_vendor_structure_v410` — exactement 1 head |
+| CI locale post-PATCH-A | **729 passed · 36 skipped · 0 failed** |
 | ruff | 0 erreur |
-| black | 0 erreur |
 | PR#142 | `feat/m4-vendor-importer` → `main` — **EN ATTENTE MERGE CTO** |
-| PR#143 | `feat/m4-patch` → `feat/m4-vendor-importer` — **EN ATTENTE MERGE CTO** |
-| DB locale | Migrations 041 + 042 + 043 appliquées · 0 vendors (nettoyés par tests) |
-| DB prod Railway | 102 vendors EXCEL_M4 présents · `041` appliqué en prod |
+| PR#143 | `feat/m4-patch` → `main` — **EN ATTENTE MERGE CTO** |
+| PR#144 | `feat/m4-patch-a` → `main` — **APPROUVÉE · EN ATTENTE MERGE CTO** |
+| DB locale | Migrations 041–043 + PATCH-A appliquées · 102 vendors prod |
+| DB prod Railway | 102 vendors VERIFIED_ACTIVE · `043` appliqué |
 | Tags | À poser par CTO après merge — jamais par l'agent |
 
 ---
@@ -169,7 +170,95 @@ vendor_external_refs                  → M5+
 
 ---
 
-## III. TECHNICAL_DEBT.MD — MISES À JOUR M4
+## II.B PATCH-A — RÉCONCILIATION STRUCTURELLE V4.1.0
+
+### 2.B.1 Contexte — Option B appliquée
+
+```
+Situation détectée terrain (probe P2) :
+  Une table vendors legacy (4 colonnes, FK actives, hors alembic)
+  existait déjà en DB depuis ~2026-02-17.
+  La garde défensive de la migration a détecté la collision.
+  Option B retenue : vendor_identities conserve son nom.
+
+Ce choix est correct opérationnellement.
+Il crée une divergence avec la doctrine "vendors = référentiel canonique".
+Résolution prévue avant M5 via TD-004 (voir TECHNICAL_DEBT.md).
+```
+
+### 2.B.2 Migration `m4_patch_a_vendor_structure_v410`
+
+Colonnes ajoutées sur `vendor_identities` :
+
+| Colonne | Type | Détail |
+|---|---|---|
+| `canonical_name` | TEXT NOT NULL UNIQUE | `name_normalized\|region_code` — unique par vendor+région |
+| `aliases` | TEXT[] DEFAULT '{}' | Noms alternatifs |
+| `nif` / `rccm` / `rib` | TEXT nullable | Null M4 · peuplés M13+ |
+| `verification_status` | TEXT NOT NULL DEFAULT 'registered' | CHECK IN (registered/qualified/approved/suspended) |
+| `vcrn` | TEXT UNIQUE nullable | Généré M13+ |
+| `zones_covered` | UUID[] DEFAULT '{}' | Peuplé M5+ (TD-003) |
+| `category_ids` | UUID[] DEFAULT '{}' | Peuplé M6+ (TD-003) |
+| `has_sanctions_cert` / `has_sci_conditions` / `key_personnel_verified` | BOOLEAN NOT NULL DEFAULT FALSE | Compliance M13+ |
+| `suspension_reason` / `suspended_at` | TEXT / TIMESTAMPTZ nullable | Compliance M13+ |
+| `verified_at` | TIMESTAMPTZ nullable | Renommée depuis `last_verified_at` |
+
+Mapping `activity_status` → `verification_status` :
+
+```
+VERIFIED_ACTIVE  → qualified   (terrain confirmé SCI)
+UNVERIFIED       → registered  (DEFAULT)
+INACTIVE         → registered  (PAS suspended — acte compliance explicite requis)
+GHOST_SUSPECTED  → registered  (PAS suspended)
+```
+
+Index Couche B : `idx_vi_verification` + `idx_vi_canonical`
+
+### 2.B.3 repository.py — canonical_name
+
+```python
+# insert_vendor peuple automatiquement canonical_name
+canonical_name = f"{name_normalized}|{region_code}"
+# Exemple : "marche central|BKO"
+# UNIQUE garantit : un seul vendor "marche central" par région
+```
+
+### 2.B.4 ETL Wave 2 — squelette prêt
+
+`scripts/etl_vendors_wave2.py` créé. Gardes actives :
+- `STOP-PB-C` si `FILES_WAVE2` vide
+- `STOP-PB-D` si `COLUMN_MAP` vide
+
+**À compléter après probe PB0.3 + validation CTO du nom de fichier wave 2.**
+
+### 2.B.5 Tests PATCH-A
+
+| Fichier | Tests | Couvre |
+|---|---|---|
+| `test_vendor_patch_a.py` | 20 | PA1-PA8 · colonnes V4.1.0 · trigger · index · canonical_name |
+
+### 2.B.6 Vendors legacy — probe résultats (2026-03-02)
+
+```
+Table     : vendors (hors alembic · créée ~2026-02-17)
+Colonnes  : id (integer PK) · name (varchar) · zone_id (varchar) · created_at (text)
+Lignes    : 10 (données tests uniquement — "Marché Central" x3, "Boutique Kayes" x3)
+FK entrante : market_signals.vendor_id → vendors.id  (0 lignes market_signals la référencent)
+FK sortante : vendors.zone_id → geo_master.id
+Index GIN   : idx_vendors_name_trgm (pg_trgm — prototype pré-M4)
+```
+
+**Décision CTO requise avant M5 :**
+1. `SELECT COUNT(*) FROM market_signals WHERE vendor_id IS NOT NULL` doit retourner 0 (vrai au 2026-03-02)
+2. `DROP TABLE vendors CASCADE` dans migration dédiée
+3. `ALTER TABLE vendor_identities RENAME TO vendors`
+4. Mettre à jour toutes les requêtes `vendor_identities` → `vendors`
+
+**Documenté dans TD-004 de TECHNICAL_DEBT.md.**
+
+---
+
+## III. TECHNICAL_DEBT.MD — MISES À JOUR M4 + PATCH-A
 
 ### Ajouté en M4-patch
 
@@ -179,6 +268,21 @@ vendor_external_refs                  → M5+
 - Mitigation M4 : import séquentiel · un opérateur · un process
 - Solution M5+ : advisory lock `pg_try_advisory_xact_lock(hashtext(region_code))` OU table `vendor_sequences(region_code, current_seq)` avec `FOR UPDATE`
 - Propriétaire : CTO · à résoudre avant tout import concurrent
+
+### Ajouté en PATCH-A
+
+**`TD-002`** — `vendor_match_rate` nécessite `pg_trgm` :
+- Matching fournisseur impossible sans pg_trgm + index GIN
+- Hors scope M4 · à activer avant M11
+
+**`TD-003`** — `zones_covered` / `category_ids` vides en M4 :
+- Colonnes présentes, peuplement prévu M5+/M6+
+- Aucune action en M4
+
+**`TD-004`** — Table `vendors` legacy hors alembic :
+- Bloquante pour renommage `vendor_identities → vendors`
+- 10 lignes tests · FK `market_signals → vendors` active mais 0 références
+- Résolution avant M5 : `DROP TABLE vendors CASCADE` + RENAME
 
 ### Non modifié en M4
 
@@ -363,34 +467,73 @@ GET /geo/zones/{id}/communes → endpoint geo reporté (quand zones chargées)
 | P11 | Trigger rebuilt proprement sans OR REPLACE | ✅ |
 | P12 | `chk_activity_status` bloque les valeurs invalides | ✅ |
 
+### PATCH-A (11/11)
+
+| # | Invariant | Résultat |
+|---|---|---|
+| PA1 | `vendor_identities` existe · `vendors` legacy non touchée | ✅ |
+| PA2 | 102 vendors préservés · données intactes | ✅ |
+| PA3 | Probe P3 posté · 0 doublon `name_normalized` confirmé | ✅ |
+| PA4 | `canonical_name` NOT NULL · UNIQUE · = `name_normalized\|region_code` | ✅ |
+| PA5 | `VERIFIED_ACTIVE → qualified` · 0 `suspended` auto-mappé | ✅ |
+| PA6 | Trigger `trg_vendor_updated_at` actif sur `vendor_identities` | ✅ |
+| PA7 | Index `idx_vi_verification` + `idx_vi_canonical` présents | ✅ |
+| PA8 | `alembic heads` = `m4_patch_a_vendor_structure_v410` | ✅ |
+| PA9 | Cycle downgrade/upgrade propre | ✅ |
+| PA10 | `repository.py` peuple `canonical_name` automatiquement | ✅ |
+| PA11 | `pytest` = 729 passed · 0 failed | ✅ |
+
 ---
 
-## VIII. INSTRUCTIONS POUR L'AGENT SUCCESSEUR (M5)
+## VIII. INSTRUCTIONS POUR L'AGENT SUCCESSEUR
+
+### Pour PATCH-B (dès fichier wave 2 déposé par CTO)
+
+```
+Prérequis CTO avant lancement PATCH-B :
+  1. Merger PR#142 + PR#143 + PR#144
+  2. Poser tags v4.1.0-m4-done · v4.1.0-m4-patch-done · v4.1.0-m4-patch-a
+  3. Déposer fichier wave 2 dans data/imports/m4/
+  4. Communiquer le nom exact du fichier à l'agent
+
+L'agent PATCH-B doit :
+  1. Vérifier alembic heads → m4_patch_a_vendor_structure_v410 (1 head)
+  2. Vérifier pytest → 729 passed · 0 failed
+  3. Lancer probe PB0.3 (structure xlsx wave 2)
+  4. Lancer probe PB0.4 (zones distinctes wave 2)
+  5. Attendre validation CTO du COLUMN_MAP avant de coder
+  6. Compléter FILES_WAVE2 et COLUMN_MAP dans etl_vendors_wave2.py
+  7. Dry-run → rapport posté → validation CTO → import réel
+```
+
+### Pour M5 Mercuriale (dès PATCH-B vert)
 
 ```
 1. Lire ce fichier en entier avant toute action.
-2. Lire TECHNICAL_DEBT.md — TD-001, DETTE-ARCH-01, NOTE-ARCH-M3-001.
-3. Confirmer avec CTO que PR#142 et PR#143 sont mergées et tags posés.
-4. Vérifier : alembic heads → 043_vendor_activity_badge (1 head).
-5. Vérifier : pytest → 702 passed · 0 failed.
-6. Créer la branche M5 depuis main (après merge des deux PRs).
-7. NE PAS modifier src/vendors/ sans mandat explicite.
-8. NE PAS modifier alembic/041 (intouchable en prod).
-9. NE PAS utiliser SQLAlchemy — psycopg pur (ADR-0003).
-10. Si M5 touche les zones fournisseurs :
-    — vendor_zone_coverage = table à créer (migration 044 ou suivante)
-    — liée à vendor_identities.vendor_id et geo_zones_operationnelles.id
-    — charger les zones organisationnelles dans geo_zones_operationnelles
-      AVANT de créer vendor_zone_coverage
-11. TD-001 : si import concurrent prévu en M5 → implémenter advisory lock AVANT.
-12. L'agent ne merge jamais. L'agent ne pose jamais les tags.
+2. Lire TECHNICAL_DEBT.md — TD-001 à TD-004, DETTE-ARCH-01, NOTE-ARCH-M3-001.
+3. Confirmer alembic heads → m4_patch_a_vendor_structure_v410 (1 head).
+4. Confirmer pytest → 729 passed · 0 failed.
+5. AVANT TOUTE CHOSE : résoudre TD-004 (vendors legacy).
+   — Vérifier : SELECT COUNT(*) FROM market_signals WHERE vendor_id IS NOT NULL → 0
+   — Migration dédiée : DROP TABLE vendors CASCADE + RENAME vendor_identities → vendors
+   — Mettre à jour toutes les requêtes SQL vendor_identities → vendors
+   — Cette migration doit être mergée et appliquée AVANT le code M5
+6. NE PAS modifier alembic/041-043 (intouchables en prod).
+7. NE PAS utiliser SQLAlchemy — psycopg pur (ADR-0003).
+8. Si M5 touche les zones fournisseurs :
+   — vendor_zone_coverage liée à vendor_identities.vendor_id (ou vendors après TD-004)
+   — charger geo_zones_operationnelles AVANT de créer vendor_zone_coverage
+9. TD-001 : si import concurrent prévu en M5 → advisory lock AVANT tout import.
+10. L'agent ne merge jamais. L'agent ne pose jamais les tags.
 ```
 
 ---
 
 ```
-HANDOVER M4 — VENDOR IMPORTER MALI + PATCH
-PR#142 + PR#143 — En attente merge CTO
-702 tests · 0 failed · 102 vendors prod
+HANDOVER M4 + PATCH-A — VENDOR IMPORTER MALI
+PR#142 + PR#143 + PR#144 — En attente merge CTO
+729 tests · 0 failed · 102 vendors prod · V4.1.0 columns live
+vendors legacy investigée → TD-004 → à résoudre avant M5
+PATCH-B attend fichier wave 2 CTO
 DMS V4.1.0 · Mopti, Mali · Discipline. Vision. Ambition.
 ```

@@ -499,6 +499,51 @@ sont présentes en schéma depuis PATCH-A mais restent vides en M4.
 
 ---
 
+## TD-004 · Table vendors legacy hors alembic
+
+| Attribut | Valeur |
+|---|---|
+| Sévérité | Modérée · bloquante pour renommage vendor_identities → vendors |
+| Découverte | PATCH-A probe P2 · 2026-03-02 |
+| Contexte | Table créée hors alembic ~2026-02-17 · origine inconnue (test ou script pré-M3) |
+
+**Schéma de vendors legacy (probe 2026-03-02) :**
+```
+id       integer    NOT NULL  (PK)
+name     varchar    NOT NULL
+zone_id  varchar    nullable
+created_at text     NOT NULL
+```
+
+**État probe :**
+- 10 lignes · données tests uniquement (`Marché Central` x3, `Boutique Kayes` x3, etc.)
+- FK `market_signals.vendor_id → vendors.id` active — mais **0 lignes** market_signals la référencent
+- FK `vendors.zone_id → geo_master.id` active
+- Index GIN `idx_vendors_name_trgm` (pg_trgm) — prototype pré-M4 non nettoyé
+
+**Impact sur PATCH-A :**
+La migration `m4_patch_a_vendor_structure_v410` n'a pas pu renommer
+`vendor_identities → vendors` car cette table existait déjà.
+Option B appliquée : `vendor_identities` conserve son nom.
+
+**Arbre de décision pré-M5 :**
+1. Vider market_signals de toute référence vers vendors (déjà vrai · 0 lignes)
+2. Exécuter `DROP TABLE vendors CASCADE` dans une migration dédiée
+3. Ajouter `ALTER TABLE vendor_identities RENAME TO vendors` dans la même migration
+4. Mettre à jour toutes les requêtes SQL `vendor_identities` → `vendors`
+
+**Condition de sécurité :**
+`SELECT COUNT(*) FROM market_signals WHERE vendor_id IS NOT NULL` doit retourner 0
+avant tout DROP. Vrai au 2026-03-02 (confirmé par probe).
+
+**Solution M5-PRE :**
+Migration dédiée `045_consolidate_vendors` (si 045 libéré) ou ID hors séquence.
+Exécuter avant toute logique M5 qui lirait la table vendors.
+
+**Propriétaire :** CTO · à résoudre avant M5.
+
+---
+
 ### DETTE-UTC-01 — Timestamps naïfs code applicatif — SOLDÉE
 
 | Attribut | Valeur |
