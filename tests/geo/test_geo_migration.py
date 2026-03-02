@@ -37,12 +37,12 @@ def test_geo_table_exists(db_conn, table):
 
 
 def test_alembic_head_is_current(db_conn):
-    """alembic_version doit pointer sur 043_vendor_activity_badge (head M4-patch)."""
+    """alembic_version doit pointer sur m4_patch_a_vendor_structure_v410 (head M4-patch)."""
     with db_conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert row is not None
-    assert row["version_num"] == "043_vendor_activity_badge"
+    assert row["version_num"] == "m4_patch_a_vendor_structure_v410"
 
 
 def test_fn_set_updated_at_exists(db_conn):

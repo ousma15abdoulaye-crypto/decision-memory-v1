@@ -22,12 +22,12 @@ def test_vendor_identities_table_exists(db_conn):
 
 
 def test_alembic_head_is_current(db_conn):
-    """alembic_version doit pointer sur 043_vendor_activity_badge (head M4-patch)."""
+    """alembic_version doit pointer sur m4_patch_a_vendor_structure_v410 (head M4-patch)."""
     with db_conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert row is not None
-    assert row["version_num"] == "043_vendor_activity_badge"
+    assert row["version_num"] == "m4_patch_a_vendor_structure_v410"
 
 
 def test_chk_vendor_id_format_active(db_conn):
@@ -37,10 +37,10 @@ def test_chk_vendor_id_format_active(db_conn):
             cur.execute("""
                 INSERT INTO vendor_identities
                     (vendor_id, fingerprint, name_raw, name_normalized,
-                     zone_normalized, region_code, source)
+                     canonical_name, zone_normalized, region_code, source)
                 VALUES
                     ('INVALID-ID', 'fp_test_bad', 'Test', 'test',
-                     'bamako', 'BKO', 'TEST')
+                     'test|BKO', 'bamako', 'BKO', 'TEST')
                 """)
 
 
@@ -51,10 +51,10 @@ def test_chk_region_code_active(db_conn):
             cur.execute("""
                 INSERT INTO vendor_identities
                     (vendor_id, fingerprint, name_raw, name_normalized,
-                     zone_normalized, region_code, source)
+                     canonical_name, zone_normalized, region_code, source)
                 VALUES
                     ('DMS-VND-XXX-0001-A', 'fp_test_rgn', 'Test', 'test',
-                     'zone', 'XXX', 'TEST')
+                     'test|XXX', 'zone', 'XXX', 'TEST')
                 """)
 
 
@@ -66,10 +66,10 @@ def test_fingerprint_unique_constraint(db_conn):
             """
             INSERT INTO vendor_identities
                 (vendor_id, fingerprint, name_raw, name_normalized,
-                 zone_normalized, region_code, source)
+                 canonical_name, zone_normalized, region_code, source)
             VALUES
                 ('DMS-VND-BKO-9901-Z', %s, 'Test Unique', 'test unique',
-                 'bamako', 'BKO', 'TEST')
+                 'test unique|BKO', 'bamako', 'BKO', 'TEST')
             """,
             (fp,),
         )
@@ -78,10 +78,10 @@ def test_fingerprint_unique_constraint(db_conn):
                 """
                 INSERT INTO vendor_identities
                     (vendor_id, fingerprint, name_raw, name_normalized,
-                     zone_normalized, region_code, source)
+                     canonical_name, zone_normalized, region_code, source)
                 VALUES
                     ('DMS-VND-BKO-9902-Z', %s, 'Test Unique 2', 'test unique 2',
-                     'bamako', 'BKO', 'TEST')
+                     'test unique|BKO', 'bamako', 'BKO', 'TEST')
                 """,
                 (fp,),
             )

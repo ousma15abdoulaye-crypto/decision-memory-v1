@@ -90,6 +90,7 @@ def insert_vendor(
             INSERT INTO vendor_identities (
                 vendor_id, fingerprint,
                 name_raw, name_normalized,
+                canonical_name,
                 zone_raw, zone_normalized,
                 region_code, category_raw,
                 email, phone, email_verified,
@@ -99,6 +100,7 @@ def insert_vendor(
             ) VALUES (
                 %(vendor_id)s, %(fingerprint)s,
                 %(name_raw)s, %(name_normalized)s,
+                %(canonical_name)s,
                 %(zone_raw)s, %(zone_normalized)s,
                 %(region_code)s, %(category_raw)s,
                 %(email)s, %(phone)s, %(email_verified)s,
@@ -113,6 +115,7 @@ def insert_vendor(
                 "fingerprint": fingerprint,
                 "name_raw": name_raw,
                 "name_normalized": name_normalized,
+                "canonical_name": f"{name_normalized}|{region_code}",
                 "zone_raw": zone_raw,
                 "zone_normalized": zone_normalized,
                 "region_code": region_code,

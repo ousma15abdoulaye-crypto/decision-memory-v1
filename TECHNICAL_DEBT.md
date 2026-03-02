@@ -452,6 +452,53 @@ Risque faible mais réel si jamais lancé en parallèle.
 
 ---
 
+## TD-002 · vendor_match_rate nécessite pg_trgm
+
+| Attribut | Valeur |
+|---|---|
+| Sévérité | Modérée |
+| Contexte | DoD M15 exige `vendor_match_rate ≥ 60%` |
+| Fichier | `src/vendors/repository.py` · `match_vendor_by_name()` (à créer M11) |
+
+**Problème :**
+La recherche de similarité fournisseur nécessite l'extension `pg_trgm`
+et un index GIN sur `canonical_name`.
+Sans `pg_trgm`, `vendor_match_rate` ne peut pas être calculé en SQL.
+
+**Mitigation M4 :**
+Pas de matching en M4. Déduplication par fingerprint uniquement.
+
+**Solution M11+ :**
+1. `CREATE EXTENSION IF NOT EXISTS pg_trgm;`
+2. `CREATE INDEX idx_vi_trgm ON vendor_identities USING gin(canonical_name gin_trgm_ops);`
+3. `match_vendor_by_name()` dans `repository.py` avec `rapidfuzz ≥ 80` en fallback Python.
+
+**Propriétaire :** CTO · à activer avant M11.
+
+---
+
+## TD-003 · zones_covered et category_ids vides en M4
+
+| Attribut | Valeur |
+|---|---|
+| Sévérité | Faible · attendu |
+| Contexte | Colonnes ajoutées par PATCH-A · peuplement prévu milestones suivants |
+| Fichier | `alembic/versions/m4_patch_a_vendor_structure_v410.py` |
+
+**Situation :**
+`zones_covered UUID[] DEFAULT '{}'` et `category_ids UUID[] DEFAULT '{}'`
+sont présentes en schéma depuis PATCH-A mais restent vides en M4.
+
+**Plan :**
+- `zones_covered` : peuplé en M5 (Mercuriale · couverture géographique fournisseur)
+- `category_ids` : peuplé en M6 (Catégories · référentiel achats)
+
+**Action en M4 :** aucune · attendu et documenté.
+
+**Propriétaire :** CTO · suivi M5/M6.
+
+---
+
 ### DETTE-UTC-01 — Timestamps naïfs code applicatif — SOLDÉE
 
 | Attribut | Valeur |
