@@ -137,7 +137,7 @@ def test_pa8_alembic_head_is_patch_a(db_conn):
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert row["version_num"] == "m4_patch_a_fix", (
-        f"Head attendu : m4_patch_a — réel : {row['version_num']}"
+        f"Head attendu : m4_patch_a_fix — réel : {row['version_num']}"
     )
 
 
