@@ -172,10 +172,8 @@ def run_wave2_logic(dry_run: bool = False) -> Wave2Report:
     CORRECTION F4 + F5 (ADR-0003 · psycopg) :
       La seule différence dry-run/import est dans cette fonction.
 
-      dry-run  → normalisation complète + détection doublons réels par fingerprint.
-                 Une seule connexion ouverte avant la boucle pour pré-charger tous
-                 les fingerprints existants (zéro INSERT · vérification en mémoire
-                 O(1) · rapport honnête sur état DB actuel).
+      dry-run  → normalisation complète + détection doublons réels par SELECT
+                 fingerprint (zéro INSERT · rapport honnête sur état DB actuel).
 
       import   → insert_vendor(**params) via psycopg · ON CONFLICT DO NOTHING.
                  Chaque insert gère sa propre connexion psycopg (ADR-0003).
@@ -195,14 +193,6 @@ def run_wave2_logic(dry_run: bool = False) -> Wave2Report:
     report.total_read = len(df_all)
     print(f"  Total brut : {report.total_read}")
 
-    # Pré-chargement des fingerprints existants en une seule requête (dry-run uniquement).
-    # Évite N connexions DB dans la boucle — une connexion · un SELECT · lookup O(1).
-    existing_fingerprints: set[str] = set()
-    if dry_run:
-        with get_connection() as conn:
-            conn.execute("SELECT fingerprint FROM vendor_identities")
-            existing_fingerprints = {row["fingerprint"] for row in conn.fetchall()}
-
     for _, row in df_all.iterrows():
         result = _process_row(row)
 
@@ -219,13 +209,18 @@ def run_wave2_logic(dry_run: bool = False) -> Wave2Report:
         region_code = discriminant
 
         if dry_run:
-            # Dry-run réel : détection doublons par fingerprint en mémoire
+            # Dry-run réel : détection doublons par fingerprint SELECT
             # Aucune écriture DB · rapport basé sur l'état réel
             fp = generate_fingerprint(payload["name_normalized"], region_code)
-            if fp in existing_fingerprints:
-                report.skipped_duplicate += 1
-            else:
-                report.imported += 1
+            with get_connection() as conn:
+                conn.execute(
+                    "SELECT 1 FROM vendor_identities WHERE fingerprint = %(fp)s",
+                    {"fp": fp},
+                )
+                if conn.fetchone():
+                    report.skipped_duplicate += 1
+                else:
+                    report.imported += 1
         else:
             # Import réel — TD-001 : MAX()+1 non atomique · acceptable séquentiel
             vendor_id = insert_vendor(**payload)
@@ -321,7 +316,8 @@ def print_report(report: Wave2Report, dry_run: bool) -> None:
 
     if not dry_run:
         print(
-            f"Import réellement insérés : {report.imported}"
+            f"Total DB                 : "
+            f"102 + {report.imported} = {102 + report.imported}"
         )
     else:
         print(
