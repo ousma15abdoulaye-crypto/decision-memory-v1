@@ -472,7 +472,7 @@ GET /geo/zones/{id}/communes → endpoint geo reporté (quand zones chargées)
 | P7 | `?activity_status=INVALID` → 422 | ✅ |
 | P8 | Filtre `VERIFIED_ACTIVE` cohérent · valeurs canoniques seulement | ✅ |
 | P9 | `TD-001` documentée dans `TECHNICAL_DEBT.md` | ✅ |
-| P10 | `alembic heads` = `043_vendor_activity_badge` | ✅ |
+| P10 | `alembic heads` = `m4_patch_a_fix` | ✅ |
 | P11 | Trigger rebuilt proprement sans OR REPLACE | ✅ |
 | P12 | `chk_activity_status` bloque les valeurs invalides | ✅ |
 
@@ -487,7 +487,7 @@ GET /geo/zones/{id}/communes → endpoint geo reporté (quand zones chargées)
 | PA5 | `VERIFIED_ACTIVE → qualified` · 0 `suspended` auto-mappé | ✅ |
 | PA6 | Trigger `trg_vendor_updated_at` actif sur `vendor_identities` | ✅ |
 | PA7 | Index `idx_vi_verification` + `idx_vi_canonical` présents | ✅ |
-| PA8 | `alembic heads` = `m4_patch_a_vendor_structure_v410` | ✅ |
+| PA8 | `alembic heads` = `m4_patch_a_fix` | ✅ |
 | PA9 | Cycle downgrade/upgrade propre | ✅ |
 | PA10 | `repository.py` peuple `canonical_name` automatiquement | ✅ |
 | PA11 | `pytest` = 729 passed · 0 failed | ✅ |
@@ -506,7 +506,7 @@ Prérequis CTO avant lancement PATCH-B :
   4. Communiquer le nom exact du fichier à l'agent
 
 L'agent PATCH-B doit :
-  1. Vérifier alembic heads → m4_patch_a_vendor_structure_v410 (1 head)
+  1. Vérifier alembic heads → m4_patch_a_fix (1 head)
   2. Vérifier pytest → 729 passed · 0 failed
   3. Lancer probe PB0.3 (structure xlsx wave 2)
   4. Lancer probe PB0.4 (zones distinctes wave 2)
@@ -520,7 +520,7 @@ L'agent PATCH-B doit :
 ```
 1. Lire ce fichier en entier avant toute action.
 2. Lire TECHNICAL_DEBT.md — TD-001 à TD-004, DETTE-ARCH-01, NOTE-ARCH-M3-001.
-3. Confirmer alembic heads → m4_patch_a_vendor_structure_v410 (1 head).
+3. Confirmer alembic heads → m4_patch_a_fix (1 head).
 4. Confirmer pytest → 729 passed · 0 failed.
 5. AVANT TOUTE CHOSE : résoudre TD-004 (vendors legacy).
    — Vérifier : SELECT COUNT(*) FROM market_signals WHERE vendor_id IS NOT NULL → 0
