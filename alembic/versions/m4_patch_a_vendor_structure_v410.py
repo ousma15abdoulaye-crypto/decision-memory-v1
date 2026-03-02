@@ -46,14 +46,16 @@ def upgrade() -> None:
                     'migration impossible · vérifier état DB';
             END IF;
             -- Garde doublon canonical_name (défense en profondeur)
+            -- canonical_name = name_normalized || '|' || region_code
+            -- On vérifie donc les doublons sur (name_normalized, region_code)
             IF EXISTS (
-                SELECT name_normalized
+                SELECT name_normalized, region_code
                 FROM vendor_identities
-                GROUP BY name_normalized
+                GROUP BY name_normalized, region_code
                 HAVING COUNT(*) > 1
             ) THEN
                 RAISE EXCEPTION
-                    'Doublons name_normalized détectés · '
+                    'Doublons (name_normalized, region_code) détectés · '
                     'UNIQUE(canonical_name) impossible · '
                     'résoudre avant migration';
             END IF;
