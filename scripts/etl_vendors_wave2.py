@@ -316,8 +316,7 @@ def print_report(report: Wave2Report, dry_run: bool) -> None:
 
     if not dry_run:
         print(
-            f"Total DB                 : "
-            f"102 + {report.imported} = {102 + report.imported}"
+            f"Import réellement insérés : {report.imported}"
         )
     else:
         print(
