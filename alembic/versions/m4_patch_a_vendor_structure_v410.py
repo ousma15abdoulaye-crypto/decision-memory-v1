@@ -18,7 +18,7 @@ NOTES ARCHITECTURE :
   INACTIVE → registered (PAS suspended).
   suspended = acte explicite de compliance · jamais auto-mappé terrain.
 
-  pg_trgm = hors scope · TD-002 · sera activé avant M11.
+  pg_trgm déjà activé via 005_add_couche_b (cf. TD-002) · rien à faire dans ce patch.
 
   Probe P3 garantit l'absence de doublons name_normalized
   avant que cette migration pose UNIQUE(canonical_name).
