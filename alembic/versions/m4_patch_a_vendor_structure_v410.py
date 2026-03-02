@@ -18,8 +18,7 @@ NOTES ARCHITECTURE :
   INACTIVE → registered (PAS suspended).
   suspended = acte explicite de compliance · jamais auto-mappé terrain.
 
-  Extension pg_trgm déjà créée en amont (ex: 005_add_couche_b) ;
-  hors scope ici = index GIN trigram sur canonical_name / matching vendor.
+  pg_trgm déjà activé via 005_add_couche_b (cf. TD-002) · rien à faire dans ce patch.
 
   Probe P3 garantit l'absence de doublons name_normalized
   avant que cette migration pose UNIQUE(canonical_name).
@@ -47,16 +46,16 @@ def upgrade() -> None:
                     'migration impossible · vérifier état DB';
             END IF;
             -- Garde doublon canonical_name (défense en profondeur)
-            -- canonical_name = name_normalized || '|' || region_code
-            -- On vérifie donc les doublons sur (name_normalized, region_code)
+            -- On vérifie les doublons sur la clé effective
+            -- (name_normalized || '|' || region_code), cohérente avec canonical_name
             IF EXISTS (
-                SELECT name_normalized, region_code
+                SELECT name_normalized || '|' || region_code AS canonical_key
                 FROM vendor_identities
-                GROUP BY name_normalized, region_code
+                GROUP BY canonical_key
                 HAVING COUNT(*) > 1
             ) THEN
                 RAISE EXCEPTION
-                    'Doublons (name_normalized, region_code) détectés · '
+                    'Doublons détectés sur (name_normalized, region_code) · '
                     'UNIQUE(canonical_name) impossible · '
                     'résoudre avant migration';
             END IF;
@@ -78,9 +77,19 @@ def upgrade() -> None:
         ALTER COLUMN canonical_name SET NOT NULL;
     """)
     op.execute("""
-        ALTER TABLE vendor_identities
-        ADD CONSTRAINT uq_vi_canonical_name
-        UNIQUE (canonical_name);
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_constraint
+                WHERE conname = 'uq_vi_canonical_name'
+                  AND conrelid = 'vendor_identities'::regclass
+            ) THEN
+                ALTER TABLE vendor_identities
+                    ADD CONSTRAINT uq_vi_canonical_name
+                    UNIQUE (canonical_name);
+            END IF;
+        END $$;
     """)
 
     # ── 2. aliases (V4.1.0) ──────────────────────────────────

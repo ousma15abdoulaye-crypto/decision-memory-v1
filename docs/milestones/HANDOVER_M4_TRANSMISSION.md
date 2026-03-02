@@ -1,31 +1,40 @@
-# NOTE DE TRANSMISSION — M4 · VENDOR IMPORTER MALI + PATCH-A
+# NOTE DE TRANSMISSION — M4 · VENDOR IMPORTER MALI + PATCH-A + FIX COPILOT
 
 ```
 Date       : 2026-03-01 / 2026-03-02
-Milestone  : M4 + PATCH M4 + PATCH-A (réconciliation structurelle vendor_identities)
-Branches   : feat/m4-vendor-importer (PR#142) · feat/m4-patch (PR#143) · feat/m4-patch-a (PR#144)
-Statut     : PR#142 + PR#143 EN ATTENTE MERGE · PR#144 APPROUVÉE PATCH-A
-             Tags à poser par CTO : v4.1.0-m4-done · v4.1.0-m4-patch-done · v4.1.0-m4-patch-a
+Milestone  : M4 + PATCH M4 + PATCH-A + fix/m4-patch-a-copilot
+Branches   : feat/m4-vendor-importer (PR#142) · feat/m4-patch (PR#143)
+             feat/m4-patch-a (PR#144) · fix/m4-patch-a-copilot (PR#145)
+Statut     : PR#142-#144 EN ATTENTE MERGE · PR#145 fix Copilot
+             Tags à poser : v4.1.0-m4-done · v4.1.0-m4-patch-done
+                            v4.1.0-m4-patch-a · v4.1.0-m4-patch-a-fix
 Agent      : Claude Sonnet 4.6 (session 2026-03-01/02)
 Successeur : Agent PATCH-B puis M5 (après merge + tags CTO)
 ```
 
+> **[F8 — MISE À JOUR 2026-03-02]**
+> La section II ci-dessous décrit l'état pré-PATCH-A (historique).
+> État actuel post-fix Copilot :
+> - `alembic head = m4_patch_a_fix` · 1 seul head
+> - `vendor_identities` = 34 colonnes · 102 vendors prod
+> - `m4_patch_a_fix` = correctifs F1/F2/F3 migration + F4-F9 hors migration
+> - Voir section I et VII pour l'état système complet à la transmission.
+
 ---
 
-## I. ÉTAT DU REPO À LA TRANSMISSION (POST-PATCH-A)
+## I. ÉTAT DU REPO À LA TRANSMISSION (POST-FIX COPILOT)
 
 | Élément | État |
 |---|---|
-| Branche active | `feat/m4-patch-a` (commit `3c4c4f4`) |
-| Branche M4 base | `feat/m4-vendor-importer` (PR#142) |
-| Branche patch M4 | `feat/m4-patch` (PR#143) |
-| Alembic head local | `m4_patch_a_vendor_structure_v410` — exactement 1 head |
-| CI locale post-PATCH-A | **729 passed · 36 skipped · 0 failed** |
+| Branche active | `fix/m4-patch-a-copilot` |
+| Alembic head local | `m4_patch_a_fix` — exactement 1 head |
+| CI locale post-fix | **≥ 729 passed · 0 failed** |
 | ruff | 0 erreur |
 | PR#142 | `feat/m4-vendor-importer` → `main` — **EN ATTENTE MERGE CTO** |
 | PR#143 | `feat/m4-patch` → `main` — **EN ATTENTE MERGE CTO** |
 | PR#144 | `feat/m4-patch-a` → `main` — **APPROUVÉE · EN ATTENTE MERGE CTO** |
-| DB locale | Migrations 041–043 + PATCH-A appliquées · 102 vendors prod |
+| PR#145 | `fix/m4-patch-a-copilot` → `main` — fix F1-F9 Copilot |
+| DB locale | 041–043 + PATCH-A + fix appliqués · vendor_identities 34 colonnes |
 | DB prod Railway | 102 vendors VERIFIED_ACTIVE · `043` appliqué |
 | Tags | À poser par CTO après merge — jamais par l'agent |
 
@@ -381,9 +390,9 @@ from src.database import get_db      # INTERDIT — src.database n'existe pas
 
 ```
 Branche  : main
-Tags     : v4.1.0-m4-done · v4.1.0-m4-patch-done
-Alembic  : 043_vendor_activity_badge (1 head)
-CI       : 702 passed · 0 failed
+Tags     : v4.1.0-m4-done · v4.1.0-m4-patch-done · v4.1.0-m4-patch-a · v4.1.0-m4-patch-a-fix
+Alembic  : m4_patch_a_fix (1 head)
+CI       : 729 passed · 0 failed
 Prod     : 102 vendors VERIFIED_ACTIVE · 043 appliqué
 ```
 
@@ -392,10 +401,10 @@ Prod     : 102 vendors VERIFIED_ACTIVE · 043 appliqué
 ```powershell
 # Baseline obligatoire
 alembic heads
-# ATTENDU : 043_vendor_activity_badge (1 head)
+# ATTENDU : m4_patch_a_fix (1 head)
 
 python -m pytest --tb=short -q | Select-Object -Last 3
-# ATTENDU : 702 passed · 0 failed
+# ATTENDU : 729 passed · 0 failed
 
 # Vendors prod
 python _validate_m4.py  # (si recreé — voir pattern dans HANDOVER)
@@ -463,7 +472,7 @@ GET /geo/zones/{id}/communes → endpoint geo reporté (quand zones chargées)
 | P7 | `?activity_status=INVALID` → 422 | ✅ |
 | P8 | Filtre `VERIFIED_ACTIVE` cohérent · valeurs canoniques seulement | ✅ |
 | P9 | `TD-001` documentée dans `TECHNICAL_DEBT.md` | ✅ |
-| P10 | `alembic heads` = `043_vendor_activity_badge` | ✅ |
+| P10 | `alembic heads` = `m4_patch_a_fix` | ✅ |
 | P11 | Trigger rebuilt proprement sans OR REPLACE | ✅ |
 | P12 | `chk_activity_status` bloque les valeurs invalides | ✅ |
 
@@ -478,7 +487,7 @@ GET /geo/zones/{id}/communes → endpoint geo reporté (quand zones chargées)
 | PA5 | `VERIFIED_ACTIVE → qualified` · 0 `suspended` auto-mappé | ✅ |
 | PA6 | Trigger `trg_vendor_updated_at` actif sur `vendor_identities` | ✅ |
 | PA7 | Index `idx_vi_verification` + `idx_vi_canonical` présents | ✅ |
-| PA8 | `alembic heads` = `m4_patch_a_vendor_structure_v410` | ✅ |
+| PA8 | `alembic heads` = `m4_patch_a_fix` | ✅ |
 | PA9 | Cycle downgrade/upgrade propre | ✅ |
 | PA10 | `repository.py` peuple `canonical_name` automatiquement | ✅ |
 | PA11 | `pytest` = 729 passed · 0 failed | ✅ |
@@ -497,7 +506,7 @@ Prérequis CTO avant lancement PATCH-B :
   4. Communiquer le nom exact du fichier à l'agent
 
 L'agent PATCH-B doit :
-  1. Vérifier alembic heads → m4_patch_a_vendor_structure_v410 (1 head)
+  1. Vérifier alembic heads → m4_patch_a_fix (1 head)
   2. Vérifier pytest → 729 passed · 0 failed
   3. Lancer probe PB0.3 (structure xlsx wave 2)
   4. Lancer probe PB0.4 (zones distinctes wave 2)
@@ -511,7 +520,7 @@ L'agent PATCH-B doit :
 ```
 1. Lire ce fichier en entier avant toute action.
 2. Lire TECHNICAL_DEBT.md — TD-001 à TD-004, DETTE-ARCH-01, NOTE-ARCH-M3-001.
-3. Confirmer alembic heads → m4_patch_a_vendor_structure_v410 (1 head).
+3. Confirmer alembic heads → m4_patch_a_fix (1 head).
 4. Confirmer pytest → 729 passed · 0 failed.
 5. AVANT TOUTE CHOSE : résoudre TD-004 (vendors legacy).
    — Vérifier : SELECT COUNT(*) FROM market_signals WHERE vendor_id IS NOT NULL → 0

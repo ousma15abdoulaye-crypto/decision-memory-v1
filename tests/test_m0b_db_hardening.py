@@ -206,9 +206,9 @@ def test_indexes_created(db_transaction):
 
 
 def test_alembic_head_is_current(db_transaction):
-    """Head = m4_patch_a_vendor_structure_v410 (head courante après M4-patch — badge activité)."""
+    """Head = m4_patch_a_fix (head courante après M4-patch — badge activité)."""
     db_transaction.execute("SELECT version_num FROM alembic_version")
     row = db_transaction.fetchone()
     assert (
-        row["version_num"] == "m4_patch_a_vendor_structure_v410"
-    ), f"Head attendu : m4_patch_a_vendor_structure_v410 — réel : {row['version_num']}"
+        row["version_num"] == "m4_patch_a_fix"
+    ), f"Head attendu : m4_patch_a_fix — réel : {row['version_num']}"

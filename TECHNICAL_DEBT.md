@@ -452,7 +452,7 @@ Risque faible mais réel si jamais lancé en parallèle.
 
 ---
 
-## TD-002 · vendor_match_rate nécessite pg_trgm
+## TD-002 · index GIN trigram pour vendor_match_rate (mis à jour 2026-03-02)
 
 | Attribut | Valeur |
 |---|---|
@@ -460,18 +460,25 @@ Risque faible mais réel si jamais lancé en parallèle.
 | Contexte | DoD M15 exige `vendor_match_rate ≥ 60%` |
 | Fichier | `src/vendors/repository.py` · `match_vendor_by_name()` (à créer M11) |
 
-**Problème :**
-La recherche de similarité fournisseur nécessite l'extension `pg_trgm`
-et un index GIN sur `canonical_name`.
-Sans `pg_trgm`, `vendor_match_rate` ne peut pas être calculé en SQL.
+**IMPORTANT :** `pg_trgm` est **déjà activée** via `005_add_couche_b`.
+Ne pas recréer l'extension. Elle est disponible.
+
+**Ce qui reste à implémenter avant M11 :**
+
+1. Index GIN trigram sur `vendor_identities(canonical_name)` :
+   ```sql
+   CREATE INDEX idx_vi_canonical_trgm
+   ON vendor_identities
+   USING gin(canonical_name gin_trgm_ops);
+   ```
+
+2. `match_vendor_by_name()` dans `src/vendors/repository.py` :
+   - Logique : `rapidfuzz WRatio ≥ 80` sur `canonical_name` + `aliases`
+   - Retour : `vendor_id` · score · méthode (exact / fuzzy / unresolved)
+   - RÈGLE-20 : score < seuil → UNRESOLVED explicite · jamais silencieux
 
 **Mitigation M4 :**
 Pas de matching en M4. Déduplication par fingerprint uniquement.
-
-**Solution M11+ :**
-1. Vérifier que l’extension `pg_trgm` est disponible (normalement activée par la migration `005_add_couche_b` ; pour les environnements où cette migration n’est pas appliquée, l’activation doit être gérée par l’infra ou les scripts d’init de base).
-2. `CREATE INDEX idx_vi_trgm ON vendor_identities USING gin(canonical_name gin_trgm_ops);`
-3. `match_vendor_by_name()` dans `repository.py` avec `rapidfuzz ≥ 80` en fallback Python.
 
 **Propriétaire :** CTO · à activer avant M11.
 

@@ -137,13 +137,13 @@ def test_pa7_couche_b_indexes_exist(db_conn, idx):
 
 
 def test_pa8_alembic_head_is_patch_a(db_conn):
-    """PA8 : alembic_version doit pointer sur m4_patch_a_vendor_structure_v410."""
+    """PA8 : alembic_version doit pointer sur m4_patch_a_fix."""
     with db_conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert (
-        row["version_num"] == "m4_patch_a_vendor_structure_v410"
-    ), f"Head attendu : m4_patch_a — réel : {row['version_num']}"
+        row["version_num"] == "m4_patch_a_fix"
+    ), f"Head attendu : m4_patch_a_fix — réel : {row['version_num']}"
 
 
 # ── Colonnes V4.1.0 présentes ─────────────────────────────────────
