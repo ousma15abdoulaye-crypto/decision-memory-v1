@@ -26,9 +26,12 @@ def test_pa1_legacy_vendors_untouched(db_conn):
             "WHERE table_name = 'vendors' ORDER BY ordinal_position"
         )
         cols = [r["column_name"] for r in cur.fetchall()]
-    assert cols == ["id", "name", "zone_id", "created_at"], (
-        f"vendors legacy altérée : {cols}"
-    )
+    assert cols == [
+        "id",
+        "name",
+        "zone_id",
+        "created_at",
+    ], f"vendors legacy altérée : {cols}"
 
 
 # ── PA2 : données intactes ────────────────────────────────────────
@@ -96,7 +99,9 @@ def test_pa5_no_suspended_auto_mapped(db_conn):
             "SELECT COUNT(*) AS n FROM vendor_identities "
             "WHERE verification_status = 'suspended'"
         )
-        assert cur.fetchone()["n"] == 0, "suspended auto-mappé détecté — mapping incorrect"
+        assert (
+            cur.fetchone()["n"] == 0
+        ), "suspended auto-mappé détecté — mapping incorrect"
 
 
 # ── PA6 : trigger actif ───────────────────────────────────────────
@@ -136,9 +141,9 @@ def test_pa8_alembic_head_is_patch_a(db_conn):
     with db_conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
-    assert row["version_num"] == "m4_patch_a_vendor_structure_v410", (
-        f"Head attendu : m4_patch_a — réel : {row['version_num']}"
-    )
+    assert (
+        row["version_num"] == "m4_patch_a_vendor_structure_v410"
+    ), f"Head attendu : m4_patch_a — réel : {row['version_num']}"
 
 
 # ── Colonnes V4.1.0 présentes ─────────────────────────────────────
@@ -183,4 +188,6 @@ def test_last_verified_at_renamed_to_verified_at(db_conn):
             "WHERE table_name = 'vendor_identities' "
             "AND column_name = 'last_verified_at'"
         )
-        assert cur.fetchone()["n"] == 0, "last_verified_at encore présente — rename raté"
+        assert (
+            cur.fetchone()["n"] == 0
+        ), "last_verified_at encore présente — rename raté"
