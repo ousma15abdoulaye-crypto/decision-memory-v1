@@ -77,9 +77,19 @@ def upgrade() -> None:
         ALTER COLUMN canonical_name SET NOT NULL;
     """)
     op.execute("""
-        ALTER TABLE vendor_identities
-        ADD CONSTRAINT uq_vi_canonical_name
-        UNIQUE (canonical_name);
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_constraint
+                WHERE conname = 'uq_vi_canonical_name'
+                  AND conrelid = 'vendor_identities'::regclass
+            ) THEN
+                ALTER TABLE vendor_identities
+                    ADD CONSTRAINT uq_vi_canonical_name
+                    UNIQUE (canonical_name);
+            END IF;
+        END $$;
     """)
 
     # ── 2. aliases (V4.1.0) ──────────────────────────────────
