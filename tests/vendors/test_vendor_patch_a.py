@@ -141,14 +141,9 @@ def test_pa8_alembic_head_is_patch_a(db_conn):
     with db_conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
-def test_pa8_alembic_head_is_patch_a(db_conn):
-    """PA8 : alembic_version doit pointer sur m4_patch_a_fix."""
-    with db_conn.cursor() as cur:
-        cur.execute("SELECT version_num FROM alembic_version")
-        row = cur.fetchone()
-    assert row["version_num"] == "m4_patch_a_fix", (
-        f"Head attendu : m4_patch_a_fix — réel : {row['version_num']}"
-    )
+    assert (
+        row["version_num"] == "m4_patch_a_fix"
+    ), f"Head attendu : m4_patch_a_fix — réel : {row['version_num']}"
 
 
 # ── Colonnes V4.1.0 présentes ─────────────────────────────────────
