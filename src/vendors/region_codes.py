@@ -2,7 +2,7 @@
 Mapping zone normalisée → code région DMS.
 
 ZONE_TO_REGION est construit depuis les données réelles observées
-lors du probe B0.5 (2026-03-01).
+lors du probe B0.5 (2026-03-01) et étendu lors du probe PATCH-B (2026-03-02).
 
 Checksum : algorithme maison documenté comme tel.
 PAS un Luhn standard — ne pas confondre.
@@ -67,6 +67,18 @@ ZONE_TO_REGION: dict[str, str] = {
     "kadiolo": "SKS",
     # ── Kayes ─────────────────────────────────────────
     "kayes": "KYS",
+    # ── Zones ajoutées PATCH-B · probe 2026-03-02 (Option A) ──
+    # Ségou — quartiers et sous-zones
+    "angouleme segou": "SGO",
+    "hamdallaye segou": "SGO",
+    # Sikasso — quartiers et sous-zones
+    "niena": "SKS",
+    "sikasso medine": "SKS",
+    # Bamako — quartiers et communes périphériques
+    "sans fil": "BKO",
+    "siby": "BKO",
+    # Mopti — variante orthographique avec tiret
+    "sevare - mopti": "MPT",
 }
 
 _DMS_SALT = "DMS-SALT-MALI-2026-V1"
