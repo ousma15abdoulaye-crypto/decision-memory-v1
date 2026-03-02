@@ -1,8 +1,25 @@
 """
-Mapping zone normalisée → code région DMS.
+Mapping zone terrain → code région DMS.
 
-ZONE_TO_REGION est construit depuis les données réelles observées
-lors du probe B0.5 (2026-03-01).
+DISCIPLINE DE LECTURE :
+  - Une section par région
+  - Entrées regroupées sous la bonne section
+  - Aucun bloc transversal en fin de fichier
+  - Toute nouvelle zone future s'insère dans la section de sa région
+    APRÈS validation humaine du mapping
+  - Ce fichier ne se "réinvente" jamais à l'intuition
+
+RÈGLE D'AJOUT FUTUR :
+  1. Observer la zone réelle dans les données source
+  2. Valider humainement son mapping région
+  3. L'ajouter dans la section de sa région
+  4. Jamais dans un bloc transversal
+  5. Jamais sans validation humaine préalable
+
+IMPORTANT :
+  Ce fichier contient uniquement les entrées validées probe par probe.
+  Il reprend exactement les zones observées et validées CTO.
+  Il ne se "corrige" jamais à l'intuition.
 
 Checksum : algorithme maison documenté comme tel.
 PAS un Luhn standard — ne pas confondre.
@@ -24,16 +41,28 @@ ALL_REGION_CODES = {
     "INT",
 }
 
-# Mapping zone normalisée → region_code
-# Construit depuis le réel observé · probe B0.5 · 2026-03-01
-# Zones observées dans les fichiers : BAMAKO, MOPTI, SEVARE, BANDIAGARA,
-# BANKASS, DJENNE, DOUENTZA, GAO, NIAFUNKE, TOMBOUCTOU
 ZONE_TO_REGION: dict[str, str] = {
-    # ── Bamako ────────────────────────────────────────
+    # ── BAMAKO ───────────────────────────────────────────────
+    # Probe B0.5 · 2026-03-01
     "bamako": "BKO",
     "kati": "BKO",
     "koulikoro": "BKO",
-    # ── Mopti ─────────────────────────────────────────
+    # Probe PATCH-B · 2026-03-02 · Option A validée CTO
+    "sans fil": "BKO",
+    "siby": "BKO",
+    # ── GAO ──────────────────────────────────────────────────
+    # Probe B0.5 · 2026-03-01
+    "gao": "GAO",
+    "ansongo": "GAO",
+    "bourem": "GAO",
+    # ── KAYES ────────────────────────────────────────────────
+    # Probe B0.5 · 2026-03-01
+    "kayes": "KYS",
+    # ── MÉNAKA ───────────────────────────────────────────────
+    # Probe B0.5 · 2026-03-01
+    "menaka": "MNK",
+    # ── MOPTI ────────────────────────────────────────────────
+    # Probe B0.5 · 2026-03-01
     "mopti": "MPT",
     "sevare": "MPT",
     "douentza": "MPT",
@@ -43,30 +72,33 @@ ZONE_TO_REGION: dict[str, str] = {
     "djenne": "MPT",
     "tenenkou": "MPT",
     "youwarou": "MPT",
-    # ── Tombouctou ────────────────────────────────────
+    # Probe PATCH-B · 2026-03-02 · Option A validée CTO
+    "sevare - mopti": "MPT",
+    # ── SÉGOU ────────────────────────────────────────────────
+    # Probe B0.5 · 2026-03-01
+    "segou": "SGO",
+    "san": "SGO",
+    "bla": "SGO",
+    # Probe PATCH-B · 2026-03-02 · Option A validée CTO
+    "angouleme segou": "SGO",
+    "hamdallaye segou": "SGO",
+    # ── SIKASSO ──────────────────────────────────────────────
+    # Probe B0.5 · 2026-03-01
+    "sikasso": "SKS",
+    "bougouni": "SKS",
+    "koutiala": "SKS",
+    "kadiolo": "SKS",
+    # Probe PATCH-B · 2026-03-02 · Option A validée CTO
+    "niena": "SKS",
+    "sikasso medine": "SKS",
+    # ── TOMBOUCTOU ───────────────────────────────────────────
+    # Probe B0.5 · 2026-03-01
     "niafunke": "TBK",
     "tombouctou": "TBK",
     "dire": "TBK",
     "goundam": "TBK",
     "rharous": "TBK",
     "gourma rharous": "TBK",
-    # ── Gao ───────────────────────────────────────────
-    "gao": "GAO",
-    "ansongo": "GAO",
-    "bourem": "GAO",
-    # ── Ménaka ────────────────────────────────────────
-    "menaka": "MNK",
-    # ── Ségou ─────────────────────────────────────────
-    "segou": "SGO",
-    "san": "SGO",
-    "bla": "SGO",
-    # ── Sikasso ───────────────────────────────────────
-    "sikasso": "SKS",
-    "bougouni": "SKS",
-    "koutiala": "SKS",
-    "kadiolo": "SKS",
-    # ── Kayes ─────────────────────────────────────────
-    "kayes": "KYS",
 }
 
 _DMS_SALT = "DMS-SALT-MALI-2026-V1"
