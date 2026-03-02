@@ -390,9 +390,9 @@ from src.database import get_db      # INTERDIT — src.database n'existe pas
 
 ```
 Branche  : main
-Tags     : v4.1.0-m4-done · v4.1.0-m4-patch-done
-Alembic  : 043_vendor_activity_badge (1 head)
-CI       : 702 passed · 0 failed
+Tags     : v4.1.0-m4-done · v4.1.0-m4-patch-done · v4.1.0-m4-patch-a · v4.1.0-m4-patch-a-fix
+Alembic  : m4_patch_a_fix (1 head)
+CI       : 729 passed · 0 failed
 Prod     : 102 vendors VERIFIED_ACTIVE · 043 appliqué
 ```
 
@@ -401,10 +401,10 @@ Prod     : 102 vendors VERIFIED_ACTIVE · 043 appliqué
 ```powershell
 # Baseline obligatoire
 alembic heads
-# ATTENDU : 043_vendor_activity_badge (1 head)
+# ATTENDU : m4_patch_a_fix (1 head)
 
 python -m pytest --tb=short -q | Select-Object -Last 3
-# ATTENDU : 702 passed · 0 failed
+# ATTENDU : 729 passed · 0 failed
 
 # Vendors prod
 python _validate_m4.py  # (si recreé — voir pattern dans HANDOVER)
