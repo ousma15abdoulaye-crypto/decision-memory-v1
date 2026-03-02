@@ -36,10 +36,10 @@ def test_p1_regex_constraint_blocks_invalid_format(db_conn):
             cur.execute("""
                 INSERT INTO vendor_identities
                     (vendor_id, fingerprint, name_raw, name_normalized,
-                     zone_normalized, region_code, source)
+                     canonical_name, zone_normalized, region_code, source)
                 VALUES
                     ('DMS-VND-bko-0001-K', 'fp_p1_lower', 'Test', 'test',
-                     'bamako', 'BKO', 'TEST_PATCH')
+                     'test', 'bamako', 'BKO', 'TEST_PATCH')
                 """)
 
 
@@ -49,10 +49,10 @@ def test_p1_regex_constraint_accepts_valid_format(db_conn):
         cur.execute("""
             INSERT INTO vendor_identities
                 (vendor_id, fingerprint, name_raw, name_normalized,
-                 zone_normalized, region_code, source)
+                 canonical_name, zone_normalized, region_code, source)
             VALUES
                 ('DMS-VND-BKO-9991-Z', 'fp_p1_valid', 'Test P1', 'test p1',
-                 'bamako', 'BKO', 'TEST_PATCH')
+                 'test p1', 'bamako', 'BKO', 'TEST_PATCH')
             """)
 
 
@@ -63,7 +63,7 @@ def test_p2_activity_columns_exist(db_conn):
     """P2 : Les 4 colonnes du badge activité doivent être présentes."""
     expected = {
         "activity_status",
-        "last_verified_at",
+        "verified_at",
         "verified_by",
         "verification_source",
     }
@@ -230,13 +230,13 @@ def test_p9_td001_documented_in_technical_debt():
 
 
 def test_p10_alembic_head_is_043(db_conn):
-    """P10 : alembic_version doit pointer sur 043_vendor_activity_badge."""
+    """P10 : alembic_version doit pointer sur m4_patch_a_fix."""
     with db_conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert (
-        row["version_num"] == "043_vendor_activity_badge"
-    ), f"Head attendu : 043_vendor_activity_badge — réel : {row['version_num']}"
+        row["version_num"] == "m4_patch_a_fix"
+    ), f"Head attendu : m4_patch_a_fix — réel : {row['version_num']}"
 
 
 # ── P11 : trigger rebuilt sans OR REPLACE ────────────────────────
@@ -265,8 +265,8 @@ def test_p12_invalid_activity_status_rejected_by_db(db_conn):
             cur.execute("""
                 INSERT INTO vendor_identities
                     (vendor_id, fingerprint, name_raw, name_normalized,
-                     zone_normalized, region_code, activity_status, source)
+                     canonical_name, zone_normalized, region_code, activity_status, source)
                 VALUES
                     ('DMS-VND-BKO-9992-Z', 'fp_p12_bad', 'Test', 'test',
-                     'bamako', 'BKO', 'INVALID_STATUS', 'TEST_PATCH')
+                     'test', 'bamako', 'BKO', 'INVALID_STATUS', 'TEST_PATCH')
                 """)

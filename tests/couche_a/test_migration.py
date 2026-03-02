@@ -48,7 +48,7 @@ def _restore_schema(engine) -> None:
         cx.execute(sa.text("DELETE FROM alembic_version"))
         cx.execute(
             sa.text(
-                "INSERT INTO alembic_version (version_num) VALUES ('043_vendor_activity_badge')"
+                "INSERT INTO alembic_version (version_num) VALUES ('m4_patch_a_fix')"
             )
         )
 

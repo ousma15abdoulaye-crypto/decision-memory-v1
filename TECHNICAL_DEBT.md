@@ -452,6 +452,105 @@ Risque faible mais réel si jamais lancé en parallèle.
 
 ---
 
+## TD-002 · index GIN trigram pour vendor_match_rate (mis à jour 2026-03-02)
+
+| Attribut | Valeur |
+|---|---|
+| Sévérité | Modérée |
+| Contexte | DoD M15 exige `vendor_match_rate ≥ 60%` |
+| Fichier | `src/vendors/repository.py` · `match_vendor_by_name()` (à créer M11) |
+
+**IMPORTANT :** `pg_trgm` est **déjà activée** via `005_add_couche_b`.
+Ne pas recréer l'extension. Elle est disponible.
+
+**Ce qui reste à implémenter avant M11 :**
+
+1. Index GIN trigram sur `vendor_identities(canonical_name)` :
+   ```sql
+   CREATE INDEX idx_vi_canonical_trgm
+   ON vendor_identities
+   USING gin(canonical_name gin_trgm_ops);
+   ```
+
+2. `match_vendor_by_name()` dans `src/vendors/repository.py` :
+   - Logique : `rapidfuzz WRatio ≥ 80` sur `canonical_name` + `aliases`
+   - Retour : `vendor_id` · score · méthode (exact / fuzzy / unresolved)
+   - RÈGLE-20 : score < seuil → UNRESOLVED explicite · jamais silencieux
+
+**Mitigation M4 :**
+Pas de matching en M4. Déduplication par fingerprint uniquement.
+
+**Propriétaire :** CTO · à activer avant M11.
+
+---
+
+## TD-003 · zones_covered et category_ids vides en M4
+
+| Attribut | Valeur |
+|---|---|
+| Sévérité | Faible · attendu |
+| Contexte | Colonnes ajoutées par PATCH-A · peuplement prévu milestones suivants |
+| Fichier | `alembic/versions/m4_patch_a_vendor_structure_v410.py` |
+
+**Situation :**
+`zones_covered UUID[] DEFAULT '{}'` et `category_ids UUID[] DEFAULT '{}'`
+sont présentes en schéma depuis PATCH-A mais restent vides en M4.
+
+**Plan :**
+- `zones_covered` : peuplé en M5 (Mercuriale · couverture géographique fournisseur)
+- `category_ids` : peuplé en M6 (Catégories · référentiel achats)
+
+**Action en M4 :** aucune · attendu et documenté.
+
+**Propriétaire :** CTO · suivi M5/M6.
+
+---
+
+## TD-004 · Table vendors legacy hors alembic
+
+| Attribut | Valeur |
+|---|---|
+| Sévérité | Modérée · bloquante pour renommage vendor_identities → vendors |
+| Découverte | PATCH-A probe P2 · 2026-03-02 |
+| Contexte | Table créée hors alembic ~2026-02-17 · origine inconnue (test ou script pré-M3) |
+
+**Schéma de vendors legacy (probe 2026-03-02) :**
+```
+id       integer    NOT NULL  (PK)
+name     varchar    NOT NULL
+zone_id  varchar    nullable
+created_at text     NOT NULL
+```
+
+**État probe :**
+- 10 lignes · données tests uniquement (`Marché Central` x3, `Boutique Kayes` x3, etc.)
+- FK `market_signals.vendor_id → vendors.id` active — mais **0 lignes** market_signals la référencent
+- FK `vendors.zone_id → geo_master.id` active
+- Index GIN `idx_vendors_name_trgm` (pg_trgm) — prototype pré-M4 non nettoyé
+
+**Impact sur PATCH-A :**
+La migration `m4_patch_a_vendor_structure_v410` n'a pas pu renommer
+`vendor_identities → vendors` car cette table existait déjà.
+Option B appliquée : `vendor_identities` conserve son nom.
+
+**Arbre de décision pré-M5 :**
+1. Vider market_signals de toute référence vers vendors (déjà vrai · 0 lignes)
+2. Exécuter `DROP TABLE vendors CASCADE` dans une migration dédiée
+3. Ajouter `ALTER TABLE vendor_identities RENAME TO vendors` dans la même migration
+4. Mettre à jour toutes les requêtes SQL `vendor_identities` → `vendors`
+
+**Condition de sécurité :**
+`SELECT COUNT(*) FROM market_signals WHERE vendor_id IS NOT NULL` doit retourner 0
+avant tout DROP. Vrai au 2026-03-02 (confirmé par probe).
+
+**Solution M5-PRE :**
+Migration dédiée `045_consolidate_vendors` (si 045 libéré) ou ID hors séquence.
+Exécuter avant toute logique M5 qui lirait la table vendors.
+
+**Propriétaire :** CTO · à résoudre avant M5.
+
+---
+
 ### DETTE-UTC-01 — Timestamps naïfs code applicatif — SOLDÉE
 
 | Attribut | Valeur |
