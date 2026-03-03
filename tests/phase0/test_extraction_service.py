@@ -9,16 +9,15 @@ ADR-0002 §2.5 (SLA deux classes).
 
 import os
 import struct
-import tempfile
 
 import pytest
 
 from src.extraction.engine import (
+    _MISTRAL_OCR_MAX_BYTES,
     SLA_A_METHODS,
     SLA_B_METHODS,
-    _MISTRAL_OCR_MAX_BYTES,
-    _extract_mistral_ocr,
     _compute_confidence,
+    _extract_mistral_ocr,
     detect_method,
     extract_async,
     extract_sync,
@@ -349,7 +348,6 @@ class TestProcessExtractionJob:
         """Job pas en pending → ValueError."""
         import src.extraction.engine as eng
 
-        call_count = 0
 
         def fake_get_db_cursor():
             import contextlib

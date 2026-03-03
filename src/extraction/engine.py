@@ -24,9 +24,10 @@ import openpyxl  # type: ignore
 import pdfplumber  # type: ignore
 from docx import Document  # type: ignore
 
+from src.core.api_keys import get_llama_cloud_api_key, get_mistral_api_key
+
 # local
 from src.db.connection import get_db_cursor
-from src.core.api_keys import get_llama_cloud_api_key, get_mistral_api_key
 
 # ── Constantes ───────────────────────────────────────────────────
 
