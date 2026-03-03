@@ -33,7 +33,7 @@ def test_alembic_head_is_current(db_conn):
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert row is not None
-    assert row["version_num"] == "m5_pre_vendors_consolidation"
+    assert row["version_num"] == "m5_fix_market_signals_vendor_type"
 
 
 def test_chk_vendor_id_format_active(db_conn):

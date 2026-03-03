@@ -688,6 +688,81 @@ alembic heads
 
 ---
 
+## TD-010 · market_signals.vendor_id type mismatch INTEGER vs UUID
+
+|| Attribut | Valeur |
+||---|---|
+|| Statut | **FERMÉE** — 2026-03-03 · M5-FIX |
+|| Sévérité | ~~Haute~~ · RÉSOLUE |
+|| Découverte | Sprint M5-PRE · handover HANDOVER_M5PRE_TRANSMISSION.md § F2 |
+|| Fichier | `alembic/versions/m5_fix_market_signals_vendor_type.py` |
+|| ADR | `docs/adr/ADR-M5-FIX-001.md` |
+
+**Résolution :**
+- `market_signals.vendor_id` : `INTEGER` → `UUID`
+- FK **non recréée dans la migration** : `market_signals` est protégée append-only
+  (`FOR KEY SHARE` bloqué lors de tout `DELETE FROM vendors`, quelle que soit l'action FK)
+  → Contrainte logique documentée dans `docs/adr/ADR-M5-FIX-001.md`
+  → FK appliquée en prod via `scripts/apply_fk_prod.py` (`ON DELETE RESTRICT`)
+- Index `idx_signals_vendor` recréé sur type UUID (idempotent)
+- 4 gardes upgrade idempotentes : Garde 0 (déjà UUID → skip) · Garde 1 (table vide) · Garde 2 (type INTEGER) · Garde 3 (vendors.id UUID)
+- Downgrade honnête : bloqué si `vendor_id` non NULL · DROP FK si présente
+- 6 tests invariants dans `tests/db_integrity/test_m5_fix_market_signals.py`
+
+**Résidu documenté :** FK enforced uniquement en prod (Railway). En local, contrainte logique seulement.
+
+**Propriétaire :** CTO · FERMÉE.
+
+---
+
+## TD-011 · Protection append-only market_signals incompatible avec FK locale
+
+|| Attribut | Valeur |
+||---|---|
+|| Statut | **ACTIVE** |
+|| Sévérité | Moyenne |
+|| Découverte | Sprint M5-FIX · 2026-03-03 · STOP-5 + STOP-6 |
+|| Impact | FK `market_signals → vendors` enforced uniquement en prod |
+
+**Description :**
+`market_signals` est protégée append-only (REVOKE UPDATE ou équivalent).
+PostgreSQL déclenche `SELECT ... FOR KEY SHARE` sur `market_signals` lors de tout
+`DELETE FROM vendors`, quelle que soit l'action FK (RESTRICT · SET NULL · CASCADE · NO ACTION).
+Ce verrou est bloqué par la protection append-only dans l'environnement local.
+
+**Conséquence :** La FK `market_signals_vendor_id_fkey` ne peut pas exister localement.
+Les tests qui font `DELETE FROM vendors` en teardown échoueraient avec `InsufficientPrivilege`.
+
+**Mitigation actuelle :** FK absente de la migration · appliquée manuellement en prod via `scripts/apply_fk_prod.py`.
+
+**Action recommandée M5+ :** Comprendre et documenter exactement quelle protection est appliquée
+sur `market_signals` (trigger, REVOKE, RLS) et évaluer si elle peut être assouplie pour le rôle de test
+sans compromettre l'intégrité en prod.
+
+---
+
+## TD-012 · Contrainte chk_vendor_id_format limitée à 4 chiffres (9999 vendors/région max)
+
+|| Attribut | Valeur |
+||---|---|
+|| Statut | **ACTIVE** |
+|| Sévérité | Basse (locale) · Haute (prod long terme) |
+|| Découverte | Sprint M5-FIX · 2026-03-03 · PIÈGE-9 |
+|| Fichier | Contrainte DB `vendors.chk_vendor_id_format` |
+
+**Description :**
+Le format `DMS-VND-{REGION}-{SEQ:04d}-{CHK}` avec contrainte `^DMS-VND-[A-Z]{3}-[0-9]{4}-[A-Z]$`
+limite chaque région à exactement 4 chiffres (0001–9999).
+Après saturation du compteur (runs intensifs de debug ou import massif), les inserts `CheckViolation`.
+
+**Symptôme local :** `DMS-VND-BKO-10000-M` → `CheckViolation: chk_vendor_id_format`
+
+**Action recommandée M5+ :**
+- Étendre la regex à `[0-9]{4,6}` pour permettre jusqu'à 999999 vendors/région
+- Et/ou implémenter une table `vendor_sequences` (résout aussi TD-001)
+
+---
+
 ### DETTE-UTC-01 — Timestamps naïfs code applicatif — SOLDÉE
 
 | Attribut | Valeur |
