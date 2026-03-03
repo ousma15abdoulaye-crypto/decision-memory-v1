@@ -7,15 +7,22 @@ Constitution V3.3.2 §9 (doctrine échec).
 ADR-0002 §2.5 (SLA deux classes).
 """
 
+import os
+import struct
+import tempfile
+
 import pytest
 
 from src.extraction.engine import (
     SLA_A_METHODS,
     SLA_B_METHODS,
+    _MISTRAL_OCR_MAX_BYTES,
+    _extract_mistral_ocr,
     _compute_confidence,
     detect_method,
     extract_async,
     extract_sync,
+    process_extraction_job,
 )
 
 # ── Classe 1 — detect_method ─────────────────────────────────────
@@ -231,3 +238,175 @@ class TestDoctrineEchec:
         assert len(errors_stored) == 1
         assert errors_stored[0]["error_code"] == "PARSE_ERROR"
         assert "Parseur planté" in errors_stored[0]["detail"]
+
+
+# ── Classe 5 — _extract_mistral_ocr guards ──────────────────────
+
+
+class TestMistralOCRGuards:
+    """Garde-fous MIME type et taille pour Mistral OCR."""
+
+    def _make_png_file(self, tmp_path, size_bytes=100):
+        """Crée un fichier PNG minimal dans tmp_path."""
+        # Minimal valid PNG (8-byte signature + IHDR + IEND)
+        png_sig = b"\x89PNG\r\n\x1a\n"
+        ihdr_data = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
+        ihdr_crc = b"\x00" * 4
+        ihdr_chunk = struct.pack(">I", 13) + b"IHDR" + ihdr_data + ihdr_crc
+        iend_chunk = struct.pack(">I", 0) + b"IEND" + b"\x00" * 4
+        content = png_sig + ihdr_chunk + iend_chunk
+        # Pad to desired size
+        if len(content) < size_bytes:
+            content += b"\x00" * (size_bytes - len(content))
+        f = tmp_path / "test.png"
+        f.write_bytes(content)
+        return str(f)
+
+    def _make_pdf_file(self, tmp_path, size_bytes=100):
+        """Crée un fichier PDF minimal dans tmp_path."""
+        content = b"%PDF-1.4 minimal" + b"\x00" * max(0, size_bytes - 16)
+        f = tmp_path / "test.pdf"
+        f.write_bytes(content)
+        return str(f)
+
+    def test_rejects_pdf_mime_type(self, monkeypatch, tmp_path):
+        """PDF → ValueError (Mistral OCR image-only)."""
+        monkeypatch.setenv("MISTRAL_API_KEY", "sk-test")
+        monkeypatch.setenv("STORAGE_BASE_PATH", str(tmp_path))
+        path = self._make_pdf_file(tmp_path)
+
+        with pytest.raises(ValueError, match="image"):
+            _extract_mistral_ocr(path)
+
+    def test_rejects_oversized_file(self, monkeypatch, tmp_path):
+        """Fichier > 20 MB → ValueError."""
+        monkeypatch.setenv("MISTRAL_API_KEY", "sk-test")
+        monkeypatch.setenv("STORAGE_BASE_PATH", str(tmp_path))
+        path = self._make_png_file(tmp_path, size_bytes=100)
+        # Fake the file size via os.path.getsize
+        monkeypatch.setattr(
+            os.path, "getsize", lambda p: _MISTRAL_OCR_MAX_BYTES + 1
+        )
+
+        with pytest.raises(ValueError, match="volumineux"):
+            _extract_mistral_ocr(path)
+
+    def test_accepts_image_mime(self, monkeypatch, tmp_path):
+        """Image PNG + API key → passe la validation MIME (ImportError mistralai OK)."""
+        monkeypatch.setenv("MISTRAL_API_KEY", "sk-test")
+        monkeypatch.setenv("STORAGE_BASE_PATH", str(tmp_path))
+        path = self._make_png_file(tmp_path)
+
+        # mistralai n'est pas installé → ImportError attendue
+        # (prouve que la validation MIME/taille est passée)
+        with pytest.raises(ImportError, match="mistralai"):
+            _extract_mistral_ocr(path)
+
+    def test_missing_api_key_raises(self, monkeypatch, tmp_path):
+        """Pas de MISTRAL_API_KEY → APIKeyMissingError."""
+        from src.core.api_keys import APIKeyMissingError
+
+        monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
+        monkeypatch.setenv("STORAGE_BASE_PATH", str(tmp_path))
+        path = self._make_png_file(tmp_path)
+
+        with pytest.raises(APIKeyMissingError):
+            _extract_mistral_ocr(path)
+
+
+# ── Classe 6 — process_extraction_job ────────────────────────────
+
+
+class TestProcessExtractionJob:
+    """process_extraction_job — FSM pending → processing → done | failed."""
+
+    def test_job_not_found_raises(self, monkeypatch):
+        """Job inexistant → ValueError."""
+        import src.extraction.engine as eng
+
+        def fake_get_db_cursor():
+            import contextlib
+
+            @contextlib.contextmanager
+            def _ctx():
+                class FakeCursor:
+                    def execute(self, *a, **kw):
+                        pass
+
+                    def fetchone(self):
+                        return None
+
+                yield FakeCursor()
+
+            return _ctx()
+
+        monkeypatch.setattr(eng, "get_db_cursor", fake_get_db_cursor)
+
+        with pytest.raises(ValueError, match="introuvable"):
+            process_extraction_job("job-inexistant")
+
+    def test_non_pending_job_raises(self, monkeypatch):
+        """Job pas en pending → ValueError."""
+        import src.extraction.engine as eng
+
+        call_count = 0
+
+        def fake_get_db_cursor():
+            import contextlib
+
+            @contextlib.contextmanager
+            def _ctx():
+                class FakeCursor:
+                    def execute(self, *a, **kw):
+                        pass
+
+                    def fetchone(self):
+                        return {
+                            "id": "job-1",
+                            "document_id": "doc-1",
+                            "method": "tesseract",
+                            "status": "done",
+                            "storage_uri": "/tmp/test.pdf",
+                            "case_id": None,
+                        }
+
+                yield FakeCursor()
+
+            return _ctx()
+
+        monkeypatch.setattr(eng, "get_db_cursor", fake_get_db_cursor)
+
+        with pytest.raises(ValueError, match="pending"):
+            process_extraction_job("job-1")
+
+    def test_invalid_method_raises(self, monkeypatch):
+        """Méthode inconnue → ValueError."""
+        import src.extraction.engine as eng
+
+        def fake_get_db_cursor():
+            import contextlib
+
+            @contextlib.contextmanager
+            def _ctx():
+                class FakeCursor:
+                    def execute(self, *a, **kw):
+                        pass
+
+                    def fetchone(self):
+                        return {
+                            "id": "job-1",
+                            "document_id": "doc-1",
+                            "method": "unknown_method",
+                            "status": "pending",
+                            "storage_uri": "/tmp/test.pdf",
+                            "case_id": None,
+                        }
+
+                yield FakeCursor()
+
+            return _ctx()
+
+        monkeypatch.setattr(eng, "get_db_cursor", fake_get_db_cursor)
+
+        with pytest.raises(ValueError, match="SLA-B"):
+            process_extraction_job("job-1")

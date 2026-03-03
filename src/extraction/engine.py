@@ -288,15 +288,7 @@ def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
     _validate_storage_uri(storage_uri)
     api_key = get_mistral_api_key()  # raises APIKeyMissingError if absent
 
-    try:
-        from mistralai import Mistral  # type: ignore
-    except ImportError as exc:
-        raise ImportError(
-            "mistralai n'est pas installé. "
-            "Ajouter 'mistralai' à requirements.txt."
-        ) from exc
-
-    # ── Read file with size guard ────────────────────────────────
+    # ── Size guard (before reading full file into memory) ────────
     file_size = os.path.getsize(storage_uri)
     if file_size > _MISTRAL_OCR_MAX_BYTES:
         raise ValueError(
@@ -325,6 +317,15 @@ def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
             f"Pour les PDF, utiliser native_pdf ou llamaparse ; "
             f"pour les documents Office, utiliser excel_parser / docx_parser."
         )
+
+    # ── SDK import (deferred — only needed if guards pass) ───────
+    try:
+        from mistralai import Mistral  # type: ignore
+    except ImportError as exc:
+        raise ImportError(
+            "mistralai n'est pas installé. "
+            "Ajouter 'mistralai' à requirements.txt."
+        ) from exc
 
     # ── Model configurable via env; defaults to mistral-small-latest
     model = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
