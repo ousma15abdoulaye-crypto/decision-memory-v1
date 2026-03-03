@@ -99,9 +99,9 @@ class TestSLAValidation:
         """SLA_A_METHODS = exactement 3 méthodes."""
         assert SLA_A_METHODS == {"native_pdf", "excel_parser", "docx_parser"}
 
-    def test_sla_b_methods_contient_deux_methodes(self):
-        """SLA_B_METHODS = exactement 2 méthodes."""
-        assert SLA_B_METHODS == {"tesseract", "azure"}
+    def test_sla_b_methods_contient_quatre_methodes(self):
+        """SLA_B_METHODS = exactement 4 méthodes."""
+        assert SLA_B_METHODS == {"tesseract", "azure", "llamaparse", "mistral_ocr"}
 
 
 # ── Classe 3 — _compute_confidence ──────────────────────────────

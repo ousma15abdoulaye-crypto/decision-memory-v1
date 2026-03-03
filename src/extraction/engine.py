@@ -6,7 +6,7 @@ ADR-0003 §2.2 (ordre exécution).
 
 SLA-A : native_pdf / excel_parser / docx_parser
         → synchrone < 60s
-SLA-B : tesseract / azure
+SLA-B : tesseract / azure / llamaparse / mistral_ocr
         → asynchrone via extraction_jobs
 """
 
@@ -271,11 +271,19 @@ def _extract_llamaparse(storage_uri: str) -> tuple[str, dict]:
     return raw_text, dict(STRUCTURED_DATA_EMPTY)
 
 
+_MISTRAL_OCR_MAX_BYTES = 20 * 1024 * 1024  # 20 MB guard-rail for OCR
+_MISTRAL_OCR_SUPPORTED_PREFIXES = ("image/",)
+
+
 def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
     """Extraction OCR via Mistral AI (SLA-B).
 
     La clé API est lue depuis MISTRAL_API_KEY (jamais dans le code).
     Lève APIKeyMissingError si la variable d'environnement est absente.
+
+    Seuls les fichiers image/* sont acceptés (PNG, JPEG, TIFF, …).
+    Les PDF et documents Office doivent passer par LlamaParse ou
+    native_pdf/docx_parser.  Un garde-fou rejette les fichiers > 20 MB.
     """
     _validate_storage_uri(storage_uri)
     api_key = get_mistral_api_key()  # raises APIKeyMissingError if absent
@@ -288,21 +296,40 @@ def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
             "Ajouter 'mistralai' à requirements.txt."
         ) from exc
 
-    # Model configurable via env; defaults to mistral-small-latest
-    model = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
+    # ── Read file with size guard ────────────────────────────────
+    file_size = os.path.getsize(storage_uri)
+    if file_size > _MISTRAL_OCR_MAX_BYTES:
+        raise ValueError(
+            f"Fichier trop volumineux pour Mistral OCR "
+            f"({file_size / 1024 / 1024:.1f} MB > "
+            f"{_MISTRAL_OCR_MAX_BYTES / 1024 / 1024:.0f} MB). "
+            f"Utiliser LlamaParse ou un pré-traitement page par page."
+        )
 
-    client = Mistral(api_key=api_key)
     with open(storage_uri, "rb") as f:
         file_bytes = f.read()
 
-    # Detect MIME type from actual file bytes (filetype is in requirements.txt)
+    # ── MIME type from actual bytes (filetype is in requirements.txt)
     try:
         import filetype as _ft  # type: ignore
+
         detected = _ft.guess(file_bytes)
         mime = detected.mime if detected else "application/octet-stream"
     except Exception:
         mime = "application/octet-stream"
 
+    if not any(mime.startswith(p) for p in _MISTRAL_OCR_SUPPORTED_PREFIXES):
+        raise ValueError(
+            f"Mistral OCR ne supporte que les images (image/*). "
+            f"Type détecté : '{mime}'. "
+            f"Pour les PDF, utiliser native_pdf ou llamaparse ; "
+            f"pour les documents Office, utiliser excel_parser / docx_parser."
+        )
+
+    # ── Model configurable via env; defaults to mistral-small-latest
+    model = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
+
+    client = Mistral(api_key=api_key)
     b64 = base64.b64encode(file_bytes).decode()
     response = client.chat.complete(
         model=model,
@@ -461,3 +488,107 @@ def extract_async(document_id: str, method: str) -> dict:
             f"{job['id']}/status"
         ),
     }
+
+
+def process_extraction_job(job_id: str) -> dict:
+    """Execute a queued SLA-B extraction job.
+
+    Called by the async worker when it picks a job from the queue.
+    Transitions: pending → processing → done | failed.
+    §9 : échec explicite, jamais silencieux.
+    """
+    with get_db_cursor() as cur:
+        cur.execute(
+            """
+            SELECT ej.id, ej.document_id, ej.method, ej.status,
+                   d.storage_uri, d.case_id
+            FROM extraction_jobs ej
+            JOIN documents d ON d.id = ej.document_id
+            WHERE ej.id = %s
+        """,
+            (job_id,),
+        )
+        job = cur.fetchone()
+
+    if job is None:
+        raise ValueError(f"Job '{job_id}' introuvable.")
+
+    if job["status"] != "pending":
+        raise ValueError(
+            f"Job '{job_id}' n'est pas en attente (status={job['status']}). "
+            f"Seuls les jobs 'pending' peuvent être traités."
+        )
+
+    method = job["method"]
+    document_id = job["document_id"]
+
+    if method not in SLA_B_METHODS:
+        raise ValueError(
+            f"Méthode inconnue pour SLA-B : '{method}'. "
+            f"Méthodes valides : {SLA_B_METHODS}."
+        )
+
+    # pending → processing
+    with get_db_cursor() as cur:
+        cur.execute(
+            "UPDATE extraction_jobs SET status = 'processing', "
+            "started_at = NOW() WHERE id = %s",
+            (job_id,),
+        )
+    _update_document_status(document_id, "processing")
+
+    start_ms = time.monotonic() * 1000
+
+    try:
+        doc = {"storage_uri": job["storage_uri"]}
+        raw_text, structured_data = _dispatch_extraction(doc, method)
+        duration_ms = (time.monotonic() * 1000) - start_ms
+
+        confidence = _compute_confidence(raw_text, structured_data)
+
+        if confidence < 0.6:
+            structured_data["_low_confidence"] = True
+            structured_data["_requires_human_review"] = True
+
+        structured_data["_extraction_duration_ms"] = duration_ms
+        structured_data["_sla_class"] = "B"
+
+        _store_extraction(
+            document_id,
+            raw_text,
+            structured_data,
+            method,
+            confidence,
+            case_id=job.get("case_id"),
+        )
+
+        # processing → done
+        with get_db_cursor() as cur:
+            cur.execute(
+                "UPDATE extraction_jobs SET status = 'done', "
+                "completed_at = NOW(), duration_ms = %s WHERE id = %s",
+                (duration_ms, job_id),
+            )
+        _update_document_status(document_id, "done")
+
+        return {
+            "job_id": job_id,
+            "document_id": document_id,
+            "status": "done",
+            "method": method,
+            "sla_class": "B",
+            "duration_ms": duration_ms,
+            "confidence": confidence,
+        }
+
+    except Exception as exc:
+        # processing → failed
+        with get_db_cursor() as cur:
+            cur.execute(
+                "UPDATE extraction_jobs SET status = 'failed', "
+                "completed_at = NOW(), error_message = %s WHERE id = %s",
+                (str(exc)[:500], job_id),
+            )
+        _update_document_status(document_id, "failed")
+        _store_error(document_id, job_id, "PARSE_ERROR", str(exc))
+        raise
