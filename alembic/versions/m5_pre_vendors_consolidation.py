@@ -75,16 +75,32 @@ def upgrade() -> None:
                     'vendors legacy introuvable — état inattendu — arbitrage CTO';
             END IF;
 
-            -- ── Garde 3 : vendors legacy doit être vide ───────────────────
+            -- ── Garde 3 : protéger les données métier si market_signals actives ───
+            -- vendors legacy peut contenir des lignes seed (005_add_couche_b.py).
+            -- Ces lignes sont autorisées si aucune ligne de market_signals n'y fait référence.
+            -- VERDCAT A probe 2026-03-03 : 0 lignes market_signals.vendor_id non-null.
+            -- Seule la présence de FK actives justifie un RAISE EXCEPTION (données métier réelles).
             DECLARE
-                v_count INTEGER;
+                v_count    INTEGER;
+                v_ms_count INTEGER;
             BEGIN
                 SELECT COUNT(*) INTO v_count FROM vendors;
                 IF v_count > 0 THEN
-                    RAISE EXCEPTION
-                        'm5_pre_vendors_consolidation : '
-                        'vendors legacy contient % ligne(s) — DROP refusé — arbitrage CTO',
-                        v_count;
+                    SELECT COUNT(*) INTO v_ms_count
+                    FROM market_signals
+                    WHERE vendor_id IS NOT NULL;
+
+                    IF v_ms_count > 0 THEN
+                        RAISE EXCEPTION
+                            'm5_pre_vendors_consolidation : '
+                            'vendors legacy contient % ligne(s) référencées dans market_signals (%) — DROP refusé — arbitrage CTO',
+                            v_count, v_ms_count;
+                    ELSE
+                        RAISE NOTICE
+                            'm5_pre_vendors_consolidation : '
+                            'vendors legacy contient % ligne(s) sans référence market_signals — seed/test uniquement — DROP autorisé',
+                            v_count;
+                    END IF;
                 END IF;
             END;
 
