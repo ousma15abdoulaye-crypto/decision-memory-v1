@@ -153,12 +153,15 @@ class TestLazyLoadContract:
         """Import du module sans clés dans l'env → aucune exception."""
         monkeypatch.delenv("LLAMA_CLOUD_API_KEY", raising=False)
         monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
+        # Reload ici (pas en top-level) pour forcer un re-import frais
         import importlib
 
         import src.core.api_keys as mod
 
         importlib.reload(mod)
-        # Si on arrive ici, le module s'est chargé sans lever d'exception.
+        # Module chargé sans exception → lazy-load confirmé
+        assert hasattr(mod, "get_llama_cloud_api_key")
+        assert hasattr(mod, "get_mistral_api_key")
 
     def test_getters_are_callable(self):
         """Les helpers sont des callables (pas des valeurs résolues au boot)."""
