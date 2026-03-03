@@ -369,7 +369,11 @@ alembic heads         → m5_pre_vendors_consolidation (1 seul head ✓)
 vendors               → ex vendor_identities · 34 colonnes · 0 lignes local · 661 prod
 vendor_identities     → SUPPRIMÉE (consolidation appliquée)
 vendors legacy        → SUPPRIMÉE (était vide · TD-004 FERMÉE)
-market_signals.vendor_id → colonne présente · aucune FK formelle · non bloquant
+market_signals.vendor_id → FK existante vers vendors(id) supprimée explicitement
+  créée par    : 005_add_couche_b.py (market_signals_vendor_id_fkey)
+  supprimée par: m5_pre_vendors_consolidation (upgrade · ALTER TABLE market_signals DROP CONSTRAINT)
+  non restaurée: m5_pre_vendors_consolidation (downgrade · partiel · documenté)
+  rollback complet : backup Railway requis
 ```
 
 ### Prochain slot migration valide

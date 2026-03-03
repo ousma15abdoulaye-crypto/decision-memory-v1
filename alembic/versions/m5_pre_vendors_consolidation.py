@@ -2,7 +2,7 @@
 m5_pre_vendors_consolidation
 
 Consolide vendor_identities → vendors.
-Supprime la table vendors legacy (résiduelle · était vide).
+Supprime la table vendors legacy (résiduelle · était vide en PROD).
 
 Contexte :
   Table vendors legacy (4 colonnes · hors Alembic) coexistait avec
@@ -10,7 +10,9 @@ Contexte :
   Probe 2026-03-03 :
     - vendors legacy        : 0 lignes non-null dans market_signals.vendor_id
     - vendor_identities     : 0 lignes local · 661 prod (wave 1 + 2)
-    - FK market_signals     : vendor_id existe en colonne mais aucune FK formelle
+    - FK supprimée          : market_signals.vendor_id REFERENCES vendors(id)
+                              créée par 005_add_couche_b.py · supprimée explicitement
+                              dans ce upgrade · nom : market_signals_vendor_id_fkey
     - Décision CTO          : VERDICT A — consolidation autorisée
 
 Note sur l'idempotence :
@@ -48,10 +50,8 @@ depends_on = None
 def upgrade() -> None:
     op.execute("""
         DO $$
-        DECLARE
-            v_count INTEGER;
         BEGIN
-            -- ── Garde idempotence ──────────────────────────────────────────
+            -- ── Garde 1 : idempotence ──────────────────────────────────────
             -- Si vendor_identities absente → consolidation déjà appliquée → skip propre.
             IF NOT EXISTS (
                 SELECT 1 FROM information_schema.tables
@@ -64,28 +64,57 @@ def upgrade() -> None:
                 RETURN;
             END IF;
 
-            -- ── Étape 1 : DROP vendors legacy si présente ────────────────
-            -- vendors legacy (4 colonnes) est supprimée inconditionnellement.
-            -- En PROD elle était vide (0 lignes · confirmé probe VERDICT A 2026-03-03).
-            -- En CI elle peut contenir des lignes de test issues des fixtures Couche B.
-            -- Dans les deux cas le DROP est sûr : aucune donnée métier dans vendors legacy.
-            -- Si vendors n'existe pas (ex. après downgrade), on saute le DROP.
-            IF EXISTS (
+            -- ── Garde 2 : vendors legacy doit exister ─────────────────────
+            IF NOT EXISTS (
                 SELECT 1 FROM information_schema.tables
                 WHERE table_schema = 'public'
                   AND table_name   = 'vendors'
             ) THEN
-                SELECT COUNT(*) INTO v_count FROM vendors;
-                IF v_count > 0 THEN
-                    RAISE NOTICE
-                        'm5_pre_vendors_consolidation : '
-                        'vendors legacy contient % ligne(s) — DROP CASCADE (données test uniquement)',
-                        v_count;
-                END IF;
-                DROP TABLE vendors CASCADE;
+                RAISE EXCEPTION
+                    'm5_pre_vendors_consolidation : '
+                    'vendors legacy introuvable — état inattendu — arbitrage CTO';
             END IF;
 
-            -- ── Étape 2 : RENAME vendor_identities → vendors ──────────────
+            -- ── Garde 3 : vendors legacy doit être vide ───────────────────
+            DECLARE
+                v_count INTEGER;
+            BEGIN
+                SELECT COUNT(*) INTO v_count FROM vendors;
+                IF v_count > 0 THEN
+                    RAISE EXCEPTION
+                        'm5_pre_vendors_consolidation : '
+                        'vendors legacy contient % ligne(s) — DROP refusé — arbitrage CTO',
+                        v_count;
+                END IF;
+            END;
+
+            -- ── Étape 1 : DROP FK explicite sur market_signals ────────────
+            -- FK créée par 005_add_couche_b.py : market_signals.vendor_id REFERENCES vendors(id)
+            -- Suppression nécessaire avant DROP TABLE vendors (sinon dépendance).
+            -- Nom confirmé par convention PostgreSQL {table}_{colonne}_fkey.
+            IF EXISTS (
+                SELECT 1
+                FROM information_schema.table_constraints
+                WHERE table_schema    = 'public'
+                  AND constraint_name = 'market_signals_vendor_id_fkey'
+                  AND table_name      = 'market_signals'
+                  AND constraint_type = 'FOREIGN KEY'
+            ) THEN
+                ALTER TABLE market_signals
+                    DROP CONSTRAINT market_signals_vendor_id_fkey;
+                RAISE NOTICE
+                    'm5_pre_vendors_consolidation : '
+                    'FK market_signals.market_signals_vendor_id_fkey supprimée';
+            ELSE
+                RAISE NOTICE
+                    'm5_pre_vendors_consolidation : '
+                    'FK market_signals.market_signals_vendor_id_fkey absente — déjà supprimée ou jamais créée';
+            END IF;
+
+            -- ── Étape 2 : DROP vendors legacy — FK supprimée · table vide ─
+            DROP TABLE vendors;
+
+            -- ── Étape 3 : RENAME vendor_identities → vendors ──────────────
             ALTER TABLE vendor_identities RENAME TO vendors;
 
             -- ── Étape 3 : RENAME PK (si ancien nom encore présent) ────────
@@ -164,102 +193,101 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """
-    Downgrade NON SYMÉTRIQUE — documenté honnêtement.
-
-    Restitue le rename vendors ← vendor_identities.
-    La table vendors legacy originale (4 colonnes) n'est pas recréée.
-    Les données prod (661 lignes en prod) survivent sous vendor_identities.
-    Pour rollback complet : restaurer depuis backup Railway.
-    """
+    # Downgrade partiel — honnête et documenté.
+    #
+    # Ce downgrade restitue uniquement le rename vendors → vendor_identities.
+    #
+    # CE QUI N'EST PAS RESTAURÉ :
+    #   - vendors legacy (4 colonnes) : détruite intentionnellement · non recréée
+    #   - FK market_signals.vendor_id REFERENCES vendors(id) :
+    #     supprimée lors du upgrade · non recréée ici
+    #     market_signals.vendor_id reste une colonne sans contrainte FK
+    #
+    # Pour rollback complet : restaurer depuis backup Railway avant cette migration.
     op.execute("""
         DO $$
         BEGIN
-            -- ── Garde idempotence ──────────────────────────────────────────
-            IF NOT EXISTS (
+            IF EXISTS (
                 SELECT 1 FROM information_schema.tables
                 WHERE table_schema = 'public'
                   AND table_name   = 'vendors'
             ) THEN
-                RAISE NOTICE
-                    'm5_pre_vendors_consolidation downgrade : '
-                    'vendors absente — skip';
-                RETURN;
+                -- ── RENAME index non-contraintes ──────────────────────────
+                IF EXISTS (
+                    SELECT 1 FROM pg_indexes
+                    WHERE schemaname = 'public'
+                      AND tablename  = 'vendors'
+                      AND indexname  = 'idx_vendors_canonical'
+                ) THEN
+                    ALTER INDEX idx_vendors_canonical RENAME TO idx_vi_canonical;
+                END IF;
+
+                IF EXISTS (
+                    SELECT 1 FROM pg_indexes
+                    WHERE schemaname = 'public'
+                      AND tablename  = 'vendors'
+                      AND indexname  = 'idx_vendors_verification'
+                ) THEN
+                    ALTER INDEX idx_vendors_verification RENAME TO idx_vi_verification;
+                END IF;
+
+                -- ── RENAME contraintes UNIQUE ──────────────────────────────
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE table_schema    = 'public'
+                      AND table_name      = 'vendors'
+                      AND constraint_name = 'uq_vendors_canonical_name'
+                ) THEN
+                    ALTER TABLE vendors RENAME CONSTRAINT
+                        uq_vendors_canonical_name TO uq_vi_canonical_name;
+                END IF;
+
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE table_schema    = 'public'
+                      AND table_name      = 'vendors'
+                      AND constraint_name = 'vendors_vcrn_key'
+                ) THEN
+                    ALTER TABLE vendors RENAME CONSTRAINT
+                        vendors_vcrn_key TO vendor_identities_vcrn_key;
+                END IF;
+
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE table_schema    = 'public'
+                      AND table_name      = 'vendors'
+                      AND constraint_name = 'vendors_vendor_id_key'
+                ) THEN
+                    ALTER TABLE vendors RENAME CONSTRAINT
+                        vendors_vendor_id_key TO vendor_identities_vendor_id_key;
+                END IF;
+
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE table_schema    = 'public'
+                      AND table_name      = 'vendors'
+                      AND constraint_name = 'vendors_fingerprint_key'
+                ) THEN
+                    ALTER TABLE vendors RENAME CONSTRAINT
+                        vendors_fingerprint_key TO vendor_identities_fingerprint_key;
+                END IF;
+
+                -- ── RENAME PK ──────────────────────────────────────────────
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.table_constraints
+                    WHERE table_schema    = 'public'
+                      AND table_name      = 'vendors'
+                      AND constraint_name = 'vendors_pkey'
+                ) THEN
+                    ALTER TABLE vendors RENAME CONSTRAINT
+                        vendors_pkey TO vendor_identities_pkey;
+                END IF;
+
+                -- ── RENAME vendors → vendor_identities ────────────────────
+                ALTER TABLE vendors RENAME TO vendor_identities;
+                RAISE NOTICE 'm5_pre_vendors_consolidation downgrade : vendors renommée en vendor_identities';
+            ELSE
+                RAISE NOTICE 'm5_pre_vendors_consolidation downgrade : vendors absente — rien à renommer';
             END IF;
-
-            -- ── Étape 1 : RENAME index non-contraintes ────────────────────
-            IF EXISTS (
-                SELECT 1 FROM pg_indexes
-                WHERE schemaname = 'public'
-                  AND tablename  = 'vendors'
-                  AND indexname  = 'idx_vendors_canonical'
-            ) THEN
-                ALTER INDEX idx_vendors_canonical RENAME TO idx_vi_canonical;
-            END IF;
-
-            IF EXISTS (
-                SELECT 1 FROM pg_indexes
-                WHERE schemaname = 'public'
-                  AND tablename  = 'vendors'
-                  AND indexname  = 'idx_vendors_verification'
-            ) THEN
-                ALTER INDEX idx_vendors_verification RENAME TO idx_vi_verification;
-            END IF;
-
-            -- ── Étape 2 : RENAME contraintes UNIQUE ───────────────────────
-            IF EXISTS (
-                SELECT 1 FROM information_schema.table_constraints
-                WHERE table_schema    = 'public'
-                  AND table_name      = 'vendors'
-                  AND constraint_name = 'uq_vendors_canonical_name'
-            ) THEN
-                ALTER TABLE vendors RENAME CONSTRAINT
-                    uq_vendors_canonical_name TO uq_vi_canonical_name;
-            END IF;
-
-            IF EXISTS (
-                SELECT 1 FROM information_schema.table_constraints
-                WHERE table_schema    = 'public'
-                  AND table_name      = 'vendors'
-                  AND constraint_name = 'vendors_vcrn_key'
-            ) THEN
-                ALTER TABLE vendors RENAME CONSTRAINT
-                    vendors_vcrn_key TO vendor_identities_vcrn_key;
-            END IF;
-
-            IF EXISTS (
-                SELECT 1 FROM information_schema.table_constraints
-                WHERE table_schema    = 'public'
-                  AND table_name      = 'vendors'
-                  AND constraint_name = 'vendors_vendor_id_key'
-            ) THEN
-                ALTER TABLE vendors RENAME CONSTRAINT
-                    vendors_vendor_id_key TO vendor_identities_vendor_id_key;
-            END IF;
-
-            IF EXISTS (
-                SELECT 1 FROM information_schema.table_constraints
-                WHERE table_schema    = 'public'
-                  AND table_name      = 'vendors'
-                  AND constraint_name = 'vendors_fingerprint_key'
-            ) THEN
-                ALTER TABLE vendors RENAME CONSTRAINT
-                    vendors_fingerprint_key TO vendor_identities_fingerprint_key;
-            END IF;
-
-            -- ── Étape 3 : RENAME PK ───────────────────────────────────────
-            IF EXISTS (
-                SELECT 1 FROM information_schema.table_constraints
-                WHERE table_schema    = 'public'
-                  AND table_name      = 'vendors'
-                  AND constraint_name = 'vendors_pkey'
-            ) THEN
-                ALTER TABLE vendors RENAME CONSTRAINT
-                    vendors_pkey TO vendor_identities_pkey;
-            END IF;
-
-            -- ── Étape 4 : RENAME vendors → vendor_identities ──────────────
-            ALTER TABLE vendors RENAME TO vendor_identities;
-
         END $$;
     """)
