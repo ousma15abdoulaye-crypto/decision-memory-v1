@@ -1,8 +1,12 @@
 """
-Accès DB vendor_identities — psycopg pur, ADR-0003.
+Accès DB vendors — psycopg pur, ADR-0003.
 
 SQL paramétré uniquement. Zéro ORM.
 Le vendor_id est généré ICI · en transaction · pas dans l'ETL.
+
+M5-PRE-HARDENING (migration m5_pre_vendors_consolidation) :
+  - table renommée vendor_identities → vendors
+  - toutes les références SQL mises à jour ici
 
 Patch M4 :
   - insert_vendor : ON CONFLICT (fingerprint) DO NOTHING RETURNING vendor_id
@@ -14,6 +18,27 @@ import hashlib
 
 from src.db import db_fetchall, get_connection
 from src.vendors.region_codes import build_vendor_id
+
+# Colonnes publiques autorisées pour exposition API.
+# Colonnes exclues : nif, rccm, rib, verified_by, verification_source,
+# suspension_reason — données sensibles fournisseurs (ADR-M5-PRE-001 §D1.2).
+_PUBLIC_COLUMNS = (
+    "vendor_id",
+    "canonical_name",
+    "name_raw",
+    "name_normalized",
+    "region_code",
+    "zone_raw",
+    "zone_normalized",
+    "email",
+    "phone",
+    "activity_status",
+    "verification_status",
+    "is_active",
+    "created_at",
+)
+
+_PUBLIC_COLUMNS_SQL = ", ".join(_PUBLIC_COLUMNS)
 
 
 def generate_fingerprint(name_normalized: str, region_code: str) -> str:
@@ -43,7 +68,7 @@ def get_next_sequence(conn, region_code: str) -> int:
         "SELECT COALESCE(MAX("
         "  CAST(SPLIT_PART(vendor_id, '-', 4) AS INTEGER)"
         "), 0) + 1 AS next_seq "
-        "FROM vendor_identities "
+        "FROM vendors "
         "WHERE vendor_id ~ %(regex)s",
         {"regex": regex},
     )
@@ -87,7 +112,7 @@ def insert_vendor(
 
         conn.execute(
             """
-            INSERT INTO vendor_identities (
+            INSERT INTO vendors (
                 vendor_id, fingerprint,
                 name_raw, name_normalized,
                 canonical_name,
@@ -132,8 +157,7 @@ def insert_vendor(
 
         # Vérifie si l'insertion a eu lieu (ON CONFLICT peut l'avoir ignorée)
         conn.execute(
-            "SELECT vendor_id FROM vendor_identities "
-            "WHERE fingerprint = %(fp)s LIMIT 1",
+            "SELECT vendor_id FROM vendors " "WHERE fingerprint = %(fp)s LIMIT 1",
             {"fp": fingerprint},
         )
         row = conn.fetchone()
@@ -145,7 +169,7 @@ def insert_vendor(
 def get_vendor_by_id(vendor_id: str) -> dict | None:
     with get_connection() as conn:
         conn.execute(
-            "SELECT * FROM vendor_identities WHERE vendor_id = %(vid)s",
+            f"SELECT {_PUBLIC_COLUMNS_SQL} FROM vendors" " WHERE vendor_id = %(vid)s",
             {"vid": vendor_id},
         )
         return conn.fetchone()
@@ -158,7 +182,7 @@ def list_vendors(
     offset: int = 0,
 ) -> list[dict]:
     with get_connection() as conn:
-        sql = "SELECT * FROM vendor_identities WHERE is_active = TRUE"
+        sql = f"SELECT {_PUBLIC_COLUMNS_SQL} FROM vendors" " WHERE is_active = TRUE"
         params: dict = {"limit": limit, "offset": offset}
 
         if region_code:

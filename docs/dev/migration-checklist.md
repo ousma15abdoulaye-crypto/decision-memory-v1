@@ -326,6 +326,62 @@ done
 
 ---
 
-**Dernière mise à jour:** 2026-02-13  
-**Auteur:** Équipe DMS  
-**Version:** 1.0 (Post-incident migration 003)
+---
+
+## ⚠️ 8. Spécificités Chaîne Post-M4 (OBLIGATOIRE — lire avant 04X+)
+
+### Règles absolues post-M4
+
+```text
+1. alembic heads → 1 seul résultat avant de commencer
+2. down_revision = copié depuis output alembic heads · jamais supposé
+3. IDs 044 et 045 réservés freeze V4.1.0 · M11 et M14 uniquement
+4. Migrations patch post-freeze = noms explicites (m5_pre_* · m4_patch_*)
+5. Noms contraintes/index = issus du probe SQL · jamais inventés
+6. Après chaque migration : alembic heads → vérifier 1 seul résultat
+```
+
+### Chaîne Alembic post-M4 — état 2026-03-03
+
+```
+041_vendor_identities
+  → 042_vendor_fixes
+  → 043_vendor_activity_badge
+  → m4_patch_a_vendor_structure_v410   ← hors séquence · DÉPLOYÉ PROD
+  → m4_patch_a_fix                     ← hors séquence · DÉPLOYÉ PROD
+  → m5_pre_vendors_consolidation       ← HEAD · M5-PRE-HARDENING
+```
+
+### Migrations hors convention numérique (INTOUCHABLES)
+
+```text
+m4_patch_a_vendor_structure_v410 · down_revision = 043_vendor_activity_badge
+m4_patch_a_fix                   · down_revision = m4_patch_a_vendor_structure_v410
+m5_pre_vendors_consolidation     · down_revision = m4_patch_a_fix
+```
+
+Ces fichiers sont **intouchables** (renommage interdit — migrations déployées).
+
+### État consolidation vendors — 2026-03-03 · VERDICT A appliqué
+
+```text
+alembic heads         → m5_pre_vendors_consolidation (1 seul head ✓)
+vendors               → ex vendor_identities · 34 colonnes · 0 lignes local · 661 prod
+vendor_identities     → SUPPRIMÉE (consolidation appliquée)
+vendors legacy        → SUPPRIMÉE (était vide · TD-004 FERMÉE)
+market_signals.vendor_id → colonne présente · aucune FK formelle · non bloquant
+```
+
+### Prochain slot migration valide
+
+```text
+Révision   : m6_[description] (ou nom explicite)
+down_revision : m5_pre_vendors_consolidation
+Condition  : exécuter alembic heads immédiatement avant de coder le fichier
+```
+
+---
+
+**Dernière mise à jour:** 2026-03-03
+**Auteur:** Agent DMS · VERDICT A CTO (Abdoulaye Ousmane)
+**Version:** 1.2 (Post-M5-PRE · consolidation vendors terminée · TD-004 FERMÉE)

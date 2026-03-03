@@ -14,10 +14,10 @@ from src.vendors.repository import generate_fingerprint, insert_vendor
 def cleanup_test_vendors(db_conn):
     """Nettoie les vendors de test avant et après chaque test."""
     with db_conn.cursor() as cur:
-        cur.execute("DELETE FROM vendor_identities WHERE source = 'TEST_DEDUP'")
+        cur.execute("DELETE FROM vendors WHERE source = 'TEST_DEDUP'")
     yield
     with db_conn.cursor() as cur:
-        cur.execute("DELETE FROM vendor_identities WHERE source = 'TEST_DEDUP'")
+        cur.execute("DELETE FROM vendors WHERE source = 'TEST_DEDUP'")
 
 
 def test_same_vendor_inserted_twice_only_one_record(db_conn):
@@ -43,7 +43,7 @@ def test_same_vendor_inserted_twice_only_one_record(db_conn):
     with db_conn.cursor() as cur:
         fp = generate_fingerprint("alpha sarl", "BKO")
         cur.execute(
-            "SELECT COUNT(*) AS cnt FROM vendor_identities WHERE fingerprint = %s",
+            "SELECT COUNT(*) AS cnt FROM vendors WHERE fingerprint = %s",
             (fp,),
         )
         row = cur.fetchone()

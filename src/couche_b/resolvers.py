@@ -37,28 +37,31 @@ def _run_one(
         return conn.fetchone()
 
 
-def resolve_vendor(name: str, cursor: Any | None = None) -> int | None:
+def resolve_vendor(name: str, cursor: Any | None = None) -> str | None:
     """Resolve vendor name to vendor_id using fuzzy matching.
+
+    Queries the canonical vendors table (ex vendor_identities post-m5_pre_vendors_consolidation).
+    Matches against name_normalized for dedup consistency.
 
     Args:
         name: Vendor name to search (may contain typos)
         cursor: Optional psycopg cursor (for testing injection)
 
     Returns:
-        vendor_id if match found with similarity >= 60%, None otherwise
+        vendor_id (DMS-VND-...) if match found with similarity >= 60%, None otherwise
     """
     if not name or not name.strip():
         return None
     sql = """
-        SELECT id
+        SELECT vendor_id
         FROM vendors
-        WHERE similarity(name, :search_name) > :threshold
-        ORDER BY similarity(name, :search_name) DESC
+        WHERE similarity(name_normalized, :search_name) > :threshold
+        ORDER BY similarity(name_normalized, :search_name) DESC
         LIMIT 1
     """
-    params = {"search_name": name.strip(), "threshold": SIMILARITY_THRESHOLD}
+    params = {"search_name": name.strip().lower(), "threshold": SIMILARITY_THRESHOLD}
     row = _run_one(cursor, sql, params)
-    return int(row["id"]) if row and row.get("id") is not None else None
+    return str(row["vendor_id"]) if row and row.get("vendor_id") is not None else None
 
 
 def resolve_item(description: str, cursor: Any | None = None) -> int | None:

@@ -26,7 +26,7 @@ def _files_present() -> bool:
 def test_etl_dry_run_zero_db_write(db_conn):
     """Dry-run ne doit produire aucune écriture en DB."""
     with db_conn.cursor() as cur:
-        cur.execute("SELECT COUNT(*) AS cnt FROM vendor_identities")
+        cur.execute("SELECT COUNT(*) AS cnt FROM vendors")
         count_before = cur.fetchone()["cnt"]
 
     from scripts.etl_vendors_m4 import run_etl
@@ -34,7 +34,7 @@ def test_etl_dry_run_zero_db_write(db_conn):
     report = run_etl(dry_run=True)
 
     with db_conn.cursor() as cur:
-        cur.execute("SELECT COUNT(*) AS cnt FROM vendor_identities")
+        cur.execute("SELECT COUNT(*) AS cnt FROM vendors")
         count_after = cur.fetchone()["cnt"]
 
     assert count_after == count_before, "Dry-run a écrit en DB"
@@ -50,7 +50,7 @@ def test_etl_real_import_vendor_ids_format(db_conn):
     """Après import réel, tous les vendor_ids doivent commencer par DMS-VND-."""
     # Nettoyage avant le test
     with db_conn.cursor() as cur:
-        cur.execute("DELETE FROM vendor_identities WHERE source = 'EXCEL_M4'")
+        cur.execute("DELETE FROM vendors WHERE source = 'EXCEL_M4'")
 
     from scripts.etl_vendors_m4 import run_etl
 
@@ -62,7 +62,7 @@ def test_etl_real_import_vendor_ids_format(db_conn):
 
     # Nettoyage après le test
     with db_conn.cursor() as cur:
-        cur.execute("DELETE FROM vendor_identities WHERE source = 'EXCEL_M4'")
+        cur.execute("DELETE FROM vendors WHERE source = 'EXCEL_M4'")
 
 
 @pytest.mark.skipif(
@@ -73,7 +73,7 @@ def test_etl_real_import_vendor_ids_unique(db_conn):
     """Les vendor_ids générés par l'ETL doivent être uniques."""
     # Nettoyage avant le test
     with db_conn.cursor() as cur:
-        cur.execute("DELETE FROM vendor_identities WHERE source = 'EXCEL_M4'")
+        cur.execute("DELETE FROM vendors WHERE source = 'EXCEL_M4'")
 
     from scripts.etl_vendors_m4 import run_etl
 
@@ -85,7 +85,7 @@ def test_etl_real_import_vendor_ids_unique(db_conn):
 
     # Nettoyage après le test
     with db_conn.cursor() as cur:
-        cur.execute("DELETE FROM vendor_identities WHERE source = 'EXCEL_M4'")
+        cur.execute("DELETE FROM vendors WHERE source = 'EXCEL_M4'")
 
 
 @pytest.mark.skipif(
@@ -96,7 +96,7 @@ def test_etl_region_distribution_coherent(db_conn):
     """La distribution des régions doit contenir BKO et MPT au minimum."""
     # Nettoyage avant le test
     with db_conn.cursor() as cur:
-        cur.execute("DELETE FROM vendor_identities WHERE source = 'EXCEL_M4'")
+        cur.execute("DELETE FROM vendors WHERE source = 'EXCEL_M4'")
 
     from scripts.etl_vendors_m4 import run_etl
 
@@ -105,7 +105,7 @@ def test_etl_region_distribution_coherent(db_conn):
     with db_conn.cursor() as cur:
         cur.execute("""
             SELECT region_code, COUNT(*) AS cnt
-            FROM vendor_identities
+            FROM vendors
             WHERE source = 'EXCEL_M4'
             GROUP BY region_code
             """)
@@ -117,4 +117,4 @@ def test_etl_region_distribution_coherent(db_conn):
 
     # Nettoyage après le test
     with db_conn.cursor() as cur:
-        cur.execute("DELETE FROM vendor_identities WHERE source = 'EXCEL_M4'")
+        cur.execute("DELETE FROM vendors WHERE source = 'EXCEL_M4'")

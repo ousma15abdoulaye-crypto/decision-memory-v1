@@ -20,10 +20,10 @@ _SOURCE_PATCH = "TEST_PATCH"
 def cleanup_patch_vendors(db_conn):
     """Nettoie les vendors de test patch avant et après chaque test."""
     with db_conn.cursor() as cur:
-        cur.execute("DELETE FROM vendor_identities WHERE source = %s", (_SOURCE_PATCH,))
+        cur.execute("DELETE FROM vendors WHERE source = %s", (_SOURCE_PATCH,))
     yield
     with db_conn.cursor() as cur:
-        cur.execute("DELETE FROM vendor_identities WHERE source = %s", (_SOURCE_PATCH,))
+        cur.execute("DELETE FROM vendors WHERE source = %s", (_SOURCE_PATCH,))
 
 
 # ── P1 : CHECK regex vendor_id ───────────────────────────────────
@@ -34,7 +34,7 @@ def test_p1_regex_constraint_blocks_invalid_format(db_conn):
     with db_conn.cursor() as cur:
         with pytest.raises(Exception):
             cur.execute("""
-                INSERT INTO vendor_identities
+                INSERT INTO vendors
                     (vendor_id, fingerprint, name_raw, name_normalized,
                      canonical_name, zone_normalized, region_code, source)
                 VALUES
@@ -47,7 +47,7 @@ def test_p1_regex_constraint_accepts_valid_format(db_conn):
     """P1 : Un vendor_id valide doit être accepté par la contrainte regex."""
     with db_conn.cursor() as cur:
         cur.execute("""
-            INSERT INTO vendor_identities
+            INSERT INTO vendors
                 (vendor_id, fingerprint, name_raw, name_normalized,
                  canonical_name, zone_normalized, region_code, source)
             VALUES
@@ -72,7 +72,7 @@ def test_p2_activity_columns_exist(db_conn):
             SELECT column_name
             FROM information_schema.columns
             WHERE table_schema = 'public'
-              AND table_name = 'vendor_identities'
+              AND table_name = 'vendors'
             """)
         cols = {row["column_name"] for row in cur.fetchall()}
     assert expected.issubset(cols), f"Colonnes manquantes : {expected - cols}"
@@ -87,7 +87,7 @@ def test_p3_excel_m4_vendors_verified_active(db_conn):
         cur.execute("""
             SELECT COUNT(*) AS total,
                    SUM(CASE WHEN activity_status = 'VERIFIED_ACTIVE' THEN 1 ELSE 0 END) AS verified
-            FROM vendor_identities
+            FROM vendors
             WHERE source = 'EXCEL_M4' AND is_active = TRUE
             """)
         row = cur.fetchone()
@@ -235,8 +235,8 @@ def test_p10_alembic_head_is_043(db_conn):
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert (
-        row["version_num"] == "m4_patch_a_fix"
-    ), f"Head attendu : m4_patch_a_fix — réel : {row['version_num']}"
+        row["version_num"] == "m5_pre_vendors_consolidation"
+    ), f"Head attendu : m5_pre_vendors_consolidation — réel : {row['version_num']}"
 
 
 # ── P11 : trigger rebuilt sans OR REPLACE ────────────────────────
@@ -248,7 +248,7 @@ def test_p11_trigger_exists_after_042(db_conn):
         cur.execute("""
             SELECT COUNT(*) AS cnt
             FROM information_schema.triggers
-            WHERE event_object_table = 'vendor_identities'
+            WHERE event_object_table = 'vendors'
               AND trigger_name = 'trg_vendor_updated_at'
             """)
         row = cur.fetchone()
@@ -263,7 +263,7 @@ def test_p12_invalid_activity_status_rejected_by_db(db_conn):
     with db_conn.cursor() as cur:
         with pytest.raises(Exception, match="chk_activity_status"):
             cur.execute("""
-                INSERT INTO vendor_identities
+                INSERT INTO vendors
                     (vendor_id, fingerprint, name_raw, name_normalized,
                      canonical_name, zone_normalized, region_code, activity_status, source)
                 VALUES

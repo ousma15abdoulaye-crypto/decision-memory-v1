@@ -12,11 +12,20 @@ _INSERT_ZONES = """
     ON CONFLICT (id) DO NOTHING
 """
 _INSERT_VENDORS = """
-    INSERT INTO vendors (name, zone_id, created_at) VALUES
-    ('Marché Central', 'zone-bamako-1', '2026-02-13T20:00:00'),
-    ('Boutique Kayes', 'zone-kayes-1', '2026-02-13T20:00:00')
-    ON CONFLICT DO NOTHING
+    INSERT INTO vendors (
+        vendor_id, fingerprint,
+        name_raw, name_normalized, canonical_name,
+        zone_raw, zone_normalized, region_code, source
+    ) VALUES
+    ('DMS-VND-BKO-9801-T', 'fp_resolver_bko_01',
+     'Marché Central', 'marché central', 'marché central|BKO',
+     'BAMAKO', 'bamako', 'BKO', 'TEST_RESOLVERS'),
+    ('DMS-VND-KYS-9801-T', 'fp_resolver_kys_01',
+     'Boutique Kayes', 'boutique kayes', 'boutique kayes|KYS',
+     'KAYES', 'kayes', 'KYS', 'TEST_RESOLVERS')
+    ON CONFLICT (fingerprint) DO NOTHING
 """
+_DELETE_VENDORS = "DELETE FROM vendors WHERE source = 'TEST_RESOLVERS'"
 _INSERT_ITEMS = """
     INSERT INTO items (description, category, unit_id, created_at) VALUES
     ('Riz local', 'Céréales', 1, '2026-02-13T20:00:00'),
@@ -38,6 +47,7 @@ def seed_vendors(db_cursor):
     """Seed test data for vendors table."""
     db_cursor.execute(_INSERT_VENDORS)
     yield
+    db_cursor.execute(_DELETE_VENDORS)
 
 
 @pytest.fixture
