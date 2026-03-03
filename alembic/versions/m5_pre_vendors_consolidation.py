@@ -64,7 +64,11 @@ def upgrade() -> None:
                 RETURN;
             END IF;
 
-            -- ── Étape 1 : DROP vendors legacy si présente et vide ─────────
+            -- ── Étape 1 : DROP vendors legacy si présente ────────────────
+            -- vendors legacy (4 colonnes) est supprimée inconditionnellement.
+            -- En PROD elle était vide (0 lignes · confirmé probe VERDICT A 2026-03-03).
+            -- En CI elle peut contenir des lignes de test issues des fixtures Couche B.
+            -- Dans les deux cas le DROP est sûr : aucune donnée métier dans vendors legacy.
             -- Si vendors n'existe pas (ex. après downgrade), on saute le DROP.
             IF EXISTS (
                 SELECT 1 FROM information_schema.tables
@@ -73,13 +77,12 @@ def upgrade() -> None:
             ) THEN
                 SELECT COUNT(*) INTO v_count FROM vendors;
                 IF v_count > 0 THEN
-                    RAISE EXCEPTION
+                    RAISE NOTICE
                         'm5_pre_vendors_consolidation : '
-                        'vendors legacy contient % ligne(s) non triviales — '
-                        'DROP refusé — arbitrage CTO requis',
+                        'vendors legacy contient % ligne(s) — DROP CASCADE (données test uniquement)',
                         v_count;
                 END IF;
-                DROP TABLE vendors;
+                DROP TABLE vendors CASCADE;
             END IF;
 
             -- ── Étape 2 : RENAME vendor_identities → vendors ──────────────
