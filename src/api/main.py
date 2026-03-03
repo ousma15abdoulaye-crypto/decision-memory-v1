@@ -2,110 +2,110 @@
 """
 Application FastAPI — DMS
 Constitution V3.3.2 — Tous les routers montés explicitement.
+
+Politique routers (ADR-M5-PRE-001 §D1.3) :
+  - Routers OBLIGATOIRES (auth, cases, health, criteria) : import direct.
+    Toute exception = bug réel = remonte sans masquage.
+  - Routers OPTIONNELS (milestones futurs) : try/except autorisé,
+    mais logger.warning explicite avec nom du module et erreur.
+  - startup_check() logue les routers actifs au démarrage.
 """
+
+import logging
 
 from fastapi import FastAPI
 
+# ── Routers OBLIGATOIRES — import direct, aucun try/except ───────────────────
+from src.api.cases import router as _cases_router
+from src.api.health import router as _health_router
+from src.auth_router import router as _auth_router
 from src.couche_a.criteria.router import router as criteria_router
 
-# Routers optionnels — ImportError = milestone pas encore actif (normal)
-# Toute autre exception remonte (bug réel — ne pas masquer — règle CTO)
-_extraction_router = None
-_auth_router = None
-_cases_router = None
-_documents_router = None
-_health_router = None
-_analysis_router = None
-_mercuriale_router = None
-_price_check_router = None
+logger = logging.getLogger(__name__)
 
+# ── Routers OPTIONNELS — try/except avec warning explicite ───────────────────
+
+_extraction_router = None
 try:
     from src.api.routes.extractions import router as extraction_router
 
     _extraction_router = extraction_router
-except ImportError:
-    pass
+except ImportError as _e:
+    logger.warning(
+        "[main] router optionnel src.api.routes.extractions non chargé : %s", _e
+    )
 
-try:
-    from src.auth_router import router as auth_router
-
-    _auth_router = auth_router
-except ImportError:
-    pass
-
-try:
-    from src.api.cases import router as cases_router
-
-    _cases_router = cases_router
-except ImportError:
-    pass
-
+_documents_router = None
 try:
     from src.api.documents import router as documents_router
 
     _documents_router = documents_router
-except ImportError:
-    pass
+except ImportError as _e:
+    logger.warning("[main] router optionnel src.api.documents non chargé : %s", _e)
 
-try:
-    from src.api.health import router as health_router
-
-    _health_router = health_router
-except ImportError:
-    pass
-
+_analysis_router = None
 try:
     from src.api.analysis import router as analysis_router
 
     _analysis_router = analysis_router
-except ImportError:
-    pass
+except ImportError as _e:
+    logger.warning("[main] router optionnel src.api.analysis non chargé : %s", _e)
 
+_mercuriale_router = None
 try:
     from src.api.routers.mercuriale import router as mercuriale_router
 
     _mercuriale_router = mercuriale_router
-except ImportError:
-    pass
+except ImportError as _e:
+    logger.warning(
+        "[main] router optionnel src.api.routers.mercuriale non chargé : %s", _e
+    )
 
+_price_check_router = None
 try:
     from src.api.routers.price_check import router as price_check_router
 
     _price_check_router = price_check_router
-except ImportError:
-    pass
+except ImportError as _e:
+    logger.warning(
+        "[main] router optionnel src.api.routers.price_check non chargé : %s", _e
+    )
 
 _pipeline_a_router = None
 try:
     from src.couche_a.pipeline.router import router as pipeline_a_router
 
     _pipeline_a_router = pipeline_a_router
-except ImportError:
-    pass
+except ImportError as _e:
+    logger.warning("[main] router optionnel src.couche_a.pipeline non chargé : %s", _e)
 
 _analysis_summary_router = None
 try:
     from src.couche_a.analysis_summary.router import router as analysis_summary_router
 
     _analysis_summary_router = analysis_summary_router
-except ImportError:
-    pass
+except ImportError as _e:
+    logger.warning(
+        "[main] router optionnel src.couche_a.analysis_summary non chargé : %s", _e
+    )
 
 _geo_router = None
 try:
     from src.geo.router import router as geo_router
 
     _geo_router = geo_router
-except ImportError:
-    pass
+except ImportError as _e:
+    logger.warning("[main] router optionnel src.geo non chargé : %s", _e)
 
 _vendors_router = None
 try:
     from src.vendors.router import router as vendors_router
 
     _vendors_router = vendors_router
-except ImportError:
-    pass
+except ImportError as _e:
+    logger.warning("[main] router optionnel src.vendors non chargé : %s", _e)
+
+# ── Application ───────────────────────────────────────────────────────────────
 
 app = FastAPI(
     title="DMS API",
@@ -123,19 +123,50 @@ try:
 
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RedisRateLimitMiddleware)
-except ImportError:
-    pass
+except ImportError as _e:
+    logger.warning("[main] middlewares sécurité M1 non chargés : %s", _e)
 
-# Router obligatoire M-CRITERIA-TYPING
+
+@app.on_event("startup")
+async def startup_check() -> None:
+    """Logue les routers actifs au démarrage — fail-loud minimal."""
+    _optional_routers = {
+        "extraction": _extraction_router,
+        "documents": _documents_router,
+        "analysis": _analysis_router,
+        "mercuriale": _mercuriale_router,
+        "price_check": _price_check_router,
+        "pipeline_a": _pipeline_a_router,
+        "analysis_summary": _analysis_summary_router,
+        "geo": _geo_router,
+        "vendors": _vendors_router,
+    }
+    active = [name for name, r in _optional_routers.items() if r is not None]
+    inactive = [name for name, r in _optional_routers.items() if r is None]
+    logger.info(
+        "[startup] Routers obligatoires : auth, cases, health, criteria — ACTIFS"
+    )
+    if active:
+        logger.info("[startup] Routers optionnels actifs : %s", active)
+    if inactive:
+        logger.info(
+            "[startup] Routers optionnels inactifs (milestone non ouvert) : %s",
+            inactive,
+        )
+
+
+# ── Montage des routers ───────────────────────────────────────────────────────
+
+# Obligatoires
 app.include_router(criteria_router)
+app.include_router(_auth_router)
+app.include_router(_cases_router)
+app.include_router(_health_router)
 
-# Routers conditionnels
+# Optionnels
 for _router in [
     _extraction_router,
-    _auth_router,
-    _cases_router,
     _documents_router,
-    _health_router,
     _analysis_router,
     _mercuriale_router,
     _price_check_router,

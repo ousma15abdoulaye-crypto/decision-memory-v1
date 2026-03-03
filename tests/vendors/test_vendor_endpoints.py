@@ -53,7 +53,7 @@ def seeded_vendors(db_conn_vendors):
     yield ids
     # Nettoyage
     with db_conn_vendors.cursor() as cur:
-        cur.execute("DELETE FROM vendor_identities WHERE source = 'TEST_M4'")
+        cur.execute("DELETE FROM vendors WHERE source = 'TEST_M4'")
 
 
 def test_list_vendors_200(seeded_vendors):

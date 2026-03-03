@@ -39,7 +39,16 @@ def _get_database_url() -> str:
     return url
 
 
-_DATABASE_URL = _get_database_url()
+# Cache lazy — évalué au premier appel _get_or_init_db_url(), pas à l'import.
+# Invariant : importer src.db.core sans DATABASE_URL ne crashe pas.
+_DB_URL_CACHE: str | None = None
+
+
+def _get_or_init_db_url() -> str:
+    global _DB_URL_CACHE
+    if _DB_URL_CACHE is None:
+        _DB_URL_CACHE = _get_database_url()
+    return _DB_URL_CACHE
 
 
 def _normalize_url(url: str) -> str:
@@ -92,11 +101,7 @@ class _ConnectionWrapper:
 
 def _get_raw_connection() -> psycopg.Connection:
     """Open a single psycopg connection (for use with resilience)."""
-    if not _DATABASE_URL:
-        raise RuntimeError(
-            "DATABASE_URL is required. DMS is online-only (Constitution V2.1)."
-        )
-    url = _normalize_url(_DATABASE_URL)
+    url = _normalize_url(_get_or_init_db_url())
     url = url.replace("postgresql+psycopg://", "postgresql://", 1)
     return psycopg.connect(url)
 

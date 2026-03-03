@@ -37,8 +37,8 @@ ALL_REGION_CODES = {
     "TBK",
     "MNK",
     "KYS",
-    "KLK",
-    "INT",
+    "KLK",  # RÉSERVÉ · Kidal · aucune zone mappée en M4 · activation mandat CTO requis
+    "INT",  # RÉSERVÉ · International · aucune zone mappée en M4 · activation mandat CTO requis
 }
 
 ZONE_TO_REGION: dict[str, str] = {

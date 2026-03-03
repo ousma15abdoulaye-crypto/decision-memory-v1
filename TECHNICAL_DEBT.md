@@ -506,48 +506,29 @@ sont présentes en schéma depuis PATCH-A mais restent vides en M4.
 
 ---
 
-## TD-004 · Table vendors legacy hors alembic
+## TD-004 · Table vendors legacy hors alembic — **FERMÉE**
 
 | Attribut | Valeur |
 |---|---|
-| Sévérité | Modérée · bloquante pour renommage vendor_identities → vendors |
+| Statut | **FERMÉE** — 2026-03-03 |
+| Sévérité | ~~Modérée · bloquante pour renommage vendor_identities → vendors~~ · RÉSOLUE |
 | Découverte | PATCH-A probe P2 · 2026-03-02 |
+| Résolu par | Migration `m5_pre_vendors_consolidation` · VERDICT A CTO · 2026-03-03 |
 | Contexte | Table créée hors alembic ~2026-02-17 · origine inconnue (test ou script pré-M3) |
 
-**Schéma de vendors legacy (probe 2026-03-02) :**
-```
-id       integer    NOT NULL  (PK)
-name     varchar    NOT NULL
-zone_id  varchar    nullable
-created_at text     NOT NULL
-```
+**Résolution appliquée :**
+- vendors legacy (4 colonnes · était vide · 0 lignes confirmé probe 2026-03-03) : **SUPPRIMÉE**
+- vendor_identities (référentiel canonique · 34 colonnes) : **RENOMMÉE → vendors**
+- Contraintes renommées : `vendor_identities_pkey → vendors_pkey`, `uq_vi_canonical_name → uq_vendors_canonical_name`, etc.
+- Index renommés : `idx_vi_canonical → idx_vendors_canonical`, `idx_vi_verification → idx_vendors_verification`
+- Toutes les requêtes SQL `vendor_identities` → `vendors` mises à jour dans `src/vendors/repository.py`
+- Tests `tests/vendors/*` mis à jour pour référencer `vendors`
 
-**État probe :**
-- 10 lignes · données tests uniquement (`Marché Central` x3, `Boutique Kayes` x3, etc.)
-- FK `market_signals.vendor_id → vendors.id` active — mais **0 lignes** market_signals la référencent
-- FK `vendors.zone_id → geo_master.id` active
-- Index GIN `idx_vendors_name_trgm` (pg_trgm) — prototype pré-M4 non nettoyé
+**Données prod préservées :**
+- 661 lignes prod survivent sous `vendors` (ex `vendor_identities`)
+- Aucune FK cassée (market_signals.vendor_id : colonne sans FK formelle · non bloquant)
 
-**Impact sur PATCH-A :**
-La migration `m4_patch_a_vendor_structure_v410` n'a pas pu renommer
-`vendor_identities → vendors` car cette table existait déjà.
-Option B appliquée : `vendor_identities` conserve son nom.
-
-**Arbre de décision pré-M5 :**
-1. Vider market_signals de toute référence vers vendors (déjà vrai · 0 lignes)
-2. Exécuter `DROP TABLE vendors CASCADE` dans une migration dédiée
-3. Ajouter `ALTER TABLE vendor_identities RENAME TO vendors` dans la même migration
-4. Mettre à jour toutes les requêtes SQL `vendor_identities` → `vendors`
-
-**Condition de sécurité :**
-`SELECT COUNT(*) FROM market_signals WHERE vendor_id IS NOT NULL` doit retourner 0
-avant tout DROP. Vrai au 2026-03-02 (confirmé par probe).
-
-**Solution M5-PRE :**
-Migration dédiée `045_consolidate_vendors` (si 045 libéré) ou ID hors séquence.
-Exécuter avant toute logique M5 qui lirait la table vendors.
-
-**Propriétaire :** CTO · à résoudre avant M5.
+**Propriétaire :** CTO · FERMÉE.
 
 ---
 
@@ -682,6 +663,19 @@ alembic heads
 ```
 
 **Propriétaire :** CTO · vérifier avant premier commit M5.
+
+---
+
+> **MISE À JOUR 2026-03-03 — PARTIELLEMENT FERMÉE**
+>
+> La chaîne contient maintenant 3 migrations hors convention numérique post-freeze V4.1.0 :
+> `m4_patch_a_vendor_structure_v410` → `m4_patch_a_fix` → `m5_pre_vendors_consolidation` (HEAD)
+>
+> Chaîne propre confirmée : `alembic heads` → 1 seul résultat.
+> Cycle down/up validé x2 · idempotent.
+> down_revision documenté dans `docs/dev/migration-checklist.md` section 8.
+> Prochain down_revision : `m5_pre_vendors_consolidation`
+> Statut : PARTIELLEMENT FERMÉE · résidu non bloquant · surveillance continue.
 
 ---
 

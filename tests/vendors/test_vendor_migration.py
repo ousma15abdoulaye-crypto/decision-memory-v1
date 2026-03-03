@@ -1,6 +1,12 @@
 """
-Tests migration 041_vendor_identities.
-Prouve table · contraintes · index · trigger actifs après upgrade.
+Tests migration vendors — état post-consolidation m5_pre_vendors_consolidation.
+Prouve table vendors · contraintes · index · trigger actifs après consolidation.
+
+Historique :
+  041_vendor_identities  : créait la table vendor_identities
+  m4_patch_a_fix         : ajoutait colonnes V4.1.0 sur vendor_identities
+  m5_pre_vendors_consolidation : vendor_identities → vendors · legacy supprimée
+  Référence courante     : vendors (ex vendor_identities · 34 colonnes)
 """
 
 from __future__ import annotations
@@ -8,26 +14,26 @@ from __future__ import annotations
 import pytest
 
 
-def test_vendor_identities_table_exists(db_conn):
-    """Table vendor_identities doit exister après migration 041."""
+def test_vendors_table_exists(db_conn):
+    """Table vendors (ex vendor_identities) doit exister après consolidation."""
     with db_conn.cursor() as cur:
         cur.execute("""
             SELECT COUNT(*) AS cnt
             FROM information_schema.tables
             WHERE table_schema = 'public'
-              AND table_name = 'vendor_identities'
+              AND table_name = 'vendors'
             """)
         row = cur.fetchone()
-    assert row["cnt"] == 1, "Table vendor_identities manquante"
+    assert row["cnt"] == 1, "Table vendors manquante"
 
 
 def test_alembic_head_is_current(db_conn):
-    """alembic_version doit pointer sur m4_patch_a_fix (head M4-patch)."""
+    """alembic_version doit pointer sur m5_pre_vendors_consolidation (head)."""
     with db_conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert row is not None
-    assert row["version_num"] == "m4_patch_a_fix"
+    assert row["version_num"] == "m5_pre_vendors_consolidation"
 
 
 def test_chk_vendor_id_format_active(db_conn):
@@ -35,7 +41,7 @@ def test_chk_vendor_id_format_active(db_conn):
     with db_conn.cursor() as cur:
         with pytest.raises(Exception, match="chk_vendor_id_format"):
             cur.execute("""
-                INSERT INTO vendor_identities
+                INSERT INTO vendors
                     (vendor_id, fingerprint, name_raw, name_normalized,
                      canonical_name, zone_normalized, region_code, source)
                 VALUES
@@ -49,7 +55,7 @@ def test_chk_region_code_active(db_conn):
     with db_conn.cursor() as cur:
         with pytest.raises(Exception, match="chk_region_code"):
             cur.execute("""
-                INSERT INTO vendor_identities
+                INSERT INTO vendors
                     (vendor_id, fingerprint, name_raw, name_normalized,
                      canonical_name, zone_normalized, region_code, source)
                 VALUES
@@ -64,7 +70,7 @@ def test_fingerprint_unique_constraint(db_conn):
     with db_conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO vendor_identities
+            INSERT INTO vendors
                 (vendor_id, fingerprint, name_raw, name_normalized,
                  canonical_name, zone_normalized, region_code, source)
             VALUES
@@ -76,7 +82,7 @@ def test_fingerprint_unique_constraint(db_conn):
         with pytest.raises(Exception):
             cur.execute(
                 """
-                INSERT INTO vendor_identities
+                INSERT INTO vendors
                     (vendor_id, fingerprint, name_raw, name_normalized,
                      canonical_name, zone_normalized, region_code, source)
                 VALUES
@@ -87,24 +93,24 @@ def test_fingerprint_unique_constraint(db_conn):
             )
     # Nettoyage
     with db_conn.cursor() as cur:
-        cur.execute("DELETE FROM vendor_identities WHERE fingerprint = %s", (fp,))
+        cur.execute("DELETE FROM vendors WHERE fingerprint = %s", (fp,))
 
 
 def test_vendor_updated_at_trigger_exists(db_conn):
-    """Trigger trg_vendor_updated_at doit exister sur vendor_identities."""
+    """Trigger trg_vendor_updated_at doit exister sur vendors."""
     with db_conn.cursor() as cur:
         cur.execute("""
             SELECT COUNT(*) AS cnt
             FROM information_schema.triggers
-            WHERE event_object_table = 'vendor_identities'
+            WHERE event_object_table = 'vendors'
               AND trigger_name = 'trg_vendor_updated_at'
             """)
         row = cur.fetchone()
     assert row["cnt"] == 1, "Trigger trg_vendor_updated_at manquant"
 
 
-def test_vendor_identities_columns(db_conn):
-    """vendor_identities doit avoir toutes ses colonnes obligatoires."""
+def test_vendors_columns(db_conn):
+    """vendors doit avoir toutes ses colonnes obligatoires (ex vendor_identities)."""
     expected = {
         "id",
         "vendor_id",
@@ -128,7 +134,7 @@ def test_vendor_identities_columns(db_conn):
             SELECT column_name
             FROM information_schema.columns
             WHERE table_schema = 'public'
-              AND table_name = 'vendor_identities'
+              AND table_name = 'vendors'
             """)
         cols = {row["column_name"] for row in cur.fetchall()}
     assert expected.issubset(cols), f"Colonnes manquantes : {expected - cols}"
