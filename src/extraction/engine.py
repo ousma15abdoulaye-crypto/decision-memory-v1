@@ -324,8 +324,7 @@ def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
         from mistralai import Mistral  # type: ignore
     except ImportError as exc:
         raise ImportError(
-            "mistralai n'est pas installé. "
-            "Ajouter 'mistralai' à requirements.txt."
+            "mistralai n'est pas installé. " "Ajouter 'mistralai' à requirements.txt."
         ) from exc
 
     # ── Model configurable via env; defaults to mistral-small-latest

@@ -283,9 +283,7 @@ class TestMistralOCRGuards:
         monkeypatch.setenv("STORAGE_BASE_PATH", str(tmp_path))
         path = self._make_png_file(tmp_path, size_bytes=100)
         # Fake the file size via os.path.getsize
-        monkeypatch.setattr(
-            os.path, "getsize", lambda p: _MISTRAL_OCR_MAX_BYTES + 1
-        )
+        monkeypatch.setattr(os.path, "getsize", lambda p: _MISTRAL_OCR_MAX_BYTES + 1)
 
         with pytest.raises(ValueError, match="volumineux"):
             _extract_mistral_ocr(path)
@@ -347,7 +345,6 @@ class TestProcessExtractionJob:
     def test_non_pending_job_raises(self, monkeypatch):
         """Job pas en pending → ValueError."""
         import src.extraction.engine as eng
-
 
         def fake_get_db_cursor():
             import contextlib
