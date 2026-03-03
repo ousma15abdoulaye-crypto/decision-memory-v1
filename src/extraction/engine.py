@@ -362,10 +362,6 @@ def _dispatch_extraction(
         return _extract_excel(doc["storage_uri"])
     if method == "docx_parser":
         return _extract_docx(doc["storage_uri"])
-    if method == "llamaparse":
-        return _extract_llamaparse(doc["storage_uri"])
-    if method == "mistral_ocr":
-        return _extract_mistral_ocr(doc["storage_uri"])
     raise ValueError(
         f"Méthode inconnue pour dispatch : '{method}'. SLA-A : {SLA_A_METHODS}"
     )
