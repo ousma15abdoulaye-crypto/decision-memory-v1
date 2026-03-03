@@ -560,11 +560,13 @@ plante à l'import du module. Couplage startup/runtime inacceptable.
 Lazy init via `_get_or_init_db_url()` avec cache `_DB_URL_CACHE`.
 L'évaluation se fait au premier appel `get_connection()`, pas à l'import.
 
-**Propriétaire :** CTO · résoudre en Phase 1 M5.
+**Résolution :** Lazy init `_get_or_init_db_url()` + `_DB_URL_CACHE`. Commit bb3aa09. 726 passed CI.
+
+**Propriétaire :** CTO · FERMÉE.
 
 ---
 
-### TD-006 · SELECT * exposé en API vendor — ACTIF · planifié Phase 1
+### TD-006 · SELECT * exposé en API vendor — FERMÉE
 
 || Attribut | Valeur |
 ||---|---|
@@ -582,7 +584,9 @@ En contexte Mali avec données fournisseurs réelles — risque RGPD/sécurité.
 Constante `_PUBLIC_COLUMNS` dans `repository.py` avec liste explicite des colonnes safe.
 Endpoint `/vendors/{id}/details` (admin RBAC, M6+) pour les colonnes complètes.
 
-**Propriétaire :** CTO · résoudre en Phase 1 M5.
+**Résolution :** `_PUBLIC_COLUMNS` dans `repository.py`. NIF/RIB/RCCM exclus de l'API publique. Commit bb3aa09.
+
+**Propriétaire :** CTO · FERMÉE.
 
 ---
 
@@ -611,7 +615,7 @@ Interface `_ConnectionWrapper` inchangée — zéro impact callers.
 
 ---
 
-### TD-008 · ImportError silencieux dans main.py — ACTIF · planifié Phase 1
+### TD-008 · ImportError silencieux dans main.py — FERMÉE
 
 || Attribut | Valeur |
 ||---|---|
@@ -630,7 +634,9 @@ Un router peut disparaître en production sans alerte.
 - Routers optionnels : conserver try/except mais logger WARNING avec détail.
 - `startup_check()` dans `@app.on_event("startup")` liste les routers actifs.
 
-**Propriétaire :** CTO · résoudre en Phase 1 M5.
+**Résolution :** Routers obligatoires import direct. Optionnels: logger WARNING. `startup_check()` au démarrage. Commit bb3aa09.
+
+**Propriétaire :** CTO · FERMÉE.
 
 ---
 
@@ -676,6 +682,9 @@ alembic heads
 > down_revision documenté dans `docs/dev/migration-checklist.md` section 8.
 > Prochain down_revision : `m5_pre_vendors_consolidation`
 > Statut : PARTIELLEMENT FERMÉE · résidu non bloquant · surveillance continue.
+> Update 2026-03-03 post-merge PR #152 : tête = m5_pre_vendors_consolidation
+> Tag : v4.1.0-m5-pre-hardening
+> Prochain down_revision M5 : m5_pre_vendors_consolidation
 
 ---
 
