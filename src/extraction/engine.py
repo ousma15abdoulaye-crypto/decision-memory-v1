@@ -13,6 +13,7 @@ SLA-B : tesseract / azure
 from __future__ import annotations
 
 # stdlib
+import base64
 import json
 import os
 import time
@@ -25,11 +26,12 @@ from docx import Document  # type: ignore
 
 # local
 from src.db.connection import get_db_cursor
+from src.core.api_keys import get_llama_cloud_api_key, get_mistral_api_key
 
 # ── Constantes ───────────────────────────────────────────────────
 
 SLA_A_METHODS = {"native_pdf", "excel_parser", "docx_parser"}
-SLA_B_METHODS = {"tesseract", "azure"}
+SLA_B_METHODS = {"tesseract", "azure", "llamaparse", "mistral_ocr"}
 SLA_A_TIMEOUT_S = 60.0
 INSUFFICIENT_TEXT_THRESHOLD = 100
 
@@ -246,6 +248,81 @@ def _extract_docx(storage_uri: str) -> tuple[str, dict]:
     return raw_text, dict(STRUCTURED_DATA_EMPTY)
 
 
+def _extract_llamaparse(storage_uri: str) -> tuple[str, dict]:
+    """Extraction via LlamaParse (SLA-B).
+
+    La clé API est lue depuis LLAMA_CLOUD_API_KEY (jamais dans le code).
+    Lève APIKeyMissingError si la variable d'environnement est absente.
+    """
+    _validate_storage_uri(storage_uri)
+    api_key = get_llama_cloud_api_key()  # raises APIKeyMissingError if absent
+
+    try:
+        from llama_parse import LlamaParse  # type: ignore
+    except ImportError as exc:
+        raise ImportError(
+            "llama-parse n'est pas installé. "
+            "Ajouter 'llama-parse' à requirements.txt."
+        ) from exc
+
+    parser = LlamaParse(api_key=api_key, result_type="markdown")
+    documents = parser.load_data(storage_uri)
+    raw_text = "\n".join(doc.text for doc in documents)
+    return raw_text, dict(STRUCTURED_DATA_EMPTY)
+
+
+def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
+    """Extraction OCR via Mistral AI (SLA-B).
+
+    La clé API est lue depuis MISTRAL_API_KEY (jamais dans le code).
+    Lève APIKeyMissingError si la variable d'environnement est absente.
+    """
+    _validate_storage_uri(storage_uri)
+    api_key = get_mistral_api_key()  # raises APIKeyMissingError if absent
+
+    try:
+        from mistralai import Mistral  # type: ignore
+    except ImportError as exc:
+        raise ImportError(
+            "mistralai n'est pas installé. "
+            "Ajouter 'mistralai' à requirements.txt."
+        ) from exc
+
+    # Model configurable via env; defaults to mistral-small-latest
+    model = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
+
+    client = Mistral(api_key=api_key)
+    with open(storage_uri, "rb") as f:
+        file_bytes = f.read()
+
+    # Detect MIME type from actual file bytes (filetype is in requirements.txt)
+    try:
+        import filetype as _ft  # type: ignore
+        detected = _ft.guess(file_bytes)
+        mime = detected.mime if detected else "application/octet-stream"
+    except Exception:
+        mime = "application/octet-stream"
+
+    b64 = base64.b64encode(file_bytes).decode()
+    response = client.chat.complete(
+        model=model,
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{mime};base64,{b64}"},
+                    },
+                    {"type": "text", "text": "Extraire tout le texte de ce document."},
+                ],
+            }
+        ],
+    )
+    raw_text = response.choices[0].message.content or ""
+    return raw_text, dict(STRUCTURED_DATA_EMPTY)
+
+
 def _dispatch_extraction(
     doc: dict,
     method: str,
@@ -257,6 +334,10 @@ def _dispatch_extraction(
         return _extract_excel(doc["storage_uri"])
     if method == "docx_parser":
         return _extract_docx(doc["storage_uri"])
+    if method == "llamaparse":
+        return _extract_llamaparse(doc["storage_uri"])
+    if method == "mistral_ocr":
+        return _extract_mistral_ocr(doc["storage_uri"])
     raise ValueError(
         f"Méthode inconnue pour dispatch : '{method}'. SLA-A : {SLA_A_METHODS}"
     )
