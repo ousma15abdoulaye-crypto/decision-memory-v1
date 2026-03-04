@@ -206,4 +206,19 @@ def main(dry_run: bool = False) -> None:
 
 
 if __name__ == "__main__":
-    main(dry_run="--dry-run" in sys.argv)
+    _dry = "--dry-run" in sys.argv
+    _year: int | None = None
+    for _arg in sys.argv[1:]:
+        if _arg.startswith("--year="):
+            _year = int(_arg.split("=")[1])
+        elif _arg.lstrip("-").isdigit():
+            _year = int(_arg.lstrip("-"))
+
+    if _year is not None:
+        FILES_PHASE1[:] = [e for e in FILES_PHASE1 if e["year"] == _year]
+        if not FILES_PHASE1:
+            logger.error("Aucun fichier pour l'année %s", _year)
+            sys.exit(1)
+        logger.info("Mode année %s · %d fichier(s)", _year, len(FILES_PHASE1))
+
+    main(dry_run=_dry)

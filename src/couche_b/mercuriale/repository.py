@@ -13,11 +13,24 @@ from __future__ import annotations
 
 import json
 import logging
+import unicodedata
 from typing import Any
 
 from src.db.core import get_connection
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize(text: str) -> str:
+    """
+    Normalise un nom de zone pour comparaison insensible aux accents et à la casse.
+    'Ségou' → 'segou' · 'Dioïla' → 'dioila' · 'Ménaka' → 'menaka'
+    """
+    return "".join(
+        c
+        for c in unicodedata.normalize("NFD", text.lower().strip())
+        if unicodedata.category(c) != "Mn"
+    )
 
 
 def source_exists_by_sha256(sha256: str) -> bool:
@@ -73,15 +86,21 @@ def update_source_status(
 def resolve_zone_id(zone_raw: str) -> str | None:
     """
     Résout zone_raw → geo_master.id.
-    1 connexion · exact match d'abord · contains match ensuite.
-    LIMIT 2 pour détecter les ambiguïtés.
-    Retourne str si résolution unique · None sinon.
+
+    Stratégie en 3 passes (1 seule connexion) :
+      1. Exact ILIKE                  : 'Kayes' → 'Kayes'
+      2. Contains ILIKE               : 'Bougouni' → '...Bougouni...'
+      3. Normalisation accent Python  : 'Segou' → 'Ségou', 'Menaka' → 'Ménaka'
+
+    La passe 3 est indispensable : les PDFs DGMP Mali omettent souvent les accents.
+    LIMIT 2 sur chaque passe pour détecter les ambiguïtés.
+    Retourne str UUID si résolution unique · None sinon.
     """
     with get_connection() as conn:
-        # Exact match
+        # Passe 1 — exact ILIKE
         conn.execute(
             """
-            SELECT id FROM geo_master
+            SELECT id, name FROM geo_master
             WHERE name ILIKE %(zone_raw)s
             ORDER BY level
             LIMIT 2
@@ -89,15 +108,14 @@ def resolve_zone_id(zone_raw: str) -> str | None:
             {"zone_raw": zone_raw},
         )
         rows = conn.fetchall()
-
         if len(rows) == 1:
             return str(rows[0]["id"])
 
+        # Passe 2 — contains ILIKE
         if len(rows) == 0:
-            # Contains match dans la même connexion
             conn.execute(
                 """
-                SELECT id FROM geo_master
+                SELECT id, name FROM geo_master
                 WHERE name ILIKE %(zone_pattern)s
                 ORDER BY level
                 LIMIT 2
@@ -105,9 +123,26 @@ def resolve_zone_id(zone_raw: str) -> str | None:
                 {"zone_pattern": f"%{zone_raw}%"},
             )
             rows = conn.fetchall()
-
             if len(rows) == 1:
                 return str(rows[0]["id"])
+
+        # Passe 3 — normalisation accent Python (Segou → Ségou, Menaka → Ménaka)
+        if len(rows) == 0:
+            conn.execute(
+                "SELECT id, name FROM geo_master ORDER BY level",
+                {},
+            )
+            all_zones = conn.fetchall()
+            zone_norm = _normalize(zone_raw)
+            matches = [r for r in all_zones if _normalize(r["name"]) == zone_norm]
+            if len(matches) == 1:
+                logger.debug(
+                    "Zone résolue par normalisation accent : '%s' → '%s'",
+                    zone_raw,
+                    matches[0]["name"],
+                )
+                return str(matches[0]["id"])
+            rows = matches  # pour le log d'ambiguïté ci-dessous
 
     if len(rows) > 1:
         logger.warning(

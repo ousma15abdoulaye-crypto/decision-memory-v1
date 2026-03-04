@@ -40,17 +40,50 @@ def _get_api_key() -> str:
     )
 
 
-async def _llamacloud_extract(file_path: Path, api_key: str) -> str:
-    """Extraction PDF via AsyncLlamaCloud — wrapper async interne."""
+_LLAMACLOUD_PAGE_LIMIT = 1000
+
+
+def _split_pdf(source: Path, max_pages: int, tmp_dir: Path) -> list[Path]:
+    """
+    Découpe un PDF en chunks de max_pages pages.
+    Retourne la liste des fichiers temporaires générés.
+    Utilisé quand le PDF dépasse la limite LlamaCloud (1000 pages).
+    """
     try:
-        from llama_cloud import AsyncLlamaCloud  # type: ignore[import]
+        from pypdf import PdfReader, PdfWriter  # type: ignore[import]
     except ImportError as e:
-        raise RuntimeError(
-            f"llama_cloud non installé : {e}. pip install llama-cloud"
-        ) from e
+        raise RuntimeError("pypdf non installé : pip install pypdf") from e
 
-    client = AsyncLlamaCloud(api_key=api_key)
+    reader = PdfReader(str(source))
+    total = len(reader.pages)
+    chunks: list[Path] = []
 
+    for start in range(0, total, max_pages):
+        end = min(start + max_pages, total)
+        writer = PdfWriter()
+        for i in range(start, end):
+            writer.add_page(reader.pages[i])
+        chunk_path = tmp_dir / f"{source.stem}_chunk_{start + 1}-{end}.pdf"
+        with open(chunk_path, "wb") as f:
+            writer.write(f)
+        chunks.append(chunk_path)
+        logger.info(
+            "Split PDF · chunk %d/%d · pages %d-%d → %s",
+            len(chunks),
+            -(-total // max_pages),
+            start + 1,
+            end,
+            chunk_path.name,
+        )
+
+    return chunks
+
+
+async def _extract_one_chunk(
+    file_path: Path,
+    client: Any,
+) -> str:
+    """Upload + parse un chunk PDF via LlamaCloud. Retourne le markdown."""
     with open(file_path, "rb") as f:
         file_obj = await client.files.create(file=f, purpose="parse")
 
@@ -60,28 +93,107 @@ async def _llamacloud_extract(file_path: Path, api_key: str) -> str:
         version="latest",
         expand=["markdown_full"],
     )
+    return result.markdown_full or ""
 
-    if not result.markdown_full:
-        raise ValueError(f"LlamaCloud : markdown_full vide pour {file_path.name}")
+
+async def _llamacloud_extract(file_path: Path, api_key: str) -> str:
+    """
+    Extraction PDF via AsyncLlamaCloud.
+    Partition automatique si > 1000 pages (limite LlamaCloud agentic).
+    """
+    import tempfile
+
+    try:
+        import httpx
+        from llama_cloud import AsyncLlamaCloud  # type: ignore[import]
+        from pypdf import PdfReader  # type: ignore[import]
+    except ImportError as e:
+        raise RuntimeError(
+            f"Dépendance manquante : {e}. pip install llama-cloud pypdf"
+        ) from e
+
+    # Proxy SSL d'entreprise (SSL inspection SCI Mali) : verify=False requis.
+    http_client = httpx.AsyncClient(verify=False)
+    client = AsyncLlamaCloud(api_key=api_key, http_client=http_client)
+
+    # Vérifier le nombre de pages
+    reader = PdfReader(str(file_path))
+    total_pages = len(reader.pages)
+    logger.info("PDF %s · %d pages", file_path.name, total_pages)
+
+    if total_pages <= _LLAMACLOUD_PAGE_LIMIT:
+        # Cas standard : upload direct
+        markdown = await _extract_one_chunk(file_path, client)
+        if not markdown:
+            raise ValueError(f"LlamaCloud : markdown_full vide pour {file_path.name}")
+        logger.info("LlamaCloud · %s · %d chars", file_path.name, len(markdown))
+        return markdown
+
+    # Cas grand PDF : partition côté client
+    logger.info(
+        "PDF %s trop grand (%d pages > %d) · partition en chunks",
+        file_path.name,
+        total_pages,
+        _LLAMACLOUD_PAGE_LIMIT,
+    )
+    parts: list[str] = []
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp_dir = Path(tmp_str)
+        chunks = _split_pdf(file_path, _LLAMACLOUD_PAGE_LIMIT, tmp_dir)
+        for i, chunk in enumerate(chunks, 1):
+            logger.info("Extraction chunk %d/%d : %s", i, len(chunks), chunk.name)
+            md = await _extract_one_chunk(chunk, client)
+            parts.append(md)
+
+    markdown = "\n\n".join(p for p in parts if p)
+    if not markdown:
+        raise ValueError(f"LlamaCloud : tous les chunks vides pour {file_path.name}")
 
     logger.info(
-        "LlamaCloud · %s · %d chars extraits",
+        "LlamaCloud · %s · %d chunks · %d chars total",
         file_path.name,
-        len(result.markdown_full),
+        len(chunks),
+        len(markdown),
     )
-    return result.markdown_full
+    return markdown
+
+
+_CACHE_DIR = Path("data/imports/m5/cache")
+
+
+def _cache_path(file_path: Path) -> Path:
+    """Chemin cache : data/imports/m5/cache/<sha256>.md"""
+    sha = _sha256_file(file_path)
+    _CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    return _CACHE_DIR / f"{sha}.md"
 
 
 def _extract_markdown_llamacloud(file_path: Path, api_key: str) -> tuple[str, float]:
     """
     Extrait le texte d'un PDF via LlamaCloud API (AsyncLlamaCloud).
 
+    CACHE LOCAL : vérifie data/imports/m5/cache/<sha256>.md avant tout appel API.
+    - CACHE HIT  → lecture locale, coût = 0
+    - CACHE MISS → appel LlamaCloud → sauvegarde immédiate → parsing
+
     POINT DE MOCK OBLIGATOIRE dans les tests (RÈGLE-21).
     Mock target : src.couche_b.mercuriale.importer._extract_markdown_llamacloud
 
     Retourne (markdown_text, confidence_globale).
     """
+    cache = _cache_path(file_path)
+
+    if cache.exists():
+        logger.info("CACHE HIT · %s → %s", file_path.name, cache.name)
+        return cache.read_text(encoding="utf-8"), 0.90
+
+    logger.info("CACHE MISS · %s · appel LlamaCloud", file_path.name)
     markdown = asyncio.run(_llamacloud_extract(file_path, api_key))
+
+    # Sauvegarde immédiate AVANT parsing — survie garantie même si le parser crashe
+    cache.write_text(markdown, encoding="utf-8")
+    logger.info("Cache écrit · %s (%d chars)", cache.name, len(markdown))
+
     return markdown, 0.90
 
 
@@ -137,7 +249,18 @@ def import_mercuriale(
     )
     report.total_rows_parsed = len(raw_lines)
 
-    # Validation + résolution zones
+    # Résolution zones — batch : 1 query par zone unique (anti N+1)
+    unique_zones = {raw.get("zone_raw") for raw in raw_lines if raw.get("zone_raw")}
+    zone_cache: dict[str, str | None] = {
+        z: merc_repo.resolve_zone_id(z) for z in unique_zones
+    }
+    logger.info(
+        "Zones uniques : %d · résolues : %d",
+        len(unique_zones),
+        sum(1 for v in zone_cache.values() if v),
+    )
+
+    # Validation + affectation zone_id depuis cache
     valid_lines: list[dict[str, Any]] = []
     for raw in raw_lines:
         if not raw.get("item_canonical", "").strip():
@@ -152,10 +275,10 @@ def import_mercuriale(
             report.skipped_low_confidence += 1
             continue
 
-        # Résolution zone
+        # Zone depuis cache — zéro query supplémentaire
         zone_raw = raw.get("zone_raw")
         if zone_raw:
-            zone_id = merc_repo.resolve_zone_id(zone_raw)
+            zone_id = zone_cache.get(zone_raw)
             if zone_id:
                 report.zones_resolved += 1
                 raw["zone_id"] = zone_id
