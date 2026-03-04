@@ -2,46 +2,38 @@
 M3B Scoring API endpoints.
 """
 
-import time
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
-from src.couche_a.scoring.models import ScoringRequest, ScoringResponse
+from src.couche_a.scoring.models import ScoringRequest
 from src.db import db_fetchall, get_connection
 
 router = APIRouter(prefix="/api/scoring", tags=["Scoring M3B"])
 
 
-@router.post("/calculate", response_model=ScoringResponse)
-async def calculate_scores(
+@router.post("/calculate")
+async def calculate_scoring(
     request: ScoringRequest,
     user: Annotated[UserClaims, Depends(get_current_user)],
 ):
     """
-    Calculate scores for a case (async background task in production).
-    Constitution V3: Non-prescriptive, validation humaine requise.
+    Endpoint désactivé.
+    Scoring déclenché exclusivement via pipeline FSM.
+    Un appel direct bypasse les gardes et viole l'atomicité.
+    Disponible : intégration pipeline M9.
     """
-    start_time = time.time()
-
-    try:
-        # Load case data (stub - implement actual loading)
-        # suppliers = load_suppliers_for_case(request.case_id)
-        # criteria = load_criteria_for_case(request.case_id)
-
-        # For now, return stub response
-        return ScoringResponse(
-            case_id=request.case_id,
-            scores_count=0,
-            eliminations_count=0,
-            calculation_time_ms=(time.time() - start_time) * 1000,
-            status="success",
-            errors=[],
-        )
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Scoring failed: {str(e)}")
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail={
+            "error": "scoring_direct_disabled",
+            "message": (
+                "Scoring via pipeline FSM uniquement. " "Endpoint direct désactivé."
+            ),
+            "available_at": "M9",
+        },
+    )
 
 
 @router.get("/{case_id}/scores")

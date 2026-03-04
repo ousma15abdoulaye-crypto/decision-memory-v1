@@ -11,8 +11,9 @@ from src.db.core import (
     init_db_schema,
 )
 
-# Validate DATABASE_URL at package load (INV-4); reload(src.db) re-runs this.
-_get_database_url()
+# DATABASE_URL validé au premier appel get_connection()
+# via core._get_or_init_db_url() — lazy init intentionnel
+# Permet import sans DB en CI pure · voir TD-005 TECHNICAL_DEBT.md
 
 __all__ = [
     "_get_raw_connection",

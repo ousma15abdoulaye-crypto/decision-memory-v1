@@ -27,21 +27,36 @@ def test_inv_04_no_sqlite():
 
 
 def test_inv_04_database_url_required():
-    """DATABASE_URL doit être requis au démarrage (Constitution V3.3.2 §2 online-only)."""
+    """DATABASE_URL est requis au premier appel get_connection() — lazy init (TD-005 · M5-CLEANUP-A).
+
+    Constitution V3.3.2 §2 online-only : DATABASE_URL reste obligatoire.
+    La validation est désormais différée au premier appel get_connection(),
+    pas à l'import du module (lazy init intentionnel — src/db/__init__.py).
+    Le cache _DB_URL_CACHE est réinitialisé pour tester l'invariant isolément.
+    """
     import importlib
 
     import src.db
+    import src.db.core as _core
+    from src.db.core import get_connection
 
     original_db_url = os.environ.get("DATABASE_URL")
+    original_cache = _core._DB_URL_CACHE
     try:
         if "DATABASE_URL" in os.environ:
             del os.environ["DATABASE_URL"]
-        # reload(src.db) re-exécute le module et appelle _get_engine() au chargement → RuntimeError
+        # Réinitialiser le cache lazy pour forcer la réévaluation de DATABASE_URL
+        _core._DB_URL_CACHE = None
+        # Avec lazy init, le reload ne lève plus — l'invariant est respecté côté get_connection()
+        importlib.reload(src.db)
         with pytest.raises(RuntimeError, match="DATABASE_URL"):
-            importlib.reload(src.db)
+            with get_connection():
+                pass
     finally:
+        # Restaurer DATABASE_URL et le cache
         if original_db_url:
             os.environ["DATABASE_URL"] = original_db_url
+        _core._DB_URL_CACHE = original_cache
         importlib.reload(src.db)
 
 
