@@ -220,7 +220,7 @@ def set_in_review(committee_id: str, by: str, conn) -> None:
             "UPDATE public.committees SET status='in_review' WHERE committee_id=%s",
             (committee_id,),
         )
-    _insert_event(conn, committee_id, "recommendation_set", {}, by)
+    _insert_event(conn, committee_id, "review_opened", {}, by)
 
 
 def add_member(committee_id: str, req: AddMemberRequest, by: str, conn) -> str:

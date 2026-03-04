@@ -26,17 +26,25 @@ from src.db import db_execute, db_execute_one, db_fetchall, get_connection
 router = APIRouter(prefix="/api", tags=["analysis"])
 
 
-# ⚠️ CRITICAL BUG: This function is called but not defined anywhere
-# It was removed in a previous refactoring but calls remain
-# For now, adding a stub - this needs to be fixed properly
-def extract_dao_criteria_structured(dao_text: str) -> list[DAOCriterion]:
+def extract_dao_criteria_structured(
+    document_content: str,
+    document_type: str = "dao",
+) -> list[DAOCriterion]:
     """
-    STUB: This function was removed in previous refactoring but is still called.
-    TODO: Either implement this function or remove calls to it.
-    Returning empty list as placeholder to prevent crashes.
+    Non implémentée. Disponible M10B (Gateway Calibration).
+    LlamaParse + Mistral OCR + instructor structured output.
+    Voir TD-011 dans TECHNICAL_DEBT.md.
     """
-    # This is a known bug - needs proper implementation
-    return []
+    from fastapi import HTTPException, status
+
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail={
+            "error": "extraction_not_implemented",
+            "message": "Extraction critères DAO disponible M10B.",
+            "available_at": "M10B",
+        },
+    )
 
 
 @router.post("/api/analyze")

@@ -22,7 +22,7 @@ COMMITTEE_EVENT_TYPES = (
     "member_removed",
     "meeting_opened",
     "vote_recorded",
-    "recommendation_set",
+    "review_opened",
     "seal_requested",
     "seal_completed",
     "seal_rejected",
