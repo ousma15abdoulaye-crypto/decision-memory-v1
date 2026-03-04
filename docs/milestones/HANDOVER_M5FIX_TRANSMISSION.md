@@ -201,9 +201,17 @@ Sur Windows PowerShell via l'agent, les commandes longues (`python -m pytest` > 
 
 **Fix :** Passer par un fichier Python intermédiaire (`scripts/run_tests_final.py`) qui exécute `subprocess.run([sys.executable, "-m", "pytest", ...])`. Ce pattern bypasse le problème de spawn shell.
 
+### PIÈGE-14 (Windows) · `&&` invalide en PowerShell
+
+PowerShell ne supporte pas `&&` pour chaîner des commandes. `cd dir && python script.py` lève une erreur de parsing.
+
+**Fix :** Utiliser `;` à la place (semicolon), ou séparer en commandes distinctes.
+
+---
+
 ### PIÈGE-15 · alembic_version.version_num VARCHAR(32) — noms longs tronqués
 
-La colonne `alembic_version.version_num` est créée en `VARCHAR(32)` par défaut dans les versions Alembic < 1.10.
+La colonne `alembic_version.version_num` est créée en `VARCHAR(32)` par défaut par Alembic, quelle que soit la version (comportement inchangé en 1.13.x, version utilisée par ce projet).
 Tout nom de révision > 32 caractères provoque `StringDataRightTruncation` en CI (DB fraîche) lors de
 l'UPDATE de la version table.
 
@@ -222,15 +230,7 @@ qu'Alembic écrive la version (même transaction DDL PostgreSQL) :
 ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(64);
 ```
 
-**Règle préventive :** Tout nom de révision > 28 caractères → vérifier la longueur et anticiper cet ALTER.
-
----
-
-### PIÈGE-14 (Windows) · `&&` invalide en PowerShell
-
-PowerShell ne supporte pas `&&` pour chaîner des commandes. `cd dir && python script.py` lève une erreur de parsing.
-
-**Fix :** Utiliser `;` à la place (semicolon), ou séparer en commandes distinctes.
+**Règle préventive :** La contrainte réelle est VARCHAR(32). Seuil recommandé : ≤ 28 caractères (marge de sécurité de 4 caractères pour absorber un éventuel préfixe ou suffixe Alembic interne). Tout nom de révision dépassant 28 caractères → vérifier la longueur et anticiper cet ALTER.
 
 ---
 
