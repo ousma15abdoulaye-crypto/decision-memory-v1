@@ -29,7 +29,7 @@ router = APIRouter(prefix="/api", tags=["analysis"])
 def extract_dao_criteria_structured(
     document_content: str,
     document_type: str = "dao",
-) -> list:
+) -> list[DAOCriterion]:
     """
     Non implémentée. Disponible M10B (Gateway Calibration).
     LlamaParse + Mistral OCR + instructor structured output.

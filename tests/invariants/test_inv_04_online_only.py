@@ -54,7 +54,7 @@ def test_inv_04_database_url_required():
                 pass
     finally:
         # Restaurer DATABASE_URL et le cache
-        if original_db_url:
+        if original_db_url is not None:
             os.environ["DATABASE_URL"] = original_db_url
         _core._DB_URL_CACHE = original_cache
         importlib.reload(src.db)

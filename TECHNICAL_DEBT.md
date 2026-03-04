@@ -543,7 +543,7 @@ sont présentes en schéma depuis PATCH-A mais restent vides en M4.
 ### TD-005 · lazy init DATABASE_URL — FERMÉE (réelle · 2026-03-03)
 
 || Attribut | Valeur |
-|||---|---|
+||---|---|
 ||| Statut | **FERMÉE (réelle · 2026-03-03)** |
 ||| Sévérité | Haute · RÉSOLUE |
 ||| Fichiers | `src/db/core.py` · `src/db/__init__.py` |

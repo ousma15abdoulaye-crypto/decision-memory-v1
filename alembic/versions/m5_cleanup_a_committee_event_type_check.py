@@ -29,7 +29,7 @@ depends_on = None
 from alembic import op
 
 _CONSTRAINT_NAME = "committee_events_event_type_check"
-_TABLE_NAME = "committee_events"
+_TABLE_NAME = "public.committee_events"
 
 _VALID_EVENT_TYPES_NEW = [
     "committee_created",
