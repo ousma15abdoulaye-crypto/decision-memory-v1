@@ -42,7 +42,7 @@ def test_alembic_head_is_current(db_conn):
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert row is not None
-    assert row["version_num"] == "m5_cleanup_a_committee_event_type_check"
+    assert row["version_num"] == "m5_geo_fix_master"
 
 
 def test_fn_set_updated_at_exists(db_conn):

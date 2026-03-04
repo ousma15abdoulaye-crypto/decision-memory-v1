@@ -210,5 +210,5 @@ def test_alembic_head_is_current(db_transaction):
     db_transaction.execute("SELECT version_num FROM alembic_version")
     row = db_transaction.fetchone()
     assert (
-        row["version_num"] == "m5_cleanup_a_committee_event_type_check"
-    ), f"Head attendu : m5_cleanup_a_committee_event_type_check — réel : {row['version_num']}"
+        row["version_num"] == "m5_geo_fix_master"
+    ), f"Head attendu : m5_geo_fix_master — réel : {row['version_num']}"
