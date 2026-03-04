@@ -235,8 +235,8 @@ def test_p10_alembic_head_is_043(db_conn):
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert (
-        row["version_num"] == "m5_geo_fix_master"
-    ), f"Head attendu : m5_geo_fix_master — réel : {row['version_num']}"
+        row["version_num"] == "040_mercuriale_ingest"
+    ), f"Head attendu : 040_mercuriale_ingest — réel : {row['version_num']}"
 
 
 # ── P11 : trigger rebuilt sans OR REPLACE ────────────────────────
