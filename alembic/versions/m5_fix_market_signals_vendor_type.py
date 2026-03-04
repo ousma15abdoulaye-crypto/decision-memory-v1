@@ -40,6 +40,26 @@ from alembic import op
 
 def upgrade() -> None:
 
+    # ── Pré-requis : alembic_version.version_num doit accepter 34 chars ──
+    # Le nom de cette révision (m5_fix_market_signals_vendor_type = 34 chars)
+    # dépasse VARCHAR(32). On étend la colonne avant qu'Alembic écrive la version.
+    # DDL transactionnel PostgreSQL : l'ALTER est visible dans la même transaction.
+    op.execute("""
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name   = 'alembic_version'
+                  AND column_name  = 'version_num'
+                  AND character_maximum_length < 64
+            ) THEN
+                ALTER TABLE alembic_version
+                    ALTER COLUMN version_num TYPE VARCHAR(64);
+                RAISE NOTICE 'alembic_version.version_num étendu à VARCHAR(64)';
+            END IF;
+        END $$;
+    """)
+
     # ── Garde 0 : idempotence — déjà appliquée → skip ────────────────────
     op.execute("""
         DO $$
