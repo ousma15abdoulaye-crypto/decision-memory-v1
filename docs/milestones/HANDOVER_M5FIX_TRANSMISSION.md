@@ -5,7 +5,8 @@ Date de clôture : 2026-03-03
 Sprint          : M5-FIX — Correction type market_signals.vendor_id
 Agent           : Claude Sonnet 4.6 (session 2026-03-03)
 Branche         : feat/m5-fix-pre-ingest → PR ouverte · en attente merge CTO
-Commit          : cb69030
+Commit final    : 471a85d  (fix CI alembic_version VARCHAR)
+Tag             : v4.1.0-m5-fix → commit 471a85d
 Successeur      : Agent M5 (Mercuriale Ingest)
 Référence V4    : docs/freeze/DMS_V4.1.0_FREEZE.md (source de vérité unique)
 Durée réelle    : ~4h (3 bloquages majeurs non anticipés + problèmes shell Windows)
@@ -200,6 +201,31 @@ Sur Windows PowerShell via l'agent, les commandes longues (`python -m pytest` > 
 
 **Fix :** Passer par un fichier Python intermédiaire (`scripts/run_tests_final.py`) qui exécute `subprocess.run([sys.executable, "-m", "pytest", ...])`. Ce pattern bypasse le problème de spawn shell.
 
+### PIÈGE-15 · alembic_version.version_num VARCHAR(32) — noms longs tronqués
+
+La colonne `alembic_version.version_num` est créée en `VARCHAR(32)` par défaut dans les versions Alembic < 1.10.
+Tout nom de révision > 32 caractères provoque `StringDataRightTruncation` en CI (DB fraîche) lors de
+l'UPDATE de la version table.
+
+**Invisible localement :** si la colonne a déjà été étendue par un `alembic stamp` sur une DB existante,
+le test local ne reproduit pas l'erreur. L'erreur n'apparaît qu'en CI (DB vierge, colonne encore VARCHAR(32)).
+
+**Symptôme CI :**
+```
+psycopg.errors.StringDataRightTruncation: value too long for type character varying(32)
+UPDATE alembic_version SET version_num='m5_fix_market_signals_vendor_type'
+```
+
+**Fix appliqué :** Ajouter en tête de `upgrade()` un bloc idempotent qui étend la colonne avant
+qu'Alembic écrive la version (même transaction DDL PostgreSQL) :
+```sql
+ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(64);
+```
+
+**Règle préventive :** Tout nom de révision > 28 caractères → vérifier la longueur et anticiper cet ALTER.
+
+---
+
 ### PIÈGE-14 (Windows) · `&&` invalide en PowerShell
 
 PowerShell ne supporte pas `&&` pour chaîner des commandes. `cd dir && python script.py` lève une erreur de parsing.
@@ -326,16 +352,19 @@ SELECT COUNT(*) AS c FROM market_signals;
 
 | Métrique | Valeur |
 |---|---|
-| Tests | **735 passed · 36 skipped · 0 failed · 0 error** |
+| Tests locaux | **735 passed · 36 skipped · 0 failed · 0 error** |
 | Tests M5-FIX ciblés | 6/6 passed |
 | Alembic heads | 1 seul : `m5_fix_market_signals_vendor_type` |
 | Dettes fermées | TD-010 |
+| Dettes ouvertes ajoutées | TD-011 · TD-012 |
 | Migration créée | `m5_fix_market_signals_vendor_type` |
-| Fichiers modifiés | 11 (alembic · adr · tests · docs · scripts) |
-| Commit | `cb69030` · branche `feat/m5-fix-pre-ingest` |
-| Bloquages résolus | 3 majeurs (STOP-5 · STOP-6 · alembic_version régression) |
-| Pièges documentés | 7 nouveaux (PIÈGE-8 à PIÈGE-14) |
+| Fichiers modifiés | 12 (alembic · adr · tests · docs · scripts) |
+| Commits | `25c25db` (migration) · `471a85d` (fix CI alembic_version) |
+| Tag | `v4.1.0-m5-fix` → `471a85d` |
+| Bloquages résolus | 4 (STOP-5 · STOP-6 · alembic_version régression · CI VARCHAR) |
+| Pièges documentés | 8 nouveaux (PIÈGE-8 à PIÈGE-15) |
 | Durée session | ~4h (3h de bloquages imprévus) |
+| FK prod Railway | **À APPLIQUER** — `python scripts/apply_fk_prod.py` après deploy |
 
 ---
 
