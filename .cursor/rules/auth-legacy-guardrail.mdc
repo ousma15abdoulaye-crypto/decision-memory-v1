@@ -1,0 +1,40 @@
+---
+description: Garde-fou legacy auth — aucun nouveau code ne doit importer src/auth.py
+globs: ["src/**/*.py", "tests/**/*.py"]
+alwaysApply: true
+---
+
+# RÈGLE-ORG-11 — Isolation du legacy auth
+
+## Interdiction absolue
+
+Aucun nouveau fichier ne doit importer `src/auth.py` ou `src.auth`.
+
+```python
+# INTERDIT dans tout nouveau code
+from src.auth import ...
+import src.auth
+```
+
+## Chemin officiel (V4.1.0)
+
+Toute nouvelle logique d'authentification passe exclusivement par :
+
+- `src/couche_a/auth/jwt_handler.py` — émission · validation · rotation des tokens
+- `src/couche_a/auth/dependencies.py` — `get_current_user()` · `require_role()`
+- `src/couche_a/auth/rbac.py` — matrice des permissions · `is_allowed()`
+
+## Statut du legacy
+
+`src/auth.py` est **legacy toléré, non canonique**.
+
+- Usage autorisé : uniquement les endpoints existants qui en dépendent déjà
+- Interdiction : toute extension de logique dans ce fichier
+- Plan : décommission via mandat explicite (M2 UNIFY SYSTEM ou lot dédié)
+- Décision de bascule : humain uniquement (RÈGLE-ORG-10)
+
+## Contexte
+
+Décision CTO du 2026-02-27 — DETTE-M1-02.
+La cohabitation est intentionnelle et documentée dans `TECHNICAL_DEBT.md`.
+On verrouille le nouveau chemin, on assèche l'ancien sans précipitation.

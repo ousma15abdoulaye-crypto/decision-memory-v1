@@ -31,15 +31,26 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ── Mapping nom fichier → zone_raw canonical ─────────────────────────────────
+# Clés en ASCII sans accent — la fonction normalise le nom de fichier avant matching
+# Couvre 2023 (Bulletin_Result_Mopti2023.pdf) et 2026 (Bulletin Résult Mopti26.pdf)
 _ZONE_FROM_FILENAME: dict[str, str] = {
     "bko": "Bamako",
     "bamako": "Bamako",
+    "badiangara": "Bandiagara",   # 2026 : "Badiangara" → geo_master "Bandiagara"
+    "bandiagara": "Bandiagara",
+    "bankass": "Bankass",
     "bougouni": "Bougouni",
     "dioila": "Dioïla",
+    "djenne": "Djenné",
+    "douentza": "Douentza",
     "gao": "Gao",
+    "kadiolo": "Kadiolo",
     "kidal": "Kidal",
     "kita": "Kita",
+    "kolondieba": "Kolondièba",
     "koulikoro": "Koulikoro",
+    "koutiala": "Koutiala",
+    "macina": "Macina",
     "menaka": "Ménaka",
     "mopti": "Mopti",
     "nara": "Nara",
@@ -48,40 +59,37 @@ _ZONE_FROM_FILENAME: dict[str, str] = {
     "segou": "Ségou",
     "sikasso": "Sikasso",
     "taoudeni": "Taoudeni",
+    "tenenkou": "Ténenkou",
     "tombouctou": "Tombouctou",
+    "yorosso": "Yorosso",
 }
 
 
+def _normalize_ascii(text: str) -> str:
+    """Supprime accents et met en minuscules — pour matching insensible aux accents."""
+    import unicodedata
+    return "".join(
+        c for c in unicodedata.normalize("NFD", text.lower())
+        if unicodedata.category(c) != "Mn"
+    )
+
+
 def _zone_from_filename(filename: str) -> str | None:
-    """Extrait zone_raw depuis nom de fichier ex: Bulletin_Result_Mopti2023.pdf."""
-    name = Path(filename).stem.lower()
-    name = re.sub(r"[^a-zàâäéèêëîïôùûüç]", "", name)
+    """
+    Extrait zone_raw depuis le nom de fichier.
+    Supporte tous les formats :
+      2023 : Bulletin_Result_Mopti2023.pdf
+      2024 : Mercuriale des prix 2024 ( Combiné... ).pdf
+      2026 : Bulletin Résult Mopti26.pdf
+    Normalisation accent appliquée avant matching.
+    """
+    # Normalise : retire accents, chiffres, ponctuation, met en minuscules
+    name_norm = _normalize_ascii(Path(filename).stem)
+    name_clean = re.sub(r"[^a-z]", "", name_norm)
     for key, zone in _ZONE_FROM_FILENAME.items():
-        if key in name:
+        if key in name_clean:
             return zone
     return None
-
-
-def build_files_2023(folder: Path) -> list[dict]:
-    """Construit la liste des fichiers 2023 avec leur zone depuis le nom de fichier."""
-    files = []
-    if not folder.exists():
-        logger.warning("Dossier 2023 introuvable : %s", folder)
-        return files
-
-    for pdf in sorted(folder.glob("*.pdf")):
-        zone = _zone_from_filename(pdf.name)
-        if zone is None:
-            logger.warning("Zone non détectée depuis nom fichier : %s", pdf.name)
-        files.append(
-            {
-                "path": pdf,
-                "year": 2023,
-                "source_type": "official_dgmp",
-                "default_zone_raw": zone,
-            }
-        )
-    return files
 
 
 # 2024 d'abord : 1 fichier combiné
@@ -89,8 +97,31 @@ _PDF_2024 = Path(
     "data/imports/m5/Mercuriale des prix 2024 ( Combiné de Toutes les regions ).pdf"
 )
 
-# 2023 ensuite : 16 fichiers dans le sous-dossier
+# 2023 : 16 fichiers dans le sous-dossier
 _FOLDER_2023 = Path("data/imports/m5/Mercuriale des prix 2023")
+
+# 2026 : 18 fichiers dans le sous-dossier
+_FOLDER_2026 = Path("data/imports/m5/Mercuriale des prix 2026")
+
+
+def build_files_year(folder: Path, year: int) -> list[dict]:
+    """Construit la liste des fichiers d'une année depuis un sous-dossier."""
+    files = []
+    if not folder.exists():
+        logger.warning("Dossier %s introuvable : %s", year, folder)
+        return files
+    for pdf in sorted(folder.glob("*.pdf")):
+        zone = _zone_from_filename(pdf.name)
+        if zone is None:
+            logger.warning("Zone non détectée depuis nom fichier : %s", pdf.name)
+        files.append({
+            "path": pdf,
+            "year": year,
+            "source_type": "official_dgmp",
+            "default_zone_raw": zone,
+        })
+    return files
+
 
 FILES_PHASE1 = [
     {
@@ -99,7 +130,7 @@ FILES_PHASE1 = [
         "source_type": "official_dgmp",
         "default_zone_raw": None,
     },
-] + build_files_2023(_FOLDER_2023)
+] + build_files_year(_FOLDER_2023, 2023) + build_files_year(_FOLDER_2026, 2026)
 
 
 def _guard() -> None:

@@ -1,0 +1,53 @@
+## M5-CLEANUP-A — Dettes actives soldées pré-M5 Mercuriale
+
+### Corrections appliquées
+
+**TD-005 — lazy init DATABASE_URL (réelle)**
+- src/db/__init__.py : appel eager _get_database_url() supprimé
+- Lazy init via core._get_or_init_db_url() uniquement
+- import src.db sans DATABASE_URL : OK
+
+**CLEANUP-2 — scoring/api.py**
+- POST /calculate : HTTP 501 explicite
+- Scoring via pipeline FSM uniquement, endpoint direct désactivé (M9)
+
+**CLEANUP-3 — api/analysis.py**
+- extract_dao_criteria_structured : HTTP 501
+- Commentaire CRITICAL BUG supprimé, TD-011 tracée pour M10B
+
+**CLEANUP-4 — committee/service.py + models.py**
+- recommendation_set -> review_opened, Constitution §1.2
+- PIÈGE : CHECK constraint DB enforçait la liste des event_types
+
+**Migration — m5_cleanup_a_committee_event_type_check**
+- CHECK constraint committee_events_event_type_check mise à jour
+- recommendation_set -> review_opened en DB
+- Idempotente, downgrade propre
+- down_revision = m5_fix_market_signals_vendor_type
+
+**TECHNICAL_DEBT.md**
+- TD-005 fermée (réelle)
+- TD-011/012/013/014 tracées avec jalons
+
+### Tests mis à jour (liés aux corrections)
+- test_inv_04_online_only.py : lazy init, get_connection() lève, reset cache
+- 5 tests alembic head : m5_fix -> m5_cleanup_a_committee_event_type_check
+
+### DoD 16/16
+
+- [x] 01 src/db/__init__.py : appel eager supprimé
+- [x] 02 scoring/api.py : HTTP 501
+- [x] 03 api/analysis.py : CRITICAL BUG supprimé, 501
+- [x] 04 committee/service.py : review_opened
+- [x] 05 committee/models.py : review_opened
+- [x] 06 grep CRITICAL BUG src/ -> 0
+- [x] 07 grep recommendation_set src/ -> 0
+- [x] 08 migration CHECK constraint idempotente
+- [x] 09 down_revision = m5_fix_market_signals_vendor_type
+- [x] 10 constraint DB : review_opened présent, recommendation_set absent
+- [x] 11 TECHNICAL_DEBT.md mis à jour
+- [x] 12 alembic heads -> m5_cleanup_a_committee_event_type_check (1 seul)
+- [x] 13 ruff -> vert
+- [x] 14 black -> vert
+- [x] 15 pytest -> 760 passed, 36 skipped, 0 failed, 0 error
+- [x] 16 PR ouverte, agent ne merge pas, agent ne pose pas de tag

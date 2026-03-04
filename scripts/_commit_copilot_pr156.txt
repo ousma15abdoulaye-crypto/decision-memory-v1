@@ -1,0 +1,11 @@
+docs(m5-fix): corriger 3 critiques Copilot PR #156 sur PIÈGE-15
+
+1. Ordre numérique : PIÈGE-15 déplacé après PIÈGE-14 (était inséré avant)
+   Ordre corrigé : ...PIÈGE-13 → PIÈGE-14 → PIÈGE-15
+
+2. Version Alembic : supprimé "< 1.10" — VARCHAR(32) est le défaut
+   quelle que soit la version (comportement inchangé en 1.13.x utilisé ici)
+
+3. Seuil 28 vs 32 : ajout explication de la marge de sécurité
+   "Seuil recommandé 28 = marge de 4 caractères sur le VARCHAR(32)"
+   La contrainte réelle (32) est maintenant explicitement mentionnée

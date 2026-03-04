@@ -1,0 +1,134 @@
+============================= test session starts =============================
+collected 765 items
+
+tests\analysis_summary\test_engine_contracts_ast.py ...                  [  0%]
+tests\analysis_summary\test_engine_generation.py ..............          [  2%]
+tests\api\test_criteria_api.py .............................             [  6%]
+tests\audit\test_audit_append_only.py ....                               [  6%]
+tests\audit\test_audit_chain.py .........                                [  7%]
+tests\audit\test_audit_logger.py .................                       [  9%]
+tests\auth\test_jwt_handler.py ............                              [ 11%]
+tests\auth\test_rate_limiting.py .....                                   [ 12%]
+tests\auth\test_rbac.py .....................                            [ 14%]
+tests\auth\test_security_headers.py .........                            [ 16%]
+tests\auth\test_token_blacklist.py ......                                [ 16%]
+tests\boundary\test_constitution_compliance.py ...                       [ 17%]
+tests\boundary\test_couche_a_b_boundary.py ..                            [ 17%]
+tests\boundary\test_no_evaluation_import_in_couche_a.py ..               [ 17%]
+tests\committee\test_committee_lifecycle.py .............                [ 19%]
+tests\committee\test_committee_no_couche_b_import.py ..                  [ 19%]
+tests\committee\test_committee_readiness_preconditions.py ........       [ 20%]
+tests\committee\test_committee_seal_transaction.py .......               [ 21%]
+tests\couche_a\test_endpoints.py s                                       [ 21%]
+tests\couche_a\test_extraction_typed.py ............                     [ 23%]
+tests\couche_a\test_migration.py .                                       [ 23%]
+tests\couche_a\test_scoring.py ............                              [ 25%]
+tests\couche_b\test_resolvers.py ............                            [ 26%]
+tests\db_integrity\test_analysis_summaries_append_only.py ....           [ 27%]
+tests\db_integrity\test_corrections_append_only.py ....                  [ 27%]
+tests\db_integrity\test_criteria_db_level.py ................            [ 29%]
+tests\db_integrity\test_extraction_jobs_fsm.py ........                  [ 30%]
+tests\db_integrity\test_lock_committee_db_level.py ssss                  [ 31%]
+tests\db_integrity\test_pipeline_append_only_triggers.py ........        [ 32%]
+tests\db_integrity\test_pipeline_runs_force_recompute_column.py ......   [ 33%]
+tests\db_integrity\test_triggers_db_level.py .......                     [ 34%]
+tests\decision_snapshot\test_decision_snapshots_append_only.py ...       [ 34%]
+tests\decision_snapshot\test_snapshot_created_on_seal.py ...             [ 34%]
+tests\decision_snapshot\test_snapshot_schema_neutrality.py .....         [ 35%]
+tests\generation\test_doctrine_echec_exports.py sss                      [ 35%]
+tests\geo\test_geo_endpoints.py ..........                               [ 37%]
+tests\geo\test_geo_hierarchy.py ........                                 [ 38%]
+tests\geo\test_geo_migration.py ..................                       [ 40%]
+tests\geo\test_geo_seed_mali.py ..............................           [ 44%]
+tests\integration\test_extraction_e2e.py .............                   [ 46%]
+tests\invariants\phase0\test_upload_magic_bytes.py sssss                 [ 46%]
+tests\invariants\test_couche_a_b_boundary.py s                           [ 47%]
+tests\invariants\test_inv_01_cognitive_load.py ....                      [ 47%]
+tests\invariants\test_inv_02_couche_a_primacy.py ...                     [ 47%]
+tests\invariants\test_inv_03_memory_non_prescriptive.py ...              [ 48%]
+tests\invariants\test_inv_04_online_only.py ...                          [ 48%]
+tests\invariants\test_inv_05_ci_green.py ...                             [ 49%]
+tests\invariants\test_inv_06_append_only.py ...                          [ 49%]
+tests\invariants\test_inv_07_erp_agnostic.py ...                         [ 49%]
+tests\invariants\test_inv_08_survivability.py ....                       [ 50%]
+tests\invariants\test_inv_09_fidelity_neutrality.py ....                 [ 50%]
+tests\invariants\test_no_couche_b_import_in_couche_a.py s                [ 51%]
+tests\mapping\test_column_calculator.py ..................               [ 53%]
+tests\mapping\test_engine_smoke.py ..                                    [ 53%]
+tests\mapping\test_styling.py ..............                             [ 55%]
+tests\market_signal\test_market_signal_rules.py ssssss                   [ 56%]
+tests\market_signal\test_survey_validity.py ssss                         [ 56%]
+tests\mercuriale\test_mercuriale_parser.py .............                 [ 58%]
+tests\normalisation\test_aliases_mandatory_sahel.py .                    [ 58%]
+tests\normalisation\test_dict_minimum_coverage.py .                      [ 58%]
+tests\normalisation\test_no_raw_offer_in_scoring.py ss                   [ 59%]
+tests\normalisation\test_normalisation_engine.py ..                      [ 59%]
+tests\phase0\test_extraction_engine_api.py .............                 [ 61%]
+tests\phase0\test_extraction_service.py ................                 [ 63%]
+tests\pipeline\test_pipeline_a_e2e_mode.py .....                         [ 63%]
+tests\pipeline\test_pipeline_a_no_couche_b_import.py .                   [ 63%]
+tests\pipeline\test_pipeline_a_partial_case_analysis_snapshot.py ....... [ 64%]
+..                                                                       [ 65%]
+tests\pipeline\test_pipeline_a_partial_preflight.py ......               [ 65%]
+tests\pipeline\test_pipeline_a_partial_regression.py ....                [ 66%]
+tests\pipeline\test_pipeline_a_partial_statuses.py .......               [ 67%]
+tests\pipeline\test_pipeline_force_recompute.py ......                   [ 68%]
+tests\pipeline\test_sla_classe_a_60s.py s                                [ 68%]
+tests\pipeline\test_sla_classe_b_has_queue.py ss                         [ 68%]
+tests\price_check\test_price_check_engine.py .........                   [ 69%]
+tests\scoring\test_current_supplier_scores_view.py ....                  [ 70%]
+tests\scoring\test_elimination_logic_critical.py ........                [ 71%]
+tests\scoring\test_fallback_weights_traced.py .....                      [ 71%]
+tests\scoring\test_market_signal_no_impact_on_scores.py s                [ 72%]
+tests\scoring\test_meets_criterion_not_stub.py ........                  [ 73%]
+tests\scoring\test_no_upsert_in_scoring_engine.py ....                   [ 73%]
+tests\scoring\test_score_currency_from_case.py ....                      [ 74%]
+tests\scoring\test_score_runs_append_only_db.py ...                      [ 74%]
+tests\scoring\test_scores_independent_of_couche_b.py ss                  [ 74%]
+tests\scoring\test_scoring_meta_contract.py ........                     [ 75%]
+tests\test_auth.py ............                                          [ 77%]
+tests\test_corrections_smoke.py ...                                      [ 77%]
+tests\test_criteria_fk.py ..                                             [ 78%]
+tests\test_m0b_db_hardening.py ........s...                              [ 79%]
+tests\test_offer_processor.py ..................................         [ 84%]
+tests\test_partial_offers.py ...                                         [ 84%]
+tests\test_rbac.py .....                                                 [ 85%]
+tests\test_resilience.py .....                                           [ 85%]
+tests\test_templates.py ....                                             [ 86%]
+tests\test_upload.py .....s                                              [ 87%]
+tests\test_upload_security.py .....s....                                 [ 88%]
+tests\vendors\test_vendor_dedup.py ....                                  [ 88%]
+tests\vendors\test_vendor_endpoints.py .....                             [ 89%]
+tests\vendors\test_vendor_etl.py ............................            [ 93%]
+tests\vendors\test_vendor_migration.py .......                           [ 94%]
+tests\vendors\test_vendor_patch.py ..............                        [ 95%]
+tests\vendors\test_vendor_patch_a.py ...........................         [ 99%]
+tests\vendors\test_vendor_seed.py ....                                   [100%]
+
+============================== warnings summary ===============================
+src\api\main.py:130
+  C:\Users\abdoulaye.ousmane\decision-memory-v1\src\api\main.py:130: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+..\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\applications.py:4495
+  C:\Users\abdoulaye.ousmane\AppData\Local\Programs\Python\Python311\Lib\site-packages\fastapi\applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+tests/test_rbac.py::test_procurement_officer_can_create_case
+  C:\Users\abdoulaye.ousmane\AppData\Local\Programs\Python\Python311\Lib\site-packages\_pytest\python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_rbac.py::test_procurement_officer_can_create_case returned <class 'str'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========== 729 passed, 36 skipped, 3 warnings in 315.79s (0:05:15) ===========

@@ -1,0 +1,12 @@
+fix(committee): copilot hardening — race condition + no_award + sealed_by + _tx
+
+F-01 service.py   : SELECT FOR UPDATE sur chemin seal (anti race condition)
+                    _get_committee_or_raise(for_update=True) dans seal_committee_decision
+F-02 snapshot.py  : _resolve_supplier_name_raw — no_award explicite
+                    interdit alias_raw comme nom fournisseur (corruption semantique)
+F-03 models.py    : SealRequest.sealed_by — field_validator not_empty
+                    audit trail ne peut plus recevoir sealed_by vide
+F-04 conftest.py  : _tx — original_autocommit sauvegarde + restauration propre
+
+Copilot PR#116 — C1/C2/C3/C5 liquides
+C4 (by query param) reporte vers feat/committee-api-hardening

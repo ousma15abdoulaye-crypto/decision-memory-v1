@@ -1,0 +1,9 @@
+fix(m5-fix): étend alembic_version.version_num VARCHAR(32→64)
+
+Révision m5_fix_market_signals_vendor_type = 34 chars.
+La colonne alembic_version.version_num était VARCHAR(32).
+StringDataRightTruncation en CI sur UPDATE alembic_version.
+
+Fix : ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(64)
+exécuté en tête de upgrade() dans la même transaction DDL PostgreSQL.
+Idempotent : ne s'exécute que si la colonne est encore < 64 chars.

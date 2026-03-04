@@ -1,0 +1,28 @@
+## M1B — Audit Hash Chain
+
+### Résumé
+- Migration `038_audit_hash_chain` : table `audit_log` + séquence `chain_seq` + triggers append-only (DELETE/UPDATE/TRUNCATE) + `fn_verify_audit_chain()` via pgcrypto
+- `src/couche_a/audit/logger.py` : `write_event()` mono-insert + `verify_chain()` — 6 contrats immuables respectés (ADR-M1B-001)
+- 30 tests verts : `test_audit_logger` (17) · `test_audit_chain` (9) · `test_audit_append_only` (4)
+- Test croisé Python ↔ DB vert — `timestamp_canonical` identique des deux côtés (STOP-M1B-9 non déclenché)
+- `TECHNICAL_DEBT.md` mis à jour : DETTE-M1-01 étendue (`actor_id` FK reportée)
+- `ADR-M1B-001_audit_hash_chain.md` committé dans `docs/adr/`
+
+### Contrats immuables (ADR-M1B-001)
+- Ordre champs `event_hash` : entity + entity_id + action + actor_id + payload_canonical + timestamp_canonical + chain_seq + prev_hash
+- `payload_canonical` : `json.dumps(sort_keys=True, separators=(",",":"), ensure_ascii=False)` ou `""`
+- `timestamp_canonical` : UTC ISO 8601 microsecondes suffixe Z
+- Mono-insert : `nextval()` avant INSERT — zéro UPDATE post-insert sur `event_hash`
+
+### Périmètre
+- Zéro touche `src/auth.py`, `src/couche_a/auth/`, `token_blacklist`, `users`, tables métier
+- Zéro régression attendue sur la suite 544 existante
+
+### Checklist DoD M1B (validation humaine requise)
+- [ ] pytest suite complète 0 failed / 0 errors
+- [ ] alembic heads = `038_audit_hash_chain` unique
+- [ ] ruff 0 erreur · black 0 erreur
+- [ ] CI Railway staging smoke vert
+
+**Tag après DoD VERT humain :** `v4.1.0-m1b-done` — posé par l'humain uniquement (RÈGLE-ORG-10)
+

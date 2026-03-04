@@ -1,0 +1,21 @@
+ERROR tests/integration/test_extraction_e2e.py::TestCoh�renceDBe2e::test_confidence_score_persiste_correctement
+ERROR tests/vendors/test_vendor_dedup.py::test_same_vendor_inserted_twice_only_one_record
+ERROR tests/vendors/test_vendor_dedup.py::test_duplicate_fingerprint_second_insert_returns_none
+ERROR tests/vendors/test_vendor_dedup.py::test_different_casing_deduplication
+ERROR tests/vendors/test_vendor_dedup.py::test_different_region_not_deduplicated
+ERROR tests/vendors/test_vendor_endpoints.py::test_list_vendors_pagination - ...
+ERROR tests/vendors/test_vendor_patch.py::test_p1_regex_constraint_accepts_valid_format
+ERROR tests/vendors/test_vendor_patch.py::test_p2_activity_columns_exist - ps...
+ERROR tests/vendors/test_vendor_patch.py::test_p3_excel_m4_vendors_verified_active
+ERROR tests/vendors/test_vendor_patch.py::test_p4_on_conflict_do_nothing_returns_none_on_dup
+ERROR tests/vendors/test_vendor_patch.py::test_p5_sequence_increments_correctly
+ERROR tests/vendors/test_vendor_patch.py::test_p6_skipped_no_region_removed_from_etl_report
+ERROR tests/vendors/test_vendor_patch.py::test_p7_invalid_activity_status_returns_422
+ERROR tests/vendors/test_vendor_patch.py::test_p7_valid_activity_statuses_return_200
+ERROR tests/vendors/test_vendor_patch.py::test_p8_filter_verified_active_only_returns_verified
+ERROR tests/vendors/test_vendor_patch.py::test_p9_td001_documented_in_technical_debt
+ERROR tests/vendors/test_vendor_patch.py::test_p10_alembic_head_is_043 - psyc...
+ERROR tests/vendors/test_vendor_patch.py::test_p11_trigger_exists_after_042
+ERROR tests/vendors/test_vendor_patch.py::test_p12_invalid_activity_status_rejected_by_db
+= 4 failed, 644 passed, 36 skipped, 3 warnings, 97 errors in 236.28s (0:03:56) =
+=== returncode: 1 ===

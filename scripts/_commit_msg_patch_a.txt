@@ -1,0 +1,23 @@
+feat(PATCH-A): reconciliation structurelle vendor_identities V4.1.0
+
+Option B CTO : table vendor_identities conservee (table vendors legacy
+incompatible - 4 colonnes, FK geo_master / market_signals, hors alembic).
+
+Migration m4_patch_a_vendor_structure_v410 :
+  - canonical_name NOT NULL UNIQUE = name_normalized|region_code
+  - aliases TEXT[] DEFAULT '{}'
+  - nif / rccm / rib (null M4, peuples M13+)
+  - verification_status CHECK IN (registered/qualified/approved/suspended)
+  - VERIFIED_ACTIVE to qualified, INACTIVE/GHOST_SUSPECTED to registered
+  - vcrn UNIQUE (genere M13+)
+  - zones_covered / category_ids UUID[] (TD-003, peuples M5+/M6+)
+  - has_sanctions_cert / has_sci_conditions / key_personnel_verified
+  - last_verified_at renamed to verified_at
+  - Index idx_vi_verification + idx_vi_canonical
+
+repository.py : insert_vendor peuple canonical_name = name_normalized|region_code
+scripts/etl_vendors_wave2.py : squelette Wave 2 avec gardes STOP-PB-C/D
+TECHNICAL_DEBT.md : TD-002 (pg_trgm) + TD-003 (zones_covered/category_ids)
+Tests : head m4_patch_a_vendor_structure_v410, inserts raw SQL + canonical_name
+
+pytest : 729 passed, 0 failed

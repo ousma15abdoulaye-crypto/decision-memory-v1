@@ -1,0 +1,19 @@
+fix(m5-pre): corrige market_signals.vendor_id INTEGER → UUID
+
+- migration idempotente : Garde 0 skip si déjà UUID
+- vendor_id : INTEGER → UUID (cohérence avec vendors.id UUID)
+- FK non créée en migration : incompatible avec protection
+  append-only locale (FOR KEY SHARE bloqué)
+  → documentée ADR-M5-FIX-001
+  → scripts/apply_fk_prod.py pour Railway prod
+- index idx_signals_vendor recréé (idempotent)
+- 3 gardes upgrade idempotentes
+- downgrade honnête : bloqué si vendor_id non NULL
+- ADR-M5-FIX-001 mis à jour : FK hors migration documentée
+- 6 tests invariants · 0 failed
+- TD-010 fermé dans TECHNICAL_DEBT.md
+- 5 tests alembic_head_is_current mis à jour vers m5_fix
+
+alembic heads: m5_fix_market_signals_vendor_type (1 seul)
+pytest global: 735 passed · 36 skipped · 0 failed · 0 error
+Prérequis M5 Mercuriale Ingest validé.

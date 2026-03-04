@@ -1,0 +1,24 @@
+## M-ANALYSIS-SUMMARY — #12 — V2.0 FINAL
+
+### Résumé
+- Migration 035 analysis_summaries : table append-only (trigger DB-level), UNIQUE(result_hash) pour idempotence, FK pipeline_runs ON DELETE RESTRICT
+- Moteur engine/ agnostique : models.py (SummaryDocument v1, SummarySection), builder.py (MG-03 OPTION A dict, zéro import pipeline), service.py (generate_summary 13 étapes INV-AS7)
+- Router POST /api/cases/{case_id}/analysis-summary/generate + GET .../last — HTTP 200 toujours
+- 20 tests : 11 génération moteur, 3 AST séparation, 4 DB-level append-only
+
+### DoD
+- 478 passed / 0 failed / 35 skipped (N_baseline=458, +20 tests M12)
+- alembic head = 035_create_analysis_summaries (unique)
+- ruff 0 erreur — black propre
+- ADR-0014 (reséquencement Phase 3) + ADR-0015 (contrat SummaryDocument v1 vers M13) — hash SHA-256 inscrits
+- 15 fichiers scope exact (+ .done = 16 total)
+- INV-AS1 à INV-AS13 couverts par tests à corps complets — RÈGLE-TEST-01 appliquée
+- MG-01/02/03 intégrés (result_hash, list[dict], OPTION A)
+
+### Invariants prouvés
+- INV-AS3 : trigger append-only UPDATE/DELETE bloqués DB-level (4 tests)
+- INV-AS5 : result_jsonb = SummaryDocument v1 complet (probe DB post-insert)
+- INV-AS8 : zéro appel pipeline (test AST)
+- INV-AS9b : UNIQUE(result_hash) — idempotence DB-level
+- INV-AS10 : SummarySection.content sans champs de jugement (ValidationError Pydantic)
+- Frontière A/B intacte (30 passed / 7 skipped tests/invariants/)

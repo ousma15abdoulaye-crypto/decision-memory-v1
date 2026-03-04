@@ -18,14 +18,60 @@ from src.couche_b.mercuriale.ingest_parser import (
 )
 from src.couche_b.mercuriale.models import MercurialLineCreate
 
+# Format HTML réel produit par LlamaCloud (tier agentic) — confirmé probe 2026-03-04
+# LlamaCloud agentic génère des <table> HTML, pas des tableaux Markdown pipes.
 MARKDOWN_SAMPLE = """
-Prix TTC, Kayes, 2024
+<mark>***KAYES***</mark>
 
-**1. Fournitures de bureau**
-
-| 1.3 | Abonnement au journal ESSOR | Abonnement annuel | 70 000 | 77 500 | 85 000 |
-| 1.15 | Agrafe 23/10 | Paquet 10 | 5 000 | 5 500 | 6 000 |
-| 1.16 | Agrafe 23/16 | Paquet 10 | 7 500 | 7 875 | 8 250 |
+<table>
+    <thead>
+    <tr>
+        <th colspan="7">Groupe 1 : Fournitures</th>
+    </tr>
+    </thead>
+    <tr>
+        <td colspan="2">Codes</td>
+<td>DESIGNATIONS</td>
+<td>Unité</td>
+        <td colspan="3">Prix TTC, Kayes, 2024</td>
+    </tr>
+<tr>
+        <td>1</td>
+<td>1</td>
+<td>Fournitures de bureau</td>
+<td></td>
+<td>Minimum</td>
+<td>Moyen</td>
+<td>Maximum</td>
+    </tr>
+<tr>
+        <td>1</td>
+<td>1.3</td>
+<td>Abonnement au journal ESSOR</td>
+<td>Abonnement annuel</td>
+<td>70 000</td>
+<td>77 500</td>
+<td>85 000</td>
+    </tr>
+<tr>
+        <td>1</td>
+<td>1.15</td>
+<td>Agrafe 23/10</td>
+<td>Paquet 10</td>
+<td>5 000</td>
+<td>5 500</td>
+<td>6 000</td>
+    </tr>
+<tr>
+        <td>1</td>
+<td>1.16</td>
+<td>Agrafe 23/16</td>
+<td>Paquet 10</td>
+<td>7 500</td>
+<td>7 875</td>
+<td>8 250</td>
+    </tr>
+</table>
 """
 
 
@@ -94,8 +140,14 @@ class TestParseMarkdown:
         assert parse_markdown_to_lines("", 2024) == []
 
     def test_zone_default_si_non_detectee(self):
-        md = "| 1.1 | Riz | Sac | 17000 | 18500 | 20000 |"
+        # Sans <mark> ni Prix TTC → zone depuis default_zone_raw
+        md = """<table>
+<tr><td colspan="2">Codes</td><td>DESIGNATIONS</td><td>Unité</td><td colspan="3">Col</td></tr>
+<tr><td>1</td><td>1</td><td>Groupe</td><td></td><td>Minimum</td><td>Moyen</td><td>Maximum</td></tr>
+<tr><td>1</td><td>1.1</td><td>Riz blanc 25kg</td><td>Sac</td><td>17 000</td><td>18 500</td><td>20 000</td></tr>
+</table>"""
         lines = parse_markdown_to_lines(md, 2024, default_zone_raw="Bamako")
+        assert len(lines) >= 1
         assert lines[0]["zone_raw"] == "Bamako"
 
 
@@ -142,12 +194,15 @@ class TestModeleUnitPrice:
 class TestImporterMock:
     """RÈGLE-21 : zéro appel LlamaCloud réel · mock obligatoire."""
 
-    MOCK_MARKDOWN = (
-        "Prix TTC, Kayes, 2024\n"
-        "**1. Fournitures**\n"
-        "| 1.3 | Riz blanc 25kg | Sac | 17 000 | 18 500 | 20 000 |\n"
-        "| 1.15 | Agrafe 23/10 | Paquet 10 | 5 000 | 5 500 | 6 000 |\n"
-    )
+    # Format HTML réel LlamaCloud (tier agentic) — confirmé probe 2026-03-04
+    MOCK_MARKDOWN = """<mark>***KAYES***</mark>
+<table>
+    <thead><tr><th colspan="7">Groupe 1 : Fournitures</th></tr></thead>
+    <tr><td colspan="2">Codes</td><td>DESIGNATIONS</td><td>Unité</td><td colspan="3">Prix TTC, Kayes, 2024</td></tr>
+<tr><td>1</td><td>1</td><td>Fournitures de bureau</td><td></td><td>Minimum</td><td>Moyen</td><td>Maximum</td></tr>
+<tr><td>1</td><td>1.3</td><td>Riz blanc 25kg</td><td>Sac</td><td>17 000</td><td>18 500</td><td>20 000</td></tr>
+<tr><td>1</td><td>1.15</td><td>Agrafe 23/10</td><td>Paquet 10</td><td>5 000</td><td>5 500</td><td>6 000</td></tr>
+</table>"""
 
     def test_dry_run_sans_appel_api(self, tmp_path, monkeypatch):
         """Dry-run complet · zéro appel réseau · rapport valide."""

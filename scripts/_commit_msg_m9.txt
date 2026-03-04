@@ -1,0 +1,13 @@
+feat(#9): M-COMMITTEE-CORE + DecisionSnapshot Log (ADR-0011)
+
+Migrations 028-031: tables committee, decision_snapshots, triggers append-only,
+verrou post-seal intelligent PATCH-1, statut terminal sealed PATCH-5.
+
+Implementation Couche A: service.py, snapshot.py hash SHA-256 deterministe v1,
+models.py, router.py. Seal atomique seal et snapshot dans une transaction.
+
+Tests: 48 nouveaux tests T1-AST T2-triggers T3-lifecycle T4-readiness
+T5-seal T6-snapshot, TestCommitteeLockTrigger en db_integrity.
+
+CI: 406 passed 0 failed 35 skipped.
+ADR-0011 ACCEPTED. .milestones/M-COMMITTEE-CORE.done.

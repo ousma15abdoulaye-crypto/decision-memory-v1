@@ -1,0 +1,22 @@
+fix(m5-pre): DROP FK explicite market_signals_vendor_id_fkey avant DROP TABLE vendors
+
+Actions :
+- Probe SQL Action 1 : FK market_signals_vendor_id_fkey confirmée (convention PostgreSQL)
+  DB locale post-consolidation — FK déjà supprimée par CASCADE précédent
+- upgrade() : remplace DROP TABLE vendors CASCADE par :
+    1. Garde 2 RAISE EXCEPTION si vendors legacy absente (état inattendu)
+    2. Garde 3 RAISE EXCEPTION si vendors legacy contient des lignes (arbitrage CTO)
+    3. DROP CONSTRAINT market_signals_vendor_id_fkey IF EXISTS (explicite)
+    4. DROP TABLE vendors (sans CASCADE)
+- downgrade() : refactoré honnête et documenté — CE QUI N'EST PAS RESTAURÉ :
+    vendors legacy, FK market_signals → rollback complet = backup Railway
+- docstring : corrige ligne 13 "aucune FK formelle" → FK supprimée documentée
+- migration-checklist.md : corrige assertion market_signals.vendor_id
+
+STOP-2 documenté :
+  Après alembic downgrade -1, alembic upgrade head échoue sur
+  "vendors legacy introuvable — état inattendu — arbitrage CTO"
+  Comportement VOULU : downgrade partiel · rollback complet = backup Railway
+  Pas un bug · conforme Action 3 (downgrade honnête)
+
+Closes : correction chirurgicale post-VERDICT A · DMS V4.1.0

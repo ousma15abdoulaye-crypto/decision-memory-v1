@@ -1,0 +1,35 @@
+chore(m5-cleanup-a): solder dettes actives pré-M5
+
+TD-005 fermée (réelle)
+  src/db/__init__.py : appel eager supprimé · lazy init
+  tests/invariants/test_inv_04_online_only.py : assertion
+    reload -> get_connection() · reset cache _DB_URL_CACHE
+
+scoring/api.py : POST /calculate -> HTTP 501
+  scoring via pipeline FSM · endpoint direct désactivé · M9
+
+api/analysis.py : extract_dao_criteria_structured -> HTTP 501
+  commentaire CRITICAL BUG supprimé · TD-011 tracée · M10B
+
+committee/service.py + models.py :
+  recommendation_set -> review_opened · Constitution §1.2
+  CAS 2 documentaire + CHECK constraint DB - PIÈGE identifié
+
+migration m5_cleanup_a_committee_event_type_check :
+  CHECK constraint committee_events_event_type_check mise à jour
+  recommendation_set -> review_opened en DB · idempotente
+  down_revision = m5_fix_market_signals_vendor_type
+
+TECHNICAL_DEBT.md :
+  TD-005 fermée · TD-011/012/013/014 tracées avec jalons
+  TD-015/016 renommés pour libérer numéros M5-CLEANUP-A
+
+tests mis à jour suite nouvelle migration head :
+  tests/test_m0b_db_hardening.py : head -> m5_cleanup_a_committee_event_type_check
+  tests/vendors/test_vendor_migration.py : idem
+  tests/vendors/test_vendor_patch.py : idem
+  tests/vendors/test_vendor_patch_a.py : idem
+  tests/geo/test_geo_migration.py : idem
+
+alembic heads: m5_cleanup_a_committee_event_type_check - 1 seul
+pytest: 760 passed · 36 skipped · 0 failed · 0 error

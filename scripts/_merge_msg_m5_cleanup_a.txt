@@ -1,0 +1,20 @@
+chore(m5-cleanup-a): merge feat/m5-cleanup-a -> main [GATES 7/7 VERTS]
+
+Gates binaires valides avant merge :
+  alembic heads          -> m5_cleanup_a_committee_event_type_check (1 seul)
+  alembic history        -> down_revision = m5_fix_market_signals_vendor_type OK
+  alembic upgrade head   -> 0 erreur
+  cycle downgrade/upgrade -> head stable
+  pytest -q              -> 760 passed, 36 skipped, 0 failed, 0 error
+  ruff + black --check   -> verts
+  fichiers hors perimetre -> 0
+
+Contenu du sprint M5-CLEANUP-A :
+  src/db/__init__.py : appel eager supprime, lazy init via _get_or_init_db_url()
+  scoring/api.py : POST /calculate -> HTTP 501, pipeline FSM uniquement
+  api/analysis.py : extract_dao_criteria_structured -> HTTP 501, TD-011 tracee
+  committee/service.py + models.py : recommendation_set -> review_opened
+  migration m5_cleanup_a_committee_event_type_check : CHECK constraint alignee, idempotente
+  TECHNICAL_DEBT.md : TD-005 fermee, TD-011/012/013/014 tracees
+
+DMS - Decision Memory System, V4.1.0

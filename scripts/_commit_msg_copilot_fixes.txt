@@ -1,0 +1,20 @@
+fix(m5-cleanup-a): appliquer corrections review Copilot PR #157
+
+migration m5_cleanup_a_committee_event_type_check :
+  _TABLE_NAME = "public.committee_events" (schema-qualified)
+  robustesse search_path prod/CI - suggestion Copilot #4
+
+tests/invariants/test_inv_04_online_only.py :
+  if original_db_url is not None (vs if original_db_url)
+  gere le cas valeur vide sans polluer env - suggestion Copilot #1
+
+src/api/analysis.py :
+  extract_dao_criteria_structured -> list[DAOCriterion] (type stable)
+  contrat M10B preservé, suggestion Copilot #3
+
+TECHNICAL_DEBT.md :
+  ||---|---| (fix separateur Markdown TD-005, etait |||---|---|)
+  suggestion Copilot #5
+
+note: commentaire Copilot #2 (routes /api/api/ doublées)
+  bug preexistant hors perimetre PR - documente en TD pour M5+

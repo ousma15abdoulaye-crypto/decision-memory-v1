@@ -1,0 +1,20 @@
+fix(m5-pre): Garde 3 — DROP autorisé si vendors legacy non référencée par market_signals
+
+Problème : RAISE EXCEPTION sur COUNT(vendors) > 0 bloquait CI et PROD.
+  - 005_add_couche_b.py seed 2 lignes dans vendors legacy (Marché Central, Boutique Kayes)
+  - Ces lignes n'ont aucune référence dans market_signals (0 lignes market_signals en CI + prod)
+  - Garde trop stricte → migration toujours bloquée
+
+Correction chirurgicale de la Garde 3 :
+  - Si vendors a des lignes ET market_signals.vendor_id non-null > 0
+    → RAISE EXCEPTION (données métier réelles — arbitrage CTO requis)
+  - Si vendors a des lignes MAIS market_signals vide (0 références actives)
+    → RAISE NOTICE (seed/test uniquement) + DROP autorisé
+  - Si vendors vide → pas de vérification (flow normal)
+
+Comportement résultant :
+  - CI (fresh DB)  : vendors = 2 lignes seed · market_signals = 0 → NOTICE + DROP ✓
+  - PROD Railway   : vendors = 2 lignes seed · market_signals = 0 → NOTICE + DROP ✓
+  - Protection réelle : si market_signals contient des références → EXCEPTION reste active
+
+Contexte : probe VERDICT A 2026-03-03 confirmait 0 lignes market_signals.vendor_id non-null.

@@ -1,0 +1,29 @@
+fix(m5-geo): enrichir geo_master · 16 zones mercuriales Mali
+
+Migration m5_geo_fix_master :
+  - ajout colonne level INTEGER (1=region · 2=cercle)
+  - 3 existants mis a jour (type city → region · level = 1)
+  - 14 zones ajoutees : Koulikoro Segou Mopti Tombouctou Gao Kidal
+    Taoudeni Menaka Bougouni Dioila Kita Nara Nioro San
+  - INSERT idempotent ON CONFLICT (id) DO UPDATE
+  - created_at inclus dans INSERT (NOT NULL sans DEFAULT)
+  - down_revision = m5_cleanup_a_committee_event_type_check
+
+Tests mis a jour (assertions alembic head) :
+  tests/vendors/test_vendor_migration.py
+  tests/vendors/test_vendor_patch.py
+  tests/vendors/test_vendor_patch_a.py
+  tests/test_m0b_db_hardening.py
+  tests/geo/test_geo_migration.py
+  → head : m5_cleanup_a_committee_event_type_check → m5_geo_fix_master
+
+Prerequis M5-MERCURIALE-INGEST :
+  resolve_zone_id couvre desormais 16/16 zones 2023
+  geo_master total : 17 zones (11 regions + 6 cercles)
+
+Gates 7/7 :
+  alembic heads  → m5_geo_fix_master (1 seul)
+  pytest         → 760 passed · 36 skipped · 0 failed · 0 error
+  ruff           → All checks passed
+  black          → 242 files unchanged
+  fichiers hors perimetre → 0 (migration + 5 tests head uniquement)

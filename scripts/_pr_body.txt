@@ -1,0 +1,31 @@
+## Pourquoi
+
+STOP 0-7 bloquait le mandat #8 M-SCORING-TESTS-CRITIQUES : fixture `case_factory` absente de tous les conftest.
+
+## Scope
+
+**1 fichier modifié** : `tests/conftest.py`
+
+## Implémentation
+
+- Fixture `case_factory(currency: str = "XOF") -> str`
+- Retourne un `case_id` (text/uuid) existant en DB
+- INSERT SQL direct (psycopg), dépend de `db_conn` uniquement
+- Cleanup défensif DELETE après chaque test (scope: function)
+
+## Proof
+
+- `pytest tests/` : 337 passed, 0 failed, 35 skipped
+- `alembic heads` : 1 head (027_add_cases_currency)
+- 1 seul fichier stagé (`git diff --cached --stat` : 1 file changed, 50 insertions)
+
+## Annexe — Sonde CASES (colonnes NOT NULL sans default)
+
+```
+id          (text)  -- uuid4() fourni
+case_type   (text)  -- "test"
+title       (text)  -- "test-factory-{uuid[:8]}"
+created_at  (text)  -- datetime.now(timezone.utc).isoformat()
+currency    (text)  -- default "XOF" (overridable via paramètre)
+status      (text)  -- default "draft" (non fourni)
+```

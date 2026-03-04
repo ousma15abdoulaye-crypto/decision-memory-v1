@@ -1,0 +1,19 @@
+merge(m5-mercuriale): ingestion mercuriales officielles Mali 2024+2023
+
+- migration 040_mercuriale_ingest (down_revision = m5_geo_fix_master)
+- schéma 3 prix : price_min · price_avg · price_max
+- unit_price = colonne normale alias price_avg
+- pas de CHECK price_order DB (ingestion brute RÈGLE-29)
+- pas de FK unit_id / item_id (M6)
+- pas de zone_id dans mercuriale_sources
+- CREATE TABLE IF NOT EXISTS + index IF NOT EXISTS (idempotent)
+- ingest_parser.py : parse Markdown LlamaCloud → lignes structurées
+- importer.py : AsyncLlamaCloud · clé LLAMADMS (Railway) · dry_run
+- repository.py : _ConnectionWrapper API psycopg v3
+- models.py : MercurialLineCreate · ImportReport · unit_price=price_avg
+- scripts/import_mercuriale.py : 2024 (1 fichier) → 2023 (16 zones)
+- tests : 34 tests mercuriale · 0 failed (mock RÈGLE-21)
+- docs : DMS_V4.1.1_PATCH.md · MERCURIALE_COLUMN_MAP.md
+- alembic heads : 040_mercuriale_ingest (1 seul)
+- pytest : 794 passed · 0 failed · 0 error
+- ruff : vert · black : vert

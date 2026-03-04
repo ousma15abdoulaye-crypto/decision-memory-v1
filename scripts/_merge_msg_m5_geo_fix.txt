@@ -1,0 +1,14 @@
+fix(m5-geo): merge feat/m5-geo-fix -> main [GATES 7/7 VERTS]
+
+geo_master enrichi : 3 zones → 17 zones (11 regions + 6 cercles)
+Prerequis M5-MERCURIALE-INGEST : resolve_zone_id couvre 16/16 zones 2023
+
+Gates :
+  alembic heads  → m5_geo_fix_master (1 seul)
+  pytest         → 760 passed · 36 skipped · 0 failed · 0 error
+  ruff + black   → verts
+  fichiers hors perimetre → 0
+
+Migration : m5_geo_fix_master
+  down_revision = m5_cleanup_a_committee_event_type_check
+  level INTEGER ajoute · 14 zones ajoutees · idempotent

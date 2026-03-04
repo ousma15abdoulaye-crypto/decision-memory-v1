@@ -1,0 +1,31 @@
+## Summary
+
+- Migrations 028-031: tables committees, committee_members, committee_decisions, committee_events (append-only), decision_snapshots (append-only)
+- 5 triggers DB: verrou post-seal intelligent (PATCH-1), statut terminal sealed (PATCH-5), append-only enforced sur events et snapshots
+- Module src/couche_a/committee/: service, snapshot hash SHA-256 deterministe v1, models, router (Couche A stricte, zero import Couche B)
+- Seal atomique: committees.status=sealed + committee_decisions.status=sealed + decision_snapshots INSERT dans une seule transaction
+- ADR-0011 ACCEPTED, hash inscrit
+- 48 nouveaux tests (T1-AST T2-triggers T3-lifecycle T4-readiness T5-seal T6-snapshot)
+
+## Inventaire diff (22 fichiers)
+
+- Migrations: 4
+- src/couche_a/committee/: 5
+- tests/committee/ + tests/decision_snapshot/: 10 nouveaux
+- tests/conftest.py + tests/db_integrity/test_triggers_db_level.py: 2 modifies
+- docs/adr/ADR-0011: 1
+- .milestones/M-COMMITTEE-CORE.done: 1
+
+## CI
+
+406 passed / 0 failed / 35 skipped
+
+## Test plan
+
+- alembic current -> 031_committee_terminal_status (head)
+- Probe M9: 5 tables + 4 fonctions + 5 triggers = True
+- pytest tests/committee/ -> 22 passed
+- pytest tests/decision_snapshot/ -> 8 passed
+- pytest tests/db_integrity/test_triggers_db_level.py::TestCommitteeLockTrigger -> 5 passed
+- pytest tests/ -> 406 passed / 0 failed
+- ruff + black -> 0 errors

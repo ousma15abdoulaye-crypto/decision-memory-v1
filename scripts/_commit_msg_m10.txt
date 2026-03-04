@@ -1,0 +1,22 @@
+feat(pipeline): M-PIPELINE-A-PARTIAL #10 — orchestrateur pipeline A
+
+L1  pipeline/__init__.py : exposition API publique pipeline
+L2  pipeline/models.py : CAS v1, PipelineResult, StepOutcome, INV-P7/P8/P11
+L3  pipeline/service.py : orchestration 5 steps + persist atomique Pattern B
+L4  pipeline/router.py : POST /run + GET /last — HTTP 200 statut metier
+L5  main.py : branchement pipeline_a_router (try/except ImportError)
+L6  032_create_pipeline_runs.py : table append-only + trigger + indexes
+L7  033_create_pipeline_step_runs.py : table append-only + FK + trigger
+L8  tests/pipeline/conftest.py : fixture pipeline_case_with_dao_and_offers
+L9  test_pipeline_a_partial_preflight.py : 4 reason_codes exacts + meta
+L10 test_pipeline_a_partial_statuses.py : blocked/failed/duration/no-complete
+L11 test_pipeline_a_partial_case_analysis_snapshot.py : CAS v1 invariants
+L12 test_pipeline_a_no_couche_b_import.py : AST gate frontiere Couche A/B
+L13 test_pipeline_append_only_triggers.py : triggers DB-level append-only
+L14 ADR-0012_pipeline-a-partial-contract.md : contrat inter-milestones
+L15 M-PIPELINE-A-PARTIAL.done : milestone scelle CI 437/0/35
+
+Preflight : 4 reason_codes (CASE_NOT_FOUND/DAO_MISSING/OFFERS_MISSING/MIN_OFFERS_INSUFFICIENT)
+Pattern DB : B — context manager commit, pas de conn.commit() dans _persist
+Alembic head : 033_create_pipeline_step_runs (unique)
+INV-P1 a P12 verifies — status=complete interdit — zero Couche B
