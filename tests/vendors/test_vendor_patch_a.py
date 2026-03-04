@@ -156,8 +156,8 @@ def test_pa8_alembic_head_is_m5_pre(db_conn):
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert (
-        row["version_num"] == "m5_pre_vendors_consolidation"
-    ), f"Head attendu : m5_pre_vendors_consolidation — réel : {row['version_num']}"
+        row["version_num"] == "m5_fix_market_signals_vendor_type"
+    ), f"Head attendu : m5_fix_market_signals_vendor_type — réel : {row['version_num']}"
 
 
 # ── Colonnes V4.1.0 présentes ─────────────────────────────────────

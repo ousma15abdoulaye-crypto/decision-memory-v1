@@ -379,13 +379,54 @@ market_signals.vendor_id → FK existante vers vendors(id) supprimée explicitem
 ### Prochain slot migration valide
 
 ```text
-Révision   : m6_[description] (ou nom explicite)
-down_revision : m5_pre_vendors_consolidation
-Condition  : exécuter alembic heads immédiatement avant de coder le fichier
+Révision      : m6_[description] (ou nom explicite)
+down_revision : m5_fix_market_signals_vendor_type
+Condition     : exécuter alembic heads immédiatement avant de coder le fichier
+```
+
+---
+
+## 9. Doctrine seed data — RÈGLE ABSOLUE POST-M5-PRE
+
+### Problème identifié (Sprint M5-PRE · Piège-02)
+
+`005_add_couche_b.py` a inséré des données via `INSERT` dans la migration.
+Conséquence : les fixtures pytest appliquent ce seed à chaque `alembic upgrade`.
+La DB locale diverge silencieusement de prod.
+Les gardes `COUNT > 0` explosent en CI.
+
+Symptôme observé :
+```text
+psycopg.errors.RaiseException: vendors legacy contient 2 ligne(s) — DROP refusé
+```
+
+### Règle
+
+```text
+INTERDIT dans alembic/versions/*.py :
+  INSERT INTO ... VALUES ...
+  UPDATE ...
+  DELETE ...
+
+AUTORISÉ dans alembic/versions/*.py :
+  DDL uniquement : CREATE · ALTER · DROP · INDEX · TRIGGER
+
+OBLIGATOIRE pour les seed data :
+  scripts/seed_*.py dédiés · exécution manuelle documentée
+  Jamais automatique dans les migrations
+```
+
+### Vérification avant merge
+
+```bash
+grep -n "INSERT INTO\|UPDATE \|DELETE FROM" \
+  alembic/versions/<nouvelle_migration>.py
+# Résultat attendu : 0 occurrence
+# Les blocs DO $$ de garde (RAISE EXCEPTION/NOTICE) sont exemptés
 ```
 
 ---
 
 **Dernière mise à jour:** 2026-03-03
 **Auteur:** Agent DMS · VERDICT A CTO (Abdoulaye Ousmane)
-**Version:** 1.2 (Post-M5-PRE · consolidation vendors terminée · TD-004 FERMÉE)
+**Version:** 1.3 (Post-M5-FIX · vendor_id UUID · doctrine seed data)
