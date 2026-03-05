@@ -1,4 +1,5 @@
 """Tests IMC parser — RÈGLE-21 : fixtures statiques."""
+
 from pathlib import Path
 
 import pytest

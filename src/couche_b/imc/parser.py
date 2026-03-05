@@ -15,6 +15,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 def _parse_filename_period(filename: str) -> tuple[int, int] | None:
     """Extrait (year, month) depuis AOUT18, JAN26, DEC25, AV25..."""
     stem = Path(filename).stem.upper()
