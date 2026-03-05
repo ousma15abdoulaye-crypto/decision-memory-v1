@@ -29,9 +29,10 @@ def upgrade() -> None:
     # ------------------------------------------------------------------
     # TABLE 1 : imc_sources — registre fichiers
     # Schéma minimal · sha256 pour cache-first
+    # IF NOT EXISTS : idempotent — safe si tables créées hors migration
     # ------------------------------------------------------------------
     op.execute("""
-        CREATE TABLE imc_sources (
+        CREATE TABLE IF NOT EXISTS imc_sources (
             id              VARCHAR         PRIMARY KEY
                 DEFAULT gen_random_uuid()::text,
 
@@ -62,16 +63,17 @@ def upgrade() -> None:
     """)
 
     op.execute("""
-        CREATE INDEX idx_imc_sources_year
+        CREATE INDEX IF NOT EXISTS idx_imc_sources_year
             ON imc_sources(source_year);
     """)
 
     # ------------------------------------------------------------------
     # TABLE 2 : imc_entries — une ligne = indice · catégorie · mois
     # RÈGLE-34 : period_month NOT NULL (série temporelle)
+    # IF NOT EXISTS : idempotent
     # ------------------------------------------------------------------
     op.execute("""
-        CREATE TABLE imc_entries (
+        CREATE TABLE IF NOT EXISTS imc_entries (
             id              VARCHAR         PRIMARY KEY
                 DEFAULT gen_random_uuid()::text,
 
@@ -105,17 +107,17 @@ def upgrade() -> None:
     """)
 
     op.execute("""
-        CREATE INDEX idx_imc_entries_period
+        CREATE INDEX IF NOT EXISTS idx_imc_entries_period
             ON imc_entries(period_year, period_month);
     """)
 
     op.execute("""
-        CREATE INDEX idx_imc_entries_source
+        CREATE INDEX IF NOT EXISTS idx_imc_entries_source
             ON imc_entries(source_id);
     """)
 
     op.execute("""
-        CREATE INDEX idx_imc_entries_category
+        CREATE INDEX IF NOT EXISTS idx_imc_entries_category
             ON imc_entries(category_normalized)
             WHERE category_normalized IS NOT NULL;
     """)
