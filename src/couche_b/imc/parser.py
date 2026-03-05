@@ -67,13 +67,22 @@ def _clean_index(val: Any) -> Decimal | None:
 
 def parse_imc_pdf(filepath: Path) -> list[dict[str, Any]]:
     """
-    Parse un PDF IMC INSTAT → liste d'entrées pour imc_entries.
+    Parse un PDF IMC INSTAT via pdfplumber.
 
-    Retourne une entrée par ligne article (pas les lignes catégorie).
-    category_raw = catégorie section (BOIS, AGREGATS, etc.)
-    index_value = indice du mois courant (col août-18)
-    variation_mom = août18/juillet18
-    variation_yoy = août18/août17
+    Retourne une liste de dicts · une entrée par ligne catégorie
+    de matériau détectée dans le tableau.
+
+    NOTE : les lignes articles détaillés sont ignorées.
+    Le niveau d'agrégation retenu en M5-PATCH est la catégorie.
+    La normalisation category_raw → category_normalized est différée.
+
+    Chaque dict contient :
+        category_raw  : str         · libellé brut extrait du PDF
+        period_year   : int
+        period_month  : int
+        index_value   : float | None
+        variation_mom : float | None
+        variation_yoy : float | None
     """
     import pdfplumber
 
