@@ -15,39 +15,6 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Mapping nom fichier → (year, month)
-_MONTH_NAMES: dict[str, int] = {
-    "jan": 1,
-    "janvier": 1,
-    "fev": 2,
-    "fevrier": 2,
-    "av": 2,  # AV25 = avril? non, FEV=février
-    "mars": 3,
-    "mars": 3,
-    "avril": 4,
-    "avr": 4,
-    "av": 4,
-    "mai": 5,
-    "juin": 6,
-    "juin": 6,
-    "juillet": 7,
-    "jui": 7,
-    "juil": 7,
-    "jull": 7,  # JULLET21 typo
-    "aout": 8,
-    "aout": 8,
-    "aout": 8,
-    "sept": 9,
-    "septembre": 9,
-    "oct": 10,
-    "octobre": 10,
-    "nov": 11,
-    "novembre": 11,
-    "dec": 12,
-    "decembre": 12,
-}
-
-
 def _parse_filename_period(filename: str) -> tuple[int, int] | None:
     """Extrait (year, month) depuis AOUT18, JAN26, DEC25, AV25..."""
     stem = Path(filename).stem.upper()
@@ -131,8 +98,7 @@ def parse_imc_pdf(filepath: Path) -> list[dict[str, Any]]:
 
                     code_raw = (row[0] or "").strip()
                     designation = (row[1] or "").strip()
-                    unite = (row[2] or "").strip()
-                    # row[3] = PRIX, row[4] = INDICE (mois courant)
+                    # row[2] = UNITE, row[3] = PRIX, row[4] = INDICE (mois courant)
                     index_val = _clean_index(row[4])
                     # row[7] = variation MoM (août18/juillet18), row[8] = YoY
                     var_mom = _clean_index(row[7]) if len(row) > 7 else None

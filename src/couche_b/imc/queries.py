@@ -114,7 +114,7 @@ def get_imc_trend(
     Série temporelle IMC sur une plage de dates.
     Les trous sont inclus dans le champ gaps · pas interpolés (DA-009).
     """
-    from src.couche_b.imc.gap_detector import Gap, detect_gaps
+    from src.couche_b.imc.gap_detector import detect_gaps
 
     with get_connection() as conn:
         conn.execute(
