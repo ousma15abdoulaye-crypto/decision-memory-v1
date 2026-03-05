@@ -59,11 +59,11 @@ def insert_source(
     return row or {}
 
 
-def update_source_status(
-    source_id: str,
-    status: str,
-    row_count: int | None = None,
-) -> None:
+def update_source_status(source_id: str, status: str) -> None:
+    """
+    Met à jour le statut de parsing d'une source IMC.
+    Statuts valides : pending · success · partial · failed
+    """
     with get_connection() as conn:
         conn.execute(
             """
@@ -79,8 +79,15 @@ def update_source_status(
 def insert_entries_batch(
     source_id: str,
     entries: list[dict[str, Any]],
-) -> int:
+) -> tuple[int, int]:
+    """
+    Insère les entrées IMC en batch.
+    Retourne (inserted, skipped).
+    Si skipped > 0 → l'appelant marque la source 'partial'.
+    Si inserted == 0 → l'appelant marque la source 'failed'.
+    """
     inserted = 0
+    skipped = 0
     with get_connection() as conn:
         for e in entries:
             try:
@@ -110,23 +117,32 @@ def insert_entries_batch(
                         "period_year": e["period_year"],
                         "period_month": e["period_month"],
                         "index_value": (
-                            float(e["index_value"]) if e.get("index_value") else None
+                            float(e["index_value"])
+                            if e.get("index_value") is not None
+                            else None
                         ),
                         "variation_mom": (
                             float(e["variation_mom"])
-                            if e.get("variation_mom")
+                            if e.get("variation_mom") is not None
                             else None
                         ),
                         "variation_yoy": (
                             float(e["variation_yoy"])
-                            if e.get("variation_yoy")
+                            if e.get("variation_yoy") is not None
                             else None
                         ),
                         "review_required": e.get("review_required", False),
                     },
                 )
                 inserted += 1
-            except Exception as ex:
-                logger.warning("Insert entry skip: %s", ex)
+            except Exception as exc:
+                logger.warning(
+                    "Entrée ignorée · category='%s' · %s/%s · %s",
+                    e.get("category_raw", "?"),
+                    e.get("period_year"),
+                    e.get("period_month"),
+                    exc,
+                )
+                skipped += 1
         conn.commit()
-    return inserted
+    return inserted, skipped

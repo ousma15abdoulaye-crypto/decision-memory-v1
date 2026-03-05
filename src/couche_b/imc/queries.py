@@ -41,64 +41,85 @@ def get_imc_context(
     period_month: int,
 ) -> ImcContext:
     """
-    Retourne le contexte IMC pour un mois donné.
-    Si le mois est un trou de série → data_available=False.
+    Contexte IMC pour un mois donné.
+    global_index / yoy / mom = moyenne agrégée toutes catégories.
+    top_movers = 3 catégories avec plus forte variation YoY.
+    Les deux sont calculés par requêtes séparées (cohérence garantie).
+    data_available = False si trou de série (DA-009).
     """
     with get_connection() as conn:
         conn.execute(
             """
             SELECT
-                e.category_raw,
-                e.category_normalized,
-                e.index_value,
-                e.variation_mom,
-                e.variation_yoy
-            FROM imc_entries e
-            WHERE e.period_year  = %(period_year)s
-              AND e.period_month = %(period_month)s
-            ORDER BY ABS(COALESCE(e.variation_yoy, 0)) DESC
+                AVG(index_value)   AS global_index,
+                AVG(variation_yoy) AS global_yoy,
+                AVG(variation_mom) AS global_mom,
+                COUNT(*)           AS nb_categories
+            FROM imc_entries
+            WHERE period_year  = %(period_year)s
+              AND period_month = %(period_month)s
+              AND index_value IS NOT NULL
             """,
             {"period_year": period_year, "period_month": period_month},
         )
-        rows = conn.fetchall()
+        global_row = conn.fetchone()
 
-    if not rows:
-        return ImcContext(
-            period_year=period_year,
-            period_month=period_month,
-            global_index=None,
-            yoy=None,
-            mom=None,
-            top_movers=[],
-            data_available=False,
+        if not global_row or global_row.get("nb_categories") == 0:
+            return ImcContext(
+                period_year=period_year,
+                period_month=period_month,
+                global_index=None,
+                yoy=None,
+                mom=None,
+                top_movers=[],
+                data_available=False,
+            )
+
+        conn.execute(
+            """
+            SELECT
+                category_normalized,
+                category_raw,
+                variation_yoy,
+                variation_mom
+            FROM imc_entries
+            WHERE period_year  = %(period_year)s
+              AND period_month = %(period_month)s
+              AND variation_yoy IS NOT NULL
+            ORDER BY ABS(variation_yoy) DESC
+            LIMIT 3
+            """,
+            {"period_year": period_year, "period_month": period_month},
         )
-
-    values = [float(r["index_value"]) for r in rows if r.get("index_value") is not None]
-    global_index = sum(values) / len(values) if values else None
+        mover_rows = conn.fetchall()
 
     top_movers = [
         {
             "category": r.get("category_normalized") or r.get("category_raw"),
-            "yoy": float(r["variation_yoy"]) if r.get("variation_yoy") else None,
-            "mom": float(r["variation_mom"]) if r.get("variation_mom") else None,
+            "yoy": (
+                float(r["variation_yoy"])
+                if r.get("variation_yoy") is not None
+                else None
+            ),
+            "mom": (
+                float(r["variation_mom"])
+                if r.get("variation_mom") is not None
+                else None
+            ),
         }
-        for r in rows[:3]
+        for r in mover_rows
     ]
+
+    gi = global_row.get("global_index")
+    gy = global_row.get("global_yoy")
+    gm = global_row.get("global_mom")
 
     return ImcContext(
         period_year=period_year,
         period_month=period_month,
-        global_index=round(global_index, 2) if global_index else None,
-        yoy=(
-            float(rows[0]["variation_yoy"])
-            if rows and rows[0].get("variation_yoy")
-            else None
-        ),
-        mom=(
-            float(rows[0]["variation_mom"])
-            if rows and rows[0].get("variation_mom")
-            else None
-        ),
+        global_index=round(float(gi), 2) if gi is not None else None,
+        yoy=round(float(gy), 4) if gy is not None else None,
+        mom=round(float(gm), 4) if gm is not None else None,
         top_movers=top_movers,
         data_available=True,
     )
@@ -145,9 +166,21 @@ def get_imc_trend(
         {
             "year": r["period_year"],
             "month": r["period_month"],
-            "index_value": r["index_value"],
-            "mom": r["variation_mom"],
-            "yoy": r["variation_yoy"],
+            "index_value": (
+                float(r["index_value"])
+                if r.get("index_value") is not None
+                else None
+            ),
+            "mom": (
+                float(r["variation_mom"])
+                if r.get("variation_mom") is not None
+                else None
+            ),
+            "yoy": (
+                float(r["variation_yoy"])
+                if r.get("variation_yoy") is not None
+                else None
+            ),
         }
         for r in rows
     ]
