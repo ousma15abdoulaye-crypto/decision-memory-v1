@@ -4,7 +4,14 @@ import sys
 import os
 
 env = os.environ.copy()
-env["DATABASE_URL"] = "postgresql+psycopg://dms:dms123@localhost:5432/dms"
+if "DATABASE_URL" not in env:
+    print(
+        "ERREUR : la variable d'environnement DATABASE_URL est absente.\n"
+        "Exemple : DATABASE_URL=postgresql+psycopg://user:pass@localhost:5432/dbname"
+        " python scripts/_run_pytest.py",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
