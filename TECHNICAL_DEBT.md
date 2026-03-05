@@ -823,6 +823,52 @@ Après saturation du compteur (runs intensifs de debug ou import massif), les in
 
 ---
 
+## TD-017 · Tests alembic head hardcodés (5 fichiers)
+
+| Attribut | Valeur |
+|---|---|
+| Statut | **ACTIVE** |
+| Sévérité | Modérée |
+| Découverte | Sprint M5-PATCH-IMC · 2026-03-05 |
+| Fichiers | `tests/geo/test_geo_migration.py` · `tests/test_m0b_db_hardening.py` · `tests/vendors/test_vendor_migration.py` · `tests/vendors/test_vendor_patch.py` · `tests/vendors/test_vendor_patch_a.py` |
+
+**Description :**
+Ces tests vérifient `alembic_version == "m5_geo_patch_koutiala"` (ou équivalent) en dur.
+Toute nouvelle migration Alembic casse ces 5 tests — maintenance manuelle obligatoire à chaque ajout.
+
+**Symptôme :** `AssertionError: assert 'm5_patch_imc_ingest_v410' == 'm5_geo_patch_koutiala'`
+
+**Action recommandée M6+ :**
+Remplacer l'assertion hardcodée par une comparaison dynamique avec `alembic heads` :
+```python
+import subprocess
+expected = subprocess.run(["alembic", "heads"], capture_output=True, text=True).stdout.strip().split()[0]
+assert row["version_num"] == expected
+```
+Ou utiliser un fixture pytest qui lit le head courant depuis `alembic.script.ScriptDirectory`.
+
+**Propriétaire :** CTO · M6+.
+
+---
+
+## TD-018 · Migrations CREATE TABLE — pattern IF NOT EXISTS (documenté)
+
+| Attribut | Valeur |
+|---|---|
+| Statut | **RÉSOLU · DOCUMENTÉ** |
+| Découverte | Sprint M5-PATCH-IMC · 2026-03-05 · PIÈGE-IMC-01 |
+| Fichier | `alembic/versions/m5_patch_imc_ingest_v410.py` |
+
+**Description :**
+`CREATE TABLE` sans `IF NOT EXISTS` provoque `DuplicateTable` si la table existe déjà
+(exécution partielle, CI parallèle, DB partagée). Pattern appliqué : `CREATE TABLE IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS` (aligné sur `040_mercuriale_ingest`).
+
+**Règle pour migrations futures :** Toujours utiliser `IF NOT EXISTS` pour tables et index créés en SQL brut.
+
+**Propriétaire :** CTO · pattern établi.
+
+---
+
 ### DETTE-UTC-01 — Timestamps naïfs code applicatif — SOLDÉE
 
 | Attribut | Valeur |
