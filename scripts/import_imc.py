@@ -88,8 +88,24 @@ def main() -> int:
                 errors.append(f"{filepath.name}: insert source failed")
                 continue
 
-            inserted = insert_entries_batch(source_id, entries)
-            update_source_status(source_id, "success", row_count=inserted)
+            inserted, skipped = insert_entries_batch(source_id, entries)
+            total = len(entries)
+            status = (
+                "success"
+                if skipped == 0
+                else "partial"
+                if inserted > 0
+                else "failed"
+            )
+            update_source_status(source_id, status)
+            logger.info(
+                "%s → status=%s · %d/%d insérés · %d skipped",
+                filepath.name,
+                status,
+                inserted,
+                total,
+                skipped,
+            )
             total_entries += inserted
             total_files += 1
 
