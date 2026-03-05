@@ -1,5 +1,8 @@
 """Run pytest tests/db_integrity/test_m5_fix_market_signals.py et capture output."""
 import subprocess, sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).parents[1]
 
 result = subprocess.run(
     [sys.executable, "-m", "pytest",
@@ -9,7 +12,7 @@ result = subprocess.run(
     text=True,
     encoding="utf-8",
     errors="replace",
-    cwd=r"C:\Users\abdoulaye.ousmane\decision-memory-v1"
+    cwd=REPO_ROOT
 )
 output = result.stdout + result.stderr
 safe = output.encode("ascii", errors="replace").decode("ascii")
