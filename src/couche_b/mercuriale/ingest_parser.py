@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import logging
 import re
+import warnings
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -93,8 +94,8 @@ def _extract_zone_from_header(text: str) -> str | None:
     return m.group(1).strip() if m else None
 
 
-def parse_markdown_to_lines(
-    markdown: str,
+def parse_html_to_lines(
+    html_content: str,
     year: int,
     default_zone_raw: str | None = None,
 ) -> list[dict[str, Any]]:
@@ -113,7 +114,7 @@ def parse_markdown_to_lines(
     current_group: str | None = None
 
     # ── 1. Zone globale depuis <mark> ────────────────────────────────────────
-    mark_m = _MARK_ZONE_RE.search(markdown)
+    mark_m = _MARK_ZONE_RE.search(html_content)
     if mark_m:
         zone_candidate = mark_m.group(1).strip().title()
         if zone_candidate:
@@ -121,7 +122,7 @@ def parse_markdown_to_lines(
             logger.debug("Zone <mark> : %s", current_zone)
 
     # ── 2. Découpe par blocs <table> ─────────────────────────────────────────
-    table_blocks = re.split(r"<table[^>]*>", markdown, flags=re.IGNORECASE)
+    table_blocks = re.split(r"<table[^>]*>", html_content, flags=re.IGNORECASE)
 
     for block in table_blocks[1:]:  # [0] = contenu avant le premier <table>
         # Groupe depuis <thead> / <th>
@@ -213,3 +214,17 @@ def parse_markdown_to_lines(
 
     logger.info("IngestParser · %d lignes extraites", len(lines_out))
     return lines_out
+
+
+def parse_markdown_to_lines(
+    markdown: str,
+    year: int,
+    default_zone_raw: str | None = None,
+) -> list[dict[str, Any]]:
+    """Alias déprécié — utiliser `parse_html_to_lines` à la place."""
+    warnings.warn(
+        "parse_markdown_to_lines est déprécié, utiliser parse_html_to_lines.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return parse_html_to_lines(markdown, year, default_zone_raw)
