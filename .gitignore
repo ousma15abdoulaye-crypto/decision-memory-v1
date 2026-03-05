@@ -47,6 +47,8 @@ data/**/*.xls
 data/**/*.csv
 data/**/*.json
 data/**/*.zip
+# Cache LlamaCloud/extraction — artefacts générés, ne pas versionner
+data/imports/m5/cache/
 *.sqlite3
 *.db
 uploads/
