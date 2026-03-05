@@ -167,9 +167,7 @@ def get_imc_trend(
             "year": r["period_year"],
             "month": r["period_month"],
             "index_value": (
-                float(r["index_value"])
-                if r.get("index_value") is not None
-                else None
+                float(r["index_value"]) if r.get("index_value") is not None else None
             ),
             "mom": (
                 float(r["variation_mom"])
