@@ -20,6 +20,13 @@ from src.db.core import get_connection
 
 logger = logging.getLogger(__name__)
 
+# Alias zone_raw (PDF) → nom canonique geo_master (typos / variantes orthographiques)
+# BUG-001 : PDF Badiangara26 contient "Badiangara" sans 'n', geo_master a "Bandiagara"
+# Taoudenit26 : PDF "Taoudenit", geo_master "Taoudeni"
+_ZONE_ALIASES: dict[str, str] = {
+    "badiangara": "bandiagara",
+    "taoudenit": "taoudeni",
+}
 
 def _normalize(text: str) -> str:
     """
@@ -87,7 +94,8 @@ def resolve_zone_id(zone_raw: str) -> str | None:
     """
     Résout zone_raw → geo_master.id.
 
-    Stratégie en 3 passes (1 seule connexion) :
+    Stratégie : alias (typos PDF) puis 3 passes (1 seule connexion) :
+      0. Alias explicites               : 'Badiangara' → 'Bandiagara' (BUG-001)
       1. Exact ILIKE                  : 'Kayes' → 'Kayes'
       2. Contains ILIKE               : 'Bougouni' → '...Bougouni...'
       3. Normalisation accent Python  : 'Segou' → 'Ségou', 'Menaka' → 'Ménaka'
@@ -96,6 +104,11 @@ def resolve_zone_id(zone_raw: str) -> str | None:
     LIMIT 2 sur chaque passe pour détecter les ambiguïtés.
     Retourne str identifiant TEXT (ex : 'zone-bamako-1') si résolution unique · None sinon.
     """
+    # Passe 0 — alias (typos / variantes orthographiques connues)
+    zone_norm_lower = _normalize(zone_raw).lower()
+    if zone_norm_lower in _ZONE_ALIASES:
+        zone_raw = _ZONE_ALIASES[zone_norm_lower]
+
     with get_connection() as conn:
         # Passe 1 — exact ILIKE
         conn.execute(
