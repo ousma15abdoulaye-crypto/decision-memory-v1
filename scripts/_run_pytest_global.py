@@ -1,10 +1,13 @@
 """Run pytest global et écrit résultat dans pytest_global_result.txt."""
 import subprocess, sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 result = subprocess.run(
     [sys.executable, "-m", "pytest", "--tb=short", "-q", "--no-header"],
     capture_output=True, text=True, encoding="utf-8", errors="replace",
-    cwd=r"C:\Users\abdoulaye.ousmane\decision-memory-v1"
+    cwd=REPO_ROOT,
 )
 output = result.stdout + result.stderr
 lines = output.splitlines()
