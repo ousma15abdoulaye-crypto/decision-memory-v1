@@ -37,12 +37,12 @@ def test_geo_table_exists(db_conn, table):
 
 
 def test_alembic_head_is_current(db_conn):
-    """alembic_version doit pointer sur m5_pre_vendors_consolidation (head M5-PRE)."""
+    """alembic_version doit pointer sur le head courant (m5_patch_imc_ingest_v410)."""
     with db_conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert row is not None
-    assert row["version_num"] == "m5_geo_patch_koutiala"
+    assert row["version_num"] == "m5_patch_imc_ingest_v410"
 
 
 def test_fn_set_updated_at_exists(db_conn):
