@@ -60,6 +60,10 @@ Thumbs.db
 *.backup.xlsx
 *.bak
 
+# Dumps SQL de production — données sensibles, ne jamais versionner (Constitution: no secrets in repo)
+*_backup*.sql
+*prod_backup*.sql
+
 # Logs
 *.log
 
