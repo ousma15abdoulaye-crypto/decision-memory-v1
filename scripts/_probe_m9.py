@@ -1,19 +1,23 @@
-# scripts/_probe_m9.py  <- NE PAS COMMITTER
+"""Pre-flight probe for M9 migration — checks required tables/views/triggers.
+
+Usage:
+    DATABASE_URL=postgresql://user:pass@host/dbname python scripts/_probe_m9.py
+"""
 import os
+import sys
 import psycopg
 from psycopg.rows import dict_row
 
-url = None
-with open(".env") as f:
-    for line in f:
-        line = line.strip()
-        if line.startswith("DATABASE_URL="):
-            url = line.split("=", 1)[1].strip().strip('"').strip("'")
-            break
+_raw = os.environ.get("DATABASE_URL")
+if not _raw:
+    print("ERROR: DATABASE_URL environment variable is not set.", file=sys.stderr)
+    sys.exit(1)
 
 # SQLAlchemy prefix -> psycopg native
-if url and url.startswith("postgresql+psycopg://"):
-    url = url.replace("postgresql+psycopg://", "postgresql://", 1)
+if _raw.startswith("postgresql+psycopg://"):
+    url = _raw.replace("postgresql+psycopg://", "postgresql://", 1)
+else:
+    url = _raw
 
 tables_needed = [
     "score_runs",
