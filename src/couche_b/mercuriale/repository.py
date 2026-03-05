@@ -103,7 +103,7 @@ def resolve_zone_id(zone_raw: str) -> str | None:
 
     La passe 3 est indispensable : les PDFs DGMP Mali omettent souvent les accents.
     LIMIT 2 sur chaque passe pour détecter les ambiguïtés.
-    Retourne str UUID si résolution unique · None sinon.
+    Retourne str identifiant TEXT (ex : 'zone-bamako-1') si résolution unique · None sinon.
     """
     # Passe 0 — alias (typos / variantes orthographiques connues)
     zone_norm_lower = _normalize(zone_raw).lower()
