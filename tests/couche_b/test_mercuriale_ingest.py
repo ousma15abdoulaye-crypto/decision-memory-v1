@@ -5,6 +5,8 @@ RÈGLE-17 : 1 test par invariant · assertions explicites
 
 import pytest
 
+from src.couche_b.mercuriale import repository as merc_repo
+
 
 class TestMigration040:
     def test_mercuriale_sources_existe(self, db_conn):
@@ -175,3 +177,23 @@ class TestIdempotenceSHA256:
 
         # Cleanup explicite
         db_conn.execute("DELETE FROM mercuriale_sources WHERE sha256 = %s", (sha,))
+
+
+class TestResolveZoneIdAlias:
+    """BUG-001 : Badiangara (typo PDF) résout vers Bandiagara (geo_master)."""
+
+    def test_badiangara_resolves_same_as_bandiagara(self):
+        zone_bandiagara = merc_repo.resolve_zone_id("Bandiagara")
+        zone_badiangara = merc_repo.resolve_zone_id("Badiangara")
+        assert zone_bandiagara is not None, "Bandiagara doit exister dans geo_master"
+        assert (
+            zone_badiangara == zone_bandiagara
+        ), "Badiangara (typo) doit résoudre la même zone que Bandiagara"
+
+    def test_taoudenit_resolves_same_as_taoudeni(self):
+        zone_taoudeni = merc_repo.resolve_zone_id("Taoudeni")
+        zone_taoudenit = merc_repo.resolve_zone_id("Taoudenit")
+        assert zone_taoudeni is not None, "Taoudeni doit exister dans geo_master"
+        assert (
+            zone_taoudenit == zone_taoudeni
+        ), "Taoudenit (variante) doit résoudre la même zone que Taoudeni"

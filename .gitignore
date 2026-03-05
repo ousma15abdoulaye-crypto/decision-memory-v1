@@ -47,6 +47,8 @@ data/**/*.xls
 data/**/*.csv
 data/**/*.json
 data/**/*.zip
+# Cache LlamaCloud/extraction — artefacts générés, ne pas versionner
+data/imports/m5/cache/
 *.sqlite3
 *.db
 uploads/
@@ -59,6 +61,11 @@ Thumbs.db
 # Backup files
 *.backup.xlsx
 *.bak
+
+# Dumps SQL de production — données sensibles, ne jamais versionner (Constitution: no secrets in repo)
+*.sql
+*_backup_*.sql
+dms_prod_backup_*.sql
 
 # Logs
 *.log

@@ -26,7 +26,10 @@ def try_create_db():
     
     db_name = "dms"
     db_user = "dms"
-    db_password = "dms123"  # Simple pour dev
+    db_password = os.environ.get("DMS_DEV_PASSWORD")
+    if not db_password:
+        db_password = "dms123"  # Fallback dev local uniquement · jamais en prod
+        print("⚠️  DMS_DEV_PASSWORD non définie · utilisation mot de passe dev local")
     
     print("="*60)
     print("Creation de la base de donnees DMS")
