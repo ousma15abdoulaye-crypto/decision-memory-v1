@@ -14,7 +14,7 @@ from src.couche_b.mercuriale.importer import import_mercuriale
 from src.couche_b.mercuriale.ingest_parser import (
     _clean_price,
     _extract_zone_from_header,
-    parse_markdown_to_lines,
+    parse_html_to_lines,
 )
 from src.couche_b.mercuriale.models import MercurialLineCreate
 
@@ -106,38 +106,38 @@ class TestZoneExtraction:
         assert _extract_zone_from_header("Codes | DESIGNATIONS | Unité") is None
 
 
-class TestParseMarkdown:
+class TestParseHtml:
     def test_lignes_extraites(self):
-        lines = parse_markdown_to_lines(MARKDOWN_SAMPLE, 2024)
+        lines = parse_html_to_lines(MARKDOWN_SAMPLE, 2024)
         assert len(lines) >= 2, f"Attendu ≥ 2 · obtenu {len(lines)}"
 
     def test_zone_detectee(self):
-        lines = parse_markdown_to_lines(MARKDOWN_SAMPLE, 2024)
+        lines = parse_html_to_lines(MARKDOWN_SAMPLE, 2024)
         assert lines[0]["zone_raw"] == "Kayes"
 
     def test_prix_corrects_essor(self):
-        lines = parse_markdown_to_lines(MARKDOWN_SAMPLE, 2024)
+        lines = parse_html_to_lines(MARKDOWN_SAMPLE, 2024)
         essor = next(row for row in lines if "ESSOR" in row["item_canonical"])
         assert float(essor["price_min"]) == 70000.0
         assert float(essor["price_avg"]) == 77500.0
         assert float(essor["price_max"]) == 85000.0
 
     def test_group_label_detecte(self):
-        lines = parse_markdown_to_lines(MARKDOWN_SAMPLE, 2024)
+        lines = parse_html_to_lines(MARKDOWN_SAMPLE, 2024)
         assert lines[0]["group_label"] is not None
         assert "Fournitures" in lines[0]["group_label"]
 
     def test_annee_correcte(self):
-        lines = parse_markdown_to_lines(MARKDOWN_SAMPLE, 2024)
+        lines = parse_html_to_lines(MARKDOWN_SAMPLE, 2024)
         assert all(row["year"] == 2024 for row in lines)
 
     def test_confidence_dans_bornes(self):
-        lines = parse_markdown_to_lines(MARKDOWN_SAMPLE, 2024)
+        lines = parse_html_to_lines(MARKDOWN_SAMPLE, 2024)
         for line in lines:
             assert 0.0 <= line["confidence"] <= 1.0
 
     def test_markdown_vide_retourne_liste_vide(self):
-        assert parse_markdown_to_lines("", 2024) == []
+        assert parse_html_to_lines("", 2024) == []
 
     def test_zone_default_si_non_detectee(self):
         # Sans <mark> ni Prix TTC → zone depuis default_zone_raw
@@ -146,7 +146,7 @@ class TestParseMarkdown:
 <tr><td>1</td><td>1</td><td>Groupe</td><td></td><td>Minimum</td><td>Moyen</td><td>Maximum</td></tr>
 <tr><td>1</td><td>1.1</td><td>Riz blanc 25kg</td><td>Sac</td><td>17 000</td><td>18 500</td><td>20 000</td></tr>
 </table>"""
-        lines = parse_markdown_to_lines(md, 2024, default_zone_raw="Bamako")
+        lines = parse_html_to_lines(md, 2024, default_zone_raw="Bamako")
         assert len(lines) >= 1
         assert lines[0]["zone_raw"] == "Bamako"
 
