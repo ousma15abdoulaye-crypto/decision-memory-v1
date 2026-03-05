@@ -49,6 +49,7 @@ data/**/*.json
 data/**/*.zip
 # Cache LlamaCloud/extraction — artefacts générés, ne pas versionner
 data/imports/m5/cache/
+data/imports/imc/
 *.sqlite3
 *.db
 uploads/
@@ -69,6 +70,7 @@ dms_prod_backup_*.sql
 
 # Logs
 *.log
+logs/
 
 # Coverage reports
 htmlcov/

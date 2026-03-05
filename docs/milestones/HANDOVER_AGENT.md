@@ -1,9 +1,9 @@
 # HANDOVER AGENT — DMS V4.1.0
-**Date :** 2026-03-04
-**Rédigé par :** Agent courant (Claude Sonnet 4.6 — session M5-CLEANUP-A)
+**Date :** 2026-03-05
+**Rédigé par :** Agent courant (Composer — session M6 Dictionary Build)
 **Destinataire :** Agent successeur
 **Branche active :** `main`
-**Tag courant :** `v4.1.0-m5-cleanup-a` → commit `27583e7`
+**Tag courant :** `v4.1.0-m6-dictionary` → commit `316854f`
 
 ---
 
@@ -14,7 +14,7 @@ Outil d'aide à la décision achats humanitaires pour Save the Children Mali.
 Opérateur unique : Abdoulaye Ousmane (CTO/Founder), Mopti, Mali.
 Stack : Python 3.11 · FastAPI · PostgreSQL 16 · Redis 7 · Railway · Alembic · psycopg v3 · pytest · ruff · black.
 
-### Règles d'or (mises à jour 2026-03-04)
+### Règles d'or (mises à jour 2026-03-05)
 
 > **RÈGLE-ORG-04 mise à jour :** Le CTO a accordé à l'agent le droit de merger et poser des tags
 > **sous conditions strictes** : les 7 gates binaires ci-dessous doivent être prouvées par outputs bruts.
@@ -40,22 +40,19 @@ Stack : Python 3.11 · FastAPI · PostgreSQL 16 · Redis 7 · Railway · Alembic
 ### Git
 ```
 Branche  : main
-HEAD     : 84ed979  docs(m5-fix): merge feat/m5-fix-pre-ingest -> main [Copilot PR #156]
-Tag      : v4.1.0-m5-cleanup-a → 27583e7
-CI       : verte (760 passed · 36 skipped · 0 failed · 0 error)
-Alembic  : m5_cleanup_a_committee_event_type_check (head unique)
+HEAD     : 316854f  feat(m6): dictionary procurement AOF - v4.1.0-m6-dictionary
+Tag      : v4.1.0-m6-dictionary → 316854f
+CI       : verte (817 passed · 36 skipped · 0 failed · 0 error)
+Alembic  : m6_dictionary_build (head unique)
 ```
 
 ### Historique récent main
 ```
-84ed979  docs(m5-fix): merge feat/m5-fix-pre-ingest -> main [Copilot PR #156 corrections]
-90ff0f3  docs(m5-fix): corriger 3 critiques Copilot PR #156 sur PIÈGE-15
-27583e7  chore(m5-cleanup-a): merge feat/m5-cleanup-a -> main [GATES 7/7 VERTS]
-38ab76c  fix(m5-cleanup-a): appliquer corrections review Copilot PR #157
-ec54658  chore(m5-cleanup-a): solder dettes actives pré-M5
-877880c  Merge pull request #155 from feat/m5-fix-pre-ingest
-d5e3213  Merge pull request #154 copilot/audit-project-progress
-a16391d  Merge pull request #153 copilot/organiser-memoire-repo
+316854f  feat(m6): dictionary procurement AOF - v4.1.0-m6-dictionary
+a326329  feat(m6): dictionary build - 1488 items - 1596 aliases - couche_b source de verite
+2a8090e  Merge pull request #168 from feat/m5-patch-imc-ingest
+1d835e5  fix(tests): alembic head attendu = m5_patch_imc_ingest_v410
+ab4e865  style(imc): black format queries.py
 ```
 
 ### Tags Git (tous les sprints V4.1.0)
@@ -75,7 +72,8 @@ v4.1.0-m4-patch-b-done
 v4.1.0-patch-b-copilot
 v4.1.0-m5-pre-hardening
 v4.1.0-m5-fix          ← sprint M5-FIX (market_signals.vendor_id + alembic VARCHAR)
-v4.1.0-m5-cleanup-a    ← sprint M5-CLEANUP-A (dettes pré-M5) — TAG COURANT
+v4.1.0-m5-cleanup-a    ← sprint M5-CLEANUP-A (dettes pré-M5)
+v4.1.0-m6-dictionary   ← sprint M6 Dictionary Build — TAG COURANT
 ```
 
 ---
@@ -121,13 +119,18 @@ src/
 └── ...
 ```
 
-### Schéma DB — état `m5_cleanup_a_committee_event_type_check`
+### Schéma DB — état `m6_dictionary_build`
 ```
 Chaîne Alembic complète (du plus récent au plus ancien) :
-  m5_cleanup_a_committee_event_type_check  ← HEAD
+  m6_dictionary_build  ← HEAD
+  m5_patch_imc_ingest_v410
+  m5_geo_patch_koutiala
+  040_mercuriale_ingest
+  m5_geo_fix_master
+  m5_cleanup_a_committee_event_type_check
   m5_fix_market_signals_vendor_type
   m5_pre_vendors_consolidation
-  m5_pre_hardening
+  m4_patch_a_fix
   ... (migrations 036 et antérieures)
 ```
 
@@ -140,11 +143,30 @@ Valeurs valides : committee_created · member_added · member_removed
 ATTENTION : "recommendation_set" SUPPRIMÉ (migration M5-CLEANUP-A)
 ```
 
+### Dictionnaire procurement (M6)
+```
+couche_b.procurement_dict_items    → 1488 items (51 seed + 1437 mercuriale/IMC)
+couche_b.procurement_dict_aliases  → 1596 aliases
+couche_b.dict_proposals            → 1439 pending (file validation M7)
+public.dict_items / dict_aliases    → vues miroir couche_b
+Source de vérité : couche_b · matcher 3 niveaux (EXACT → NORMALIZED → TRIGRAM)
+```
+
+### Détails entreprise-grade (réf. HANDOVER_M4_TRANSMISSION)
+
+Le système est **solide pour une beta terrain mono-opérateur**. La discipline psycopg (ADR-0003), la chaîne de migrations, le fingerprint SHA256, la résilience circuit-breaker/retry, et le TECHNICAL_DEBT.md sont au niveau.
+
+**Concurrence** — Scope assumé mono-opérateur (M21 multi-pays). Dette documentée (TD-001, TD-007), pas un défaut pour V4.1.0.
+
+**Fail-loud** — Audit grep 2026-03-05 : `src/couche_b` et `scripts/` — tous les `except Exception` identifiés loggent ou reportent (logger.warning/error, report.errors). Les `pass` dans parsers (imc/parser, mercuriale/parser) concernent `ValueError` sur lignes malformées (skip acceptable). Cas limites : `build_dictionary.py` log_collision/log_proposal (l.310, l.359) — logger.error sans re-raise ; l'erreur est tracée mais le flux continue. Aucun cas de swallow total identifié.
+
+Détails complets : `docs/milestones/HANDOVER_M4_TRANSMISSION.md` (lignes 357–395).
+
 ---
 
 ## 4. MIGRATIONS ALEMBIC — ÉTAT ACTUEL
 
-### Nouvelles migrations M5 (à connaître)
+### Nouvelles migrations M5/M6 (à connaître)
 
 | Révision | Sprint | Contenu |
 |----------|--------|---------|
@@ -152,6 +174,11 @@ ATTENTION : "recommendation_set" SUPPRIMÉ (migration M5-CLEANUP-A)
 | `m5_pre_vendors_consolidation` | M5-PRE | Schéma vendors nouvelle génération |
 | `m5_fix_market_signals_vendor_type` | M5-FIX | `market_signals.vendor_id` INTEGER → UUID · alembic_version VARCHAR(32→64) |
 | `m5_cleanup_a_committee_event_type_check` | M5-CLEANUP-A | CHECK constraint `committee_events.event_type` : `recommendation_set → review_opened` |
+| `m5_geo_fix_master` | M5-PATCH | 16 zones mercuriales Mali 2023 |
+| `040_mercuriale_ingest` | M5 | Tables mercuriale_sources, mercurials |
+| `m5_patch_imc_ingest_v410` | M5-PATCH | IMC ingest 2024/25/26 |
+| `m5_geo_patch_koutiala` | M5-PATCH | Zone géographique Koutiala |
+| `m6_dictionary_build` | M6 | Extension procurement_dict_* · couche_b source de vérité · 1488 items · 1596 aliases |
 
 ### Point critique migration M5-FIX
 - `alembic_version.version_num` étendu à `VARCHAR(64)` — **idempotent** · toujours applicable
@@ -165,16 +192,17 @@ ATTENTION : "recommendation_set" SUPPRIMÉ (migration M5-CLEANUP-A)
 
 ## 5. TESTS — ÉTAT ACTUEL
 
-**CI : 760 passed · 36 skipped · 0 failed · 0 error**
+**CI : 817 passed · 36 skipped · 0 failed · 0 error**
 
-### Fichiers tests modifiés en M5-CLEANUP-A
+### Fichiers tests modifiés en M5-CLEANUP-A / M6
 ```
 tests/invariants/test_inv_04_online_only.py   ← lazy init · reset _DB_URL_CACHE
-tests/test_m0b_db_hardening.py                ← head assertion → m5_cleanup_a_committee_event_type_check
+tests/test_m0b_db_hardening.py                ← head assertion → m6_dictionary_build
 tests/vendors/test_vendor_migration.py        ← idem
 tests/vendors/test_vendor_patch.py            ← idem
 tests/vendors/test_vendor_patch_a.py          ← idem
 tests/geo/test_geo_migration.py               ← idem
+tests/couche_b/test_dict_minimum_coverage.py  ← M6 : coverage dict_items/aliases
 ```
 
 ### Invariant important — test_inv_04
@@ -294,7 +322,7 @@ Cette config est déjà appliquée dans le repo local. À ré-appliquer si le re
 ```sql
 -- Alembic head (doit être 1 seul)
 SELECT version_num FROM alembic_version;
--- Attendu : m5_cleanup_a_committee_event_type_check
+-- Attendu : m6_dictionary_build
 
 -- market_signals.vendor_id (doit être UUID après M5-FIX)
 SELECT column_name, data_type, udt_name
@@ -321,17 +349,17 @@ WHERE c.conname = 'market_signals_vendor_id_fkey'
 
 ---
 
-## 10. PROCHAIN SPRINT — M5 MERCURIALE INGEST
+## 10. PROCHAIN SPRINT — M7 DICTIONARY VALIDATION
 
-**Débloqué après merge de M5-CLEANUP-A (fait).**
+**Débloqué après merge de M6 (fait).**
 
 ### Contexte
-M5 Mercuriale Ingest = population de la table `mercuriale_raw_queue` (ou équivalent) avec les données de référence de prix 2023/2024/2025/2026 pour les achats humanitaires Mali.
+M5 Mercuriale Ingest et M6 Dictionary Build sont terminés. M7 = validation des fichiers `dict_proposals` (1439 pending) → intégration dans `procurement_dict_items` / `procurement_dict_aliases`.
 
 ### Préconditions
-- `alembic heads` = `m5_cleanup_a_committee_event_type_check` ✅
-- `pytest` = 760 passed ✅
-- Toutes les dettes pré-M5 soldées (TD-004, TD-005, TD-006, TD-008, TD-010) ✅
+- `alembic heads` = `m6_dictionary_build` ✅
+- `pytest` = 817 passed ✅
+- Dictionnaire : 1488 items, 1596 aliases, couche_b source de vérité ✅
 
 ### Dettes ouvertes bloquantes pour M10A/M10B
 | TD | Sprint cible |
@@ -347,6 +375,7 @@ M5 Mercuriale Ingest = population de la table `mercuriale_raw_queue` (ou équiva
 |--------|-------|--------|
 | `_force_036.py` | Restauration urgence DB → état 036 | STABLE |
 | `apply_fk_prod.py` | FK `market_signals → vendors` ON DELETE RESTRICT (prod uniquement) | STABLE · ONE-SHOT PROD |
+| `build_dictionary.py` | Build procurement dict depuis couche_b (M6) | STABLE |
 | `run_tests_final.py` | pytest via subprocess Python (bypass spawn Windows) | STABLE |
 | `_reset_vendor_seq.py` | Nettoie vendors TEST_* · remet séquence BKO < 10000 | LOCAL ONLY |
 | `_probe_state_now.py` | Probe état DB (tables · types · FK · alembic) | DEBUG |
@@ -360,12 +389,12 @@ M5 Mercuriale Ingest = population de la table `mercuriale_raw_queue` (ou équiva
 |---------|------|
 | `docs/freeze/DMS_V4.1.0_FREEZE.md` | **Source de vérité unique** — 29 règles, architecture, schéma cible |
 | `TECHNICAL_DEBT.md` | Inventaire dettes actives et fermées |
+| `docs/milestones/HANDOVER_M4_TRANSMISSION.md` | Verdict enterprise-grade · failles F1–F9 · plan d'attaque |
 | `docs/milestones/HANDOVER_M5FIX_TRANSMISSION.md` | Handover sprint M5-FIX (PIÈGE-8 à PIÈGE-15) |
 | `docs/milestones/HANDOVER_M5PRE_TRANSMISSION.md` | Handover sprint M5-PRE |
 | `docs/adrs/` | ADRs décisions architecturales |
 
 ---
 
-*Agent : Claude Sonnet 4.6 · DMS V4.1.0 · Mopti, Mali · 2026-03-04*
-*Sprints couverts cette session : M5-FIX (PR #155, #156) · M5-CLEANUP-A (PR #157)*
-*Réf. transcript : [M5-CLEANUP-A — Mandat complet](3194f3c8-d27b-4679-8cd1-d7081cd16ff9)*
+*Agent : Composer · DMS V4.1.0 · Mopti, Mali · 2026-03-05*
+*Sprints couverts cette session : M6 Dictionary Build (1488 items · 1596 aliases · couche_b source de vérité)*
