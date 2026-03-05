@@ -242,8 +242,8 @@ def import_mercuriale(
         return report
 
     # Parsing
-    raw_lines = merc_parser.parse_markdown_to_lines(
-        markdown=markdown,
+    raw_lines = merc_parser.parse_html_to_lines(
+        html_content=markdown,
         year=year,
         default_zone_raw=default_zone_raw,
     )
