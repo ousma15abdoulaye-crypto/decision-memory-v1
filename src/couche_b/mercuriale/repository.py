@@ -28,6 +28,7 @@ _ZONE_ALIASES: dict[str, str] = {
     "taoudenit": "taoudeni",
 }
 
+
 def _normalize(text: str) -> str:
     """
     Normalise un nom de zone pour comparaison insensible aux accents et à la casse.
