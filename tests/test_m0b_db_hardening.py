@@ -206,9 +206,9 @@ def test_indexes_created(db_transaction):
 
 
 def test_alembic_head_is_current(db_transaction):
-    """Head = m5_patch_imc_ingest_v410 (head courante après M5-PATCH-IMC)."""
+    """Head = m6_dictionary_build (head courante après M6)."""
     db_transaction.execute("SELECT version_num FROM alembic_version")
     row = db_transaction.fetchone()
     assert (
-        row["version_num"] == "m5_patch_imc_ingest_v410"
-    ), f"Head attendu : m5_patch_imc_ingest_v410 — réel : {row['version_num']}"
+        row["version_num"] == "m6_dictionary_build"
+    ), f"Head attendu : m6_dictionary_build — réel : {row['version_num']}"
