@@ -22,8 +22,10 @@ logger = logging.getLogger(__name__)
 
 # Alias zone_raw (PDF) → nom canonique geo_master (typos / variantes orthographiques)
 # BUG-001 : PDF Badiangara26 contient "Badiangara" sans 'n', geo_master a "Bandiagara"
+# Taoudenit26 : PDF "Taoudenit", geo_master "Taoudeni"
 _ZONE_ALIASES: dict[str, str] = {
     "badiangara": "bandiagara",
+    "taoudenit": "taoudeni",
 }
 
 

@@ -189,3 +189,11 @@ class TestResolveZoneIdAlias:
         assert (
             zone_badiangara == zone_bandiagara
         ), "Badiangara (typo) doit résoudre la même zone que Bandiagara"
+
+    def test_taoudenit_resolves_same_as_taoudeni(self):
+        zone_taoudeni = merc_repo.resolve_zone_id("Taoudeni")
+        zone_taoudenit = merc_repo.resolve_zone_id("Taoudenit")
+        assert zone_taoudeni is not None, "Taoudeni doit exister dans geo_master"
+        assert (
+            zone_taoudenit == zone_taoudeni
+        ), "Taoudenit (variante) doit résoudre la même zone que Taoudeni"

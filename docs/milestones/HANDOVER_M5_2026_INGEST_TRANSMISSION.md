@@ -20,7 +20,7 @@ Successeur        : Agent M5-2026 (dry-run + import réel 2026 à compléter)
 | `mercuriale_sources` | **17 fichiers** (1×2024 combiné + 16×2023 individuels) |
 | `mercurials year=2024` | 3 188 lignes |
 | `mercurials year=2023` | 9 097 lignes |
-| `mercurials year=2026` | **0** (import non démarré) |
+| `mercurials year=2026` | **15 111** (import terminé 2026-03-05) |
 | `geo_master` | 30 zones (11 régions + 19 cercles) |
 | Alembic head | `m5_geo_patch_koutiala` |
 | Git | main · tag `v4.1.0-m5-mercuriale` posé |
@@ -307,13 +307,13 @@ doivent être re-déclarés à chaque nouvelle commande PowerShell dans l'agent.
 ## IX. DONNÉES DB À LA CLÔTURE
 
 ```
-mercurials    : 12 285 lignes (2023 + 2024)
-sources       : 17 fichiers
+mercurials    : 27 396 lignes (2023 + 2024 + 2026)
+sources       : 35 fichiers
 geo_master    : 30 zones
 year 2023     : 9 097 lignes
 year 2024     : 3 188 lignes
-year 2026     : 0 (à importer)
-zones_null    : 0 pour 2023+2024
+year 2026     : 15 111 lignes ✓
+zones_null    : 0 pour 2023+2024+2026
 ```
 
 ---
