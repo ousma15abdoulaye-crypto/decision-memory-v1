@@ -28,12 +28,12 @@ def test_vendors_table_exists(db_conn):
 
 
 def test_alembic_head_is_current(db_conn):
-    """alembic_version doit pointer sur m5_pre_vendors_consolidation (head)."""
+    """alembic_version doit pointer sur le head courant (m5_patch_imc_ingest_v410)."""
     with db_conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert row is not None
-    assert row["version_num"] == "m5_geo_patch_koutiala"
+    assert row["version_num"] == "m5_patch_imc_ingest_v410"
 
 
 def test_chk_vendor_id_format_active(db_conn):
