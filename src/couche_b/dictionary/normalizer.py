@@ -12,61 +12,109 @@ RÈGLE-33 étendue :
 """
 
 from __future__ import annotations
+
 import hashlib
 import re
 import unicodedata
 from functools import lru_cache
 
-
 # ----------------------------------------------------------------
 # STOPWORDS · dédupliqués · sans unités
 # ----------------------------------------------------------------
-_STOPWORDS = frozenset({
-    "de", "du", "des", "le", "la", "les", "l", "d",
-    "en", "par", "pour", "sur", "avec", "sans", "a",
-    "au", "aux", "et", "ou", "un", "une",
-    "type", "qualite", "standard", "ordinaire",
-    "courant", "neuf", "local", "importe",
-})
+_STOPWORDS = frozenset(
+    {
+        "de",
+        "du",
+        "des",
+        "le",
+        "la",
+        "les",
+        "l",
+        "d",
+        "en",
+        "par",
+        "pour",
+        "sur",
+        "avec",
+        "sans",
+        "a",
+        "au",
+        "aux",
+        "et",
+        "ou",
+        "un",
+        "une",
+        "type",
+        "qualite",
+        "standard",
+        "ordinaire",
+        "courant",
+        "neuf",
+        "local",
+        "importe",
+    }
+)
 
 # ----------------------------------------------------------------
 # ABRÉVIATIONS TERRAIN · clés = déjà normalisées NFD+lower
 # ----------------------------------------------------------------
 _ABBREVIATIONS: dict[str, str] = {
     # Liants
-    "cmt":        "ciment",
-    "portland":   "ciment_portland",
-    "cem":        "ciment_cem",
+    "cmt": "ciment",
+    "portland": "ciment_portland",
+    "cem": "ciment_cem",
     # Aciers (ha gardé tel quel · "fer ha" → fer_ha via tokenisation)
-    "tor":        "fer_tor",
-    "rond":       "fer_rond",
+    "tor": "fer_tor",
+    "rond": "fer_rond",
     # Maçonnerie
-    "agglo":      "agglomere",
-    "agglos":     "agglomere",
-    "parpaing":   "agglomere",
+    "agglo": "agglomere",
+    "agglos": "agglomere",
+    "parpaing": "agglomere",
     # Couverture
-    "galva":      "galvanise",
+    "galva": "galvanise",
     # Emballages
-    "bag":        "sac",
-    "fut":        "fut",
-    "fût":        "fut",
+    "bag": "sac",
+    "fut": "fut",
+    "fût": "fut",
     # Abréviations anglais technique limité
-    "pl":         "planche",
+    "pl": "planche",
 }
 
-_UNITS = frozenset({
-    "kg", "g", "t", "tonne",
-    "m", "ml", "m2", "m3",
-    "l", "litre", "cl",
-    "mm", "cm",
-    "piece", "pce", "unite",
-    "sac", "bag", "rouleau",
-    "barre", "feuille", "fut",
-    "bidon", "boite", "paquet",
-    "litre", "sac_50kg",
-    "comprime", "flacon",
-    "voyage", "heure",
-})
+_UNITS = frozenset(
+    {
+        "kg",
+        "g",
+        "t",
+        "tonne",
+        "m",
+        "ml",
+        "m2",
+        "m3",
+        "l",
+        "litre",
+        "cl",
+        "mm",
+        "cm",
+        "piece",
+        "pce",
+        "unite",
+        "sac",
+        "bag",
+        "rouleau",
+        "barre",
+        "feuille",
+        "fut",
+        "bidon",
+        "boite",
+        "paquet",
+        "litre",
+        "sac_50kg",
+        "comprime",
+        "flacon",
+        "voyage",
+        "heure",
+    }
+)
 
 
 @lru_cache(maxsize=16384)
@@ -86,11 +134,8 @@ def normalize_label(raw: str) -> str:
         return ""
 
     # 1. NFD + suppression diacritiques (miroir unaccent SQL)
-    nfd  = unicodedata.normalize("NFD", raw.strip())
-    text = "".join(
-        c for c in nfd
-        if unicodedata.category(c) != "Mn"
-    )
+    nfd = unicodedata.normalize("NFD", raw.strip())
+    text = "".join(c for c in nfd if unicodedata.category(c) != "Mn")
 
     # 2. Lowercase
     text = text.lower()
@@ -104,7 +149,8 @@ def normalize_label(raw: str) -> str:
     # 5. Coller nombre + unité (50 kg → 50kg)
     text = re.sub(
         r"(\d+)\s*(kg|g|mm|cm|m2|m3|ml|l|t)\b",
-        r"\1\2", text,
+        r"\1\2",
+        text,
     )
 
     # 6. Tokenisation
@@ -116,10 +162,9 @@ def normalize_label(raw: str) -> str:
     # 8. Suppression stopwords
     #    Exception : tokens numériques et unités conservés
     tokens = [
-        t for t in tokens
-        if t not in _STOPWORDS
-        or bool(re.match(r"^\d", t))
-        or t in _UNITS
+        t
+        for t in tokens
+        if t not in _STOPWORDS or bool(re.match(r"^\d", t)) or t in _UNITS
     ]
 
     if not tokens:

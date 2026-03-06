@@ -230,13 +230,13 @@ def test_p9_td001_documented_in_technical_debt():
 
 
 def test_p10_alembic_head_is_043(db_conn):
-    """P10 : alembic_version doit pointer sur le head courant (m6_dictionary_build)."""
+    """P10 : alembic_version doit pointer sur le head courant (m7_3_dict_nerve_center)."""
     with db_conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert (
-        row["version_num"] == "m6_dictionary_build"
-    ), f"Head attendu : m6_dictionary_build — réel : {row['version_num']}"
+        row["version_num"] == "m7_3_dict_nerve_center"
+    ), f"Head attendu : m7_3_dict_nerve_center — réel : {row['version_num']}"
 
 
 # ── P11 : trigger rebuilt sans OR REPLACE ────────────────────────

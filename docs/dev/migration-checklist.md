@@ -349,7 +349,10 @@ done
   → 043_vendor_activity_badge
   → m4_patch_a_vendor_structure_v410   ← hors séquence · DÉPLOYÉ PROD
   → m4_patch_a_fix                     ← hors séquence · DÉPLOYÉ PROD
-  → m5_pre_vendors_consolidation       ← HEAD · M5-PRE-HARDENING
+  → m5_pre_vendors_consolidation
+  → m6_dictionary_build
+  → m7_2_taxonomy_reset
+  → m7_3_dict_nerve_center             ← HEAD · M7.3 DICT NERVE CENTER
 ```
 
 ### Migrations hors convention numérique (INTOUCHABLES)
@@ -365,7 +368,7 @@ Ces fichiers sont **intouchables** (renommage interdit — migrations déployée
 ### État consolidation vendors — 2026-03-03 · VERDICT A appliqué
 
 ```text
-alembic heads         → m5_pre_vendors_consolidation (1 seul head ✓)
+alembic heads         → m7_3_dict_nerve_center (1 seul head ✓)
 vendors               → ex vendor_identities · 34 colonnes · 0 lignes local · 661 prod
 vendor_identities     → SUPPRIMÉE (consolidation appliquée)
 vendors legacy        → SUPPRIMÉE (était vide · TD-004 FERMÉE)

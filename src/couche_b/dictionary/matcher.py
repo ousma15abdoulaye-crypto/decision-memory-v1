@@ -14,13 +14,12 @@ Niveaux :
 """
 
 from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 
 import psycopg
-from psycopg.rows import dict_row
 
 from .normalizer import normalize_label
 
@@ -29,10 +28,10 @@ logger = logging.getLogger(__name__)
 TRIGRAM_THRESHOLD: float = 0.82
 
 
-class MatchMethod(str, Enum):
-    EXACT      = "exact"
+class MatchMethod(StrEnum):
+    EXACT = "exact"
     NORMALIZED = "normalized"
-    TRIGRAM    = "trigram"
+    TRIGRAM = "trigram"
     UNRESOLVED = "unresolved"
 
 
@@ -42,33 +41,38 @@ class MatchResult:
     Immuable · hashable.
     RÈGLE-19 : confidence + evidence sur chaque résolution.
     """
-    item_id:         Optional[str]
-    canonical_form:  Optional[str]
-    unit_canonical:  Optional[str]
-    family_id:       Optional[str]
-    confidence:      float
-    match_method:    MatchMethod
+
+    item_id: str | None
+    canonical_form: str | None
+    unit_canonical: str | None
+    family_id: str | None
+    confidence: float
+    match_method: MatchMethod
     requires_review: bool
-    evidence:        Optional[str]
+    evidence: str | None
 
     def to_dict(self) -> dict:
         return {
-            "item_id":         self.item_id,
-            "canonical_form":  self.canonical_form,
-            "unit_canonical":  self.unit_canonical,
-            "family_id":       self.family_id,
-            "confidence":      self.confidence,
-            "match_method":   self.match_method.value,
+            "item_id": self.item_id,
+            "canonical_form": self.canonical_form,
+            "unit_canonical": self.unit_canonical,
+            "family_id": self.family_id,
+            "confidence": self.confidence,
+            "match_method": self.match_method.value,
             "requires_review": self.requires_review,
-            "evidence":       self.evidence,
+            "evidence": self.evidence,
         }
 
 
 _UNRESOLVED = MatchResult(
-    item_id=None, canonical_form=None,
-    unit_canonical=None, family_id=None,
-    confidence=0.0, match_method=MatchMethod.UNRESOLVED,
-    requires_review=True, evidence=None,
+    item_id=None,
+    canonical_form=None,
+    unit_canonical=None,
+    family_id=None,
+    confidence=0.0,
+    match_method=MatchMethod.UNRESOLVED,
+    requires_review=True,
+    evidence=None,
 )
 
 
@@ -125,9 +129,7 @@ def match_item(
             canonical_form=row["canonical_form"],
             unit_canonical=row["unit_canonical"],
             family_id=row["family_id"],
-            confidence=min(
-                float(row["confidence_score"] or 0) + 0.05, 1.0
-            ),
+            confidence=min(float(row["confidence_score"] or 0) + 0.05, 1.0),
             match_method=MatchMethod.EXACT,
             requires_review=False,
             evidence=row["evidence"],
@@ -192,10 +194,8 @@ def match_item(
         ).fetchone()
 
         if row:
-            sim  = float(row["sim_score"])
-            conf = round(
-                sim * float(row["confidence_score"] or 0), 4
-            )
+            sim = float(row["sim_score"])
+            conf = round(sim * float(row["confidence_score"] or 0), 4)
             return MatchResult(
                 item_id=row["item_id"],
                 canonical_form=row["canonical_form"],
@@ -204,10 +204,7 @@ def match_item(
                 confidence=conf,
                 match_method=MatchMethod.TRIGRAM,
                 requires_review=True,
-                evidence=(
-                    f"trigram({row['evidence']},"
-                    f"score={sim:.3f})"
-                ),
+                evidence=(f"trigram({row['evidence']}," f"score={sim:.3f})"),
             )
 
     # ----------------------------------------------------------
@@ -215,11 +212,14 @@ def match_item(
     # ----------------------------------------------------------
     logger.warning(
         "UNRESOLVED · raw='%s' · normalized='%s'",
-        raw_label, normalized,
+        raw_label,
+        normalized,
     )
     return MatchResult(
-        item_id=None, canonical_form=None,
-        unit_canonical=None, family_id=None,
+        item_id=None,
+        canonical_form=None,
+        unit_canonical=None,
+        family_id=None,
         confidence=0.0,
         match_method=MatchMethod.UNRESOLVED,
         requires_review=True,

@@ -1,10 +1,12 @@
 """Tests normalizer · zéro DB · RÈGLE-21."""
 
 from __future__ import annotations
+
 import pytest
+
 from src.couche_b.dictionary.normalizer import (
-    normalize_label,
     generate_deterministic_id,
+    normalize_label,
 )
 
 
@@ -28,9 +30,7 @@ class TestNormalizeLabel:
 
     def test_idempotent(self):
         raw = "Ciment Portland 50kg"
-        assert normalize_label(raw) == normalize_label(
-            normalize_label(raw)
-        )
+        assert normalize_label(raw) == normalize_label(normalize_label(raw))
 
     def test_vide(self):
         assert normalize_label("") == ""
@@ -53,16 +53,18 @@ class TestNormalizeLabel:
 class TestDeterministicId:
 
     def test_idempotent(self):
-        assert (generate_deterministic_id("gasoil") ==
-                generate_deterministic_id("gasoil"))
+        assert generate_deterministic_id("gasoil") == generate_deterministic_id(
+            "gasoil"
+        )
 
     def test_prefix(self):
         assert generate_deterministic_id("x", "di").startswith("di-")
         assert generate_deterministic_id("x", "da").startswith("da-")
 
     def test_differents(self):
-        assert (generate_deterministic_id("gasoil") !=
-                generate_deterministic_id("ciment"))
+        assert generate_deterministic_id("gasoil") != generate_deterministic_id(
+            "ciment"
+        )
 
     def test_longueur(self):
         # prefix(2) + tiret(1) + hash(16) = 19
@@ -72,27 +74,33 @@ class TestDeterministicId:
 class TestMatchResult:
 
     def test_frozen(self):
-        from src.couche_b.dictionary.matcher import (
-            MatchResult, MatchMethod,
-        )
+        from src.couche_b.dictionary.matcher import MatchMethod, MatchResult
+
         r = MatchResult(
-            item_id="gasoil", canonical_form="Gasoil",
-            unit_canonical="litre", family_id="carburants",
-            confidence=0.95, match_method=MatchMethod.EXACT,
-            requires_review=False, evidence="gasoil",
+            item_id="gasoil",
+            canonical_form="Gasoil",
+            unit_canonical="litre",
+            family_id="carburants",
+            confidence=0.95,
+            match_method=MatchMethod.EXACT,
+            requires_review=False,
+            evidence="gasoil",
         )
         with pytest.raises(AttributeError):
             r.confidence = 0.5  # type: ignore
 
     def test_to_dict(self):
-        from src.couche_b.dictionary.matcher import (
-            MatchResult, MatchMethod,
-        )
+        from src.couche_b.dictionary.matcher import MatchMethod, MatchResult
+
         r = MatchResult(
-            item_id="gasoil", canonical_form="Gasoil",
-            unit_canonical="litre", family_id="carburants",
-            confidence=0.95, match_method=MatchMethod.EXACT,
-            requires_review=False, evidence="gasoil",
+            item_id="gasoil",
+            canonical_form="Gasoil",
+            unit_canonical="litre",
+            family_id="carburants",
+            confidence=0.95,
+            match_method=MatchMethod.EXACT,
+            requires_review=False,
+            evidence="gasoil",
         )
         d = r.to_dict()
         assert d["match_method"] == "exact"
