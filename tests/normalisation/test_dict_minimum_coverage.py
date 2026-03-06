@@ -47,9 +47,7 @@ def test_dict_minimum_coverage_all_families(db_conn):
         )
 
         min_aliases = (
-            MIN_ALIASES_BULK_FAMILY
-            if item_count > 50
-            else MINIMUM_ALIASES_PER_ITEM
+            MIN_ALIASES_BULK_FAMILY if item_count > 50 else MINIMUM_ALIASES_PER_ITEM
         )
         cur.execute(
             """
