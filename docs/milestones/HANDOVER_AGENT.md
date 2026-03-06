@@ -1,9 +1,9 @@
 # HANDOVER AGENT — DMS V4.1.0
-**Date :** 2026-03-05
-**Rédigé par :** Agent courant (Composer — session M6 Dictionary Build)
+**Date :** 2026-03-06
+**Rédigé par :** Agent courant (Composer — session M7.3 Dict Nerve Center)
 **Destinataire :** Agent successeur
 **Branche active :** `main`
-**Tag courant :** `v4.1.0-m6-dictionary` → commit `316854f`
+**Tag courant :** `v4.1.0-m7.3-done` → commit clôture M7.3
 
 ---
 
@@ -40,19 +40,18 @@ Stack : Python 3.11 · FastAPI · PostgreSQL 16 · Redis 7 · Railway · Alembic
 ### Git
 ```
 Branche  : main
-HEAD     : 316854f  feat(m6): dictionary procurement AOF - v4.1.0-m6-dictionary
-Tag      : v4.1.0-m6-dictionary → 316854f
-CI       : verte (817 passed · 36 skipped · 0 failed · 0 error)
+HEAD     : (commit handover M7.3)
+Tag      : v4.1.0-m7.3-done
+CI       : verte
 Alembic  : m7_3_dict_nerve_center (head unique)
 ```
 
 ### Historique récent main
 ```
-316854f  feat(m6): dictionary procurement AOF - v4.1.0-m6-dictionary
-a326329  feat(m6): dictionary build - 1488 items - 1596 aliases - couche_b source de verite
-2a8090e  Merge pull request #168 from feat/m5-patch-imc-ingest
-1d835e5  fix(tests): alembic head attendu = m5_patch_imc_ingest_v410
-ab4e865  style(imc): black format queries.py
+6b4ff68  Merge pull request #169 from feat/m7-3-dict-nerve-center
+52b741c  fix(PR#169): D8-D4 corrections CTO revue - advisory lock, backfill hors migration, downgrade FK, ok=False, labels, index, doc
+1e4c224  fix: alembic head tests expect m7_3_dict_nerve_center
+1dd9efb  feat(m7.3): dict nerve center - aligned hash canon B2-A
 ```
 
 ### Tags Git (tous les sprints V4.1.0)
@@ -73,7 +72,8 @@ v4.1.0-patch-b-copilot
 v4.1.0-m5-pre-hardening
 v4.1.0-m5-fix          ← sprint M5-FIX (market_signals.vendor_id + alembic VARCHAR)
 v4.1.0-m5-cleanup-a    ← sprint M5-CLEANUP-A (dettes pré-M5)
-v4.1.0-m6-dictionary   ← sprint M6 Dictionary Build — TAG COURANT
+v4.1.0-m6-dictionary   ← sprint M6 Dictionary Build
+v4.1.0-m7.3-done       ← sprint M7.3 Dict Nerve Center — TAG COURANT
 ```
 
 ---
@@ -392,9 +392,10 @@ M5 Mercuriale Ingest et M6 Dictionary Build sont terminés. M7 = validation des 
 | `docs/milestones/HANDOVER_M4_TRANSMISSION.md` | Verdict enterprise-grade · failles F1–F9 · plan d'attaque |
 | `docs/milestones/HANDOVER_M5FIX_TRANSMISSION.md` | Handover sprint M5-FIX (PIÈGE-8 à PIÈGE-15) |
 | `docs/milestones/HANDOVER_M5PRE_TRANSMISSION.md` | Handover sprint M5-PRE |
+| `docs/milestones/HANDOVER_M73_TRANSMISSION.md` | Handover sprint M7.3 Dict Nerve Center (hash chain, D1-D9) |
 | `docs/adrs/` | ADRs décisions architecturales |
 
 ---
 
-*Agent : Composer · DMS V4.1.0 · Mopti, Mali · 2026-03-05*
-*Sprints couverts cette session : M6 Dictionary Build (1488 items · 1596 aliases · couche_b source de vérité)*
+*Agent : Composer · DMS V4.1.0 · Mopti, Mali · 2026-03-06*
+*Sprints couverts : M6 Dictionary Build · M7.3 Dict Nerve Center (PR #169 · hash chain alignée · taxonomie L1/L2/L3)*
