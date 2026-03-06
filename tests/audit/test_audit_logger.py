@@ -25,9 +25,21 @@ class TestPremièreEntrée:
     def test_premiere_entree_prev_hash_genesis(
         self, db_audit: psycopg.Connection
     ) -> None:
-        """Première entrée → prev_hash == 'GENESIS'."""
+        """Première entrée (ou après chaîne vide) → prev_hash == GENESIS ou dernier event_hash.
+
+        Si audit_log est vide : prev_hash == 'GENESIS'.
+        Si audit_log a des lignes (ex. DICT_ITEM M7.3) : prev_hash == dernier event_hash.
+        RÈGLE-06 : test robuste à l'état initial de la chaîne.
+        """
+        with db_audit.cursor() as cur:
+            cur.execute(
+                "SELECT event_hash FROM audit_log ORDER BY chain_seq DESC LIMIT 1"
+            )
+            row = cur.fetchone()
+        expected_prev = row["event_hash"] if row else "GENESIS"
+
         entry = write_event("case", "c-001", AuditAction.CREATE, db=db_audit)
-        assert entry.prev_hash == "GENESIS"
+        assert entry.prev_hash == expected_prev
 
     def test_deuxieme_entree_prev_hash_est_event_hash_premiere(
         self, db_audit: psycopg.Connection
