@@ -43,7 +43,7 @@ Branche  : main
 HEAD     : 316854f  feat(m6): dictionary procurement AOF - v4.1.0-m6-dictionary
 Tag      : v4.1.0-m6-dictionary → 316854f
 CI       : verte (817 passed · 36 skipped · 0 failed · 0 error)
-Alembic  : m6_dictionary_build (head unique)
+Alembic  : m7_3_dict_nerve_center (head unique)
 ```
 
 ### Historique récent main
@@ -119,10 +119,10 @@ src/
 └── ...
 ```
 
-### Schéma DB — état `m6_dictionary_build`
+### Schéma DB — état `m7_3_dict_nerve_center`
 ```
 Chaîne Alembic complète (du plus récent au plus ancien) :
-  m6_dictionary_build  ← HEAD
+  m7_3_dict_nerve_center  ← HEAD
   m5_patch_imc_ingest_v410
   m5_geo_patch_koutiala
   040_mercuriale_ingest
@@ -178,7 +178,7 @@ Détails complets : `docs/milestones/HANDOVER_M4_TRANSMISSION.md` (lignes 357–
 | `040_mercuriale_ingest` | M5 | Tables mercuriale_sources, mercurials |
 | `m5_patch_imc_ingest_v410` | M5-PATCH | IMC ingest 2024/25/26 |
 | `m5_geo_patch_koutiala` | M5-PATCH | Zone géographique Koutiala |
-| `m6_dictionary_build` | M6 | Extension procurement_dict_* · couche_b source de vérité · 1488 items · 1596 aliases |
+| `m7_3_dict_nerve_center` | M7.3 | Dict nerve center · audit_log aligné · taxonomie L1/L2/L3 · 1488 items · 1596 aliases |
 
 ### Point critique migration M5-FIX
 - `alembic_version.version_num` étendu à `VARCHAR(64)` — **idempotent** · toujours applicable
@@ -197,7 +197,7 @@ Détails complets : `docs/milestones/HANDOVER_M4_TRANSMISSION.md` (lignes 357–
 ### Fichiers tests modifiés en M5-CLEANUP-A / M6
 ```
 tests/invariants/test_inv_04_online_only.py   ← lazy init · reset _DB_URL_CACHE
-tests/test_m0b_db_hardening.py                ← head assertion → m6_dictionary_build
+tests/test_m0b_db_hardening.py                ← head assertion → m7_3_dict_nerve_center
 tests/vendors/test_vendor_migration.py        ← idem
 tests/vendors/test_vendor_patch.py            ← idem
 tests/vendors/test_vendor_patch_a.py          ← idem
@@ -322,7 +322,7 @@ Cette config est déjà appliquée dans le repo local. À ré-appliquer si le re
 ```sql
 -- Alembic head (doit être 1 seul)
 SELECT version_num FROM alembic_version;
--- Attendu : m6_dictionary_build
+-- Attendu : m7_3_dict_nerve_center
 
 -- market_signals.vendor_id (doit être UUID après M5-FIX)
 SELECT column_name, data_type, udt_name
@@ -357,7 +357,7 @@ WHERE c.conname = 'market_signals_vendor_id_fkey'
 M5 Mercuriale Ingest et M6 Dictionary Build sont terminés. M7 = validation des fichiers `dict_proposals` (1439 pending) → intégration dans `procurement_dict_items` / `procurement_dict_aliases`.
 
 ### Préconditions
-- `alembic heads` = `m6_dictionary_build` ✅
+- `alembic heads` = `m7_3_dict_nerve_center` ✅
 - `pytest` = 817 passed ✅
 - Dictionnaire : 1488 items, 1596 aliases, couche_b source de vérité ✅
 

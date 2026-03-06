@@ -532,6 +532,19 @@ sont présentes en schéma depuis PATCH-A mais restent vides en M4.
 
 ---
 
+## Backfill M7.3 — classification_confidence
+
+**Statut :** À exécuter manuellement post-migration M7.3
+**Script :** `scripts/seed_classification_backfill.py`
+**Commande :**
+  ```bash
+  python scripts/seed_classification_backfill.py --dry-run
+  python scripts/seed_classification_backfill.py
+  ```
+**Raison :** DML interdit dans les migrations Alembic
+(doctrine migration-checklist.md · lignes 406-416)
+**Milestone assigné :** M7.3 post-merge
+
 ---
 
 ## Dettes pré-M5 — Audit architecture agent (ADR-M5-PRE-001)

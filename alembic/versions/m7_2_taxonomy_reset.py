@@ -35,8 +35,7 @@ depends_on = None
 
 def _add_col(schema, table, column, definition):
     """Ajoute une colonne si absente · idempotent."""
-    op.execute(
-        f"""
+    op.execute(f"""
         DO $$
         BEGIN
             IF NOT EXISTS (
@@ -49,8 +48,7 @@ def _add_col(schema, table, column, definition):
                 ADD COLUMN {column} {definition};
             END IF;
         END $$;
-        """
-    )
+        """)
 
 
 def upgrade() -> None:
@@ -250,6 +248,18 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Supprimer colonnes FK avant DROP TABLE · sinon violation contrainte
+    op.execute("""
+        ALTER TABLE couche_b.procurement_dict_items
+            DROP COLUMN IF EXISTS domain_id,
+            DROP COLUMN IF EXISTS family_l2_id,
+            DROP COLUMN IF EXISTS subfamily_id,
+            DROP COLUMN IF EXISTS taxo_version,
+            DROP COLUMN IF EXISTS taxo_validated,
+            DROP COLUMN IF EXISTS taxo_validated_by,
+            DROP COLUMN IF EXISTS taxo_validated_at;
+    """)
+
     op.execute("DROP VIEW IF EXISTS public.taxo_l3_subfamilies;")
     op.execute("DROP VIEW IF EXISTS public.taxo_l2_families;")
     op.execute("DROP VIEW IF EXISTS public.taxo_l1_domains;")

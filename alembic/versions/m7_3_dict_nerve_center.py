@@ -21,8 +21,6 @@ Triggers :
   fn_dict_write_audit()    AFTER UPDATE  -> INSERT audit_log entity='DICT_ITEM'
   fn_compute_quality_score() BEFORE INSERT OR UPDATE
 
-Backfill : classification_confidence depuis taxo_proposals_v2 approved
-
 REGLE-12 : op.execute("SQL brut") uniquement
 REGLE-41 : import sqlalchemy interdit
 REGLE-N05 : audit_log append-only deja en place (038)
@@ -101,15 +99,15 @@ def upgrade() -> None:
             PRIMARY KEY (from_unit_id, to_unit_id)
         );
     """)
+    op.execute("DROP INDEX IF EXISTS couche_b.idx_dict_uom_conv_from;")
+    op.execute("DROP INDEX IF EXISTS couche_b.idx_dict_uom_conv_to;")
     op.execute("""
         CREATE INDEX IF NOT EXISTS idx_dict_uom_conv_from
-        ON couche_b.dict_uom_conversions(from_unit_id)
-        WHERE from_unit_id IS NOT NULL;
+        ON couche_b.dict_uom_conversions(from_unit_id);
     """)
     op.execute("""
         CREATE INDEX IF NOT EXISTS idx_dict_uom_conv_to
-        ON couche_b.dict_uom_conversions(to_unit_id)
-        WHERE to_unit_id IS NOT NULL;
+        ON couche_b.dict_uom_conversions(to_unit_id);
     """)
 
     # dgmp_thresholds
@@ -284,6 +282,11 @@ def upgrade() -> None:
             canon     TEXT;
             ev_hash   TEXT;
         BEGIN
+            -- Sérialisation concurrence · même clé que write_event() logger.py:131
+            PERFORM pg_advisory_xact_lock(
+                ('x' || md5('audit_log:write_event'))::bit(64)::bigint
+            );
+
             prev_h := 'GENESIS';
             SELECT event_hash INTO prev_h
             FROM public.audit_log
@@ -373,25 +376,7 @@ def upgrade() -> None:
     """)
 
     # ------------------------------------------------------------------
-    # 7. Backfill classification_confidence depuis taxo_proposals_v2
-    # ------------------------------------------------------------------
-    op.execute("""
-        UPDATE couche_b.procurement_dict_items p
-        SET classification_confidence = t.confidence,
-            classification_source    = 'taxo_proposals_v2'
-        FROM (
-            SELECT item_id, confidence,
-                   ROW_NUMBER() OVER (PARTITION BY item_id ORDER BY created_at DESC) AS rn
-            FROM couche_b.taxo_proposals_v2
-            WHERE status = 'approved'
-        ) t
-        WHERE p.item_id = t.item_id
-          AND t.rn = 1
-          AND (p.classification_confidence IS NULL OR p.classification_source IS NULL);
-    """)
-
-    # ------------------------------------------------------------------
-    # 8. Verification fail-loud
+    # 7. Verification fail-loud
     # ------------------------------------------------------------------
     op.execute("""
         DO $$

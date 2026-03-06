@@ -9,6 +9,7 @@ Usage :
     python scripts/seed_taxonomy_v2.py
     python scripts/seed_taxonomy_v2.py --verify
 """
+
 from __future__ import annotations
 
 import argparse
@@ -18,6 +19,7 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
     load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
 except ImportError:
@@ -319,25 +321,25 @@ def verify(conn: psycopg.Connection) -> bool:
     ok = True
     print("\n--- VERIFICATION TAXONOMIE ---")
 
-    r = conn.execute(
-        "SELECT COUNT(*) AS n FROM couche_b.taxo_l1_domains"
-    ).fetchone()
+    r = conn.execute("SELECT COUNT(*) AS n FROM couche_b.taxo_l1_domains").fetchone()
     status = "[OK]" if r["n"] == len(L1_DOMAINS) else "[KO] STOP-T2"
     print(f"  L1 : {r['n']}/{len(L1_DOMAINS)} {status}")
     if r["n"] != len(L1_DOMAINS):
         ok = False
 
-    r = conn.execute(
-        "SELECT COUNT(*) AS n FROM couche_b.taxo_l2_families"
-    ).fetchone()
+    r = conn.execute("SELECT COUNT(*) AS n FROM couche_b.taxo_l2_families").fetchone()
     status = "[OK]" if r["n"] == len(L2_FAMILIES) else "[KO]"
     print(f"  L2 : {r['n']}/{len(L2_FAMILIES)} {status}")
+    if r["n"] != len(L2_FAMILIES):
+        ok = False
 
     r = conn.execute(
         "SELECT COUNT(*) AS n FROM couche_b.taxo_l3_subfamilies"
     ).fetchone()
     status = "[OK]" if r["n"] == len(L3_SUBFAMILIES) else "[KO]"
     print(f"  L3 : {r['n']}/{len(L3_SUBFAMILIES)} {status}")
+    if r["n"] != len(L3_SUBFAMILIES):
+        ok = False
 
     r = conn.execute("""
         SELECT COUNT(*) AS n FROM couche_b.taxo_l2_families l2
@@ -349,7 +351,7 @@ def verify(conn: psycopg.Connection) -> bool:
         print(f"  [KO] STOP-T3 · {r['n']} L2 sans L1")
         ok = False
     else:
-        print(f"  [OK] FK L2->L1 coherentes")
+        print("  [OK] FK L2->L1 coherentes")
 
     r = conn.execute("""
         SELECT COUNT(*) AS n FROM couche_b.taxo_l3_subfamilies l3
@@ -361,7 +363,7 @@ def verify(conn: psycopg.Connection) -> bool:
         print(f"  [KO] STOP-T4 · {r['n']} L3 sans L2")
         ok = False
     else:
-        print(f"  [OK] FK L3->L2 coherentes")
+        print("  [OK] FK L3->L2 coherentes")
 
     r = conn.execute("""
         SELECT COUNT(*) AS n FROM couche_b.taxo_l3_subfamilies
@@ -369,6 +371,8 @@ def verify(conn: psycopg.Connection) -> bool:
     """).fetchone()
     status = "[OK]" if r["n"] == 1 else "[KO] DIVERS_NON_CLASSE manquant"
     print(f"  Residuel DIVERS_NON_CLASSE : {status}")
+    if r["n"] != 1:
+        ok = False
 
     return ok
 
@@ -382,9 +386,9 @@ def main(do_verify: bool) -> None:
 
         print("Insertion taxonomie L1/L2/L3...")
         stats = seed(conn)
-        print(f"  L1 inseres : {stats['l1']}")
-        print(f"  L2 inseres : {stats['l2']}")
-        print(f"  L3 inseres : {stats['l3']}")
+        print(f"  L1 tentés (ON CONFLICT DO NOTHING) : {stats['l1']}")
+        print(f"  L2 tentés (ON CONFLICT DO NOTHING) : {stats['l2']}")
+        print(f"  L3 tentés (ON CONFLICT DO NOTHING) : {stats['l3']}")
 
         ok = verify(conn)
         if not ok:
