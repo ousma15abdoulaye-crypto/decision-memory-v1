@@ -12,11 +12,11 @@ RÈGLE-33 étendue :
 """
 
 from __future__ import annotations
+
 import hashlib
 import re
 import unicodedata
 from functools import lru_cache
-
 
 # ----------------------------------------------------------------
 # STOPWORDS · dédupliqués · sans unités

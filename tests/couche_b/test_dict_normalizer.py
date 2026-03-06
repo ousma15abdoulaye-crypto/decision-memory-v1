@@ -1,10 +1,12 @@
 """Tests normalizer · zéro DB · RÈGLE-21."""
 
 from __future__ import annotations
+
 import pytest
+
 from src.couche_b.dictionary.normalizer import (
-    normalize_label,
     generate_deterministic_id,
+    normalize_label,
 )
 
 
@@ -72,9 +74,7 @@ class TestDeterministicId:
 class TestMatchResult:
 
     def test_frozen(self):
-        from src.couche_b.dictionary.matcher import (
-            MatchResult, MatchMethod,
-        )
+        from src.couche_b.dictionary.matcher import MatchMethod, MatchResult
         r = MatchResult(
             item_id="gasoil", canonical_form="Gasoil",
             unit_canonical="litre", family_id="carburants",
@@ -85,9 +85,7 @@ class TestMatchResult:
             r.confidence = 0.5  # type: ignore
 
     def test_to_dict(self):
-        from src.couche_b.dictionary.matcher import (
-            MatchResult, MatchMethod,
-        )
+        from src.couche_b.dictionary.matcher import MatchMethod, MatchResult
         r = MatchResult(
             item_id="gasoil", canonical_form="Gasoil",
             unit_canonical="litre", family_id="carburants",

@@ -14,13 +14,12 @@ Niveaux :
 """
 
 from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 
 import psycopg
-from psycopg.rows import dict_row
 
 from .normalizer import normalize_label
 
@@ -29,7 +28,7 @@ logger = logging.getLogger(__name__)
 TRIGRAM_THRESHOLD: float = 0.82
 
 
-class MatchMethod(str, Enum):
+class MatchMethod(StrEnum):
     EXACT      = "exact"
     NORMALIZED = "normalized"
     TRIGRAM    = "trigram"
@@ -42,14 +41,14 @@ class MatchResult:
     Immuable · hashable.
     RÈGLE-19 : confidence + evidence sur chaque résolution.
     """
-    item_id:         Optional[str]
-    canonical_form:  Optional[str]
-    unit_canonical:  Optional[str]
-    family_id:       Optional[str]
+    item_id:         str | None
+    canonical_form:  str | None
+    unit_canonical:  str | None
+    family_id:       str | None
     confidence:      float
     match_method:    MatchMethod
     requires_review: bool
-    evidence:        Optional[str]
+    evidence:        str | None
 
     def to_dict(self) -> dict:
         return {
