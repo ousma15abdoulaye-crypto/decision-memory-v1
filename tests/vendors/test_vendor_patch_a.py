@@ -151,13 +151,13 @@ def test_pa7_couche_b_indexes_exist(db_conn, idx):
 
 
 def test_pa8_alembic_head_is_m5_pre(db_conn):
-    """PA8 : alembic_version doit pointer sur le head courant (m7_3_dict_nerve_center)."""
+    """PA8 : alembic_version doit pointer sur le head courant (m7_3b_deprecate_legacy_families)."""
     with db_conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert (
-        row["version_num"] == "m7_3_dict_nerve_center"
-    ), f"Head attendu : m7_3_dict_nerve_center — réel : {row['version_num']}"
+        row["version_num"] == "m7_3b_deprecate_legacy_families"
+    ), f"Head attendu : m7_3b_deprecate_legacy_families — réel : {row['version_num']}"
 
 
 # ── Colonnes V4.1.0 présentes ─────────────────────────────────────
