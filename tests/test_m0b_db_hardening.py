@@ -206,9 +206,9 @@ def test_indexes_created(db_transaction):
 
 
 def test_alembic_head_is_current(db_transaction):
-    """Head = m7_3_dict_nerve_center (head courante après M7.3)."""
+    """Head = m7_3b_deprecate_legacy_families (head courante après M7.3b)."""
     db_transaction.execute("SELECT version_num FROM alembic_version")
     row = db_transaction.fetchone()
     assert (
-        row["version_num"] == "m7_3_dict_nerve_center"
-    ), f"Head attendu : m7_3_dict_nerve_center — réel : {row['version_num']}"
+        row["version_num"] == "m7_3b_deprecate_legacy_families"
+    ), f"Head attendu : m7_3b_deprecate_legacy_families — réel : {row['version_num']}"
