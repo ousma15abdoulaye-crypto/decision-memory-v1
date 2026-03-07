@@ -1,9 +1,9 @@
-# HANDOVER AGENT — DMS V4.1.0
+# HANDOVER AGENT — DMS V4.2.0
 **Date :** 2026-03-06
-**Rédigé par :** Agent courant (Composer — session M7.3 Dict Nerve Center)
+**Rédigé par :** Agent courant (Composer — session M7.3b)
 **Destinataire :** Agent successeur
-**Branche active :** `main`
-**Tag courant :** `v4.1.0-m7.3-done` → commit clôture M7.3
+**Branche active :** `feat/m7-3b-deprecate-legacy` (→ merge main)
+**Tag courant :** `v4.2.0-m7-3b-done` → clôture M7.3b + PR #170
 
 ---
 
@@ -39,22 +39,20 @@ Stack : Python 3.11 · FastAPI · PostgreSQL 16 · Redis 7 · Railway · Alembic
 
 ### Git
 ```
-Branche  : main
-HEAD     : (commit handover M7.3)
-Tag      : v4.1.0-m7.3-done
-CI       : verte
-Alembic  : m7_3_dict_nerve_center (head unique)
+Branche  : feat/m7-3b-deprecate-legacy (PR #170)
+HEAD     : a425332 fix(m7.3b): PR #170 - D1-D5 corrections
+Tag      : v4.2.0-m7-3b-done
+Alembic  : m7_3b_deprecate_legacy_families (head unique)
 ```
 
-### Historique récent main
+### Historique récent feat/m7-3b-deprecate-legacy
 ```
-6b4ff68  Merge pull request #169 from feat/m7-3-dict-nerve-center
-52b741c  fix(PR#169): D8-D4 corrections CTO revue - advisory lock, backfill hors migration, downgrade FK, ok=False, labels, index, doc
-1e4c224  fix: alembic head tests expect m7_3_dict_nerve_center
-1dd9efb  feat(m7.3): dict nerve center - aligned hash canon B2-A
+a425332  fix(m7.3b): PR #170 - D1-D5 corrections
+4f46955  feat(m7.3b): deprecate legacy family_id - triggers, migration, tests
+12de276  docs(adr): ADR-0016 détour M7.2/M7.3 et retour M7 réel
 ```
 
-### Tags Git (tous les sprints V4.1.0)
+### Tags Git (V4.1.0 + V4.2.0)
 ```
 v4.1.0-m0-done
 v4.1.0-m0b-done
@@ -73,7 +71,9 @@ v4.1.0-m5-pre-hardening
 v4.1.0-m5-fix          ← sprint M5-FIX (market_signals.vendor_id + alembic VARCHAR)
 v4.1.0-m5-cleanup-a    ← sprint M5-CLEANUP-A (dettes pré-M5)
 v4.1.0-m6-dictionary   ← sprint M6 Dictionary Build
-v4.1.0-m7.3-done       ← sprint M7.3 Dict Nerve Center — TAG COURANT
+v4.1.0-m7.3-done       ← sprint M7.3 Dict Nerve Center
+v4.2.0-m7-3b-legacy-deprecated  ← M7.3b initial
+v4.2.0-m7-3b-done      ← sprint M7.3b + PR #170 — TAG COURANT
 ```
 
 ---
@@ -119,10 +119,13 @@ src/
 └── ...
 ```
 
-### Schéma DB — état `m7_3_dict_nerve_center`
+### Schéma DB — état `m7_3b_deprecate_legacy_families`
 ```
 Chaîne Alembic complète (du plus récent au plus ancien) :
-  m7_3_dict_nerve_center  ← HEAD
+  m7_3b_deprecate_legacy_families  ← HEAD
+  m7_3_dict_nerve_center
+  m7_2_taxonomy_reset
+  m6_dictionary_build
   m5_patch_imc_ingest_v410
   m5_geo_patch_koutiala
   040_mercuriale_ingest
@@ -322,7 +325,7 @@ Cette config est déjà appliquée dans le repo local. À ré-appliquer si le re
 ```sql
 -- Alembic head (doit être 1 seul)
 SELECT version_num FROM alembic_version;
--- Attendu : m7_3_dict_nerve_center
+-- Attendu : m7_3b_deprecate_legacy_families
 
 -- market_signals.vendor_id (doit être UUID après M5-FIX)
 SELECT column_name, data_type, udt_name
@@ -357,8 +360,8 @@ WHERE c.conname = 'market_signals_vendor_id_fkey'
 M5 Mercuriale Ingest et M6 Dictionary Build sont terminés. M7 = validation des fichiers `dict_proposals` (1439 pending) → intégration dans `procurement_dict_items` / `procurement_dict_aliases`.
 
 ### Préconditions
-- `alembic heads` = `m7_3_dict_nerve_center` ✅
-- `pytest` = 817 passed ✅
+- `alembic heads` = `m7_3b_deprecate_legacy_families` ✅
+- `pytest` = 825 passed ✅
 - Dictionnaire : 1488 items, 1596 aliases, couche_b source de vérité ✅
 
 ### Dettes ouvertes bloquantes pour M10A/M10B
@@ -379,6 +382,7 @@ M5 Mercuriale Ingest et M6 Dictionary Build sont terminés. M7 = validation des 
 | `run_tests_final.py` | pytest via subprocess Python (bypass spawn Windows) | STABLE |
 | `_reset_vendor_seq.py` | Nettoie vendors TEST_* · remet séquence BKO < 10000 | LOCAL ONLY |
 | `_probe_state_now.py` | Probe état DB (tables · types · FK · alembic) | DEBUG |
+| `probe_m7_3b.py` | Probe pré-migration M7.3b · RÈGLE-08 | STABLE |
 | `fix_alembic_version_017_to_018.py` | Fix manuel migration 017 supprimée (TD-014) | PENDING · À DOCUMENTER RUNBOOK |
 
 ---
@@ -393,9 +397,11 @@ M5 Mercuriale Ingest et M6 Dictionary Build sont terminés. M7 = validation des 
 | `docs/milestones/HANDOVER_M5FIX_TRANSMISSION.md` | Handover sprint M5-FIX (PIÈGE-8 à PIÈGE-15) |
 | `docs/milestones/HANDOVER_M5PRE_TRANSMISSION.md` | Handover sprint M5-PRE |
 | `docs/milestones/HANDOVER_M73_TRANSMISSION.md` | Handover sprint M7.3 Dict Nerve Center (hash chain, D1-D9) |
+| `docs/milestones/HANDOVER_M73B_TRANSMISSION.md` | Handover sprint M7.3b + PR #170 (D1-D5) |
+| `docs/mandates/M7_3B_MANDAT_ADR.md` | Mandat M7.3b + ADR-0016 |
 | `docs/adrs/` | ADRs décisions architecturales |
 
 ---
 
-*Agent : Composer · DMS V4.1.0 · Mopti, Mali · 2026-03-06*
-*Sprints couverts : M6 Dictionary Build · M7.3 Dict Nerve Center (PR #169 · hash chain alignée · taxonomie L1/L2/L3)*
+*Agent : Composer · DMS V4.2.0 · Mopti, Mali · 2026-03-06*
+*Sprints couverts : M7.3 Dict Nerve Center · M7.3b Dépréciation legacy (PR #170 · family_id READ-ONLY · ADR-0016)*
