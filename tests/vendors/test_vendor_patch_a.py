@@ -150,8 +150,8 @@ def test_pa7_couche_b_indexes_exist(db_conn, idx):
 # ── PA8 : alembic head ────────────────────────────────────────────
 
 
-def test_pa8_alembic_head_is_m5_pre(db_conn):
-    """PA8 : alembic_version doit pointer sur le head courant (m7_3b_deprecate_legacy_families)."""
+def test_alembic_head_est_m7_3b(db_conn):
+    """alembic_version doit pointer sur le head courant (m7_3b_deprecate_legacy_families)."""
     with db_conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()

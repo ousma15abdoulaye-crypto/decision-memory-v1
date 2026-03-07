@@ -84,8 +84,7 @@ def upgrade() -> None:
         BEFORE UPDATE OF family_id
         ON couche_b.procurement_dict_items
         FOR EACH ROW
-        WHEN (OLD.family_id IS DISTINCT FROM NEW.family_id
-              AND NEW.family_id IS NOT NULL)
+        WHEN (OLD.family_id IS DISTINCT FROM NEW.family_id)
         EXECUTE FUNCTION couche_b.fn_block_legacy_family_write()
     """)
 
@@ -157,4 +156,21 @@ def downgrade() -> None:
         ALTER TABLE couche_b.procurement_dict_families
         DROP COLUMN IF EXISTS deprecated
     """)
-    # Note: family_id reste nullable après downgrade (lignes insérées pendant M7.3b)
+    # D2 · family_id DROP NOT NULL idempotent · évite erreur cycle downgrade
+    op.execute("""
+        DO $$
+        DECLARE
+            v_nullable TEXT;
+        BEGIN
+            SELECT is_nullable INTO v_nullable
+            FROM information_schema.columns
+            WHERE table_schema = 'couche_b'
+              AND table_name   = 'procurement_dict_items'
+              AND column_name  = 'family_id';
+
+            IF v_nullable = 'NO' THEN
+                EXECUTE 'ALTER TABLE couche_b.procurement_dict_items ALTER COLUMN family_id DROP NOT NULL';
+            END IF;
+        END;
+        $$
+    """)

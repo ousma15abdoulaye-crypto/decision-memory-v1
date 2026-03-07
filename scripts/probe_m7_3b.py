@@ -18,6 +18,12 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
     sys.exit("❌ DATABASE_URL manquante")
 
+# Normalisation URL · RÈGLE-39 · aligner avec conftest.py et src/db/core.py
+if DATABASE_URL.startswith("postgresql+psycopg://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql+psycopg://", "postgresql://", 1)
+elif DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 
 def run() -> None:
     print("=" * 65)

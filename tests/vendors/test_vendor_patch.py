@@ -229,8 +229,8 @@ def test_p9_td001_documented_in_technical_debt():
 # ── P10 : alembic head = 043 ─────────────────────────────────────
 
 
-def test_p10_alembic_head_is_043(db_conn):
-    """P10 : alembic_version doit pointer sur le head courant (m7_3b_deprecate_legacy_families)."""
+def test_alembic_head_est_m7_3b(db_conn):
+    """alembic_version doit pointer sur le head courant (m7_3b_deprecate_legacy_families)."""
     with db_conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
