@@ -28,12 +28,12 @@ def test_vendors_table_exists(db_conn):
 
 
 def test_alembic_head_is_current(db_conn):
-    """alembic_version doit pointer sur le head courant (m7_3b_deprecate_legacy_families)."""
+    """alembic_version doit pointer sur le head courant (m7_4a_item_identity_doctrine)."""
     with db_conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert row is not None
-    assert row["version_num"] == "m7_3b_deprecate_legacy_families"
+    assert row["version_num"] == "m7_4a_item_identity_doctrine"
 
 
 def test_chk_vendor_id_format_active(db_conn):
