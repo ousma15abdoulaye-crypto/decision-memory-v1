@@ -27,10 +27,10 @@ def _uid(prefix: str) -> str:
 
 class TestLegacyFamilyBlockM73b:
 
-    def test_head_alembic_est_m7_3b(self, tx):
-        """HEAD Alembic = m7_3b_deprecate_legacy_families."""
+    def test_head_alembic_est_m7_4a(self, tx):
+        """HEAD Alembic = m7_4a_item_identity_doctrine."""
         r = tx.execute("SELECT version_num FROM alembic_version").fetchone()
-        assert r["version_num"] == "m7_3b_deprecate_legacy_families"
+        assert r["version_num"] == "m7_4a_item_identity_doctrine"
 
     def test_deux_triggers_actifs(self, tx):
         """Deux triggers INSERT + UPDATE présents · invariant M7.3b."""

@@ -229,14 +229,14 @@ def test_p9_td001_documented_in_technical_debt():
 # ── P10 : alembic head = 043 ─────────────────────────────────────
 
 
-def test_alembic_head_est_m7_3b(db_conn):
-    """alembic_version doit pointer sur le head courant (m7_3b_deprecate_legacy_families)."""
+def test_alembic_head_est_m7_4a(db_conn):
+    """alembic_version doit pointer sur le head courant (m7_4a_item_identity_doctrine)."""
     with db_conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert (
-        row["version_num"] == "m7_3b_deprecate_legacy_families"
-    ), f"Head attendu : m7_3b_deprecate_legacy_families — réel : {row['version_num']}"
+        row["version_num"] == "m7_4a_item_identity_doctrine"
+    ), f"Head attendu : m7_4a_item_identity_doctrine — réel : {row['version_num']}"
 
 
 # ── P11 : trigger rebuilt sans OR REPLACE ────────────────────────
