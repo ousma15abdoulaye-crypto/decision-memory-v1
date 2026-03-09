@@ -4,13 +4,19 @@
 # Dernière mise à jour : 2026-03-09
 
 plan_version          : DMS_MRD_PLAN_V1
-last_completed        : MRD-0
-last_completed_at     : 2026-03-09
-last_commit           : 853943b0276e6a25242ca349b7394f5325ffca5c
-last_tag              : mrd-0-done
-next_milestone        : MRD-1
+last_completed        : MRD-1
+last_completed_at     : 2026-03-08
+last_commit           : b939e3bff2f444d75b2a2ff67636d8bd6a1ac0bb
+last_tag              : mrd-1-done
+next_milestone        : MRD-2
 next_status           : NOT_STARTED
 blocked_on            : aucun
+
+## Historique jalons
+
+MRD-PRE0 : DONE — tag absent — commit d56dd32 (2026-03-09)
+MRD-0    : DONE — tag mrd-0-done — commit 4b2fab8 (2026-03-09)
+MRD-1    : DONE — tag mrd-1-done — commit b939e3b (2026-03-08)
 
 ## Alignement stack
 
