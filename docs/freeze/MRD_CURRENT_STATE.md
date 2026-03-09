@@ -1,35 +1,38 @@
 # MRD_CURRENT_STATE
 # Mis a jour uniquement par AO apres chaque merge valide
-# Exception : agent autorise en MRD-5 ETAPE 9
+# Exception : agent autorise en MRD-6 ETAPE 11
 # Derniere mise a jour : 2026-03-09
 
 plan_version          : DMS_MRD_PLAN_V1
-last_completed        : MRD-5
+last_completed        : MRD-6
 last_completed_at     : 2026-03-09
-last_commit           : 3b0d8df196660da094c26b9f9c29c86312f7af21
-last_tag              : mrd-5-done
-next_milestone        : MRD-6
+last_commit           : 820023fff2db6fa2adc8a4eb309c120d63e2e290
+last_tag              : mrd-6-done
+next_milestone        : M8
 next_status           : NOT_STARTED
 blocked_on            : aucun
 
 ## Alignement stack
 
-local_alembic_head        : m7_6_item_code
-local_alembic_current     : m7_6_item_code
+local_alembic_head        : m7_7_genome_stable
+local_alembic_current     : m7_7_genome_stable
 railway_alembic_head      : m7_4b
 aligned_schema            : NON
-railway_migration_pending : OUI — m7_5 + m7_6 a appliquer Railway
+railway_migration_pending : OUI — m7_5 + m7_6 + m7_7 a appliquer Railway
 railway_access_method     : RAILWAY_DATABASE_URL direct (.env)
 railway_cli               : ABSENT
 
 ## Donnees
 
-local_dict_items_actifs  : 1490
-local_avec_fingerprint   : 1490
-local_avec_item_code     : 1490
-local_sans_item_code     : 0
-railway_vendors          : 661
-railway_mercurials       : 27396
+local_dict_items_actifs    : 1490
+local_avec_fingerprint     : 1490
+local_avec_item_code       : 1490
+local_avec_taxo_l1         : 1287 (coverage 86.38%)
+local_label_status_draft   : 1490
+local_label_status_valide  : 0
+collisions_unresolved      : 610
+railway_vendors            : 661
+railway_mercurials         : 27396
 
 ## Defaillances MRD-3
 
@@ -57,7 +60,8 @@ MRD-0    : DONE — tag mrd-0-done — commit 4b2fab8 (2026-03-09)
 MRD-1    : DONE — tag mrd-1-done — commit b939e3b (2026-03-08)
 MRD-2    : DONE — tag mrd-2-done — commit a3067fb (2026-03-09)
 MRD-4    : DONE — tag mrd-4-done — commit 831117b (2026-03-09)
-MRD-5    : DONE — tag mrd-5-done — commit 3b0d8df196660da094c26b9f9c29c86312f7af21
+MRD-5    : DONE — tag mrd-5-done — commit 29efbc6 (2026-03-09)
+MRD-6    : DONE — tag mrd-6-done — commit 820023fff2db6fa2adc8a4eb309c120d63e2e290
 
 ## Regle agent
 
