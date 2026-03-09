@@ -6,7 +6,7 @@
 plan_version          : DMS_MRD_PLAN_V1
 last_completed        : MRD-6
 last_completed_at     : 2026-03-09
-last_commit           : [PENDING_COMMIT_HASH]
+last_commit           : 820023fff2db6fa2adc8a4eb309c120d63e2e290
 last_tag              : mrd-6-done
 next_milestone        : M8
 next_status           : NOT_STARTED
@@ -61,7 +61,7 @@ MRD-1    : DONE — tag mrd-1-done — commit b939e3b (2026-03-08)
 MRD-2    : DONE — tag mrd-2-done — commit a3067fb (2026-03-09)
 MRD-4    : DONE — tag mrd-4-done — commit 831117b (2026-03-09)
 MRD-5    : DONE — tag mrd-5-done — commit 29efbc6 (2026-03-09)
-MRD-6    : DONE — tag mrd-6-done — commit [PENDING_COMMIT_HASH]
+MRD-6    : DONE — tag mrd-6-done — commit 820023fff2db6fa2adc8a4eb309c120d63e2e290
 
 ## Regle agent
 

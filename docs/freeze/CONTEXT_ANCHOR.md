@@ -31,7 +31,7 @@ MRD-2  DONE  mrd-2-done  a3067fb
 MRD-3  DONE  (DEF-MRD3-01/06 corriges MRD-4)
 MRD-4  DONE  mrd-4-done  831117b
 MRD-5  DONE  mrd-5-done  29efbc6
-MRD-6  DONE  mrd-6-done  [commit post-merge]
+MRD-6  DONE  mrd-6-done  820023fff2db6fa2adc8a4eb309c120d63e2e290
 NEXT   : M8 (V4 reprend depuis DMS_V4.1.0_FREEZE.md)
 
 ## SCHEMA REEL (important pour agents)
