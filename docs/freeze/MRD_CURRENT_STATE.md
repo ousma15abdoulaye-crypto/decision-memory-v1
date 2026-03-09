@@ -1,69 +1,251 @@
 # MRD_CURRENT_STATE
-# Mis a jour uniquement par AO apres chaque merge valide
-# Exception : agent autorise en MRD-6 ETAPE 11
-# Derniere mise a jour : 2026-03-09
+# Source de verite unique de l'etat du systeme
+# Mis a jour par l'agent apres chaque milestone DONE
+# Mis a jour par AO apres chaque decision manuelle
+# Derniere mise a jour : 2026-03-09 — post MRD-6
+
+---
+
+## IDENTITE PLAN
 
 plan_version          : DMS_MRD_PLAN_V1
+plan_doc              : docs/freeze/DMS_MRD_PLAN_V1.md
+contract_doc          : docs/freeze/SYSTEM_CONTRACT.md
+framework_doc         : docs/freeze/DMS_ORCHESTRATION_FRAMEWORK_V1.md
+baseline_doc          : docs/freeze/BASELINE_MRD_PRE_REBUILD.md
+freeze_hashes_doc     : docs/freeze/FREEZE_HASHES.md
+
+---
+
+## ETAT COURANT
+
 last_completed        : MRD-6
 last_completed_at     : 2026-03-09
-last_commit           : 820023fff2db6fa2adc8a4eb309c120d63e2e290
+last_merge_commit     : 226b4dd7733d8f49415be8f88cd34c5f328d829b
 last_tag              : mrd-6-done
 next_milestone        : M8
 next_status           : NOT_STARTED
 blocked_on            : aucun
+branch_courante       : main
 
-## Alignement stack
+---
+
+## JALONS — REGISTRE COMPLET
+
+| Jalon    | Statut | Tag          | Commit  | Date       | Livrables principaux                        |
+|----------|--------|--------------|---------|------------|---------------------------------------------|
+| PRE0     | DONE   | absent       | d56dd32 | 2026-03-09 | SYSTEM_CONTRACT.md + validate_mrd_state.py  |
+| MRD-0    | DONE   | mrd-0-done   | 4b2fab8 | 2026-03-09 | DMS_MRD_PLAN_V1.md + FREEZE_HASHES.md       |
+| MRD-1    | DONE   | mrd-1-done   | b939e3b | 2026-03-08 | ADR-MRD-001 + migrations m7_4 + m7_4a       |
+| MRD-2    | DONE   | mrd-2-done   | a3067fb | 2026-03-09 | ADR-MRD2-GENETIC + 5 tests contrat          |
+| MRD-3    | DONE   | (legacy)     | b905ad4 | 2026-03-08 | CASCADE FK neutralisee DEF-MRD3-01/06       |
+| MRD-4    | DONE   | mrd-4-done   | 831117b | 2026-03-09 | fingerprint + triggers + rebuild 1490 items |
+| MRD-5    | DONE   | mrd-5-done   | 29efbc6 | 2026-03-09 | item_code LG-YYYYMM-NNNNNN + ADR-MRD5       |
+| MRD-6    | DONE   | mrd-6-done   | 226b4dd | 2026-03-09 | taxo L1/L2/L3 + label_status + collisions   |
+| M8       | -      | -            | -       | -          | Market Survey (V4 reprend)                  |
+
+---
+
+## STACK ALEMBIC
 
 local_alembic_head        : m7_7_genome_stable
 local_alembic_current     : m7_7_genome_stable
 railway_alembic_head      : m7_4b
 aligned_schema            : NON
-railway_migration_pending : OUI — m7_5 + m7_6 + m7_7 a appliquer Railway
-railway_access_method     : RAILWAY_DATABASE_URL direct (.env)
-railway_cli               : ABSENT
 
-## Donnees
+### Migrations Railway pendantes (a appliquer dans ordre)
 
-local_dict_items_actifs    : 1490
-local_avec_fingerprint     : 1490
-local_avec_item_code       : 1490
-local_avec_taxo_l1         : 1287 (coverage 86.38%)
-local_label_status_draft   : 1490
-local_label_status_valide  : 0
-collisions_unresolved      : 610
-railway_vendors            : 661
-railway_mercurials         : 27396
+  1. m7_5_fingerprint_triggers  (fingerprint + triggers identite)
+  2. m7_6_item_code             (colonne item_code)
+  3. m7_7_genome_stable         (label_status + taxo_l1/2/3 + collision trigger)
 
-## Defaillances MRD-3
+  Commande Railway (apres GO CTO explicite) :
+    railway run alembic upgrade m7_5_fingerprint_triggers
+    railway run alembic upgrade m7_6_item_code
+    railway run alembic upgrade m7_7_genome_stable
+    Verifier : railway run alembic current
 
-mrd3_merged_with_deficiencies : OUI
-DEF-MRD3-01 a DEF-MRD3-06    : TOUTES CORRIGEES MRD-4
+railway_access_method     : RAILWAY_DATABASE_URL dans .env (direct)
+railway_cli               : ABSENT (node/npm absents sur ce poste)
 
-## STOPs actifs
+---
 
-STOP-TRG-1 : RESOLU — trg_protect_item_identity present
-STOP-TRG-2 : RESOLU — trg_protect_item_with_aliases present
+## SCHEMA DB — COUCHE B
 
-## Hash chain
+### Table couche_b.procurement_dict_items
 
-FREEZE_HASHES.md               : docs/freeze/FREEZE_HASHES.md
-DMS_V4.1.0_FREEZE.md           : hache OK
-DMS_ORCHESTRATION_FRAMEWORK_V1 : hache OK
-SYSTEM_CONTRACT.md             : hache OK
-DMS_MRD_PLAN_V1.md             : hache OK
-BASELINE_MRD_PRE_REBUILD.md    : hache OK
+  Cle primaire   : item_id       TEXT  (pas item_uid — n'existe pas)
+  Label reel     : label_fr      TEXT  (pas label — n'existe pas)
+  label_en       : TEXT          (present mais non utilise dans MRD)
+  fingerprint    : TEXT          sha256(normalize(label_fr)|source_type)
+  item_code      : TEXT          format LG-YYYYMM-NNNNNN
+  birth_source   : TEXT CHECK    mercuriale|imc|seed|manual|legacy|unknown
+  birth_run_id   : UUID
+  birth_timestamp: TIMESTAMPTZ
+  label_status   : TEXT NOT NULL draft|validated|deprecated  DEFAULT draft
+  taxo_l1        : TEXT          (1287/1490 remplis)
+  taxo_l2        : TEXT
+  taxo_l3        : TEXT
+  taxo_version   : TEXT          1.0
+  item_type      : TEXT          (pre-existant M7)
+  quality_score  : SMALLINT      (pre-existant M7)
+  active         : BOOLEAN       DEFAULT TRUE
 
-## Historique jalons
+### Table couche_b.procurement_dict_aliases
 
-MRD-PRE0 : DONE — tag absent — commit d56dd32 (2026-03-09)
-MRD-0    : DONE — tag mrd-0-done — commit 4b2fab8 (2026-03-09)
-MRD-1    : DONE — tag mrd-1-done — commit b939e3b (2026-03-08)
-MRD-2    : DONE — tag mrd-2-done — commit a3067fb (2026-03-09)
-MRD-4    : DONE — tag mrd-4-done — commit 831117b (2026-03-09)
-MRD-5    : DONE — tag mrd-5-done — commit 29efbc6 (2026-03-09)
-MRD-6    : DONE — tag mrd-6-done — commit 820023fff2db6fa2adc8a4eb309c120d63e2e290
+  Cle primaire   : alias_id      TEXT
+  FK vers items  : item_id       TEXT (RESTRICT — pas CASCADE)
+  Colonnes       : alias_raw, normalized_alias, source, confidence
+  Note           : PAS de colonne active — table complete = active
 
-## Regle agent
+### Table public.dict_collision_log
 
-Si next_milestone != milestone du mandat recu
--> STOP immediat. Format Section 8 MRD_PLAN. Poster au CTO.
+  Schema         : public (V4 — pas couche_b)
+  fuzzy_score    : double precision — echelle 0.0 a 1.0 (pas 0-100)
+  resolution     : 'unresolved'|'auto_merged'|'proposal_created' (CHECK)
+  item_a_id      : varchar(64)   (tronquer si item_id > 64 chars)
+  item_b_id      : varchar(64)
+  category_match : boolean NOT NULL (mettre FALSE si inconnu)
+  unit_match     : boolean NOT NULL (mettre FALSE si inconnu)
+
+### Triggers sur couche_b.procurement_dict_items
+
+  trg_protect_item_identity      BEFORE UPDATE  (immuabilite item_id, fingerprint, item_code, label_fr si validated)
+  trg_protect_item_with_aliases  BEFORE DELETE  (interdit si aliases presents)
+  trg_block_legacy_family_insert BEFORE INSERT  (block family_id legacy)
+  trg_block_legacy_family_update BEFORE UPDATE  (block family_id legacy)
+  trg_compute_quality_score      BEFORE INSERT/UPDATE
+  trg_dict_compute_hash          BEFORE UPDATE
+  trg_dict_write_audit           AFTER UPDATE
+
+---
+
+## DONNEES EN BASE
+
+### Local (localhost:5432/dms)
+
+  dict_items_actifs           : 1490
+  dict_items_avec_fingerprint : 1490  (100%)
+  dict_items_avec_item_code   : 1490  (100%)
+  dict_items_avec_taxo_l1     : 1287  (86.38%)
+  dict_items_label_status     : 1490 draft / 0 validated / 0 deprecated
+  aliases_total               : 1596
+  mercurials                  : 27 396
+  vendors                     : 0     (pas d'ETL local execute)
+  birth_source_dominant       : unknown (tous les 1490 items)
+  item_code_format            : LG-202603-000001 a LG-202603-001490
+
+### Railway (maglev.proxy.rlwy.net:35451/railway — PostgreSQL 17.7)
+
+  alembic_version      : m7_4b  (3 migrations en retard)
+  vendors              : 661
+  mercurials           : 27 396
+  dict_items_actifs    : 0      (pas encore ingere en prod)
+  aliases              : 0
+  seeds_validated      : 0
+
+### Collisions detectees
+
+  total_collisions    : 610
+  status_unresolved   : 610
+  resolution          : humain uniquement (REGLE-26)
+
+---
+
+## DEFAILLANCES MRD-3
+
+  Toutes les 6 defaillances sont CORRIGEES dans MRD-4 :
+  DEF-MRD3-01 : numero migration delegue — CORRIGE MRD-4
+  DEF-MRD3-02 : cycle test sans alembic current — CORRIGE MRD-4
+  DEF-MRD3-03 : downgrade() sans fail-loud — CORRIGE MRD-4
+  DEF-MRD3-04 : tests head DB hardcodes — CORRIGE MRD-4 + fix CI
+  DEF-MRD3-05 : colonne fingerprint absente — CORRIGE MRD-4
+  DEF-MRD3-06 : triggers protection absents — CORRIGE MRD-4
+
+---
+
+## STOPS ACTIFS
+
+  Aucun STOP bloquant actif.
+  STOP-TRG-1 : RESOLU — trg_protect_item_identity present
+  STOP-TRG-2 : RESOLU — trg_protect_item_with_aliases present
+
+---
+
+## HASH CHAIN DOCUMENTS GELES
+
+  Fichier de reference : docs/freeze/FREEZE_HASHES.md
+
+  DMS_V4.1.0_FREEZE.md              : e892d783471639e67db8fc17c8de9366f81b37172554783b942993b815ea9ad4
+  DMS_ORCHESTRATION_FRAMEWORK_V1.md : 66a6961d20f88a51cb9d0efb8bba4531e648cb4e4e5acf40edf3fd2d9f011cf6
+  SYSTEM_CONTRACT.md                 : 92acb422b6066db7375e2d7e2b4131c8abe373437c4da6363b8aa8e6735aba27
+  DMS_MRD_PLAN_V1.md                 : a0ceb151e36d2eb098d12f9ea6c9d0f712a772fca1db9093492d67464b2854ed
+  BASELINE_MRD_PRE_REBUILD.md        : d1093db69e504ae184e15e0ba2db1f9418eada6f2cf79fcb6fac1e51dabab1fd
+
+  Verifier integrite : python scripts/validate_mrd_state.py
+
+---
+
+## CI/CD
+
+  Workflows actifs :
+    ci-main.yml              — tests principaux
+    ci-invariants.yml        — tests invariants
+    ci-milestones-gates.yml  — gates milestones
+    ci-freeze-integrity.yml  — integrite freeze
+    ci-lint-ruff.yml         — linting
+    ci-format-black.yml      — formatting
+    ci-regenerate-freeze-checksums.yml
+
+  Rappel CI : ruff + black obligatoires avant tout commit migration/script
+
+---
+
+## REGLES OPERATIONNELLES POUR L'AGENT
+
+### Avant toute session de travail
+
+  1. python scripts/validate_mrd_state.py
+     Si exit(1) -> STOP. Poster. Attendre GO CTO.
+  2. Verifier next_milestone = milestone du mandat recu
+  3. Verifier tag mrd-{N-1}-done present si applicable
+
+### Avant tout commit migration
+
+  python -m ruff check alembic/versions/[fichier].py
+  python -m black alembic/versions/[fichier].py
+  python -m ruff check alembic/versions/[fichier].py  # re-verif
+  python -m black --check alembic/versions/[fichier].py  # confirmer
+
+### Cycle migration obligatoire
+
+  alembic current  # verifier point de depart
+  alembic upgrade [rev]
+  alembic current  # doit = [rev]
+  alembic heads    # doit = [rev]
+  alembic downgrade [rev-1]
+  alembic current  # doit = [rev-1]
+  alembic upgrade [rev]
+  alembic current  # doit = [rev] — confirmer
+
+### Mise a jour MRD_CURRENT_STATE en fin de milestone
+
+  Mettre a jour :
+    last_completed, last_completed_at, last_merge_commit, last_tag
+    next_milestone, next_status
+    local_alembic_head, local_alembic_current
+    donnees en base (counts reels)
+    stops actifs
+    jalons (tableau)
+  Committer avec :
+    git commit -m "chore: MRD_CURRENT_STATE last_commit [MRD-N]"
+
+---
+
+## REGLE AGENT — VERIFICATION MILESTONE
+
+  Si next_milestone != milestone du mandat recu
+  -> STOP immediat
+  -> Format Section 8 DMS_MRD_PLAN_V1.md
+  -> Poster au CTO
+  -> Zero action
