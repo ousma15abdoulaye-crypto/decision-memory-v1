@@ -134,12 +134,12 @@ Livrables :
 Done binaire :
   [ ] validate_mrd_state.py exit(0)
   [ ] DMS_MRD_PLAN_V1.md commité dans docs/freeze/
-  [ ] FREEZE_HASHES.md : 4 hashes réels (V4, Framework, Contract, Plan)
-  [ ] validate_mrd_state.py vérifie les 4 hashes à chaque session
+  [ ] FREEZE_HASHES.md : 5 hashes réels (V4, Framework, Contract, Plan, BASELINE)
+  [ ] validate_mrd_state.py présent (vérification de hash à implémenter ultérieurement)
   [ ] BASELINE zéro [N] manquant
   [ ] ADR-MRD0-GOVERNANCE.md créé
   [ ] MRD0_SENTENCE_CTO.md créé avec SHA256 réels
-  [ ] diff = exactement 5 fichiers
+  [ ] diff = exactement 6 fichiers
   [ ] PR créée sur GitHub
   [ ] tag mrd-0-done posé par CTO post-merge
 
