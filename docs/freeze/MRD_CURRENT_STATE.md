@@ -1,32 +1,33 @@
 # MRD_CURRENT_STATE
 # Mis a jour uniquement par AO apres chaque merge valide
-# Exception : agent autorise en MRD-4 ETAPE 10 (mandat de fondation)
+# Exception : agent autorise en MRD-5 ETAPE 9
 # Derniere mise a jour : 2026-03-09
 
 plan_version          : DMS_MRD_PLAN_V1
-last_completed        : MRD-4
+last_completed        : MRD-5
 last_completed_at     : 2026-03-09
-last_commit           : f4b5c67e6c59dee14a33f745fdc0db4de4b447de
-last_tag              : mrd-4-done
-next_milestone        : MRD-5
+last_commit           : 3b0d8df196660da094c26b9f9c29c86312f7af21
+last_tag              : mrd-5-done
+next_milestone        : MRD-6
 next_status           : NOT_STARTED
 blocked_on            : aucun
 
 ## Alignement stack
 
-local_alembic_head        : m7_5_fingerprint_triggers
-local_alembic_current     : m7_5_fingerprint_triggers
+local_alembic_head        : m7_6_item_code
+local_alembic_current     : m7_6_item_code
 railway_alembic_head      : m7_4b
-aligned_schema            : NON — m7_5 non applique Railway
-railway_migration_pending : OUI
+aligned_schema            : NON
+railway_migration_pending : OUI — m7_5 + m7_6 a appliquer Railway
 railway_access_method     : RAILWAY_DATABASE_URL direct (.env)
 railway_cli               : ABSENT
 
 ## Donnees
 
 local_dict_items_actifs  : 1490
-local_aliases            : 1596
-local_fingerprint_coverage: 1490/1490 (100%)
+local_avec_fingerprint   : 1490
+local_avec_item_code     : 1490
+local_sans_item_code     : 0
 railway_vendors          : 661
 railway_mercurials       : 27396
 
@@ -55,7 +56,8 @@ MRD-PRE0 : DONE — tag absent — commit d56dd32 (2026-03-09)
 MRD-0    : DONE — tag mrd-0-done — commit 4b2fab8 (2026-03-09)
 MRD-1    : DONE — tag mrd-1-done — commit b939e3b (2026-03-08)
 MRD-2    : DONE — tag mrd-2-done — commit a3067fb (2026-03-09)
-MRD-4    : DONE — tag mrd-4-done — commit f4b5c67e6c59dee14a33f745fdc0db4de4b447de
+MRD-4    : DONE — tag mrd-4-done — commit 831117b (2026-03-09)
+MRD-5    : DONE — tag mrd-5-done — commit 3b0d8df196660da094c26b9f9c29c86312f7af21
 
 ## Regle agent
 
