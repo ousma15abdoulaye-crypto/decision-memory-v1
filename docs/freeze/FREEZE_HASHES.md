@@ -1,6 +1,6 @@
 # FREEZE_HASHES
 # SHA256 documents gelés — référence centrale
-# Vérifié par validate_mrd_state.py à chaque session
+# À vérifier manuellement (vérification automatique par validate_mrd_state.py à implémenter)
 # Modifiable uniquement par AO
 # Dernière mise à jour : 2026-03-09 — MRD-0
 
