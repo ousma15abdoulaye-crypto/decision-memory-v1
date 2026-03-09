@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-validate_mrd_state.py
----------------------
+validate_mrd_state.py  v2
+-------------------------
 Outil CTO -- executer avant chaque session de travail.
 Donne une vue complete de l'etat du systeme en < 15 secondes.
 Zero ecriture. Lecture seule.
@@ -10,6 +10,9 @@ Zero ecriture. Lecture seule.
 Usage :
   python scripts/validate_mrd_state.py
   python scripts/validate_mrd_state.py --railway   # probe Railway aussi
+
+v2 : ajout check_system_contract() -- CONTRACT-01/02/04/05
+     appelé en PREMIER dans main(), avant tout autre check.
 """
 
 import io
@@ -44,7 +47,7 @@ def stop(code: str, msg: str):
 
 
 def _load_dotenv():
-    """Charge .env dans os.environ si présent (sans dépendance python-dotenv)."""
+    """Charge .env dans os.environ si present (sans dependance python-dotenv)."""
     env_path = Path(".env")
     if not env_path.exists():
         return
@@ -57,10 +60,106 @@ def _load_dotenv():
 
 
 def _normalize_db_url(url: str) -> str:
-    """Convertit postgresql+psycopg:// → postgresql:// pour psycopg3 direct."""
+    """Convertit postgresql+psycopg:// en postgresql:// pour psycopg3 direct."""
     if url.startswith("postgresql+psycopg://"):
         return url.replace("postgresql+psycopg://", "postgresql://", 1)
     return url
+
+
+# ── C0 : Verification SYSTEM_CONTRACT present ────────────────────────────
+def check_system_contract() -> bool:
+    head("SYSTEM CONTRACT")
+
+    # SYSTEM_CONTRACT.md doit exister
+    contract_path = Path("docs/freeze/SYSTEM_CONTRACT.md")
+    if not contract_path.exists():
+        stop(
+            "SC00",
+            "SYSTEM_CONTRACT.md absent -- "
+            "fondation manquante -- ne pas continuer"
+        )
+        return False
+    ok("SYSTEM_CONTRACT.md : present")
+
+    # MRD_CURRENT_STATE.md doit exister
+    state_path = Path("docs/freeze/MRD_CURRENT_STATE.md")
+    if not state_path.exists():
+        stop(
+            "SC01",
+            "MRD_CURRENT_STATE.md absent -- "
+            "etat courant inconnu -- ne pas continuer"
+        )
+        return False
+    ok("MRD_CURRENT_STATE.md : present")
+
+    # BASELINE (warning seulement -- absente avant MRD-1)
+    baseline_path = Path("docs/freeze/BASELINE_MRD_PRE_REBUILD.md")
+    if not baseline_path.exists():
+        warn(
+            "BASELINE_MRD_PRE_REBUILD.md absente -- "
+            "MRD-1 non complete (attendu)"
+        )
+    else:
+        ok("BASELINE_MRD_PRE_REBUILD.md : presente")
+
+    # CONTRACT-02 : DATABASE_URL ne doit pas pointer Railway
+    _load_dotenv()
+    db_url = os.environ.get("DATABASE_URL", "")
+    if db_url and ("railway" in db_url.lower() or "rlwy" in db_url.lower()):
+        stop(
+            "SC02",
+            "CONTRACT-02 VIOLE -- "
+            "DATABASE_URL contient 'railway' -- interdit en local"
+        )
+        return False
+    if db_url:
+        ok("CONTRACT-02 : DATABASE_URL locale (pas railway)")
+    else:
+        warn("CONTRACT-02 : DATABASE_URL absente -- sera verifie dans check_env()")
+
+    # CONTRACT-04 : lire next_milestone
+    content = state_path.read_text(encoding="utf-8")
+    next_ms = None
+    for line in content.splitlines():
+        if line.strip().startswith("next_milestone"):
+            parts = line.split(":")
+            if len(parts) >= 2:
+                next_ms = parts[1].strip()
+                break
+    if next_ms:
+        ok(f"CONTRACT-04 : next_milestone = {next_ms}")
+        info(
+            f"Si ton mandat != {next_ms} "
+            "-> STOP avant toute action"
+        )
+    else:
+        warn("next_milestone non lisible dans MRD_CURRENT_STATE.md")
+
+    # CONTRACT-05 : verifier tag du dernier milestone complete
+    last_completed = None
+    for line in content.splitlines():
+        if line.strip().startswith("last_completed"):
+            parts = line.split(":")
+            if len(parts) >= 2:
+                last_completed = parts[1].strip()
+                break
+
+    if last_completed and last_completed not in ("NONE", "N/A", ""):
+        tag_check = subprocess.run(
+            ["git", "tag", "--list", "mrd-*-done"],
+            capture_output=True, text=True
+        )
+        tags = tag_check.stdout.strip().splitlines()
+        raw = last_completed.lower().replace("mrd-", "").split()[0]
+        expected_tag = f"mrd-{raw}-done"
+        if any(expected_tag in t for t in tags):
+            ok(f"CONTRACT-05 : tag {expected_tag} present")
+        else:
+            warn(
+                f"CONTRACT-05 : tag {expected_tag} absent -- "
+                "peut indiquer merge sans tag CTO"
+            )
+    return True
 
 
 # ── S0 : Variables d'environnement ───────────────────────────────────────
@@ -68,10 +167,10 @@ def check_env() -> tuple[str, str, str, bool]:
     head("ENVIRONNEMENT")
     _load_dotenv()
 
-    db_url          = os.environ.get("DATABASE_URL", "")
-    railway_db_url  = os.environ.get("RAILWAY_DATABASE_URL", "")
-    env             = os.environ.get("ENV", "unknown")
-    redis           = os.environ.get("REDIS_URL", "")
+    db_url         = os.environ.get("DATABASE_URL", "")
+    railway_db_url = os.environ.get("RAILWAY_DATABASE_URL", "")
+    env            = os.environ.get("ENV", "unknown")
+    redis          = os.environ.get("REDIS_URL", "")
 
     if not db_url:
         stop("ENV", "DATABASE_URL absente (ni shell ni .env)")
@@ -79,17 +178,17 @@ def check_env() -> tuple[str, str, str, bool]:
         is_railway = "railway" in db_url.lower() or "rlwy" in db_url.lower()
         db_type = "RAILWAY" if is_railway else "LOCAL"
         if is_railway:
-            warn(f"DATABASE_URL → {db_type} (prod — attention)")
+            warn(f"DATABASE_URL -> {db_type} (prod -- attention)")
         else:
-            ok(f"DATABASE_URL → {db_type}")
+            ok(f"DATABASE_URL -> {db_type}")
 
     if railway_db_url:
-        ok("RAILWAY_DATABASE_URL → DÉFINIE")
+        ok("RAILWAY_DATABASE_URL -> DEFINIE")
     else:
-        warn("RAILWAY_DATABASE_URL → ABSENTE")
+        warn("RAILWAY_DATABASE_URL -> ABSENTE")
 
     info(f"ENV={env}")
-    ok(f"REDIS_URL={'DÉFINIE' if redis else 'ABSENTE'}")
+    ok(f"REDIS_URL={'DEFINIE' if redis else 'ABSENTE'}")
 
     is_railway_local = bool(db_url) and (
         "railway" in db_url.lower() or "rlwy" in db_url.lower()
@@ -118,7 +217,7 @@ def check_git() -> str:
     ).stdout.strip()
     if stash:
         count = len(stash.splitlines())
-        warn(f"Stash non vide : {count} entrée(s)")
+        warn(f"Stash non vide : {count} entree(s)")
     else:
         ok("Stash : vide")
 
@@ -127,7 +226,7 @@ def check_git() -> str:
         capture_output=True, text=True
     ).stdout.strip()
     if dirty:
-        warn(f"Fichiers modifiés non commités :\n  {dirty}")
+        warn(f"Fichiers modifies non commites :\n  {dirty}")
     else:
         ok("Working tree : propre")
 
@@ -162,7 +261,7 @@ def check_alembic() -> tuple[list, str]:
     elif len(head_lines) == 0:
         stop("ALC1", "alembic heads = 0 lignes")
     else:
-        stop("ALC2", f"alembic heads = {len(head_lines)} têtes : {head_lines}")
+        stop("ALC2", f"alembic heads = {len(head_lines)} tetes : {head_lines}")
 
     info(f"Current (DB locale) : {current_line}")
     return head_lines, current_line
@@ -182,13 +281,13 @@ def check_db(db_url: str) -> dict:
     }
 
     if not db_url:
-        err("DATABASE_URL absente — skip probe DB")
+        err("DATABASE_URL absente -- skip probe DB")
         return result
 
     try:
         import psycopg
     except ImportError:
-        err("psycopg non installé — pip install psycopg[binary]")
+        err("psycopg non installe -- pip install psycopg[binary]")
         return result
 
     conn_url = _normalize_db_url(db_url)
@@ -209,7 +308,7 @@ def check_db(db_url: str) -> dict:
             result["alembic_version"] = [r[0] for r in rows]
             ok(f"alembic_version DB : {result['alembic_version']}")
         except Exception as e:
-            warn(f"alembic_version : ERREUR — {e}")
+            warn(f"alembic_version : ERREUR -- {e}")
 
         cur.execute("""
             SELECT schema_name FROM information_schema.schemata
@@ -219,7 +318,7 @@ def check_db(db_url: str) -> dict:
             ORDER BY schema_name
         """)
         result["schemas"] = [r[0] for r in cur.fetchall()]
-        ok(f"Schémas : {result['schemas']}")
+        ok(f"Schemas : {result['schemas']}")
 
         if "couche_b" in result["schemas"]:
             for label, q in [
@@ -239,7 +338,7 @@ def check_db(db_url: str) -> dict:
                     result["counts"][label] = val
                     ok(f"{label:35} : {val}")
                 except Exception as e:
-                    warn(f"{label} : ERREUR — {e}")
+                    warn(f"{label} : ERREUR -- {e}")
 
             # Triggers critiques
             cur.execute("""
@@ -260,7 +359,7 @@ def check_db(db_url: str) -> dict:
             if missing:
                 stop("TRG", f"Triggers manquants : {missing}")
             else:
-                ok("Triggers critiques : tous présents")
+                ok("Triggers critiques : tous presents")
 
             # CASCADE FK
             cur.execute("""
@@ -278,9 +377,9 @@ def check_db(db_url: str) -> dict:
             """)
             result["cascades"] = cur.fetchall()
             if result["cascades"]:
-                stop("CAS", f"CASCADE FK détectée : {result['cascades']}")
+                stop("CAS", f"CASCADE FK detectee : {result['cascades']}")
             else:
-                ok("CASCADE FK : aucune ✓")
+                ok("CASCADE FK : aucune")
 
         if "public" in result["schemas"]:
             for label, q in [
@@ -293,14 +392,14 @@ def check_db(db_url: str) -> dict:
                     result["counts"][label] = val
                     ok(f"{label:35} : {val}")
                 except Exception as e:
-                    warn(f"{label} : ERREUR — {e}")
+                    warn(f"{label} : ERREUR -- {e}")
 
         conn.close()
 
     except Exception as e:
         stop("DB", f"DB inaccessible : {e}")
-        err("Vérifier que PostgreSQL local est démarré")
-        err("Vérifier DATABASE_URL dans .env")
+        err("Verifier que PostgreSQL local est demarre")
+        err("Verifier DATABASE_URL dans .env")
 
     return result
 
@@ -311,7 +410,7 @@ def check_railway_db(railway_db_url: str) -> dict:
     result = {"accessible": False, "alembic_version": None, "counts": {}}
 
     if not railway_db_url:
-        warn("RAILWAY_DATABASE_URL absente — skip probe Railway")
+        warn("RAILWAY_DATABASE_URL absente -- skip probe Railway")
         return result
 
     try:
@@ -331,7 +430,7 @@ def check_railway_db(railway_db_url: str) -> dict:
             result["alembic_version"] = [r[0] for r in rows]
             ok(f"Railway alembic_version : {result['alembic_version']}")
         except Exception as e:
-            warn(f"Railway alembic_version : ERREUR — {e}")
+            warn(f"Railway alembic_version : ERREUR -- {e}")
 
         cur.execute("""
             SELECT schema_name FROM information_schema.schemata
@@ -339,7 +438,7 @@ def check_railway_db(railway_db_url: str) -> dict:
             ORDER BY schema_name
         """)
         schemas = [r[0] for r in cur.fetchall()]
-        ok(f"Railway schémas : {schemas}")
+        ok(f"Railway schemas : {schemas}")
 
         if "couche_b" in schemas:
             for label, q in [
@@ -357,7 +456,7 @@ def check_railway_db(railway_db_url: str) -> dict:
                     result["counts"][label] = val
                     ok(f"{label:40} : {val}")
                 except Exception as e:
-                    warn(f"{label} : ERREUR — {e}")
+                    warn(f"{label} : ERREUR -- {e}")
 
         if "public" in schemas:
             for label, q in [
@@ -370,7 +469,7 @@ def check_railway_db(railway_db_url: str) -> dict:
                     result["counts"][label] = val
                     ok(f"{label:40} : {val}")
                 except Exception as e:
-                    warn(f"{label} : ERREUR — {e}")
+                    warn(f"{label} : ERREUR -- {e}")
 
         conn.close()
 
@@ -403,34 +502,45 @@ def check_mrd_state() -> dict:
 
 # ── S6 : Alignement repo vs DB ────────────────────────────────────────────
 def check_alignment(head_lines: list, db_result: dict, railway_result: dict):
-    head("ALIGNEMENT REPO ↔ LOCAL ↔ RAILWAY")
-    repo_head  = head_lines[0] if head_lines else None
-    local_ver  = db_result.get("alembic_version", [])
-    rail_ver   = railway_result.get("alembic_version", [])
+    head("ALIGNEMENT REPO <-> LOCAL <-> RAILWAY")
+    repo_head = head_lines[0] if head_lines else None
+    local_ver = db_result.get("alembic_version", [])
+    rail_ver  = railway_result.get("alembic_version", [])
 
     if repo_head and local_ver:
         if repo_head in local_ver:
-            ok(f"REPO ↔ LOCAL  : ALIGNÉ   ({repo_head})")
+            ok(f"REPO <-> LOCAL  : ALIGNE   ({repo_head})")
         else:
-            stop("ALN-LOCAL", f"DÉSALIGNÉ repo={repo_head} local={local_ver}")
+            stop("ALN-LOCAL", f"DESALIGNE repo={repo_head} local={local_ver}")
     else:
-        warn("REPO ↔ LOCAL  : non vérifiable")
+        warn("REPO <-> LOCAL  : non verifiable")
 
     if repo_head and rail_ver:
         if repo_head in rail_ver:
-            ok(f"REPO ↔ RAILWAY: ALIGNÉ   ({repo_head})")
+            ok(f"REPO <-> RAILWAY: ALIGNE   ({repo_head})")
         else:
-            stop("ALN-RAIL", f"DÉSALIGNÉ repo={repo_head} railway={rail_ver}")
+            stop("ALN-RAIL", f"DESALIGNE repo={repo_head} railway={rail_ver}")
     elif not rail_ver:
-        warn("REPO ↔ RAILWAY: non vérifiable (Railway inaccessible ou RAILWAY_DATABASE_URL absente)")
+        warn(
+            "REPO <-> RAILWAY: non verifiable "
+            "(Railway inaccessible ou RAILWAY_DATABASE_URL absente)"
+        )
 
 
 # ── Main ──────────────────────────────────────────────────────────────────
 def main():
     print(f"\n{BOLD}{'='*55}{RESET}")
-    print(f"{BOLD}  DMS — VALIDATE MRD STATE{RESET}")
+    print(f"{BOLD}  DMS -- VALIDATE MRD STATE v2{RESET}")
     print(f"{BOLD}{'='*55}{RESET}")
 
+    # CONTRACT CHECK EN PREMIER -- avant tout
+    contracts_ok = check_system_contract()
+    if not contracts_ok:
+        print(f"\n{RED}{BOLD}CONTRACTS VIOLES -- arret immediat{RESET}")
+        print(f"{RED}Poster ce resultat au CTO{RESET}")
+        sys.exit(1)
+
+    # Suite normale
     db_url, railway_db_url, env, is_railway = check_env()
     check_git()
     head_lines, current = check_alembic()
@@ -443,15 +553,15 @@ def main():
 
     check_alignment(head_lines, db_result, railway_result)
 
-    head("VERDICT")
+    head("VERDICT FINAL")
     if STOPS_DETECTED:
-        print(f"\n{RED}{BOLD}STOPS DÉTECTÉS — NE PAS COMMENCER DE MILESTONE{RESET}")
+        print(f"\n{RED}{BOLD}STOPS DETECTES -- NE PAS COMMENCER DE MILESTONE{RESET}")
         for s in STOPS_DETECTED:
             err(s)
-        print(f"\n{RED}Poster ce résultat au CTO avant toute action.{RESET}")
+        print(f"\n{RED}Poster au CTO. Zero action.{RESET}")
         sys.exit(1)
     else:
-        print(f"\n{GREEN}{BOLD}SYSTÈME OK — PRÊT POUR LECTURE DU MANDAT{RESET}")
+        print(f"\n{GREEN}{BOLD}SYSTEME OK -- PRET POUR MANDAT{RESET}")
         sys.exit(0)
 
 
