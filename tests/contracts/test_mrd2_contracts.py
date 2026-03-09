@@ -205,13 +205,6 @@ def test_ct05_fingerprint_stable():
 
 # ── CT-ROUGE-01 : trigger protect_item_identity ABSENT ───────────────────
 
-@pytest.mark.xfail(
-    reason=(
-        "DEF-MRD3-06 — trg_protect_item_identity absent. "
-        "Corrigé dans MRD-4. Ce test devient VERT après MRD-4."
-    ),
-    strict=True,
-)
 def test_ct_rouge_01_trigger_protect_item_identity(db_conn):
     """
     INTENTIONNELLEMENT ROUGE — DEF-MRD3-06.
@@ -236,13 +229,6 @@ def test_ct_rouge_01_trigger_protect_item_identity(db_conn):
 
 # ── CT-ROUGE-02 : trigger protect_item_with_aliases ABSENT ───────────────
 
-@pytest.mark.xfail(
-    reason=(
-        "DEF-MRD3-06 — trg_protect_item_with_aliases absent. "
-        "Corrigé dans MRD-4. Ce test devient VERT après MRD-4."
-    ),
-    strict=True,
-)
 def test_ct_rouge_02_trigger_protect_item_with_aliases(db_conn):
     """
     INTENTIONNELLEMENT ROUGE — DEF-MRD3-06.
