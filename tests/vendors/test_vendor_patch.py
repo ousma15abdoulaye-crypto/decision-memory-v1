@@ -230,13 +230,21 @@ def test_p9_td001_documented_in_technical_debt():
 
 
 def test_alembic_head_est_m7_4a(db_conn):
-    """alembic_version doit pointer sur le head courant (m7_4a_item_identity_doctrine)."""
+    """alembic_version DB doit correspondre au head repo courant (dynamique)."""
+    import subprocess
+    result = subprocess.run(["alembic", "heads"], capture_output=True, text=True)
+    repo_head = next(
+        (line.strip().split()[0] for line in result.stdout.splitlines()
+         if line.strip() and not line.startswith("INFO")),
+        None,
+    )
+    assert repo_head is not None, "alembic heads n'a retourné aucune valeur"
     with db_conn.cursor() as cur:
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert (
-        row["version_num"] == "m7_4a_item_identity_doctrine"
-    ), f"Head attendu : m7_4a_item_identity_doctrine — réel : {row['version_num']}"
+        row["version_num"] == repo_head
+    ), f"Head repo={repo_head} — DB={row['version_num']} — désaligné"
 
 
 # ── P11 : trigger rebuilt sans OR REPLACE ────────────────────────
