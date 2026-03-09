@@ -1,8 +1,6 @@
 # MRD_CURRENT_STATE
 # Mis à jour uniquement par AO après chaque merge validé
 # Un agent ne modifie jamais ce fichier
-# Exception unique MRD-0 : l'agent met à jour ce fichier
-# car MRD-0 est le mandat de fondation
 # Dernière mise à jour : 2026-03-09
 
 plan_version          : DMS_MRD_PLAN_V1
