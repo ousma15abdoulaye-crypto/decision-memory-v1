@@ -104,10 +104,10 @@ MRD-3 mergé avec défaillances DEF-MRD3-01 à DEF-MRD3-06
 ## SECTION 4 — FICHIER D'ÉTAT COURANT
 
   docs/freeze/MRD_CURRENT_STATE.md
-  Mis à jour uniquement par AO après chaque merge.
-  Jamais par un agent.
-  Contient : last_completed, next_milestone, alignement stack,
-             défaillances MRD-3, STOPs actifs, hash chain status.
+  Mis à jour principalement par AO après chaque merge.
+  Exception unique MRD-0 : l'agent peut mettre à jour en append-only
+  les champs explicitement autorisés dans docs/freeze/MRD_CURRENT_STATE.md,
+  conformément à docs/adr/ADR-MRD0-GOVERNANCE.md. Aucun autre update agent n'est autorisé.
 
 ---
 
