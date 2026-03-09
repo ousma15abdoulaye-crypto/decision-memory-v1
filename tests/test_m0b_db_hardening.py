@@ -206,9 +206,17 @@ def test_indexes_created(db_transaction):
 
 
 def test_alembic_head_is_current(db_transaction):
-    """Head = m7_4a_item_identity_doctrine (head courante après M7.4a)."""
+    """alembic_version DB doit correspondre au head repo courant (dynamique)."""
+    import subprocess
+    result = subprocess.run(["alembic", "heads"], capture_output=True, text=True)
+    repo_head = next(
+        (line.strip().split()[0] for line in result.stdout.splitlines()
+         if line.strip() and not line.startswith("INFO")),
+        None,
+    )
+    assert repo_head is not None, "alembic heads n'a retourné aucune valeur"
     db_transaction.execute("SELECT version_num FROM alembic_version")
     row = db_transaction.fetchone()
     assert (
-        row["version_num"] == "m7_4a_item_identity_doctrine"
-    ), f"Head attendu : m7_4a_item_identity_doctrine — réel : {row['version_num']}"
+        row["version_num"] == repo_head
+    ), f"Head repo={repo_head} — DB={row['version_num']} — désaligné"

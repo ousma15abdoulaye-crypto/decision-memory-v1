@@ -28,9 +28,18 @@ def _uid(prefix: str) -> str:
 class TestLegacyFamilyBlockM73b:
 
     def test_head_alembic_est_m7_4a(self, tx):
-        """HEAD Alembic = m7_4a_item_identity_doctrine."""
+        """HEAD Alembic DB = head repo courant (dynamique)."""
+        import subprocess
+        result = subprocess.run(["alembic", "heads"], capture_output=True, text=True)
+        repo_head = next(
+            (line.strip().split()[0] for line in result.stdout.splitlines()
+             if line.strip() and not line.startswith("INFO")),
+            None,
+        )
+        assert repo_head is not None, "alembic heads n'a retourné aucune valeur"
         r = tx.execute("SELECT version_num FROM alembic_version").fetchone()
-        assert r["version_num"] == "m7_4a_item_identity_doctrine"
+        assert r["version_num"] == repo_head, \
+            f"Head repo={repo_head} — DB={r['version_num']} — désaligné"
 
     def test_deux_triggers_actifs(self, tx):
         """Deux triggers INSERT + UPDATE présents · invariant M7.3b."""
