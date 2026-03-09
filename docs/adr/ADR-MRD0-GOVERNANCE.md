@@ -27,8 +27,8 @@ D3 — Séquence figée
 
 D4 — Hash chain documents fondateurs
   FREEZE_HASHES.md = référence centrale.
-  validate_mrd_state.py vérifie à chaque session.
-  Ordre : SYSTEM_CONTRACT → V4 → Framework → MRD_PLAN → BASELINE
+  Validation de la hash chain à chaque session (procédure manuelle à date ; automatisation future dans validate_mrd_state.py).
+  Ordre logique de la hash chain : SYSTEM_CONTRACT → V4 → Framework → MRD_PLAN → BASELINE
 
 D5 — Mémoire persistante externe
   MRD_CURRENT_STATE.md lu par tout agent en premier.
