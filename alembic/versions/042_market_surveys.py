@@ -47,7 +47,7 @@ def upgrade() -> None:
 
     op.execute("""
     -- CLASSIFICATION : GLOBAL_CORE
-    CREATE TABLE public.tracked_market_items (
+    CREATE TABLE IF NOT EXISTS public.tracked_market_items (
         id         UUID PRIMARY KEY
                    DEFAULT gen_random_uuid(),
         item_id    TEXT NOT NULL UNIQUE
@@ -60,7 +60,7 @@ def upgrade() -> None:
     );
 
     -- CLASSIFICATION : GLOBAL_CORE
-    CREATE TABLE public.tracked_market_zones (
+    CREATE TABLE IF NOT EXISTS public.tracked_market_zones (
         id         UUID PRIMARY KEY
                    DEFAULT gen_random_uuid(),
         zone_id    TEXT NOT NULL UNIQUE
@@ -74,7 +74,7 @@ def upgrade() -> None:
 
     -- CLASSIFICATION : GLOBAL_CORE
     -- Baskets systeme partages -- zero org_id
-    CREATE TABLE public.market_baskets (
+    CREATE TABLE IF NOT EXISTS public.market_baskets (
         id          UUID PRIMARY KEY
                     DEFAULT gen_random_uuid(),
         name        TEXT NOT NULL UNIQUE,
@@ -101,7 +101,7 @@ def upgrade() -> None:
 
     op.execute("""
     -- CLASSIFICATION : GLOBAL_CORE
-    CREATE TABLE public.zone_context_registry (
+    CREATE TABLE IF NOT EXISTS public.zone_context_registry (
         id                    UUID PRIMARY KEY
                               DEFAULT gen_random_uuid(),
         zone_id               TEXT NOT NULL
@@ -145,13 +145,13 @@ def upgrade() -> None:
                  OR valid_until >= valid_from)
     );
 
-    CREATE UNIQUE INDEX idx_zone_context_one_active
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_zone_context_one_active
       ON public.zone_context_registry(zone_id)
       WHERE valid_until IS NULL;
 
     -- CLASSIFICATION : GLOBAL_CORE
     -- Granularite taxo_l3 -- INSTAT via M9 uniquement
-    CREATE TABLE public.seasonal_patterns (
+    CREATE TABLE IF NOT EXISTS public.seasonal_patterns (
         id                       UUID PRIMARY KEY
                                  DEFAULT gen_random_uuid(),
         zone_id                  TEXT NOT NULL
@@ -185,7 +185,7 @@ def upgrade() -> None:
 
     -- CLASSIFICATION : GLOBAL_CORE
     -- Une ligne = un sens strict -- deux sens = deux lignes
-    CREATE TABLE public.geo_price_corridors (
+    CREATE TABLE IF NOT EXISTS public.geo_price_corridors (
         id                UUID PRIMARY KEY
                           DEFAULT gen_random_uuid(),
         zone_from         TEXT NOT NULL
@@ -215,7 +215,7 @@ def upgrade() -> None:
 
     op.execute("""
     -- CLASSIFICATION : GLOBAL_CORE -- APPEND-ONLY
-    CREATE TABLE public.zone_context_audit (
+    CREATE TABLE IF NOT EXISTS public.zone_context_audit (
         id                  UUID PRIMARY KEY
                             DEFAULT gen_random_uuid(),
         context_id          UUID NOT NULL
@@ -238,7 +238,7 @@ def upgrade() -> None:
     );
 
     -- CLASSIFICATION : GLOBAL_CORE
-    CREATE TABLE public.market_basket_items (
+    CREATE TABLE IF NOT EXISTS public.market_basket_items (
         id               UUID PRIMARY KEY
                          DEFAULT gen_random_uuid(),
         basket_id        UUID NOT NULL
@@ -260,7 +260,7 @@ def upgrade() -> None:
 
     op.execute("""
     -- CLASSIFICATION : TENANT_SCOPED
-    CREATE TABLE public.survey_campaigns (
+    CREATE TABLE IF NOT EXISTS public.survey_campaigns (
         id             UUID PRIMARY KEY
                        DEFAULT gen_random_uuid(),
         org_id         TEXT,
@@ -283,7 +283,7 @@ def upgrade() -> None:
     );
 
     -- CLASSIFICATION : TENANT_SCOPED
-    CREATE TABLE public.survey_campaign_items (
+    CREATE TABLE IF NOT EXISTS public.survey_campaign_items (
         id          UUID PRIMARY KEY
                     DEFAULT gen_random_uuid(),
         campaign_id UUID NOT NULL
@@ -297,7 +297,7 @@ def upgrade() -> None:
     );
 
     -- CLASSIFICATION : TENANT_SCOPED
-    CREATE TABLE public.survey_campaign_zones (
+    CREATE TABLE IF NOT EXISTS public.survey_campaign_zones (
         id          UUID PRIMARY KEY
                     DEFAULT gen_random_uuid(),
         campaign_id UUID NOT NULL
@@ -312,7 +312,7 @@ def upgrade() -> None:
     -- CLASSIFICATION : TENANT_SCOPED
     -- price_per_unit via trigger BEFORE INSERT
     -- collection_method : valeur mercuriale interdite par CHECK ci-dessous
-    CREATE TABLE public.market_surveys (
+    CREATE TABLE IF NOT EXISTS public.market_surveys (
         id                     UUID PRIMARY KEY
                                DEFAULT gen_random_uuid(),
         item_id                TEXT NOT NULL
@@ -367,7 +367,7 @@ def upgrade() -> None:
 
     -- CLASSIFICATION : TENANT_SCOPED
     -- Secteur-agnostique : ONG / Etat / Mines / Prive
-    CREATE TABLE public.price_anomaly_alerts (
+    CREATE TABLE IF NOT EXISTS public.price_anomaly_alerts (
         id                    UUID PRIMARY KEY
                               DEFAULT gen_random_uuid(),
         item_id               TEXT NOT NULL
@@ -578,7 +578,7 @@ def upgrade() -> None:
     # ══════════════════════════════════════════════════
 
     op.execute("""
-    CREATE MATERIALIZED VIEW public.market_coverage AS
+    CREATE MATERIALIZED VIEW IF NOT EXISTS public.market_coverage AS
     SELECT
         di.item_id,
         di.label_fr,
@@ -626,7 +626,7 @@ def upgrade() -> None:
 
     REFRESH MATERIALIZED VIEW public.market_coverage;
 
-    CREATE UNIQUE INDEX idx_market_coverage_pk
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_market_coverage_pk
       ON public.market_coverage(item_id, zone_id);
     """)
 
@@ -635,29 +635,29 @@ def upgrade() -> None:
     # ══════════════════════════════════════════════════
 
     op.execute("""
-    CREATE INDEX idx_ms_item_zone
+    CREATE INDEX IF NOT EXISTS idx_ms_item_zone
       ON public.market_surveys(item_id, zone_id);
-    CREATE INDEX idx_ms_date
+    CREATE INDEX IF NOT EXISTS idx_ms_date
       ON public.market_surveys(date_surveyed DESC);
-    CREATE INDEX idx_ms_validation
+    CREATE INDEX IF NOT EXISTS idx_ms_validation
       ON public.market_surveys(validation_status);
-    CREATE INDEX idx_ms_org
+    CREATE INDEX IF NOT EXISTS idx_ms_org
       ON public.market_surveys(org_id);
-    CREATE INDEX idx_ms_vendor
+    CREATE INDEX IF NOT EXISTS idx_ms_vendor
       ON public.market_surveys(vendor_id);
-    CREATE INDEX idx_ms_campaign
+    CREATE INDEX IF NOT EXISTS idx_ms_campaign
       ON public.market_surveys(campaign_id);
-    CREATE INDEX idx_zcr_zone
+    CREATE INDEX IF NOT EXISTS idx_zcr_zone
       ON public.zone_context_registry(zone_id);
-    CREATE INDEX idx_sp_zone_taxo
+    CREATE INDEX IF NOT EXISTS idx_sp_zone_taxo
       ON public.seasonal_patterns(zone_id, taxo_l3);
-    CREATE INDEX idx_gpc_from_to
+    CREATE INDEX IF NOT EXISTS idx_gpc_from_to
       ON public.geo_price_corridors(zone_from, zone_to);
-    CREATE INDEX idx_paa_item_zone
+    CREATE INDEX IF NOT EXISTS idx_paa_item_zone
       ON public.price_anomaly_alerts(item_id, zone_id);
-    CREATE INDEX idx_paa_level
+    CREATE INDEX IF NOT EXISTS idx_paa_level
       ON public.price_anomaly_alerts(alert_level);
-    CREATE INDEX idx_paa_org
+    CREATE INDEX IF NOT EXISTS idx_paa_org
       ON public.price_anomaly_alerts(org_id);
     """)
 
