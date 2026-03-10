@@ -39,10 +39,14 @@ def test_geo_table_exists(db_conn, table):
 def test_alembic_head_is_current(db_conn):
     """alembic_version DB doit correspondre au head repo courant (dynamique)."""
     import subprocess
+
     result = subprocess.run(["alembic", "heads"], capture_output=True, text=True)
     repo_head = next(
-        (line.strip().split()[0] for line in result.stdout.splitlines()
-         if line.strip() and not line.startswith("INFO")),
+        (
+            line.strip().split()[0]
+            for line in result.stdout.splitlines()
+            if line.strip() and not line.startswith("INFO")
+        ),
         None,
     )
     assert repo_head is not None, "alembic heads n'a retourné aucune valeur"
@@ -50,8 +54,9 @@ def test_alembic_head_is_current(db_conn):
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
     assert row is not None
-    assert row["version_num"] == repo_head, \
-        f"Head repo={repo_head} — DB={row['version_num']} — désaligné"
+    assert (
+        row["version_num"] == repo_head
+    ), f"Head repo={repo_head} — DB={row['version_num']} — désaligné"
 
 
 def test_fn_set_updated_at_exists(db_conn):

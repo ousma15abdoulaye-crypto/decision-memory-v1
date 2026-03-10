@@ -15,11 +15,15 @@ v2 : ajout check_system_contract() -- CONTRACT-01/02/04/05
      appelé en PREMIER dans main(), avant tout autre check.
 """
 
+import hashlib
 import io
 import os
-import sys
 import subprocess
+import sys
 from pathlib import Path
+
+FREEZE_HASHES_PATH = Path("docs/freeze/FREEZE_HASHES.md")
+DOCS_FREEZE_DIR = Path("docs/freeze")
 
 # Force UTF-8 sur stdout (Windows CP1252 sinon)
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
@@ -57,6 +61,68 @@ def _load_dotenv():
             if line and not line.startswith("#") and "=" in line:
                 k, v = line.split("=", 1)
                 os.environ.setdefault(k.strip(), v.strip())
+
+
+def check_freeze_hashes() -> bool:
+    """
+    Vérifier chaque SHA256 listé dans FREEZE_HASHES.md.
+    Format attendu : NOM_DOCUMENT.md = <sha256_64_chars>
+    Ligne vide ou # = ignorée.
+    Tout écart = exit(1). Zéro skip silencieux.
+    """
+    if not FREEZE_HASHES_PATH.exists():
+        print(f"ERREUR : {FREEZE_HASHES_PATH} absent")
+        return False
+
+    ok = True
+    checked = 0
+    errors = []
+
+    for raw_line in FREEZE_HASHES_PATH.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            errors.append(f"FORMAT INVALIDE : {line!r}")
+            ok = False
+            continue
+
+        doc_name, hash_expected = (p.strip() for p in line.split("=", 1))
+        hash_expected = hash_expected.lower()
+
+        if len(hash_expected) != 64:
+            errors.append(f"HASH LONGUEUR INVALIDE : {doc_name}")
+            ok = False
+            continue
+
+        doc_path = DOCS_FREEZE_DIR / doc_name
+        if not doc_path.exists():
+            errors.append(f"FICHIER ABSENT : {doc_path}")
+            ok = False
+            continue
+
+        sha256 = hashlib.sha256(doc_path.read_bytes()).hexdigest()
+
+        if sha256 != hash_expected:
+            errors.append(
+                f"HASH MISMATCH : {doc_name}\n"
+                f"  attendu  : {hash_expected}\n"
+                f"  calculé  : {sha256}"
+            )
+            ok = False
+        else:
+            print(f"  HASH OK  : {doc_name}")
+            checked += 1
+
+    if errors:
+        print(f"\nERREURS FREEZE ({len(errors)}) :")
+        for e in errors:
+            print(f"  {e}")
+
+    print(
+        f"\nFREEZE HASHES : {checked} OK / " f"{checked + len(errors)} total"
+    )
+    return ok
 
 
 def _normalize_db_url(url: str) -> str:
@@ -552,6 +618,12 @@ def main():
         railway_result = check_railway_db(railway_db_url)
 
     check_alignment(head_lines, db_result, railway_result)
+
+    head("VÉRIFICATION FREEZE HASHES")
+    if not check_freeze_hashes():
+        print("FREEZE HASHES : FAIL")
+        sys.exit(1)
+    print("FREEZE HASHES : PASS")
 
     head("VERDICT FINAL")
     if STOPS_DETECTED:

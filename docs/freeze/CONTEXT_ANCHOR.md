@@ -27,18 +27,31 @@
   SYSTEM_CONTRACT.md         : docs/freeze/SYSTEM_CONTRACT.md
   DMS_V4.1.0_FREEZE.md       : docs/freeze/DMS_V4.1.0_FREEZE.md
   ORCHESTRATION_FRAMEWORK    : docs/freeze/DMS_ORCHESTRATION_FRAMEWORK_V1.md
+  ETA_V1                     : docs/freeze/DMS_ENTERPRISE_TARGET_ARCHITECTURE_V1.md
   DMS_MRD_PLAN_V1.md         : docs/freeze/DMS_MRD_PLAN_V1.md
   BASELINE_MRD_PRE_REBUILD   : docs/freeze/BASELINE_MRD_PRE_REBUILD.md
+  ADR_META                   : docs/freeze/ADR-META-001-AMENDMENT-PROCESS.md
   FREEZE_HASHES.md           : docs/freeze/FREEZE_HASHES.md
 
+  ETA_V1    : gelé 2026-03-10
+              classification GLOBAL_CORE/TENANT_SCOPED/OVERLAY
+              CB-01→CB-08 avec statuts et milestones
+              table décision Section 15 par milestone
+              génome canonique règles figées
+
+  ADR_META  : gelé 2026-03-10
+              processus unique d'amendement documents gelés
+              emergency track 24h inclus
+
   Ordre de lecture obligatoire pour tout agent :
-    0. SYSTEM_CONTRACT.md
+    0. SYSTEM_CONTRACT.md              <- couche zéro
     1. DMS_V4.1.0_FREEZE.md
     2. DMS_ORCHESTRATION_FRAMEWORK_V1.md
-    3. DMS_MRD_PLAN_V1.md
-    4. MRD_CURRENT_STATE.md     <- etat courant
-    5. BASELINE_MRD_PRE_REBUILD.md
-    6. mandat du milestone en cours
+    3. DMS_ENTERPRISE_TARGET_ARCHITECTURE_V1.md
+    4. DMS_MRD_PLAN_V1.md
+    5. MRD_CURRENT_STATE.md     <- etat courant
+    6. BASELINE_MRD_PRE_REBUILD.md
+    7. mandat du milestone en cours
 
 ---
 
@@ -230,6 +243,11 @@
   INV-05 : rebuild = UPSERT fingerprint — jamais DELETE+INSERT
   INV-08 : alembic heads = 1 seule ligne — jamais de multi-head
   INV-11 : DATABASE_URL ne contient pas 'railway'
+
+  ETA_V1 Q1-Q9 : checklist conformité architecturale
+                 obligatoire tout milestone
+  CB-05         : CONSTRAINT_HEADER actif dès M8
+                 tout mandat commence par BLOC 0
 
 ---
 

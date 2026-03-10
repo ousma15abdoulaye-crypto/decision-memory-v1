@@ -232,10 +232,14 @@ def test_p9_td001_documented_in_technical_debt():
 def test_alembic_head_est_m7_4a(db_conn):
     """alembic_version DB doit correspondre au head repo courant (dynamique)."""
     import subprocess
+
     result = subprocess.run(["alembic", "heads"], capture_output=True, text=True)
     repo_head = next(
-        (line.strip().split()[0] for line in result.stdout.splitlines()
-         if line.strip() and not line.startswith("INFO")),
+        (
+            line.strip().split()[0]
+            for line in result.stdout.splitlines()
+            if line.strip() and not line.startswith("INFO")
+        ),
         None,
     )
     assert repo_head is not None, "alembic heads n'a retourné aucune valeur"

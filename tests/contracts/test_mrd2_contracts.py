@@ -24,8 +24,8 @@ import subprocess
 
 import pytest
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────
+
 
 @pytest.fixture(scope="module")
 def db_conn():
@@ -44,17 +44,20 @@ def db_conn():
     assert db_url, "DATABASE_URL absente — impossible d'exécuter les tests de contrat"
 
     # CONTRACT-02 : jamais Railway en local
-    assert "railway" not in db_url.lower() and "rlwy" not in db_url.lower(), \
-        "CONTRACT-02 VIOLÉ — DATABASE_URL pointe Railway"
+    assert (
+        "railway" not in db_url.lower() and "rlwy" not in db_url.lower()
+    ), "CONTRACT-02 VIOLÉ — DATABASE_URL pointe Railway"
 
     url = db_url.replace("postgresql+psycopg://", "postgresql://", 1)
     import psycopg
+
     conn = psycopg.connect(url, connect_timeout=5, row_factory=psycopg.rows.dict_row)
     yield conn
     conn.close()
 
 
 # ── CT-01 : IS-02 — aucune CASCADE FK sur couche_b ───────────────────────
+
 
 def test_ct01_no_cascade_fk_couche_b(db_conn):
     """
@@ -87,16 +90,16 @@ def test_ct01_no_cascade_fk_couche_b(db_conn):
 
 # ── CT-02 : IS-06 — alembic heads = 1 ───────────────────────────────────
 
+
 def test_ct02_alembic_single_head():
     """
     IS-06 : alembic heads doit retourner exactement 1 ligne.
     Plusieurs heads = divergence non résolue = interdit.
     """
-    result = subprocess.run(
-        ["alembic", "heads"], capture_output=True, text=True
-    )
+    result = subprocess.run(["alembic", "heads"], capture_output=True, text=True)
     head_lines = [
-        line.strip() for line in result.stdout.splitlines()
+        line.strip()
+        for line in result.stdout.splitlines()
         if line.strip() and not line.startswith("INFO")
     ]
     assert len(head_lines) == 1, (
@@ -106,6 +109,7 @@ def test_ct02_alembic_single_head():
 
 
 # ── CT-03 : IS-07 — DATABASE_URL pas Railway ─────────────────────────────
+
 
 def test_ct03_database_url_not_railway():
     """
@@ -132,6 +136,7 @@ def test_ct03_database_url_not_railway():
 
 # ── CT-04 : DEF-03 — aucun trigger DELETE sur procurement_dict_items ─────
 
+
 def test_ct04_no_delete_trigger_on_items(db_conn):
     """
     DEF-03 : le registre est append-only.
@@ -153,7 +158,8 @@ def test_ct04_no_delete_trigger_on_items(db_conn):
     # (les triggers DELETE de protection comme protect_item sont AUTORISÉS
     #  car ils BLOQUENT la suppression — ils ne l'effectuent pas)
     destructive = [
-        t for t in delete_triggers
+        t
+        for t in delete_triggers
         if "protect" not in t["trigger_name"].lower()
         and "block" not in t["trigger_name"].lower()
     ]
@@ -164,6 +170,7 @@ def test_ct04_no_delete_trigger_on_items(db_conn):
 
 
 # ── CT-05 : DEF-02 — fingerprint stable ──────────────────────────────────
+
 
 def test_ct05_fingerprint_stable():
     """
@@ -183,20 +190,14 @@ def test_ct05_fingerprint_stable():
     # Même input = même hash
     fp1 = fingerprint("  Ciment Portland  ", "mercuriale", "SRC-001")
     fp2 = fingerprint("ciment portland", "mercuriale", "SRC-001")
-    assert fp1 == fp2, (
-        f"DEF-02 VIOLÉ — normalize() non déterministe : {fp1} != {fp2}"
-    )
+    assert fp1 == fp2, f"DEF-02 VIOLÉ — normalize() non déterministe : {fp1} != {fp2}"
 
     # Input différent = hash différent
     fp3 = fingerprint("Ciment Portland CEM I", "mercuriale", "SRC-001")
-    assert fp1 != fp3, (
-        "DEF-02 VIOLÉ — collision sur labels distincts"
-    )
+    assert fp1 != fp3, "DEF-02 VIOLÉ — collision sur labels distincts"
 
     # Cohérence avec l'algorithme attendu
-    expected = hashlib.sha256(
-        b"ciment portland|mercuriale|SRC-001"
-    ).hexdigest()
+    expected = hashlib.sha256(b"ciment portland|mercuriale|SRC-001").hexdigest()
     assert fp1 == expected, (
         f"DEF-02 VIOLÉ — fingerprint diverge de la formule canonique.\n"
         f"Attendu : {expected}\nObtenu  : {fp1}"
@@ -204,6 +205,7 @@ def test_ct05_fingerprint_stable():
 
 
 # ── CT-ROUGE-01 : trigger protect_item_identity ABSENT ───────────────────
+
 
 def test_ct_rouge_01_trigger_protect_item_identity(db_conn):
     """
@@ -228,6 +230,7 @@ def test_ct_rouge_01_trigger_protect_item_identity(db_conn):
 
 
 # ── CT-ROUGE-02 : trigger protect_item_with_aliases ABSENT ───────────────
+
 
 def test_ct_rouge_02_trigger_protect_item_with_aliases(db_conn):
     """
