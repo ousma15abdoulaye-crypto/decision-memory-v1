@@ -13,12 +13,13 @@
 
 Ordre exact. Sans exception. Sans raccourci.
 
+  0. docs/freeze/SYSTEM_CONTRACT.md              ← couche zéro
   1. docs/freeze/DMS_V4.1.0_FREEZE.md
   2. docs/freeze/DMS_ORCHESTRATION_FRAMEWORK_V1.md
   3. docs/freeze/DMS_ENTERPRISE_TARGET_ARCHITECTURE_V1.md
   4. docs/freeze/DMS_MRD_PLAN_V1.md
-  5. docs/freeze/SYSTEM_CONTRACT.md
-  6. docs/freeze/MRD_CURRENT_STATE.md   ← état vivant — pas une loi
+  5. docs/freeze/MRD_CURRENT_STATE.md
+  6. docs/freeze/BASELINE_MRD_PRE_REBUILD.md
   7. mandat du milestone en cours
 
 Règle conflit inter-couches :

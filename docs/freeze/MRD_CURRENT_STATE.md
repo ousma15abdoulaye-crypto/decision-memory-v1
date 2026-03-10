@@ -1,7 +1,8 @@
 # MRD_CURRENT_STATE
 # Source de verite unique de l'etat du systeme
-# Mis a jour par l'agent apres chaque milestone DONE
-# Mis a jour par AO apres chaque decision manuelle
+# Mis a jour uniquement par AO.
+# Exception : agent autorise sous mandat explicite AO
+# avec validation finale AO avant merge.
 # Derniere mise a jour : 2026-03-10 — ETA-GEL
 
 ---
@@ -191,8 +192,12 @@ railway_cli               : ABSENT (node/npm absents sur ce poste)
   SYSTEM_CONTRACT.md                 : 92acb422b6066db7375e2d7e2b4131c8abe373437c4da6363b8aa8e6735aba27
   DMS_MRD_PLAN_V1.md                 : 5c025e4a8133dd82f40142c8716d47fe900a312a9f20cc24e673a7de225281f3 (corrigé ETA-GEL)
   BASELINE_MRD_PRE_REBUILD.md        : d1093db69e504ae184e15e0ba2db1f9418eada6f2cf79fcb6fac1e51dabab1fd
-  DMS_ENTERPRISE_TARGET_ARCHITECTURE_V1.md : hashé ✓ ETA-GEL
-  ADR-META-001-AMENDMENT-PROCESS.md        : hashé ✓ ETA-GEL
+  DMS_ENTERPRISE_TARGET_ARCHITECTURE_V1.md
+    = c0369ca14803c629bd8dfbc93367791c03cc44e5a14438cf7c542a7b37afac27
+    — référencé dans FREEZE_HASHES.md
+  ADR-META-001-AMENDMENT-PROCESS.md
+    = 0e43674a933acdff0905b874cbf3f25d4d20a2af6e5fbfa5236e2be7a6a54fcd
+    — référencé dans FREEZE_HASHES.md
 
   Verifier integrite : python scripts/validate_mrd_state.py
 

@@ -44,12 +44,13 @@
               emergency track 24h inclus
 
   Ordre de lecture obligatoire pour tout agent :
+    0. SYSTEM_CONTRACT.md              <- couche zéro
     1. DMS_V4.1.0_FREEZE.md
     2. DMS_ORCHESTRATION_FRAMEWORK_V1.md
     3. DMS_ENTERPRISE_TARGET_ARCHITECTURE_V1.md
     4. DMS_MRD_PLAN_V1.md
-    5. SYSTEM_CONTRACT.md
-    6. MRD_CURRENT_STATE.md     <- etat courant
+    5. MRD_CURRENT_STATE.md     <- etat courant
+    6. BASELINE_MRD_PRE_REBUILD.md
     7. mandat du milestone en cours
 
 ---

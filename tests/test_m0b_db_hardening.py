@@ -208,10 +208,14 @@ def test_indexes_created(db_transaction):
 def test_alembic_head_is_current(db_transaction):
     """alembic_version DB doit correspondre au head repo courant (dynamique)."""
     import subprocess
+
     result = subprocess.run(["alembic", "heads"], capture_output=True, text=True)
     repo_head = next(
-        (line.strip().split()[0] for line in result.stdout.splitlines()
-         if line.strip() and not line.startswith("INFO")),
+        (
+            line.strip().split()[0]
+            for line in result.stdout.splitlines()
+            if line.strip() and not line.startswith("INFO")
+        ),
         None,
     )
     assert repo_head is not None, "alembic heads n'a retourné aucune valeur"
