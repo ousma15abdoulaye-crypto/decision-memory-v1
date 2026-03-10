@@ -32,12 +32,12 @@ freeze_hashes_doc     : docs/freeze/FREEZE_HASHES.md
 
 last_completed        : M8
 last_completed_at     : 2026-03-10
-last_merge_commit     : (en attente merge PR feat/m8-market-intelligence)
-last_tag              : mrd-6-done (m8-done apres merge CTO)
+last_merge_commit     : 641e108 (Merge PR #178 feat/m8-market-intelligence)
+last_tag              : m8-done
 next_milestone        : M9
 next_status           : NOT_STARTED
 blocked_on            : aucun
-branch_courante       : feat/m8-market-intelligence
+branch_courante       : main
 
 ---
 
@@ -62,6 +62,7 @@ branch_courante       : feat/m8-market-intelligence
 
 local_alembic_head        : 042_market_surveys
 local_alembic_current     : 042_market_surveys
+railway_alembic_head      : m7_4b (4 migrations en retard: m7_5/m7_6/m7_7/042)
 railway_alembic_head      : m7_4b
 aligned_schema            : NON
 

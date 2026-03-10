@@ -2,7 +2,7 @@
 # ============================================================
 # POSER EN PREMIER DANS TOUTE NOUVELLE SESSION CLAUDE/CURSOR
 # Regenerer apres chaque milestone DONE
-# Genere : 2026-03-10 — post ETA-GEL (architecture enterprise gelée)
+# Genere : 2026-03-10 — post M8 DONE (market intelligence foundation)
 # ============================================================
 
 ---
@@ -59,18 +59,23 @@
 
   docs/freeze/MRD_CURRENT_STATE.md
 
-  En resume post-ETA-GEL :
-    last_completed  : ETA-GEL
-    last_tag        : eta-v1-done
-    next_milestone  : M8 (V4 reprend)
-    alembic_local   : m7_7_genome_stable
-    alembic_railway : m7_4b (3 migrations en retard)
+  En resume post-M8 :
+    last_completed  : M8
+    last_tag        : m8-done
+    last_commit     : 641e108 (merge PR #178)
+    next_milestone  : M9 (market_signals + formule V1.1 + price_series)
+    alembic_local   : 042_market_surveys (head)
+    alembic_railway : m7_4b (3 migrations en retard — m7_5/m7_6/m7_7)
     blocked_on      : aucun
 
-  ETA-GEL DONE : 2026-03-10
-    ETA_V1 + ADR-META-001 gelés
-    validate_mrd_state.py vérifie SHA256 réel
-    7 documents hashés dans FREEZE_HASHES.md
+  M8 DONE : 2026-03-10
+    13 tables GLOBAL_CORE + TENANT_SCOPED + matview market_coverage
+    6 triggers idempotents (DROP IF EXISTS + CREATE TRIGGER)
+    migration 042 idempotente (IF NOT EXISTS partout)
+    seeds: 6 contextes FEWS Mali, 45 items, 6 zones, 3 baskets
+    CB-01 SEMANTIC_GUARD V1 PASS
+    CB-08 TRIAGE: 610 unresolved t1=179 t2=431 t3=0
+    ADR-M8-FORMULA-V1.1-INTENTION: formule reportee M9
 
 ---
 
@@ -132,8 +137,9 @@
 
   PIEGE-1 : item_id vs item_uid
     REEL    : item_id (TEXT) = cle primaire de procurement_dict_items
-    FAUX    : item_uid n'existe PAS dans cette DB
-    Impact  : toute requete sur item_uid echoue silencieusement
+    FAUX    : item_uid n'est PAS la cle a utiliser en FK (erreur agent M8)
+    Impact  : toute FK sur item_uid produit DatatypeMismatch en CI
+    Fix M8  : toutes FK M8 pointent sur item_id TEXT
 
   PIEGE-2 : label vs label_fr
     REEL    : label_fr (TEXT) = colonne label du dictionnaire
@@ -269,7 +275,8 @@
   | MRD-5    | DONE   | mrd-5-done   | 29efbc6 | 2026-03-09 |
   | MRD-6    | DONE   | mrd-6-done   | 226b4dd | 2026-03-09 |
   | ETA-GEL  | DONE   | eta-v1-done  | e51b339 | 2026-03-10 |
-  | M8       | NEXT   | -            | -       | -          |
+  | M8       | DONE   | m8-done      | 641e108 | 2026-03-10 |
+  | M9       | NEXT   | -            | -       | -          |
 
   Hash chain ETA-GEL (FREEZE_HASHES.md) :
     DMS_V4.1.0_FREEZE.md              = e892d783...
@@ -285,17 +292,21 @@
     MRD-3 : m7_4b (neutralise CASCADE FK)
     MRD-4 : m7_5_fingerprint_triggers
     MRD-5 : m7_6_item_code
-    MRD-6 : m7_7_genome_stable  <- HEAD ACTUEL
+    MRD-6 : m7_7_genome_stable
+    M8    : 042_market_surveys  <- HEAD ACTUEL
 
 ---
 
-## 10. PROCHAINE ETAPE — M8
+## 10. PROCHAINE ETAPE — M9
 
-  Milestone suivant : M8 — Market Survey
-  Source            : DMS_V4.1.0_FREEZE.md Partie XI
-  Prerequis         : tag mrd-6-done present (OUI)
-  Alembic cible     : 042_market_surveys (selon V4 freeze)
-  Railway           : appliquer m7_5 + m7_6 + m7_7 avant M8 prod
+  Milestone suivant : M9 — Market Signals + Formule V1.1
+  Prerequis         : tag m8-done present (OUI)
+  Alembic cible     : 043_market_signals (a creer)
+  Hors scope M8     : market_signals, compute_signal, price_series,
+                      vendor_price_positioning, basket_cost_by_zone,
+                      formule V1.1, tenant_market_baskets
+  Railway           : appliquer m7_5 + m7_6 + m7_7 + 042 avant M9 prod
+  ADR requis M9     : ADR-M9-FORMULA-V1.1 avant toute implementation
 
 ---
 
@@ -318,17 +329,19 @@
 
 ## 12. INSTRUCTION POUR CLAUDE (nouvelle session)
 
-  Contexte : tu reprends le travail sur DMS apres la serie MRD.
-  La serie MRD est terminee. Le genome du registre est stable.
-  Prochain chapitre : V4 reprend (M8 Market Survey).
+  Contexte : tu reprends le travail sur DMS. M8 est DONE.
+  Prochain chapitre : M9 (market_signals + formule V1.1).
 
   Ce que tu sais sans qu'on te le repete :
-  - Le schema reel a item_id (pas item_uid), label_fr (pas label)
+  - item_id (TEXT) = cle FK vers procurement_dict_items — PAS item_uid
+  - users.id=INTEGER, units.id=INTEGER, cases.id=TEXT, geo_master.id=VARCHAR
+  - migrations doivent etre idempotentes : IF NOT EXISTS + DROP TRIGGER IF EXISTS
+  - conftest integration + db_integrity appellent alembic upgrade head
   - DATABASE_URL est dans .env, pas exportee dans PowerShell
   - PowerShell ne supporte pas bash heredoc ni operateur &&
   - ruff + black obligatoires avant tout commit
   - autocommit=True pour les probes longs psycopg3
-  - Railway : 3 migrations en retard (m7_5 + m7_6 + m7_7)
+  - Railway : 4 migrations en retard (m7_5 + m7_6 + m7_7 + 042)
 
   Ce que tu dois faire en debut de session :
     python scripts/validate_mrd_state.py
