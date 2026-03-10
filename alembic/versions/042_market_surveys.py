@@ -426,6 +426,8 @@ def upgrade() -> None:
     END;
     $$;
 
+    DROP TRIGGER IF EXISTS trg_compute_price_per_unit
+      ON public.market_surveys;
     CREATE TRIGGER trg_compute_price_per_unit
     BEFORE INSERT OR UPDATE ON public.market_surveys
     FOR EACH ROW
@@ -455,6 +457,8 @@ def upgrade() -> None:
     END;
     $$;
 
+    DROP TRIGGER IF EXISTS trg_zone_context_no_overlap
+      ON public.zone_context_registry;
     CREATE TRIGGER trg_zone_context_no_overlap
     BEFORE INSERT OR UPDATE ON public.zone_context_registry
     FOR EACH ROW
@@ -500,6 +504,8 @@ def upgrade() -> None:
     END;
     $$;
 
+    DROP TRIGGER IF EXISTS trg_zone_context_audit_log
+      ON public.zone_context_registry;
     CREATE TRIGGER trg_zone_context_audit_log
     AFTER INSERT OR UPDATE ON public.zone_context_registry
     FOR EACH ROW
@@ -507,6 +513,8 @@ def upgrade() -> None:
     """)
 
     op.execute(f"""
+    DROP TRIGGER IF EXISTS trg_zone_context_audit_append_only
+      ON public.zone_context_audit;
     CREATE TRIGGER trg_zone_context_audit_append_only
     BEFORE DELETE OR UPDATE ON public.zone_context_audit
     FOR EACH ROW
@@ -535,6 +543,8 @@ def upgrade() -> None:
     END;
     $$;
 
+    DROP TRIGGER IF EXISTS trg_market_survey_immutable_validated
+      ON public.market_surveys;
     CREATE TRIGGER trg_market_survey_immutable_validated
     BEFORE UPDATE ON public.market_surveys
     FOR EACH ROW
@@ -567,6 +577,8 @@ def upgrade() -> None:
     END;
     $$;
 
+    DROP TRIGGER IF EXISTS trg_market_survey_flag_duplicate
+      ON public.market_surveys;
     CREATE TRIGGER trg_market_survey_flag_duplicate
     BEFORE INSERT ON public.market_surveys
     FOR EACH ROW
