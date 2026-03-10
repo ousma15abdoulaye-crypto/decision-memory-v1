@@ -2,7 +2,7 @@
 # ============================================================
 # POSER EN PREMIER DANS TOUTE NOUVELLE SESSION CLAUDE/CURSOR
 # Regenerer apres chaque milestone DONE
-# Genere : 2026-03-09 — post MRD-6 (dernier jalon MRD series)
+# Genere : 2026-03-10 — post ETA-GEL (architecture enterprise gelée)
 # ============================================================
 
 ---
@@ -59,13 +59,18 @@
 
   docs/freeze/MRD_CURRENT_STATE.md
 
-  En resume post-MRD-6 :
-    last_completed  : MRD-6
-    last_tag        : mrd-6-done
+  En resume post-ETA-GEL :
+    last_completed  : ETA-GEL
+    last_tag        : eta-v1-done
     next_milestone  : M8 (V4 reprend)
     alembic_local   : m7_7_genome_stable
     alembic_railway : m7_4b (3 migrations en retard)
     blocked_on      : aucun
+
+  ETA-GEL DONE : 2026-03-10
+    ETA_V1 + ADR-META-001 gelés
+    validate_mrd_state.py vérifie SHA256 réel
+    7 documents hashés dans FREEZE_HASHES.md
 
 ---
 
@@ -263,7 +268,17 @@
   | MRD-4    | DONE   | mrd-4-done   | 831117b | 2026-03-09 |
   | MRD-5    | DONE   | mrd-5-done   | 29efbc6 | 2026-03-09 |
   | MRD-6    | DONE   | mrd-6-done   | 226b4dd | 2026-03-09 |
+  | ETA-GEL  | DONE   | eta-v1-done  | e51b339 | 2026-03-10 |
   | M8       | NEXT   | -            | -       | -          |
+
+  Hash chain ETA-GEL (FREEZE_HASHES.md) :
+    DMS_V4.1.0_FREEZE.md              = e892d783...
+    DMS_ORCHESTRATION_FRAMEWORK_V1.md = 66a6961d...
+    SYSTEM_CONTRACT.md                 = 92acb422...
+    BASELINE_MRD_PRE_REBUILD.md        = d1093db6...
+    DMS_MRD_PLAN_V1.md                 = 5c025e4a...
+    DMS_ENTERPRISE_TARGET_ARCHITECTURE_V1.md = c0369ca1...
+    ADR-META-001-AMENDMENT-PROCESS.md  = 0e43674a...
 
   Alembic head par milestone :
     MRD-1 : m7_4a_item_identity_doctrine (restaure sur origin/main)
