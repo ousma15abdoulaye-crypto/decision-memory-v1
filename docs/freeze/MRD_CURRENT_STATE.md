@@ -2,7 +2,17 @@
 # Source de verite unique de l'etat du systeme
 # Mis a jour par l'agent apres chaque milestone DONE
 # Mis a jour par AO apres chaque decision manuelle
-# Derniere mise a jour : 2026-03-09 — post MRD-6
+# Derniere mise a jour : 2026-03-10 — ETA-GEL
+
+---
+
+## mrd_plan_hash_correction
+
+  mrd_plan_hash_correction : 2026-03-10
+  ancien_hash              : a0ceb151e36d2eb098d12f9ea6c9d0f712a772fca1db9093492d67464b2854ed
+  nouveau_hash             : 5c025e4a8133dd82f40142c8716d47fe900a312a9f20cc24e673a7de225281f3
+  raison                   : fichier modifié légitimement post-MRD-0
+                             hash non mis à jour — correction ETA-GEL
 
 ---
 
@@ -179,10 +189,23 @@ railway_cli               : ABSENT (node/npm absents sur ce poste)
   DMS_V4.1.0_FREEZE.md              : e892d783471639e67db8fc17c8de9366f81b37172554783b942993b815ea9ad4
   DMS_ORCHESTRATION_FRAMEWORK_V1.md : 66a6961d20f88a51cb9d0efb8bba4531e648cb4e4e5acf40edf3fd2d9f011cf6
   SYSTEM_CONTRACT.md                 : 92acb422b6066db7375e2d7e2b4131c8abe373437c4da6363b8aa8e6735aba27
-  DMS_MRD_PLAN_V1.md                 : a0ceb151e36d2eb098d12f9ea6c9d0f712a772fca1db9093492d67464b2854ed
+  DMS_MRD_PLAN_V1.md                 : 5c025e4a8133dd82f40142c8716d47fe900a312a9f20cc24e673a7de225281f3 (corrigé ETA-GEL)
   BASELINE_MRD_PRE_REBUILD.md        : d1093db69e504ae184e15e0ba2db1f9418eada6f2cf79fcb6fac1e51dabab1fd
+  DMS_ENTERPRISE_TARGET_ARCHITECTURE_V1.md : hashé ✓ ETA-GEL
+  ADR-META-001-AMENDMENT-PROCESS.md        : hashé ✓ ETA-GEL
 
   Verifier integrite : python scripts/validate_mrd_state.py
+
+---
+
+## Architecture enterprise
+
+  eta_v1_status    : GELÉ ✓ 2026-03-10
+  adr_meta_001     : GELÉ ✓ 2026-03-10
+  cb_actifs        : CB-04 uniquement
+  cb_planned_m8    : CB-01 V1, CB-05, CB-08
+  cb_planned_m9    : CB-01 V2, CB-02, CB-03, CB-07
+  cb_planned_m10a  : CB-06
 
 ---
 
