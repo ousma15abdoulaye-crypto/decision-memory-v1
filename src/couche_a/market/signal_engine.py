@@ -23,9 +23,9 @@ import psycopg
 from psycopg.rows import dict_row
 
 from .formula_v11 import (
+    FORMULA_VERSION,
     ContextSnapshot,
     FormulaV11,
-    FORMULA_VERSION,
     PricePoint,
     SignalResult,
 )
