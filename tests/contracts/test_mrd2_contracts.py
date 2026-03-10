@@ -24,7 +24,6 @@ import subprocess
 
 import pytest
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────
 
 @pytest.fixture(scope="module")
