@@ -34,7 +34,7 @@ last_completed        : M8
 last_completed_at     : 2026-03-10
 last_merge_commit     : 641e108 (Merge PR #178 feat/m8-market-intelligence)
 last_tag              : m8-done
-next_milestone        : M9
+next_milestone        : M10A
 next_status           : NOT_STARTED
 blocked_on            : aucun
 branch_courante       : main
@@ -60,8 +60,8 @@ branch_courante       : main
 
 ## STACK ALEMBIC
 
-local_alembic_head        : 042_market_surveys
-local_alembic_current     : 042_market_surveys
+local_alembic_head        : 043_market_signals_v11
+local_alembic_current     : 043_market_signals_v11
 railway_alembic_head      : m7_4b (4 migrations en retard: m7_5/m7_6/m7_7/042)
 railway_alembic_head      : m7_4b
 aligned_schema            : NON
