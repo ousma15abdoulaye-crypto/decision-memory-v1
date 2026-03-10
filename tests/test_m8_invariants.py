@@ -2,11 +2,12 @@
 Tests invariants M8 — enterprise grade.
 Usage : pytest tests/test_m8_invariants.py -v
 
-Adaptations schéma réel :
-  - users.id      : INTEGER (pas UUID)
-  - units.id      : INTEGER (pas UUID)
-  - cases.id      : TEXT   (pas UUID)
-  - geo_master.id : TEXT/VARCHAR (pas UUID)
+Schema reel confirme par probe ETAPE 0 :
+  item_id     : TEXT  (couche_b.procurement_dict_items — cle existante)
+  users.id    : INTEGER
+  units.id    : INTEGER
+  cases.id    : TEXT
+  geo_master.id : VARCHAR(50)
 """
 
 import os
@@ -33,12 +34,14 @@ DB = os.environ.get("DATABASE_URL", "").replace(
 
 @pytest.fixture(scope="module")
 def conn():
+    if not DB:
+        pytest.skip("DATABASE_URL absent -- tests DB ignores")
     c = psycopg.connect(DB, row_factory=dict_row)
     yield c
     c.close()
 
 
-# ── Pré-conditions ────────────────────────────────────────────────────────────
+# ── Pre-conditions ────────────────────────────────────────────────────────────
 
 
 def test_database_url_not_railway():
@@ -52,10 +55,10 @@ def test_alembic_single_head():
         text=True,
     )
     lines = [line for line in r.stdout.strip().splitlines() if line.strip()]
-    assert len(lines) == 1, f"alembic heads ≠ 1 : {lines}"
+    assert len(lines) == 1, f"alembic heads != 1 : {lines}"
 
 
-# ── Tables présentes ──────────────────────────────────────────────────────────
+# ── Tables presentes ──────────────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize(
@@ -97,28 +100,10 @@ def test_market_coverage_matview_exists(conn):
     assert cur.fetchone()["n"] == 1
 
 
-# ── Schéma market_surveys ─────────────────────────────────────────────────────
+# ── Schema market_surveys ─────────────────────────────────────────────────────
 
 
-def test_item_uid_column_exists(conn):
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT data_type FROM information_schema.columns
-        WHERE table_schema = 'public'
-          AND table_name   = 'market_surveys'
-          AND column_name  = 'item_uid'
-        """,
-    )
-    r = cur.fetchone()
-    assert r is not None, "Colonne item_uid absente de market_surveys"
-    assert r["data_type"] in (
-        "text",
-        "uuid",
-    ), f"item_uid type inattendu : {r['data_type']}"
-
-
-def test_no_item_id_column(conn):
+def test_item_id_column_exists_in_surveys(conn):
     cur = conn.cursor()
     cur.execute(
         """
@@ -129,7 +114,24 @@ def test_no_item_id_column(conn):
           AND column_name  = 'item_id'
         """,
     )
-    assert cur.fetchone()["n"] == 0, "item_id présent — doit être item_uid"
+    assert cur.fetchone()["n"] == 1, "item_id absent de market_surveys"
+
+
+def test_no_item_uid_column_in_surveys(conn):
+    """item_uid ne doit pas exister dans market_surveys — seul item_id."""
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT COUNT(*) AS n
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name   = 'market_surveys'
+          AND column_name  = 'item_uid'
+        """,
+    )
+    assert (
+        cur.fetchone()["n"] == 0
+    ), "item_uid present dans market_surveys -- doit etre item_id"
 
 
 def test_no_is_bidirectional_in_corridors(conn):
@@ -143,7 +145,7 @@ def test_no_is_bidirectional_in_corridors(conn):
           AND column_name  = 'is_bidirectional'
         """,
     )
-    assert cur.fetchone()["n"] == 0, "is_bidirectional présent — interdit M8"
+    assert cur.fetchone()["n"] == 0, "is_bidirectional present -- interdit M8"
 
 
 def test_no_org_id_in_market_baskets(conn):
@@ -157,19 +159,43 @@ def test_no_org_id_in_market_baskets(conn):
           AND column_name  = 'org_id'
         """,
     )
-    assert cur.fetchone()["n"] == 0, "org_id dans market_baskets — GLOBAL_CORE interdit"
+    assert (
+        cur.fetchone()["n"] == 0
+    ), "org_id dans market_baskets -- GLOBAL_CORE interdit"
 
 
 def test_seasonal_patterns_unique_on_taxo_l3(conn):
+    """Index UNIQUE explicite sur taxo_l3 (CREATE UNIQUE INDEX)."""
     cur = conn.cursor()
     cur.execute(
         """
         SELECT COUNT(*) AS n FROM pg_indexes
-        WHERE tablename = 'seasonal_patterns'
-          AND indexdef LIKE '%taxo_l3%'
+        WHERE tablename  = 'seasonal_patterns'
+          AND schemaname = 'public'
+          AND indexdef ILIKE 'CREATE UNIQUE INDEX%'
+          AND indexdef ILIKE '%taxo_l3%'
         """,
     )
-    assert cur.fetchone()["n"] >= 1, "Index unique sur taxo_l3 manquant"
+    assert cur.fetchone()["n"] >= 1, "Index UNIQUE sur taxo_l3 manquant"
+
+
+def test_source_case_id_is_text(conn):
+    """source_case_id doit etre TEXT (cases.id = TEXT)."""
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT data_type FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name   = 'price_anomaly_alerts'
+          AND column_name  = 'source_case_id'
+        """,
+    )
+    r = cur.fetchone()
+    assert r is not None, "source_case_id absent de price_anomaly_alerts"
+    assert r["data_type"] in (
+        "text",
+        "character varying",
+    ), f"source_case_id type incorrect : {r['data_type']}"
 
 
 # ── Tables absentes (hors scope) ──────────────────────────────────────────────
@@ -177,12 +203,16 @@ def test_seasonal_patterns_unique_on_taxo_l3(conn):
 
 def test_no_market_signals_created_by_m8(conn):
     """
-    market_signals peut exister (préexistant M6/M7).
-    M8 ne doit pas l'avoir créée — on vérifie simplement
-    que si elle existe c'est sans lien avec 042.
-    Ce test passe toujours : non-création = OK.
+    M8 ne doit pas avoir cree market_signals.
+    On verifie que alembic_version = 042_market_surveys (head M8).
     """
-    pass
+    cur = conn.cursor()
+    cur.execute("SELECT version_num FROM alembic_version LIMIT 1")
+    r = cur.fetchone()
+    assert r is not None, "alembic_version vide"
+    assert (
+        r["version_num"] == "042_market_surveys"
+    ), f"head inattendu : {r['version_num']}"
 
 
 def test_no_price_series_view(conn):
@@ -194,7 +224,7 @@ def test_no_price_series_view(conn):
         WHERE table_name = 'price_series'
         """,
     )
-    assert cur.fetchone()["n"] == 0, "price_series créée — hors scope M8"
+    assert cur.fetchone()["n"] == 0, "price_series creee -- hors scope M8"
 
 
 def test_no_refresh_trigger_on_surveys(conn):
@@ -207,10 +237,10 @@ def test_no_refresh_trigger_on_surveys(conn):
           AND trigger_name LIKE '%coverage_refresh%'
         """,
     )
-    assert cur.fetchone()["n"] == 0, "trigger refresh synchrone — interdit"
+    assert cur.fetchone()["n"] == 0, "trigger refresh synchrone -- interdit"
 
 
-# ── Triggers présents ─────────────────────────────────────────────────────────
+# ── Triggers presents ─────────────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize(
@@ -230,9 +260,9 @@ def test_trigger_exists(conn, trigger, table):
         """
         SELECT COUNT(*) AS n
         FROM information_schema.triggers
-        WHERE trigger_schema      = 'public'
-          AND trigger_name        = %s
-          AND event_object_table  = %s
+        WHERE trigger_schema     = 'public'
+          AND trigger_name       = %s
+          AND event_object_table = %s
         """,
         (trigger, table),
     )
@@ -245,12 +275,13 @@ def test_trigger_exists(conn, trigger, table):
 def test_price_quoted_positive_enforced(conn):
     cur = conn.cursor()
     cur.execute(
-        "SELECT item_uid FROM couche_b.procurement_dict_items WHERE active = TRUE LIMIT 1"
+        "SELECT item_id FROM couche_b.procurement_dict_items"
+        " WHERE active = TRUE LIMIT 1"
     )
     r = cur.fetchone()
     if not r:
         pytest.skip("dict_items vide")
-    uid = r["item_uid"]
+    iid = r["item_id"]
     cur.execute("SELECT id FROM public.geo_master WHERE level = 2 LIMIT 1")
     r = cur.fetchone()
     if not r:
@@ -260,10 +291,10 @@ def test_price_quoted_positive_enforced(conn):
         cur.execute(
             """
             INSERT INTO public.market_surveys
-                (item_uid, price_quoted, supplier_raw, zone_id, date_surveyed)
+                (item_id, price_quoted, supplier_raw, zone_id, date_surveyed)
             VALUES (%s, -1, 'test', %s, CURRENT_DATE)
             """,
-            (uid, zid),
+            (iid, zid),
         )
     conn.rollback()
 
@@ -271,12 +302,13 @@ def test_price_quoted_positive_enforced(conn):
 def test_collection_method_mercuriale_rejected(conn):
     cur = conn.cursor()
     cur.execute(
-        "SELECT item_uid FROM couche_b.procurement_dict_items WHERE active = TRUE LIMIT 1"
+        "SELECT item_id FROM couche_b.procurement_dict_items"
+        " WHERE active = TRUE LIMIT 1"
     )
     r = cur.fetchone()
     if not r:
         pytest.skip("dict_items vide")
-    uid = r["item_uid"]
+    iid = r["item_id"]
     cur.execute("SELECT id FROM public.geo_master WHERE level = 2 LIMIT 1")
     r = cur.fetchone()
     if not r:
@@ -286,11 +318,11 @@ def test_collection_method_mercuriale_rejected(conn):
         cur.execute(
             """
             INSERT INTO public.market_surveys (
-                item_uid, price_quoted, supplier_raw,
+                item_id, price_quoted, supplier_raw,
                 zone_id, date_surveyed, collection_method
             ) VALUES (%s, 100, 'test', %s, CURRENT_DATE, 'mercuriale')
             """,
-            (uid, zid),
+            (iid, zid),
         )
     conn.rollback()
 
@@ -369,13 +401,13 @@ def test_basket_type_invalid_rejected(conn):
     conn.rollback()
 
 
-# ── market_coverage bornée scope tracked ─────────────────────────────────────
+# ── market_coverage bornee scope tracked ─────────────────────────────────────
 
 
 def test_market_coverage_uses_tracked_scope(conn):
     """
     market_coverage doit partir de tracked_market_items.
-    CROSS JOIN borné : tracked_market_zones only.
+    CROSS JOIN borne : tracked_market_zones uniquement.
     """
     cur = conn.cursor()
     cur.execute(
@@ -389,14 +421,14 @@ def test_market_coverage_uses_tracked_scope(conn):
     ), "market_coverage ne passe pas par tracked_market_items"
     assert (
         "cross join" not in defn or "tracked_market_zones" in defn
-    ), "market_coverage CROSS JOIN non borné détecté"
+    ), "market_coverage CROSS JOIN non borne detecte"
 
 
-# ── Colonnes FK type correct ──────────────────────────────────────────────────
+# ── Types FK corrects ─────────────────────────────────────────────────────────
 
 
 def test_created_by_type_in_zone_context_registry(conn):
-    """created_by doit être INTEGER (users.id = INTEGER)."""
+    """created_by doit etre INTEGER (users.id = INTEGER)."""
     cur = conn.cursor()
     cur.execute(
         """
@@ -410,11 +442,11 @@ def test_created_by_type_in_zone_context_registry(conn):
     assert r is not None, "Colonne created_by absente de zone_context_registry"
     assert (
         r["data_type"] == "integer"
-    ), f"created_by type = {r['data_type']} — attendu integer"
+    ), f"created_by type = {r['data_type']} -- attendu integer"
 
 
 def test_unit_id_type_in_market_surveys(conn):
-    """unit_id doit être INTEGER (units.id = INTEGER)."""
+    """unit_id doit etre INTEGER (units.id = INTEGER)."""
     cur = conn.cursor()
     cur.execute(
         """
@@ -428,4 +460,4 @@ def test_unit_id_type_in_market_surveys(conn):
     assert r is not None, "Colonne unit_id absente de market_surveys"
     assert (
         r["data_type"] == "integer"
-    ), f"unit_id type = {r['data_type']} — attendu integer"
+    ), f"unit_id type = {r['data_type']} -- attendu integer"

@@ -97,7 +97,7 @@ def main():
     for p in PATTERNS:
         cur.execute(
             """
-            SELECT item_uid, label_fr
+            SELECT item_id, label_fr
             FROM couche_b.procurement_dict_items
             WHERE LOWER(label_fr) LIKE %s AND active = TRUE
             LIMIT 3
@@ -105,8 +105,8 @@ def main():
             (f"%{p.lower()}%",),
         )
         for r in cur.fetchall():
-            if r["item_uid"] not in seen:
-                seen.add(r["item_uid"])
+            if r["item_id"] not in seen:
+                seen.add(r["item_id"])
                 items.append(r)
 
     print(f"Items trouvés : {len(items)}")
@@ -119,11 +119,11 @@ def main():
             cur.execute(
                 """
                 INSERT INTO public.tracked_market_items
-                    (item_uid, priority, notes)
+                    (item_id, priority, notes)
                 VALUES (%s, 'strategic', %s)
-                ON CONFLICT (item_uid) DO NOTHING
+                ON CONFLICT (item_id) DO NOTHING
                 """,
-                (it["item_uid"], f"Multi-secteur : {it['label_fr']}"),
+                (it["item_id"], f"Multi-secteur : {it['label_fr']}"),
             )
             items_ok += 1
         except Exception as e:
@@ -159,6 +159,7 @@ def main():
 
     # ── Baskets GLOBAL_CORE ────────────────────────────
     baskets_ok = 0
+    basket_item_errors = 0
     for b in BASKETS:
         cur.execute(
             """
@@ -182,7 +183,7 @@ def main():
         for pat in b["patterns"]:
             cur.execute(
                 """
-                SELECT item_uid FROM couche_b.procurement_dict_items
+                SELECT item_id FROM couche_b.procurement_dict_items
                 WHERE LOWER(label_fr) LIKE %s AND active = TRUE
                 LIMIT 1
                 """,
@@ -194,20 +195,25 @@ def main():
                     cur.execute(
                         """
                         INSERT INTO public.market_basket_items
-                            (basket_id, item_uid, default_quantity)
+                            (basket_id, item_id, default_quantity)
                         VALUES (%s, %s, 1.0)
                         ON CONFLICT DO NOTHING
                         """,
-                        (bid, ir["item_uid"]),
+                        (bid, ir["item_id"]),
                     )
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"  ERR basket_item {pat} : {e}")
+                    basket_item_errors += 1
 
     conn.commit()
     card = len(items) * len(zones)
+    if basket_item_errors > 0:
+        print(f"WARN : {basket_item_errors} erreurs basket_items")
     print(
         f"items={items_ok} zones={zones_ok} "
-        f"baskets={baskets_ok}/3 cardinalité={card}"
+        f"baskets={baskets_ok}/3 "
+        f"basket_item_errors={basket_item_errors} "
+        f"cardinalite={card}"
     )
     conn.close()
     sys.exit(0)

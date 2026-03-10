@@ -1,4 +1,4 @@
-# M8_RESULT — DONE
+# M8_RESULT -- DONE
 ## head    : 042_market_surveys
 ## down_rev: m7_7_genome_stable
 ## CB-04   : upgrade -> downgrade -> upgrade OK
@@ -22,27 +22,32 @@
   trg_market_survey_immutable_validated
   trg_market_survey_flag_duplicate
 
-## Adaptations schema reel appliquees
-  users.id  = INTEGER  -> created_by / collected_by / validated_by = INTEGER
-  units.id  = INTEGER  -> unit_id = INTEGER
-  cases.id  = TEXT     -> case_id = TEXT
-  geo_master.id = VARCHAR (pas UUID) -> zone_id = TEXT partout
-  procurement_dict_items sans item_uid -> PHASE 0 ajoute item_uid UUID
+## Schema reel confirme par probe ETAPE 0
+  item_id     : TEXT  (cle existante couche_b.procurement_dict_items)
+                NOTE : item_id existait avant M8 -- M8 l'utilise en FK
+                       PHASE 0 absente -- aucune modification de la table
+  zone_id     : TEXT/VARCHAR(50) (geo_master)
+  vendor_id   : UUID  (vendors)
+  unit_id     : INTEGER (units)
+  case_id     : TEXT  (cases)
+  source_case_id : TEXT + FK public.cases(id)
+  users.id    : INTEGER -> created_by / collected_by / validated_by = INTEGER
 
 ## Decisions architecturales gelees
+  item_id FK uniforme (pas item_uid) OK
   market_baskets GLOBAL_CORE zero org_id OK
   market_coverage bornee tracked scope OK
   premier refresh sans CONCURRENTLY OK
   index unique cree apres premier refresh OK
-  item_uid FK uniforme OK
   is_bidirectional absent OK
   price_series absent -> M9 OK
-  downgrade() complet OK
+  downgrade() complet -- aucune modif procurement_dict_items OK
+  source_case_id TEXT + FK cases(id) OK
 
 ## CB-01 : PASS (5/5 fichiers OK)
 ## CB-08 : total=610 t1=179 t2=431 t3=0 mode=FULL
 ## Seeds : 6 contextes FEWS Mali ok=6 skip=0 err=0
-##         items=47 zones=6 baskets=3/3 cardinalite=282
+##         items=45 zones=6 baskets=3/3 cardinalite=270
 ## Tests : 39 passed, 1 skipped (0 failed)
 ## Engine: AUCUN (market_signals preexistant hors M8)
 ## INSTAT: present -> seasonal_patterns M9

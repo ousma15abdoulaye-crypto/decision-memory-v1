@@ -15,11 +15,15 @@ CLASSIFICATION DES TABLES :
                   survey_campaign_zones,
                   market_surveys,
                   price_anomaly_alerts
-  MATVIEW       : market_coverage (bornée scope tracked)
+  MATVIEW       : market_coverage (bornee scope tracked)
 
-Adaptations schéma réel :
-  - item_uid : ajouté à procurement_dict_items si absent (PHASE 0)
-  - zone_id  : TEXT pour compat geo_master.id VARCHAR
+Adaptations schema reel confirmes par probe ETAPE 0 :
+  item_id    : TEXT  cle existante couche_b.procurement_dict_items
+               (pas item_uid — M8 utilise item_id, pas de PHASE 0)
+  zone_id    : TEXT  compat geo_master.id VARCHAR(50)
+  users.id   : INTEGER
+  units.id   : INTEGER
+  cases.id   : TEXT
 
 Revision  : 042_market_surveys
 Down      : m7_7_genome_stable
@@ -38,62 +42,6 @@ FN_APPEND_ONLY = "fn_reject_mutation"
 def upgrade() -> None:
 
     # ══════════════════════════════════════════════════
-    # PHASE 0 — item_uid sur procurement_dict_items si absent
-    # ══════════════════════════════════════════════════
-
-    op.execute("""
-        DO $$
-        BEGIN
-            IF NOT EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_schema = 'couche_b'
-                  AND table_name   = 'procurement_dict_items'
-                  AND column_name  = 'item_uid'
-            ) THEN
-                -- Colonne absente : ajouter en TEXT (compatible tous envs)
-                ALTER TABLE couche_b.procurement_dict_items
-                    ADD COLUMN item_uid TEXT;
-                UPDATE couche_b.procurement_dict_items
-                SET item_uid = gen_random_uuid()::TEXT
-                WHERE item_uid IS NULL;
-                ALTER TABLE couche_b.procurement_dict_items
-                    ADD CONSTRAINT uq_dict_items_item_uid UNIQUE (item_uid);
-                CREATE INDEX IF NOT EXISTS idx_dict_items_item_uid
-                    ON couche_b.procurement_dict_items (item_uid)
-                    WHERE item_uid IS NOT NULL;
-            ELSIF EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_schema = 'couche_b'
-                  AND table_name   = 'procurement_dict_items'
-                  AND column_name  = 'item_uid'
-                  AND data_type    = 'uuid'
-            ) THEN
-                -- Colonne UUID locale : convertir en TEXT pour alignement schema
-                ALTER TABLE couche_b.procurement_dict_items
-                    DROP CONSTRAINT IF EXISTS uq_dict_items_item_uid;
-                DROP INDEX IF EXISTS couche_b.idx_dict_items_item_uid;
-                ALTER TABLE couche_b.procurement_dict_items
-                    ALTER COLUMN item_uid TYPE TEXT USING item_uid::TEXT;
-                ALTER TABLE couche_b.procurement_dict_items
-                    ADD CONSTRAINT uq_dict_items_item_uid UNIQUE (item_uid);
-                CREATE INDEX IF NOT EXISTS idx_dict_items_item_uid
-                    ON couche_b.procurement_dict_items (item_uid)
-                    WHERE item_uid IS NOT NULL;
-            END IF;
-            -- Garantir unicite quelle que soit la branche
-            IF NOT EXISTS (
-                SELECT 1 FROM pg_constraint
-                WHERE conname = 'uq_dict_items_item_uid'
-                  AND conrelid = 'couche_b.procurement_dict_items'::regclass
-            ) THEN
-                ALTER TABLE couche_b.procurement_dict_items
-                    ADD CONSTRAINT uq_dict_items_item_uid UNIQUE (item_uid);
-            END IF;
-        END;
-        $$;
-    """)
-
-    # ══════════════════════════════════════════════════
     # PHASE 1 — GLOBAL_CORE sans FK externes
     # ══════════════════════════════════════════════════
 
@@ -102,8 +50,8 @@ def upgrade() -> None:
     CREATE TABLE public.tracked_market_items (
         id         UUID PRIMARY KEY
                    DEFAULT gen_random_uuid(),
-        item_uid   TEXT NOT NULL UNIQUE
-                   REFERENCES couche_b.procurement_dict_items(item_uid),
+        item_id    TEXT NOT NULL UNIQUE
+                   REFERENCES couche_b.procurement_dict_items(item_id),
         priority   TEXT NOT NULL DEFAULT 'strategic'
                    CHECK (priority IN (
                      'strategic','standard','monitoring')),
@@ -125,7 +73,7 @@ def upgrade() -> None:
     );
 
     -- CLASSIFICATION : GLOBAL_CORE
-    -- Baskets système partagés — zéro org_id
+    -- Baskets systeme partages -- zero org_id
     CREATE TABLE public.market_baskets (
         id          UUID PRIMARY KEY
                     DEFAULT gen_random_uuid(),
@@ -202,6 +150,7 @@ def upgrade() -> None:
       WHERE valid_until IS NULL;
 
     -- CLASSIFICATION : GLOBAL_CORE
+    -- Granularite taxo_l3 -- INSTAT via M9 uniquement
     CREATE TABLE public.seasonal_patterns (
         id                       UUID PRIMARY KEY
                                  DEFAULT gen_random_uuid(),
@@ -210,8 +159,8 @@ def upgrade() -> None:
         taxo_l1                  TEXT NOT NULL,
         taxo_l2                  TEXT,
         taxo_l3                  TEXT NOT NULL,
-        item_uid                 TEXT REFERENCES
-                                 couche_b.procurement_dict_items(item_uid),
+        item_id                  TEXT REFERENCES
+                                 couche_b.procurement_dict_items(item_id),
         month                    INTEGER NOT NULL
                                  CHECK (month BETWEEN 1 AND 12),
         historical_deviation_pct NUMERIC(6,3) NOT NULL,
@@ -235,6 +184,7 @@ def upgrade() -> None:
     );
 
     -- CLASSIFICATION : GLOBAL_CORE
+    -- Une ligne = un sens strict -- deux sens = deux lignes
     CREATE TABLE public.geo_price_corridors (
         id                UUID PRIMARY KEY
                           DEFAULT gen_random_uuid(),
@@ -260,11 +210,11 @@ def upgrade() -> None:
     """)
 
     # ══════════════════════════════════════════════════
-    # PHASE 3 — GLOBAL_CORE dépendantes
+    # PHASE 3 — GLOBAL_CORE dependantes
     # ══════════════════════════════════════════════════
 
     op.execute("""
-    -- CLASSIFICATION : GLOBAL_CORE — APPEND-ONLY
+    -- CLASSIFICATION : GLOBAL_CORE -- APPEND-ONLY
     CREATE TABLE public.zone_context_audit (
         id                  UUID PRIMARY KEY
                             DEFAULT gen_random_uuid(),
@@ -293,14 +243,14 @@ def upgrade() -> None:
                          DEFAULT gen_random_uuid(),
         basket_id        UUID NOT NULL
                          REFERENCES public.market_baskets(id),
-        item_uid         TEXT NOT NULL
+        item_id          TEXT NOT NULL
                          REFERENCES
-                         couche_b.procurement_dict_items(item_uid),
+                         couche_b.procurement_dict_items(item_id),
         default_quantity NUMERIC(10,3) NOT NULL DEFAULT 1.0
                          CHECK (default_quantity > 0),
         unit_notes       TEXT,
         created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-        UNIQUE (basket_id, item_uid)
+        UNIQUE (basket_id, item_id)
     );
     """)
 
@@ -339,11 +289,11 @@ def upgrade() -> None:
         campaign_id UUID NOT NULL
                     REFERENCES public.survey_campaigns(id)
                     ON DELETE CASCADE,
-        item_uid    TEXT NOT NULL
+        item_id     TEXT NOT NULL
                     REFERENCES
-                    couche_b.procurement_dict_items(item_uid),
+                    couche_b.procurement_dict_items(item_id),
         org_id      TEXT,
-        UNIQUE (campaign_id, item_uid)
+        UNIQUE (campaign_id, item_id)
     );
 
     -- CLASSIFICATION : TENANT_SCOPED
@@ -360,12 +310,14 @@ def upgrade() -> None:
     );
 
     -- CLASSIFICATION : TENANT_SCOPED
+    -- price_per_unit via trigger BEFORE INSERT
+    -- collection_method : valeur mercuriale interdite par CHECK ci-dessous
     CREATE TABLE public.market_surveys (
         id                     UUID PRIMARY KEY
                                DEFAULT gen_random_uuid(),
-        item_uid               TEXT NOT NULL
+        item_id                TEXT NOT NULL
                                REFERENCES
-                               couche_b.procurement_dict_items(item_uid),
+                               couche_b.procurement_dict_items(item_id),
         price_quoted           NUMERIC(15,4) NOT NULL
                                CHECK (price_quoted > 0),
         currency               TEXT NOT NULL DEFAULT 'XOF',
@@ -414,12 +366,13 @@ def upgrade() -> None:
     );
 
     -- CLASSIFICATION : TENANT_SCOPED
+    -- Secteur-agnostique : ONG / Etat / Mines / Prive
     CREATE TABLE public.price_anomaly_alerts (
         id                    UUID PRIMARY KEY
                               DEFAULT gen_random_uuid(),
-        item_uid              TEXT NOT NULL
+        item_id               TEXT NOT NULL
                               REFERENCES
-                              couche_b.procurement_dict_items(item_uid),
+                              couche_b.procurement_dict_items(item_id),
         zone_id               TEXT
                               REFERENCES public.geo_master(id),
         alert_type            TEXT NOT NULL
@@ -444,7 +397,7 @@ def upgrade() -> None:
         structural_markup_pct NUMERIC(5,2),
         residual_pct          NUMERIC(8,2),
         source_survey_id      UUID,
-        source_case_id        UUID,
+        source_case_id        TEXT REFERENCES public.cases(id),
         status                TEXT NOT NULL DEFAULT 'open'
                               CHECK (status IN (
                                 'open','acknowledged',
@@ -493,7 +446,7 @@ def upgrade() -> None:
               AND id          IS DISTINCT FROM NEW.id;
             IF existing_id IS NOT NULL THEN
                 RAISE EXCEPTION
-                    '[M8] Zone % a déjà un contexte actif '
+                    '[M8] Zone % a deja un contexte actif '
                     '(%). Fermer avant insertion.',
                     NEW.zone_id, existing_id;
             END IF;
@@ -567,14 +520,14 @@ def upgrade() -> None:
     BEGIN
         IF OLD.validation_status = 'validated' THEN
             IF NEW.price_quoted  IS DISTINCT FROM OLD.price_quoted
-            OR NEW.item_uid      IS DISTINCT FROM OLD.item_uid
+            OR NEW.item_id       IS DISTINCT FROM OLD.item_id
             OR NEW.zone_id       IS DISTINCT FROM OLD.zone_id
             OR NEW.date_surveyed IS DISTINCT FROM OLD.date_surveyed
             OR NEW.supplier_raw  IS DISTINCT FROM OLD.supplier_raw
             THEN
                 RAISE EXCEPTION
-                    '[M8] Survey % validé — champs métier '
-                    'immuables. Créer nouveau survey.',
+                    '[M8] Survey % valide -- champs metier '
+                    'immuables. Creer nouveau survey.',
                     OLD.id;
             END IF;
         END IF;
@@ -585,7 +538,8 @@ def upgrade() -> None:
     CREATE TRIGGER trg_market_survey_immutable_validated
     BEFORE UPDATE ON public.market_surveys
     FOR EACH ROW
-    EXECUTE FUNCTION public.fn_market_survey_immutable_validated();
+    EXECUTE FUNCTION
+    public.fn_market_survey_immutable_validated();
     """)
 
     op.execute("""
@@ -596,7 +550,7 @@ def upgrade() -> None:
     BEGIN
         SELECT id INTO dup_id
         FROM public.market_surveys
-        WHERE item_uid      = NEW.item_uid
+        WHERE item_id       = NEW.item_id
           AND zone_id       = NEW.zone_id
           AND date_surveyed = NEW.date_surveyed
           AND supplier_raw  = NEW.supplier_raw
@@ -620,13 +574,13 @@ def upgrade() -> None:
     """)
 
     # ══════════════════════════════════════════════════
-    # PHASE 6 — MATVIEW bornée scope tracked
+    # PHASE 6 — MATVIEW bornee scope tracked
     # ══════════════════════════════════════════════════
 
     op.execute("""
     CREATE MATERIALIZED VIEW public.market_coverage AS
     SELECT
-        di.item_uid,
+        di.item_id,
         di.label_fr,
         gm.id   AS zone_id,
         gm.name AS zone_name,
@@ -649,13 +603,13 @@ def upgrade() -> None:
         END AS coverage_status
     FROM public.tracked_market_items tmi
     JOIN couche_b.procurement_dict_items di
-      ON di.item_uid = tmi.item_uid
+      ON di.item_id = tmi.item_id
     JOIN public.tracked_market_zones tmz
       ON TRUE
     JOIN public.geo_master gm
       ON gm.id = tmz.zone_id
     LEFT JOIN public.market_surveys ms
-      ON  ms.item_uid          = di.item_uid
+      ON  ms.item_id           = di.item_id
       AND ms.zone_id           = gm.id
       AND ms.validation_status = 'validated'
     LEFT JOIN public.zone_context_registry zcr
@@ -664,7 +618,7 @@ def upgrade() -> None:
       AND (zcr.valid_until IS NULL
            OR zcr.valid_until >= CURRENT_DATE)
     GROUP BY
-        di.item_uid, di.label_fr,
+        di.item_id, di.label_fr,
         gm.id, gm.name,
         zcr.context_type,
         zcr.severity_level,
@@ -673,7 +627,7 @@ def upgrade() -> None:
     REFRESH MATERIALIZED VIEW public.market_coverage;
 
     CREATE UNIQUE INDEX idx_market_coverage_pk
-      ON public.market_coverage(item_uid, zone_id);
+      ON public.market_coverage(item_id, zone_id);
     """)
 
     # ══════════════════════════════════════════════════
@@ -682,7 +636,7 @@ def upgrade() -> None:
 
     op.execute("""
     CREATE INDEX idx_ms_item_zone
-      ON public.market_surveys(item_uid, zone_id);
+      ON public.market_surveys(item_id, zone_id);
     CREATE INDEX idx_ms_date
       ON public.market_surveys(date_surveyed DESC);
     CREATE INDEX idx_ms_validation
@@ -700,7 +654,7 @@ def upgrade() -> None:
     CREATE INDEX idx_gpc_from_to
       ON public.geo_price_corridors(zone_from, zone_to);
     CREATE INDEX idx_paa_item_zone
-      ON public.price_anomaly_alerts(item_uid, zone_id);
+      ON public.price_anomaly_alerts(item_id, zone_id);
     CREATE INDEX idx_paa_level
       ON public.price_anomaly_alerts(alert_level);
     CREATE INDEX idx_paa_org
@@ -708,7 +662,7 @@ def upgrade() -> None:
     """)
 
     # ══════════════════════════════════════════════════
-    # VÉRIFICATION FAIL-LOUD
+    # VERIFICATION FAIL-LOUD
     # ══════════════════════════════════════════════════
 
     op.execute("""
@@ -736,7 +690,7 @@ def upgrade() -> None:
         END LOOP;
         IF missing != '' THEN
             RAISE EXCEPTION
-                '042 UPGRADE FAIL — tables manquantes : %',
+                '042 UPGRADE FAIL -- tables manquantes : %',
                 missing;
         END IF;
         IF NOT EXISTS (
@@ -744,9 +698,9 @@ def upgrade() -> None:
             WHERE matviewname = 'market_coverage'
         ) THEN
             RAISE EXCEPTION
-                '042 UPGRADE FAIL — market_coverage absente';
+                '042 UPGRADE FAIL -- market_coverage absente';
         END IF;
-        RAISE NOTICE '042 UPGRADE OK — 13 tables + matview';
+        RAISE NOTICE '042 UPGRADE OK -- 13 tables + matview';
     END;
     $$;
     """)
@@ -754,9 +708,10 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """
-    Inverse exact — triggers → fonctions → matview
-    → TENANT_SCOPED → GLOBAL_CORE dep → GLOBAL_CORE FK
-    → GLOBAL_CORE sans FK → PHASE 0 item_uid
+    Inverse exact -- triggers -> fonctions -> matview
+    -> TENANT_SCOPED -> GLOBAL_CORE dep -> GLOBAL_CORE FK
+    -> GLOBAL_CORE sans FK
+    M8 ne modifie pas procurement_dict_items : aucun DROP COLUMN.
     """
     op.execute("""
     DROP TRIGGER IF EXISTS trg_zone_context_audit_append_only
@@ -804,41 +759,6 @@ def downgrade() -> None:
     DROP TABLE IF EXISTS public.tracked_market_items  CASCADE;
     """)
 
-    # PHASE 0 rollback : nettoyer les objets M8 sur item_uid
-    # Ne PAS dropper la colonne si elle était pré-existante (CI/prod)
-    # On retire uniquement le constraint/index ajouté par 042
-    op.execute("""
-    DO $$
-    DECLARE fk_count INTEGER;
-    BEGIN
-        -- Compter les FK HORS tables 042 qui référencent item_uid
-        SELECT COUNT(*) INTO fk_count
-        FROM pg_constraint c
-        JOIN pg_class cl ON cl.oid = c.conrelid
-        JOIN pg_namespace ns ON ns.oid = cl.relnamespace
-        WHERE c.confrelid = 'couche_b.procurement_dict_items'::regclass
-          AND c.contype   = 'f'
-          AND cl.relname NOT IN (
-            'tracked_market_items','market_basket_items',
-            'seasonal_patterns','survey_campaign_items',
-            'market_surveys','price_anomaly_alerts'
-          );
-        IF fk_count > 0 THEN
-            -- Colonne pré-existante référencée ailleurs : ne pas dropper
-            RAISE NOTICE '042 PHASE-0 ROLLBACK : item_uid pre-existant (% FK externes), colonne conservee', fk_count;
-        ELSE
-            -- Colonne ajoutée par 042 : supprimer proprement
-            DROP INDEX IF EXISTS couche_b.idx_dict_items_item_uid;
-            ALTER TABLE couche_b.procurement_dict_items
-                DROP CONSTRAINT IF EXISTS uq_dict_items_item_uid;
-            ALTER TABLE couche_b.procurement_dict_items
-                DROP COLUMN IF EXISTS item_uid;
-            RAISE NOTICE '042 PHASE-0 ROLLBACK : item_uid supprime';
-        END IF;
-    END;
-    $$;
-    """)
-
     op.execute("""
     DO $$
     BEGIN
@@ -848,8 +768,8 @@ def downgrade() -> None:
               AND table_schema = 'public'
         ) THEN
             RAISE EXCEPTION
-                '042 DOWNGRADE FAIL — '
-                'market_surveys encore présente';
+                '042 DOWNGRADE FAIL -- '
+                'market_surveys encore presente';
         END IF;
         RAISE NOTICE '042 DOWNGRADE OK';
     END;
