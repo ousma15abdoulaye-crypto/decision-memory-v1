@@ -30,14 +30,14 @@ freeze_hashes_doc     : docs/freeze/FREEZE_HASHES.md
 
 ## ETAT COURANT
 
-last_completed        : MRD-6
-last_completed_at     : 2026-03-09
-last_merge_commit     : 226b4dd7733d8f49415be8f88cd34c5f328d829b
-last_tag              : mrd-6-done
-next_milestone        : M8
+last_completed        : M8
+last_completed_at     : 2026-03-10
+last_merge_commit     : (en attente merge PR feat/m8-market-intelligence)
+last_tag              : mrd-6-done (m8-done apres merge CTO)
+next_milestone        : M9
 next_status           : NOT_STARTED
 blocked_on            : aucun
-branch_courante       : main
+branch_courante       : feat/m8-market-intelligence
 
 ---
 
@@ -53,14 +53,15 @@ branch_courante       : main
 | MRD-4    | DONE   | mrd-4-done   | 831117b | 2026-03-09 | fingerprint + triggers + rebuild 1490 items |
 | MRD-5    | DONE   | mrd-5-done   | 29efbc6 | 2026-03-09 | item_code LG-YYYYMM-NNNNNN + ADR-MRD5       |
 | MRD-6    | DONE   | mrd-6-done   | 226b4dd | 2026-03-09 | taxo L1/L2/L3 + label_status + collisions   |
-| M8       | -      | -            | -       | -          | Market Survey (V4 reprend)                  |
+| M8       | DONE   | m8-done      | PR open | 2026-03-10 | 13 tables + matview + 6 triggers + seeds    |
+| M9       | -      | -            | -       | -          | market_signals + formule V1.1               |
 
 ---
 
 ## STACK ALEMBIC
 
-local_alembic_head        : m7_7_genome_stable
-local_alembic_current     : m7_7_genome_stable
+local_alembic_head        : 042_market_surveys
+local_alembic_current     : 042_market_surveys
 railway_alembic_head      : m7_4b
 aligned_schema            : NON
 
