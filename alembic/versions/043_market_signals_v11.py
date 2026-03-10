@@ -237,7 +237,33 @@ def upgrade() -> None:
           COALESCE(sig.price_seasonal_adj, sig.price_avg)
           * mbi.default_quantity
         )                   AS total_cost_adj,
-        MIN(sig.signal_quality) AS weakest_signal,
+        MIN(
+            CASE sig.signal_quality
+                WHEN 'empty'      THEN 0
+                WHEN 'propagated' THEN 1
+                WHEN 'weak'       THEN 2
+                WHEN 'moderate'   THEN 3
+                WHEN 'strong'     THEN 4
+                ELSE                   0
+            END
+        )                          AS weakest_signal_rank,
+        CASE MIN(
+            CASE sig.signal_quality
+                WHEN 'empty'      THEN 0
+                WHEN 'propagated' THEN 1
+                WHEN 'weak'       THEN 2
+                WHEN 'moderate'   THEN 3
+                WHEN 'strong'     THEN 4
+                ELSE                   0
+            END
+        )
+            WHEN 0 THEN 'empty'
+            WHEN 1 THEN 'propagated'
+            WHEN 2 THEN 'weak'
+            WHEN 3 THEN 'moderate'
+            WHEN 4 THEN 'strong'
+            ELSE 'empty'
+        END                        AS weakest_signal,
         COUNT(
           CASE WHEN sig.signal_quality = 'empty'
                THEN 1 END
@@ -273,8 +299,7 @@ def upgrade() -> None:
             SELECT 1 FROM pg_matviews
             WHERE matviewname = 'market_coverage'
         ) THEN
-            REFRESH MATERIALIZED VIEW CONCURRENTLY
-                public.market_coverage;
+            REFRESH MATERIALIZED VIEW public.market_coverage;
         END IF;
     END;
     $$;

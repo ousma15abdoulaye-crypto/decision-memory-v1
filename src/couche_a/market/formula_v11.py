@@ -95,7 +95,7 @@ class FormulaV11:
 
     @staticmethod
     def reject_outliers(prices: list[float]) -> list[float]:
-        if len(prices) < 4:
+        if len(prices) < 5:
             return prices
         q1 = statistics.quantiles(prices, n=4)[0]
         q3 = statistics.quantiles(prices, n=4)[2]

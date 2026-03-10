@@ -111,7 +111,7 @@ def main():
                 continue
 
             dev = ((statistics.mean(vals) / am) - 1) * 100
-            yrs = len(vals) // 12 + 1
+            yrs = len(vals)
 
             try:
                 cur.execute(

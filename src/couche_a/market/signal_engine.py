@@ -25,6 +25,7 @@ from psycopg.rows import dict_row
 from .formula_v11 import (
     ContextSnapshot,
     FormulaV11,
+    FORMULA_VERSION,
     PricePoint,
     SignalResult,
 )
@@ -43,9 +44,11 @@ class SignalEngine:
         if not db_url:
             raise ValueError("DATABASE_URL requis")
         if "railway" in db_url.lower():
-            # Accepte Railway pour calcul signaux (pas migration)
-            pass
-        self.db_url = db_url
+            raise ValueError("CONTRACT-02")
+        self.db_url = (
+            db_url.replace("postgresql+psycopg://", "postgresql://")
+            .replace("postgresql+psycopg2://", "postgresql://")
+        )
         self.formula = FormulaV11()
 
     def _conn(self) -> psycopg.Connection:
@@ -282,7 +285,7 @@ class SignalEngine:
                     %(item_id)s, %(zone_id)s, %(price_raw)s,
                     %(price_crisis_adj)s, %(price_seasonal_adj)s,
                     %(residual_pct)s, %(alert_level)s, %(signal_quality)s,
-                    '1.1',
+                    %(formula_version)s,
                     %(structural_markup_applied)s,
                     %(seasonal_deviation_applied)s,
                     %(context_type_at_computation)s,
@@ -315,6 +318,7 @@ class SignalEngine:
                 {
                     "item_id": result.item_id,
                     "zone_id": result.zone_id,
+                    "formula_version": FORMULA_VERSION,
                     "price_raw": result.price_raw,
                     "price_crisis_adj": result.price_crisis_adj,
                     "price_seasonal_adj": result.price_seasonal_adj,
@@ -339,11 +343,12 @@ class SignalEngine:
                     price_raw, price_crisis_adj, price_seasonal_adj,
                     residual_pct, alert_level, signal_quality,
                     source_count, sources_detail, context_snapshot
-                ) VALUES (%s, %s, '1.1', %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     result.item_id,
                     result.zone_id,
+                    FORMULA_VERSION,
                     result.price_raw,
                     result.price_crisis_adj,
                     result.price_seasonal_adj,
