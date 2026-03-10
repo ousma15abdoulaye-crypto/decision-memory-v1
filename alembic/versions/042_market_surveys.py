@@ -50,16 +50,44 @@ def upgrade() -> None:
                   AND table_name   = 'procurement_dict_items'
                   AND column_name  = 'item_uid'
             ) THEN
+                -- Colonne absente : ajouter en TEXT (compatible tous envs)
                 ALTER TABLE couche_b.procurement_dict_items
-                    ADD COLUMN item_uid UUID;
+                    ADD COLUMN item_uid TEXT;
                 UPDATE couche_b.procurement_dict_items
-                SET item_uid = gen_random_uuid()
+                SET item_uid = gen_random_uuid()::TEXT
                 WHERE item_uid IS NULL;
                 ALTER TABLE couche_b.procurement_dict_items
                     ADD CONSTRAINT uq_dict_items_item_uid UNIQUE (item_uid);
                 CREATE INDEX IF NOT EXISTS idx_dict_items_item_uid
                     ON couche_b.procurement_dict_items (item_uid)
                     WHERE item_uid IS NOT NULL;
+            ELSIF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'couche_b'
+                  AND table_name   = 'procurement_dict_items'
+                  AND column_name  = 'item_uid'
+                  AND data_type    = 'uuid'
+            ) THEN
+                -- Colonne UUID locale : convertir en TEXT pour alignement schema
+                ALTER TABLE couche_b.procurement_dict_items
+                    DROP CONSTRAINT IF EXISTS uq_dict_items_item_uid;
+                DROP INDEX IF EXISTS couche_b.idx_dict_items_item_uid;
+                ALTER TABLE couche_b.procurement_dict_items
+                    ALTER COLUMN item_uid TYPE TEXT USING item_uid::TEXT;
+                ALTER TABLE couche_b.procurement_dict_items
+                    ADD CONSTRAINT uq_dict_items_item_uid UNIQUE (item_uid);
+                CREATE INDEX IF NOT EXISTS idx_dict_items_item_uid
+                    ON couche_b.procurement_dict_items (item_uid)
+                    WHERE item_uid IS NOT NULL;
+            END IF;
+            -- Garantir unicite quelle que soit la branche
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'uq_dict_items_item_uid'
+                  AND conrelid = 'couche_b.procurement_dict_items'::regclass
+            ) THEN
+                ALTER TABLE couche_b.procurement_dict_items
+                    ADD CONSTRAINT uq_dict_items_item_uid UNIQUE (item_uid);
             END IF;
         END;
         $$;
@@ -74,7 +102,7 @@ def upgrade() -> None:
     CREATE TABLE public.tracked_market_items (
         id         UUID PRIMARY KEY
                    DEFAULT gen_random_uuid(),
-        item_uid   UUID NOT NULL UNIQUE
+        item_uid   TEXT NOT NULL UNIQUE
                    REFERENCES couche_b.procurement_dict_items(item_uid),
         priority   TEXT NOT NULL DEFAULT 'strategic'
                    CHECK (priority IN (
@@ -182,7 +210,7 @@ def upgrade() -> None:
         taxo_l1                  TEXT NOT NULL,
         taxo_l2                  TEXT,
         taxo_l3                  TEXT NOT NULL,
-        item_uid                 UUID REFERENCES
+        item_uid                 TEXT REFERENCES
                                  couche_b.procurement_dict_items(item_uid),
         month                    INTEGER NOT NULL
                                  CHECK (month BETWEEN 1 AND 12),
@@ -265,7 +293,7 @@ def upgrade() -> None:
                          DEFAULT gen_random_uuid(),
         basket_id        UUID NOT NULL
                          REFERENCES public.market_baskets(id),
-        item_uid         UUID NOT NULL
+        item_uid         TEXT NOT NULL
                          REFERENCES
                          couche_b.procurement_dict_items(item_uid),
         default_quantity NUMERIC(10,3) NOT NULL DEFAULT 1.0
@@ -311,7 +339,7 @@ def upgrade() -> None:
         campaign_id UUID NOT NULL
                     REFERENCES public.survey_campaigns(id)
                     ON DELETE CASCADE,
-        item_uid    UUID NOT NULL
+        item_uid    TEXT NOT NULL
                     REFERENCES
                     couche_b.procurement_dict_items(item_uid),
         org_id      TEXT,
@@ -335,7 +363,7 @@ def upgrade() -> None:
     CREATE TABLE public.market_surveys (
         id                     UUID PRIMARY KEY
                                DEFAULT gen_random_uuid(),
-        item_uid               UUID NOT NULL
+        item_uid               TEXT NOT NULL
                                REFERENCES
                                couche_b.procurement_dict_items(item_uid),
         price_quoted           NUMERIC(15,4) NOT NULL
@@ -389,7 +417,7 @@ def upgrade() -> None:
     CREATE TABLE public.price_anomaly_alerts (
         id                    UUID PRIMARY KEY
                               DEFAULT gen_random_uuid(),
-        item_uid              UUID NOT NULL
+        item_uid              TEXT NOT NULL
                               REFERENCES
                               couche_b.procurement_dict_items(item_uid),
         zone_id               TEXT
@@ -776,21 +804,36 @@ def downgrade() -> None:
     DROP TABLE IF EXISTS public.tracked_market_items  CASCADE;
     """)
 
-    # PHASE 0 rollback : retirer item_uid si ajouté par 042
+    # PHASE 0 rollback : nettoyer les objets M8 sur item_uid
+    # Ne PAS dropper la colonne si elle était pré-existante (CI/prod)
+    # On retire uniquement le constraint/index ajouté par 042
     op.execute("""
     DO $$
+    DECLARE fk_count INTEGER;
     BEGIN
-        IF EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = 'couche_b'
-              AND table_name   = 'procurement_dict_items'
-              AND column_name  = 'item_uid'
-        ) THEN
+        -- Compter les FK HORS tables 042 qui référencent item_uid
+        SELECT COUNT(*) INTO fk_count
+        FROM pg_constraint c
+        JOIN pg_class cl ON cl.oid = c.conrelid
+        JOIN pg_namespace ns ON ns.oid = cl.relnamespace
+        WHERE c.confrelid = 'couche_b.procurement_dict_items'::regclass
+          AND c.contype   = 'f'
+          AND cl.relname NOT IN (
+            'tracked_market_items','market_basket_items',
+            'seasonal_patterns','survey_campaign_items',
+            'market_surveys','price_anomaly_alerts'
+          );
+        IF fk_count > 0 THEN
+            -- Colonne pré-existante référencée ailleurs : ne pas dropper
+            RAISE NOTICE '042 PHASE-0 ROLLBACK : item_uid pre-existant (% FK externes), colonne conservee', fk_count;
+        ELSE
+            -- Colonne ajoutée par 042 : supprimer proprement
             DROP INDEX IF EXISTS couche_b.idx_dict_items_item_uid;
             ALTER TABLE couche_b.procurement_dict_items
                 DROP CONSTRAINT IF EXISTS uq_dict_items_item_uid;
             ALTER TABLE couche_b.procurement_dict_items
                 DROP COLUMN IF EXISTS item_uid;
+            RAISE NOTICE '042 PHASE-0 ROLLBACK : item_uid supprime';
         END IF;
     END;
     $$;

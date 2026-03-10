@@ -104,14 +104,18 @@ def test_item_uid_column_exists(conn):
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT COUNT(*) AS n
-        FROM information_schema.columns
+        SELECT data_type FROM information_schema.columns
         WHERE table_schema = 'public'
           AND table_name   = 'market_surveys'
           AND column_name  = 'item_uid'
         """,
     )
-    assert cur.fetchone()["n"] == 1
+    r = cur.fetchone()
+    assert r is not None, "Colonne item_uid absente de market_surveys"
+    assert r["data_type"] in (
+        "text",
+        "uuid",
+    ), f"item_uid type inattendu : {r['data_type']}"
 
 
 def test_no_item_id_column(conn):
