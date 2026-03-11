@@ -32,11 +32,11 @@ def upgrade() -> None:
     """)
 
     op.execute("""
-        CREATE INDEX ix_decision_history_item_zone
+        CREATE INDEX IF NOT EXISTS ix_decision_history_item_zone
         ON public.decision_history (item_id, zone_id)
     """)
     op.execute("""
-        CREATE INDEX ix_decision_history_decided_at
+        CREATE INDEX IF NOT EXISTS ix_decision_history_decided_at
         ON public.decision_history (decided_at)
     """)
 
