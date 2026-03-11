@@ -45,9 +45,8 @@ class SignalEngine:
             raise ValueError("DATABASE_URL requis")
         if "railway" in db_url.lower():
             raise ValueError("CONTRACT-02")
-        self.db_url = (
-            db_url.replace("postgresql+psycopg://", "postgresql://")
-            .replace("postgresql+psycopg2://", "postgresql://")
+        self.db_url = db_url.replace("postgresql+psycopg://", "postgresql://").replace(
+            "postgresql+psycopg2://", "postgresql://"
         )
         self.formula = FormulaV11()
 
