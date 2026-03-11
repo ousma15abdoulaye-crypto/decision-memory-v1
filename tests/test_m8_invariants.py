@@ -225,9 +225,7 @@ def test_no_market_signals_created_by_m8(conn):
     except (ValueError, IndexError):
         skip_from = 43
     if current_num >= skip_from:
-        pytest.skip(
-            f"Migration {ver} >= {MIGRATION_SKIP_FROM} — test M8 skippé"
-        )
+        pytest.skip(f"Migration {ver} >= {MIGRATION_SKIP_FROM} — test M8 skippé")
     assert ver == "042_market_surveys", f"head inattendu : {ver}"
 
 
@@ -250,9 +248,7 @@ def test_no_price_series_view(conn):
     except (ValueError, IndexError):
         skip_from = 43
     if current_num >= skip_from:
-        pytest.skip(
-            f"Migration {ver} >= {MIGRATION_SKIP_FROM} — price_series attendue"
-        )
+        pytest.skip(f"Migration {ver} >= {MIGRATION_SKIP_FROM} — price_series attendue")
     cur.execute(
         """
         SELECT COUNT(*) AS n
