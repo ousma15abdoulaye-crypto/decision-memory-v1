@@ -205,18 +205,28 @@ def test_no_market_signals_created_by_m8(conn):
     """
     M8 ne doit pas avoir cree market_signals.
     On verifie que alembic_version = 042_market_surveys (head M8).
+    Skip si head >= 043 (M9 applique).
     """
     cur = conn.cursor()
     cur.execute("SELECT version_num FROM alembic_version LIMIT 1")
     r = cur.fetchone()
     assert r is not None, "alembic_version vide"
-    assert (
-        r["version_num"] == "042_market_surveys"
-    ), f"head inattendu : {r['version_num']}"
+    ver = r["version_num"]
+    if ver and "043" in ver:
+        pytest.skip("M9 applique (043) -- test M8-only")
+    assert ver == "042_market_surveys", f"head inattendu : {ver}"
 
 
 def test_no_price_series_view(conn):
+    """
+    M8 ne cree pas price_series (hors scope M8).
+    Skip si head >= 043 (M9 cree price_series).
+    """
     cur = conn.cursor()
+    cur.execute("SELECT version_num FROM alembic_version LIMIT 1")
+    r = cur.fetchone()
+    if r and r.get("version_num") and "043" in r["version_num"]:
+        pytest.skip("M9 applique (043) -- price_series attendue")
     cur.execute(
         """
         SELECT COUNT(*) AS n
