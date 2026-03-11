@@ -307,13 +307,18 @@ class TestDB:
             assert cur.fetchone()["n"] == 1, f"Vue manquante : {vue}"
 
     def test_alembic_head_043(self, conn):
+        """Head doit être >= 043 (M9 ou M10A)."""
         cur = conn.cursor()
         cur.execute("SELECT version_num FROM alembic_version LIMIT 1")
         r = cur.fetchone()
         assert r is not None
-        assert (
-            r["version_num"] == "043_market_signals_v11"
-        ), f"head inattendu : {r['version_num']}"
+        ver = r["version_num"]
+        try:
+            prefix = str(ver).split("_")[0] if ver else ""
+            num = int(prefix) if prefix.isdigit() else 0
+        except (ValueError, TypeError):
+            num = 0
+        assert num >= 43, f"head inattendu : {ver} (attendu >= 043)"
 
     def test_market_signals_legacy_intact(self, conn):
         """market_signals legacy ne doit pas avoir ete modifie par M9."""
