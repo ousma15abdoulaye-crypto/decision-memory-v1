@@ -30,14 +30,14 @@ freeze_hashes_doc     : docs/freeze/FREEZE_HASHES.md
 
 ## ETAT COURANT
 
-last_completed        : M8
-last_completed_at     : 2026-03-10
-last_merge_commit     : 641e108 (Merge PR #178 feat/m8-market-intelligence)
-last_tag              : m8-done
-next_milestone        : M10A
-next_status           : NOT_STARTED
+last_completed        : M10B
+last_completed_at     : 2026-03-11
+last_merge_commit     : (en attente merge PR feat/m10b-agent-native)
+last_tag              : m10b-done (apres merge)
+next_milestone        : M11
+next_status           : IN_PROGRESS
 blocked_on            : aucun
-branch_courante       : main
+branch_courante       : feat/m10b-agent-native
 
 ---
 
@@ -60,11 +60,10 @@ branch_courante       : main
 
 ## STACK ALEMBIC
 
-local_alembic_head        : 043_market_signals_v11
-local_alembic_current     : 043_market_signals_v11
-railway_alembic_head      : m7_4b (4 migrations en retard: m7_5/m7_6/m7_7/042)
-railway_alembic_head      : m7_4b
-aligned_schema            : NON
+local_alembic_head        : 045_agent_native_foundation
+local_alembic_current     : 045_agent_native_foundation
+railway_alembic_head      : 044_decision_history (045 a deployer)
+aligned_schema            : NON (045 en attente deploy Railway)
 
 ### Migrations Railway pendantes (a appliquer dans ordre)
 
