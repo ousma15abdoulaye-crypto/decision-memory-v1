@@ -11,7 +11,7 @@ Schema reel confirme probe ETAPE 0 :
 
 Chemin jointure mercurials -> dict_items :
   Via public.mercurials_item_map (item_canonical -> dict_item_id)
-  1629 mappings confirmes Railway.
+  LOWER(TRIM) obligatoire -- 27700 matchables Railway (probe PRE-M10A).
 """
 
 from __future__ import annotations
@@ -118,14 +118,15 @@ class SignalEngine:
         points: list[PricePoint] = []
         current_year = None
 
-        # Source 1 : mercuriales via mercurials_item_map
+        # Source 1 : mercuriales via mercurials_item_map (LOWER/TRIM probe PRE-M10A)
         try:
             cur.execute(
                 """
                 SELECT m.price_avg AS prix, m.year
                 FROM mercurials m
                 JOIN public.mercurials_item_map map
-                  ON map.item_canonical = m.item_canonical
+                  ON LOWER(TRIM(map.item_canonical)) =
+                     LOWER(TRIM(m.item_canonical))
                 WHERE map.dict_item_id = %s
                   AND m.zone_id = %s
                   AND m.price_avg > 0
