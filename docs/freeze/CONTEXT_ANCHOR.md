@@ -1,413 +1,123 @@
-# CONTEXT_ANCHOR
-# ============================================================
-# POSER EN PREMIER DANS TOUTE NOUVELLE SESSION CLAUDE/CURSOR
-# Regenerer apres chaque milestone DONE
-# Genere : 2026-03-11 — post M10A DONE (data consolidation)
-# ============================================================
+# CONTEXT ANCHOR OFFICIEL — VERSION OPPOSABLE
+
+```
+╔══════════════════════════════════════════════════════════════════════╗
+║  CONTEXT ANCHOR — DMS v4.1                                          ║
+║  Dernière mise à jour : 2026-03-11                                  ║
+║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
+╠══════════════════════════════════════════════════════════════════════╣
+║                                                                      ║
+║  GIT                                                                 ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  main            : 630bcae                                          ║
+║  tag m10a-done   : de6cfbd (merge PR #183)                          ║
+║  branche active  : main                                             ║
+║  branche cible   : feat/m10b-agent-native (à créer)                 ║
+║                                                                      ║
+║  ALEMBIC                                                             ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  head actuel     : 044_decision_history                             ║
+║  head cible M10B : 045_agent_native_foundation                      ║
+║  historique      : 001 → 044 — FREEZE ABSOLU                        ║
+║                                                                      ║
+║  RAILWAY — DONNÉES RÉELLES CONFIRMÉES POST-M10A                      ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  procurement_dict_items : 1 490 items actifs                        ║
+║  mercurials             : 27 396 lignes                             ║
+║  mercurials.item_id     : UUID — VIDE — NON UTILISÉ                 ║
+║                           jointure via item_canonical UNIQUEMENT    ║
+║  mercurials_item_map    : 1 629 mappings                            ║
+║  tracked_market_items   : 1 004 items                               ║
+║  tracked_market_zones   : 19 zones                                  ║
+║  zone_context_registry  : 6 contextes FEWS Mali                     ║
+║                           ML-1  normal       ipc_1_minimal  +0%     ║
+║                           ML-7  seasonal     ipc_2_stressed +8%     ║
+║                           ML-8  security     ipc_3_crisis   +25%    ║
+║                           ML-2  security     ipc_3_crisis   +18%    ║
+║                           ML-9  security     ipc_4_emergency+32%    ║
+║                           ML-6  security     ipc_4_emergency+50%    ║
+║  geo_price_corridors    : 6 corridors actifs                        ║
+║                           (Gao→Menaka : skip — zone manquante)      ║
+║  seasonal_patterns      : 1 786 (v1.1_mercurials) ✓                ║
+║  market_signals_v2      : 578 signaux                               ║
+║                           formula_version 1.1                       ║
+║                           residual_pct > 0 ✓                        ║
+║                           CRITICAL détecté zones crise ✓            ║
+║  market_surveys         : 0 lignes — DETTE-2                        ║
+║  decision_history       : table créée (044) — 0 lignes — DETTE-3    ║
+║  dict_collision_log     : 0 sur Railway (résolu M10A)               ║
+║                                                                      ║
+║  CONTRACT-02 — DÉFINITIF                                             ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  INTERDIT Railway  : migrations, ALTER, DROP, DELETE                ║
+║  AUTORISÉ Railway  : compute, seeds validés CTO, probe               ║
+║  Flag Railway      : DMS_ALLOW_RAILWAY=1                            ║
+║                                                                      ║
+║  JOINTURE MERCURIALS — DÉFINITIVE ET FIGÉE                           ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  mercurials.item_id (UUID) = artefact legacy — IGNORÉ               ║
+║  Chemin obligatoire :                                                ║
+║    item_canonical → mercurials_item_map → dict_item_id              ║
+║  Jointure : LOWER(TRIM(item_canonical)) des deux côtés              ║
+║                                                                      ║
+║  M10B — ÉTAT COURANT                                                 ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  Statut        : MANDAT APPROUVÉ — EN ATTENTE PROBE ÉTAPE 0         ║
+║  Audit CTO     : 12 failles identifiées et corrigées                ║
+║    BLOQUANTES  : fetchone()[0], RETURN NULL trigger STATEMENT,      ║
+║                  __exit__ try/except isolé, row[n] indices tests,   ║
+║                  CONTRACT-02 paramétrable, op.execute convention    ║
+║    MAJEURES    : rollback pattern, savepoint obs, get_db_url,       ║
+║                  skip condition tests                                ║
+║  Fichiers      : 7 à créer/modifier (périmètre FERMÉ)               ║
+║    045_agent_native_foundation.py                                   ║
+║    src/couche_a/agents/__init__.py                                  ║
+║    src/couche_a/agents/framework.py                                 ║
+║    scripts/probe_m10b.py                                            ║
+║    tests/test_m10b_agent_framework.py                               ║
+║    docs/mandates/DETTE_M11.md                                       ║
+║    docs/freeze/MRD_CURRENT_STATE.md  ← modifier UNIQUEMENT étape 7  ║
+║                                                                      ║
+║  DETTES DOCUMENTÉES → DETTE_M11.md (ne pas traiter en M10B)         ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  DETTE-1  14 zones sans severity_level                              ║
+║           zones : bandiagara, bougouni, dioila, douentza,           ║
+║                   kita, koulikoro, koutiala, mopti, nara,           ║
+║                   nioro, san, segou, sikasso, taoudeni              ║
+║           impact : ~400 signaux alert_level=NORMAL                  ║
+║                    même en zone de crise → faux négatifs            ║
+║  DETTE-2  market_surveys vide → signal quality plafonnée            ║
+║  DETTE-3  decision_history vide → audit trail absent                ║
+║  DETTE-4  seasonal_patterns partiels → residual_pct sous-estimé     ║
+║  DETTE-5  Gao→Menaka corridor skip → zone-menaka-1 à mapper         ║
+║                                                                      ║
+║  FREEZE ABSOLU — NE JAMAIS MODIFIER                                  ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  docs/freeze/SYSTEM_CONTRACT.md                                     ║
+║  docs/freeze/DMS_V4.1.0_FREEZE.md                                   ║
+║  docs/freeze/DMS_ORCHESTRATION_FRAMEWORK_V1.md                      ║
+║  migrations Alembic 001 → 044                                       ║
+║                                                                      ║
+║  PROCHAINE ACTION — SÉQUENCE OBLIGATOIRE                             ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  1. Commiter cet anchor sur main                                    ║
+║     git add CONTEXT_ANCHOR.md                                       ║
+║     git commit -m "chore: context anchor post-audit M10B"           ║
+║     git push origin main                                            ║
+║  2. git checkout -b feat/m10b-agent-native                          ║
+║  3. python scripts/probe_m10b.py                                    ║
+║  4. POSTER output ici → STOP → GO CTO → down_revision confirmé      ║
+║  5. NE PAS enchaîner automatiquement sur ÉTAPE 1                    ║
+╚══════════════════════════════════════════════════════════════════════╝
+```
 
 ---
 
-## 1. IDENTITE PROJET
-
-  Nom         : DMS — Digital Market Signal
-  Operateur   : AO — Abdoulaye Ousmane
-  Lieu        : Mopti, Mali
-  Domaine     : Transparence marches publics et approvisionnement
-  Objectif    : Systeme nerveux central des achats — du devis au contrat
-  Outil agent : Cursor + Claude Sonnet 4.6 (local)
-  Role CTO    : CTO senior + systems engineer + decideur final
-
----
-
-## 2. DOCUMENTS GELES — NE PAS REEXPLIQUER
-
-  Ces documents sont loi. Ne pas les resumer. Ne pas les reformuler.
-  Les lire directement si besoin.
-
-  SYSTEM_CONTRACT.md         : docs/freeze/SYSTEM_CONTRACT.md
-  DMS_V4.1.0_FREEZE.md       : docs/freeze/DMS_V4.1.0_FREEZE.md
-  ORCHESTRATION_FRAMEWORK    : docs/freeze/DMS_ORCHESTRATION_FRAMEWORK_V1.md
-  ETA_V1                     : docs/freeze/DMS_ENTERPRISE_TARGET_ARCHITECTURE_V1.md
-  DMS_MRD_PLAN_V1.md         : docs/freeze/DMS_MRD_PLAN_V1.md
-  BASELINE_MRD_PRE_REBUILD   : docs/freeze/BASELINE_MRD_PRE_REBUILD.md
-  ADR_META                   : docs/freeze/ADR-META-001-AMENDMENT-PROCESS.md
-  FREEZE_HASHES.md           : docs/freeze/FREEZE_HASHES.md
-
-  ETA_V1    : gelé 2026-03-10
-              classification GLOBAL_CORE/TENANT_SCOPED/OVERLAY
-              CB-01→CB-08 avec statuts et milestones
-              table décision Section 15 par milestone
-              génome canonique règles figées
-
-  ADR_META  : gelé 2026-03-10
-              processus unique d'amendement documents gelés
-              emergency track 24h inclus
-
-  Ordre de lecture obligatoire pour tout agent :
-    0. SYSTEM_CONTRACT.md              <- couche zéro
-    1. DMS_V4.1.0_FREEZE.md
-    2. DMS_ORCHESTRATION_FRAMEWORK_V1.md
-    3. DMS_ENTERPRISE_TARGET_ARCHITECTURE_V1.md
-    4. DMS_MRD_PLAN_V1.md
-    5. MRD_CURRENT_STATE.md     <- etat courant
-    6. BASELINE_MRD_PRE_REBUILD.md
-    7. mandat du milestone en cours
-
----
-
-## 3. ETAT COURANT — LIRE MRD_CURRENT_STATE.md
-
-  docs/freeze/MRD_CURRENT_STATE.md
-
-  En resume post-M10A :
-    last_completed  : M10A
-    last_tag        : m10a-done
-    last_commit     : de6cfbd (merge PR #183)
-    next_milestone  : M10B (zone_id mapping, surveys, decision_history)
-    alembic_local   : 044_decision_history (head)
-    alembic_railway : 044_decision_history
-    blocked_on      : aucun
-
-  M10A DONE : 2026-03-11
-    seasonal_patterns : 1786 (v1.1_mercurials)
-    decision_history  : table créée
-    import_market_surveys.py, resolve_collision_tier1.py livrés
-    DETTE_M10B documentée
-
-  M8 DONE : 2026-03-10
-    13 tables GLOBAL_CORE + TENANT_SCOPED + matview market_coverage
-    6 triggers idempotents (DROP IF EXISTS + CREATE TRIGGER)
-     migration 042 idempotente (IF NOT EXISTS partout)
-    seeds: 6 contextes FEWS Mali, 45 items, 6 zones, 3 baskets
-    CB-01 SEMANTIC_GUARD V1 PASS
-    CB-08 TRIAGE: 610 unresolved t1=179 t2=431 t3=0
-    ADR-M8-FORMULA-V1.1-INTENTION: formule reportee M9
-
----
-
-## 3b. ÉTAT RÉEL POST M10A — 2026-03-11
-
-  RAILWAY :
-    alembic              : 044_decision_history ✓
-    procurement_dict     : 1 490 items ✓
-    mercurials           : 27 396 lignes
-                           jointure via mercurials_item_map UNIQUEMENT
-    mercurials_item_map  : 1 629 mappings ✓
-    tracked_market_items : 1 004 items ✓
-    tracked_market_zones : 19 zones ✓
-    zone_context_registry: 6 contextes FEWS Mali ✓
-    geo_price_corridors  : 6 corridors ✓
-    seasonal_patterns    : 1786 (v1.1_mercurials) ✓
-    market_signals_v2    : 578 signaux formula=1.1 ✓
-    decision_history    : table créée (vide)
-
-  DETTES M10B (docs/mandates/DETTE_M10B.md) :
-    DETTE-1 zone_id mapping (mercurials zone-* vs zone_context ML-x)
-    DETTE-2 market_surveys vide — script import livré
-    DETTE-3 decision_history vide — table créée
-
-  CONTRACT-02 REFORMULÉ :
-    INTERDIT Railway sans GO CTO :
-      migrations Alembic
-      ALTER TABLE / DROP TABLE
-      DELETE sans WHERE
-    AUTORISÉ Railway avec DATABASE_URL :
-      compute_market_signals.py
-      seed scripts (ALLOW_RAILWAY_SEED=1)
-      probe/lecture
-
-  JOINTURE MERCURIALS — GRAVÉE :
-    mercurials.item_id UUID = JAMAIS UTILISÉ
-    Chemin unique :
-      mercurials.item_canonical
-      → mercurials_item_map.item_canonical
-      → mercurials_item_map.dict_item_id
-      → procurement_dict_items.item_id TEXT
-
-  COMMANDES SEEDS RAILWAY (ALLOW_RAILWAY_SEED=1) :
-    $env:ALLOW_RAILWAY_SEED = "1"
-    $env:DATABASE_URL = "<RAILWAY_URL>"
-    python scripts/seed_zone_context_mali.py
-    python scripts/seed_geo_corridors_mali.py
-
----
-
-## 4. STACK TECHNIQUE
-
-  ### Local (poste Windows 10 Mopti)
-    OS              : Windows 10 10.0.22000 (64-bit)
-    Shell           : PowerShell (pas bash — adapter les commandes)
-    Python          : 3.11.0 (installation systeme, pas de venv actif)
-    pip             : 22.3
-    git             : 2.53.0.windows.1
-    node/npm        : ABSENTS (Railway CLI non installable)
-    psql CLI        : ABSENT (utiliser psycopg3 Python pour probes)
-
-  ### Base de donnees locale
-    url_sqlalchemy  : postgresql+psycopg://dms:dms123@localhost:5432/dms
-    url_psycopg3    : postgresql://dms:dms123@localhost:5432/dms
-    postgres        : 15.16 (Visual C++ build 1944, 64-bit)
-    Attention       : DATABASE_URL dans .env, pas exportee dans shell
-
-  ### Base de donnees Railway
-    url_var         : RAILWAY_DATABASE_URL dans .env
-    host            : maglev.proxy.rlwy.net:35451
-    postgres        : 17.7 (Debian)
-    acces           : connexion directe psycopg3 (CLI absent)
-    usage           : lecture uniquement sauf migration explicite CTO
-
-  ### Packages Python critiques
-    psycopg         : 3.2.5
-    sqlalchemy      : 2.0.25
-    alembic         : 1.13.1
-    fastapi         : 0.115.0
-    uvicorn         : 0.30.0
-    pydantic        : 2.9.0
-    httpx           : 0.27.0
-    redis           : 5.2.1
-    pytest          : 9.0.2
-    rapidfuzz       : installe (MRD-6)
-    pytest-asyncio  : NON INSTALLE
-    anthropic       : NON INSTALLE
-    openai          : NON INSTALLE
-
-  ### Charger .env en Python (DATABASE_URL non exportee)
-    with open('.env') as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith('#') and '=' in line:
-                k, v = line.split('=', 1)
-                os.environ.setdefault(k.strip(), v.strip())
-    # Normaliser pour psycopg3 direct :
-    db_url = os.environ['DATABASE_URL'].replace(
-        'postgresql+psycopg://', 'postgresql://', 1)
-
----
-
-## 5. SCHEMA BASE DE DONNEES — VERITES IMPORTANTES
-
-  ### Pieges frequents pour les agents
-
-  PIEGE-1 : item_id vs item_uid
-    REEL    : item_id (TEXT) = cle primaire de procurement_dict_items
-    FAUX    : item_uid n'est PAS la cle a utiliser en FK (erreur agent M8)
-    Impact  : toute FK sur item_uid produit DatatypeMismatch en CI
-    Fix M8  : toutes FK M8 pointent sur item_id TEXT
-
-  PIEGE-2 : label vs label_fr
-    REEL    : label_fr (TEXT) = colonne label du dictionnaire
-    FAUX    : colonne label n'existe PAS
-    Impact  : fingerprint = sha256(normalize(label_fr)|source_type)
-
-  PIEGE-3 : fuzzy_score echelle
-    REEL    : public.dict_collision_log.fuzzy_score = 0.0 a 1.0
-    FAUX    : ce n'est pas 0-100 comme rapidfuzz retourne nativement
-    Impact  : diviser par 100 avant INSERT
-
-  PIEGE-4 : resolution dans dict_collision_log
-    REEL    : CHECK ('unresolved', 'auto_merged', 'proposal_created')
-    FAUX    : 'pending' n'est pas une valeur valide
-    Impact  : erreur CHECK violation au INSERT
-
-  PIEGE-5 : aliases sans colonne active
-    REEL    : procurement_dict_aliases n'a PAS de colonne active
-    Impact  : ne pas filtrer WHERE active=TRUE sur cette table
-
-  PIEGE-6 : autocommit requis pour probes longs
-    Raison  : InFailedSqlTransaction si erreur dans un bloc
-    Fix     : psycopg.connect(db_url, autocommit=True)
-
-  PIEGE-7 : category_match et unit_match NOT NULL
-    Table   : public.dict_collision_log
-    Fix     : fournir FALSE si inconnu
-
-  ### Schema couche_b.procurement_dict_items (colonnes cles)
-    item_id           TEXT PK
-    label_fr          TEXT
-    label_en          TEXT
-    active            BOOLEAN DEFAULT TRUE
-    fingerprint       TEXT    UNIQUE sur actifs
-    item_code         TEXT    UNIQUE sur actifs
-    birth_source      TEXT CHECK (mercuriale|imc|seed|manual|legacy|unknown)
-    birth_run_id      UUID
-    birth_timestamp   TIMESTAMPTZ
-    label_status      TEXT NOT NULL DEFAULT 'draft'
-                      CHECK (draft|validated|deprecated)
-    taxo_l1           TEXT
-    taxo_l2           TEXT
-    taxo_l3           TEXT
-    taxo_version      TEXT (pre-existante M7 — ne pas recrer)
-    quality_score     SMALLINT
-    human_validated   BOOLEAN
-    domain_id         TEXT
-    family_l2_id      TEXT
-    subfamily_id      TEXT
-    item_type         TEXT
-    default_unit      TEXT FK RESTRICT -> procurement_dict_units
-
-  ### Triggers sur couche_b.procurement_dict_items
-    trg_protect_item_identity      BEFORE UPDATE
-      -> item_id immuable
-      -> fingerprint immuable apres init
-      -> item_code immuable apres init
-      -> label_fr immuable si label_status='validated'
-      -> label_status='deprecated' irreversible
-
-    trg_protect_item_with_aliases  BEFORE DELETE
-      -> interdit si aliases actifs existent
-
-    trg_block_legacy_family_*      BEFORE INSERT/UPDATE
-    trg_compute_quality_score      BEFORE INSERT/UPDATE
-    trg_dict_compute_hash          BEFORE UPDATE
-    trg_dict_write_audit           AFTER UPDATE
-
----
-
-## 6. DECISIONS ARCHITECTURALES FIGEES
-
-  fingerprint_formula  : sha256(normalize(label_fr) + '|' + source_type)
-  normalize()          : strip + lower + re.sub(r'\s+', ' ', s)
-  source_id_exclu      : identifiant pas identite — INV-04
-  item_code_format     : {PREFIX}-{YYYYMM}-{SEQ6}
-  item_code_prefixes   : MC=mercuriale IC=imc SD=seed/manual LG=legacy/unknown
-  taxo_version_actuelle: 1.0 (coverage 86.38%, 1287/1490 items)
-  collision_seuil      : 85 (REGLE-26 V4 — resolution humaine uniquement)
-  sequence_milestones  : PRE0->MRD-0->MRD-1->MRD-2->MRD-4->MRD-5->MRD-6->M8->...
-
----
-
-## 7. REGLES CI — OBLIGATOIRES AVANT TOUT COMMIT
-
-  Toute migration Alembic et tout script Python :
-    python -m ruff check [fichier] --fix
-    python -m black [fichier]
-    python -m ruff check [fichier]       # confirmer 0 erreur
-    python -m black --check [fichier]    # confirmer unchanged
-
-  Causes d'echec CI frequentes :
-    - import dans une fonction (doit etre au top du module)
-    - timezone.utc -> utiliser datetime.UTC (UP017)
-    - f-string avec backslash (Python 3.11)
-    - heredoc bash (PowerShell ne supporte pas <<'EOF')
-    - operateur && (PowerShell utilise ; a la place)
-
----
-
-## 8. REGLES CONTRACTUELLES CRITIQUES
-
-  CONTRACT-01 : validate_mrd_state.py en premier — toujours
-  CONTRACT-02 : DATABASE_URL jamais Railway pendant migration locale
-  CONTRACT-03 : docs/freeze/ immuable sauf BLOC 3 du mandat
-  CONTRACT-04 : next_milestone doit = milestone du mandat recu
-  CONTRACT-05 : tag mrd-{N-1}-done present avant demarrer MRD-N
-  CONTRACT-06 : commit = exactement les fichiers du BLOC 9
-  CONTRACT-07 : downgrade() fail-loud presente et testee
-  CONTRACT-08 : lire avant ecrire — probe avant toute migration
-
-  INV-05 : rebuild = UPSERT fingerprint — jamais DELETE+INSERT
-  INV-08 : alembic heads = 1 seule ligne — jamais de multi-head
-  INV-11 : DATABASE_URL ne contient pas 'railway'
-
-  ETA_V1 Q1-Q9 : checklist conformité architecturale
-                 obligatoire tout milestone
-  CB-05         : CONSTRAINT_HEADER actif dès M8
-                 tout mandat commence par BLOC 0
-
----
-
-## 9. MILESTONES MRD — TABLEAU COMPLET
-
-  | Jalon    | Statut | Tag          | Commit  | Date       |
-  |----------|--------|--------------|---------|------------|
-  | PRE0     | DONE   | absent       | d56dd32 | 2026-03-09 |
-  | MRD-0    | DONE   | mrd-0-done   | 4b2fab8 | 2026-03-09 |
-  | MRD-1    | DONE   | mrd-1-done   | b939e3b | 2026-03-08 |
-  | MRD-2    | DONE   | mrd-2-done   | a3067fb | 2026-03-09 |
-  | MRD-3    | DONE   | legacy       | b905ad4 | 2026-03-08 |
-  | MRD-4    | DONE   | mrd-4-done   | 831117b | 2026-03-09 |
-  | MRD-5    | DONE   | mrd-5-done   | 29efbc6 | 2026-03-09 |
-  | MRD-6    | DONE   | mrd-6-done   | 226b4dd | 2026-03-09 |
-  | ETA-GEL  | DONE   | eta-v1-done  | e51b339 | 2026-03-10 |
-  | M8       | DONE   | m8-done      | 641e108 | 2026-03-10 |
-  | M9       | DONE   | -            | -       | -          |
-  | M10A     | DONE   | m10a-done    | de6cfbd | 2026-03-11 |
-  | M10B     | NEXT   | -            | -       | -          |
-
-  Hash chain ETA-GEL (FREEZE_HASHES.md) :
-    DMS_V4.1.0_FREEZE.md              = e892d783...
-    DMS_ORCHESTRATION_FRAMEWORK_V1.md = 66a6961d...
-    SYSTEM_CONTRACT.md                 = 92acb422...
-    BASELINE_MRD_PRE_REBUILD.md        = d1093db6...
-    DMS_MRD_PLAN_V1.md                 = 5c025e4a...
-    DMS_ENTERPRISE_TARGET_ARCHITECTURE_V1.md = c0369ca1...
-    ADR-META-001-AMENDMENT-PROCESS.md  = 0e43674a...
-
-  Alembic head par milestone :
-    MRD-1 : m7_4a_item_identity_doctrine (restaure sur origin/main)
-    MRD-3 : m7_4b (neutralise CASCADE FK)
-    MRD-4 : m7_5_fingerprint_triggers
-    MRD-5 : m7_6_item_code
-    MRD-6 : m7_7_genome_stable
-    M8    : 042_market_surveys
-    M10A  : 044_decision_history  <- HEAD ACTUEL
-
----
-
-## 10. PROCHAINE ETAPE — M10B
-
-  Milestone suivant : M10B — zone_id mapping + surveys + decision_history
-  Prerequis         : tag m10a-done present (OUI)
-  Dettes            : docs/mandates/DETTE_M10B.md
-  Zone mapping      : mercurials.zone_id (zone-*) vs zone_context_registry (ML-x)
-  Surveys           : import_market_surveys.py livré, données à importer
-  Decision history  : table créée, données historiques à importer
-
----
-
-## 11. PROTOCOLE NOUVELLE SESSION
-
-  Sequence obligatoire :
-  1. Lire ce fichier (CONTEXT_ANCHOR.md)
-  2. Lire docs/freeze/MRD_CURRENT_STATE.md
-  3. Executer : python scripts/validate_mrd_state.py
-  4. Si exit(0) et next_milestone = milestone du mandat -> GO
-  5. Si exit(1) -> identifier le STOP -> poster au CTO -> attendre GO
-
-  Tu es un agent d'execution. Le CTO decide.
-  Tu ne demandes PAS de reexpliquer V4, Framework, ou MRD_PLAN.
-  Tu lis ces documents directement si une info te manque.
-  Si ambiguite -> STOP -> poser UNE question precise au CTO.
-  Output brut uniquement aux checkpoints — zero reformulation.
-
----
-
-## 12. INSTRUCTION POUR CLAUDE (nouvelle session)
-
-  Contexte : tu reprends le travail sur DMS. M10A est DONE.
-  Prochain chapitre : M10B (zone_id mapping, surveys, decision_history).
-
-  Ce que tu sais sans qu'on te le repete :
-  - item_id (TEXT) = cle FK vers procurement_dict_items — PAS item_uid
-  - users.id=INTEGER, units.id=INTEGER, cases.id=TEXT, geo_master.id=VARCHAR
-  - migrations doivent etre idempotentes : IF NOT EXISTS + DROP TRIGGER IF EXISTS
-  - conftest integration + db_integrity appellent alembic upgrade head
-  - DATABASE_URL est dans .env, pas exportee dans PowerShell
-  - PowerShell ne supporte pas bash heredoc ni operateur &&
-  - ruff + black obligatoires avant tout commit
-  - autocommit=True pour les probes longs psycopg3
-  - Railway : 4 migrations en retard (m7_5 + m7_6 + m7_7 + 042)
-
-  Ce que tu dois faire en debut de session :
-    python scripts/validate_mrd_state.py
-    Lire le mandat recu
-    Verifier CONTRACT-04 (next_milestone = mandat recu)
-    Si tout vert -> executer le mandat
-
-  Ce que tu fais en fin de milestone :
-    1. Mettre a jour MRD_CURRENT_STATE.md (counts reels, new head)
-    2. Mettre a jour CONTEXT_ANCHOR.md (milestones tableau)
-    3. Committer les deux
-    4. Merger la branche sur main
-    5. Poser le tag mrd-N-done
-    6. Pousser main + tag
-    7. Supprimer la branche feature
+## Règle — À remplir à la fin de chaque merge
+
+Mettre à jour ce fichier avec les valeurs réelles :
+- main, tag, branche active
+- alembic head
+- données Railway (counts)
+- statut milestone courant
+- prochaine action
