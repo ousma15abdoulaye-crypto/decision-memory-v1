@@ -60,7 +60,7 @@ def main():
     args = p.parse_args()
 
     db = env()
-    eng = SignalEngine(db)
+    eng = SignalEngine(db, allow_railway=True)
     con = psycopg.connect(db, row_factory=dict_row)
     cur = con.cursor()
     mon = datetime.now().month

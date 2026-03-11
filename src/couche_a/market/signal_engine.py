@@ -40,10 +40,10 @@ _MERC_CURRENT_YEAR_CUTOFF = 0
 
 
 class SignalEngine:
-    def __init__(self, db_url: str):
+    def __init__(self, db_url: str, *, allow_railway: bool = False):
         if not db_url:
             raise ValueError("DATABASE_URL requis")
-        if "railway" in db_url.lower():
+        if not allow_railway and "railway" in db_url.lower():
             raise ValueError("CONTRACT-02")
         self.db_url = db_url.replace("postgresql+psycopg://", "postgresql://").replace(
             "postgresql+psycopg2://", "postgresql://"
