@@ -2,7 +2,7 @@
 # ============================================================
 # POSER EN PREMIER DANS TOUTE NOUVELLE SESSION CLAUDE/CURSOR
 # Regenerer apres chaque milestone DONE
-# Genere : 2026-03-10 — post M8 DONE (market intelligence foundation)
+# Genere : 2026-03-11 — post M10A DONE (data consolidation)
 # ============================================================
 
 ---
@@ -59,14 +59,20 @@
 
   docs/freeze/MRD_CURRENT_STATE.md
 
-  En resume post-M8 :
-    last_completed  : M8
-    last_tag        : m8-done
-    last_commit     : 641e108 (merge PR #178)
-    next_milestone  : M9 (market_signals + formule V1.1 + price_series)
-    alembic_local   : 042_market_surveys (head)
-    alembic_railway : m7_4b (3 migrations en retard — m7_5/m7_6/m7_7)
+  En resume post-M10A :
+    last_completed  : M10A
+    last_tag        : m10a-done
+    last_commit     : de6cfbd (merge PR #183)
+    next_milestone  : M10B (zone_id mapping, surveys, decision_history)
+    alembic_local   : 044_decision_history (head)
+    alembic_railway : 044_decision_history
     blocked_on      : aucun
+
+  M10A DONE : 2026-03-11
+    seasonal_patterns : 1786 (v1.1_mercurials)
+    decision_history  : table créée
+    import_market_surveys.py, resolve_collision_tier1.py livrés
+    DETTE_M10B documentée
 
   M8 DONE : 2026-03-10
     13 tables GLOBAL_CORE + TENANT_SCOPED + matview market_coverage
@@ -79,39 +85,26 @@
 
 ---
 
-## 3b. ÉTAT RÉEL POST PRE-M10A — 2026-03-11
+## 3b. ÉTAT RÉEL POST M10A — 2026-03-11
 
   RAILWAY :
-    alembic              : 043_market_signals_v11 ✓
+    alembic              : 044_decision_history ✓
     procurement_dict     : 1 490 items ✓
     mercurials           : 27 396 lignes
-                           item_id UUID = artefact legacy
-                           jointure via item_map UNIQUEMENT
+                           jointure via mercurials_item_map UNIQUEMENT
     mercurials_item_map  : 1 629 mappings ✓
     tracked_market_items : 1 004 items ✓
-    tracked_market_zones : 19 zones (DANS_M8 après seeds)
+    tracked_market_zones : 19 zones ✓
     zone_context_registry: 6 contextes FEWS Mali ✓
     geo_price_corridors  : 6 corridors ✓
-    seasonal_patterns    : 0 lignes (vide Railway)
-    market_signals_v2    : 299 signaux formula=1.1
-                           residual_pct>0 sur CONTEXT/SEASONAL/WATCH/CRITICAL
+    seasonal_patterns    : 1786 (v1.1_mercurials) ✓
+    market_signals_v2    : 578 signaux formula=1.1 ✓
+    decision_history    : table créée (vide)
 
-  DETTES IDENTIFIÉES POUR M10A :
-    DETTE-1 [RÉSOLUE] zone_context_registry vide Railway
-      seed_zone_context_mali.py exécuté (ALLOW_RAILWAY_SEED=1)
-
-    DETTE-2 [PARTIEL] residual_pct = 0 sur NORMAL
-      seasonal_patterns vide Railway
-      zone_context_registry consommé ✓ (CONTEXT_NORMAL, CRITICAL)
-
-    DETTE-3 dict_collision_log 610 unresolved
-      179 TIER-1 à résoudre
-
-    DETTE-4 market_surveys 0 lignes
-      poids 0.35 inactif
-
-    DETTE-5 decision_history absente
-      poids 0.15 inactif
+  DETTES M10B (docs/mandates/DETTE_M10B.md) :
+    DETTE-1 zone_id mapping (mercurials zone-* vs zone_context ML-x)
+    DETTE-2 market_surveys vide — script import livré
+    DETTE-3 decision_history vide — table créée
 
   CONTRACT-02 REFORMULÉ :
     INTERDIT Railway sans GO CTO :
@@ -336,7 +329,9 @@
   | MRD-6    | DONE   | mrd-6-done   | 226b4dd | 2026-03-09 |
   | ETA-GEL  | DONE   | eta-v1-done  | e51b339 | 2026-03-10 |
   | M8       | DONE   | m8-done      | 641e108 | 2026-03-10 |
-  | M9       | NEXT   | -            | -       | -          |
+  | M9       | DONE   | -            | -       | -          |
+  | M10A     | DONE   | m10a-done    | de6cfbd | 2026-03-11 |
+  | M10B     | NEXT   | -            | -       | -          |
 
   Hash chain ETA-GEL (FREEZE_HASHES.md) :
     DMS_V4.1.0_FREEZE.md              = e892d783...
@@ -353,20 +348,19 @@
     MRD-4 : m7_5_fingerprint_triggers
     MRD-5 : m7_6_item_code
     MRD-6 : m7_7_genome_stable
-    M8    : 042_market_surveys  <- HEAD ACTUEL
+    M8    : 042_market_surveys
+    M10A  : 044_decision_history  <- HEAD ACTUEL
 
 ---
 
-## 10. PROCHAINE ETAPE — M9
+## 10. PROCHAINE ETAPE — M10B
 
-  Milestone suivant : M9 — Market Signals + Formule V1.1
-  Prerequis         : tag m8-done present (OUI)
-  Alembic cible     : 043_market_signals (a creer)
-  Hors scope M8     : market_signals, compute_signal, price_series,
-                      vendor_price_positioning, basket_cost_by_zone,
-                      formule V1.1, tenant_market_baskets
-  Railway           : appliquer m7_5 + m7_6 + m7_7 + 042 avant M9 prod
-  ADR requis M9     : ADR-M9-FORMULA-V1.1 avant toute implementation
+  Milestone suivant : M10B — zone_id mapping + surveys + decision_history
+  Prerequis         : tag m10a-done present (OUI)
+  Dettes            : docs/mandates/DETTE_M10B.md
+  Zone mapping      : mercurials.zone_id (zone-*) vs zone_context_registry (ML-x)
+  Surveys           : import_market_surveys.py livré, données à importer
+  Decision history  : table créée, données historiques à importer
 
 ---
 
@@ -389,8 +383,8 @@
 
 ## 12. INSTRUCTION POUR CLAUDE (nouvelle session)
 
-  Contexte : tu reprends le travail sur DMS. M8 est DONE.
-  Prochain chapitre : M9 (market_signals + formule V1.1).
+  Contexte : tu reprends le travail sur DMS. M10A est DONE.
+  Prochain chapitre : M10B (zone_id mapping, surveys, decision_history).
 
   Ce que tu sais sans qu'on te le repete :
   - item_id (TEXT) = cle FK vers procurement_dict_items — PAS item_uid
