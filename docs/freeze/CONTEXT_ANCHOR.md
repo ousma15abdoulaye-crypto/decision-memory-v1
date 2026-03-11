@@ -9,7 +9,7 @@
 ║                                                                      ║
 ║  GIT                                                                 ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  main            : 8a7ad00                                            ║
+║  main            : 344e86b                                            ║
 ║  tag m10b-done   : 010a353 (merge PR #184 feat/m10b-agent-native)   ║
 ║  hash complet    : 010a353f2fee8185f4f574626a30cfbcea058b97         ║
 ║  branche active  : main                                             ║
