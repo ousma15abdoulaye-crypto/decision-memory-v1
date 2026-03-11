@@ -153,9 +153,27 @@ def main():
         sys.exit(0)
 
     if args.apply:
+        print(
+            f"\n{len(decisions)} collisions TIER-1 "
+            f"seront résolues automatiquement."
+        )
+        print(
+            "Les items dupliqués seront désactivés "
+            "(active=FALSE)."
+        )
+        confirm = input(
+            "Confirmer l'application ? [oui/NON] : "
+        )
+        if confirm.lower() != "oui":
+            log.info("Annulé.")
+            conn.close()
+            sys.exit(0)
+
         ok = err = 0
         for d in decisions:
             try:
+                cur.execute("SAVEPOINT sp_collision")
+
                 cur.execute("""
                     UPDATE couche_b.procurement_dict_items
                     SET active = FALSE,
@@ -176,8 +194,10 @@ def main():
                     WHERE id = %s
                 """, (d["collision_id"],))
 
+                cur.execute("RELEASE SAVEPOINT sp_collision")
                 ok += 1
             except Exception as e:
+                cur.execute("ROLLBACK TO SAVEPOINT sp_collision")
                 log.error(
                     "ERR collision %s: %s",
                     d["collision_id"], e

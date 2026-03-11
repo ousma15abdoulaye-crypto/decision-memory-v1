@@ -59,24 +59,37 @@ def validate_row(
     valid_items: set,
     valid_zones: set,
 ) -> tuple[bool, str]:
-    if row.get("item_id") not in valid_items:
-        return False, f"item_id inconnu: {row.get('item_id')}"
-    if row.get("zone_id") not in valid_zones:
-        return False, f"zone_id inconnu: {row.get('zone_id')}"
+    # Normaliser avant comparaison
+    item_id = (row.get("item_id") or "").strip()
+    zone_id = (row.get("zone_id") or "").strip()
+
+    if not item_id or item_id not in valid_items:
+        return False, f"item_id inconnu: '{item_id}'"
+    if not zone_id or zone_id not in valid_zones:
+        return False, f"zone_id inconnu: '{zone_id}'"
+
+    # Normaliser aussi dans le row pour l'INSERT
+    row["item_id"] = item_id
+    row["zone_id"] = zone_id
+
     try:
         price = float(row.get("price_per_unit", 0))
         if price <= 0:
             return False, f"price <= 0: {price}"
     except (ValueError, TypeError):
         return False, "price invalide"
+
     try:
         d = datetime.strptime(
-            row["date_surveyed"], "%Y-%m-%d"
+            (row.get("date_surveyed") or "").strip(),
+            "%Y-%m-%d"
         ).date()
         if d > date.today():
             return False, f"date future: {d}"
+        row["date_surveyed"] = str(d)
     except (ValueError, KeyError):
         return False, "date invalide"
+
     return True, ""
 
 
@@ -125,6 +138,7 @@ def main():
             continue
 
         try:
+            cur.execute("SAVEPOINT sp_survey")
             price = float(row["price_per_unit"])
             cur.execute("""
                 INSERT INTO public.market_surveys (
@@ -153,8 +167,10 @@ def main():
                 "date_surveyed": row["date_surveyed"],
                 "source_ref": row.get("source_ref"),
             })
+            cur.execute("RELEASE SAVEPOINT sp_survey")
             ok += 1
         except Exception as e:
+            cur.execute("ROLLBACK TO SAVEPOINT sp_survey")
             log.error("ERR: %s — %s", row, e)
             err += 1
 

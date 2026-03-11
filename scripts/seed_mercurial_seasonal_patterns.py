@@ -3,13 +3,16 @@
 Calcule et insère des seasonal_patterns
 depuis les données mercurials réelles.
 
-Logique :
-  Pour chaque (taxo_l3, zone_id, month) :
-    - Agréger les price_avg depuis mercurials
-      via mercurials_item_map → dict_items
-    - Calculer l'écart par rapport à la moyenne annuelle
-    - Insérer dans seasonal_patterns
-      computation_version = 'v1.1_mercurials'
+LIMITATION DOCUMENTÉE :
+  mercurials ne contient pas de granularité mensuelle.
+  Les historical_deviation_pct insérés sont 0.0.
+  Ces patterns servent à documenter la couverture
+  taxo_l3 × zone_id dans le système.
+  Les ajustements réels de prix viennent de
+  zone_context_registry.structural_markup.
+  Une révision avec données mensuelles (IMC INSTAT
+  ou surveys terrain) est nécessaire pour des
+  historical_deviation_pct non nuls.
 
 Idempotent via ON CONFLICT DO UPDATE.
 
@@ -45,7 +48,6 @@ log = logging.getLogger(__name__)
 
 COMPUTATION_VERSION = "v1.1_mercurials"
 MIN_OBSERVATIONS = 3   # minimum par (taxo_l3, zone, month)
-MIN_MONTHS = 6         # minimum de mois pour un pattern
 # Données annuelles mercurials → mois de référence = 6 (milieu année)
 REF_MONTH = 6
 
@@ -79,7 +81,6 @@ def main():
             di.taxo_l3,
             di.taxo_l1,
             di.taxo_l2,
-            di.item_id,
             m.zone_id,
             m.year,
             m.price_avg
@@ -114,7 +115,6 @@ def main():
             meta[key] = {
                 "taxo_l1": r["taxo_l1"],
                 "taxo_l2": r["taxo_l2"],
-                "item_id": r["item_id"],
             }
 
     patterns_to_insert = []
@@ -128,9 +128,11 @@ def main():
         if mean == 0:
             continue
 
-        # Écart relatif par rapport à la moyenne de la série
-        # Pour données annuelles : un pattern par (zone, taxo_l3) avec month=6
-        dev = ((statistics.mean(prices) / mean) - 1) * 100
+        # Données annuelles — pas de granularité mensuelle dans mercurials.
+        # Déviation saisonnière = 0.
+        # Les ajustements viendront de zone_context_registry
+        # (structural_markup) et non de seasonal_patterns pour ces données.
+        historical_deviation_pct = 0.0
         confidence = min(0.95, 0.50 + len(prix_list) * 0.05)
         me = meta[(zone_id, taxo_l3)]
 
@@ -139,9 +141,8 @@ def main():
             "taxo_l1": me["taxo_l1"],
             "taxo_l2": me["taxo_l2"],
             "taxo_l3": taxo_l3,
-            "item_id": me["item_id"],
             "month": REF_MONTH,
-            "historical_deviation_pct": round(dev, 3),
+            "historical_deviation_pct": historical_deviation_pct,
             "years_observed": len(prix_list),
             "confidence": round(confidence, 2),
             "computation_version": COMPUTATION_VERSION,
@@ -155,44 +156,37 @@ def main():
         conn.close()
         sys.exit(0)
 
-    # Insérer par lots (psycopg3 sans execute_values)
-    BATCH_SIZE = 100
+    # Insérer avec savepoint par pattern (évite transaction abort)
     ok = err = 0
-    for i in range(0, len(patterns_to_insert), BATCH_SIZE):
-        chunk = patterns_to_insert[i : i + BATCH_SIZE]
-        placeholders = ", ".join(
-            "(%s,%s,%s,%s,%s,%s,%s,%s,%s,0,'mean','mercuriale_2023_2026',%s,CURRENT_DATE)"
-            for _ in chunk
-        )
-        values = []
-        for p in chunk:
-            values.extend([
-                p["zone_id"], p["taxo_l1"], p["taxo_l2"], p["taxo_l3"], p["item_id"],
-                p["month"], p["historical_deviation_pct"], p["years_observed"],
-                p["confidence"], p["computation_version"],
-            ])
+    for p in patterns_to_insert:
         try:
-            cur.execute(
-                f"""
+            cur.execute("SAVEPOINT sp_pattern")
+            cur.execute("""
                 INSERT INTO public.seasonal_patterns (
-                    zone_id, taxo_l1, taxo_l2, taxo_l3, item_id,
+                    zone_id, taxo_l1, taxo_l2, taxo_l3,
                     month, historical_deviation_pct, years_observed,
                     confidence, crisis_years_excluded, baseline_method,
                     data_source, computation_version, last_computed
-                ) VALUES {placeholders}
+                ) VALUES (
+                    %(zone_id)s, %(taxo_l1)s, %(taxo_l2)s, %(taxo_l3)s,
+                    %(month)s, %(historical_deviation_pct)s, %(years_observed)s,
+                    %(confidence)s, 0, 'mean', 'mercuriale_2023_2026',
+                    %(computation_version)s, CURRENT_DATE
+                )
                 ON CONFLICT (zone_id, taxo_l3, month, computation_version)
                 DO UPDATE SET
                     historical_deviation_pct = EXCLUDED.historical_deviation_pct,
                     years_observed = EXCLUDED.years_observed,
                     confidence = EXCLUDED.confidence,
                     last_computed = CURRENT_DATE
-                """,
-                values,
-            )
-            ok += len(chunk)
+            """, p)
+            cur.execute("RELEASE SAVEPOINT sp_pattern")
+            ok += 1
         except Exception as e:
-            log.error("ERR batch %d-%d: %s", i, i + len(chunk), e)
-            err += len(chunk)
+            cur.execute("ROLLBACK TO SAVEPOINT sp_pattern")
+            log.error("ERR %s: %s", p, e)
+            err += 1
+
     conn.commit()
     log.info("DONE ok=%d err=%d", ok, err)
 

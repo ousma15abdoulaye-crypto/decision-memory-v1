@@ -31,29 +31,23 @@ def upgrade() -> None:
         )
     """)
 
-    op.create_index(
-        "ix_decision_history_item_zone",
-        "decision_history",
-        ["item_id", "zone_id"],
-        schema="public",
-    )
-    op.create_index(
-        "ix_decision_history_decided_at",
-        "decision_history",
-        ["decided_at"],
-        schema="public",
-    )
+    op.execute("""
+        CREATE INDEX ix_decision_history_item_zone
+        ON public.decision_history (item_id, zone_id)
+    """)
+    op.execute("""
+        CREATE INDEX ix_decision_history_decided_at
+        ON public.decision_history (decided_at)
+    """)
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "ix_decision_history_decided_at",
-        table_name="decision_history",
-        schema="public",
-    )
-    op.drop_index(
-        "ix_decision_history_item_zone",
-        table_name="decision_history",
-        schema="public",
-    )
+    op.execute("""
+        DROP INDEX IF EXISTS
+        public.ix_decision_history_decided_at
+    """)
+    op.execute("""
+        DROP INDEX IF EXISTS
+        public.ix_decision_history_item_zone
+    """)
     op.drop_table("decision_history", schema="public")

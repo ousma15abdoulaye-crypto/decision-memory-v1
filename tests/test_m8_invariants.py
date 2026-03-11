@@ -201,6 +201,9 @@ def test_source_case_id_is_text(conn):
 # ── Tables absentes (hors scope) ──────────────────────────────────────────────
 
 
+MIGRATION_SKIP_FROM = "043"
+
+
 def test_no_market_signals_created_by_m8(conn):
     """
     M8 ne doit pas avoir cree market_signals.
@@ -212,8 +215,19 @@ def test_no_market_signals_created_by_m8(conn):
     r = cur.fetchone()
     assert r is not None, "alembic_version vide"
     ver = r["version_num"]
-    if ver and "043" in ver:
-        pytest.skip("M9 applique (043) -- test M8-only")
+    try:
+        prefix = str(ver).split("_")[0] if ver else ""
+        current_num = int(prefix) if prefix.isdigit() else 0
+    except (ValueError, TypeError):
+        current_num = 0
+    try:
+        skip_from = int(MIGRATION_SKIP_FROM.split("_")[0])
+    except (ValueError, IndexError):
+        skip_from = 43
+    if current_num >= skip_from:
+        pytest.skip(
+            f"Migration {ver} >= {MIGRATION_SKIP_FROM} — test M8 skippé"
+        )
     assert ver == "042_market_surveys", f"head inattendu : {ver}"
 
 
@@ -225,8 +239,20 @@ def test_no_price_series_view(conn):
     cur = conn.cursor()
     cur.execute("SELECT version_num FROM alembic_version LIMIT 1")
     r = cur.fetchone()
-    if r and r.get("version_num") and "043" in r["version_num"]:
-        pytest.skip("M9 applique (043) -- price_series attendue")
+    ver = r.get("version_num") if r else None
+    try:
+        prefix = str(ver).split("_")[0] if ver else ""
+        current_num = int(prefix) if prefix.isdigit() else 0
+    except (ValueError, TypeError):
+        current_num = 0
+    try:
+        skip_from = int(MIGRATION_SKIP_FROM.split("_")[0])
+    except (ValueError, IndexError):
+        skip_from = 43
+    if current_num >= skip_from:
+        pytest.skip(
+            f"Migration {ver} >= {MIGRATION_SKIP_FROM} — price_series attendue"
+        )
     cur.execute(
         """
         SELECT COUNT(*) AS n
