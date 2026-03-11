@@ -41,7 +41,7 @@ def upgrade() -> None:
 
     # ── 1. MÉMOIRE AGENT — couche_a.agent_checkpoints (GAP-2) ──────
     op.execute("""
-        CREATE TABLE couche_a.agent_checkpoints (
+        CREATE TABLE IF NOT EXISTS couche_a.agent_checkpoints (
             checkpoint_id  UUID          PRIMARY KEY
                            DEFAULT gen_random_uuid(),
             thread_id      TEXT          NOT NULL,
@@ -59,13 +59,13 @@ def upgrade() -> None:
             created_at     TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
             expires_at     TIMESTAMPTZ
         );
-        CREATE INDEX idx_agent_ckpt_thread
+        CREATE INDEX IF NOT EXISTS idx_agent_ckpt_thread
             ON couche_a.agent_checkpoints(thread_id, created_at DESC);
     """)
 
     # ── 2. OBSERVABILITÉ / FINOPS — couche_a.agent_runs_log (GAP-3)
     op.execute("""
-        CREATE TABLE couche_a.agent_runs_log (
+        CREATE TABLE IF NOT EXISTS couche_a.agent_runs_log (
             run_id        UUID            PRIMARY KEY
                           DEFAULT gen_random_uuid(),
             agent_type    TEXT            NOT NULL,
@@ -85,7 +85,7 @@ def upgrade() -> None:
             started_at    TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
             ended_at      TIMESTAMPTZ
         );
-        CREATE INDEX idx_agent_runs_type
+        CREATE INDEX IF NOT EXISTS idx_agent_runs_type
             ON couche_a.agent_runs_log(agent_type, started_at DESC);
     """)
 
@@ -101,6 +101,7 @@ def upgrade() -> None:
         END;
         $$;
 
+        DROP TRIGGER IF EXISTS trg_agent_runs_no_delete ON couche_a.agent_runs_log;
         CREATE TRIGGER trg_agent_runs_no_delete
         BEFORE DELETE ON couche_a.agent_runs_log
         FOR EACH ROW
@@ -127,6 +128,7 @@ def upgrade() -> None:
 
     # ── 5. ATTACHEMENT TRIGGERS NOTIFY ──────────────────────────────
     op.execute("""
+        DROP TRIGGER IF EXISTS trg_notify_market_signals ON public.market_signals_v2;
         CREATE TRIGGER trg_notify_market_signals
         AFTER INSERT ON public.market_signals_v2
         FOR EACH STATEMENT
@@ -134,6 +136,7 @@ def upgrade() -> None:
     """)
 
     op.execute("""
+        DROP TRIGGER IF EXISTS trg_notify_market_surveys ON public.market_surveys;
         CREATE TRIGGER trg_notify_market_surveys
         AFTER INSERT ON public.market_surveys
         FOR EACH STATEMENT
