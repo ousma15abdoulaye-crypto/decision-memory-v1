@@ -112,11 +112,11 @@ CONTEXTS = [
 
 
 def main():
-    db = os.environ.get("DATABASE_URL", "")
+    db = os.environ.get("RAILWAY_DATABASE_URL", "") or os.environ.get("DATABASE_URL", "")
     if not db:
-        raise SystemExit("DATABASE_URL absente")
-    if "railway" in db.lower():
-        raise SystemExit("CONTRACT-02")
+        raise SystemExit("DATABASE_URL / RAILWAY_DATABASE_URL absente")
+    if "railway" in db.lower() and not os.environ.get("ALLOW_RAILWAY_SEED"):
+        raise SystemExit("CONTRACT-02 — set ALLOW_RAILWAY_SEED=1 pour seed Railway")
     url = db.replace("postgresql+psycopg://", "postgresql://")
     conn = psycopg.connect(url, row_factory=dict_row)
     cur = conn.cursor()

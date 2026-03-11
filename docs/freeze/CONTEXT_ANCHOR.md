@@ -71,11 +71,65 @@
   M8 DONE : 2026-03-10
     13 tables GLOBAL_CORE + TENANT_SCOPED + matview market_coverage
     6 triggers idempotents (DROP IF EXISTS + CREATE TRIGGER)
-    migration 042 idempotente (IF NOT EXISTS partout)
+     migration 042 idempotente (IF NOT EXISTS partout)
     seeds: 6 contextes FEWS Mali, 45 items, 6 zones, 3 baskets
     CB-01 SEMANTIC_GUARD V1 PASS
     CB-08 TRIAGE: 610 unresolved t1=179 t2=431 t3=0
     ADR-M8-FORMULA-V1.1-INTENTION: formule reportee M9
+
+---
+
+## 3b. ÉTAT RÉEL POST PRE-M10A — 2026-03-11
+
+  RAILWAY :
+    alembic              : 043_market_signals_v11 ✓
+    procurement_dict     : 1 490 items ✓
+    mercurials           : 27 396 lignes
+                           item_id UUID = artefact legacy
+                           jointure via item_map UNIQUEMENT
+    mercurials_item_map  : 1 629 mappings ✓
+    tracked_market_items : 1 004 items ✓
+    tracked_market_zones : 19 zones (DANS_M8 après seeds)
+    zone_context_registry: 6 contextes FEWS Mali ✓
+    geo_price_corridors  : 6 corridors ✓
+    seasonal_patterns    : 0 lignes (vide Railway)
+    market_signals_v2    : 247 signaux formula=1.1
+                           residual_pct>0 sur CONTEXT/SEASONAL/WATCH/CRITICAL
+
+  DETTES IDENTIFIÉES POUR M10A :
+    DETTE-1 [RÉSOLUE] zone_context_registry vide Railway
+      seed_zone_context_mali.py exécuté (ALLOW_RAILWAY_SEED=1)
+
+    DETTE-2 [PARTIEL] residual_pct = 0 sur NORMAL
+      seasonal_patterns vide Railway
+      zone_context_registry consommé ✓ (CONTEXT_NORMAL, CRITICAL)
+
+    DETTE-3 dict_collision_log 610 unresolved
+      179 TIER-1 à résoudre
+
+    DETTE-4 market_surveys 0 lignes
+      poids 0.35 inactif
+
+    DETTE-5 decision_history absente
+      poids 0.15 inactif
+
+  CONTRACT-02 REFORMULÉ :
+    INTERDIT Railway sans GO CTO :
+      migrations Alembic
+      ALTER TABLE / DROP TABLE
+      DELETE sans WHERE
+    AUTORISÉ Railway avec DATABASE_URL :
+      compute_market_signals.py
+      seed scripts (ALLOW_RAILWAY_SEED=1)
+      probe/lecture
+
+  JOINTURE MERCURIALS — GRAVÉE :
+    mercurials.item_id UUID = JAMAIS UTILISÉ
+    Chemin unique :
+      mercurials.item_canonical
+      → mercurials_item_map.item_canonical
+      → mercurials_item_map.dict_item_id
+      → procurement_dict_items.item_id TEXT
 
 ---
 
