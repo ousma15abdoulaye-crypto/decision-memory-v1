@@ -93,7 +93,7 @@
     zone_context_registry: 6 contextes FEWS Mali ✓
     geo_price_corridors  : 6 corridors ✓
     seasonal_patterns    : 0 lignes (vide Railway)
-    market_signals_v2    : 247 signaux formula=1.1
+    market_signals_v2    : 299 signaux formula=1.1
                            residual_pct>0 sur CONTEXT/SEASONAL/WATCH/CRITICAL
 
   DETTES IDENTIFIÉES POUR M10A :
@@ -130,6 +130,12 @@
       → mercurials_item_map.item_canonical
       → mercurials_item_map.dict_item_id
       → procurement_dict_items.item_id TEXT
+
+  COMMANDES SEEDS RAILWAY (ALLOW_RAILWAY_SEED=1) :
+    $env:ALLOW_RAILWAY_SEED = "1"
+    $env:DATABASE_URL = "<RAILWAY_URL>"
+    python scripts/seed_zone_context_mali.py
+    python scripts/seed_geo_corridors_mali.py
 
 ---
 
