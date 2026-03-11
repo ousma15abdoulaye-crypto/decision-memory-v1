@@ -9,18 +9,17 @@
 ║                                                                      ║
 ║  GIT                                                                 ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  main            : 630bcae                                          ║
-║  tag m10a-done   : de6cfbd (merge PR #183)                          ║
+║  main            : 010a353                                          ║
+║  tag m10b-done   : 010a353 (merge PR #184 feat/m10b-agent-native)   ║
+║  hash complet    : 010a353f2fee8185f4f574626a30cfbcea058b97         ║
 ║  branche active  : main                                             ║
-║  branche cible   : feat/m10b-agent-native (à créer)                 ║
 ║                                                                      ║
 ║  ALEMBIC                                                             ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  head actuel     : 044_decision_history                             ║
-║  head cible M10B : 045_agent_native_foundation                      ║
-║  historique      : 001 → 044 — FREEZE ABSOLU                        ║
+║  head actuel     : 045_agent_native_foundation                      ║
+║  historique      : 001 -> 045 — FREEZE 001-044                      ║
 ║                                                                      ║
-║  RAILWAY — DONNÉES RÉELLES CONFIRMÉES POST-M10A                      ║
+║  RAILWAY — DONNÉES RÉELLES CONFIRMÉES POST-M10B                      ║
 ║  ──────────────────────────────────────────────────────────────     ║
 ║  procurement_dict_items : 1 490 items actifs                        ║
 ║  mercurials             : 27 396 lignes                             ║
@@ -46,6 +45,7 @@
 ║  market_surveys         : 0 lignes — DETTE-2                        ║
 ║  decision_history       : table créée (044) — 0 lignes — DETTE-3    ║
 ║  dict_collision_log     : 0 sur Railway (résolu M10A)               ║
+║  couche_a               : agent_checkpoints, agent_runs_log (045)   ║
 ║                                                                      ║
 ║  CONTRACT-02 — DÉFINITIF                                             ║
 ║  ──────────────────────────────────────────────────────────────     ║
@@ -60,23 +60,12 @@
 ║    item_canonical → mercurials_item_map → dict_item_id              ║
 ║  Jointure : LOWER(TRIM(item_canonical)) des deux côtés              ║
 ║                                                                      ║
-║  M10B — ÉTAT COURANT                                                 ║
+║  M10B — DONE 2026-03-11                                              ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  Statut        : MANDAT APPROUVÉ — EN ATTENTE PROBE ÉTAPE 0         ║
-║  Audit CTO     : 12 failles identifiées et corrigées                ║
-║    BLOQUANTES  : fetchone()[0], RETURN NULL trigger STATEMENT,      ║
-║                  __exit__ try/except isolé, row[n] indices tests,   ║
-║                  CONTRACT-02 paramétrable, op.execute convention    ║
-║    MAJEURES    : rollback pattern, savepoint obs, get_db_url,       ║
-║                  skip condition tests                                ║
-║  Fichiers      : 7 à créer/modifier (périmètre FERMÉ)               ║
-║    045_agent_native_foundation.py                                   ║
-║    src/couche_a/agents/__init__.py                                  ║
-║    src/couche_a/agents/framework.py                                 ║
-║    scripts/probe_m10b.py                                            ║
-║    tests/test_m10b_agent_framework.py                               ║
-║    docs/mandates/DETTE_M11.md                                       ║
-║    docs/freeze/MRD_CURRENT_STATE.md  ← modifier UNIQUEMENT étape 7  ║
+║  Statut        : MERGE PR #184 — tag m10b-done pose                 ║
+║  couche_a       : schema + agent_checkpoints + agent_runs_log       ║
+║  pg_notify      : fn_dms_event_notify, trg_notify_market_*          ║
+║  framework.py   : AgentRunContext, AgentMemory (ADR-010)           ║
 ║                                                                      ║
 ║  DETTES DOCUMENTÉES → DETTE_M11.md (ne pas traiter en M10B)         ║
 ║  ──────────────────────────────────────────────────────────────     ║
@@ -96,18 +85,10 @@
 ║  docs/freeze/SYSTEM_CONTRACT.md                                     ║
 ║  docs/freeze/DMS_V4.1.0_FREEZE.md                                   ║
 ║  docs/freeze/DMS_ORCHESTRATION_FRAMEWORK_V1.md                      ║
-║  migrations Alembic 001 → 044                                       ║
+║  migrations Alembic 001 -> 044                                      ║
 ║                                                                      ║
-║  PROCHAINE ACTION — SÉQUENCE OBLIGATOIRE                             ║
-║  ──────────────────────────────────────────────────────────────     ║
-║  1. Commiter cet anchor sur main                                    ║
-║     git add CONTEXT_ANCHOR.md                                       ║
-║     git commit -m "chore: context anchor post-audit M10B"           ║
-║     git push origin main                                            ║
-║  2. git checkout -b feat/m10b-agent-native                          ║
-║  3. python scripts/probe_m10b.py                                    ║
-║  4. POSTER output ici → STOP → GO CTO → down_revision confirmé      ║
-║  5. NE PAS enchaîner automatiquement sur ÉTAPE 1                    ║
+║  PROCHAINE MILESTONE : M11                                          ║
+║  Dettes : DETTE_M11.md (zones severity, surveys, decision_history)  ║
 ╚══════════════════════════════════════════════════════════════════════╝
 ```
 
