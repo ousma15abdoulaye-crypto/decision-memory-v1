@@ -19,17 +19,17 @@ CORRECTIONS INTÉGRÉES (audit CTO 2026-03-11) :
 """
 
 import json
-import time
 import os
-from typing import Any, Dict, Optional
+import time
+from typing import Any
 
 import psycopg
 from psycopg.rows import dict_row
 
-
 # ════════════════════════════════════════════════════════════════
 # UTILITAIRE DB
 # ════════════════════════════════════════════════════════════════
+
 
 def get_db_url() -> str:
     """
@@ -53,6 +53,7 @@ def get_db_url() -> str:
 # ════════════════════════════════════════════════════════════════
 # OBSERVABILITÉ / FINOPS
 # ════════════════════════════════════════════════════════════════
+
 
 class AgentRunContext:
     """
@@ -90,7 +91,7 @@ class AgentRunContext:
         self.items_error = 0
         self.cost_usd = 0.0
         self.model_used = "unknown"
-        self.error_detail: Optional[str] = None
+        self.error_detail: str | None = None
 
     def __enter__(self) -> "AgentRunContext":
         self._start = time.monotonic()
@@ -155,6 +156,7 @@ class AgentRunContext:
             self.conn.commit()
         except Exception as update_err:
             import sys
+
             print(
                 f"[AgentRunContext] WARNING: clôture run {self.run_id} "
                 f"échouée: {update_err}",
@@ -171,6 +173,7 @@ class AgentRunContext:
 # ════════════════════════════════════════════════════════════════
 # MÉMOIRE PERSISTANTE
 # ════════════════════════════════════════════════════════════════
+
 
 class AgentMemory:
     """
@@ -198,7 +201,7 @@ class AgentMemory:
         thread_id: str,
         agent_type: str,
         step_name: str,
-        state: Dict[str, Any],
+        state: dict[str, Any],
         tokens: int = 0,
     ) -> str:
         """
@@ -224,7 +227,7 @@ class AgentMemory:
     def get_latest_checkpoint(
         self,
         thread_id: str,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Retourne le checkpoint le plus récent pour ce thread_id.
         Retourne None si aucun checkpoint trouvé.

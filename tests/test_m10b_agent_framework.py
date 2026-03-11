@@ -16,12 +16,14 @@ RÈGLES :
 import os
 from pathlib import Path
 
-import pytest
 import psycopg
-from src.couche_a.agents.framework import AgentRunContext, AgentMemory
+import pytest
+
+from src.couche_a.agents.framework import AgentMemory, AgentRunContext
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
     load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
 except ImportError:
@@ -54,6 +56,7 @@ def conn():
 
 # ── T1 — Run successful ──────────────────────────────────────────
 
+
 def test_agent_run_context_success(conn):
     """
     Un AgentRunContext qui se termine sans exception
@@ -76,15 +79,16 @@ def test_agent_run_context_success(conn):
     row = cur.fetchone()
     assert row is not None, "Run introuvable en DB après __exit__"
     assert row[0] == "done", f"status attendu 'done', obtenu '{row[0]}'"
-    assert float(row[1]) == pytest.approx(0.01, abs=1e-5), (
-        f"cost_usd attendu 0.01, obtenu {row[1]}"
-    )
+    assert float(row[1]) == pytest.approx(
+        0.01, abs=1e-5
+    ), f"cost_usd attendu 0.01, obtenu {row[1]}"
     assert row[2] == "mistral-small", f"model_used incorrect : {row[2]}"
     assert row[3] is not None, "duration_ms ne doit pas être NULL"
     assert row[3] >= 0, f"duration_ms négatif : {row[3]}"
 
 
 # ── T2 — Run avec exception ──────────────────────────────────────
+
 
 def test_agent_run_context_failure(conn):
     """
@@ -118,6 +122,7 @@ def test_agent_run_context_failure(conn):
 
 # ── T3 — Mémoire checkpoint ──────────────────────────────────────
 
+
 def test_agent_memory_save_and_retrieve(conn):
     """
     AgentMemory doit persister un checkpoint et le retrouver
@@ -146,6 +151,7 @@ def test_agent_memory_save_and_retrieve(conn):
 
 # ── T4 — APPEND-ONLY guard ───────────────────────────────────────
 
+
 def test_agent_runs_append_only(conn):
     """
     Toute tentative de DELETE sur agent_runs_log
@@ -153,14 +159,12 @@ def test_agent_runs_append_only(conn):
     Vérifie l'invariant ADR-010.
     """
     cur = conn.cursor()
-    cur.execute(
-        """
+    cur.execute("""
         INSERT INTO couche_a.agent_runs_log
             (agent_type, trigger_event, status)
         VALUES ('classify', 'test_t4_nodelete', 'done')
         RETURNING run_id
-        """
-    )
+        """)
     # fetchone() retourne un tuple — [0] pour la valeur
     run_id = cur.fetchone()[0]
     conn.commit()
