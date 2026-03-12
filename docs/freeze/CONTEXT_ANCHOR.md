@@ -9,17 +9,18 @@
 ║                                                                      ║
 ║  GIT                                                                 ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  main            : 344e86b                                            ║
+║  main            : 010a353 (merge M10B) — M11 en PR #185             ║
 ║  tag m10b-done   : 010a353 (merge PR #184 feat/m10b-agent-native)   ║
-║  hash complet    : 010a353f2fee8185f4f574626a30cfbcea058b97         ║
-║  branche active  : main                                             ║
+║  tag m11-done    : 25a4214 (PR #185 feat/m11-signal-integrity)      ║
+║  hash complet    : 25a421417ca48f0de92f81b3581f08c4a9754029         ║
+║  branche active  : feat/m11-signal-integrity                        ║
 ║                                                                      ║
 ║  ALEMBIC                                                             ║
 ║  ──────────────────────────────────────────────────────────────     ║
 ║  head actuel     : 045_agent_native_foundation                      ║
 ║  historique      : 001 -> 045 — FREEZE 001-044                      ║
 ║                                                                      ║
-║  RAILWAY — DONNÉES RÉELLES CONFIRMÉES POST-M10B                      ║
+║  RAILWAY — DONNÉES RÉELLES CONFIRMÉES POST-M11                       ║
 ║  ──────────────────────────────────────────────────────────────     ║
 ║  procurement_dict_items : 1 490 items actifs                        ║
 ║  mercurials             : 27 396 lignes                             ║
@@ -28,22 +29,15 @@
 ║  mercurials_item_map    : 1 629 mappings                            ║
 ║  tracked_market_items   : 1 004 items                               ║
 ║  tracked_market_zones   : 19 zones                                  ║
-║  zone_context_registry  : 6 contextes FEWS Mali                     ║
-║                           ML-1  normal       ipc_1_minimal  +0%     ║
-║                           ML-7  seasonal     ipc_2_stressed +8%     ║
-║                           ML-8  security     ipc_3_crisis   +25%    ║
-║                           ML-2  security     ipc_3_crisis   +18%    ║
-║                           ML-9  security     ipc_4_emergency+32%    ║
-║                           ML-6  security     ipc_4_emergency+50%    ║
-║  geo_price_corridors    : 6 corridors actifs                        ║
-║                           (Gao→Menaka : skip — zone manquante)      ║
+║  zone_context_registry  : 20 contextes (6+14 DETTE-1) ✓              ║
+║                           ML-1,7,8,2,9,6 + 14 zones severity        ║
+║  geo_price_corridors    : 7 corridors (Gao→Menaka ML-9/32%) ✓       ║
 ║  seasonal_patterns      : 1 786 (v1.1_mercurials) ✓                ║
-║  market_signals_v2      : 578 signaux                               ║
-║                           formula_version 1.1                       ║
-║                           residual_pct > 0 ✓                        ║
-║                           CRITICAL détecté zones crise ✓            ║
-║  market_surveys         : 0 lignes — DETTE-2                        ║
-║  decision_history       : table créée (044) — 0 lignes — DETTE-3    ║
+║  market_signals_v2      : 1 106 signaux (post M11 compute) ✓        ║
+║                           formula_version 1.1, residual_pct > 0     ║
+║                           CRITICAL zones ipc_3+/ipc_4+ uniquement   ║
+║  market_surveys         : 13 110 lignes ✓ DETTE-2 résolue          ║
+║  decision_history       : 115 lignes ✓ DETTE-3 résolue             ║
 ║  dict_collision_log     : 0 sur Railway (résolu M10A)               ║
 ║  couche_a               : agent_checkpoints, agent_runs_log (045)   ║
 ║                                                                      ║
@@ -67,18 +61,14 @@
 ║  pg_notify      : fn_dms_event_notify, trg_notify_market_*          ║
 ║  framework.py   : AgentRunContext, AgentMemory (ADR-010)           ║
 ║                                                                      ║
-║  DETTES DOCUMENTÉES → DETTE_M11.md (ne pas traiter en M10B)         ║
+║  M11 — DONE 2026-03-11 (PR #185 en attente merge)                   ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  DETTE-1  14 zones sans severity_level                              ║
-║           zones : bandiagara, bougouni, dioila, douentza,           ║
-║                   kita, koulikoro, koutiala, mopti, nara,           ║
-║                   nioro, san, segou, sikasso, taoudeni              ║
-║           impact : ~400 signaux alert_level=NORMAL                  ║
-║                    même en zone de crise → faux négatifs            ║
-║  DETTE-2  market_surveys vide → signal quality plafonnée            ║
-║  DETTE-3  decision_history vide → audit trail absent                ║
-║  DETTE-4  seasonal_patterns partiels → residual_pct sous-estimé     ║
-║  DETTE-5  Gao→Menaka corridor skip → zone-menaka-1 à mapper         ║
+║  Statut        : tag m11-done pose — 8 tests passés                 ║
+║  DETTE-1       : 14 zones severity_level seedées ✓                  ║
+║  DETTE-2       : market_surveys 13 110 lignes ✓                     ║
+║  DETTE-3       : decision_history 115 lignes ✓                      ║
+║  DETTE-4       : seasonal_patterns 1 786 > baseline ✓                ║
+║  DETTE-5       : Gao→Menaka corridor ML-9/32% ✓                     ║
 ║                                                                      ║
 ║  FREEZE ABSOLU — NE JAMAIS MODIFIER                                  ║
 ║  ──────────────────────────────────────────────────────────────     ║
@@ -87,8 +77,8 @@
 ║  docs/freeze/DMS_ORCHESTRATION_FRAMEWORK_V1.md                      ║
 ║  migrations Alembic 001 -> 044                                      ║
 ║                                                                      ║
-║  PROCHAINE MILESTONE : M11                                          ║
-║  Dettes : DETTE_M11.md (zones severity, surveys, decision_history)  ║
+║  PROCHAINE MILESTONE : M12                                          ║
+║  Dettes : DETTE_M12.md (API signaux, alertes CRITICAL, validation)  ║
 ╚══════════════════════════════════════════════════════════════════════╝
 ```
 
