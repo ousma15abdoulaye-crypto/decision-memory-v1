@@ -3,7 +3,7 @@ SEED — DETTE-5 M11
 Ajoute zone-menaka-1 dans zone_context_registry (si absent)
 et le corridor Gao -> Menaka dans geo_price_corridors.
 
-Menaka : zone IPC-4 emergency (ML-6) — conflit severe,
+Menaka : zone IPC-4 emergency (ML-9) — conflit severe,
          acces humanitaire tres contraint.
 Corridor Gao -> Menaka : piste degradee, insecurite,
                          cout transport x1.45 vs Gao.
@@ -64,15 +64,15 @@ def main():
                         'zone-menaka-1',
                         'security_crisis',
                         'ipc_4_emergency',
-                        50.0,
+                        32.0,
                         'very_restricted',
-                        %s, NULL, 'FEWS NET Mali M11 DETTE-5', 'ML-6'
+                        %s, NULL, 'FEWS NET Mali M11 DETTE-5', 'ML-9'
                     )
                     """,
                     (date(2026, 1, 1),),
                 )
                 conn.commit()
-                print("OK   zone-menaka-1 -> ipc_4_emergency +50.0% [ML-6]")
+                print("OK   zone-menaka-1 -> ipc_4_emergency +32.0% [ML-9]")
                 ok += 1
             except Exception as e:
                 conn.rollback()

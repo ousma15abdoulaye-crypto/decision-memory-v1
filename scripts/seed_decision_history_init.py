@@ -82,6 +82,7 @@ def main():
                 continue
 
             try:
+                cur.execute("SAVEPOINT sp_decision")
                 cur.execute(
                     """
                     INSERT INTO decision_history
@@ -97,20 +98,15 @@ def main():
                         ref_id,
                     ),
                 )
+                cur.execute("RELEASE SAVEPOINT sp_decision")
                 ok += 1
             except Exception as e:
-                conn.rollback()
+                cur.execute("ROLLBACK TO SAVEPOINT sp_decision")
                 print(f"ERR signal {ref_id} — {e}")
                 err += 1
-                continue
 
-        try:
-            conn.commit()
-            print("INFO — commit final")
-        except Exception as e:
-            conn.rollback()
-            print(f"ERR commit final — {e}")
-            err += 1
+        conn.commit()
+        print("INFO — commit final")
 
     print(f"\nRESULTAT ok={ok} skip={skip} err={err}")
     sys.exit(1 if err else 0)

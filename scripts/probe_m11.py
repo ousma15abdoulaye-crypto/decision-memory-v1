@@ -59,12 +59,13 @@ with psycopg.connect(db_url, row_factory=dict_row) as conn:
             f"obtenu '{head}'"
         )
 
-    # ── P1 — DETTE-1 : zones sans severity_level ───────────────────
+    # ── P1 — DETTE-1 : zones sans severity_level (contextes actifs) ──
     cur.execute("""
         SELECT COUNT(*) AS n
         FROM tracked_market_zones tmz
         LEFT JOIN zone_context_registry zcr
                ON zcr.zone_id = tmz.zone_id
+               AND (zcr.valid_until IS NULL OR zcr.valid_until > CURRENT_DATE)
         WHERE zcr.zone_id IS NULL
     """)
     r = cur.fetchone()
@@ -95,6 +96,7 @@ with psycopg.connect(db_url, row_factory=dict_row) as conn:
     cur.execute("""
         SELECT COUNT(*) AS n FROM zone_context_registry
         WHERE zone_id = 'zone-menaka-1'
+        AND (valid_until IS NULL OR valid_until > CURRENT_DATE)
     """)
     r = cur.fetchone()
     menaka_ctx = r["n"] if r else 0
@@ -176,17 +178,19 @@ with psycopg.connect(db_url, row_factory=dict_row) as conn:
     col_names_dh = [c["column_name"] for c in cols]
     print(f"[P9] decision_history colonnes       : {col_names_dh}")
 
-    # ── P10 — SIGNAUX en zones sans severity (zone_context_registry) ─
+    # ── P10 — signaux en zones sans context actif ────────────────────
     cur.execute("""
         SELECT COUNT(*) AS n
         FROM market_signals_v2 ms
-        LEFT JOIN zone_context_registry zcr ON zcr.zone_id = ms.zone_id
+        LEFT JOIN zone_context_registry zcr
+               ON zcr.zone_id = ms.zone_id
+               AND (zcr.valid_until IS NULL OR zcr.valid_until > CURRENT_DATE)
         WHERE zcr.zone_id IS NULL
     """)
     r = cur.fetchone()
     n_null = r["n"] if r else 0
     print(f"[P10] signals en zones sans severity : {n_null}")
-    print(f"      attendu ~400 avant seed DETTE-1")
+    print(f"      attendu 0 post-seed DETTE-1 (contextes actifs)")
 
     print("=" * 64)
 

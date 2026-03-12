@@ -41,9 +41,15 @@ def main():
         sys.exit("STOP — DATABASE_URL absente")
     if "railway" in db_url.lower() and os.environ.get("DMS_ALLOW_RAILWAY", "0") != "1":
         sys.exit("STOP — CONTRACT-02")
-    url = db_url.replace("postgresql+psycopg://", "postgresql://")
+    if "://" in db_url:
+        scheme_part, rest = db_url.split("://", 1)
+        base_scheme = scheme_part.split("+")[0]
+        db_url = f"{base_scheme}://{rest}"
+    if db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+    url = db_url
 
-    ok = err = 0
+    ok = skip = err = 0
 
     with psycopg.connect(url, row_factory=dict_row) as conn:
         cur = conn.cursor()
@@ -71,7 +77,19 @@ def main():
 
         for row in surveys:
             survey_date = date(int(row["year"]), 6, 1)
+            cur.execute(
+                """
+                SELECT 1 FROM market_surveys
+                WHERE zone_id = %s AND item_id = %s AND date_surveyed = %s
+                """,
+                (row["zone_id"], row["item_id"], survey_date),
+            )
+            if cur.fetchone():
+                skip += 1
+                continue
+
             try:
+                cur.execute("SAVEPOINT sp_survey")
                 cur.execute(
                     """
                     INSERT INTO market_surveys
@@ -82,25 +100,19 @@ def main():
                     """,
                     (row["zone_id"], row["item_id"], survey_date, row["price_quoted"]),
                 )
+                cur.execute("RELEASE SAVEPOINT sp_survey")
                 ok += 1
             except Exception as e:
-                conn.rollback()
-                if "duplicate" in str(e).lower() or "unique" in str(e).lower():
-                    pass
-                else:
-                    print(f"ERR ({row['zone_id']}, {row['item_id']}, {survey_date}) — {e}")
-                    err += 1
-                continue
+                cur.execute("ROLLBACK TO SAVEPOINT sp_survey")
+                print(
+                    f"ERR ({row['zone_id']}, {row['item_id']}, {survey_date}) — {e}"
+                )
+                err += 1
 
-        try:
-            conn.commit()
-            print("INFO — commit final")
-        except Exception as e:
-            conn.rollback()
-            print(f"ERR commit final — {e}")
-            err += 1
+        conn.commit()
+        print("INFO — commit final")
 
-    print(f"\nRESULTAT ok={ok} err={err}")
+    print(f"\nRESULTAT ok={ok} skip={skip} err={err}")
     sys.exit(1 if err else 0)
 
 

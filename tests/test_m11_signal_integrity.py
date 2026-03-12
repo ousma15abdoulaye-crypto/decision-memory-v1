@@ -26,7 +26,9 @@ DB = (
     or os.environ.get("DATABASE_URL", "")
 )
 ALLOW_RAILWAY = os.environ.get("DMS_ALLOW_RAILWAY", "0") == "1"
+M11_SEEDED = os.environ.get("M11_SEEDED", "0") == "1"
 BASELINE_M10B = 578
+BASELINE_SP = 1786
 
 ZONES_DETTE1 = [
     "zone-bougouni-1", "zone-koutiala-1", "zone-sikasso-1",
@@ -37,15 +39,33 @@ ZONES_DETTE1 = [
 ]
 
 
+def _normalize_url(url: str) -> str:
+    """Normalisation robuste psycopg v3 — coherente avec probe_m11.py."""
+    if not url:
+        return url
+    if "://" in url:
+        scheme_part, rest = url.split("://", 1)
+        base_scheme = scheme_part.split("+")[0]
+        url = f"{base_scheme}://{rest}"
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    return url
+
+
 @pytest.fixture(scope="module")
 def conn():
     if not DB:
         pytest.skip("DATABASE_URL absente")
+    if not M11_SEEDED:
+        pytest.skip(
+            "M11_SEEDED=1 requis — seeds M11 non confirmes. "
+            "Executer les scripts seed_* et compute_* avant les tests."
+        )
     if "rlwy.net" in DB.lower() or "railway" in DB.lower():
         if not ALLOW_RAILWAY:
             pytest.skip("Railway detecte — set DMS_ALLOW_RAILWAY=1")
-    url = DB.replace("postgresql+psycopg://", "postgresql://")
-    c = psycopg.connect(url, row_factory=dict_row)
+    normalized = _normalize_url(DB)
+    c = psycopg.connect(normalized, row_factory=dict_row)
     yield c
     c.close()
 
@@ -110,8 +130,7 @@ def test_decision_history_non_vide(conn):
 
 
 def test_seasonal_patterns_superieurs_baseline(conn):
-    """seasonal_patterns > 1786 apres completion."""
-    BASELINE_SP = 1786
+    """seasonal_patterns >= 1786 apres completion."""
     cur = conn.cursor()
     cur.execute("SELECT COUNT(*) AS n FROM seasonal_patterns")
     r = cur.fetchone()
