@@ -11,8 +11,8 @@
 ║  ──────────────────────────────────────────────────────────────     ║
 ║  main            : 010a353 (merge M10B) — M11 en PR #185             ║
 ║  tag m10b-done   : 010a353 (merge PR #184 feat/m10b-agent-native)   ║
-║  tag m11-done    : 14f762f (PR #185 feat/m11-signal-integrity)      ║
-║  hash complet    : git rev-parse m11-done                           ║
+║  tag m11-done    : fbc070e (PR #185 feat/m11-signal-integrity)      ║
+║  hash complet    : fbc070e (voir git rev-parse m11-done)            ║
 ║  branche active  : feat/m11-signal-integrity                        ║
 ║                                                                      ║
 ║  ALEMBIC                                                             ║
