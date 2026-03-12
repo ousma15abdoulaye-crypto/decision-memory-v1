@@ -15,27 +15,34 @@ Regles :
   - Tests Railway (DMS_ALLOW_RAILWAY=1 requis)
   - Pas de mock — psycopg reel, DB Railway reelle
 """
+
 import os
 
 import psycopg
 import pytest
 from psycopg.rows import dict_row
 
-DB = (
-    os.environ.get("RAILWAY_DATABASE_URL", "")
-    or os.environ.get("DATABASE_URL", "")
-)
+DB = os.environ.get("RAILWAY_DATABASE_URL", "") or os.environ.get("DATABASE_URL", "")
 ALLOW_RAILWAY = os.environ.get("DMS_ALLOW_RAILWAY", "0") == "1"
 M11_SEEDED = os.environ.get("M11_SEEDED", "0") == "1"
 BASELINE_M10B = 578
 BASELINE_SP = 1786
 
 ZONES_DETTE1 = [
-    "zone-bougouni-1", "zone-koutiala-1", "zone-sikasso-1",
-    "zone-dioila-1", "zone-koulikoro-1", "zone-kita-1",
-    "zone-segou-1", "zone-san-1", "zone-nioro-1",
-    "zone-mopti-1", "zone-bandiagara-1", "zone-nara-1",
-    "zone-douentza-1", "zone-taoudeni-1",
+    "zone-bougouni-1",
+    "zone-koutiala-1",
+    "zone-sikasso-1",
+    "zone-dioila-1",
+    "zone-koulikoro-1",
+    "zone-kita-1",
+    "zone-segou-1",
+    "zone-san-1",
+    "zone-nioro-1",
+    "zone-mopti-1",
+    "zone-bandiagara-1",
+    "zone-nara-1",
+    "zone-douentza-1",
+    "zone-taoudeni-1",
 ]
 
 
@@ -75,11 +82,14 @@ def test_14_zones_ont_severity_level(conn):
     cur = conn.cursor()
     manquantes = []
     for zone_id in ZONES_DETTE1:
-        cur.execute("""
+        cur.execute(
+            """
             SELECT severity_level
             FROM zone_context_registry
             WHERE zone_id = %s AND valid_until IS NULL
-        """, (zone_id,))
+        """,
+            (zone_id,),
+        )
         r = cur.fetchone()
         if not r or not r["severity_level"]:
             manquantes.append(zone_id)
@@ -96,10 +106,12 @@ def test_menaka_zone_et_corridor(conn):
     """)
     r = cur.fetchone()
     assert r is not None, "zone-menaka-1 absent de zone_context_registry"
-    assert r["severity_level"] == "ipc_4_emergency", f"severity incorrect : {r['severity_level']}"
-    assert float(r["structural_markup_pct"]) == 32.0, (
-        f"markup incorrect : {r['structural_markup_pct']}"
-    )
+    assert (
+        r["severity_level"] == "ipc_4_emergency"
+    ), f"severity incorrect : {r['severity_level']}"
+    assert (
+        float(r["structural_markup_pct"]) == 32.0
+    ), f"markup incorrect : {r['structural_markup_pct']}"
 
     cur.execute("""
         SELECT transport_markup, route_type
@@ -109,7 +121,9 @@ def test_menaka_zone_et_corridor(conn):
     """)
     r = cur.fetchone()
     assert r is not None, "Corridor Gao->Menaka absent"
-    assert float(r["transport_markup"]) == 1.45, f"markup incorrect : {r['transport_markup']}"
+    assert (
+        float(r["transport_markup"]) == 1.45
+    ), f"markup incorrect : {r['transport_markup']}"
     assert r["route_type"] == "unpaved", f"route_type incorrect : {r['route_type']}"
 
 
@@ -134,7 +148,9 @@ def test_seasonal_patterns_superieurs_baseline(conn):
     cur = conn.cursor()
     cur.execute("SELECT COUNT(*) AS n FROM seasonal_patterns")
     r = cur.fetchone()
-    assert r["n"] >= BASELINE_SP, f"seasonal_patterns ({r['n']}) < baseline M10B ({BASELINE_SP})"
+    assert (
+        r["n"] >= BASELINE_SP
+    ), f"seasonal_patterns ({r['n']}) < baseline M10B ({BASELINE_SP})"
 
 
 def test_zero_signaux_zones_sans_severity(conn):
