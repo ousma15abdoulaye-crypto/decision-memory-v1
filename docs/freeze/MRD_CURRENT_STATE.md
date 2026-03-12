@@ -30,14 +30,14 @@ freeze_hashes_doc     : docs/freeze/FREEZE_HASHES.md
 
 ## ETAT COURANT
 
-last_completed        : M10B
+last_completed        : M11
 last_completed_at     : 2026-03-11
-last_merge_commit     : (en attente merge PR feat/m10b-agent-native)
-last_tag              : m10b-done (apres merge)
-next_milestone        : M11
+last_merge_commit     : (en attente merge PR feat/m11-signal-integrity)
+last_tag              : m11-done (apres merge)
+next_milestone        : M12
 next_status           : IN_PROGRESS
 blocked_on            : aucun
-branch_courante       : feat/m10b-agent-native
+branch_courante       : feat/m11-signal-integrity
 
 ---
 
