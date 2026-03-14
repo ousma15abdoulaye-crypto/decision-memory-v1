@@ -114,8 +114,8 @@ async def predict(request: PredictionRequest):
                 "model_version": "dms-mistral-v1.2",
             })
 
-        except Exception as e:
-            logger.error("Task %s failed: %s", task.id, e)
+        except Exception:
+            logger.exception("Task %s failed", task.id)
             predictions.append({"id": task.id, "result": [], "score": 0.0})
 
     return JSONResponse({"results": predictions})
