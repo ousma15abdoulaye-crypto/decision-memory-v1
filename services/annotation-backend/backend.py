@@ -137,7 +137,7 @@ Retourne UNIQUEMENT un JSON valide, sans texte autour.
 
 FORMAT :
 {{
-  "doc_type": "dao|rfq|rfp|tdr_consultance_audit|offre_technique|offre_financiere|devis_simple|devis_unique|tender|inconnu",
+  "doc_type": "rfp_consultance|devissimple|devisunique|devisformel|autre",
   "doc_type_confidence": 1.0,
   "doc_type_evidence": "texte exact du document justifiant le type",
 
