@@ -65,7 +65,7 @@ async def health():
     }
 
 
-@app.get("/setup")
+@app.post("/setup")
 async def setup():
     return {
         "model_version": "dms-mistral-v1.2",
