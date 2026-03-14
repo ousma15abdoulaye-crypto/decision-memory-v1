@@ -1,94 +1,324 @@
-# CONTEXT ANCHOR OFFICIEL — VERSION OPPOSABLE
+# CONTEXT ANCHOR OFFICIEL — VERSION OPPOSABLE ET INVIOLABLE
+
+---
 
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-03-11                                  ║
+║  Dernière mise à jour : 2026-03-13                                  ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
+║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
+║                                                                      ║
+║  ██████████████████████████████████████████████████████████████    ║
+║  ██  CLAUSE D'INTÉGRITÉ — GRAVÉE — NE PEUT PAS ÊTRE RETIRÉE  ██    ║
+║  ██████████████████████████████████████████████████████████████    ║
+║                                                                      ║
+║  CE DOCUMENT EST PROTÉGÉ PAR LES RÈGLES SUIVANTES :               ║
+║                                                                      ║
+║  RÈGLE-ANCHOR-01 — INTÉGRITÉ ABSOLUE                               ║
+║    Il est INTERDIT de raccourcir ce document.                      ║
+║    Il est INTERDIT d'en supprimer des sections.                    ║
+║    Il est INTERDIT de le résumer ou condenser.                     ║
+║    Toute mise à jour = AJOUT uniquement, jamais suppression.       ║
+║    Violation = faute disciplinaire grave.                          ║
+║                                                                      ║
+║  RÈGLE-ANCHOR-02 — MISE À JOUR OBLIGATOIRE                         ║
+║    Ce document DOIT être mis à jour à chaque fin de session.       ║
+║    Chaque merge, chaque milestone, chaque décision architecture.   ║
+║    Le LLM qui omet cette mise à jour commet une faute.             ║
+║    Format : date ISO + contenu complet + commit sur main.          ║
+║                                                                      ║
+║  RÈGLE-ANCHOR-03 — SOURCE DE VÉRITÉ UNIQUE                         ║
+║    Ce document prime sur toute mémoire de session du LLM.         ║
+║    En cas de doute : ce document a raison, le LLM a tort.         ║
+║    Le LLM ne peut pas "se souvenir" d'une règle non écrite ici.   ║
+║                                                                      ║
+║  RÈGLE-ANCHOR-04 — INTERDICTION D'IMPROVISATION                    ║
+║    Le LLM ne peut proposer AUCUNE solution technique               ║
+║    non fondée sur ce document ou le Plan Directeur V4.1.          ║
+║    Si l'information manque : STOP — demander AO.                  ║
+║    Jamais improviser. Jamais dériver vers la facilité.             ║
+║                                                                      ║
+║  RÈGLE-ANCHOR-05 — ALEMBIC INTOUCHABLE                             ║
+║    La chaîne Alembic 001→045 est FREEZE ABSOLU.                   ║
+║    Toute migration = nouveau fichier séquentiel uniquement.        ║
+║    Zéro modification des migrations existantes.                    ║
+║    Zéro autogenerate. Migrations SQL brut uniquement.              ║
+║    Violation = faute disciplinaire grave immédiate.                ║
+║                                                                      ║
+║  RÈGLE-ANCHOR-06 — RAILWAY PROTÉGÉ                                 ║
+║    INTERDIT sur Railway : migrations, ALTER, DROP, DELETE.         ║
+║    INTERDIT : modifier services DMS existants (FastAPI, PG DMS).  ║
+║    INTERDIT : SQLite, toute base autre que PostgreSQL.             ║
+║    AUTORISÉ : compute, seeds validés CTO, probe, lecture.          ║
+║    Flag requis : DMS_ALLOW_RAILWAY=1.                              ║
+║                                                                      ║
+║  RÈGLE-ANCHOR-07 — STOP EXPLICITE OBLIGATOIRE                      ║
+║    Le LLM DOIT s'arrêter et demander AO si :                      ║
+║      - Une règle du Plan Directeur est absente du contexte        ║
+║      - Une action touche Railway, Alembic, ou la DB prod          ║
+║      - Deux mandats consécutifs échouent sur le même point        ║
+║      - Le LLM commence à improviser faute d'information           ║
+║    Jamais continuer en espérant que ça marche.                    ║
+║                                                                      ║
+║  RÈGLE-ANCHOR-08 — PÉRIMÈTRE FERMÉ OBLIGATOIRE                     ║
+║    Tout mandat doit lister exactement les fichiers à créer.       ║
+║    Zéro fichier supplémentaire non listé.                          ║
+║    Zéro modification de fichier non listé.                         ║
+║    L'agent vérifie le périmètre avant tout commit.                ║
+║                                                                      ║
+║  RÈGLE-ANCHOR-09 — ERREURS CAPITALISÉES PERMANENTES               ║
+║    Toute erreur commise est inscrite ici définitivement.           ║
+║    Elle ne peut pas être effacée.                                  ║
+║    Elle sert de garde-fou pour toutes les sessions suivantes.     ║
+║                                                                      ║
+║  RÈGLE-ANCHOR-10 — HIÉRARCHIE DES AUTORITÉS                       ║
+║    1. Plan Directeur DMS V4.1 (document source — 20 pages)        ║
+║    2. Ce context anchor (condensé opposable)                       ║
+║    3. Les mandats CTO (instructions de session)                    ║
+║    4. Le LLM (exécutant — zéro autorité propre)                   ║
+║    En cas de conflit : l'autorité supérieure prime toujours.      ║
+║                                                                      ║
+║  ██████████████████████████████████████████████████████████████    ║
+║  ██              FIN CLAUSE D'INTÉGRITÉ                       ██    ║
+║  ██████████████████████████████████████████████████████████████    ║
+║                                                                      ║
+╠══════════════════════════════════════════════════════════════════╣
 ║                                                                      ║
 ║  GIT                                                                 ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  main            : 010a353 (merge M10B) — M11 en PR #185             ║
-║  tag m10b-done   : 010a353 (merge PR #184 feat/m10b-agent-native)   ║
-║  tag m11-done    : fbc070e (PR #185 feat/m11-signal-integrity)      ║
-║  hash complet    : fbc070ec3bf0b1109b3741995025b6f0f97a675e         ║
-║  branche active  : feat/m11-signal-integrity                        ║
+║  main            : 010a353 (merge M10B)                             ║
+║  tag m10b-done   : 010a353 (merge PR #184 feat/m10b-agent-native)  ║
+║  tag m11-done    : fbc070e (PR #185 feat/m11-signal-integrity)     ║
+║  hash actuel     : ebe92e4 (docs anchor)                           ║
+║  branche active  : feature/label-studio-annotation (M11-bis)       ║
 ║                                                                      ║
-║  ALEMBIC                                                             ║
+║  ALEMBIC — FREEZE ABSOLU                                            ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  head actuel     : 045_agent_native_foundation                      ║
-║  historique      : 001 -> 045 — FREEZE 001-044                      ║
+║  head actuel     : 045_agent_native_foundation                     ║
+║  historique      : 001 → 045 — FREEZE TOTAL 001-044               ║
+║  chaîne          : 044_decision_history → 045_agent_native         ║
+║  RÈGLE           : zéro autogenerate — SQL brut uniquement         ║
+║  RÈGLE           : zéro modification fichiers existants 001-044    ║
+║  RÈGLE           : toute nouvelle migration = 046+ séquentiel       ║
+║  VIOLATION       : faute disciplinaire grave immédiate             ║
 ║                                                                      ║
-║  RAILWAY — DONNÉES RÉELLES CONFIRMÉES POST-M11                       ║
+║  SCHÉMAS PostgreSQL — DÉFINITIF                                     ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  procurement_dict_items : 1 490 items actifs                        ║
-║  mercurials             : 27 396 lignes                             ║
-║  mercurials.item_id     : UUID — VIDE — NON UTILISÉ                 ║
-║                           jointure via item_canonical UNIQUEMENT    ║
-║  mercurials_item_map    : 1 629 mappings                            ║
-║  tracked_market_items   : 1 004 items                               ║
-║  tracked_market_zones   : 19 zones                                  ║
-║  zone_context_registry  : 20 contextes (6+14 DETTE-1) ✓              ║
-║                           ML-1,7,8,2,9,6 + 14 zones severity        ║
-║  geo_price_corridors    : 7 corridors (Gao→Menaka ML-9/32%) ✓       ║
+║  public    : 79 tables métier                                      ║
+║  couche_b  : 15 tables procurement                                 ║
+║  couche_a  : agent_checkpoints, agent_runs_log (propriétaire 045)  ║
+║              fn_dms_event_notify, fn_prevent_runs_delete           ║
+║  SQLite    : INTERDIT — PostgreSQL uniquement sur ce projet        ║
+║                                                                      ║
+║  RAILWAY — DONNÉES RÉELLES CONFIRMÉES POST-M11                      ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  procurement_dict_items : 1 490 items actifs                       ║
+║  mercurials             : 27 396 lignes (DGMP 2023→2026)           ║
+║  mercurials.item_id     : UUID — VIDE — NON UTILISÉ                ║
+║                           jointure via item_canonical UNIQUEMENT   ║
+║  mercurials_item_map    : 1 629 mappings                           ║
+║  tracked_market_items   : 1 004 items                              ║
+║  tracked_market_zones   : 19 zones                                 ║
+║  zone_context_registry  : 20 contextes (6+14 DETTE-1) ✓            ║
+║  geo_price_corridors    : 7 corridors (Gao→Menaka ML-9/32%) ✓     ║
 ║  seasonal_patterns      : 1 786 (v1.1_mercurials) ✓                ║
-║  market_signals_v2      : 1 106 signaux (post M11 compute) ✓        ║
-║                           formula_version 1.1, residual_pct > 0     ║
-║                           CRITICAL zones ipc_3+/ipc_4+ uniquement   ║
-║  market_surveys         : 13 110 lignes ✓ DETTE-2 résolue          ║
-║  decision_history       : 115 lignes ✓ DETTE-3 résolue             ║
-║  dict_collision_log     : 0 sur Railway (résolu M10A)               ║
-║  couche_a               : agent_checkpoints, agent_runs_log (045)   ║
+║  market_signals_v2      : 1 106 signaux (post M11 compute) ✓       ║
+║                           formula_version 1.1                      ║
+║                           CRITICAL zones ipc_3+/ipc_4+ uniquement  ║
+║                           severity_level NULL = 0 ✓                ║
+║  market_surveys         : 13 110 lignes ✓ DETTE-2 résolue         ║
+║  decision_history       : 115 lignes ✓ DETTE-3 résolue            ║
+║  dict_collision_log     : 0 (résolu M10A)                          ║
+║  couche_a               : agent_checkpoints, agent_runs_log (045)  ║
+║  imc_entries            : 810 lignes (INSTAT 2018→2026)              ║
+║  imc_sources            : traçabilité PDFs INSTAT                  ║
+║  imc_category_item_map  : ABSENTE → DETTE-7 M12                    ║
 ║                                                                      ║
-║  CONTRACT-02 — DÉFINITIF                                             ║
+║  CONTRACT-02 — DÉFINITIF                                            ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  INTERDIT Railway  : migrations, ALTER, DROP, DELETE                ║
-║  AUTORISÉ Railway  : compute, seeds validés CTO, probe               ║
+║  INTERDIT Railway  : migrations, ALTER, DROP, DELETE               ║
+║  INTERDIT Railway  : SQLite, toute base non PostgreSQL             ║
+║  INTERDIT Railway  : modifier services DMS existants                ║
+║  AUTORISÉ Railway  : compute, seeds validés CTO, probe              ║
 ║  Flag Railway      : DMS_ALLOW_RAILWAY=1                            ║
+║  Tests M11         : M11_SEEDED=1 requis                           ║
 ║                                                                      ║
-║  JOINTURE MERCURIALS — DÉFINITIVE ET FIGÉE                           ║
+║  JOINTURE MERCURIALS — DÉFINITIVE ET FIGÉE                          ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  mercurials.item_id (UUID) = artefact legacy — IGNORÉ               ║
+║  mercurials.item_id (UUID) = artefact legacy — IGNORÉ              ║
 ║  Chemin obligatoire :                                                ║
-║    item_canonical → mercurials_item_map → dict_item_id              ║
+║    item_canonical → mercurials_item_map → dict_item_id             ║
 ║  Jointure : LOWER(TRIM(item_canonical)) des deux côtés              ║
 ║                                                                      ║
-║  M10B — DONE 2026-03-11                                              ║
+║  ARCHITECTURE IMC — FIGÉE                                           ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  Statut        : MERGE PR #184 — tag m10b-done pose                 ║
-║  couche_a       : schema + agent_checkpoints + agent_runs_log       ║
-║  pg_notify      : fn_dms_event_notify, trg_notify_market_*          ║
-║  framework.py   : AgentRunContext, AgentMemory (ADR-010)           ║
+║  SOURCE-1 mercurials   : prix unitaires DGMP zone×item 2023→2026    ║
+║  SOURCE-2 imc_entries  : indices INSTAT catégorie×mois 2018→2026   ║
+║                          NE PAS FUSIONNER avec mercurials           ║
+║  SOURCE-3 imc_sources  : PDFs bulletins INSTAT parsés               ║
+║  SOURCE-4 mercuriale_sources : PDFs DGMP parsés                     ║
+║  Pont manquant         : imc_category_item_map → DETTE-7            ║
+║  Formule révision      : P1 = P0 × (IMC_t1 / IMC_t0)                ║
+║  Signal IMC            : MOM > 3% → WATCH construction             ║
+║                          MOM > 8% → STRONG construction             ║
+║                          YOY > 15% → CRITICAL construction         ║
 ║                                                                      ║
-║  M11 — DONE 2026-03-11 (PR #185 en attente merge)                   ║
+║  CORRECTION ARCHITECTURALE M11 — FIGÉE                              ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  Statut        : tag m11-done pose — 8 tests passés                 ║
-║  DETTE-1       : 14 zones severity_level seedées ✓                  ║
-║  DETTE-2       : market_surveys 13 110 lignes ✓                     ║
-║  DETTE-3       : decision_history 115 lignes ✓                      ║
-║  DETTE-4       : seasonal_patterns 1 786 > baseline ✓                ║
-║  DETTE-5       : Gao→Menaka corridor ML-9/32% ✓                     ║
+║  zone-menaka-1 : ML-9 / 32.0% / ipc_4_emergency                    ║
+║  ML-6 (+50%)   : Kidal UNIQUEMENT                                   ║
 ║                                                                      ║
-║  FREEZE ABSOLU — NE JAMAIS MODIFIER                                  ║
+║  INFRASTRUCTURE ANNOTATION — M11-bis                                 ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  Label Studio                                                        ║
+║    Service Railway   : label-studio-dms                             ║
+║    Image             : heartexlabs/label-studio:latest              ║
+║    PostgreSQL dédié  : Postgres-LS (≠ DMS PostgreSQL — R-02)       ║
+║    Volume            : label-studio-data 5GB /label-studio/data     ║
+║    Port interne      : 8080                                         ║
+║    Healthcheck       : /health 30s/10s/3                            ║
+║    Statut            : EN COURS — crash loop POSTGRE_PORT           ║
+║    Problème actuel   : POSTGRE_PORT reçoit string vide              ║
+║                        ${{Postgres-LS.PGPORT}} non résolu           ║
+║                        Fix en attente : POSTGRE_PORT=5432 fixe      ║
+║                        + diagnostic complet Plan Directeur requis   ║
+║                                                                      ║
+║  ML Backend Mistral                                                  ║
+║    Service Railway   : annotation-backend                           ║
+║    Dossier           : services/annotation-backend/                 ║
+║    API Mistral       : v1.x (>=1.0.0) — from mistralai import       ║
+║                        Mistral / client.chat.complete()             ║
+║    Port              : 9090 (ou $PORT Railway)                      ║
+║    Zéro stockage     : R-05 — transit uniquement                    ║
+║    Statut            : fichiers créés — déploiement en attente      ║
+║                                                                      ║
+║  RÈGLES ANNOTATION — FIGÉES                                         ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  Confiance     : 1.00 / 0.80 / 0.60 / null UNIQUEMENT              ║
+║                  {1:0.60, 2:0.80, 3:1.00} maxRating=3               ║
+║                  Jamais 0.90 — jamais 4 niveaux                     ║
+║  RÈGLE-19      : value + confidence_expected + evidence_hint       ║
+║                  JAMAIS valeur nue dans ground_truth                 ║
+║  Format JSONL  : Plan Directeur Partie VIII                         ║
+║                  wrapper ground_truth obligatoire                    ║
+║                  sha256 calculé sur data brut                       ║
+║  AMBIG trackés : AMBIG-1/3/4/6 — tous exportés dans JSONL          ║
+║  Doc types     : dao, rfq, rfp_consultance, marketsurvey,           ║
+║                  devisunique, devissimple, devisformel, autre       ║
+║  Critères admin: sci, nif, rccm, rib, non_sanction, quitus_fiscal   ║
+║                                                                      ║
+║  FREEZE ABSOLU — NE JAMAIS MODIFIER                                 ║
 ║  ──────────────────────────────────────────────────────────────     ║
 ║  docs/freeze/SYSTEM_CONTRACT.md                                     ║
-║  docs/freeze/DMS_V4.1.0_FREEZE.md                                   ║
+║  docs/freeze/DMS_V4.1.0_FREEZE.md                                  ║
 ║  docs/freeze/DMS_ORCHESTRATION_FRAMEWORK_V1.md                      ║
-║  migrations Alembic 001 -> 044                                      ║
+║  migrations Alembic 001 → 044                                       ║
 ║                                                                      ║
-║  PROCHAINE MILESTONE : M12                                          ║
-║  Dettes : DETTE_M12.md (API signaux, alertes CRITICAL, validation)  ║
+║  STRUCTURE PROJET                                                    ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  Racine : main.py, start.sh, Procfile, requirements.txt             ║
+║  src/    : api/, business/, core/, couche_a/, couche_b/, db/        ║
+║            evaluation/, extraction/, geo/, mapping/, vendors/       ║
+║            auth_router.py, logging_config.py, ratelimit.py          ║
+║  alembic/: versions/ 001–045, env.py                                ║
+║  services/: annotation-backend/ (ML Backend Label Studio)            ║
+║  docs/   : adr/, freeze/, mandates/, milestones/                   ║
+║  scripts/: probes, seeds, migrations, import/export                ║
+║  tests/  : auth/, contracts/, invariants/, mercuriale/              ║
+║  data/   : uploads, outputs, static                                 ║
+║                                                                      ║
+║  MILESTONES                                                          ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  M9      DONE  578 signaux, formule 1.1, corridors, FEWS           ║
+║  M10A    DONE  seasonal_patterns, zone_context, geo_corridors       ║
+║  M10B    DONE  couche_a, agents, pg_notify (ADR-010)                ║
+║  M11     DONE  5 dettes, 1106 signaux, severity NULL=0 (ADR-011)    ║
+║  M11-bis EN COURS — Label Studio + ML Backend                      ║
+║                      feature/label-studio-annotation                ║
+║                      BLOQUÉ : crash loop label-studio-dms            ║
+║                      Cause : POSTGRE_PORT vide sur Railway          ║
+║                      Action : diagnostic Plan Directeur requis      ║
+║  M12     NEXT  annotation 15 docs (AO) + imc_category_map           ║
+║                + compute_price_revision + signaux IMC                ║
+║  M13     PLAN  046_evaluation_documents + extraction pipeline       ║
+║  M15     GATE  4 seuils validation go-live                         ║
+║                                                                      ║
+║  SEUILS M15 — FIGÉS NON NÉGOCIABLES                                 ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  coverage_extraction  ≥ 80%                                        ║
+║  unresolved_rate      ≤ 25%                                         ║
+║  vendor_match_rate    ≥ 60%                                        ║
+║  review_queue_rate    ≤ 30%                                        ║
+║                                                                      ║
+║  DETTES OUVERTES → DETTE_M12.md                                     ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  BLOQUANT   : 15 docs annotated_validated (AO, non déléguable)     ║
+║  DETTE-1    : API GET /signals (market_signals_v2)                  ║
+║  DETTE-2    : listener pg_notify CRITICAL → webhook/email          ║
+║  DETTE-3    : workflow validation decision_history                 ║
+║  DETTE-4    : Tests Railway CI/CD (GitHub Actions)                 ║
+║  DETTE-5    : 046_evaluation_documents (M13/M14)                   ║
+║  DETTE-6    : market_surveys terrain réels                         ║
+║  DETTE-7    : imc_category_item_map + 046_imc_map + compute        ║
+║  DETTE-8    : signaux IMC dans market_signals_v2                   ║
+║  DETTE-9    : imc_entries 2018→2022 baseline seasonal_patterns     ║
+║                                                                      ║
+║  ERREURS CAPITALISÉES — PERMANENTES — NE JAMAIS REPRODUIRE          ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  E-01  mistralai v0.x vs v1.x : API breaking change                ║
+║         v1.x : from mistralai import Mistral                        ║
+║                client.chat.complete() — pas client.chat()            ║
+║  E-02  Format JSONL : lire Plan Directeur Partie VIII AVANT coder   ║
+║  E-03  Confiance : 3 niveaux — jamais 0.90 — jamais 4 étoiles       ║
+║  E-04  RÈGLE-19 : evidence_hint PARTOUT — jamais valeur nue        ║
+║  E-05  Variables env Railway : texte brut — jamais Markdown        ║
+║  E-06  Standard industrie (Label Studio) AVANT bricolage maison    ║
+║  E-07  AMBIG-3/4 : toujours trackés dans export JSONL              ║
+║  E-08  Label Studio Railway : Dashboard uniquement — pas CLI        ║
+║         railway add --service --image = commande invalide           ║
+║  E-09  railway.json dockerfilePath : chemin relatif au service     ║
+║         "Dockerfile" pas le chemin absolu depuis racine repo        ║
+║  E-10  DJANGO_DB=default : force SQLite — INTERDIT sur ce projet   ║
+║         Label Studio + PostgreSQL : utiliser POSTGRE_* variables    ║
+║  E-11  ${{Postgres-LS.PGPORT}} : non résolu par Railway             ║
+║         POSTGRE_PORT = 5432 valeur fixe obligatoire                  ║
+║  E-12  Chaîne Alembic modifiée sans autorisation CTO               ║
+║         Faute disciplinaire grave — ne jamais reproduire            ║
+║  E-13  Context anchor dégradé session après session                ║
+║         Raccourcis cumulés → perte de règles critiques              ║
+║         → improvisation → dégâts sur projet                        ║
+║                                                                      ║
+║  PROTOCOLE FIN DE SESSION — OBLIGATOIRE                             ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  1. Mettre à jour ce fichier — COMPLET — aucun raccourci            ║
+║  2. Mettre à jour : main, tag, branche, alembic head                ║
+║  3. Mettre à jour : données Railway (counts réels)                 ║
+║  4. Mettre à jour : statut milestones                              ║
+║  5. Capitaliser toute nouvelle erreur dans E-XX                     ║
+║  6. Commit sur main — message : "docs(anchor): session YYYY-MM-DD" ║
+║  7. Ne jamais clore une session sans ce commit                     ║
+║                                                                      ║
+║  PROTOCOLE DÉBUT DE SESSION — OBLIGATOIRE                           ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  1. AO colle ce fichier en début de session                         ║
+║  2. LLM confirme la lecture complète                               ║
+║  3. LLM identifie le statut milestone courant                      ║
+║  4. LLM liste les règles applicables à la session                  ║
+║  5. Zéro action avant cette confirmation                           ║
 ╚══════════════════════════════════════════════════════════════════════╝
 ```
 
 ---
 
-## Règle — À remplir à la fin de chaque merge
+## PROTOCOLE MISE À JOUR
 
-Mettre à jour ce fichier avec les valeurs réelles :
-- main, tag, branche active
-- alembic head
-- données Railway (counts)
-- statut milestone courant
-- prochaine action
+```
+À chaque fin de merge ou milestone :
+  - Mettre à jour : main, tag, branche active, alembic head
+  - Mettre à jour : données Railway (counts réels)
+  - Capitaliser toute nouvelle erreur dans E-XX
+  - Commit : "docs(anchor): session YYYY-MM-DD"
+  - Ce document ne peut jamais être raccourci
+```
