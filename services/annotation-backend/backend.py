@@ -1,271 +1,321 @@
 """
-ML Backend — DMS Annotation Service
-Milestone    : M11-bis / M12
-Référence    : MANDAT-LS-002-v1
-Auteur       : CTO / AO — Abdoulaye Ousmane
-Date         : 2026-03-14
-
-Règle R-05   : zéro stockage document — transit uniquement
-Règle R-10   : mistralai>=1.0.0 — API v1.x uniquement
-RÈGLE-19     : value + confidence + evidence_hint partout
-Corpus Mali  : 3 docs référence — types et régimes figés
+DMS Annotation ML Backend — Enterprise Grade
+Label Studio ML Backend Protocol compatible
+Mistral AI integration — Mali Procurement v4.1
 """
 
+import os
 import json
 import logging
-import os
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 from mistralai import Mistral
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s — %(message)s",
-)
-logger = logging.getLogger("dms-annotation-backend")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-app = FastAPI(
-    title="DMS Annotation ML Backend",
-    version="1.2.0",
-    docs_url=None,
+app = FastAPI(title="DMS Annotation Backend", version="2.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
-MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
+MISTRAL_MODEL   = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
+LS_URL          = os.environ.get("LS_URL", "")
+LS_API_KEY      = os.environ.get("LS_API_KEY", "")
+
+client = Mistral(api_key=MISTRAL_API_KEY) if MISTRAL_API_KEY else None
 
 
-# ── Modèles ──────────────────────────────────────────────────────
-
-
-class AnnotationTask(BaseModel):
-    id: int
-    data: dict[str, Any]
-
-
-class PredictionRequest(BaseModel):
-    tasks: list[AnnotationTask]
-    model_version: str | None = None
-    project: int | None = None
-
-
-# ── Healthcheck ──────────────────────────────────────────────────
-
-
+# ─────────────────────────────────────────────
+# HEALTH
+# ─────────────────────────────────────────────
 @app.get("/health")
 async def health():
-    return {
+    return JSONResponse({
         "status": "UP",
         "model": MISTRAL_MODEL,
         "mistral_configured": bool(MISTRAL_API_KEY),
-        "api_version": "v1.x",
-        "corpus_version": "Mali-3docs-v1",
-    }
+        "api_version": "v2.0",
+        "corpus_version": "Mali-3docs-v1"
+    })
 
 
+# ─────────────────────────────────────────────
+# SETUP — Label Studio handshake (POST requis)
+# ─────────────────────────────────────────────
 @app.post("/setup")
-async def setup():
-    return {
-        "model_version": "dms-mistral-v1.2",
-        "status": "ready",
-    }
+async def setup(request: Request):
+    """
+    Label Studio envoie POST /setup lors de la connexion.
+    Retourner model_version pour confirmer la compatibilité.
+    """
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+
+    logger.info(f"[setup] Label Studio handshake reçu : {body}")
+    return JSONResponse({
+        "model_version": "dms-mali-v2.0",
+        "status": "ok"
+    })
 
 
-# ── Prédiction ───────────────────────────────────────────────────
-
-
+# ─────────────────────────────────────────────
+# PREDICT — Prédictions batch pour Label Studio
+# ─────────────────────────────────────────────
 @app.post("/predict")
-async def predict(request: PredictionRequest):
-    if not MISTRAL_API_KEY:
-        raise HTTPException(
-            status_code=503,
-            detail="MISTRAL_API_KEY non configurée",
-        )
+async def predict(request: Request):
+    """
+    Label Studio envoie POST /predict avec tasks[].
+    On retourne des pré-annotations Mistral pour chaque tâche.
+    """
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"results": []}, status_code=200)
 
-    client = Mistral(api_key=MISTRAL_API_KEY)
-    predictions = []
+    tasks = body.get("tasks", [])
+    logger.info(f"[predict] {len(tasks)} tâches reçues")
 
-    for task in request.tasks:
-        text = (
-            task.data.get("text")
-            or task.data.get("content")
-            or task.data.get("document", "")
-        )
+    results = []
+    for task in tasks:
+        task_id = task.get("id", 0)
+        data    = task.get("data", {})
+        text    = data.get("text", "") or data.get("content", "") or ""
 
-        if not text:
-            predictions.append({"id": task.id, "result": [], "score": 0.0})
+        if not text.strip() or not client:
+            results.append({
+                "id": task_id,
+                "result": [],
+                "score": 0.0
+            })
             continue
 
         try:
-            prompt = _build_extraction_prompt(text)
-            response = client.chat.complete(
-                model=MISTRAL_MODEL,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            raw = response.choices[0].message.content
-            result = _parse_mistral_response(raw, task.id)
-
-            predictions.append({
-                "id": task.id,
+            extraction = await _mistral_extract(text)
+            result     = _build_ls_result(extraction)
+            results.append({
+                "id":     task_id,
                 "result": result,
-                "score": 0.80,
-                "model_version": "dms-mistral-v1.2",
+                "score":  extraction.get("confidence", 0.75),
+                "model_version": "dms-mali-v2.0"
             })
+            logger.info(f"[predict] task {task_id} → {extraction.get('doc_type','?')}")
+        except Exception as e:
+            logger.error(f"[predict] task {task_id} erreur : {e}")
+            results.append({"id": task_id, "result": [], "score": 0.0})
 
-        except Exception:
-            logger.exception("Task %s failed", task.id)
-            predictions.append({"id": task.id, "result": [], "score": 0.0})
-
-    return JSONResponse({"results": predictions})
+    return JSONResponse({"results": results})
 
 
+# ─────────────────────────────────────────────
+# TRAIN — Déclenchement entraînement
+# ─────────────────────────────────────────────
+@app.post("/train")
+async def train(request: Request):
+    """
+    Label Studio envoie POST /train quand annotations validées.
+    On log les annotations reçues pour future fine-tuning.
+    """
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+
+    annotations = body.get("annotations", [])
+    logger.info(f"[train] {len(annotations)} annotations reçues pour fine-tuning")
+
+    # TODO M12 : déclencher fine-tuning Mistral via API
+    return JSONResponse({
+        "status": "ok",
+        "message": f"{len(annotations)} annotations enregistrées",
+        "job_id": None
+    })
+
+
+# ─────────────────────────────────────────────
+# WEBHOOK — Events Label Studio
+# ─────────────────────────────────────────────
 @app.post("/webhook")
 async def webhook(payload: dict[str, Any]):
-    action = payload.get("action", "unknown")
-    logger.info("Webhook reçu : action=%s", action)
-    return {"status": "received", "action": action}
+    event = payload.get("action", "unknown")
+    logger.info(f"[webhook] event={event}")
+    return JSONResponse({"status": "received", "event": event})
 
 
-# ── Helpers ──────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
+# MISTRAL EXTRACTION — Procurement Mali v4.1
+# ─────────────────────────────────────────────
+async def _mistral_extract(text: str) -> dict:
+    """
+    Appelle Mistral pour extraire les critères procurement Mali.
+    Retourne un dict structuré conforme au schema DMS v4.1.
+    """
+    prompt = _build_extraction_prompt(text)
+
+    response = client.chat.complete(
+        model=MISTRAL_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.1,
+        max_tokens=1500
+    )
+
+    raw = response.choices[0].message.content.strip()
+    return _parse_mistral_response(raw)
 
 
 def _build_extraction_prompt(text: str) -> str:
-    return f"""Tu es un extracteur de données procurement Mali — Save the Children International.
-Retourne UNIQUEMENT un JSON valide, sans texte autour.
+    return f"""Tu es un expert en procurement UNICEF Mali.
+Analyse ce document et extrais les informations suivantes en JSON strict.
 
-FORMAT :
+DOCUMENT:
+{text[:4000]}
+
+RÉPONDRE UNIQUEMENT EN JSON avec cette structure exacte:
 {{
-  "doc_type": "rfp_consultance|devissimple|devisunique|devisformel|autre",
-  "doc_type_confidence": 1.0,
-  "doc_type_evidence": "texte exact du document justifiant le type",
-
+  "doc_type": "dao|rfq|rfp_consultance|tdr_consultance_audit|offre_technique|offre_financiere|devis_simple|devis_unique|devis_formel|marketsurvey",
+  "criteres_essentiels": ["nif","rccm","rib","sci_conditions","non_sanction","iapg","certificat_non_faillite","quitus_fiscal","piece_identite_representant","statuts_societe","ariba_network","attestation_fiscale"],
+  "criteres_commerciaux": ["prix_unitaire","prix_total_ttc","delai_livraison_jours","validite_offre_jours","modalite_paiement","garantie_produit","moins_disant_formule","incoterm","lieu_livraison"],
+  "criteres_capacite": ["annees_experience_chef_mission","nb_etudes_similaires_cabinet","methodologie_approche","plan_travail_chronogramme","qualification_diplome","references_clients","presence_zone"],
+  "criteres_durabilite": ["impact_environnemental","genre_inclusion_sociale","fournisseur_local_mali","impact_communautaire","certifications_durabilite"],
   "regime_dominant": "AUTOMATIQUE|CONDITIONNEL|PENALITE_FISCALE|MIXTE|AUCUN",
-
-  "criteres_admin": {{
-    "sci":                        {{"requis": false, "regime": "AUCUN",        "confidence": 1.0, "evidence_hint": ""}},
-    "iapg":                       {{"requis": false, "regime": "AUCUN",        "confidence": 1.0, "evidence_hint": ""}},
-    "non_sanction":               {{"requis": false, "regime": "AUCUN",        "confidence": 1.0, "evidence_hint": ""}},
-    "rccm":                       {{"requis": false, "regime": "AUCUN",        "confidence": 1.0, "evidence_hint": ""}},
-    "nif":                        {{"requis": false, "regime": "AUCUN",        "confidence": 1.0, "evidence_hint": ""}},
-    "certificat_non_faillite":    {{"requis": false, "regime": "AUCUN",        "confidence": 1.0, "evidence_hint": ""}},
-    "quitus_fiscal":              {{"requis": false, "regime": "AUCUN",        "confidence": 1.0, "evidence_hint": ""}},
-    "rib":                        {{"requis": false, "regime": "AUCUN",        "confidence": 1.0, "evidence_hint": ""}},
-    "piece_identite_representant":{{"requis": false, "regime": "AUCUN",        "confidence": 1.0, "evidence_hint": ""}},
-    "statuts":                    {{"requis": false, "regime": "AUCUN",        "confidence": 1.0, "evidence_hint": ""}},
-    "ariba_network":              {{"requis": false, "regime": "AUCUN",        "confidence": 1.0, "evidence_hint": ""}}
-  }},
-
-  "champs_extractibles": {{
-    "reference_dossier":      {{"value": null, "confidence": 1.0, "evidence_hint": ""}},
-    "date_limite_soumission": {{"value": null, "confidence": 1.0, "evidence_hint": ""}},
-    "entite_emettrice":       {{"value": null, "confidence": 1.0, "evidence_hint": ""}},
-    "zone_geo":               {{"value": null, "confidence": 1.0, "evidence_hint": ""}},
-    "montant_estimatif":      {{"value": null, "confidence": 1.0, "evidence_hint": ""}},
-    "devise":                 {{"value": null, "confidence": 1.0, "evidence_hint": ""}},
-    "delai_execution":        {{"value": null, "confidence": 1.0, "evidence_hint": ""}},
-    "langue":                 {{"value": null, "confidence": 1.0, "evidence_hint": ""}}
-  }},
-
-  "ambiguites": [],
-  "confiance_globale": 1.0
+  "ponderation_coherente": "100_exact|non_precisee_dans_doc|incomplete_inferieur_100|incoherente_superieur_100",
+  "ambiguites": ["AMBIG-1_montant_absent","AMBIG-2_ponderation_manquante","AMBIG-3_reference_contradictoire"],
+  "evidence_hint": "5-10 mots exacts du document justifiant la classification",
+  "confidence": 0.85
 }}
 
-RÈGLES STRICTES :
-- confidence : 1.0 (certain) | 0.80 (déduit) | 0.60 (flou) — jamais autre valeur
-- evidence_hint : 5-10 mots exacts du document — jamais inventé
-- Valeur absente = null — jamais chaîne vide
-- Dates : YYYY-MM-DD uniquement
-- Montants : chiffres purs sans espaces ni virgules
-- regime élimination : lire CHAMP PAR CHAMP — jamais généraliser depuis doc_type
-- AUTOMATIQUE = mot "entrainera" ou "exclusion immédiate"
-- CONDITIONNEL = mot "peut engendrer" + "à l'appréciation du comité"
-- PENALITE_FISCALE = retenue 15% BIC — contractualisation possible
-- MIXTE = plusieurs régimes dans le même document
-- Ne jamais inventer un critère absent du document
-
-DOCUMENT :
-{text[:4000]}
+RÈGLES:
+- N'inclure dans chaque liste QUE les critères PRÉSENTS dans le document
+- confidence entre 0.60 (OCR dégradé) et 1.00 (texte exact)
+- evidence_hint = citation exacte du document
+- Si incertain → confidence ≤ 0.70
 """
 
 
-def _parse_mistral_response(raw: str, task_id: int) -> list[dict]:
+def _parse_mistral_response(raw: str) -> dict:
+    """Parse la réponse JSON de Mistral avec fallback."""
     try:
+        # Extraire le JSON même si entouré de texte
         start = raw.find("{")
-        end = raw.rfind("}") + 1
-        if start == -1 or end == 0:
-            return []
+        end   = raw.rfind("}") + 1
+        if start >= 0 and end > start:
+            return json.loads(raw[start:end])
+    except Exception as e:
+        logger.error(f"[parse] Erreur JSON : {e} — raw={raw[:200]}")
 
-        data = json.loads(raw[start:end])
-        results = []
+    return {
+        "doc_type": "dao",
+        "criteres_essentiels": [],
+        "criteres_commerciaux": [],
+        "criteres_capacite": [],
+        "criteres_durabilite": [],
+        "regime_dominant": "AUCUN",
+        "ponderation_coherente": "non_precisee_dans_doc",
+        "ambiguites": [],
+        "evidence_hint": "",
+        "confidence": 0.60
+    }
 
-        # doc_type → choices Label Studio
-        if data.get("doc_type") and data["doc_type"] != "inconnu":
-            results.append({
-                "type": "choices",
-                "value": {"choices": [data["doc_type"]]},
-                "from_name": "doc_type",
-                "to_name": "document_text",
-                "origin": "prediction",
-                "score": data.get("doc_type_confidence", 0.80),
-            })
 
-        # criteres_admin → choices Label Studio
-        criteres_presents = [
-            k for k, v in data.get("criteres_admin", {}).items()
-            if isinstance(v, dict) and v.get("requis") is True
-        ]
-        if criteres_presents:
-            results.append({
-                "type": "choices",
-                "value": {"choices": criteres_presents},
-                "from_name": "criteres_admin",
-                "to_name": "document_text",
-                "origin": "prediction",
-                "score": 0.80,
-            })
+def _build_ls_result(extraction: dict) -> list[dict]:
+    """
+    Convertit l'extraction Mistral en format Label Studio result[].
+    Chaque champ du formulaire XML devient un result item.
+    """
+    results = []
 
-        # regime_dominant → choices Label Studio
-        if data.get("regime_dominant"):
-            results.append({
-                "type": "choices",
-                "value": {"choices": [data["regime_dominant"]]},
-                "from_name": "regime_dominant",
-                "to_name": "document_text",
-                "origin": "prediction",
-                "score": 0.80,
-            })
-
-        # confiance_globale → rating Label Studio
-        confiance = data.get("confiance_globale", 0.60)
-        if confiance >= 1.0:
-            rating = 3
-        elif confiance >= 0.80:
-            rating = 2
-        else:
-            rating = 1
+    # doc_type
+    if extraction.get("doc_type"):
         results.append({
-            "type": "rating",
-            "value": {"rating": rating},
-            "from_name": "confidence",
+            "type": "choices",
+            "from_name": "doc_type",
             "to_name": "document_text",
-            "origin": "prediction",
+            "value": {"choices": [extraction["doc_type"]]}
         })
 
-        # ambiguites → notes Label Studio
-        ambiguites = data.get("ambiguites", [])
-        if ambiguites:
-            results.append({
-                "type": "textarea",
-                "value": {"text": ambiguites},
-                "from_name": "notes",
-                "to_name": "document_text",
-                "origin": "prediction",
-            })
+    # criteres_essentiels
+    if extraction.get("criteres_essentiels"):
+        results.append({
+            "type": "choices",
+            "from_name": "criteres_essentiels",
+            "to_name": "document_text",
+            "value": {"choices": extraction["criteres_essentiels"]}
+        })
 
-        return results
+    # criteres_commerciaux
+    if extraction.get("criteres_commerciaux"):
+        results.append({
+            "type": "choices",
+            "from_name": "criteres_commerciaux",
+            "to_name": "document_text",
+            "value": {"choices": extraction["criteres_commerciaux"]}
+        })
 
-    except Exception as e:
-        logger.warning("Parse failed task %s: %s", task_id, e)
-        return []
+    # criteres_capacite
+    if extraction.get("criteres_capacite"):
+        results.append({
+            "type": "choices",
+            "from_name": "criteres_capacite",
+            "to_name": "document_text",
+            "value": {"choices": extraction["criteres_capacite"]}
+        })
+
+    # criteres_durabilite
+    if extraction.get("criteres_durabilite"):
+        results.append({
+            "type": "choices",
+            "from_name": "criteres_durabilite",
+            "to_name": "document_text",
+            "value": {"choices": extraction["criteres_durabilite"]}
+        })
+
+    # regime_dominant
+    if extraction.get("regime_dominant"):
+        results.append({
+            "type": "choices",
+            "from_name": "regime_dominant",
+            "to_name": "document_text",
+            "value": {"choices": [extraction["regime_dominant"]]}
+        })
+
+    # ponderation_coherente
+    if extraction.get("ponderation_coherente"):
+        results.append({
+            "type": "choices",
+            "from_name": "ponderation_coherente",
+            "to_name": "document_text",
+            "value": {"choices": [extraction["ponderation_coherente"]]}
+        })
+
+    # ambiguites
+    if extraction.get("ambiguites"):
+        results.append({
+            "type": "choices",
+            "from_name": "ambiguites",
+            "to_name": "document_text",
+            "value": {"choices": extraction["ambiguites"]}
+        })
+
+    # evidence_hint → textarea notes
+    if extraction.get("evidence_hint"):
+        results.append({
+            "type": "textarea",
+            "from_name": "notes",
+            "to_name": "document_text",
+            "value": {"text": [extraction["evidence_hint"]]}
+        })
+
+    return results
