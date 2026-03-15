@@ -4,6 +4,7 @@ pytest tests/test_m9_invariants.py -v
 """
 
 import os
+import re
 import sys
 
 import psycopg
@@ -315,7 +316,8 @@ class TestDB:
         ver = r["version_num"]
         try:
             prefix = str(ver).split("_")[0] if ver else ""
-            num = int(prefix) if prefix.isdigit() else 0
+            m = re.match(r"^(\d+)", prefix)
+            num = int(m.group(1)) if m else 0
         except (ValueError, TypeError):
             num = 0
         assert num >= 43, f"head inattendu : {ver} (attendu >= 043)"
