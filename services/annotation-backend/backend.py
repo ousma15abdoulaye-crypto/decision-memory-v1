@@ -163,9 +163,9 @@ def _pseudonymise_contact(raw_value: str) -> dict:
         "present":  true,
         "redacted": true
       }
-    Si raw_value = ABSENT / NOT_APPLICABLE → présent=false, pas de hash.
+    Si raw_value = ABSENT / NOT_APPLICABLE / "AMBIGUOUS" → présent=false, pas de hash.
     """
-    if raw_value in (ABSENT, NOT_APPLICABLE, "", None):
+    if raw_value in (ABSENT, NOT_APPLICABLE, "AMBIGUOUS", "", None):
         return {
             "pseudo": None,
             "present": False,
