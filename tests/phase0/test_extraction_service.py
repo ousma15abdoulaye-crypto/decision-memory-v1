@@ -9,6 +9,7 @@ ADR-0002 §2.5 (SLA deux classes).
 
 import os
 import struct
+import sys
 
 import pytest
 
@@ -289,15 +290,33 @@ class TestMistralOCRGuards:
             _extract_mistral_ocr(path)
 
     def test_accepts_image_mime(self, monkeypatch, tmp_path):
-        """Image PNG + API key → passe la validation MIME (ImportError mistralai OK)."""
+        """Image PNG + API key → passe la validation MIME (mock API pour éviter 401 en CI)."""
         monkeypatch.setenv("MISTRAL_API_KEY", "sk-test")
         monkeypatch.setenv("STORAGE_BASE_PATH", str(tmp_path))
         path = self._make_png_file(tmp_path)
 
-        # mistralai n'est pas installé → ImportError attendue
-        # (prouve que la validation MIME/taille est passée)
-        with pytest.raises(ImportError, match="mistralai"):
-            _extract_mistral_ocr(path)
+        # Mock Mistral API — mistralai installé (requirements) → 401 sans mock.
+        # On injecte un module mock pour éviter l'appel API réel.
+        from unittest.mock import MagicMock
+
+        mock_client = MagicMock()
+        mock_client.chat.complete.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Texte extrait mock"))]
+        )
+        mock_mistral_module = MagicMock()
+        mock_mistral_module.Mistral.return_value = mock_client
+
+        orig = sys.modules.get("mistralai")
+        sys.modules["mistralai"] = mock_mistral_module
+        try:
+            raw_text, structured = _extract_mistral_ocr(path)
+            assert raw_text == "Texte extrait mock"
+            assert isinstance(structured, dict)
+        finally:
+            if orig is None:
+                sys.modules.pop("mistralai", None)
+            else:
+                sys.modules["mistralai"] = orig
 
     def test_missing_api_key_raises(self, monkeypatch, tmp_path):
         """Pas de MISTRAL_API_KEY → APIKeyMissingError."""

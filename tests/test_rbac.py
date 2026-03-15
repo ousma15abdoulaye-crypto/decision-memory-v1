@@ -62,7 +62,6 @@ def test_procurement_officer_can_create_case():
     )
     assert response.status_code == 200
     assert "id" in response.json()
-    return response.json()["id"]
 
 
 def test_ownership_check():
