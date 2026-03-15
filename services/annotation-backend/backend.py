@@ -4,7 +4,9 @@ Mistral AI ML Backend pour Label Studio
 Mali Procurement · FREEZE DÉFINITIF 2026-03-15
 """
 
+import copy
 import hashlib
+import hmac
 import json
 import logging
 import os
@@ -23,6 +25,25 @@ SCHEMA_VERSION = "v3.0.1b"
 FRAMEWORK_VERSION = "annotation-framework-v3.0.1b"
 MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
+
+# Sel pseudonymisation — variable env obligatoire
+# Si absent → échec du démarrage, sauf si ALLOW_WEAK_PSEUDONYMIZATION est activé
+PSEUDONYM_SALT = os.environ.get("PSEUDONYM_SALT", "")
+ALLOW_WEAK_PSEUDONYMIZATION = os.environ.get(
+    "ALLOW_WEAK_PSEUDONYMIZATION", ""
+).lower() in {"1", "true", "yes", "on"}
+if not PSEUDONYM_SALT:
+    if ALLOW_WEAK_PSEUDONYMIZATION:
+        logging.getLogger(__name__).warning(
+            "[SECURITY] PSEUDONYM_SALT absent — "
+            "pseudonymisation DÉGRADÉE (SHA256 sans sel) explicitement autorisée "
+            "par ALLOW_WEAK_PSEUDONYMIZATION"
+        )
+    else:
+        raise RuntimeError(
+            "[SECURITY] PSEUDONYM_SALT manquant et ALLOW_WEAK_PSEUDONYMIZATION "
+            "non activé — refus de démarrer avec une pseudonymisation faible"
+        )
 
 # Grille confidence — MC-2 — IMMUABLE
 CONF_EXACT = 1.0
@@ -111,6 +132,52 @@ FALLBACK_RESPONSE: dict = {
     },
 }
 
+
+def _pseudonymise(value: str) -> str:
+    """
+    Pseudonymise une valeur sensible (phone, email).
+    Retourne un hash hexadécimal 16 chars.
+
+    Avec sel   : HMAC-SHA256(value, PSEUDONYM_SALT)[:16]
+    Sans sel   : SHA256(value)[:16] — dégradé si PSEUDONYM_SALT absent
+    Objectif   : présence détectable, valeur brute irrécupérable
+                 sans le sel projet.
+    """
+    if PSEUDONYM_SALT:
+        h = hmac.new(
+            PSEUDONYM_SALT.encode(),
+            value.encode(),
+            hashlib.sha256,
+        ).hexdigest()
+    else:
+        h = hashlib.sha256(value.encode()).hexdigest()
+    return h[:16]
+
+
+def _pseudonymise_contact(raw_value: str) -> dict:
+    """
+    Retourne le bloc pseudonymisé pour phone ou email.
+    Format :
+      {
+        "pseudo":   "a3f9c2b1d4e87654",
+        "present":  true,
+        "redacted": true
+      }
+    Si raw_value = ABSENT / NOT_APPLICABLE / "AMBIGUOUS" → présent=false, pas de hash.
+    """
+    if raw_value in (ABSENT, NOT_APPLICABLE, "AMBIGUOUS", "", None):
+        return {
+            "pseudo": None,
+            "present": False,
+            "redacted": False,
+        }
+    return {
+        "pseudo": _pseudonymise(str(raw_value)),
+        "present": True,
+        "redacted": True,
+    }
+
+
 # ─────────────────────────────────────────────────────────
 # PROMPT — RÈGLE-19 · AXIOME-3 · MC-1 · MC-2 · MC-3
 # ─────────────────────────────────────────────────────────
@@ -133,7 +200,34 @@ RÈGLES ABSOLUES :
 8. Ne pas annoter : introductions, remerciements, rappels juridiques sans effet opératoire.
 9. evaluation_report : routing uniquement si détecté. Zéro annotation active.
 10. Retourner UNIQUEMENT le JSON. Zéro prose avant ou après le JSON.
-11. identifiants : extraire supplier_legal_form, supplier_address_raw, supplier_phone_raw, supplier_email_raw (forme juridique, adresse, téléphone, email) si présents. ABSENT sinon."""
+11. Sur les offres (technical_offer / financial_offer / combined_offer) :
+    Extraire les éléments d'identification fournisseur VISIBLES.
+
+    AUTORISÉ — extraire la valeur brute :
+      supplier_name_raw      : nom exact tel qu'écrit
+      supplier_legal_form    : SARL / SA / ONG / GIE / ABSENT
+      supplier_address_raw   : adresse postale (60 chars max)
+      supplier_phone_raw     : numéro(s) de téléphone
+      supplier_email_raw     : adresse(s) email
+
+    INTERDIT — NE JAMAIS extraire la valeur brute :
+      Numéro RIB / IBAN / numéro de compte bancaire
+      Numéro NIF exact
+      Numéro RCCM exact
+    Pour ces trois : extraire UNIQUEMENT has_rib / has_nif / has_rccm
+    = true si présent dans le document, false si absent, ABSENT si non applicable.
+
+    IMPORTANT — supplier_identifier_raw est DÉPRÉCIÉ :
+      - Ne JAMAIS y copier ou reconstituer un NIF, un RCCM ou tout identifiant similaire.
+      - Si le champ supplier_identifier_raw existe dans le schéma JSON cible, tu dois
+        TOUJOURS le renseigner avec "NOT_APPLICABLE" (ou "ABSENT") et rien d'autre.
+
+12. Sur source_rules :
+    supplier_name_raw      = NOT_APPLICABLE
+    supplier_phone_raw     = NOT_APPLICABLE
+    supplier_email_raw     = NOT_APPLICABLE
+    supplier_address_raw   = NOT_APPLICABLE
+    has_rib / has_nif / has_rccm = NOT_APPLICABLE"""
 
 
 def _build_prompt(text: str) -> str:
@@ -363,15 +457,42 @@ def _parse_mistral_response(raw: str) -> dict:
 
 def _build_ls_result(parsed: dict, task_id: int) -> list:
     """
-    Produit le result[] Label Studio.
-    extracted_json  = source de vérité JSON v3.0.1a complète.
-    annotation_notes = résumé routing + flags critiques.
-    Ces deux from_name sont les SEULS émis.
+    Pseudonymise phone et email AVANT insertion dans extracted_json.
+    La valeur brute ne quitte jamais le backend.
     """
+    parsed = copy.deepcopy(parsed)
+
+    # Pseudonymisation phone / email dans identifiants
+    identifiants = parsed.get("identifiants", {})
+    # Protéger contre les types inattendus renvoyés par le LLM (string/list/null, etc.)
+    if not isinstance(identifiants, dict):
+        identifiants = {}
+
+    phone_raw = identifiants.pop("supplier_phone_raw", ABSENT)
+    email_raw = identifiants.pop("supplier_email_raw", ABSENT)
+
+    identifiants["supplier_phone"] = _pseudonymise_contact(phone_raw)
+    identifiants["supplier_email"] = _pseudonymise_contact(email_raw)
+
+    # Address : tronquer à 60 chars
+    addr = identifiants.get("supplier_address_raw", ABSENT)
+    if addr not in (ABSENT, NOT_APPLICABLE, "", None):
+        identifiants["supplier_address_raw"] = str(addr)[:60]
+
+    parsed["identifiants"] = identifiants
+
+    # Suite identique au _build_ls_result existant
     routing = parsed.get("couche_1_routing", {})
     meta = parsed.get("_meta", {})
     gates = parsed.get("couche_5_gates", [])
     ambig = parsed.get("ambiguites", [])
+
+    valid_gates = [g for g in gates if isinstance(g, dict) and "gate_name" in g]
+    gates_failed = [
+        g.get("gate_name", "unknown")
+        for g in valid_gates
+        if g.get("gate_value") is False and g.get("gate_state") == "APPLICABLE"
+    ]
 
     family = routing.get("procurement_family_main", "UNKNOWN")
     sub = routing.get("procurement_family_sub", "UNKNOWN")
@@ -379,14 +500,6 @@ def _build_ls_result(parsed: dict, task_id: int) -> list:
     role = routing.get("document_role", "UNKNOWN")
     stage = routing.get("document_stage", "UNKNOWN")
     review = meta.get("review_required", False)
-
-    gates_failed = [
-        g["gate_name"]
-        for g in gates
-        if isinstance(g.get("gate_value"), bool)
-        and g["gate_value"] is False
-        and g.get("gate_state") == "APPLICABLE"
-    ]
 
     notes = (
         f"[{SCHEMA_VERSION}] {family}/{sub}\n"
