@@ -468,26 +468,11 @@ def _build_ls_result(parsed: dict, task_id: int) -> list:
     if not isinstance(identifiants, dict):
         identifiants = {}
 
-    phone_raw = identifiants.get("supplier_phone_raw", ABSENT)
-    email_raw = identifiants.get("supplier_email_raw", ABSENT)
+    phone_raw = identifiants.pop("supplier_phone_raw", ABSENT)
+    email_raw = identifiants.pop("supplier_email_raw", ABSENT)
 
-    phone_info = _pseudonymise_contact(phone_raw)
-    email_info = _pseudonymise_contact(email_raw)
-
-    # On conserve les clés *_raw comme dans le schéma, mais avec une valeur pseudonymisée.
-    # La valeur brute est écrasée et ne quitte pas le backend.
-    if isinstance(phone_info, dict):
-        identifiants["supplier_phone_raw"] = phone_info.get("pseudo", ABSENT)
-        identifiants["supplier_phone_present"] = phone_info.get("present", False)
-    else:
-        # Fallback défensif si _pseudonymise_contact ne renvoie pas un dict
-        identifiants["supplier_phone_raw"] = phone_info
-
-    if isinstance(email_info, dict):
-        identifiants["supplier_email_raw"] = email_info.get("pseudo", ABSENT)
-        identifiants["supplier_email_present"] = email_info.get("present", False)
-    else:
-        identifiants["supplier_email_raw"] = email_info
+    identifiants["supplier_phone"] = _pseudonymise_contact(phone_raw)
+    identifiants["supplier_email"] = _pseudonymise_contact(email_raw)
 
     # Address : tronquer à 60 chars
     addr = identifiants.get("supplier_address_raw", ABSENT)
