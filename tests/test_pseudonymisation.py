@@ -63,7 +63,7 @@ def test_pseudonymise_avec_sel_retourne_hmac(monkeypatch):
     monkeypatch.setattr(_backend, "PSEUDONYM_SALT", "mon-sel-secret")
     value = "+223 76 00 00 01"
     expected = hmac.new(
-        "mon-sel-secret".encode(),
+        b"mon-sel-secret",
         value.encode(),
         hashlib.sha256,
     ).hexdigest()[:16]
