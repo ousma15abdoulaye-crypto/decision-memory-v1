@@ -7,13 +7,10 @@ Create Date: 2026-03-15
 DETTE-7 — Pont entre imc_entries (catégories INSTAT)
 et couche_b.procurement_dict_items (dictionnaire DMS).
 
-Corrections probe ÉTAPE 0 :
-  - FK cible : couche_b.procurement_dict_items(item_id) TEXT
-  - imc_entries : period_year / period_month (pas year/month)
-  - item_id : TEXT (pas UUID)
-  - schema couche_b explicite sur toutes les références
-
-Formule révision prix : P1 = P0 × (IMC_t1 / IMC_t0)
+Fix PR #188 Copilot review :
+  - ON DELETE CASCADE → ON DELETE RESTRICT (cohérence append-only)
+  - Index fonctionnel LOWER(TRIM(category_raw)) pour perf jointures
+  - Formule révision prix : P1 = P0 × (IMC_t1 / IMC_t0)
 """
 
 from alembic import op
@@ -33,7 +30,7 @@ def upgrade() -> None:
             category_raw   TEXT NOT NULL,
             item_id        TEXT NOT NULL
                            REFERENCES couche_b.procurement_dict_items(item_id)
-                           ON DELETE CASCADE,
+                           ON DELETE RESTRICT,
             confidence     FLOAT NOT NULL
                            CHECK (confidence IN (0.6, 0.8, 1.0)),
             mapping_method TEXT NOT NULL DEFAULT 'manual'
@@ -48,14 +45,23 @@ def upgrade() -> None:
         );
     """)
 
-    op.execute("""
-        CREATE INDEX IF NOT EXISTS idx_imc_map_category_raw
-            ON imc_category_item_map(category_raw);
-    """)
-
+    # Index btree standard sur item_id (UUID-like text)
     op.execute("""
         CREATE INDEX IF NOT EXISTS idx_imc_map_item_id
             ON imc_category_item_map(item_id);
+    """)
+
+    # Index fonctionnel pour jointures LOWER(TRIM(category_raw))
+    # Aligné avec les requêtes SQL du service imc_map.py
+    op.execute("""
+        CREATE INDEX IF NOT EXISTS idx_imc_map_category_norm
+            ON imc_category_item_map(LOWER(TRIM(category_raw)));
+    """)
+
+    # Même index fonctionnel côté imc_entries pour symétrie jointure
+    op.execute("""
+        CREATE INDEX IF NOT EXISTS idx_imc_entries_category_norm
+            ON imc_entries(LOWER(TRIM(category_raw)));
     """)
 
     # ── PROBE-SQL-01 : colonnes market_signals_v2 avant ALTER ──
@@ -98,12 +104,12 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.execute(
-        "DROP TRIGGER IF EXISTS trg_imc_map_no_delete "
-        "ON imc_category_item_map;"
+        "DROP TRIGGER IF EXISTS trg_imc_map_no_delete " "ON imc_category_item_map;"
     )
     op.execute("DROP FUNCTION IF EXISTS fn_imc_map_no_delete();")
+    op.execute("DROP INDEX IF EXISTS idx_imc_entries_category_norm;")
+    op.execute("DROP INDEX IF EXISTS idx_imc_map_category_norm;")
     op.execute("DROP INDEX IF EXISTS idx_imc_map_item_id;")
-    op.execute("DROP INDEX IF EXISTS idx_imc_map_category_raw;")
     op.execute("DROP TABLE IF EXISTS imc_category_item_map;")
     op.execute("""
         DO $$
