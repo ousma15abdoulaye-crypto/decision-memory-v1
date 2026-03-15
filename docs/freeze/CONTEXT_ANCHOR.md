@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-03-13                                  ║
+║  Dernière mise à jour : 2026-03-15                                  ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -214,6 +214,7 @@
 ║  docs/freeze/SYSTEM_CONTRACT.md                                     ║
 ║  docs/freeze/DMS_V4.1.0_FREEZE.md                                  ║
 ║  docs/freeze/DMS_ORCHESTRATION_FRAMEWORK_V1.md                      ║
+║  docs/freeze/ANNOTATION_FRAMEWORK_DMS_v3.0.1.md (v3.0.1a)           ║
 ║  migrations Alembic 001 → 044                                       ║
 ║                                                                      ║
 ║  STRUCTURE PROJET                                                    ║
@@ -289,6 +290,14 @@
 ║  E-13  Context anchor dégradé session après session                ║
 ║         Raccourcis cumulés → perte de règles critiques              ║
 ║         → improvisation → dégâts sur projet                        ║
+║  E-14  evaluation_report : annotation interdite avant M15          ║
+║  E-15  gate_value : booléen réel ou null, jamais string             ║
+║  E-16  gate_state : séparé explicitement de gate_value              ║
+║  E-17  gate confidence : 0.6 / 0.8 / 1.0 strictement               ║
+║  E-18  price_date ABSENT : ne jamais forcer document_date          ║
+║  E-19  offre financière + tableau sans line_items = inutilisable    ║
+║  E-20  supporting_doc/annex_pricing sans parent_document_id invalide║
+║  E-21  premier tri obligatoire : goods | services avant extraction  ║
 ║                                                                      ║
 ║  PROTOCOLE FIN DE SESSION — OBLIGATOIRE                             ║
 ║  ──────────────────────────────────────────────────────────────     ║
@@ -309,6 +318,82 @@
 ║  5. Zéro action avant cette confirmation                           ║
 ╚══════════════════════════════════════════════════════════════════════╝
 ```
+
+---
+
+## ADDENDUM CONTEXT ANCHOR — 2026-03-15
+
+```
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  ADDENDUM CONTEXT ANCHOR — 2026-03-15                                      ║
+║  Référence : FRAMEWORK ANNOTATION DMS v3.0.1a                              ║
+║  Statut : AJOUT OPPOSABLE — basé sur version partagée par AO               ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
+
+### FRAMEWORK ANNOTATION DMS — FREEZE FINAL
+
+Le référentiel annotation DMS opposable devient :
+  **FRAMEWORK ANNOTATION DMS v3.0.1a — FREEZE OPPOSABLE FINAL**
+
+Date : 2026-03-15  
+Auteur : Abdoulaye Ousmane — CTO DMS
+
+Ce framework gouverne désormais :
+  - backend.py prompt Mistral
+  - XML Label Studio
+  - schema JSON groundtruth
+  - export JSONL entraînement M12
+  - toute décision d'annotation M11-bis → M15
+
+### AXIOMES FONDATEURS — À TRAITER COMME OPPOSABLES
+
+- **AXIOME-1** : Le pipeline apprend UNE grammaire générale du dépouillement. Pas les règles SCI. SCI est le premier terrain d'entraînement.
+- **AXIOME-2** : Un champ n'existe que s'il sert à : classer un document, activer ou bloquer un gate, expliquer un score, nourrir la mémoire marché (Couche B), enrichir un profil fournisseur.
+- **AXIOME-3** : GOODS | SERVICES est le premier tri. Toujours. Sans exception. Avant d'ouvrir un document. Avant toute extraction.
+- **AXIOME-4** : Atomic first. Les preuves élémentaires sont annotées. Les signaux agrégés sont DÉRIVÉS — jamais annotés manuellement.
+- **AXIOME-5** : Un record DONE sans annotated_validated n'existe pas.
+- **AXIOME-6** : SCI = premier référentiel terrain de haute qualité. Pas le plafond.
+
+### TAXONOMIE FIGÉE
+
+**Niveau 1** : goods | services
+
+**Niveau 2 GOODS** : food, office_consumables, construction_materials, nfi, it_equipment, software, nutrition_products, vehicles, motorcycles, other_goods
+
+**Niveau 2 SERVICES** : consultancy, audit, training, catering, vehicle_rental, survey, audiovisual, works, other_services
+
+**RÈGLE CRITIQUE** : works = services · construction_materials = goods · CES DEUX NE SE CONFONDENT JAMAIS
+
+**Niveau 3 taxonomy_core** : dao, rfq, rfp_consultance, tdr_consultance_audit, offer_technical, offer_financial, offer_combined, annex_pricing, supporting_doc, evaluation_report, marketsurvey
+
+**Document roles** : source_rules, technical_offer, financial_offer, combined_offer, annex_pricing, supporting_doc, evaluation_report
+
+**VERROUILLAGE evaluation_report** : annotation STRICTEMENT INTERDITE avant M15. Activation ≥ 50 annotated_validated sur A+B+C+D.
+
+### NULL DOCTRINE — FIGÉE
+
+États : ABSENT | AMBIGUOUS | NOT_APPLICABLE  
+null = PENDING uniquement. Record annotated_validated = AUCUN null.
+
+### GRILLE CONFIDENCE — FIGÉE
+
+0.6 | 0.8 | 1.0 uniquement. RÈGLE-19 : value + confidence + evidence.
+
+### GATES MÉTIER — FORMAT FIGÉ v3.0.1a
+
+gate_value = booléen réel ou null. gate_state = APPLICABLE | NOT_APPLICABLE.  
+INTERDIT : gate_value en string "true"/"false"/"NOT_APPLICABLE".  
+Confidence gates : 0.6 / 0.8 / 1.0 strictement.
+
+### DONE BINAIRE — 10 CONDITIONS FIGÉES
+
+1. routing complet · 2. document_role cohérent · 3. supplier/lot/zone · 4. gates déclarés · 5. champs critiques · 6. financial_layout_mode · 7. line_items · 8. market_memory_readiness · 9. annotation_status = annotated_validated · 10. parent_document_id si annexe
+
+### RÈGLE DE GOUVERNANCE
+
+Évolution future : additive uniquement. GO CTO obligatoire.  
+Interdictions sans GO CTO : supprimer gate, affaiblir line-item, relâcher supplier/lot/zone/evidence, fusionner POLICY dans CORE, modifier NULL doctrine, modifier grille confidence, contourner LIST-NULL-RULE/OCR-RULE, modifier gate_value/gate_state, activer evaluation_report avant M15.
 
 ---
 
