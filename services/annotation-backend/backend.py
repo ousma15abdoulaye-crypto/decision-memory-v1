@@ -449,6 +449,9 @@ def _build_ls_result(parsed: dict, task_id: int) -> list:
 
     # Pseudonymisation phone / email dans identifiants
     identifiants = parsed.get("identifiants", {})
+    # Protéger contre les types inattendus renvoyés par le LLM (string/list/null, etc.)
+    if not isinstance(identifiants, dict):
+        identifiants = {}
 
     phone_raw = identifiants.pop("supplier_phone_raw", ABSENT)
     email_raw = identifiants.pop("supplier_email_raw", ABSENT)
