@@ -27,13 +27,23 @@ MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
 
 # Sel pseudonymisation — variable env obligatoire
-# Si absent → WARNING + SHA256 sans sel (dégradé)
+# Si absent → échec du démarrage, sauf si ALLOW_WEAK_PSEUDONYMIZATION est activé
 PSEUDONYM_SALT = os.environ.get("PSEUDONYM_SALT", "")
+ALLOW_WEAK_PSEUDONYMIZATION = os.environ.get(
+    "ALLOW_WEAK_PSEUDONYMIZATION", ""
+).lower() in {"1", "true", "yes", "on"}
 if not PSEUDONYM_SALT:
-    logging.getLogger(__name__).warning(
-        "[SECURITY] PSEUDONYM_SALT absent — "
-        "pseudonymisation dégradée (SHA256 sans sel)"
-    )
+    if ALLOW_WEAK_PSEUDONYMIZATION:
+        logging.getLogger(__name__).warning(
+            "[SECURITY] PSEUDONYM_SALT absent — "
+            "pseudonymisation DÉGRADÉE (SHA256 sans sel) explicitement autorisée "
+            "par ALLOW_WEAK_PSEUDONYMIZATION"
+        )
+    else:
+        raise RuntimeError(
+            "[SECURITY] PSEUDONYM_SALT manquant et ALLOW_WEAK_PSEUDONYMIZATION "
+            "non activé — refus de démarrer avec une pseudonymisation faible"
+        )
 
 # Grille confidence — MC-2 — IMMUABLE
 CONF_EXACT = 1.0
