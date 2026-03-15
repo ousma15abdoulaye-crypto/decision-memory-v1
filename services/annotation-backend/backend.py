@@ -1,37 +1,37 @@
 """
-DMS Annotation Backend — Framework v3.0.1a
+DMS Annotation Backend — Framework v3.0.1b
 Mistral AI ML Backend pour Label Studio
 Mali Procurement · FREEZE DÉFINITIF 2026-03-15
 """
 
-import os
-import re
+import hashlib
 import json
 import logging
-from typing import Any
+import os
+import re
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from mistralai import Mistral
 
 # ─────────────────────────────────────────────────────────
-# CONSTANTES — FREEZE v3.0.1a
+# CONSTANTES — FREEZE v3.0.1b
 # ─────────────────────────────────────────────────────────
 
-SCHEMA_VERSION    = "v3.0.1a"
-FRAMEWORK_VERSION = "annotation-framework-v3.0.1a"
-MISTRAL_MODEL     = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
-MISTRAL_API_KEY   = os.environ.get("MISTRAL_API_KEY", "")
+SCHEMA_VERSION = "v3.0.1b"
+FRAMEWORK_VERSION = "annotation-framework-v3.0.1b"
+MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
+MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
 
 # Grille confidence — MC-2 — IMMUABLE
-CONF_EXACT    = 1.0
+CONF_EXACT = 1.0
 CONF_INFERRED = 0.8
-CONF_OCR      = 0.6
+CONF_OCR = 0.6
 
 # NULL Doctrine — états sémantiques
-ABSENT         = "ABSENT"
-AMBIGUOUS      = "AMBIGUOUS"
+ABSENT = "ABSENT"
+AMBIGUOUS = "AMBIGUOUS"
 NOT_APPLICABLE = "NOT_APPLICABLE"
 
 logging.basicConfig(level=logging.INFO)
@@ -62,11 +62,11 @@ app.add_middleware(
 FALLBACK_RESPONSE: dict = {
     "couche_1_routing": {
         "procurement_family_main": AMBIGUOUS,
-        "procurement_family_sub":  AMBIGUOUS,
-        "taxonomy_core":           AMBIGUOUS,
+        "procurement_family_sub": AMBIGUOUS,
+        "taxonomy_core": AMBIGUOUS,
         "taxonomy_client_adapter": AMBIGUOUS,
-        "document_stage":          AMBIGUOUS,
-        "document_role":           AMBIGUOUS,
+        "document_stage": AMBIGUOUS,
+        "document_role": AMBIGUOUS,
     },
     "couche_2_core": {},
     "couche_3_policy_sci": {},
@@ -84,25 +84,29 @@ FALLBACK_RESPONSE: dict = {
     },
     "couche_5_gates": [],
     "identifiants": {
-        "supplier_name_raw":        NOT_APPLICABLE,
+        "supplier_name_raw": NOT_APPLICABLE,
         "supplier_name_normalized": NOT_APPLICABLE,
-        "supplier_identifier_raw":  ABSENT,
-        "case_id":                  ABSENT,
-        "supplier_id":              NOT_APPLICABLE,
-        "lot_scope":                [],
-        "zone_scope":               [],
+        "supplier_identifier_raw": ABSENT,
+        "supplier_legal_form": ABSENT,
+        "supplier_address_raw": ABSENT,
+        "supplier_phone_raw": ABSENT,
+        "supplier_email_raw": ABSENT,
+        "case_id": ABSENT,
+        "supplier_id": NOT_APPLICABLE,
+        "lot_scope": [],
+        "zone_scope": [],
     },
     "ambiguites": ["AMBIG-PARSE_FAILED"],
     "_meta": {
-        "schema_version":          SCHEMA_VERSION,
-        "framework_version":       FRAMEWORK_VERSION,
-        "mistral_model_used":      MISTRAL_MODEL,
-        "review_required":         True,
-        "annotation_status":       "pending",
-        "list_null_reason":        {},
-        "page_range":              {"start": None, "end": None},
-        "parent_document_id":      NOT_APPLICABLE,
-        "parent_document_role":    NOT_APPLICABLE,
+        "schema_version": SCHEMA_VERSION,
+        "framework_version": FRAMEWORK_VERSION,
+        "mistral_model_used": MISTRAL_MODEL,
+        "review_required": True,
+        "annotation_status": "pending",
+        "list_null_reason": {},
+        "page_range": {"start": None, "end": None},
+        "parent_document_id": NOT_APPLICABLE,
+        "parent_document_role": NOT_APPLICABLE,
         "supplier_inherited_from": None,
     },
 }
@@ -128,7 +132,8 @@ RÈGLES ABSOLUES :
    Vérifier : line_total = quantity × unit_price. Si écart > 1% → ambiguites += "AMBIG-3_line_total_math_anomaly".
 8. Ne pas annoter : introductions, remerciements, rappels juridiques sans effet opératoire.
 9. evaluation_report : routing uniquement si détecté. Zéro annotation active.
-10. Retourner UNIQUEMENT le JSON. Zéro prose avant ou après le JSON."""
+10. Retourner UNIQUEMENT le JSON. Zéro prose avant ou après le JSON.
+11. identifiants : extraire supplier_legal_form, supplier_address_raw, supplier_phone_raw, supplier_email_raw (forme juridique, adresse, téléphone, email) si présents. ABSENT sinon."""
 
 
 def _build_prompt(text: str) -> str:
@@ -260,8 +265,12 @@ SCHÉMA JSON CIBLE (respecter exactement la structure) :
   "identifiants": {{
     "supplier_name_raw":        "NOT_APPLICABLE",
     "supplier_name_normalized": "NOT_APPLICABLE",
-    "supplier_identifier_raw":  "ABSENT",
-    "case_id":                  "ABSENT",
+    "supplier_identifier_raw":  "{ABSENT}",
+    "supplier_legal_form":      "{ABSENT}",
+    "supplier_address_raw":     "{ABSENT}",
+    "supplier_phone_raw":       "{ABSENT}",
+    "supplier_email_raw":       "{ABSENT}",
+    "case_id":                  "{ABSENT}",
     "supplier_id":              "NOT_APPLICABLE",
     "lot_scope":                [],
     "zone_scope":               []
@@ -300,6 +309,7 @@ INSTRUCTIONS COMPLÉMENTAIRES :
 # PARSER ROBUSTE — 4 tentatives + fallback loggué
 # ─────────────────────────────────────────────────────────
 
+
 def _parse_mistral_response(raw: str) -> dict:
     """
     4 tentatives de parsing dans l'ordre :
@@ -328,16 +338,20 @@ def _parse_mistral_response(raw: str) -> dict:
 
     # Tentative 3 — première { → dernière }
     start = raw.find("{")
-    end   = raw.rfind("}")
+    end = raw.rfind("}")
     if start != -1 and end != -1 and end > start:
         try:
             return json.loads(raw[start : end + 1])
         except json.JSONDecodeError:
             pass
 
+    _raw_len = len(raw) if raw else 0
+    _raw_hash = hashlib.sha256(raw.encode()).hexdigest()[:12] if raw else "empty"
     logger.error(
-        "[PARSE] Toutes tentatives échouées — fallback activé. Début raw: %s",
-        raw[:300],
+        "[PARSE] Fallback activé — raw_len=%s raw_hash=%s "
+        "(contenu non loggué — données sensibles possibles)",
+        _raw_len,
+        _raw_hash,
     )
     return FALLBACK_RESPONSE
 
@@ -345,6 +359,7 @@ def _parse_mistral_response(raw: str) -> dict:
 # ─────────────────────────────────────────────────────────
 # BUILDER LABEL STUDIO — from_name : extracted_json + annotation_notes
 # ─────────────────────────────────────────────────────────
+
 
 def _build_ls_result(parsed: dict, task_id: int) -> list:
     """
@@ -354,16 +369,16 @@ def _build_ls_result(parsed: dict, task_id: int) -> list:
     Ces deux from_name sont les SEULS émis.
     """
     routing = parsed.get("couche_1_routing", {})
-    meta    = parsed.get("_meta", {})
-    gates   = parsed.get("couche_5_gates", [])
-    ambig   = parsed.get("ambiguites", [])
+    meta = parsed.get("_meta", {})
+    gates = parsed.get("couche_5_gates", [])
+    ambig = parsed.get("ambiguites", [])
 
-    family   = routing.get("procurement_family_main", "UNKNOWN")
-    sub      = routing.get("procurement_family_sub",  "UNKNOWN")
-    tax_core = routing.get("taxonomy_core",           "UNKNOWN")
-    role     = routing.get("document_role",           "UNKNOWN")
-    stage    = routing.get("document_stage",          "UNKNOWN")
-    review   = meta.get("review_required", False)
+    family = routing.get("procurement_family_main", "UNKNOWN")
+    sub = routing.get("procurement_family_sub", "UNKNOWN")
+    tax_core = routing.get("taxonomy_core", "UNKNOWN")
+    role = routing.get("document_role", "UNKNOWN")
+    stage = routing.get("document_stage", "UNKNOWN")
+    review = meta.get("review_required", False)
 
     gates_failed = [
         g["gate_name"]
@@ -385,15 +400,15 @@ def _build_ls_result(parsed: dict, task_id: int) -> list:
     return [
         {
             "from_name": "extracted_json",
-            "to_name":   "document_text",
-            "type":      "textarea",
-            "value":     {"text": [json.dumps(parsed, ensure_ascii=False, indent=2)]},
+            "to_name": "document_text",
+            "type": "textarea",
+            "value": {"text": [json.dumps(parsed, ensure_ascii=False, indent=2)]},
         },
         {
             "from_name": "annotation_notes",
-            "to_name":   "document_text",
-            "type":      "textarea",
-            "value":     {"text": [notes]},
+            "to_name": "document_text",
+            "type": "textarea",
+            "value": {"text": [notes]},
         },
     ]
 
@@ -401,6 +416,7 @@ def _build_ls_result(parsed: dict, task_id: int) -> list:
 # ─────────────────────────────────────────────────────────
 # APPEL MISTRAL — async
 # ─────────────────────────────────────────────────────────
+
 
 async def _mistral_extract(text: str) -> dict:
     """
@@ -416,7 +432,7 @@ async def _mistral_extract(text: str) -> dict:
             model=MISTRAL_MODEL,
             messages=[
                 {"role": "system", "content": PROMPT_SYSTEM},
-                {"role": "user",   "content": _build_prompt(text)},
+                {"role": "user", "content": _build_prompt(text)},
             ],
             temperature=0.1,
             max_tokens=4096,
@@ -434,14 +450,15 @@ async def _mistral_extract(text: str) -> dict:
 # ENDPOINTS
 # ─────────────────────────────────────────────────────────
 
+
 @app.get("/health")
 def health() -> dict:
     return {
-        "status":               "ok",
-        "schema":               SCHEMA_VERSION,
-        "framework":            FRAMEWORK_VERSION,
-        "model":                MISTRAL_MODEL,
-        "mistral_configured":   bool(MISTRAL_API_KEY),
+        "status": "ok",
+        "schema": SCHEMA_VERSION,
+        "framework": FRAMEWORK_VERSION,
+        "model": MISTRAL_MODEL,
+        "mistral_configured": bool(MISTRAL_API_KEY),
     }
 
 
@@ -451,11 +468,13 @@ async def setup(request: Request) -> JSONResponse:
     Label Studio appelle /setup au démarrage du ML Backend.
     Retourner model_version pour confirmer la compatibilité.
     """
-    return JSONResponse({
-        "model_version": f"dms-{SCHEMA_VERSION}",
-        "status":        "ready",
-        "framework":     FRAMEWORK_VERSION,
-    })
+    return JSONResponse(
+        {
+            "model_version": f"dms-{SCHEMA_VERSION}",
+            "status": "ready",
+            "framework": FRAMEWORK_VERSION,
+        }
+    )
 
 
 @app.post("/predict")
@@ -473,8 +492,8 @@ async def predict(request: Request) -> JSONResponse:
     predictions = []
     for task in tasks:
         task_id = task.get("id", 0)
-        data    = task.get("data", {})
-        text    = data.get("text", "") or data.get("content", "") or ""
+        data = task.get("data", {})
+        text = data.get("text", "") or data.get("content", "") or ""
 
         if not text.strip():
             logger.warning("[PREDICT] task_id=%s — texte vide, fallback", task_id)
@@ -484,12 +503,14 @@ async def predict(request: Request) -> JSONResponse:
 
         result = _build_ls_result(parsed, task_id)
 
-        predictions.append({
-            "id":             task_id,
-            "result":         result,
-            "score":          None,
-            "model_version":  f"dms-{SCHEMA_VERSION}",
-        })
+        predictions.append(
+            {
+                "id": task_id,
+                "result": result,
+                "score": None,
+                "model_version": f"dms-{SCHEMA_VERSION}",
+            }
+        )
 
     return JSONResponse({"results": predictions})
 
@@ -500,13 +521,17 @@ async def train(request: Request) -> JSONResponse:
     Endpoint train — réservé M12 fine-tuning Mistral.
     Actuellement : accusé de réception uniquement.
     """
-    body        = await request.json()
+    body = await request.json()
     annotations = body.get("annotations", [])
-    logger.info("[TRAIN] %d annotations reçues — fine-tuning non actif (M12)", len(annotations))
-    return JSONResponse({
-        "status":  "received",
-        "message": f"Fine-tuning réservé M12 — {len(annotations)} annotations reçues",
-    })
+    logger.info(
+        "[TRAIN] %d annotations reçues — fine-tuning non actif (M12)", len(annotations)
+    )
+    return JSONResponse(
+        {
+            "status": "received",
+            "message": f"Fine-tuning réservé M12 — {len(annotations)} annotations reçues",
+        }
+    )
 
 
 @app.post("/webhook")
@@ -515,7 +540,7 @@ async def webhook(request: Request) -> JSONResponse:
     Webhook Label Studio — événements annotation.
     Log uniquement — aucun traitement actif en M11-bis.
     """
-    body   = await request.json()
+    body = await request.json()
     action = body.get("action", "unknown")
     logger.info("[WEBHOOK] action=%s", action)
     return JSONResponse({"status": "ok", "action": action})
