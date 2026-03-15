@@ -46,8 +46,18 @@ pseudo = HMAC-SHA256(valeur_brute, sel=PSEUDONYM_SALT)[:16]
 Le JSON Label Studio contient :
 ```json
 {
-  "supplier_phone_pseudo": "a3f9c2b1d4e87654",
-  "supplier_phone_present": true
+  "identifiants": {
+    "supplier_phone": {
+      "pseudo": "a3f9c2b1d4e87654",
+      "present": true,
+      "redacted": false
+    },
+    "supplier_email": {
+      "pseudo": "b7c1d9e2f3a48560",
+      "present": true,
+      "redacted": true
+    }
+  }
 }
 ```
 
