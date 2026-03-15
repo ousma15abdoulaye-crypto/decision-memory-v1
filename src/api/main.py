@@ -8,10 +8,11 @@ Politique routers (ADR-M5-PRE-001 §D1.3) :
     Toute exception = bug réel = remonte sans masquage.
   - Routers OPTIONNELS (milestones futurs) : try/except autorisé,
     mais logger.warning explicite avec nom du module et erreur.
-  - startup_check() logue les routers actifs au démarrage.
+  - lifespan startup logue les routers actifs au démarrage.
 """
 
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
@@ -105,31 +106,12 @@ try:
 except ImportError as _e:
     logger.warning("[main] router optionnel src.vendors non chargé : %s", _e)
 
-# ── Application ───────────────────────────────────────────────────────────────
-
-app = FastAPI(
-    title="DMS API",
-    version="0.1.0",
-    description="Decision Memory System — Constitution V3.3.2",
-)
-
-# ── Middlewares sécurité M1 (src/couche_a/auth/middleware.py)
-# Ajout non-destructif — src/auth.py legacy non modifié.
-try:
-    from src.couche_a.auth.middleware import (
-        RedisRateLimitMiddleware,
-        SecurityHeadersMiddleware,
-    )
-
-    app.add_middleware(SecurityHeadersMiddleware)
-    app.add_middleware(RedisRateLimitMiddleware)
-except ImportError as _e:
-    logger.warning("[main] middlewares sécurité M1 non chargés : %s", _e)
+# ── Lifespan (FastAPI >= 0.93.0 — pattern lifespan) ───────────────────────────
 
 
-@app.on_event("startup")
-async def startup_check() -> None:
-    """Logue les routers actifs au démarrage — fail-loud minimal."""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup : log routers actifs. Shutdown : aucun."""
     _optional_routers = {
         "extraction": _extraction_router,
         "documents": _documents_router,
@@ -153,6 +135,33 @@ async def startup_check() -> None:
             "[startup] Routers optionnels inactifs (milestone non ouvert) : %s",
             inactive,
         )
+
+    yield
+
+    # Shutdown : aucun traitement requis
+
+
+# ── Application ───────────────────────────────────────────────────────────────
+
+app = FastAPI(
+    title="DMS API",
+    version="0.1.0",
+    description="Decision Memory System — Constitution V3.3.2",
+    lifespan=lifespan,
+)
+
+# ── Middlewares sécurité M1 (src/couche_a/auth/middleware.py)
+# Ajout non-destructif — src/auth.py legacy non modifié.
+try:
+    from src.couche_a.auth.middleware import (
+        RedisRateLimitMiddleware,
+        SecurityHeadersMiddleware,
+    )
+
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(RedisRateLimitMiddleware)
+except ImportError as _e:
+    logger.warning("[main] middlewares sécurité M1 non chargés : %s", _e)
 
 
 # ── Montage des routers ───────────────────────────────────────────────────────
