@@ -1,9 +1,10 @@
 """
-DMS Annotation Backend — Framework v3.0.1a
+DMS Annotation Backend — Framework v3.0.1b
 Mistral AI ML Backend pour Label Studio
 Mali Procurement · FREEZE DÉFINITIF 2026-03-15
 """
 
+import hashlib
 import json
 import logging
 import os
@@ -15,11 +16,11 @@ from fastapi.responses import JSONResponse
 from mistralai import Mistral
 
 # ─────────────────────────────────────────────────────────
-# CONSTANTES — FREEZE v3.0.1a
+# CONSTANTES — FREEZE v3.0.1b
 # ─────────────────────────────────────────────────────────
 
-SCHEMA_VERSION = "v3.0.1a"
-FRAMEWORK_VERSION = "annotation-framework-v3.0.1a"
+SCHEMA_VERSION = "v3.0.1b"
+FRAMEWORK_VERSION = "annotation-framework-v3.0.1b"
 MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
 
@@ -86,10 +87,10 @@ FALLBACK_RESPONSE: dict = {
         "supplier_name_raw": NOT_APPLICABLE,
         "supplier_name_normalized": NOT_APPLICABLE,
         "supplier_identifier_raw": ABSENT,
-        "supplier_legal_form": "ABSENT",
-        "supplier_address_raw": "ABSENT",
-        "supplier_phone_raw": "ABSENT",
-        "supplier_email_raw": "ABSENT",
+        "supplier_legal_form": ABSENT,
+        "supplier_address_raw": ABSENT,
+        "supplier_phone_raw": ABSENT,
+        "supplier_email_raw": ABSENT,
         "case_id": ABSENT,
         "supplier_id": NOT_APPLICABLE,
         "lot_scope": [],
@@ -264,12 +265,12 @@ SCHÉMA JSON CIBLE (respecter exactement la structure) :
   "identifiants": {{
     "supplier_name_raw":        "NOT_APPLICABLE",
     "supplier_name_normalized": "NOT_APPLICABLE",
-    "supplier_identifier_raw":  "ABSENT",
-    "supplier_legal_form":      "ABSENT",
-    "supplier_address_raw":     "ABSENT",
-    "supplier_phone_raw":       "ABSENT",
-    "supplier_email_raw":       "ABSENT",
-    "case_id":                  "ABSENT",
+    "supplier_identifier_raw":  "{ABSENT}",
+    "supplier_legal_form":      "{ABSENT}",
+    "supplier_address_raw":     "{ABSENT}",
+    "supplier_phone_raw":       "{ABSENT}",
+    "supplier_email_raw":       "{ABSENT}",
+    "case_id":                  "{ABSENT}",
     "supplier_id":              "NOT_APPLICABLE",
     "lot_scope":                [],
     "zone_scope":               []
@@ -344,9 +345,13 @@ def _parse_mistral_response(raw: str) -> dict:
         except json.JSONDecodeError:
             pass
 
+    _raw_len = len(raw) if raw else 0
+    _raw_hash = hashlib.sha256(raw.encode()).hexdigest()[:12] if raw else "empty"
     logger.error(
-        "[PARSE] Toutes tentatives échouées — fallback activé. Début raw: %s",
-        raw[:300],
+        "[PARSE] Fallback activé — raw_len=%s raw_hash=%s "
+        "(contenu non loggué — données sensibles possibles)",
+        _raw_len,
+        _raw_hash,
     )
     return FALLBACK_RESPONSE
 
