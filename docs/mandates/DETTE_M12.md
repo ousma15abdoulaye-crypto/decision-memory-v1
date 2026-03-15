@@ -54,6 +54,61 @@
   Ils doivent etre remplaces par des enquetes terrain reelles.
   Action : protocole collecte terrain + import pipeline
 
+### DETTE-7 — IMC INSTAT : mapping categories → items
+
+**Contexte :**
+  imc_entries : indices agreges INSTAT 2018→2026
+                8 categories × 88 periodes = 810 lignes
+  mercurials  : prix unitaires DGMP 2023→2026
+                27 396 lignes × 19 zones
+
+**Manquant :**
+  Table imc_category_item_map absente.
+  Sans ce mapping, impossible de calculer :
+    - Revision de prix (P1 = P0 × IMC_t1/IMC_t0)
+    - Market basket construction
+    - Benchmark historique 2018→2022
+
+**Action M12 :**
+  1. Creer migration 046_imc_category_map.py
+     Table : imc_category_item_map
+       (category_raw TEXT, item_canonical TEXT,
+        weight NUMERIC, notes TEXT)
+  2. Seed le mapping (8 categories → ~35 items)
+  3. Creer compute_price_revision.py
+  4. Exposer via API GET /revision-price
+
+**Impact utilisateurs :**
+  Mines    : revision couts infrastructure pluriannuelle
+  ONG      : justification revision devis projets construction
+  DGMP     : conformite clauses revision marches publics
+  DMS      : signal IMC variation > 5% MOM → alerte construction
+
+### DETTE-8 — Signaux IMC dans market_signals_v2
+
+**Contexte :**
+  imc_entries.variation_mom et variation_yoy calcules
+  mais jamais transformes en signaux marche.
+
+**Action M12 :**
+  Integrer dans compute_market_signals.py :
+    Si variation_mom > 3% → signal WATCH construction
+    Si variation_mom > 8% → signal STRONG construction
+    Si variation_yoy > 15% → signal CRITICAL construction
+  taxo_l3 = 'construction_materials'
+  Zones : Bamako (national) + propagation corridors
+
+### DETTE-9 — Donnees IMC 2018→2022 non utilisees
+
+**Contexte :**
+  5 ans de donnees historiques presentes dans imc_entries
+  Jamais utilisees dans aucun calcul DMS.
+
+**Action M12 :**
+  Recalculer seasonal_patterns pour categories construction
+  en utilisant imc_entries 2018→2022 comme baseline.
+  Precision residual_pct construction × 3 estimee.
+
 ---
 
 ## SEUILS M15 — A SURVEILLER DES M12

@@ -11,6 +11,7 @@ Schema reel confirme par probe ETAPE 0 :
 """
 
 import os
+import re
 import subprocess
 
 import psycopg
@@ -217,7 +218,8 @@ def test_no_market_signals_created_by_m8(conn):
     ver = r["version_num"]
     try:
         prefix = str(ver).split("_")[0] if ver else ""
-        current_num = int(prefix) if prefix.isdigit() else 0
+        m = re.match(r"^(\d+)", prefix)
+        current_num = int(m.group(1)) if m else 0
     except (ValueError, TypeError):
         current_num = 0
     try:
@@ -240,7 +242,8 @@ def test_no_price_series_view(conn):
     ver = r.get("version_num") if r else None
     try:
         prefix = str(ver).split("_")[0] if ver else ""
-        current_num = int(prefix) if prefix.isdigit() else 0
+        m = re.match(r"^(\d+)", prefix)
+        current_num = int(m.group(1)) if m else 0
     except (ValueError, TypeError):
         current_num = 0
     try:

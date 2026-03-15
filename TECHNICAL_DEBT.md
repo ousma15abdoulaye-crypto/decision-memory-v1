@@ -836,6 +836,24 @@ Après saturation du compteur (runs intensifs de debug ou import massif), les in
 
 ---
 
+---
+
+## Dettes M11 — Annotation Backend v3.0.1a
+
+### DETTE-M11-01 — Critère wc-l 280–380 obsolète pour backend.py ✅ LEVÉ
+
+| Attribut | Valeur |
+|---|---|
+| Statut | **LEVÉ** — GO CTO 2026-03-15 |
+| Fichier | `services/annotation-backend/backend.py` |
+| Contexte | Validation ÉTAPE 1 — réécriture backend Framework v3.0.1a |
+| Constat | 458 lignes au lieu de 280–380 (borne calibrée sur ancien backend v2.0) |
+| Cause | Le dépassement vient intégralement du schéma JSON dans `_build_prompt` — template complet v3.0.1a avec toutes les couches, gates et champs atomiques. Contenu fonctionnel obligatoire, pas de la dette. |
+| Décision CTO | Critère wc-l 280–380 = **OBSOLÈTE** pour ce fichier. Remplacé par : wc-l ≤ 600 (prompt v3.0.1a inclus). 458 lignes = **CONFORME**. |
+| Ref | Framework Annotation DMS v3.0.1a · FREEZE DÉFINITIF 2026-03-15 |
+
+---
+
 ### DETTE-UTC-01 — Timestamps naïfs code applicatif — SOLDÉE
 
 | Attribut | Valeur |
