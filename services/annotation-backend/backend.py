@@ -217,6 +217,11 @@ RÈGLES ABSOLUES :
     Pour ces trois : extraire UNIQUEMENT has_rib / has_nif / has_rccm
     = true si présent dans le document, false si absent, ABSENT si non applicable.
 
+    IMPORTANT — supplier_identifier_raw est DÉPRÉCIÉ :
+      - Ne JAMAIS y copier ou reconstituer un NIF, un RCCM ou tout identifiant similaire.
+      - Si le champ supplier_identifier_raw existe dans le schéma JSON cible, tu dois
+        TOUJOURS le renseigner avec "NOT_APPLICABLE" (ou "ABSENT") et rien d'autre.
+
 12. Sur source_rules :
     supplier_name_raw      = NOT_APPLICABLE
     supplier_phone_raw     = NOT_APPLICABLE
