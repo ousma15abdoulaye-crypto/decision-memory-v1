@@ -96,9 +96,21 @@ def upgrade() -> None:
     """)
 
     op.execute("""
-        CREATE TRIGGER trg_imc_map_no_delete
-            BEFORE DELETE ON imc_category_item_map
-            FOR EACH ROW EXECUTE FUNCTION fn_imc_map_no_delete();
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_trigger t
+                JOIN pg_class c ON t.tgrelid = c.oid
+                WHERE c.relname = 'imc_category_item_map'
+                  AND t.tgname = 'trg_imc_map_no_delete'
+            ) THEN
+                EXECUTE '
+                    CREATE TRIGGER trg_imc_map_no_delete
+                        BEFORE DELETE ON imc_category_item_map
+                        FOR EACH ROW EXECUTE FUNCTION fn_imc_map_no_delete();
+                ';
+            END IF;
+        END$$;
     """)
 
 
