@@ -88,19 +88,22 @@
 ║                                                                      ║
 ║  GIT                                                                 ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  main            : 010a353 (merge M10B)                             ║
+║  main            : d816bfe (après merge PR #188)                     ║
 ║  tag m10b-done   : 010a353 (merge PR #184 feat/m10b-agent-native)  ║
 ║  tag m11-done    : fbc070e (PR #185 feat/m11-signal-integrity)     ║
-║  hash actuel     : ebe92e4 (docs anchor)                           ║
-║  branche active  : feature/label-studio-annotation (M11-bis)       ║
+║  tag m12-dette7  : v4.1.0-m12-dette7-done                           ║
+║  hash actuel     : d816bfe (docs anchor)                            ║
+║  branche active  : main (feat/m12-imc-map mergée)                   ║
 ║                                                                      ║
 ║  ALEMBIC — FREEZE ABSOLU                                            ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  head actuel     : 045_agent_native_foundation                     ║
-║  historique      : 001 → 045 — FREEZE TOTAL 001-044               ║
-║  chaîne          : 044_decision_history → 045_agent_native         ║
+║  head actuel     : 046b_imc_map_fix_restrict_indexes                ║
+║  historique      : 001 → 045 — FREEZE TOTAL 001-045                ║
+║  chaîne          : 044 → 045 → 046 → 046b                          ║
+║  FREEZE          : 001 → 045 FREEZE TOTAL                          ║
+║                    046 + 046b = DETTE-7 DONE                        ║
 ║  RÈGLE           : zéro autogenerate — SQL brut uniquement         ║
-║  RÈGLE           : zéro modification fichiers existants 001-044    ║
+║  RÈGLE           : zéro modification fichiers existants 001-045    ║
 ║  RÈGLE           : toute nouvelle migration = 046+ séquentiel       ║
 ║  VIOLATION       : faute disciplinaire grave immédiate             ║
 ║                                                                      ║
@@ -134,7 +137,8 @@
 ║  couche_a               : agent_checkpoints, agent_runs_log (045)  ║
 ║  imc_entries            : 810 lignes (INSTAT 2018→2026)              ║
 ║  imc_sources            : traçabilité PDFs INSTAT                  ║
-║  imc_category_item_map  : ABSENTE → DETTE-7 M12                    ║
+║  imc_category_item_map  : 0 mappings (table créée — vide)          ║
+║                           À remplir : AO + DETTE-8                  ║
 ║                                                                      ║
 ║  CONTRACT-02 — DÉFINITIF                                            ║
 ║  ──────────────────────────────────────────────────────────────     ║
@@ -159,7 +163,7 @@
 ║                          NE PAS FUSIONNER avec mercurials           ║
 ║  SOURCE-3 imc_sources  : PDFs bulletins INSTAT parsés               ║
 ║  SOURCE-4 mercuriale_sources : PDFs DGMP parsés                     ║
-║  Pont manquant         : imc_category_item_map → DETTE-7            ║
+║  Pont imc_category_item_map : DETTE-7 DONE (046 + 046b)             ║
 ║  Formule révision      : P1 = P0 × (IMC_t1 / IMC_t0)                ║
 ║  Signal IMC            : MOM > 3% → WATCH construction             ║
 ║                          MOM > 8% → STRONG construction             ║
@@ -236,13 +240,15 @@
 ║  M10A    DONE  seasonal_patterns, zone_context, geo_corridors       ║
 ║  M10B    DONE  couche_a, agents, pg_notify (ADR-010)                ║
 ║  M11     DONE  5 dettes, 1106 signaux, severity NULL=0 (ADR-011)    ║
-║  M11-bis EN COURS — Label Studio + ML Backend                      ║
-║                      feature/label-studio-annotation                ║
-║                      BLOQUÉ : crash loop label-studio-dms            ║
-║                      Cause : POSTGRE_PORT vide sur Railway          ║
-║                      Action : diagnostic Plan Directeur requis      ║
-║  M12     NEXT  annotation 15 docs (AO) + imc_category_map           ║
-║                + compute_price_revision + signaux IMC                ║
+║  M11-bis DONE — backend.py v3.0.1a + XML Label Studio v3.0.1a       ║
+║                     2026-03-15                                       ║
+║  M12     EN COURS                                                   ║
+║          DETTE-7  DONE — imc_category_item_map + 046 + 046b        ║
+║          DETTE-8  NEXT — signaux IMC → market_signals_v2            ║
+║                    dépend DETTE-7 ✓                                  ║
+║          BLOQUANT AO — 15 docs annotated_validated                  ║
+║                    XML + backend opérationnels ✓                    ║
+║                    AO peut annoter maintenant                        ║
 ║  M13     PLAN  046_evaluation_documents + extraction pipeline       ║
 ║  M15     GATE  4 seuils validation go-live                         ║
 ║                                                                      ║
@@ -262,8 +268,12 @@
 ║  DETTE-4    : Tests Railway CI/CD (GitHub Actions)                 ║
 ║  DETTE-5    : 046_evaluation_documents (M13/M14)                   ║
 ║  DETTE-6    : market_surveys terrain réels                         ║
-║  DETTE-7    : imc_category_item_map + 046_imc_map + compute        ║
-║  DETTE-8    : signaux IMC dans market_signals_v2                   ║
+║  DETTE-7    : ✅ DONE — imc_category_item_map                      ║
+║               046_imc_category_item_map + 046b_imc_map_fix         ║
+║               src/couche_b/imc_map.py — PR #188 mergée              ║
+║               tag v4.1.0-m12-dette7-done                          ║
+║  DETTE-8    : ACTIVE — signaux IMC dans market_signals_v2           ║
+║               Prérequis : DETTE-7 ✓ — Statut : NEXT                 ║
 ║  DETTE-9    : imc_entries 2018→2022 baseline seasonal_patterns     ║
 ║                                                                      ║
 ║  ERREURS CAPITALISÉES — PERMANENTES — NE JAMAIS REPRODUIRE          ║
@@ -298,6 +308,31 @@
 ║  E-19  offre financière + tableau sans line_items = inutilisable    ║
 ║  E-20  supporting_doc/annex_pricing sans parent_document_id invalide║
 ║  E-21  premier tri obligatoire : goods | services avant extraction  ║
+║  E-22  Critère wc-l mandat : calibrer sur contenu réel             ║
+║         backend.py v3.0.1a = 458 lignes CONFORME                    ║
+║         Borne révisée : wc-l ≤ 600 pour fichiers prompt schema      ║
+║  E-23  Migration corrective nécessaire si migration déjà en prod   ║
+║         avec défaut structurel (FK, index).                          ║
+║         Pattern : migration N+1 idempotente avec PROBE-SQL-01.       ║
+║         Ne jamais modifier une migration déjà pushée.                ║
+║         Ref : PR #188 — 046 → 046b                                  ║
+║  E-24  Tests avec autocommit=True + rollback() = rollback silencieux║
+║         Utiliser fixture db_tx (autocommit=False + rollback teardown) ║
+║         pour tout test qui écrit en DB avec trigger DELETE bloquant. ║
+║         Ref : PR #188 Copilot point 2                                ║
+║  E-25  FK ON DELETE CASCADE incompatible avec trigger append-only.  ║
+║         Si table append-only → FK doit être ON DELETE RESTRICT.      ║
+║         Sinon : suppression parent → cascade tentée → trigger bloque ║
+║         → erreur cryptique en prod. Ref : PR #188 Copilot point 1   ║
+║  E-26  Log raw[:N] contenu LLM = fuite données document en logs.    ║
+║         Logger uniquement : len(raw), hash court (sha256[:12]),       ║
+║         task_id. Ref : PR #188 Copilot point 5 — safe_log_parse      ║
+║  E-27  CORS allow_origins=["*"] en production = appels LLM non auth.║
+║         Utiliser CORS_ORIGINS env var. Default = Label Studio URL.   ║
+║         Ref : PR #188 Copilot point 6                                ║
+║  E-28  g["gate_name"] sur JSON LLM partiel = KeyError silencieux.   ║
+║         Toujours g.get() + filtre isinstance(g, dict) avant itér.   ║
+║         Ref : PR #188 Copilot point 3 — safe_build_ls_result         ║
 ║                                                                      ║
 ║  PROTOCOLE FIN DE SESSION — OBLIGATOIRE                             ║
 ║  ──────────────────────────────────────────────────────────────     ║
