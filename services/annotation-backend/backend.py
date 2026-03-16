@@ -2,7 +2,6 @@
 DMS Annotation Backend — Framework v3.0.1c
 Mistral AI ML Backend pour Label Studio
 Mali Procurement · FREEZE DÉFINITIF 2026-03-15
-ADR-014 : VENDOR_ENCRYPTION_KEY pour vendor_secure
 """
 
 import copy
@@ -30,15 +29,9 @@ MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
 # Sel pseudonymisation — variable env obligatoire
 # Si absent → échec du démarrage, sauf si ALLOW_WEAK_PSEUDONYMIZATION est activé
 PSEUDONYM_SALT = os.environ.get("PSEUDONYM_SALT", "")
-VENDOR_ENCRYPTION_KEY = os.environ.get("VENDOR_ENCRYPTION_KEY", "")
 ALLOW_WEAK_PSEUDONYMIZATION = os.environ.get(
     "ALLOW_WEAK_PSEUDONYMIZATION", ""
 ).lower() in {"1", "true", "yes", "on"}
-if not VENDOR_ENCRYPTION_KEY:
-    logging.getLogger(__name__).warning(
-        "[SECURITY] VENDOR_ENCRYPTION_KEY absent — "
-        "chiffrement vendor désactivé (ADR-014)"
-    )
 if not PSEUDONYM_SALT:
     if ALLOW_WEAK_PSEUDONYMIZATION:
         logging.getLogger(__name__).warning(
@@ -251,7 +244,9 @@ RÈGLES ABSOLUES :
     supplier_phone_raw     = NOT_APPLICABLE
     supplier_email_raw     = NOT_APPLICABLE
     supplier_address_raw   = NOT_APPLICABLE
-    has_rib / has_nif / has_rccm = NOT_APPLICABLE"""
+    has_rib / has_nif / has_rccm = NOT_APPLICABLE
+
+FORMAT : JSON brut uniquement. INTERDIT ```json```, texte avant/après, commentaires. Premier char = {{, dernier = }}."""
 
 
 def _build_prompt(text: str) -> str:
@@ -383,11 +378,16 @@ SCHÉMA JSON CIBLE (respecter exactement la structure) :
   "identifiants": {{
     "supplier_name_raw":        "NOT_APPLICABLE",
     "supplier_name_normalized": "NOT_APPLICABLE",
-    "supplier_identifier_raw":  "{ABSENT}",
     "supplier_legal_form":      "{ABSENT}",
+    "supplier_identifier_raw":  "{ABSENT}",
+    "has_nif":                  "{ABSENT}",
+    "has_rccm":                 "{ABSENT}",
+    "has_rib":                  "{ABSENT}",
     "supplier_address_raw":     "{ABSENT}",
     "supplier_phone_raw":       "{ABSENT}",
     "supplier_email_raw":       "{ABSENT}",
+    "quitus_fiscal_date":       "{ABSENT}",
+    "cert_non_faillite_date":   "{ABSENT}",
     "case_id":                  "{ABSENT}",
     "supplier_id":              "NOT_APPLICABLE",
     "lot_scope":                [],
@@ -428,50 +428,63 @@ INSTRUCTIONS COMPLÉMENTAIRES :
 # ─────────────────────────────────────────────────────────
 
 
-def _parse_mistral_response(raw: str) -> dict:
+def _parse_mistral_response(raw: str, task_id: int = 0) -> dict:
     """
-    4 tentatives de parsing dans l'ordre :
-    1. JSON brut direct
-    2. Extraction bloc ```json ... ```
-    3. Extraction première { → dernière }
-    4. Fallback FALLBACK_RESPONSE + log erreur
+    Parse robuste — 5 tentatives.
+    Gère : JSON brut, markdown, trailing commas, tronqué (accolades manquantes).
     """
-    if not raw or not raw.strip():
-        logger.error("[PARSE] Réponse Mistral vide — fallback activé")
-        return FALLBACK_RESPONSE
+    if not raw:
+        logger.warning("[PARSE] raw vide — task_id=%s", task_id)
+        return dict(FALLBACK_RESPONSE)
 
-    # Tentative 1 — JSON brut
+    raw = raw.strip().lstrip("\ufeff")
+
+    def _try(s: str) -> "dict | None":
+        try:
+            return json.loads(s)
+        except json.JSONDecodeError:
+            try:
+                return json.loads(re.sub(r",\s*([}\]])", r"\1", s))
+            except (json.JSONDecodeError, re.error):
+                return None
+
+    if (r := _try(raw)) is not None:
+        return r
+    m = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", raw, re.DOTALL)
+    if m and (r := _try(m.group(1).strip())) is not None:
+        return r
     try:
-        return json.loads(raw.strip())
-    except json.JSONDecodeError:
+        frag = raw[raw.index("{") : raw.rindex("}") + 1]
+        if (r := _try(frag)) is not None:
+            return r
+    except ValueError:
         pass
-
-    # Tentative 2 — bloc ```json
-    match = re.search(r"```json\s*(.*?)\s*```", raw, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group(1))
-        except json.JSONDecodeError:
-            pass
-
-    # Tentative 3 — première { → dernière }
-    start = raw.find("{")
-    end = raw.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        try:
-            return json.loads(raw[start : end + 1])
-        except json.JSONDecodeError:
-            pass
+    try:
+        for mk in ("```json\n", "```json", "```\n", "```"):
+            idx = raw.find(mk)
+            if idx != -1:
+                s = raw[idx + len(mk) :]
+                ei = s.find("```")
+                s = (s[:ei] if ei != -1 else s).strip()
+                s = s[s.index("{") : s.rindex("}") + 1]
+                if (r := _try(s)) is not None:
+                    return r
+    except (ValueError, re.error):
+        pass
+    try:
+        s = raw[raw.index("{") :]
+        deficit = s.count("{") - s.count("}")
+        if deficit > 0:
+            s = re.sub(r",\s*$", "", s.rstrip()) + "}" * deficit
+        if (r := _try(s)) is not None:
+            return r
+    except (ValueError, re.error):
+        pass
 
     _raw_len = len(raw) if raw else 0
     _raw_hash = hashlib.sha256(raw.encode()).hexdigest()[:12] if raw else "empty"
-    logger.error(
-        "[PARSE] Fallback activé — raw_len=%s raw_hash=%s "
-        "(contenu non loggué — données sensibles possibles)",
-        _raw_len,
-        _raw_hash,
-    )
-    return FALLBACK_RESPONSE
+    logger.error("[PARSE] Fallback — raw_len=%s raw_hash=%s", _raw_len, _raw_hash)
+    return dict(FALLBACK_RESPONSE)
 
 
 # ─────────────────────────────────────────────────────────
@@ -550,16 +563,11 @@ def _build_ls_result(parsed: dict, task_id: int) -> list:
     ]
 
 
-# ─────────────────────────────────────────────────────────
-# APPEL MISTRAL — async
-# ─────────────────────────────────────────────────────────
+# ─── APPEL MISTRAL — async ───────────────────────────────
 
 
 async def _mistral_extract(text: str) -> dict:
-    """
-    Appelle Mistral avec le prompt v3.0.1c.
-    Retourne le dict parsé ou FALLBACK_RESPONSE.
-    """
+    """Appelle Mistral v3.0.1c. Retourne le dict parsé ou FALLBACK_RESPONSE."""
     if not client:
         logger.warning("[MISTRAL] Client non configuré — fallback activé")
         return FALLBACK_RESPONSE
@@ -572,20 +580,19 @@ async def _mistral_extract(text: str) -> dict:
                 {"role": "user", "content": _build_prompt(text)},
             ],
             temperature=0.1,
-            max_tokens=4096,
+            max_tokens=8192,
+            response_format={"type": "json_object"},
         )
         raw = response.choices[0].message.content or ""
         logger.info("[MISTRAL] Réponse reçue — %d caractères", len(raw))
-        return _parse_mistral_response(raw)
+        return _parse_mistral_response(raw, task_id=0)
 
     except Exception as exc:
         logger.error("[MISTRAL] Erreur appel API : %s — fallback activé", exc)
         return FALLBACK_RESPONSE
 
 
-# ─────────────────────────────────────────────────────────
-# ENDPOINTS
-# ─────────────────────────────────────────────────────────
+# ─── ENDPOINTS ───────────────────────────────────────────
 
 
 @app.get("/health")
@@ -601,10 +608,7 @@ def health() -> dict:
 
 @app.post("/setup")
 async def setup(request: Request) -> JSONResponse:
-    """
-    Label Studio appelle /setup au démarrage du ML Backend.
-    Retourner model_version pour confirmer la compatibilité.
-    """
+    """Label Studio appelle /setup — retourner model_version."""
     return JSONResponse(
         {
             "model_version": f"dms-{SCHEMA_VERSION}",
@@ -616,10 +620,7 @@ async def setup(request: Request) -> JSONResponse:
 
 @app.post("/predict")
 async def predict(request: Request) -> JSONResponse:
-    """
-    Label Studio envoie les tâches → on retourne les pré-annotations Mistral.
-    1 tâche = 1 document. Extraction async Mistral v3.0.1c.
-    """
+    """Label Studio → pré-annotations Mistral. 1 tâche = 1 document."""
     body = await request.json()
     tasks = body.get("tasks", [])
 
