@@ -16,19 +16,6 @@ import pytest
 # ─────────────────────────────────────────────────────────
 
 
-@pytest.fixture
-def db_tx(db_conn):
-    """
-    Connexion transactionnelle isolée.
-    autocommit=False + rollback teardown.
-    Zéro pollution DB entre les runs (E-24).
-    """
-    db_conn.autocommit = False
-    yield db_conn
-    db_conn.rollback()
-    db_conn.autocommit = True
-
-
 # ─────────────────────────────────────────────────────────
 # CLASSIFY_IMC_SIGNAL — unitaires purs
 # ─────────────────────────────────────────────────────────
@@ -344,27 +331,30 @@ def test_imc_coverage_stats_structure(db_conn):
 
 
 # ─────────────────────────────────────────────────────────
-# MARKET_SIGNALS_V2 — colonnes 046b présentes
+# MARKET_SIGNALS_V2 — colonnes IMC (migration 046)
 # ─────────────────────────────────────────────────────────
 
 
 def test_market_signals_v2_has_imc_columns(db_conn):
     """
-    market_signals_v2 possède les colonnes IMC ajoutées par 046b.
+    market_signals_v2 possède les colonnes IMC ajoutées par migration 046.
     Invariant probe ÉTAPE 0.
     """
     with db_conn.cursor() as cur:
         cur.execute("""
             SELECT column_name
             FROM information_schema.columns
-            WHERE table_name = 'market_signals_v2';
+            WHERE table_schema = 'public'
+              AND table_name = 'market_signals_v2';
             """)
         cols = {row["column_name"] for row in cur.fetchall()}
 
     assert (
         "imc_revision_applied" in cols
-    ), "imc_revision_applied absent — 046b non appliqué"
+    ), "imc_revision_applied absent — migration 046 non appliquée"
     assert (
         "imc_revision_factor" in cols
-    ), "imc_revision_factor absent — 046b non appliqué"
-    assert "imc_revision_at" in cols, "imc_revision_at absent — 046b non appliqué"
+    ), "imc_revision_factor absent — migration 046 non appliquée"
+    assert (
+        "imc_revision_at" in cols
+    ), "imc_revision_at absent — migration 046 non appliquée"

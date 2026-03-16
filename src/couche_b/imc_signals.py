@@ -9,7 +9,7 @@ Architecture IMC figée (Context Anchor 2026-03-15) :
 
 Formule révision : P1 = P0 × (IMC_t1 / IMC_t0)
 
-RÈGLE-09 : zéro recommendation / winner / rank / best_offer
+RÈGLE-09 : zéro recommendation / winner / rank / offer_preference
 RÈGLE-22 : formule versionnée — formula_version tracée
 """
 
@@ -116,7 +116,6 @@ def get_baseline_imc_for_item(
 def classify_imc_signal(
     variation_mom: float | None,
     variation_yoy: float | None,
-    family_sub: str | None = None,
 ) -> str:
     """
     Classe le signal IMC selon l'architecture IMC figée.
@@ -126,7 +125,7 @@ def classify_imc_signal(
       MOM > 8%  → STRONG
       YOY > 15% → CRITICAL
 
-    Pour les autres familles : seuils identiques.
+    Seuils identiques pour toutes les familles.
     Retourne : CRITICAL / STRONG / WATCH / STABLE / UNKNOWN
     """
     if variation_mom is None and variation_yoy is None:
@@ -179,7 +178,7 @@ def compute_imc_enrichment(
             "imc_revision_factor": None,
             "revised_price_avg": None,
             "imc_signal_class": "UNKNOWN",
-            "imc_source": {"reason": "no_imc_mapping"},
+            "imc_source": {"signal_id": signal_id, "reason": "no_imc_mapping"},
             "error": "no_imc_mapping",
         }
 
@@ -203,6 +202,7 @@ def compute_imc_enrichment(
                 imc_latest.get("variation_yoy"),
             ),
             "imc_source": {
+                "signal_id": signal_id,
                 "reason": "no_baseline",
                 "imc_t1_year": imc_latest["year"],
                 "imc_t1_month": imc_latest["month"],
@@ -235,6 +235,7 @@ def compute_imc_enrichment(
         "revised_price_avg": revision.get("revised_price"),
         "imc_signal_class": imc_class,
         "imc_source": {
+            "signal_id": signal_id,
             "category_raw": imc_latest["category_raw"],
             "imc_t0_year": imc_baseline["year"],
             "imc_t0_month": imc_baseline["month"],
@@ -414,6 +415,7 @@ def run_imc_enrichment_batch(
                 metrics["total_skipped"] += 1
 
         except Exception as exc:
+            conn.rollback()
             logger.error(
                 "Erreur enrichissement signal %s : %s",
                 signal_id,
