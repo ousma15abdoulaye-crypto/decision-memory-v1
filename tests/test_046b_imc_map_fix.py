@@ -73,13 +73,16 @@ def test_functional_index_imc_entries(db_conn):
 
 def test_alembic_head_is_046b(db_conn):
     """
-    Head Alembic = 046b_imc_map_fix_restrict_indexes après migration.
+    Head Alembic = 047_couche_a_service_columns (ou 046b si 047 non appliquée).
     ANCHOR-05 : chaîne Alembic intacte.
     """
     with db_conn.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT version_num FROM alembic_version;")
         version = cur.fetchone()["version_num"]
-    assert version == "046b_imc_map_fix_restrict_indexes", f"Head inattendu : {version}"
+    assert version in (
+        "046b_imc_map_fix_restrict_indexes",
+        "047_couche_a_service_columns",
+    ), f"Head inattendu : {version}"
 
 
 def test_046b_idempotent_on_clean_db(db_conn):
