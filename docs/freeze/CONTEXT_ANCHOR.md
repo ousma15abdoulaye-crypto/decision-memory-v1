@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-03-15                                  ║
+║  Dernière mise à jour : 2026-03-11                                  ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -92,16 +92,18 @@
 ║  tag m10b-done   : 010a353 (merge PR #184 feat/m10b-agent-native)  ║
 ║  tag m11-done    : fbc070e (PR #185 feat/m11-signal-integrity)     ║
 ║  tag m12-dette7  : v4.1.0-m12-dette7-done                           ║
-║  hash actuel     : d816bfe (docs anchor)                            ║
-║  branche active  : main (feat/m12-imc-map mergée)                   ║
+║  hash actuel     : 8553487 (merge feat/cleanup-root)                 ║
+║  tag             : v4.1.0-phase1b-done                               ║
+║  branche active  : main (feat/cleanup-root mergée)                   ║
 ║                                                                      ║
 ║  ALEMBIC — FREEZE ABSOLU                                            ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  head actuel     : 046b_imc_map_fix_restrict_indexes                ║
+║  head actuel     : 047_couche_a_service_columns                     ║
 ║  historique      : 001 → 045 — FREEZE TOTAL 001-045                ║
-║  chaîne          : 044 → 045 → 046 → 046b                          ║
+║  chaîne          : 044 → 045 → 046 → 046b → 047                     ║
 ║  FREEZE          : 001 → 045 FREEZE TOTAL                          ║
 ║                    046 + 046b = DETTE-7 DONE                        ║
+║                    047 = PHASE 1B DONE (ORM→psycopg Couche A)       ║
 ║  RÈGLE           : zéro autogenerate — SQL brut uniquement         ║
 ║  RÈGLE           : zéro modification fichiers existants 001-045    ║
 ║  RÈGLE           : toute nouvelle migration = 046+ séquentiel       ║
@@ -270,6 +272,8 @@
 ║  DETTE-6    : market_surveys terrain réels                         ║
 ║  DETTE-7    : ✅ DONE — imc_category_item_map                      ║
 ║               046_imc_category_item_map + 046b_imc_map_fix         ║
+║  PHASE 0    : ✅ DONE — cleanup racine (fichiers parasites, MD→docs)║
+║  PHASE 1B   : ✅ DONE — ORM→psycopg Couche A, migration 047         ║
 ║               src/couche_b/imc_map.py — PR #188 mergée              ║
 ║               tag v4.1.0-m12-dette7-done                          ║
 ║  DETTE-8    : ACTIVE — signaux IMC dans market_signals_v2           ║
