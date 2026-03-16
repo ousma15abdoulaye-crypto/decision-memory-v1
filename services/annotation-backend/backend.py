@@ -429,49 +429,56 @@ INSTRUCTIONS COMPLÉMENTAIRES :
 
 
 def _parse_mistral_response(raw: str, task_id: int = 0) -> dict:
-    """Parse Mistral JSON. 5 tentatives : direct, ``` bloc, {}+trailing comma fix, ```. Fallback si échec."""
+    """
+    Parse robuste — 5 tentatives.
+    Gère : JSON brut, markdown, trailing commas, tronqué (accolades manquantes).
+    """
     if not raw:
         logger.warning("[PARSE] raw vide — task_id=%s", task_id)
         return dict(FALLBACK_RESPONSE)
 
     raw = raw.strip().lstrip("\ufeff")
 
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        pass
-
-    try:
-        match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", raw.strip(), re.DOTALL)
-        if match:
-            return json.loads(match.group(1).strip())
-    except (json.JSONDecodeError, re.error):
-        pass
-
-    try:
-        match = re.search(r"\{.*\}", raw, re.DOTALL)
-        if match:
-            frag = match.group()
+    def _try(s: str) -> "dict | None":
+        try:
+            return json.loads(s)
+        except json.JSONDecodeError:
             try:
-                return json.loads(frag)
-            except json.JSONDecodeError:
-                fixed = re.sub(r",\s*([}\]])", r"\1", frag)
-                return json.loads(fixed)
-    except (json.JSONDecodeError, re.error):
-        pass
+                return json.loads(re.sub(r",\s*([}\]])", r"\1", s))
+            except (json.JSONDecodeError, re.error):
+                return None
 
+    if (r := _try(raw)) is not None:
+        return r
+    m = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", raw, re.DOTALL)
+    if m and (r := _try(m.group(1).strip())) is not None:
+        return r
     try:
-        for marker in ("```json", "```"):
-            start = raw.find(marker)
-            if start != -1:
-                frag = raw[start + len(marker) :]
-                end = frag.find("```")
-                frag = (frag[:end] if end != -1 else frag).strip()
-                try:
-                    return json.loads(frag)
-                except json.JSONDecodeError:
-                    return json.loads(re.sub(r",\s*([}\]])", r"\1", frag))
-    except (json.JSONDecodeError, ValueError, re.error):
+        frag = raw[raw.index("{") : raw.rindex("}") + 1]
+        if (r := _try(frag)) is not None:
+            return r
+    except ValueError:
+        pass
+    try:
+        for mk in ("```json\n", "```json", "```\n", "```"):
+            idx = raw.find(mk)
+            if idx != -1:
+                s = raw[idx + len(mk) :]
+                ei = s.find("```")
+                s = (s[:ei] if ei != -1 else s).strip()
+                s = s[s.index("{") : s.rindex("}") + 1]
+                if (r := _try(s)) is not None:
+                    return r
+    except (ValueError, re.error):
+        pass
+    try:
+        s = raw[raw.index("{") :]
+        deficit = s.count("{") - s.count("}")
+        if deficit > 0:
+            s = re.sub(r",\s*$", "", s.rstrip()) + "}" * deficit
+        if (r := _try(s)) is not None:
+            return r
+    except (ValueError, re.error):
         pass
 
     _raw_len = len(raw) if raw else 0
@@ -556,16 +563,11 @@ def _build_ls_result(parsed: dict, task_id: int) -> list:
     ]
 
 
-# ─────────────────────────────────────────────────────────
-# APPEL MISTRAL — async
-# ─────────────────────────────────────────────────────────
+# ─── APPEL MISTRAL — async ───────────────────────────────
 
 
 async def _mistral_extract(text: str) -> dict:
-    """
-    Appelle Mistral avec le prompt v3.0.1c.
-    Retourne le dict parsé ou FALLBACK_RESPONSE.
-    """
+    """Appelle Mistral v3.0.1c. Retourne le dict parsé ou FALLBACK_RESPONSE."""
     if not client:
         logger.warning("[MISTRAL] Client non configuré — fallback activé")
         return FALLBACK_RESPONSE
@@ -578,7 +580,8 @@ async def _mistral_extract(text: str) -> dict:
                 {"role": "user", "content": _build_prompt(text)},
             ],
             temperature=0.1,
-            max_tokens=4096,
+            max_tokens=8192,
+            response_format={"type": "json_object"},
         )
         raw = response.choices[0].message.content or ""
         logger.info("[MISTRAL] Réponse reçue — %d caractères", len(raw))
@@ -589,9 +592,7 @@ async def _mistral_extract(text: str) -> dict:
         return FALLBACK_RESPONSE
 
 
-# ─────────────────────────────────────────────────────────
-# ENDPOINTS
-# ─────────────────────────────────────────────────────────
+# ─── ENDPOINTS ───────────────────────────────────────────
 
 
 @app.get("/health")
@@ -607,10 +608,7 @@ def health() -> dict:
 
 @app.post("/setup")
 async def setup(request: Request) -> JSONResponse:
-    """
-    Label Studio appelle /setup au démarrage du ML Backend.
-    Retourner model_version pour confirmer la compatibilité.
-    """
+    """Label Studio appelle /setup — retourner model_version."""
     return JSONResponse(
         {
             "model_version": f"dms-{SCHEMA_VERSION}",
@@ -622,10 +620,7 @@ async def setup(request: Request) -> JSONResponse:
 
 @app.post("/predict")
 async def predict(request: Request) -> JSONResponse:
-    """
-    Label Studio envoie les tâches → on retourne les pré-annotations Mistral.
-    1 tâche = 1 document. Extraction async Mistral v3.0.1c.
-    """
+    """Label Studio → pré-annotations Mistral. 1 tâche = 1 document."""
     body = await request.json()
     tasks = body.get("tasks", [])
 
