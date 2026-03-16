@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-03-16 (ADR-015 line_items v3.0.1d)    ║
+║  Dernière mise à jour : 2026-11-16 (feat/m11-ocr-files-api)       ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -88,19 +88,19 @@
 ║                                                                      ║
 ║  GIT                                                                 ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  main            : 6bb572c (après merge PR #197 #199 #202)          ║
-║  feat/m11-ocr-files-api : a5bc26a (versionner tout + ADR-015)       ║
+║  main            : 00e8126 (après merge PR #199 #202, OCR Files API) ║
+║  feat/m11-ocr-files-api : de055df (head)                          ║
 ║  tag m10b-done   : 010a353 (merge PR #184 feat/m10b-agent-native)  ║
 ║  tag m11-done    : fbc070e (PR #185 feat/m11-signal-integrity)     ║
 ║  tag m12-dette7  : v4.1.0-m12-dette7-done                           ║
 ║  tag v4.1.0-ocr-files-api-done : PR #202 mergée                    ║
-║  branche active  : feat/m11-ocr-files-api — backend v3.0.1d ADR-015 ║
+║  branche active  : feat/m11-ocr-files-api (M11 OCR Files API)    ║
 ║                                                                      ║
 ║  ALEMBIC — FREEZE ABSOLU                                            ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  head actuel     : 047_couche_a_service_columns                     ║
+║  head actuel     : 048_vendors_sensitive_data                        ║
 ║  historique      : 001 → 045 — FREEZE TOTAL 001-045                ║
-║  chaîne          : 044 → 045 → 046 → 046b → 047                     ║
+║  chaîne          : 044 → 045 → 046 → 046b → 047 → 048               ║
 ║  FREEZE          : 001 → 045 FREEZE TOTAL                          ║
 ║                    046 + 046b = DETTE-7 DONE                        ║
 ║                    047 = PHASE 1B DONE (ORM→psycopg Couche A)       ║
@@ -195,12 +195,13 @@
 ║    Service Railway   : annotation-backend                           ║
 ║    Dossier           : services/annotation-backend/                 ║
 ║    Schéma            : v3.0.1d (ADR-015 line_items unit_raw)       ║
+║    Prompt            : prompts/system_prompt.txt (texte pur)         ║
+║    start.sh          : uvicorn ... 2>&1 (E-45 — logs Railway)       ║
 ║    Parse             : 5 tentatives (multi-stratégies robustes)     ║
-║    API Mistral       : v1.x (>=1.0.0) — from mistralai import       ║
-║                        Mistral / client.chat.complete()             ║
-║    Port              : 9090 (ou $PORT Railway)                      ║
+║    API Mistral       : v1.x — client.chat.complete() json_object     ║
+║    Port              : $PORT (8080 défaut)                          ║
 ║    Zéro stockage     : R-05 — transit uniquement                    ║
-║    Statut            : v3.0.1d — unit_raw obligatoire, exemples prompt║
+║    Statut            : v3.0.1d — prompt .txt, webhook, 80K truncate  ║
 ║                                                                      ║
 ║  RÈGLES ANNOTATION — FIGÉES                                         ║
 ║  ──────────────────────────────────────────────────────────────     ║
