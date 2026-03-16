@@ -284,7 +284,7 @@ def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
 
     Supporte : PDF scannés multi-pages, PNG, JPEG, TIFF.
     API : client.ocr.process() avec document base64 pour fichiers locaux.
-    Fallback Azure : activé si AZURE_FORM_RECOGNIZER_ENDPOINT est défini.
+    Fallback Azure : activé si AZURE_FORM_RECOGNIZER_ENDPOINT et AZURE_FORM_RECOGNIZER_KEY sont définis.
     Lève APIKeyMissingError si MISTRAL_API_KEY absent.
     """
     _validate_storage_uri(storage_uri)
@@ -309,14 +309,16 @@ def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
     except Exception:
         mime = "application/octet-stream"
 
-    # Fallback Azure si endpoint configuré et MIME non supporté par OCR Mistral
+    # Fallback Azure si endpoint + key configurés et MIME non supporté par OCR Mistral
     azure_endpoint = os.environ.get("AZURE_FORM_RECOGNIZER_ENDPOINT", "")
+    azure_key = os.environ.get("AZURE_FORM_RECOGNIZER_KEY", "")
     if not any(mime.startswith(p) for p in _MISTRAL_OCR_SUPPORTED_MIMES):
-        if azure_endpoint:
+        if azure_endpoint and azure_key:
             return _extract_azure_ocr_fallback(storage_uri, file_bytes, mime)
         raise ValueError(
             f"Mistral OCR : type non supporté '{mime}'. "
-            f"Configurer AZURE_FORM_RECOGNIZER_ENDPOINT pour le fallback."
+            "Configurer AZURE_FORM_RECOGNIZER_ENDPOINT et AZURE_FORM_RECOGNIZER_KEY "
+            "pour activer le fallback Azure."
         )
 
     try:
