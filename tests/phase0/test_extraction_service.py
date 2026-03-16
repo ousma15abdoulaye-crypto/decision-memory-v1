@@ -9,7 +9,6 @@ ADR-0002 §2.5 (SLA deux classes).
 
 import os
 import struct
-import sys
 
 import pytest
 
@@ -269,14 +268,38 @@ class TestMistralOCRGuards:
         f.write_bytes(content)
         return str(f)
 
-    def test_rejects_pdf_mime_type(self, monkeypatch, tmp_path):
-        """PDF → ValueError (Mistral OCR image-only)."""
+    def test_accepts_pdf_mime_type(self, monkeypatch, tmp_path):
+        """PDF → désormais supporté par mistral-ocr-latest (Mandat 2 / ADR-M11-002).
+        Le type application/pdf est dans _MISTRAL_OCR_SUPPORTED_MIMES.
+        Pas de ValueError pour MIME — mock API pour éviter 401 en CI.
+        """
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        import mistralai as _mistralai
+
+        import src.extraction.engine as _eng
+
         monkeypatch.setenv("MISTRAL_API_KEY", "sk-test")
         monkeypatch.setenv("STORAGE_BASE_PATH", str(tmp_path))
         path = self._make_pdf_file(tmp_path)
 
-        with pytest.raises(ValueError, match="image"):
-            _extract_mistral_ocr(path)
+        monkeypatch.setattr(
+            _eng, "_detect_mime_from_header", lambda _: "application/pdf"
+        )
+        monkeypatch.setattr(_eng.os.path, "getsize", lambda _: 1024)
+
+        mock_client = MagicMock()
+        mock_client.files.upload.return_value = SimpleNamespace(id="file-pdf-test")
+        mock_client.ocr.process.return_value = SimpleNamespace(
+            pages=[SimpleNamespace(markdown="Contenu PDF mocké")], text=None
+        )
+        mock_client.files.delete.return_value = None
+        monkeypatch.setattr(_mistralai, "Mistral", lambda **kw: mock_client)
+
+        raw_text, structured = _extract_mistral_ocr(path)
+        assert "Contenu PDF" in raw_text
+        assert isinstance(structured, dict)
 
     def test_rejects_oversized_file(self, monkeypatch, tmp_path):
         """Fichier > 20 MB → ValueError."""
@@ -294,41 +317,29 @@ class TestMistralOCRGuards:
         from types import SimpleNamespace
         from unittest.mock import MagicMock
 
+        import mistralai as _mistralai
+
+        import src.extraction.engine as _eng
+
         monkeypatch.setenv("MISTRAL_API_KEY", "sk-test")
         monkeypatch.setenv("STORAGE_BASE_PATH", str(tmp_path))
         path = self._make_png_file(tmp_path)
 
-        # Mock filetype via sys.modules — compatible toutes branches
-        # (file_bytes direct ou _detect_mime_from_header selon la version)
-        mock_ft = MagicMock()
-        mock_ft.guess.return_value = SimpleNamespace(mime="image/png")
+        monkeypatch.setattr(_eng, "_detect_mime_from_header", lambda _: "image/png")
+        monkeypatch.setattr(_eng.os.path, "getsize", lambda _: 1024)
 
+        # Patch mistralai.Mistral sur le module réel — plus fiable que sys.modules
         mock_client = MagicMock()
         mock_client.files.upload.return_value = SimpleNamespace(id="file-test")
         mock_client.ocr.process.return_value = SimpleNamespace(
             pages=[SimpleNamespace(markdown="Texte extrait mock")], text=None
         )
         mock_client.files.delete.return_value = None
-        mock_mistral_module = MagicMock()
-        mock_mistral_module.Mistral.return_value = mock_client
+        monkeypatch.setattr(_mistralai, "Mistral", lambda **kw: mock_client)
 
-        orig_ft = sys.modules.get("filetype")
-        orig_mis = sys.modules.get("mistralai")
-        sys.modules["filetype"] = mock_ft
-        sys.modules["mistralai"] = mock_mistral_module
-        try:
-            raw_text, structured = _extract_mistral_ocr(path)
-            assert raw_text == "Texte extrait mock"
-            assert isinstance(structured, dict)
-        finally:
-            if orig_ft is None:
-                sys.modules.pop("filetype", None)
-            else:
-                sys.modules["filetype"] = orig_ft
-            if orig_mis is None:
-                sys.modules.pop("mistralai", None)
-            else:
-                sys.modules["mistralai"] = orig_mis
+        raw_text, structured = _extract_mistral_ocr(path)
+        assert raw_text == "Texte extrait mock"
+        assert isinstance(structured, dict)
 
     def test_missing_api_key_raises(self, monkeypatch, tmp_path):
         """Pas de MISTRAL_API_KEY → APIKeyMissingError."""
