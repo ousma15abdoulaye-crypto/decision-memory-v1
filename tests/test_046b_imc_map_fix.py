@@ -71,18 +71,22 @@ def test_functional_index_imc_entries(db_conn):
     ), "idx_imc_entries_category_norm absent sur imc_entries"
 
 
+VALID_ALEMBIC_HEADS = (
+    "046b_imc_map_fix_restrict_indexes",
+    "047_couche_a_service_columns",
+    "m7_4_dict_vivant",  # branche parallèle
+)
+
+
 def test_alembic_head_is_046b(db_conn):
     """
-    Head Alembic = 047_couche_a_service_columns (ou 046b si 047 non appliquée).
+    Head Alembic dans la liste des heads valides (046b, 047, m7_4...).
     ANCHOR-05 : chaîne Alembic intacte.
     """
     with db_conn.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT version_num FROM alembic_version;")
         version = cur.fetchone()["version_num"]
-    assert version in (
-        "046b_imc_map_fix_restrict_indexes",
-        "047_couche_a_service_columns",
-    ), f"Head inattendu : {version}"
+    assert version in VALID_ALEMBIC_HEADS, f"Head inattendu : {version}"
 
 
 def test_046b_idempotent_on_clean_db(db_conn):
