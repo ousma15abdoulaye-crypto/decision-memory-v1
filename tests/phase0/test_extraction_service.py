@@ -290,19 +290,26 @@ class TestMistralOCRGuards:
             _extract_mistral_ocr(path)
 
     def test_accepts_image_mime(self, monkeypatch, tmp_path):
-        """Image PNG + API key → passe la validation MIME (mock API pour éviter 401 en CI)."""
+        """Image PNG + API key → Files API upload+ocr (mock pour éviter 401 en CI)."""
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
         monkeypatch.setenv("MISTRAL_API_KEY", "sk-test")
         monkeypatch.setenv("STORAGE_BASE_PATH", str(tmp_path))
         path = self._make_png_file(tmp_path)
 
-        # Mock Mistral API — mistralai installé (requirements) → 401 sans mock.
-        # On injecte un module mock pour éviter l'appel API réel.
-        from unittest.mock import MagicMock
+        # Patch _detect_mime_from_header pour retourner image/png
+        import src.extraction.engine as _eng
 
+        monkeypatch.setattr(_eng, "_detect_mime_from_header", lambda _: "image/png")
+
+        # Mock Mistral Files API (ADR-M11-002 — Mandat 2)
         mock_client = MagicMock()
-        mock_client.chat.complete.return_value = MagicMock(
-            choices=[MagicMock(message=MagicMock(content="Texte extrait mock"))]
+        mock_client.files.upload.return_value = SimpleNamespace(id="file-test")
+        mock_client.ocr.process.return_value = SimpleNamespace(
+            pages=[SimpleNamespace(markdown="Texte extrait mock")], text=None
         )
+        mock_client.files.delete.return_value = None
         mock_mistral_module = MagicMock()
         mock_mistral_module.Mistral.return_value = mock_client
 
