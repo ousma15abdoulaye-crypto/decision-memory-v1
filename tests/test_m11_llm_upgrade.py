@@ -77,6 +77,7 @@ def test_extract_mistral_ocr_pages_joined(tmp_path):
         patch.dict("sys.modules", {"filetype": mock_ft}),
         patch("src.extraction.engine.Mistral", return_value=mock_mistral_client),
         patch("src.couche_a.llm_router.TIER_1_OCR_MODEL", "mistral-ocr-latest"),
+        patch("src.extraction.engine.STORAGE_BASE_PATH", str(tmp_path)),
     ):
         raw_text, _ = eng._extract_mistral_ocr(str(fake_pdf))
 
@@ -104,6 +105,7 @@ def test_extract_mistral_ocr_raises_for_unsupported_mime_no_azure(tmp_path):
         patch("src.extraction.engine.open", mock_file_ctx(b"garbage"), create=True),
         patch.dict("sys.modules", {"filetype": mock_ft}),
         patch.dict(os.environ, {"AZURE_FORM_RECOGNIZER_ENDPOINT": ""}),
+        patch("src.extraction.engine.STORAGE_BASE_PATH", str(tmp_path)),
     ):
         try:
             eng._extract_mistral_ocr(str(fake_file))
