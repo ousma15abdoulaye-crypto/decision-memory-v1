@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-03-11                                  ║
+║  Dernière mise à jour : 2026-03-11 (parse robuste d9b2b72)          ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -88,13 +88,14 @@
 ║                                                                      ║
 ║  GIT                                                                 ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  main            : d816bfe (après merge PR #188)                     ║
+║  main            : 6bb572c (après merge PR #197 feat/fix-backend-v3.0.1c) ║
+║  feat/fix-backend : d9b2b72 (parse robuste 4 tentatives + format JSON)   ║
 ║  tag m10b-done   : 010a353 (merge PR #184 feat/m10b-agent-native)  ║
 ║  tag m11-done    : fbc070e (PR #185 feat/m11-signal-integrity)     ║
 ║  tag m12-dette7  : v4.1.0-m12-dette7-done                           ║
-║  hash actuel     : (voir git rev-parse HEAD)                          ║
+║  hash actuel     : 6bb572c (main) — d9b2b72 (feat en attente merge) ║
 ║  tag             : v4.1.0-phase1b-done                               ║
-║  branche active  : main (feat/cleanup-root mergée)                   ║
+║  branche active  : feat/fix-backend-v3.0.1c — PR ouverte → main     ║
 ║                                                                      ║
 ║  ALEMBIC — FREEZE ABSOLU                                            ║
 ║  ──────────────────────────────────────────────────────────────     ║
@@ -194,11 +195,13 @@
 ║  ML Backend Mistral                                                  ║
 ║    Service Railway   : annotation-backend                           ║
 ║    Dossier           : services/annotation-backend/                 ║
+║    Schéma            : v3.0.1c (PR #197 mergée)                     ║
+║    Parse             : 4 tentatives (direct, markdown, regex, ```)   ║
 ║    API Mistral       : v1.x (>=1.0.0) — from mistralai import       ║
 ║                        Mistral / client.chat.complete()             ║
 ║    Port              : 9090 (ou $PORT Railway)                      ║
 ║    Zéro stockage     : R-05 — transit uniquement                    ║
-║    Statut            : fichiers créés — déploiement en attente      ║
+║    Statut            : d9b2b72 parse robuste — PR ouverte → main     ║
 ║                                                                      ║
 ║  RÈGLES ANNOTATION — FIGÉES                                         ║
 ║  ──────────────────────────────────────────────────────────────     ║
@@ -220,7 +223,7 @@
 ║  docs/freeze/SYSTEM_CONTRACT.md                                     ║
 ║  docs/freeze/DMS_V4.1.0_FREEZE.md                                  ║
 ║  docs/freeze/DMS_ORCHESTRATION_FRAMEWORK_V1.md                      ║
-║  docs/freeze/ANNOTATION_FRAMEWORK_DMS_v3.0.1.md (v3.0.1a)           ║
+║  docs/freeze/ANNOTATION_FRAMEWORK_DMS_v3.0.1.md (v3.0.1a→v3.0.1c)   ║
 ║  migrations Alembic 001 → 044                                       ║
 ║                                                                      ║
 ║  STRUCTURE PROJET                                                    ║
@@ -242,8 +245,8 @@
 ║  M10A    DONE  seasonal_patterns, zone_context, geo_corridors       ║
 ║  M10B    DONE  couche_a, agents, pg_notify (ADR-010)                ║
 ║  M11     DONE  5 dettes, 1106 signaux, severity NULL=0 (ADR-011)    ║
-║  M11-bis DONE — backend.py v3.0.1a + XML Label Studio v3.0.1a       ║
-║                     2026-03-15                                       ║
+║  M11-bis DONE — backend.py v3.0.1c + XML Label Studio v3.0.1c-fix   ║
+║                     PR #197 mergée 2026-03-11                        ║
 ║  M12     EN COURS                                                   ║
 ║          DETTE-7  DONE — imc_category_item_map + 046 + 046b        ║
 ║          DETTE-8  NEXT — signaux IMC → market_signals_v2            ║
