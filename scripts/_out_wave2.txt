@@ -1,0 +1,15 @@
+  Chargé : SUPPLIER DATA  Mali FINAL.xlsx → 663 lignes
+  Total brut : 663
+
+============================================================
+RAPPORT WAVE 2 — DRY-RUN RÉEL (SELECT uniquement · zéro INSERT)
+============================================================
+Lignes lues              : 663
+Importés (nouveaux)      : 663
+Doublons détectés en DB  : 0
+Sans nom                 : 0
+Zones inconnues (rejetés): 0
+Taux de rejet            : 0.0%
+Simulation               : 663 seraient inserés · 0 doublons détectés (état DB actuel)
+
+[DRY-RUN] Simulation propre

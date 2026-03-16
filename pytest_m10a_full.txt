@@ -1,0 +1,25 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.11.0, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\Users\abdoulaye.ousmane\decision-memory-v1
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.12.1, cov-7.0.0
+collected 948 items
+
+tests\analysis_summary\test_engine_contracts_ast.py ...                  [  0%]
+tests\analysis_summary\test_engine_generation.py ..............          [  1%]
+tests\api\test_criteria_api.py .............................             [  4%]
+tests\audit\test_audit_append_only.py ....                               [  5%]
+tests\audit\test_audit_chain.py .........                                [  6%]
+tests\audit\test_audit_logger.py .................                       [  8%]
+tests\auth\test_jwt_handler.py ............                              [  9%]
+tests\auth\test_rate_limiting.py .....                                   [  9%]
+tests\auth\test_rbac.py .....................                            [ 12%]
+tests\auth\test_security_headers.py .........                            [ 12%]
+tests\auth\test_token_blacklist.py ......                                [ 13%]
+tests\boundary\test_constitution_compliance.py ...                       [ 13%]
+tests\boundary\test_couche_a_b_boundary.py ..                            [ 14%]
+tests\boundary\test_no_evaluation_import_in_couche_a.py ..               [ 14%]
+tests\committee\test_committee_lifecycle.py .............                [ 15%]
+tests\committee\test_committee_no_couche_b_import.py ..                  [ 15%]
+tests\committee\test_committee_readiness_preconditions.py ........       [ 16%]
