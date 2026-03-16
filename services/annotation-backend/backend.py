@@ -2,7 +2,6 @@
 DMS Annotation Backend — Framework v3.0.1c
 Mistral AI ML Backend pour Label Studio
 Mali Procurement · FREEZE DÉFINITIF 2026-03-15
-ADR-014 : VENDOR_ENCRYPTION_KEY pour vendor_secure
 """
 
 import copy
@@ -30,15 +29,9 @@ MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
 # Sel pseudonymisation — variable env obligatoire
 # Si absent → échec du démarrage, sauf si ALLOW_WEAK_PSEUDONYMIZATION est activé
 PSEUDONYM_SALT = os.environ.get("PSEUDONYM_SALT", "")
-VENDOR_ENCRYPTION_KEY = os.environ.get("VENDOR_ENCRYPTION_KEY", "")
 ALLOW_WEAK_PSEUDONYMIZATION = os.environ.get(
     "ALLOW_WEAK_PSEUDONYMIZATION", ""
 ).lower() in {"1", "true", "yes", "on"}
-if not VENDOR_ENCRYPTION_KEY:
-    logging.getLogger(__name__).warning(
-        "[SECURITY] VENDOR_ENCRYPTION_KEY absent — "
-        "chiffrement vendor désactivé (ADR-014)"
-    )
 if not PSEUDONYM_SALT:
     if ALLOW_WEAK_PSEUDONYMIZATION:
         logging.getLogger(__name__).warning(
@@ -383,11 +376,16 @@ SCHÉMA JSON CIBLE (respecter exactement la structure) :
   "identifiants": {{
     "supplier_name_raw":        "NOT_APPLICABLE",
     "supplier_name_normalized": "NOT_APPLICABLE",
-    "supplier_identifier_raw":  "{ABSENT}",
     "supplier_legal_form":      "{ABSENT}",
+    "supplier_identifier_raw":  "{ABSENT}",
+    "has_nif":                  "{ABSENT}",
+    "has_rccm":                 "{ABSENT}",
+    "has_rib":                  "{ABSENT}",
     "supplier_address_raw":     "{ABSENT}",
     "supplier_phone_raw":       "{ABSENT}",
     "supplier_email_raw":       "{ABSENT}",
+    "quitus_fiscal_date":       "{ABSENT}",
+    "cert_non_faillite_date":   "{ABSENT}",
     "case_id":                  "{ABSENT}",
     "supplier_id":              "NOT_APPLICABLE",
     "lot_scope":                [],
