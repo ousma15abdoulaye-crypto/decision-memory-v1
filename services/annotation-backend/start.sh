@@ -8,4 +8,4 @@ fi
 
 PORT="${PORT:-8080}"
 echo "[start.sh] Starting uvicorn on port $PORT"
-exec uvicorn backend:app --host 0.0.0.0 --port "$PORT" --log-level info
+exec uvicorn backend:app --host 0.0.0.0 --port "$PORT" --log-level info 2>&1

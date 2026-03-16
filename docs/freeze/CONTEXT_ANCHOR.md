@@ -346,6 +346,9 @@
 ║  E-44  Consultance = line_items aussi. jour/expert/forfait = unités.║
 ║         procurement_dict s'appuie sur ces données. Mémoire marché.  ║
 ║         Ref : ADR-015 — 2026-03-16                                  ║
+║  E-45  Railway classifie stderr en "error" peu importe le niveau. ║
+║         Uvicorn envoie vers stderr. Fix : 2>&1 dans start.sh.       ║
+║         Sans fix : faux positifs permanents. Ref : 2026-03-16       ║
 ║                                                                      ║
 ║  ADR-015  Line items chirurgical — docs/adr/ADR-015_*.md            ║
 ║           Date : 2026-03-16 — Statut : ACCEPTÉ — v3.0.1d           ║
