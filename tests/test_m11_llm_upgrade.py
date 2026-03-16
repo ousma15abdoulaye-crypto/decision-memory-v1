@@ -75,7 +75,7 @@ def test_extract_mistral_ocr_pages_joined(tmp_path):
             "src.extraction.engine.open", mock_file_ctx(b"%PDF-1.4 fake"), create=True
         ),
         patch.dict("sys.modules", {"filetype": mock_ft}),
-        patch("src.extraction.engine.Mistral", return_value=mock_mistral_client),
+        patch("mistralai.Mistral", return_value=mock_mistral_client),
         patch("src.couche_a.llm_router.TIER_1_OCR_MODEL", "mistral-ocr-latest"),
         patch("src.extraction.engine.STORAGE_BASE_PATH", str(tmp_path)),
     ):
