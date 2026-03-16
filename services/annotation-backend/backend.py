@@ -1,7 +1,8 @@
 """
-DMS Annotation Backend — Framework v3.0.1b
+DMS Annotation Backend — Framework v3.0.1c
 Mistral AI ML Backend pour Label Studio
 Mali Procurement · FREEZE DÉFINITIF 2026-03-15
+ADR-014 : VENDOR_ENCRYPTION_KEY pour vendor_secure
 """
 
 import copy
@@ -18,20 +19,26 @@ from fastapi.responses import JSONResponse
 from mistralai import Mistral
 
 # ─────────────────────────────────────────────────────────
-# CONSTANTES — FREEZE v3.0.1b
+# CONSTANTES — FREEZE v3.0.1c
 # ─────────────────────────────────────────────────────────
 
-SCHEMA_VERSION = "v3.0.1b"
-FRAMEWORK_VERSION = "annotation-framework-v3.0.1b"
+SCHEMA_VERSION = "v3.0.1c"
+FRAMEWORK_VERSION = "annotation-framework-v3.0.1c"
 MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
 
 # Sel pseudonymisation — variable env obligatoire
 # Si absent → échec du démarrage, sauf si ALLOW_WEAK_PSEUDONYMIZATION est activé
 PSEUDONYM_SALT = os.environ.get("PSEUDONYM_SALT", "")
+VENDOR_ENCRYPTION_KEY = os.environ.get("VENDOR_ENCRYPTION_KEY", "")
 ALLOW_WEAK_PSEUDONYMIZATION = os.environ.get(
     "ALLOW_WEAK_PSEUDONYMIZATION", ""
 ).lower() in {"1", "true", "yes", "on"}
+if not VENDOR_ENCRYPTION_KEY:
+    logging.getLogger(__name__).warning(
+        "[SECURITY] VENDOR_ENCRYPTION_KEY absent — "
+        "chiffrement vendor désactivé (ADR-014)"
+    )
 if not PSEUDONYM_SALT:
     if ALLOW_WEAK_PSEUDONYMIZATION:
         logging.getLogger(__name__).warning(
@@ -57,6 +64,7 @@ NOT_APPLICABLE = "NOT_APPLICABLE"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 client = Mistral(api_key=MISTRAL_API_KEY) if MISTRAL_API_KEY else None
 
@@ -107,11 +115,16 @@ FALLBACK_RESPONSE: dict = {
     "identifiants": {
         "supplier_name_raw": NOT_APPLICABLE,
         "supplier_name_normalized": NOT_APPLICABLE,
-        "supplier_identifier_raw": ABSENT,
         "supplier_legal_form": ABSENT,
+        "supplier_identifier_raw": ABSENT,
+        "has_nif": ABSENT,
+        "has_rccm": ABSENT,
+        "has_rib": ABSENT,
         "supplier_address_raw": ABSENT,
         "supplier_phone_raw": ABSENT,
         "supplier_email_raw": ABSENT,
+        "quitus_fiscal_date": ABSENT,
+        "cert_non_faillite_date": ABSENT,
         "case_id": ABSENT,
         "supplier_id": NOT_APPLICABLE,
         "lot_scope": [],
@@ -216,6 +229,17 @@ RÈGLES ABSOLUES :
       Numéro RCCM exact
     Pour ces trois : extraire UNIQUEMENT has_rib / has_nif / has_rccm
     = true si présent dans le document, false si absent, ABSENT si non applicable.
+
+    EXTRAIRE dates de validité documents annuels :
+      quitus_fiscal_date      : date ISO YYYY-MM-DD si trouvée
+                                ABSENT si non trouvée
+                                NOT_APPLICABLE si source_rules
+      cert_non_faillite_date  : date ISO YYYY-MM-DD si trouvée
+                                ABSENT si non trouvée
+                                NOT_APPLICABLE si source_rules
+      Ces dates permettent de calculer la validité restante.
+      Quitus fiscal et certificat non-faillite = documents annuels.
+      Ne jamais inventer une date — ABSENT si non trouvée.
 
     IMPORTANT — supplier_identifier_raw est DÉPRÉCIÉ :
       - Ne JAMAIS y copier ou reconstituer un NIF, un RCCM ou tout identifiant similaire.
@@ -533,7 +557,7 @@ def _build_ls_result(parsed: dict, task_id: int) -> list:
 
 async def _mistral_extract(text: str) -> dict:
     """
-    Appelle Mistral avec le prompt v3.0.1a.
+    Appelle Mistral avec le prompt v3.0.1c.
     Retourne le dict parsé ou FALLBACK_RESPONSE.
     """
     if not client:
@@ -594,7 +618,7 @@ async def setup(request: Request) -> JSONResponse:
 async def predict(request: Request) -> JSONResponse:
     """
     Label Studio envoie les tâches → on retourne les pré-annotations Mistral.
-    1 tâche = 1 document. Extraction async Mistral v3.0.1a.
+    1 tâche = 1 document. Extraction async Mistral v3.0.1c.
     """
     body = await request.json()
     tasks = body.get("tasks", [])
