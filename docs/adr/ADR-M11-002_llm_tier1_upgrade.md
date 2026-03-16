@@ -74,9 +74,12 @@ Hypothèses : mistral-large $8/M input tokens, mistral-ocr $2/1000 pages.
 - `src/couche_a/llm_router.py` : nouveau module — constantes + helper `get_llm_client()`
 - `src/extraction/engine.py` : `_extract_mistral_ocr()` migre vers `client.ocr.process()`
   et accepte les PDF (suppression de la restriction `image/*`)
-- `requirements.txt` : `mistralai>=1.5.0` (déjà présent — aucun changement de version)
-- `services/annotation-backend/backend.py` : **NON MODIFIÉ** — continue d'utiliser
-  `MISTRAL_MODEL` env var (géré Railway)
+- `requirements.txt` : pin `mistralai` passé de `==1.5.0` à `>=1.5.0` (commentaire
+  mis à jour pour couvrir Tier-1 OCR)
+- `services/annotation-backend/backend.py` : **MODIFIÉ** — `max_tokens` 4096→8192,
+  `response_format={"type":"json_object"}` activé, instruction format JSON ajoutée
+  au prompt système, `_parse_mistral_response` étendu à 5 tentatives (trailing
+  commas + JSON tronqué) ; `MISTRAL_MODEL` env var conservée (géré Railway)
 - Alembic : aucune migration requise
 
 ---
