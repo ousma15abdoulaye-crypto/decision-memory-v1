@@ -16,7 +16,6 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from mistralai import Mistral
-from typing import Optional
 
 # ─────────────────────────────────────────────────────────
 # CONSTANTES — FREEZE v3.0.1c
@@ -78,10 +77,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ─────────────────────────────────────────────────────────
-# FALLBACK — activé si Mistral échoue ou JSON cassé
-# ─────────────────────────────────────────────────────────
-
+# FALLBACK — Mistral échoue ou JSON cassé
 FALLBACK_RESPONSE: dict = {
     "couche_1_routing": {
         "procurement_family_main": AMBIGUOUS,
@@ -141,15 +137,7 @@ FALLBACK_RESPONSE: dict = {
 
 
 def _pseudonymise(value: str) -> str:
-    """
-    Pseudonymise une valeur sensible (phone, email).
-    Retourne un hash hexadécimal 16 chars.
-
-    Avec sel   : HMAC-SHA256(value, PSEUDONYM_SALT)[:16]
-    Sans sel   : SHA256(value)[:16] — dégradé si PSEUDONYM_SALT absent
-    Objectif   : présence détectable, valeur brute irrécupérable
-                 sans le sel projet.
-    """
+    """Pseudonymise phone/email — HMAC-SHA256[:16] ou SHA256[:16] si pas de sel."""
     if PSEUDONYM_SALT:
         h = hmac.new(
             PSEUDONYM_SALT.encode(),
@@ -162,16 +150,7 @@ def _pseudonymise(value: str) -> str:
 
 
 def _pseudonymise_contact(raw_value: str) -> dict:
-    """
-    Retourne le bloc pseudonymisé pour phone ou email.
-    Format :
-      {
-        "pseudo":   "a3f9c2b1d4e87654",
-        "present":  true,
-        "redacted": true
-      }
-    Si raw_value = ABSENT / NOT_APPLICABLE / "AMBIGUOUS" → présent=false, pas de hash.
-    """
+    """Bloc pseudonymisé phone/email. ABSENT/NOT_APPLICABLE → present=false."""
     if raw_value in (ABSENT, NOT_APPLICABLE, "AMBIGUOUS", "", None):
         return {
             "pseudo": None,
@@ -185,10 +164,7 @@ def _pseudonymise_contact(raw_value: str) -> dict:
     }
 
 
-# ─────────────────────────────────────────────────────────
 # PROMPT — RÈGLE-19 · AXIOME-3 · MC-1 · MC-2 · MC-3
-# ─────────────────────────────────────────────────────────
-
 PROMPT_SYSTEM = f"""Tu es un expert en analyse de documents procurement humanitaire (Mali, Afrique de l'Ouest).
 Tu produits des pré-annotations JSON strictement conformes au Framework Annotation DMS {SCHEMA_VERSION}.
 
@@ -424,16 +400,9 @@ INSTRUCTIONS COMPLÉMENTAIRES :
 - Retourner UNIQUEMENT le JSON. Rien d'autre."""
 
 
-# ─────────────────────────────────────────────────────────
 # PARSER ROBUSTE — 5 tentatives + fallback loggué
-# ─────────────────────────────────────────────────────────
-
-
 def _parse_mistral_response(raw: str, task_id: int = 0) -> dict:
-    """
-    Parse robuste — 5 tentatives.
-    Gère : JSON brut, markdown, trailing commas, tronqué (accolades manquantes).
-    """
+    """Parse robuste — JSON brut, markdown, trailing commas, tronqué."""
     if not raw:
         logger.warning("[PARSE] raw vide — task_id=%s", task_id)
         return dict(FALLBACK_RESPONSE)
@@ -564,10 +533,10 @@ def _build_ls_result(parsed: dict, task_id: int) -> list:
     ]
 
 
-# ─── APPEL MISTRAL — async ───────────────────────────────
+# APPEL MISTRAL
 
 
-async def _mistral_extract(text: str, task_id: Optional[int] = None) -> dict:
+async def _mistral_extract(text: str, task_id: int | None = None) -> dict:
     """Appelle Mistral v3.0.1c. Retourne le dict parsé ou FALLBACK_RESPONSE."""
     if not client:
         logger.warning("[MISTRAL] Client non configuré — fallback activé")
@@ -586,14 +555,16 @@ async def _mistral_extract(text: str, task_id: Optional[int] = None) -> dict:
         )
         raw = response.choices[0].message.content or ""
         logger.info("[MISTRAL] Réponse reçue — %d caractères", len(raw))
-        return _parse_mistral_response(raw, task_id=task_id if task_id is not None else 0)
+        return _parse_mistral_response(
+            raw, task_id=task_id if task_id is not None else 0
+        )
 
     except Exception as exc:
         logger.error("[MISTRAL] Erreur appel API : %s — fallback activé", exc)
         return FALLBACK_RESPONSE
 
 
-# ─── ENDPOINTS ───────────────────────────────────────────
+# ENDPOINTS
 
 
 @app.get("/health")
@@ -656,30 +627,45 @@ async def predict(request: Request) -> JSONResponse:
 
 @app.post("/train")
 async def train(request: Request) -> JSONResponse:
-    """
-    Endpoint train — réservé M12 fine-tuning Mistral.
-    Actuellement : accusé de réception uniquement.
-    """
+    """Endpoint train — réservé M12 fine-tuning Mistral. Accusé réception."""
     body = await request.json()
-    annotations = body.get("annotations", [])
-    logger.info(
-        "[TRAIN] %d annotations reçues — fine-tuning non actif (M12)", len(annotations)
-    )
+    n = len(body.get("annotations", []))
+    logger.info("[TRAIN] %d annotations reçues — fine-tuning non actif (M12)", n)
     return JSONResponse(
         {
             "status": "received",
-            "message": f"Fine-tuning réservé M12 — {len(annotations)} annotations reçues",
+            "message": f"Fine-tuning réservé M12 — {n} annotations reçues",
         }
     )
 
 
 @app.post("/webhook")
-async def webhook(request: Request) -> JSONResponse:
-    """
-    Webhook Label Studio — événements annotation.
-    Log uniquement — aucun traitement actif en M11-bis.
-    """
-    body = await request.json()
-    action = body.get("action", "unknown")
+async def webhook_handler(request: Request) -> JSONResponse:
+    """Webhook Label Studio — robuste, zéro exception non catchée. Toujours 200."""
+    try:
+        payload = await request.json()
+    except Exception as exc:
+        logger.error("[WEBHOOK] Payload non parsable : %s", type(exc).__name__)
+        return JSONResponse({"status": "error", "reason": "invalid_payload"})
+    action = (
+        payload.get("action", "UNKNOWN") if isinstance(payload, dict) else "UNKNOWN"
+    )
     logger.info("[WEBHOOK] action=%s", action)
+    try:
+        if action in ("ANNOTATION_CREATED", "ANNOTATION_UPDATED"):
+            t = payload.get("task") or {}
+            a = (
+                (payload.get("annotation") or {})
+                if action == "ANNOTATION_CREATED"
+                else {}
+            )
+            logger.info(
+                "[WEBHOOK] %s — task_id=%s ann_id=%s",
+                action,
+                t.get("id", "unknown"),
+                a.get("id", "N/A"),
+            )
+    except Exception as exc:
+        logger.error("[WEBHOOK] Erreur action=%s : %s", action, type(exc).__name__)
+        return JSONResponse({"status": "error", "action": action})
     return JSONResponse({"status": "ok", "action": action})
