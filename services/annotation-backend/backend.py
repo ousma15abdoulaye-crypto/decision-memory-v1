@@ -1,7 +1,7 @@
 """
-DMS Annotation Backend — Framework v3.0.1c
+DMS Annotation Backend — Framework v3.0.1d
 Mistral AI ML Backend pour Label Studio
-Mali Procurement · FREEZE DÉFINITIF 2026-03-15
+Mali Procurement · ADR-015 line_items unit_raw 2026-03-16
 """
 
 import copy
@@ -17,12 +17,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from mistralai import Mistral
 
-# ─────────────────────────────────────────────────────────
-# CONSTANTES — FREEZE v3.0.1c
-# ─────────────────────────────────────────────────────────
-
-SCHEMA_VERSION = "v3.0.1c"
-FRAMEWORK_VERSION = "annotation-framework-v3.0.1c"
+# CONSTANTES — v3.0.1d ADR-015
+SCHEMA_VERSION = "v3.0.1d"
+FRAMEWORK_VERSION = "annotation-framework-v3.0.1d"
 MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
 
@@ -178,8 +175,12 @@ RÈGLES ABSOLUES :
 4. MC-3 : price_date = valeur ISO si trouvée, "ABSENT" si non trouvée. JAMAIS forcer document_date.
 5. NULL DOCTRINE : utiliser "ABSENT" / "AMBIGUOUS" / "NOT_APPLICABLE" — jamais null comme valeur sémantique.
 6. financial_layout_mode DOIT être déclaré AVANT les line_items.
-7. Si tableau de prix présent → line_items obligatoires. 1 ligne = 1 objet atomique.
-   Vérifier : line_total = quantity × unit_price. Si écart > 1% → ambiguites += "AMBIG-3_line_total_math_anomaly".
+7. RÈGLE LINE_ITEMS (ADR-015) — financial_offer, combined_offer, annex_pricing, consultance :
+   Si tableau de prix ou budget visible → line_items NON VIDE. Lump sum → 1 line_item forfait.
+   JAMAIS line_items=[] si montant visible. Chaque ligne : item_line_no, item_description_raw,
+   unit_raw (OBLIGATOIRE — kg, tonne, pièce, sac, jour, heure, forfait, m2, etc. ou "non_precise"),
+   quantity, unit_price, line_total, line_total_check (OK|ANOMALY|NON_VERIFIABLE).
+   Si |line_total - qty×unit_price| > 1% → ANOMALY + ambiguites += "AMBIG-3".
 8. Ne pas annoter : introductions, remerciements, rappels juridiques sans effet opératoire.
 9. evaluation_report : routing uniquement si détecté. Zéro annotation active.
 10. Retourner UNIQUEMENT le JSON. Zéro prose avant ou après le JSON.
@@ -392,10 +393,10 @@ INSTRUCTIONS COMPLÉMENTAIRES :
 - Si un champ n'est pas applicable → garder "NOT_APPLICABLE".
 - Si un champ est applicable mais absent du document → mettre "ABSENT".
 - Si présent mais illisible / contradictoire → mettre "AMBIGUOUS".
-- Pour les offres financières (offer_financial / combined_offer) :
-    * Déclarer financial_layout_mode EN PREMIER.
-    * Si tableau présent → extraire TOUS les line_items.
-    * Vérifier line_total = quantity × unit_price pour chaque ligne.
+- Offres financières : financial_layout_mode EN PREMIER. Si tableau → line_items avec unit_raw.
+  Ex. GOODS : {{"item_line_no":1,"item_description_raw":"Riz 50kg","unit_raw":"sac","quantity":200,"unit_price":25000,"line_total":5000000,"line_total_check":"OK","confidence":1.0,"evidence":"p.3"}}
+  Ex. SERVICES : {{"item_line_no":1,"item_description_raw":"Chef mission","unit_raw":"jour","quantity":30,"unit_price":150000,"line_total":4500000,"line_total_check":"OK","confidence":1.0,"evidence":"p.5"}}
+  unit_raw : kg, tonne, pièce, sac, jour, heure, forfait, m2, m3 — jamais vide.
 - Pour les gates : gate_value = true / false / null (booléen JSON, jamais string).
 - Retourner UNIQUEMENT le JSON. Rien d'autre."""
 

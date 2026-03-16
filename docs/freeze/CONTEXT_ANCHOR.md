@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-03-11 (parse robuste d9b2b72)          ║
+║  Dernière mise à jour : 2026-03-16 (ADR-015 line_items v3.0.1d)    ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -88,14 +88,13 @@
 ║                                                                      ║
 ║  GIT                                                                 ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  main            : 6bb572c (après merge PR #197 feat/fix-backend-v3.0.1c) ║
-║  feat/fix-backend : d9b2b72 (parse robuste 4 tentatives + format JSON)   ║
+║  main            : 6bb572c (après merge PR #197 #199 #202)          ║
+║  feat/m11-ocr-files-api : a5bc26a (versionner tout + ADR-015)       ║
 ║  tag m10b-done   : 010a353 (merge PR #184 feat/m10b-agent-native)  ║
 ║  tag m11-done    : fbc070e (PR #185 feat/m11-signal-integrity)     ║
 ║  tag m12-dette7  : v4.1.0-m12-dette7-done                           ║
-║  hash actuel     : 6bb572c (main) — d9b2b72 (feat en attente merge) ║
-║  tag             : v4.1.0-phase1b-done                               ║
-║  branche active  : feat/fix-backend-v3.0.1c — PR ouverte → main     ║
+║  tag v4.1.0-ocr-files-api-done : PR #202 mergée                    ║
+║  branche active  : feat/m11-ocr-files-api — backend v3.0.1d ADR-015 ║
 ║                                                                      ║
 ║  ALEMBIC — FREEZE ABSOLU                                            ║
 ║  ──────────────────────────────────────────────────────────────     ║
@@ -195,13 +194,13 @@
 ║  ML Backend Mistral                                                  ║
 ║    Service Railway   : annotation-backend                           ║
 ║    Dossier           : services/annotation-backend/                 ║
-║    Schéma            : v3.0.1c (PR #197 mergée)                     ║
+║    Schéma            : v3.0.1d (ADR-015 line_items unit_raw)       ║
 ║    Parse             : 5 tentatives (multi-stratégies robustes)     ║
 ║    API Mistral       : v1.x (>=1.0.0) — from mistralai import       ║
 ║                        Mistral / client.chat.complete()             ║
 ║    Port              : 9090 (ou $PORT Railway)                      ║
 ║    Zéro stockage     : R-05 — transit uniquement                    ║
-║    Statut            : d9b2b72 parse robuste — PR ouverte → main     ║
+║    Statut            : v3.0.1d — unit_raw obligatoire, exemples prompt║
 ║                                                                      ║
 ║  RÈGLES ANNOTATION — FIGÉES                                         ║
 ║  ──────────────────────────────────────────────────────────────     ║
@@ -340,6 +339,16 @@
 ║  E-28  g["gate_name"] sur JSON LLM partiel = KeyError silencieux.   ║
 ║         Toujours g.get() + filtre isinstance(g, dict) avant itér.   ║
 ║         Ref : PR #188 Copilot point 3 — safe_build_ls_result         ║
+║  E-43  line_items annotation : jamais vide si montant visible.     ║
+║         unit_raw obligatoire sur chaque ligne. 3 exemples min prompt. ║
+║         Sans exemple → Mistral hallucine ou omet les unités.       ║
+║         Ref : ADR-015 — 2026-03-16                                  ║
+║  E-44  Consultance = line_items aussi. jour/expert/forfait = unités.║
+║         procurement_dict s'appuie sur ces données. Mémoire marché.  ║
+║         Ref : ADR-015 — 2026-03-16                                  ║
+║                                                                      ║
+║  ADR-015  Line items chirurgical — docs/adr/ADR-015_*.md            ║
+║           Date : 2026-03-16 — Statut : ACCEPTÉ — v3.0.1d           ║
 ║                                                                      ║
 ║  PROTOCOLE FIN DE SESSION — OBLIGATOIRE                             ║
 ║  ──────────────────────────────────────────────────────────────     ║
