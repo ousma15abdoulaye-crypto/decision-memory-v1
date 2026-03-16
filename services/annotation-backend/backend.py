@@ -429,28 +429,34 @@ INSTRUCTIONS COMPLÉMENTAIRES :
 
 
 def _parse_mistral_response(raw: str, task_id: int = 0) -> dict:
-    """Parse Mistral JSON. 4 tentatives : direct, markdown, regex {}, ```. Fallback si échec."""
+    """Parse Mistral JSON. 5 tentatives : direct, ``` bloc, {}+trailing comma fix, ```. Fallback si échec."""
     if not raw:
         logger.warning("[PARSE] raw vide — task_id=%s", task_id)
         return dict(FALLBACK_RESPONSE)
 
+    raw = raw.strip().lstrip("\ufeff")
+
     try:
-        return json.loads(raw.strip())
+        return json.loads(raw)
     except json.JSONDecodeError:
         pass
 
     try:
-        cleaned = re.sub(
-            r"^```(?:json)?\s*\n?(.*?)\n?```\s*$", r"\1", raw.strip(), flags=re.DOTALL
-        )
-        return json.loads(cleaned)
+        match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", raw.strip(), re.DOTALL)
+        if match:
+            return json.loads(match.group(1).strip())
     except (json.JSONDecodeError, re.error):
         pass
 
     try:
         match = re.search(r"\{.*\}", raw, re.DOTALL)
         if match:
-            return json.loads(match.group())
+            frag = match.group()
+            try:
+                return json.loads(frag)
+            except json.JSONDecodeError:
+                fixed = re.sub(r",\s*([}\]])", r"\1", frag)
+                return json.loads(fixed)
     except (json.JSONDecodeError, re.error):
         pass
 
@@ -458,14 +464,14 @@ def _parse_mistral_response(raw: str, task_id: int = 0) -> dict:
         for marker in ("```json", "```"):
             start = raw.find(marker)
             if start != -1:
-                fragment = raw[start + len(marker) :]
-                end = fragment.find("```")
-                if end != -1:
-                    fragment = fragment[:end].strip()
-                else:
-                    fragment = fragment.strip()
-                return json.loads(fragment)
-    except (json.JSONDecodeError, ValueError):
+                frag = raw[start + len(marker) :]
+                end = frag.find("```")
+                frag = (frag[:end] if end != -1 else frag).strip()
+                try:
+                    return json.loads(frag)
+                except json.JSONDecodeError:
+                    return json.loads(re.sub(r",\s*([}\]])", r"\1", frag))
+    except (json.JSONDecodeError, ValueError, re.error):
         pass
 
     _raw_len = len(raw) if raw else 0
