@@ -92,7 +92,7 @@
 ║  tag m10b-done   : 010a353 (merge PR #184 feat/m10b-agent-native)  ║
 ║  tag m11-done    : fbc070e (PR #185 feat/m11-signal-integrity)     ║
 ║  tag m12-dette7  : v4.1.0-m12-dette7-done                           ║
-║  hash actuel     : 0641d92 (docs anchor session 2026-03-11)          ║
+║  hash actuel     : 27932e9 (docs anchor session 2026-03-11)          ║
 ║  tag             : v4.1.0-phase1b-done                               ║
 ║  branche active  : main (feat/cleanup-root mergée)                   ║
 ║                                                                      ║
