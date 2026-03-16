@@ -425,7 +425,7 @@ INSTRUCTIONS COMPLÉMENTAIRES :
 
 
 # ─────────────────────────────────────────────────────────
-# PARSER ROBUSTE — 4 tentatives + fallback loggué
+# PARSER ROBUSTE — 5 tentatives + fallback loggué
 # ─────────────────────────────────────────────────────────
 
 
