@@ -460,7 +460,7 @@ def get_imc_coverage_stats(conn: psycopg.Connection) -> dict:
                          THEN imc_revision_factor END)           AS avg_factor,
                 MIN(imc_revision_at)                             AS first_enriched_at,
                 MAX(imc_revision_at)                             AS last_enriched_at
-            FROM market_signals_v2;
+            FROM public.market_signals_v2;
             """)
         stats = cur.fetchone() or {}
 
