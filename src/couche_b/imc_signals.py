@@ -284,7 +284,7 @@ def get_signals_pending_imc(
                 s.formula_version,
                 s.signal_quality,
                 s.created_at
-            FROM market_signals_v2 s
+            FROM public.market_signals_v2 s
             WHERE s.imc_revision_applied = FALSE
               AND s.price_avg IS NOT NULL
             ORDER BY s.created_at DESC
@@ -318,7 +318,7 @@ def apply_imc_enrichment_to_signal(
     with conn.cursor() as cur:
         cur.execute(
             """
-            UPDATE market_signals_v2
+            UPDATE public.market_signals_v2
             SET
                 imc_revision_applied = TRUE,
                 imc_revision_factor  = %s,
