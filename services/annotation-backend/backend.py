@@ -11,17 +11,23 @@ import json
 import logging
 import os
 import re
+import sys
+from pathlib import Path
 
+# Import prompt — chemin absolu garanti — zéro PYTHONPATH
+sys.path.insert(0, str(Path(__file__).parent))
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from mistralai import Mistral
+from prompts import SYSTEM_PROMPT
 
 # CONSTANTES — v3.0.1d ADR-015
 SCHEMA_VERSION = "v3.0.1d"
 FRAMEWORK_VERSION = "annotation-framework-v3.0.1d"
 MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
+MAX_TEXT_CHARS = int(os.environ.get("MAX_TEXT_CHARS", "80000"))
 
 # Sel pseudonymisation — variable env obligatoire
 # Si absent → échec du démarrage, sauf si ALLOW_WEAK_PSEUDONYMIZATION est activé
@@ -161,244 +167,33 @@ def _pseudonymise_contact(raw_value: str) -> dict:
     }
 
 
-# PROMPT — RÈGLE-19 · AXIOME-3 · MC-1 · MC-2 · MC-3
-PROMPT_SYSTEM = f"""Tu es un expert en analyse de documents procurement humanitaire (Mali, Afrique de l'Ouest).
-Tu produits des pré-annotations JSON strictement conformes au Framework Annotation DMS {SCHEMA_VERSION}.
-
-RÈGLES ABSOLUES :
-1. AXIOME-3 : procurement_family_main (goods|services) EST LA PREMIÈRE DÉCISION. Toujours.
-2. RÈGLE-19 : chaque champ critique = {{"value": ..., "confidence": X, "evidence": "5-10 mots exacts"}}.
-   confidence DOIT être dans {{0.6, 0.8, 1.0}} UNIQUEMENT.
-   0.6 = OCR dégradé · 0.8 = inféré indirect · 1.0 = texte exact copié.
-3. MC-1 : gate_value = booléen JSON (true/false/null). JAMAIS la string "true" ou "false".
-   gate_state = "APPLICABLE" ou "NOT_APPLICABLE".
-4. MC-3 : price_date = valeur ISO si trouvée, "ABSENT" si non trouvée. JAMAIS forcer document_date.
-5. NULL DOCTRINE : utiliser "ABSENT" / "AMBIGUOUS" / "NOT_APPLICABLE" — jamais null comme valeur sémantique.
-6. financial_layout_mode DOIT être déclaré AVANT les line_items.
-7. RÈGLE LINE_ITEMS (ADR-015) — financial_offer, combined_offer, annex_pricing, consultance :
-   Si tableau de prix ou budget visible → line_items NON VIDE. Lump sum → 1 line_item forfait.
-   JAMAIS line_items=[] si montant visible. Chaque ligne : item_line_no, item_description_raw,
-   unit_raw (OBLIGATOIRE — kg, tonne, pièce, sac, jour, heure, forfait, m2, etc. ou "non_precise"),
-   quantity, unit_price, line_total, line_total_check (OK|ANOMALY|NON_VERIFIABLE).
-   Si |line_total - qty×unit_price| > 1% → ANOMALY + ambiguites += "AMBIG-3".
-8. Ne pas annoter : introductions, remerciements, rappels juridiques sans effet opératoire.
-9. evaluation_report : routing uniquement si détecté. Zéro annotation active.
-10. Retourner UNIQUEMENT le JSON. Zéro prose avant ou après le JSON.
-11. Sur les offres (technical_offer / financial_offer / combined_offer) :
-    Extraire les éléments d'identification fournisseur VISIBLES.
-
-    AUTORISÉ — extraire la valeur brute :
-      supplier_name_raw      : nom exact tel qu'écrit
-      supplier_legal_form    : SARL / SA / ONG / GIE / ABSENT
-      supplier_address_raw   : adresse postale (60 chars max)
-      supplier_phone_raw     : numéro(s) de téléphone
-      supplier_email_raw     : adresse(s) email
-
-    INTERDIT — NE JAMAIS extraire la valeur brute :
-      Numéro RIB / IBAN / numéro de compte bancaire
-      Numéro NIF exact
-      Numéro RCCM exact
-    Pour ces trois : extraire UNIQUEMENT has_rib / has_nif / has_rccm
-    = true si présent dans le document, false si absent, ABSENT si non applicable.
-
-    EXTRAIRE dates de validité documents annuels :
-      quitus_fiscal_date      : date ISO YYYY-MM-DD si trouvée
-                                ABSENT si non trouvée
-                                NOT_APPLICABLE si source_rules
-      cert_non_faillite_date  : date ISO YYYY-MM-DD si trouvée
-                                ABSENT si non trouvée
-                                NOT_APPLICABLE si source_rules
-      Ces dates permettent de calculer la validité restante.
-      Quitus fiscal et certificat non-faillite = documents annuels.
-      Ne jamais inventer une date — ABSENT si non trouvée.
-
-    IMPORTANT — supplier_identifier_raw est DÉPRÉCIÉ :
-      - Ne JAMAIS y copier ou reconstituer un NIF, un RCCM ou tout identifiant similaire.
-      - Si le champ supplier_identifier_raw existe dans le schéma JSON cible, tu dois
-        TOUJOURS le renseigner avec "NOT_APPLICABLE" (ou "ABSENT") et rien d'autre.
-
-12. Sur source_rules :
-    supplier_name_raw      = NOT_APPLICABLE
-    supplier_phone_raw     = NOT_APPLICABLE
-    supplier_email_raw     = NOT_APPLICABLE
-    supplier_address_raw   = NOT_APPLICABLE
-    has_rib / has_nif / has_rccm = NOT_APPLICABLE
-
-FORMAT : JSON brut uniquement. INTERDIT ```json```, texte avant/après, commentaires. Premier char = {{, dernier = }}."""
+# PROMPT — pattern fichier texte pur — prompts/system_prompt.txt (ADR-015)
+def _truncate_text(text: str, task_id: int) -> str:
+    """Tronque le texte à MAX_TEXT_CHARS. Log si troncature appliquée."""
+    if len(text) <= MAX_TEXT_CHARS:
+        return text
+    logger.warning(
+        "[TRUNCATE] task_id=%s — %d chars → %d chars tronqués",
+        task_id,
+        len(text),
+        MAX_TEXT_CHARS,
+    )
+    return text[:MAX_TEXT_CHARS]
 
 
-def _build_prompt(text: str) -> str:
-    # 80 000 chars ≈ 20 000 tokens — compatible mistral-large (131k ctx) et mistral-small
-    text_trimmed = text[:80000] if len(text) > 80000 else text
-    return f"""Analyse ce document procurement et retourne UNIQUEMENT un JSON conforme au schéma ci-dessous.
-
-DOCUMENT :
-\"\"\"
-{text_trimmed}
-\"\"\"
-
-SCHÉMA JSON CIBLE (respecter exactement la structure) :
-{{
-  "couche_1_routing": {{
-    "procurement_family_main":  "goods | services",
-    "procurement_family_sub":   "food|office_consumables|construction_materials|nfi|it_equipment|software|nutrition_products|vehicles|motorcycles|other_goods|consultancy|audit|training|catering|vehicle_rental|survey|audiovisual|works|other_services",
-    "taxonomy_core":            "dao|rfq|rfp_consultance|tdr_consultance_audit|offer_technical|offer_financial|offer_combined|annex_pricing|supporting_doc|evaluation_report|marketsurvey",
-    "taxonomy_client_adapter":  "<wording exact client>",
-    "document_stage":           "solicitation|offer|evaluation|decision",
-    "document_role":            "source_rules|technical_offer|financial_offer|combined_offer|annex_pricing|supporting_doc|evaluation_report"
-  }},
-
-  "couche_2_core": {{
-    "procedure_reference":        {{"value": "...", "confidence": 1.0, "evidence": "..."}},
-    "issuing_entity":             {{"value": "...", "confidence": 1.0, "evidence": "..."}},
-    "project_name":               {{"value": "...", "confidence": 1.0, "evidence": "..."}},
-    "lot_count":                  {{"value": null,  "confidence": 1.0, "evidence": "..."}},
-    "lot_scope":                  {{"value": [],    "confidence": 1.0, "evidence": "..."}},
-    "zone_scope":                 {{"value": [],    "confidence": 1.0, "evidence": "..."}},
-    "submission_deadline":        {{"value": "ABSENT", "confidence": 1.0, "evidence": "..."}},
-    "submission_mode":            {{"value": [],    "confidence": 1.0, "evidence": "..."}},
-    "result_type":                {{"value": "ABSENT", "confidence": 0.8, "evidence": "..."}},
-    "technical_threshold":        {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-    "visit_required":             {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-    "sample_required":            {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-    "negotiation_allowed":        {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-    "regime_dominant":            {{"value": "AUCUN", "confidence": 0.8, "evidence": "..."}},
-    "modalite_paiement":          {{"value": "ABSENT", "confidence": 0.8, "evidence": "..."}},
-    "eligibility_gates":          [],
-    "scoring_structure":          [],
-    "ponderation_coherence":      "100_exact|non_precisee_dans_doc|incomplete|incoherente"
-  }},
-
-  "couche_3_policy_sci": {{
-    "has_sci_conditions_signed": {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-    "has_iapg_signed":           {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-    "has_non_sanction":          {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-    "ariba_network_required":    {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-    "sci_sustainability_pct":    {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}}
-  }},
-
-  "couche_4_atomic": {{
-    "conformite_admin": {{
-      "has_nif":                     {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "has_rccm":                    {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "has_rib":                     {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "has_id_representative":       {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "has_statutes":                {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "has_quitus_fiscal":           {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "has_certificat_non_faillite": {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}}
-    }},
-    "capacite_services": {{
-      "similar_assignments_count":           {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "lead_expert_years":                   {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "lead_expert_similar_projects_count":  {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "team_composition_present":            {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "methodology_present":                 {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "workplan_present":                    {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "qa_plan_present":                     {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "ethics_plan_present":                 {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}}
-    }},
-    "capacite_works": {{
-      "execution_delay_days":               {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "work_methodology_present":           {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "environment_plan_present":           {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "site_visit_pv_present":              {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "equipment_list_present":             {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "key_staff_present":                  {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "local_labor_commitment_present":     {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}}
-    }},
-    "capacite_goods": {{
-      "client_references_present":             {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "warranty_present":                      {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "delivery_schedule_present":             {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "warehouse_capacity_present":            {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "stock_sufficiency_present":             {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "product_specs_present":                 {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "official_distribution_license_present": {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "sample_submission_present":             {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "phytosanitary_cert_present":            {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "bank_credit_line_present":              {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}}
-    }},
-    "durabilite": {{
-      "local_content_present":          {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "community_employment_present":   {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "environment_commitment_present": {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "gender_inclusion_present":       {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "sustainability_certifications":  {{"value": [],               "confidence": 1.0, "evidence": "..."}}
-    }},
-    "financier": {{
-      "financial_layout_mode": "NOT_APPLICABLE",
-      "pricing_scope":         "NOT_APPLICABLE",
-      "total_price":           {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "currency":              {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "price_basis":           {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "price_date":            {{"value": "ABSENT",         "confidence": 1.0, "evidence": "..."}},
-      "delivery_delay_days":   {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "validity_days":         {{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "discount_terms_present":{{"value": "NOT_APPLICABLE", "confidence": 1.0, "evidence": "..."}},
-      "review_required":       false,
-      "line_items":            []
-    }}
-  }},
-
-  "couche_5_gates": [
-    {{"gate_name": "gate_eligibility_passed", "gate_value": null, "gate_state": "NOT_APPLICABLE", "gate_threshold_value": null, "gate_reason_raw": "...", "gate_evidence_hint": "NOT_APPLICABLE", "confidence": 1.0}},
-    {{"gate_name": "gate_capacity_passed", "gate_value": null, "gate_state": "NOT_APPLICABLE", "gate_threshold_value": null, "gate_reason_raw": "...", "gate_evidence_hint": "NOT_APPLICABLE", "confidence": 1.0}},
-    {{"gate_name": "gate_visit_required", "gate_value": null, "gate_state": "NOT_APPLICABLE", "gate_threshold_value": null, "gate_reason_raw": "...", "gate_evidence_hint": "NOT_APPLICABLE", "confidence": 1.0}},
-    {{"gate_name": "gate_visit_passed", "gate_value": null, "gate_state": "NOT_APPLICABLE", "gate_threshold_value": null, "gate_reason_raw": "...", "gate_evidence_hint": "NOT_APPLICABLE", "confidence": 1.0}},
-    {{"gate_name": "gate_samples_required", "gate_value": null, "gate_state": "NOT_APPLICABLE", "gate_threshold_value": null, "gate_reason_raw": "...", "gate_evidence_hint": "NOT_APPLICABLE", "confidence": 1.0}},
-    {{"gate_name": "gate_samples_passed", "gate_value": null, "gate_state": "NOT_APPLICABLE", "gate_threshold_value": null, "gate_reason_raw": "...", "gate_evidence_hint": "NOT_APPLICABLE", "confidence": 1.0}},
-    {{"gate_name": "gate_commercial_eligible", "gate_value": null, "gate_state": "NOT_APPLICABLE", "gate_threshold_value": null, "gate_reason_raw": "...", "gate_evidence_hint": "NOT_APPLICABLE", "confidence": 1.0}},
-    {{"gate_name": "gate_financial_format_usable", "gate_value": null, "gate_state": "NOT_APPLICABLE", "gate_threshold_value": null, "gate_reason_raw": "...", "gate_evidence_hint": "NOT_APPLICABLE", "confidence": 1.0}},
-    {{"gate_name": "gate_line_item_extractable", "gate_value": null, "gate_state": "NOT_APPLICABLE", "gate_threshold_value": null, "gate_reason_raw": "...", "gate_evidence_hint": "NOT_APPLICABLE", "confidence": 1.0}},
-    {{"gate_name": "gate_negotiation_reached", "gate_value": null, "gate_state": "NOT_APPLICABLE", "gate_threshold_value": null, "gate_reason_raw": "...", "gate_evidence_hint": "NOT_APPLICABLE", "confidence": 1.0}}
-  ],
-
-  "identifiants": {{
-    "supplier_name_raw":        "NOT_APPLICABLE",
-    "supplier_name_normalized": "NOT_APPLICABLE",
-    "supplier_legal_form":      "{ABSENT}",
-    "supplier_identifier_raw":  "{ABSENT}",
-    "has_nif":                  "{ABSENT}",
-    "has_rccm":                 "{ABSENT}",
-    "has_rib":                  "{ABSENT}",
-    "supplier_address_raw":     "{ABSENT}",
-    "supplier_phone_raw":       "{ABSENT}",
-    "supplier_email_raw":       "{ABSENT}",
-    "quitus_fiscal_date":       "{ABSENT}",
-    "cert_non_faillite_date":   "{ABSENT}",
-    "case_id":                  "{ABSENT}",
-    "supplier_id":              "NOT_APPLICABLE",
-    "lot_scope":                [],
-    "zone_scope":               []
-  }},
-
-  "ambiguites": [],
-
-  "_meta": {{
-    "schema_version":          "{SCHEMA_VERSION}",
-    "framework_version":       "{FRAMEWORK_VERSION}",
-    "mistral_model_used":      "{MISTRAL_MODEL}",
-    "review_required":         false,
-    "annotation_status":       "pending",
-    "list_null_reason":        {{}},
-    "page_range":              {{"start": null, "end": null}},
-    "parent_document_id":      "NOT_APPLICABLE",
-    "parent_document_role":    "NOT_APPLICABLE",
-    "supplier_inherited_from": null
-  }}
-}}
-
-INSTRUCTIONS COMPLÉMENTAIRES :
-- Remplir chaque champ selon ce qui est RÉELLEMENT présent dans le document.
-- Si un champ n'est pas applicable → garder "NOT_APPLICABLE".
-- Si un champ est applicable mais absent du document → mettre "ABSENT".
-- Si présent mais illisible / contradictoire → mettre "AMBIGUOUS".
-- Offres financières : financial_layout_mode EN PREMIER. Si tableau → line_items avec unit_raw.
-  Ex. GOODS : {{"item_line_no":1,"item_description_raw":"Riz 50kg","unit_raw":"sac","quantity":200,"unit_price":25000,"line_total":5000000,"line_total_check":"OK","confidence":1.0,"evidence":"p.3"}}
-  Ex. SERVICES : {{"item_line_no":1,"item_description_raw":"Chef mission","unit_raw":"jour","quantity":30,"unit_price":150000,"line_total":4500000,"line_total_check":"OK","confidence":1.0,"evidence":"p.5"}}
-  unit_raw : kg, tonne, pièce, sac, jour, heure, forfait, m2, m3 — jamais vide.
-- Pour les gates : gate_value = true / false / null (booléen JSON, jamais string).
-- Retourner UNIQUEMENT le JSON. Rien d'autre."""
+def _build_messages(user_content: str) -> list[dict]:
+    """
+    Construit les messages pour l'API Mistral.
+    user_content contient le document. Instruction JSON pour response_format=json_object.
+    """
+    user_prompt = (
+        f"{user_content}\n\n"
+        "Extraire les données en JSON selon les règles du prompt système."
+    )
+    return [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_prompt},
+    ]
 
 
 # PARSER ROBUSTE — 5 tentatives + fallback loggué
@@ -538,27 +333,26 @@ def _build_ls_result(parsed: dict, task_id: int) -> list:
 
 
 async def _mistral_extract(text: str, task_id: int | None = None) -> dict:
-    """Appelle Mistral v3.0.1c. Retourne le dict parsé ou FALLBACK_RESPONSE."""
+    """Appelle Mistral v3.0.1d. Retourne le dict parsé ou FALLBACK_RESPONSE."""
     if not client:
         logger.warning("[MISTRAL] Client non configuré — fallback activé")
         return FALLBACK_RESPONSE
 
+    tid = task_id if task_id is not None else 0
+    text = _truncate_text(text, tid)
+    messages = _build_messages(text)
+
     try:
         response = client.chat.complete(
             model=MISTRAL_MODEL,
-            messages=[
-                {"role": "system", "content": PROMPT_SYSTEM},
-                {"role": "user", "content": _build_prompt(text)},
-            ],
+            messages=messages,
             temperature=0.1,
-            max_tokens=8192,
+            max_tokens=32000,
             response_format={"type": "json_object"},
         )
         raw = response.choices[0].message.content or ""
         logger.info("[MISTRAL] Réponse reçue — %d caractères", len(raw))
-        return _parse_mistral_response(
-            raw, task_id=task_id if task_id is not None else 0
-        )
+        return _parse_mistral_response(raw, task_id=tid)
 
     except Exception as exc:
         logger.error("[MISTRAL] Erreur appel API : %s — fallback activé", exc)
@@ -610,7 +404,7 @@ async def predict(request: Request) -> JSONResponse:
             logger.warning("[PREDICT] task_id=%s — texte vide, fallback", task_id)
             parsed = FALLBACK_RESPONSE
         else:
-            parsed = await _mistral_extract(text)
+            parsed = await _mistral_extract(text, task_id=task_id)
 
         result = _build_ls_result(parsed, task_id)
 

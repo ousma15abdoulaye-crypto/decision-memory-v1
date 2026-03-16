@@ -244,8 +244,8 @@
 ║  M10A    DONE  seasonal_patterns, zone_context, geo_corridors       ║
 ║  M10B    DONE  couche_a, agents, pg_notify (ADR-010)                ║
 ║  M11     DONE  5 dettes, 1106 signaux, severity NULL=0 (ADR-011)    ║
-║  M11-bis DONE — backend.py v3.0.1c + XML Label Studio v3.0.1c-fix   ║
-║                     PR #197 mergée 2026-03-11                        ║
+║  M11-bis DONE — backend v3.0.1d (ADR-015 unit_raw) + XML v3.0.1c   ║
+║                     PR #197 #199 #202 — ADR-015 2026-03-16          ║
 ║  M12     EN COURS                                                   ║
 ║          DETTE-7  DONE — imc_category_item_map + 046 + 046b        ║
 ║          DETTE-8  NEXT — signaux IMC → market_signals_v2            ║
