@@ -5,18 +5,11 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
-
 from ..models import (
-    analyses_table,
-    audits_table,
     deserialize_json,
     ensure_schema,
-    extractions_table,
     generate_id,
-    get_engine,
-    offers_table,
+    get_connection,
     serialize_json,
 )
 
@@ -56,71 +49,93 @@ async def analyze_offer(offer_id: str) -> dict[str, Any]:
     """Run the pre-analysis rules engine for an offer."""
 
     def _process() -> dict[str, Any]:
-        engine = get_engine()
-        ensure_schema(engine)
-        try:
-            with engine.begin() as conn:
-                offer_row = (
-                    conn.execute(
-                        select(offers_table).where(offers_table.c.id == offer_id)
-                    )
-                    .mappings()
-                    .first()
-                )
-                if not offer_row:
-                    raise ValueError("Offre introuvable.")
+        ensure_schema()
+        with get_connection() as conn:
+            conn.execute(
+                "SELECT * FROM offers WHERE id = %(offer_id)s",
+                {"offer_id": offer_id},
+            )
+            offer_row = conn.fetchone()
+            if not offer_row:
+                raise ValueError("Offre introuvable.")
 
-                extraction_row = (
-                    conn.execute(
-                        select(extractions_table)
-                        .where(extractions_table.c.offer_id == offer_id)
-                        .order_by(extractions_table.c.created_at.desc())
-                    )
-                    .mappings()
-                    .first()
-                )
+            conn.execute(
+                """
+                SELECT * FROM extractions
+                WHERE offer_id = %(offer_id)s
+                ORDER BY created_at DESC NULLS LAST, id DESC
+                LIMIT 1
+                """,
+                {"offer_id": offer_id},
+            )
+            extraction_row = conn.fetchone()
 
-                if not extraction_row:
-                    status = STATUS_REVUE
-                    scores = _compute_scores(["fournisseur", "montant"])
-                    missing_fields = ["fournisseur", "montant"]
-                else:
-                    missing_fields = deserialize_json(extraction_row["missing_json"])
-                    if not isinstance(missing_fields, list):
-                        missing_fields = []
-                    status = _derive_status(missing_fields)
-                    scores = _compute_scores(missing_fields)
+            if not extraction_row:
+                status = STATUS_REVUE
+                scores = _compute_scores(["fournisseur", "montant"])
+                missing_fields = ["fournisseur", "montant"]
+            else:
+                missing_fields = deserialize_json(extraction_row.get("missing_json"))
+                if not isinstance(missing_fields, list):
+                    missing_fields = []
+                status = _derive_status(missing_fields)
+                scores = _compute_scores(missing_fields)
 
-                analysis_id = generate_id()
-                conn.execute(
-                    analyses_table.insert().values(
-                        id=analysis_id,
-                        offer_id=offer_id,
-                        status=status,
-                        **scores,
-                    )
+            analysis_id = generate_id()
+            conn.execute(
+                """
+                INSERT INTO analyses (
+                    id, offer_id, case_id, status,
+                    essentials_score, capacity_score, sustainability_score,
+                    commercial_score, total_score, analysis_type, result_json, created_at
                 )
-                conn.execute(
-                    audits_table.insert().values(
-                        id=generate_id(),
-                        entity_type="analysis",
-                        entity_id=analysis_id,
-                        action="PRE_ANALYSE",
-                        actor=None,
-                        details_json=serialize_json(
-                            {"status": status, "missing_fields": missing_fields}
-                        ),
-                    )
+                VALUES (
+                    %(id)s, %(offer_id)s, %(case_id)s, %(status)s,
+                    %(essentials_score)s, %(capacity_score)s, %(sustainability_score)s,
+                    %(commercial_score)s, %(total_score)s, 'PRE_ANALYSE', %(result_json)s, NOW()::TEXT
                 )
+                """,
+                {
+                    "id": analysis_id,
+                    "offer_id": offer_id,
+                    "case_id": offer_row["case_id"],
+                    "status": status,
+                    "essentials_score": scores["essentials_score"],
+                    "capacity_score": scores["capacity_score"],
+                    "sustainability_score": scores["sustainability_score"],
+                    "commercial_score": scores["commercial_score"],
+                    "total_score": scores["total_score"],
+                    "result_json": serialize_json(
+                        {"status": status, "missing_fields": missing_fields}
+                    ),
+                },
+            )
+            conn.execute(
+                """
+                INSERT INTO audits (
+                    id, case_id, entity_type, entity_id, action, actor, details_json, created_at
+                )
+                VALUES (
+                    %(id)s, %(case_id)s, 'analysis', %(entity_id)s, 'PRE_ANALYSE', %(actor)s, %(details_json)s, NOW()::TEXT
+                )
+                """,
+                {
+                    "id": generate_id(),
+                    "case_id": offer_row["case_id"],
+                    "entity_id": analysis_id,
+                    "actor": None,
+                    "details_json": serialize_json(
+                        {"status": status, "missing_fields": missing_fields}
+                    ),
+                },
+            )
 
-            return {
-                "analysis_id": analysis_id,
-                "offer_id": offer_id,
-                "status": status,
-                "scores": scores,
-                "missing_fields": missing_fields,
-            }
-        except SQLAlchemyError as exc:
-            raise RuntimeError("Erreur lors de la pré-analyse.") from exc
+        return {
+            "analysis_id": analysis_id,
+            "offer_id": offer_id,
+            "status": status,
+            "scores": scores,
+            "missing_fields": missing_fields,
+        }
 
     return await asyncio.to_thread(_process)

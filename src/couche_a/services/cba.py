@@ -9,19 +9,12 @@ from typing import Any
 from fastapi import UploadFile
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill
-from sqlalchemy import func, select
-from sqlalchemy.exc import SQLAlchemyError
 
 from ..models import (
-    analyses_table,
-    audits_table,
     deserialize_json,
-    documents_table,
     ensure_schema,
-    extractions_table,
     generate_id,
-    get_engine,
-    offers_table,
+    get_connection,
     serialize_json,
 )
 
@@ -56,106 +49,124 @@ async def export_cba(offer_id: str, actor: str | None = None) -> dict[str, Any]:
     """Generate and store a CBA export for an offer."""
 
     def _process() -> dict[str, Any]:
-        engine = get_engine()
-        ensure_schema(engine)
-        try:
-            with engine.begin() as conn:
-                offer = (
-                    conn.execute(
-                        select(offers_table).where(offers_table.c.id == offer_id)
-                    )
-                    .mappings()
-                    .first()
-                )
-                if not offer:
-                    raise ValueError("Offre introuvable.")
-                extraction = (
-                    conn.execute(
-                        select(extractions_table)
-                        .where(extractions_table.c.offer_id == offer_id)
-                        .order_by(extractions_table.c.created_at.desc())
-                    )
-                    .mappings()
-                    .first()
-                )
-                analysis = (
-                    conn.execute(
-                        select(analyses_table)
-                        .where(analyses_table.c.offer_id == offer_id)
-                        .order_by(analyses_table.c.created_at.desc())
-                    )
-                    .mappings()
-                    .first()
-                )
+        ensure_schema()
+        with get_connection() as conn:
+            conn.execute(
+                "SELECT * FROM offers WHERE id = %(offer_id)s",
+                {"offer_id": offer_id},
+            )
+            offer = conn.fetchone()
+            if not offer:
+                raise ValueError("Offre introuvable.")
 
-                missing_fields = []
-                if extraction:
-                    missing_fields = deserialize_json(extraction["missing_json"])
-                    if not isinstance(missing_fields, list):
-                        missing_fields = []
-                manual_review = not extraction or bool(missing_fields)
+            conn.execute(
+                """
+                SELECT * FROM extractions
+                WHERE offer_id = %(offer_id)s
+                ORDER BY created_at DESC NULLS LAST, id DESC
+                LIMIT 1
+                """,
+                {"offer_id": offer_id},
+            )
+            extraction = conn.fetchone()
 
-                existing_exports = conn.execute(
-                    select(func.count())
-                    .select_from(documents_table)
-                    .where(
-                        (documents_table.c.offer_id == offer_id)
-                        & (documents_table.c.document_type == "CBA_EXPORT")
-                    )
-                ).scalar_one()
-                version = int(existing_exports) + 1
+            conn.execute(
+                """
+                SELECT * FROM analyses
+                WHERE offer_id = %(offer_id)s
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                {"offer_id": offer_id},
+            )
+            analysis = conn.fetchone()
 
-                payload = {
-                    "supplier_name": offer["supplier_name"],
-                    "amount": offer["amount"],
-                    "status": analysis["status"] if analysis else "EN_ATTENTE",
-                    "essentiels": {"fournisseur": offer["supplier_name"]},
-                    "capacité": {},
-                    "durabilité": {},
-                    "commercial": {"montant": offer["amount"]},
-                    "manual_review": manual_review,
-                }
-                wb = _build_workbook(payload)
+            missing_fields = []
+            if extraction:
+                missing_fields = deserialize_json(extraction.get("missing_json"))
+                if not isinstance(missing_fields, list):
+                    missing_fields = []
+            manual_review = not extraction or bool(missing_fields)
 
-                export_dir = Path("data") / "couche_a" / "exports" / offer_id
-                export_dir.mkdir(parents=True, exist_ok=True)
-                filename = f"cba_{offer_id}_v{version}.xlsx"
-                export_path = export_dir / filename
-                wb.save(export_path)
+            conn.execute(
+                """
+                SELECT COUNT(*) AS cnt FROM documents
+                WHERE offer_id = %(offer_id)s AND document_type = 'CBA_EXPORT'
+                """,
+                {"offer_id": offer_id},
+            )
+            row = conn.fetchone()
+            existing_exports = row["cnt"] if row else 0
+            version = int(existing_exports) + 1
 
-                doc_id = generate_id()
-                metadata = {"version": version, "manual_review": manual_review}
-                conn.execute(
-                    documents_table.insert().values(
-                        id=doc_id,
-                        case_id=offer["case_id"],
-                        lot_id=offer["lot_id"],
-                        offer_id=offer_id,
-                        document_type="CBA_EXPORT",
-                        filename=filename,
-                        storage_path=str(export_path),
-                        mime_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        metadata_json=serialize_json(metadata),
-                    )
+            payload = {
+                "supplier_name": offer["supplier_name"],
+                "amount": offer.get("amount"),
+                "status": analysis["status"] if analysis else "EN_ATTENTE",
+                "essentiels": {"fournisseur": offer["supplier_name"]},
+                "capacité": {},
+                "durabilité": {},
+                "commercial": {"montant": offer.get("amount")},
+                "manual_review": manual_review,
+            }
+            wb = _build_workbook(payload)
+
+            export_dir = Path("data") / "couche_a" / "exports" / offer_id
+            export_dir.mkdir(parents=True, exist_ok=True)
+            filename = f"cba_{offer_id}_v{version}.xlsx"
+            export_path = export_dir / filename
+            wb.save(export_path)
+
+            doc_id = generate_id()
+            metadata = {"version": version, "manual_review": manual_review}
+            storage_path = str(export_path)
+            conn.execute(
+                """
+                INSERT INTO documents (
+                    id, case_id, lot_id, offer_id, document_type, filename,
+                    storage_path, path, mime_type, metadata_json, uploaded_at
                 )
-                conn.execute(
-                    audits_table.insert().values(
-                        id=generate_id(),
-                        entity_type="cba",
-                        entity_id=doc_id,
-                        action="EXPORT",
-                        actor=actor,
-                        details_json=serialize_json(metadata),
-                    )
+                VALUES (
+                    %(id)s, %(case_id)s, %(lot_id)s, %(offer_id)s, 'CBA_EXPORT', %(filename)s,
+                    %(storage_path)s, %(path)s, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    %(metadata_json)s, NOW()::TEXT
                 )
-                return {
-                    "document_id": doc_id,
+                """,
+                {
+                    "id": doc_id,
+                    "case_id": offer["case_id"],
+                    "lot_id": offer.get("lot_id"),
                     "offer_id": offer_id,
-                    "version": version,
-                    "path": str(export_path),
-                }
-        except (SQLAlchemyError, OSError) as exc:
-            raise RuntimeError("Erreur lors de l'export CBA.") from exc
+                    "filename": filename,
+                    "storage_path": storage_path,
+                    "path": storage_path,
+                    "metadata_json": serialize_json(metadata),
+                },
+            )
+            conn.execute(
+                """
+                INSERT INTO audits (
+                    id, case_id, entity_type, entity_id, action, actor, details_json, created_at
+                )
+                VALUES (
+                    %(id)s, %(case_id)s, 'cba', %(entity_id)s, 'EXPORT', %(actor)s, %(details_json)s, NOW()::TEXT
+                )
+                """,
+                {
+                    "id": generate_id(),
+                    "case_id": offer["case_id"],
+                    "entity_id": doc_id,
+                    "actor": actor,
+                    "details_json": serialize_json(metadata),
+                },
+            )
+
+        return {
+            "document_id": doc_id,
+            "offer_id": offer_id,
+            "version": version,
+            "path": str(export_path),
+        }
 
     return await asyncio.to_thread(_process)
 
@@ -174,46 +185,57 @@ async def upload_cba_review(
     review_path = review_dir / filename
 
     def _persist() -> dict[str, Any]:
-        engine = get_engine()
-        ensure_schema(engine)
-        try:
-            review_path.write_bytes(file_bytes)
-            with engine.begin() as conn:
-                offer = (
-                    conn.execute(
-                        select(offers_table).where(offers_table.c.id == offer_id)
-                    )
-                    .mappings()
-                    .first()
+        ensure_schema()
+        review_path.write_bytes(file_bytes)
+        with get_connection() as conn:
+            conn.execute(
+                "SELECT * FROM offers WHERE id = %(offer_id)s",
+                {"offer_id": offer_id},
+            )
+            offer = conn.fetchone()
+            if not offer:
+                raise ValueError("Offre introuvable.")
+            doc_id = generate_id()
+            conn.execute(
+                """
+                INSERT INTO documents (
+                    id, case_id, lot_id, offer_id, document_type, filename,
+                    storage_path, path, mime_type, metadata_json, uploaded_at
                 )
-                if not offer:
-                    raise ValueError("Offre introuvable.")
-                doc_id = generate_id()
-                conn.execute(
-                    documents_table.insert().values(
-                        id=doc_id,
-                        case_id=offer["case_id"],
-                        lot_id=offer["lot_id"],
-                        offer_id=offer_id,
-                        document_type="CBA_REVIEW",
-                        filename=filename,
-                        storage_path=str(review_path),
-                        mime_type=upload.content_type or "application/octet-stream",
-                        metadata_json=serialize_json({"reviewer": reviewer}),
-                    )
+                VALUES (
+                    %(id)s, %(case_id)s, %(lot_id)s, %(offer_id)s, 'CBA_REVIEW', %(filename)s,
+                    %(storage_path)s, %(path)s, %(mime_type)s, %(metadata_json)s, NOW()::TEXT
                 )
-                conn.execute(
-                    audits_table.insert().values(
-                        id=generate_id(),
-                        entity_type="cba",
-                        entity_id=doc_id,
-                        action="REVIEW_UPLOAD",
-                        actor=reviewer,
-                        details_json=serialize_json({"filename": filename}),
-                    )
+                """,
+                {
+                    "id": doc_id,
+                    "case_id": offer["case_id"],
+                    "lot_id": offer.get("lot_id"),
+                    "offer_id": offer_id,
+                    "filename": filename,
+                    "storage_path": str(review_path),
+                    "path": str(review_path),
+                    "mime_type": upload.content_type or "application/octet-stream",
+                    "metadata_json": serialize_json({"reviewer": reviewer}),
+                },
+            )
+            conn.execute(
+                """
+                INSERT INTO audits (
+                    id, case_id, entity_type, entity_id, action, actor, details_json, created_at
                 )
-            return {"document_id": doc_id, "path": str(review_path)}
-        except (SQLAlchemyError, OSError) as exc:
-            raise RuntimeError("Erreur lors du dépôt CBA.") from exc
+                VALUES (
+                    %(id)s, %(case_id)s, 'cba', %(entity_id)s, 'REVIEW_UPLOAD', %(actor)s, %(details_json)s, NOW()::TEXT
+                )
+                """,
+                {
+                    "id": generate_id(),
+                    "case_id": offer["case_id"],
+                    "entity_id": doc_id,
+                    "actor": reviewer,
+                    "details_json": serialize_json({"filename": filename}),
+                },
+            )
+        return {"document_id": doc_id, "path": str(review_path)}
 
     return await asyncio.to_thread(_persist)

@@ -410,11 +410,9 @@ def extract_offer_content(
 ):
     """
     Extraction (synchrone) selon le type d'offre.
+    E-36: stub remplacé — pending si LLM non configuré.
     """
-    import time
-
-    time.sleep(2)
     logger.info(
         f"Extraction offre {offer_type} terminée pour case {case_id}, artifact {artifact_id}"
     )
-    return {"status": "completed"}
+    return {"status": "pending", "reason": "llm_not_configured"}

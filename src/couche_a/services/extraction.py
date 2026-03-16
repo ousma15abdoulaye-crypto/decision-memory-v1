@@ -10,17 +10,11 @@ from typing import Any
 from docx import Document as DocxDocument
 from openpyxl import load_workbook
 from pypdf import PdfReader
-from sqlalchemy import select, update
-from sqlalchemy.exc import SQLAlchemyError
 
 from ..models import (
-    audits_table,
-    documents_table,
     ensure_schema,
-    extractions_table,
     generate_id,
-    get_engine,
-    offers_table,
+    get_connection,
     serialize_json,
 )
 
@@ -114,71 +108,99 @@ async def extract_and_store(
     """Extract data from a document and store the results."""
 
     def _process() -> dict[str, Any]:
-        engine = get_engine()
-        ensure_schema(engine)
-        try:
-            with engine.begin() as conn:
-                doc_row = (
+        ensure_schema()
+        with get_connection() as conn:
+            conn.execute(
+                "SELECT * FROM documents WHERE id = %(document_id)s",
+                {"document_id": document_id},
+            )
+            doc_row = conn.fetchone()
+            if not doc_row:
+                raise ValueError("Document introuvable.")
+
+            storage_path = doc_row.get("storage_path") or doc_row.get("path")
+            if not storage_path:
+                raise ValueError("Document sans chemin de stockage.")
+            file_path = Path(storage_path)
+            text = extract_text(file_path)
+            extracted, missing = extract_fields(text)
+
+            extraction_id = generate_id()
+            offer_id = doc_row.get("offer_id")
+            conn.execute(
+                """
+                INSERT INTO extractions (
+                    id, case_id, document_id, offer_id,
+                    extracted_json, missing_json, used_llm, data_json, created_at
+                )
+                VALUES (
+                    %(id)s, %(case_id)s, %(document_id)s, %(offer_id)s,
+                    %(extracted_json)s, %(missing_json)s, %(used_llm)s, %(data_json)s, NOW()::TEXT
+                )
+                """,
+                {
+                    "id": extraction_id,
+                    "case_id": doc_row["case_id"],
+                    "document_id": document_id,
+                    "offer_id": offer_id,
+                    "extracted_json": serialize_json(extracted),
+                    "missing_json": serialize_json(missing),
+                    "used_llm": llm_enabled,
+                    "data_json": serialize_json(extracted),
+                },
+            )
+
+            if offer_id and (
+                extracted.get("fournisseur") is not None
+                or extracted.get("montant") is not None
+            ):
+                supplier = extracted.get("fournisseur")
+                montant = extracted.get("montant")
+                if supplier is not None and montant is not None:
                     conn.execute(
-                        select(documents_table).where(
-                            documents_table.c.id == document_id
-                        )
+                        "UPDATE offers SET supplier_name = %(supplier_name)s, amount = %(amount)s WHERE id = %(offer_id)s",
+                        {
+                            "supplier_name": supplier,
+                            "amount": montant,
+                            "offer_id": offer_id,
+                        },
                     )
-                    .mappings()
-                    .first()
-                )
-                if not doc_row:
-                    raise ValueError("Document introuvable.")
-
-                file_path = Path(doc_row["storage_path"])
-                text = extract_text(file_path)
-                extracted, missing = extract_fields(text)
-
-                extraction_id = generate_id()
-                conn.execute(
-                    extractions_table.insert().values(
-                        id=extraction_id,
-                        document_id=document_id,
-                        offer_id=doc_row["offer_id"],
-                        extracted_json=serialize_json(extracted),
-                        missing_json=serialize_json(missing),
-                        used_llm=llm_enabled,
-                    )
-                )
-
-                update_payload: dict[str, Any] = {}
-                if extracted.get("fournisseur"):
-                    update_payload["supplier_name"] = extracted["fournisseur"]
-                if extracted.get("montant") is not None:
-                    update_payload["amount"] = extracted["montant"]
-                if update_payload:
+                elif supplier is not None:
                     conn.execute(
-                        update(offers_table)
-                        .where(offers_table.c.id == doc_row["offer_id"])
-                        .values(**update_payload)
+                        "UPDATE offers SET supplier_name = %(supplier_name)s WHERE id = %(offer_id)s",
+                        {"supplier_name": supplier, "offer_id": offer_id},
+                    )
+                else:
+                    conn.execute(
+                        "UPDATE offers SET amount = %(amount)s WHERE id = %(offer_id)s",
+                        {"amount": montant, "offer_id": offer_id},
                     )
 
-                conn.execute(
-                    audits_table.insert().values(
-                        id=generate_id(),
-                        entity_type="extraction",
-                        entity_id=extraction_id,
-                        action="EXTRACTION",
-                        actor=None,
-                        details_json=serialize_json(
-                            {"missing_fields": missing, "llm_enabled": llm_enabled}
-                        ),
-                    )
+            conn.execute(
+                """
+                INSERT INTO audits (
+                    id, case_id, entity_type, entity_id, action, actor, details_json, created_at
                 )
+                VALUES (
+                    %(id)s, %(case_id)s, 'extraction', %(entity_id)s, 'EXTRACTION', NULL, %(details_json)s, NOW()::TEXT
+                )
+                """,
+                {
+                    "id": generate_id(),
+                    "case_id": doc_row["case_id"],
+                    "entity_id": extraction_id,
+                    "details_json": serialize_json(
+                        {"missing_fields": missing, "llm_enabled": llm_enabled}
+                    ),
+                },
+            )
 
-            return {
-                "extraction_id": extraction_id,
-                "document_id": document_id,
-                "extracted": extracted,
-                "missing_fields": missing,
-                "llm_enabled": llm_enabled,
-            }
-        except (SQLAlchemyError, OSError) as exc:
-            raise RuntimeError("Erreur lors de l'extraction.") from exc
+        return {
+            "extraction_id": extraction_id,
+            "document_id": document_id,
+            "extracted": extracted,
+            "missing_fields": missing,
+            "llm_enabled": llm_enabled,
+        }
 
     return await asyncio.to_thread(_process)

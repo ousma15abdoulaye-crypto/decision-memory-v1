@@ -7,18 +7,11 @@ from pathlib import Path
 from typing import Any
 
 from docx import Document
-from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
 
 from ..models import (
-    analyses_table,
-    audits_table,
-    documents_table,
     ensure_schema,
     generate_id,
-    get_engine,
-    lots_table,
-    offers_table,
+    get_connection,
     serialize_json,
 )
 
@@ -49,82 +42,93 @@ async def generate_pv_analyse(lot_id: str, actor: str | None = None) -> dict[str
 
 async def _generate_pv(lot_id: str, kind: str, actor: str | None) -> dict[str, Any]:
     def _process() -> dict[str, Any]:
-        engine = get_engine()
-        ensure_schema(engine)
-        try:
-            with engine.begin() as conn:
-                lot = (
-                    conn.execute(select(lots_table).where(lots_table.c.id == lot_id))
-                    .mappings()
-                    .first()
-                )
-                if not lot:
-                    raise ValueError("Lot introuvable.")
+        ensure_schema()
+        with get_connection() as conn:
+            conn.execute(
+                "SELECT * FROM lots WHERE id = %(lot_id)s",
+                {"lot_id": lot_id},
+            )
+            lot = conn.fetchone()
+            if not lot:
+                raise ValueError("Lot introuvable.")
 
-                offers = (
-                    conn.execute(
-                        select(
-                            offers_table,
-                            analyses_table.c.status.label("analysis_status"),
-                        )
-                        .select_from(
-                            offers_table.outerjoin(
-                                analyses_table,
-                                analyses_table.c.offer_id == offers_table.c.id,
-                            )
-                        )
-                        .where(offers_table.c.lot_id == lot_id)
-                    )
-                    .mappings()
-                    .all()
-                )
-                if not offers:
-                    raise ValueError("Aucune offre disponible pour ce lot.")
+            conn.execute(
+                """
+                SELECT o.id, o.supplier_name, o.amount, o.lot_id, o.case_id,
+                       a.status AS analysis_status
+                FROM offers o
+                LEFT JOIN analyses a ON a.offer_id = o.id
+                WHERE o.lot_id = %(lot_id)s
+                """,
+                {"lot_id": lot_id},
+            )
+            offers = conn.fetchall()
+            if not offers:
+                raise ValueError("Aucune offre disponible pour ce lot.")
 
-                offer_payload = [
-                    {
-                        "supplier_name": offer["supplier_name"],
-                        "amount": offer["amount"],
-                        "status": offer.get("analysis_status")
-                        or offer.get("status")
-                        or "EN_ATTENTE",
-                    }
-                    for offer in offers
-                ]
-                doc = _build_pv_doc(kind, lot["name"], offer_payload)
+            lot_name = lot.get("name") or lot.get("lot_number") or lot_id
+            offer_payload = [
+                {
+                    "supplier_name": o["supplier_name"],
+                    "amount": o.get("amount"),
+                    "status": o.get("analysis_status")
+                    or o.get("status")
+                    or "EN_ATTENTE",
+                }
+                for o in offers
+            ]
+            doc = _build_pv_doc(kind, lot_name, offer_payload)
 
-                pv_dir = Path("data") / "couche_a" / "pv" / lot_id
-                pv_dir.mkdir(parents=True, exist_ok=True)
-                filename = f"pv_{kind.lower()}_{lot_id}.docx"
-                pv_path = pv_dir / filename
-                doc.save(pv_path)
+            pv_dir = Path("data") / "couche_a" / "pv" / lot_id
+            pv_dir.mkdir(parents=True, exist_ok=True)
+            filename = f"pv_{kind.lower()}_{lot_id}.docx"
+            pv_path = pv_dir / filename
+            doc.save(pv_path)
 
-                doc_id = generate_id()
-                conn.execute(
-                    documents_table.insert().values(
-                        id=doc_id,
-                        case_id=lot["case_id"],
-                        lot_id=lot_id,
-                        offer_id=offers[0]["id"],
-                        document_type=f"PV_{kind}",
-                        filename=filename,
-                        storage_path=str(pv_path),
-                        mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        metadata_json=serialize_json({"lot_id": lot_id}),
-                    )
+            doc_id = generate_id()
+            conn.execute(
+                """
+                INSERT INTO documents (
+                    id, case_id, lot_id, offer_id, document_type, filename,
+                    storage_path, path, mime_type, metadata_json, uploaded_at
                 )
-                conn.execute(
-                    audits_table.insert().values(
-                        id=generate_id(),
-                        entity_type="pv",
-                        entity_id=doc_id,
-                        action=f"PV_{kind}",
-                        actor=actor,
-                        details_json=serialize_json({"lot_id": lot_id}),
-                    )
+                VALUES (
+                    %(id)s, %(case_id)s, %(lot_id)s, %(offer_id)s, %(document_type)s, %(filename)s,
+                    %(storage_path)s, %(path)s, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    %(metadata_json)s, NOW()::TEXT
                 )
-                return {"document_id": doc_id, "path": str(pv_path)}
-        except (SQLAlchemyError, OSError) as exc:
-            raise RuntimeError("Erreur lors de la génération du PV.") from exc
+                """,
+                {
+                    "id": doc_id,
+                    "case_id": lot["case_id"],
+                    "lot_id": lot_id,
+                    "offer_id": offers[0]["id"],
+                    "document_type": f"PV_{kind}",
+                    "filename": filename,
+                    "storage_path": str(pv_path),
+                    "path": str(pv_path),
+                    "metadata_json": serialize_json({"lot_id": lot_id}),
+                },
+            )
+            conn.execute(
+                """
+                INSERT INTO audits (
+                    id, case_id, entity_type, entity_id, action, actor, details_json, created_at
+                )
+                VALUES (
+                    %(id)s, %(case_id)s, 'pv', %(entity_id)s, %(action)s, %(actor)s, %(details_json)s, NOW()::TEXT
+                )
+                """,
+                {
+                    "id": generate_id(),
+                    "case_id": lot["case_id"],
+                    "entity_id": doc_id,
+                    "action": f"PV_{kind}",
+                    "actor": actor,
+                    "details_json": serialize_json({"lot_id": lot_id}),
+                },
+            )
+
+        return {"document_id": doc_id, "path": str(pv_path)}
 
     return await asyncio.to_thread(_process)
