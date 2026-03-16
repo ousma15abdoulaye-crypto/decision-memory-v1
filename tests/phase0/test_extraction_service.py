@@ -298,11 +298,12 @@ class TestMistralOCRGuards:
         monkeypatch.setenv("STORAGE_BASE_PATH", str(tmp_path))
         path = self._make_png_file(tmp_path)
 
-        # Mock filetype via sys.modules — compatible toutes branches
-        # (file_bytes direct ou _detect_mime_from_header selon la version)
-        mock_ft = MagicMock()
-        mock_ft.guess.return_value = SimpleNamespace(mime="image/png")
+        # Patch _detect_mime_from_header pour retourner image/png
+        import src.extraction.engine as _eng
 
+        monkeypatch.setattr(_eng, "_detect_mime_from_header", lambda _: "image/png")
+
+        # Mock Mistral Files API (ADR-M11-002 — Mandat 2)
         mock_client = MagicMock()
         mock_client.files.upload.return_value = SimpleNamespace(id="file-test")
         mock_client.ocr.process.return_value = SimpleNamespace(
@@ -312,23 +313,17 @@ class TestMistralOCRGuards:
         mock_mistral_module = MagicMock()
         mock_mistral_module.Mistral.return_value = mock_client
 
-        orig_ft = sys.modules.get("filetype")
-        orig_mis = sys.modules.get("mistralai")
-        sys.modules["filetype"] = mock_ft
+        orig = sys.modules.get("mistralai")
         sys.modules["mistralai"] = mock_mistral_module
         try:
             raw_text, structured = _extract_mistral_ocr(path)
             assert raw_text == "Texte extrait mock"
             assert isinstance(structured, dict)
         finally:
-            if orig_ft is None:
-                sys.modules.pop("filetype", None)
-            else:
-                sys.modules["filetype"] = orig_ft
-            if orig_mis is None:
+            if orig is None:
                 sys.modules.pop("mistralai", None)
             else:
-                sys.modules["mistralai"] = orig_mis
+                sys.modules["mistralai"] = orig
 
     def test_missing_api_key_raises(self, monkeypatch, tmp_path):
         """Pas de MISTRAL_API_KEY → APIKeyMissingError."""
