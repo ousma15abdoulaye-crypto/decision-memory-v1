@@ -13,7 +13,6 @@ SLA-B : tesseract / azure / llamaparse / mistral_ocr
 from __future__ import annotations
 
 # stdlib
-import base64
 import json
 import os
 import time
@@ -272,53 +271,50 @@ def _extract_llamaparse(storage_uri: str) -> tuple[str, dict]:
     return raw_text, dict(STRUCTURED_DATA_EMPTY)
 
 
-_MISTRAL_OCR_MAX_BYTES = 50 * 1024 * 1024  # 50 MB guard-rail pour PDF multi-pages
-_MISTRAL_OCR_SUPPORTED_MIMES = (
-    "image/",
-    "application/pdf",
-)
+# Mandat 2 — Files API : stream upload, zéro RAM, cleanup garanti
+_MISTRAL_OCR_MAX_BYTES = 50 * 1024 * 1024  # 50 MB guard-rail
+_MISTRAL_OCR_SUPPORTED_MIMES = ("image/", "application/pdf")
+
+
+def _ocr_pages_to_text(response: object) -> str:
+    """Extrait le texte Markdown depuis response.pages (mistral-ocr-latest)."""
+    if hasattr(response, "pages") and response.pages:
+        return "\n\n".join(
+            getattr(p, "markdown", "") or getattr(p, "text", "") for p in response.pages
+        )
+    return getattr(response, "text", "") or ""
 
 
 def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
-    """Extraction OCR via mistral-ocr-latest (SLA-B) — ADR-M11-002.
+    """OCR via Mistral Files API (SLA-B) — Mandat 2 / ADR-M11-002.
 
-    Supporte : PDF scannés multi-pages, PNG, JPEG, TIFF.
-    API : client.ocr.process() avec document base64 pour fichiers locaux.
-    Fallback Azure : activé si AZURE_FORM_RECOGNIZER_ENDPOINT et AZURE_FORM_RECOGNIZER_KEY sont définis.
+    Pattern : upload (stream) → ocr.process(file_id) → delete (finally).
+    RAM consommée : ~2 MB (chunk réseau) au lieu de 117 MB (base64 full-load).
+    Fallback Azure actif si AZURE_FORM_RECOGNIZER_ENDPOINT défini.
     Lève APIKeyMissingError si MISTRAL_API_KEY absent.
     """
     _validate_storage_uri(storage_uri)
     api_key = get_mistral_api_key()
 
+    # Guard taille avant ouverture
     file_size = os.path.getsize(storage_uri)
     if file_size > _MISTRAL_OCR_MAX_BYTES:
         raise ValueError(
-            f"Fichier trop volumineux pour Mistral OCR "
-            f"({file_size / 1024 / 1024:.1f} MB > "
-            f"{_MISTRAL_OCR_MAX_BYTES / 1024 / 1024:.0f} MB)."
+            f"Fichier trop volumineux ({file_size / 1024 / 1024:.1f} MB > "
+            f"{_MISTRAL_OCR_MAX_BYTES / 1024 / 1024:.0f} MB). "
+            "Découper le PDF avant envoi."
         )
 
-    with open(storage_uri, "rb") as f:
-        file_bytes = f.read()
-
-    try:
-        import filetype as _ft  # type: ignore
-
-        detected = _ft.guess(file_bytes)
-        mime = detected.mime if detected else "application/octet-stream"
-    except Exception:
-        mime = "application/octet-stream"
-
-    # Fallback Azure si endpoint + key configurés et MIME non supporté par OCR Mistral
+    # Détection MIME sans charger le fichier entier en RAM
+    mime = _detect_mime_from_header(storage_uri)
     azure_endpoint = os.environ.get("AZURE_FORM_RECOGNIZER_ENDPOINT", "")
-    azure_key = os.environ.get("AZURE_FORM_RECOGNIZER_KEY", "")
+
     if not any(mime.startswith(p) for p in _MISTRAL_OCR_SUPPORTED_MIMES):
-        if azure_endpoint and azure_key:
-            return _extract_azure_ocr_fallback(storage_uri, file_bytes, mime)
+        if azure_endpoint:
+            return _extract_azure_ocr_fallback(storage_uri, mime)
         raise ValueError(
             f"Mistral OCR : type non supporté '{mime}'. "
-            "Configurer AZURE_FORM_RECOGNIZER_ENDPOINT et AZURE_FORM_RECOGNIZER_KEY "
-            "pour activer le fallback Azure."
+            "Configurer AZURE_FORM_RECOGNIZER_ENDPOINT pour le fallback."
         )
 
     try:
@@ -331,31 +327,57 @@ def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
     from src.couche_a.llm_router import TIER_1_OCR_MODEL
 
     client = Mistral(api_key=api_key)
-    b64 = base64.b64encode(file_bytes).decode()
+    file_name = os.path.basename(storage_uri)
+    uploaded_id: str | None = None
 
-    # Choisir le type de document selon le MIME
-    doc_type = "document_url" if mime == "application/pdf" else "image_url"
-    data_url = f"data:{mime};base64,{b64}"
+    try:
+        # Étape 1 — upload en streaming (file handle, pas de bytes en mémoire)
+        with open(storage_uri, "rb") as fh:
+            uploaded = client.files.upload(
+                file={"file_name": file_name, "content": fh},
+                purpose="ocr",
+            )
+        uploaded_id = uploaded.id
 
-    response = client.ocr.process(
-        model=TIER_1_OCR_MODEL,
-        document=({"type": doc_type, doc_type: {"url": data_url}}),
-    )
-    # mistral-ocr retourne response.pages (liste) ou response.text selon version SDK
-    if hasattr(response, "pages") and response.pages:
-        raw_text = "\n\n".join(
-            getattr(p, "markdown", "") or getattr(p, "text", "") for p in response.pages
+        # Étape 2 — OCR via file_id (URL signée gérée côté Mistral Cloud)
+        response = client.ocr.process(
+            model=TIER_1_OCR_MODEL,
+            document={"type": "file_id", "file_id": uploaded_id},
         )
-    else:
-        raw_text = getattr(response, "text", "") or ""
+        raw_text = _ocr_pages_to_text(response)
+
+    finally:
+        # Étape 3 — cleanup obligatoire quelle que soit l'issue
+        if uploaded_id:
+            try:
+                client.files.delete(file_id=uploaded_id)
+            except Exception as cleanup_err:  # noqa: BLE001
+                import logging as _log
+
+                _log.getLogger(__name__).warning(
+                    "[OCR] Fichier Mistral Cloud non supprimé id=%s : %s",
+                    uploaded_id,
+                    cleanup_err,
+                )
 
     return raw_text, dict(STRUCTURED_DATA_EMPTY)
 
 
-def _extract_azure_ocr_fallback(
-    storage_uri: str, file_bytes: bytes, mime: str
-) -> tuple[str, dict]:
-    """Fallback Azure Form Recognizer — activé si AZURE_FORM_RECOGNIZER_ENDPOINT défini."""
+def _detect_mime_from_header(storage_uri: str) -> str:
+    """Détecte le MIME en lisant seulement les 512 premiers octets (magic bytes)."""
+    try:
+        import filetype as _ft  # type: ignore
+
+        with open(storage_uri, "rb") as fh:
+            header = fh.read(512)
+        detected = _ft.guess(header)
+        return detected.mime if detected else "application/octet-stream"
+    except Exception:
+        return "application/octet-stream"
+
+
+def _extract_azure_ocr_fallback(storage_uri: str, mime: str) -> tuple[str, dict]:
+    """Fallback Azure Form Recognizer — stream, pas de bytes en RAM."""
     endpoint = os.environ.get("AZURE_FORM_RECOGNIZER_ENDPOINT", "")
     key = os.environ.get("AZURE_FORM_RECOGNIZER_KEY", "")
     if not endpoint or not key:
@@ -375,7 +397,8 @@ def _extract_azure_ocr_fallback(
     az_client = DocumentAnalysisClient(
         endpoint=endpoint, credential=AzureKeyCredential(key)
     )
-    poller = az_client.begin_analyze_document("prebuilt-read", file_bytes)
+    with open(storage_uri, "rb") as fh:
+        poller = az_client.begin_analyze_document("prebuilt-read", fh)
     result = poller.result()
     raw_text = (
         "\n".join(p.content for p in result.paragraphs) if result.paragraphs else ""

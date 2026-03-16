@@ -251,8 +251,8 @@ FORMAT : JSON brut uniquement. INTERDIT ```json```, texte avant/après, commenta
 
 
 def _build_prompt(text: str) -> str:
-    # Tronquer à 12 000 caractères pour rester dans le contexte Mistral small
-    text_trimmed = text[:12000] if len(text) > 12000 else text
+    # 80 000 chars ≈ 20 000 tokens — compatible mistral-large (131k ctx) et mistral-small
+    text_trimmed = text[:80000] if len(text) > 80000 else text
     return f"""Analyse ce document procurement et retourne UNIQUEMENT un JSON conforme au schéma ci-dessous.
 
 DOCUMENT :
