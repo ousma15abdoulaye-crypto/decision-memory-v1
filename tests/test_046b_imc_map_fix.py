@@ -74,6 +74,7 @@ def test_functional_index_imc_entries(db_conn):
 VALID_ALEMBIC_HEADS = (
     "046b_imc_map_fix_restrict_indexes",
     "047_couche_a_service_columns",
+    "048_vendors_sensitive_data",
     "m7_4_dict_vivant",  # branche parallèle
 )
 
