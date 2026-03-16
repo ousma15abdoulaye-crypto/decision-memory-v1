@@ -16,6 +16,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from mistralai import Mistral
+from typing import Optional
 
 # ─────────────────────────────────────────────────────────
 # CONSTANTES — FREEZE v3.0.1c
@@ -424,7 +425,7 @@ INSTRUCTIONS COMPLÉMENTAIRES :
 
 
 # ─────────────────────────────────────────────────────────
-# PARSER ROBUSTE — 4 tentatives + fallback loggué
+# PARSER ROBUSTE — 5 tentatives + fallback loggué
 # ─────────────────────────────────────────────────────────
 
 
@@ -566,7 +567,7 @@ def _build_ls_result(parsed: dict, task_id: int) -> list:
 # ─── APPEL MISTRAL — async ───────────────────────────────
 
 
-async def _mistral_extract(text: str) -> dict:
+async def _mistral_extract(text: str, task_id: Optional[int] = None) -> dict:
     """Appelle Mistral v3.0.1c. Retourne le dict parsé ou FALLBACK_RESPONSE."""
     if not client:
         logger.warning("[MISTRAL] Client non configuré — fallback activé")
@@ -585,7 +586,7 @@ async def _mistral_extract(text: str) -> dict:
         )
         raw = response.choices[0].message.content or ""
         logger.info("[MISTRAL] Réponse reçue — %d caractères", len(raw))
-        return _parse_mistral_response(raw, task_id=0)
+        return _parse_mistral_response(raw, task_id=task_id if task_id is not None else 0)
 
     except Exception as exc:
         logger.error("[MISTRAL] Erreur appel API : %s — fallback activé", exc)

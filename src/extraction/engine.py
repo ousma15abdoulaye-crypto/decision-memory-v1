@@ -272,37 +272,35 @@ def _extract_llamaparse(storage_uri: str) -> tuple[str, dict]:
     return raw_text, dict(STRUCTURED_DATA_EMPTY)
 
 
-_MISTRAL_OCR_MAX_BYTES = 20 * 1024 * 1024  # 20 MB guard-rail for OCR
-_MISTRAL_OCR_SUPPORTED_PREFIXES = ("image/",)
+_MISTRAL_OCR_MAX_BYTES = 50 * 1024 * 1024  # 50 MB guard-rail pour PDF multi-pages
+_MISTRAL_OCR_SUPPORTED_MIMES = (
+    "image/",
+    "application/pdf",
+)
 
 
 def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
-    """Extraction OCR via Mistral AI (SLA-B).
+    """Extraction OCR via mistral-ocr-latest (SLA-B) — ADR-M11-002.
 
-    La clé API est lue depuis MISTRAL_API_KEY (jamais dans le code).
-    Lève APIKeyMissingError si la variable d'environnement est absente.
-
-    Seuls les fichiers image/* sont acceptés (PNG, JPEG, TIFF, …).
-    Les PDF et documents Office doivent passer par LlamaParse ou
-    native_pdf/docx_parser.  Un garde-fou rejette les fichiers > 20 MB.
+    Supporte : PDF scannés multi-pages, PNG, JPEG, TIFF.
+    API : client.ocr.process() avec document base64 pour fichiers locaux.
+    Fallback Azure : activé si AZURE_FORM_RECOGNIZER_ENDPOINT et AZURE_FORM_RECOGNIZER_KEY sont définis.
+    Lève APIKeyMissingError si MISTRAL_API_KEY absent.
     """
     _validate_storage_uri(storage_uri)
-    api_key = get_mistral_api_key()  # raises APIKeyMissingError if absent
+    api_key = get_mistral_api_key()
 
-    # ── Size guard (before reading full file into memory) ────────
     file_size = os.path.getsize(storage_uri)
     if file_size > _MISTRAL_OCR_MAX_BYTES:
         raise ValueError(
             f"Fichier trop volumineux pour Mistral OCR "
             f"({file_size / 1024 / 1024:.1f} MB > "
-            f"{_MISTRAL_OCR_MAX_BYTES / 1024 / 1024:.0f} MB). "
-            f"Utiliser LlamaParse ou un pré-traitement page par page."
+            f"{_MISTRAL_OCR_MAX_BYTES / 1024 / 1024:.0f} MB)."
         )
 
     with open(storage_uri, "rb") as f:
         file_bytes = f.read()
 
-    # ── MIME type from actual bytes (filetype is in requirements.txt)
     try:
         import filetype as _ft  # type: ignore
 
@@ -311,43 +309,77 @@ def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
     except Exception:
         mime = "application/octet-stream"
 
-    if not any(mime.startswith(p) for p in _MISTRAL_OCR_SUPPORTED_PREFIXES):
+    # Fallback Azure si endpoint + key configurés et MIME non supporté par OCR Mistral
+    azure_endpoint = os.environ.get("AZURE_FORM_RECOGNIZER_ENDPOINT", "")
+    azure_key = os.environ.get("AZURE_FORM_RECOGNIZER_KEY", "")
+    if not any(mime.startswith(p) for p in _MISTRAL_OCR_SUPPORTED_MIMES):
+        if azure_endpoint and azure_key:
+            return _extract_azure_ocr_fallback(storage_uri, file_bytes, mime)
         raise ValueError(
-            f"Mistral OCR ne supporte que les images (image/*). "
-            f"Type détecté : '{mime}'. "
-            f"Pour les PDF, utiliser native_pdf ou llamaparse ; "
-            f"pour les documents Office, utiliser excel_parser / docx_parser."
+            f"Mistral OCR : type non supporté '{mime}'. "
+            "Configurer AZURE_FORM_RECOGNIZER_ENDPOINT et AZURE_FORM_RECOGNIZER_KEY "
+            "pour activer le fallback Azure."
         )
 
-    # ── SDK import (deferred — only needed if guards pass) ───────
     try:
         from mistralai import Mistral  # type: ignore
     except ImportError as exc:
         raise ImportError(
-            "mistralai n'est pas installé. " "Ajouter 'mistralai' à requirements.txt."
+            "mistralai non installé. Ajouter 'mistralai' à requirements.txt."
         ) from exc
 
-    # ── Model configurable via env; defaults to mistral-small-latest
-    model = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
+    from src.couche_a.llm_router import TIER_1_OCR_MODEL
 
     client = Mistral(api_key=api_key)
     b64 = base64.b64encode(file_bytes).decode()
-    response = client.chat.complete(
-        model=model,
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:{mime};base64,{b64}"},
-                    },
-                    {"type": "text", "text": "Extraire tout le texte de ce document."},
-                ],
-            }
-        ],
+
+    # Choisir le type de document selon le MIME
+    doc_type = "document_url" if mime == "application/pdf" else "image_url"
+    data_url = f"data:{mime};base64,{b64}"
+
+    response = client.ocr.process(
+        model=TIER_1_OCR_MODEL,
+        document=({"type": doc_type, doc_type: {"url": data_url}}),
     )
-    raw_text = response.choices[0].message.content or ""
+    # mistral-ocr retourne response.pages (liste) ou response.text selon version SDK
+    if hasattr(response, "pages") and response.pages:
+        raw_text = "\n\n".join(
+            getattr(p, "markdown", "") or getattr(p, "text", "") for p in response.pages
+        )
+    else:
+        raw_text = getattr(response, "text", "") or ""
+
+    return raw_text, dict(STRUCTURED_DATA_EMPTY)
+
+
+def _extract_azure_ocr_fallback(
+    storage_uri: str, file_bytes: bytes, mime: str
+) -> tuple[str, dict]:
+    """Fallback Azure Form Recognizer — activé si AZURE_FORM_RECOGNIZER_ENDPOINT défini."""
+    endpoint = os.environ.get("AZURE_FORM_RECOGNIZER_ENDPOINT", "")
+    key = os.environ.get("AZURE_FORM_RECOGNIZER_KEY", "")
+    if not endpoint or not key:
+        raise RuntimeError(
+            "[OCR] Azure fallback non configuré "
+            "(AZURE_FORM_RECOGNIZER_ENDPOINT ou AZURE_FORM_RECOGNIZER_KEY manquant)."
+        )
+    try:
+        from azure.ai.formrecognizer import DocumentAnalysisClient  # type: ignore
+        from azure.core.credentials import AzureKeyCredential  # type: ignore
+    except ImportError as exc:
+        raise ImportError(
+            "azure-ai-formrecognizer non installé. "
+            "Ajouter 'azure-ai-formrecognizer' à requirements.txt."
+        ) from exc
+
+    az_client = DocumentAnalysisClient(
+        endpoint=endpoint, credential=AzureKeyCredential(key)
+    )
+    poller = az_client.begin_analyze_document("prebuilt-read", file_bytes)
+    result = poller.result()
+    raw_text = (
+        "\n".join(p.content for p in result.paragraphs) if result.paragraphs else ""
+    )
     return raw_text, dict(STRUCTURED_DATA_EMPTY)
 
 

@@ -290,33 +290,45 @@ class TestMistralOCRGuards:
             _extract_mistral_ocr(path)
 
     def test_accepts_image_mime(self, monkeypatch, tmp_path):
-        """Image PNG + API key → passe la validation MIME (mock API pour éviter 401 en CI)."""
+        """Image PNG + API key → Files API upload+ocr (mock pour éviter 401 en CI)."""
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
         monkeypatch.setenv("MISTRAL_API_KEY", "sk-test")
         monkeypatch.setenv("STORAGE_BASE_PATH", str(tmp_path))
         path = self._make_png_file(tmp_path)
 
-        # Mock Mistral API — mistralai installé (requirements) → 401 sans mock.
-        # On injecte un module mock pour éviter l'appel API réel.
-        from unittest.mock import MagicMock
+        # Mock filetype via sys.modules — compatible toutes branches
+        # (file_bytes direct ou _detect_mime_from_header selon la version)
+        mock_ft = MagicMock()
+        mock_ft.guess.return_value = SimpleNamespace(mime="image/png")
 
         mock_client = MagicMock()
-        mock_client.chat.complete.return_value = MagicMock(
-            choices=[MagicMock(message=MagicMock(content="Texte extrait mock"))]
+        mock_client.files.upload.return_value = SimpleNamespace(id="file-test")
+        mock_client.ocr.process.return_value = SimpleNamespace(
+            pages=[SimpleNamespace(markdown="Texte extrait mock")], text=None
         )
+        mock_client.files.delete.return_value = None
         mock_mistral_module = MagicMock()
         mock_mistral_module.Mistral.return_value = mock_client
 
-        orig = sys.modules.get("mistralai")
+        orig_ft = sys.modules.get("filetype")
+        orig_mis = sys.modules.get("mistralai")
+        sys.modules["filetype"] = mock_ft
         sys.modules["mistralai"] = mock_mistral_module
         try:
             raw_text, structured = _extract_mistral_ocr(path)
             assert raw_text == "Texte extrait mock"
             assert isinstance(structured, dict)
         finally:
-            if orig is None:
+            if orig_ft is None:
+                sys.modules.pop("filetype", None)
+            else:
+                sys.modules["filetype"] = orig_ft
+            if orig_mis is None:
                 sys.modules.pop("mistralai", None)
             else:
-                sys.modules["mistralai"] = orig
+                sys.modules["mistralai"] = orig_mis
 
     def test_missing_api_key_raises(self, monkeypatch, tmp_path):
         """Pas de MISTRAL_API_KEY → APIKeyMissingError."""
