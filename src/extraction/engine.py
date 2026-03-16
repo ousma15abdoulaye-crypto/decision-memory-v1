@@ -339,15 +339,12 @@ def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
 
     response = client.ocr.process(
         model=TIER_1_OCR_MODEL,
-        document=(
-            {"type": doc_type, doc_type: {"url": data_url}}
-        ),
+        document=({"type": doc_type, doc_type: {"url": data_url}}),
     )
     # mistral-ocr retourne response.pages (liste) ou response.text selon version SDK
     if hasattr(response, "pages") and response.pages:
         raw_text = "\n\n".join(
-            getattr(p, "markdown", "") or getattr(p, "text", "")
-            for p in response.pages
+            getattr(p, "markdown", "") or getattr(p, "text", "") for p in response.pages
         )
     else:
         raw_text = getattr(response, "text", "") or ""
@@ -380,7 +377,9 @@ def _extract_azure_ocr_fallback(
     )
     poller = az_client.begin_analyze_document("prebuilt-read", file_bytes)
     result = poller.result()
-    raw_text = "\n".join(p.content for p in result.paragraphs) if result.paragraphs else ""
+    raw_text = (
+        "\n".join(p.content for p in result.paragraphs) if result.paragraphs else ""
+    )
     return raw_text, dict(STRUCTURED_DATA_EMPTY)
 
 
