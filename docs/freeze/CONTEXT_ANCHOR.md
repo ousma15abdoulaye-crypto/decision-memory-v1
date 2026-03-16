@@ -196,7 +196,7 @@
 ║    Service Railway   : annotation-backend                           ║
 ║    Dossier           : services/annotation-backend/                 ║
 ║    Schéma            : v3.0.1c (PR #197 mergée)                     ║
-║    Parse             : 4 tentatives (direct, markdown, regex, ```)   ║
+║    Parse             : 5 tentatives (multi-stratégies robustes)     ║
 ║    API Mistral       : v1.x (>=1.0.0) — from mistralai import       ║
 ║                        Mistral / client.chat.complete()             ║
 ║    Port              : 9090 (ou $PORT Railway)                      ║
