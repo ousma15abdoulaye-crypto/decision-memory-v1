@@ -244,7 +244,9 @@ RÈGLES ABSOLUES :
     supplier_phone_raw     = NOT_APPLICABLE
     supplier_email_raw     = NOT_APPLICABLE
     supplier_address_raw   = NOT_APPLICABLE
-    has_rib / has_nif / has_rccm = NOT_APPLICABLE"""
+    has_rib / has_nif / has_rccm = NOT_APPLICABLE
+
+FORMAT : JSON brut uniquement. INTERDIT ```json```, texte avant/après, commentaires. Premier char = {{, dernier = }}."""
 
 
 def _build_prompt(text: str) -> str:
@@ -426,50 +428,50 @@ INSTRUCTIONS COMPLÉMENTAIRES :
 # ─────────────────────────────────────────────────────────
 
 
-def _parse_mistral_response(raw: str) -> dict:
-    """
-    4 tentatives de parsing dans l'ordre :
-    1. JSON brut direct
-    2. Extraction bloc ```json ... ```
-    3. Extraction première { → dernière }
-    4. Fallback FALLBACK_RESPONSE + log erreur
-    """
-    if not raw or not raw.strip():
-        logger.error("[PARSE] Réponse Mistral vide — fallback activé")
-        return FALLBACK_RESPONSE
+def _parse_mistral_response(raw: str, task_id: int = 0) -> dict:
+    """Parse Mistral JSON. 4 tentatives : direct, markdown, regex {}, ```. Fallback si échec."""
+    if not raw:
+        logger.warning("[PARSE] raw vide — task_id=%s", task_id)
+        return dict(FALLBACK_RESPONSE)
 
-    # Tentative 1 — JSON brut
     try:
         return json.loads(raw.strip())
     except json.JSONDecodeError:
         pass
 
-    # Tentative 2 — bloc ```json
-    match = re.search(r"```json\s*(.*?)\s*```", raw, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group(1))
-        except json.JSONDecodeError:
-            pass
+    try:
+        cleaned = re.sub(
+            r"^```(?:json)?\s*\n?(.*?)\n?```\s*$", r"\1", raw.strip(), flags=re.DOTALL
+        )
+        return json.loads(cleaned)
+    except (json.JSONDecodeError, re.error):
+        pass
 
-    # Tentative 3 — première { → dernière }
-    start = raw.find("{")
-    end = raw.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        try:
-            return json.loads(raw[start : end + 1])
-        except json.JSONDecodeError:
-            pass
+    try:
+        match = re.search(r"\{.*\}", raw, re.DOTALL)
+        if match:
+            return json.loads(match.group())
+    except (json.JSONDecodeError, re.error):
+        pass
+
+    try:
+        for marker in ("```json", "```"):
+            start = raw.find(marker)
+            if start != -1:
+                fragment = raw[start + len(marker) :]
+                end = fragment.find("```")
+                if end != -1:
+                    fragment = fragment[:end].strip()
+                else:
+                    fragment = fragment.strip()
+                return json.loads(fragment)
+    except (json.JSONDecodeError, ValueError):
+        pass
 
     _raw_len = len(raw) if raw else 0
     _raw_hash = hashlib.sha256(raw.encode()).hexdigest()[:12] if raw else "empty"
-    logger.error(
-        "[PARSE] Fallback activé — raw_len=%s raw_hash=%s "
-        "(contenu non loggué — données sensibles possibles)",
-        _raw_len,
-        _raw_hash,
-    )
-    return FALLBACK_RESPONSE
+    logger.error("[PARSE] Fallback — raw_len=%s raw_hash=%s", _raw_len, _raw_hash)
+    return dict(FALLBACK_RESPONSE)
 
 
 # ─────────────────────────────────────────────────────────
@@ -574,7 +576,7 @@ async def _mistral_extract(text: str) -> dict:
         )
         raw = response.choices[0].message.content or ""
         logger.info("[MISTRAL] Réponse reçue — %d caractères", len(raw))
-        return _parse_mistral_response(raw)
+        return _parse_mistral_response(raw, task_id=0)
 
     except Exception as exc:
         logger.error("[MISTRAL] Erreur appel API : %s — fallback activé", exc)
