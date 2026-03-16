@@ -9,8 +9,6 @@ from pathlib import Path
 
 _PROMPT_DIR = Path(__file__).parent
 
-SYSTEM_PROMPT: str = (
-    _PROMPT_DIR / "system_prompt.txt"
-).read_text(encoding="utf-8")
+SYSTEM_PROMPT: str = (_PROMPT_DIR / "system_prompt.txt").read_text(encoding="utf-8")
 
 __all__ = ["SYSTEM_PROMPT"]

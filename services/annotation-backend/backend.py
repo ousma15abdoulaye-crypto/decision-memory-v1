@@ -21,6 +21,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from mistralai import Mistral
 from prompts import SYSTEM_PROMPT
+from prompts.schema_validator import DMSAnnotation
+from pydantic import ValidationError
 
 # CONSTANTES — v3.0.1d ADR-015
 SCHEMA_VERSION = "v3.0.1d"
@@ -28,6 +30,15 @@ FRAMEWORK_VERSION = "annotation-framework-v3.0.1d"
 MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
 MAX_TEXT_CHARS = int(os.environ.get("MAX_TEXT_CHARS", "80000"))
+
+# E-27 : CORS restrictif — CORS_ORIGINS env (comma-separated)
+# Default localhost:8080 pour dev. Prod Railway : définir CORS_ORIGINS=URL_LABEL_STUDIO
+_CORS_RAW = os.environ.get("CORS_ORIGINS", "http://localhost:8080")
+CORS_ORIGINS = (
+    ["*"]
+    if _CORS_RAW.strip() == "*"
+    else [o.strip() for o in _CORS_RAW.split(",") if o.strip()]
+)
 
 # Sel pseudonymisation — variable env obligatoire
 # Si absent → échec du démarrage, sauf si ALLOW_WEAK_PSEUDONYMIZATION est activé
@@ -75,7 +86,7 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -253,6 +264,36 @@ def _parse_mistral_response(raw: str, task_id: int = 0) -> dict:
     return dict(FALLBACK_RESPONSE)
 
 
+def _validate_and_correct(parsed: dict, task_id: int = 0) -> dict:
+    """
+    Couche 2 — validation Pydantic v3.0.1d.
+    Clé inconnue → rejetée. line_total_check → recalculé par Python.
+    Si validation échoue → log erreurs + review_required.
+    """
+    try:
+        validated = DMSAnnotation.model_validate(parsed)
+        return validated.model_dump(by_alias=True)
+    except ValidationError as exc:
+        errors = exc.errors()
+        logger.error(
+            "[VALIDATE] %d erreurs schema — task_id=%s",
+            len(errors),
+            task_id,
+        )
+        for err in errors[:5]:
+            logger.error(
+                "[VALIDATE] loc=%s type=%s msg=%s",
+                err.get("loc"),
+                err.get("type"),
+                err.get("msg"),
+            )
+        parsed = copy.deepcopy(parsed)
+        parsed.setdefault("_meta", {})
+        parsed["_meta"]["review_required"] = True
+        parsed["_meta"]["annotation_status"] = "review_required"
+        return parsed
+
+
 # ─────────────────────────────────────────────────────────
 # BUILDER LABEL STUDIO — from_name : extracted_json + annotation_notes
 # ─────────────────────────────────────────────────────────
@@ -352,7 +393,8 @@ async def _mistral_extract(text: str, task_id: int | None = None) -> dict:
         )
         raw = response.choices[0].message.content or ""
         logger.info("[MISTRAL] Réponse reçue — %d caractères", len(raw))
-        return _parse_mistral_response(raw, task_id=tid)
+        parsed = _parse_mistral_response(raw, task_id=tid)
+        return _validate_and_correct(parsed, task_id=tid)
 
     except Exception as exc:
         logger.error("[MISTRAL] Erreur appel API : %s — fallback activé", exc)
