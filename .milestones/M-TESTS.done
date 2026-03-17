@@ -1,0 +1,11 @@
+MILESTONE        : M-TESTS
+DATE             : 2026-03-17
+ACTIVÉ_PAR       : ASAP-04 — audit CTO senior
+COVERAGE_ACTUEL  : 68.58% (mesuré CI 2026-03-17)
+SEUIL_ACTUEL     : 65% (palier 1 — post Mandat 2)
+SEUIL_MANDAT_3   : 70% (post ASAP-09 correction)
+SEUIL_POST_M12   : 75%
+SEUIL_POST_M15   : 80% (standard production)
+RÉFÉRENCE        : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
+NOTE             : 40% initial trop bas — standard industrie 75-80%
+                   Montée progressive par paliers vérifiés

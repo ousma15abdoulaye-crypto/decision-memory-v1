@@ -1,37 +1,265 @@
-name: CI Milestones Gates
+# .github/workflows/ci-milestones-gates.yml
+# Ref : ASAP-10 — audit CTO senior 2026-03-17
+# IDs alignés sur .milestones/*.done réels
+# 5 jobs distincts — chacun bloquant et vivant
+
+name: CI — Milestone Gates + Invariants
 
 on:
-  pull_request:
-    branches: [main]
   push:
+    branches: [main, "feat/pre-m12-*", "feat/m12-*", "feat/m13-*"]
+  pull_request:
     branches: [main]
 
 jobs:
-  verify-order:
+
+  # ────────────────────────────────────────────────────────────
+  # JOB 1 — GATES MILESTONES CORE
+  # Vérifie que les .done réels sont présents
+  # ────────────────────────────────────────────────────────────
+  gate-milestones-core:
+    name: "Gate · Milestones Core"
     runs-on: ubuntu-latest
-    
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Check milestone order
+
+      - name: Vérifier milestones core
         run: |
-          ORDER=("M0-BOOT" "M1-DATABASE" "M2-UPLOAD" "M3A-EXTRACTION" "M3B-SCORING" "M4-TESTS" "M5-TEMPLATES" "M6-GENERATION" "M7-OCR" "M8-MARKET" "M9-SECURITY" "M10-UX" "M-CI-INVARIANTS")
-          
-          VIOLATION=false
-          for ((i=0; i<${#ORDER[@]}; i++)); do
-            if [ ! -f ".milestones/${ORDER[$i]}.done" ]; then
-              for ((j=i+1; j<${#ORDER[@]}; j++)); do
-                if [ -f ".milestones/${ORDER[$j]}.done" ]; then
-                  echo "❌ ${ORDER[$j]}.done exists but ${ORDER[$i]}.done missing"
-                  VIOLATION=true
-                fi
-              done
+          REQUIRED=(
+            ".milestones/M-ANALYSIS-SUMMARY.done"
+            ".milestones/M-COMMITTEE-CORE.done"
+            ".milestones/M-CRITERIA-TYPING.done"
+            ".milestones/M-SCORING-ENGINE.done"
+            ".milestones/M-PIPELINE-A-E2E.done"
+            ".milestones/M-EXTRACTION-CORRECTIONS.done"
+            ".milestones/M-NORMALISATION-ENGINE.done"
+            ".milestones/M-SCHEMA-CORE.done"
+          )
+          FAILED=0
+          for f in "${REQUIRED[@]}"; do
+            if [ ! -f "$f" ]; then
+              echo "❌ GATE FAIL : $f manquant"
+              FAILED=1
+            else
+              echo "✅ $f"
             fi
           done
-          
-          if $VIOLATION; then
-            echo "## ❌ Milestone order violation" >> $GITHUB_STEP_SUMMARY
+          [ $FAILED -eq 0 ] || exit 1
+          echo ""
+          echo "✅ Tous les gates milestones core satisfaits"
+
+  # ────────────────────────────────────────────────────────────
+  # JOB 2 — INVARIANTS CONSTITUTIONNELS
+  # Bloquants — zéro tolérance
+  # ────────────────────────────────────────────────────────────
+  gate-invariants:
+    name: "Gate · Invariants Constitution"
+    runs-on: ubuntu-latest
+    env:
+      # E-56 : alembic heads lit fichiers uniquement — URL factice suffit
+      DATABASE_URL: postgresql://dms:dms@localhost:5432/dms_invariants_check
+      TESTING: "true"
+      SECRET_KEY: "ci-secret-key-not-for-production"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "INV-01 · zéro sqlalchemy dans src/ (hors ASAP-09 pending)"
+        run: |
+          # ASAP-09 : 2 fichiers tolérés jusqu'à Mandat 3
+          # src/couche_a/scoring/engine.py — sqlalchemy.text wrapper
+          # src/api/auth_helpers.py — sqlalchemy.text wrapper
+          # Ref : audit CTO senior 2026-03-17 ASAP-09
+          COUNT=$(grep -rn "from sqlalchemy\|import sqlalchemy" src/ 2>/dev/null \
+              | grep -v -F "src/couche_a/scoring/engine.py" \
+              | grep -v -F "src/api/auth_helpers.py" \
+              | wc -l)
+          if [ "$COUNT" -gt 0 ]; then
+            echo "❌ VIOLATION Constitution §3 — sqlalchemy dans src/ :"
+            grep -rn "from sqlalchemy\|import sqlalchemy" src/ \
+                | grep -v -F "src/couche_a/scoring/engine.py" \
+                | grep -v -F "src/api/auth_helpers.py"
             exit 1
-          else
-            echo "## ✅ Milestone order OK" >> $GITHUB_STEP_SUMMARY
           fi
+          echo "✅ INV-01 : 0 nouvelle violation sqlalchemy"
+          echo "⚠️  ASAP-09 exceptions actives (Mandat 3) :"
+          echo "   → src/couche_a/scoring/engine.py"
+          echo "   → src/api/auth_helpers.py"
+
+      - name: "INV-02 · alembic heads = 1"
+        run: |
+          # alembic heads lit les fichiers uniquement — pas de connexion DB (E-56)
+          pip install alembic psycopg --quiet
+          HEAD_COUNT=$(python -m alembic heads 2>/dev/null | wc -l)
+          if [ "$HEAD_COUNT" -ne 1 ]; then
+            echo "❌ VIOLATION Alembic : $HEAD_COUNT heads détectés"
+            python -m alembic heads
+            exit 1
+          fi
+          echo "✅ INV-02 : 1 seul head alembic"
+
+      - name: "INV-03 · zéro artefact de session versionné"
+        run: |
+          # Exclure : requirements, docs/, prompts/ (config ML — pas artefact session)
+          COUNT=$(git ls-files \
+              | grep -E '\.(txt|csv)$' \
+              | grep -v requirements \
+              | grep -v "docs/" \
+              | grep -v "prompts/" \
+              | wc -l)
+          if [ "$COUNT" -gt 0 ]; then
+            echo "❌ VIOLATION git hygiène — artefacts versionnés :"
+            git ls-files \
+                | grep -E '\.(txt|csv)$' \
+                | grep -v requirements \
+                | grep -v "docs/" \
+                | grep -v "prompts/"
+            exit 1
+          fi
+          echo "✅ INV-03 : 0 artefact de session versionné"
+
+      - name: "INV-04 · zéro time.sleep stub dans src/"
+        run: |
+          COUNT=$(grep -rn "time\.sleep" src/ 2>/dev/null | wc -l)
+          if [ "$COUNT" -gt 0 ]; then
+            echo "❌ VIOLATION stub time.sleep dans src/ :"
+            grep -rn "time\.sleep" src/
+            exit 1
+          fi
+          echo "✅ INV-04 : 0 time.sleep dans src/"
+
+      - name: "INV-05 · zéro conditional_limit no-op dans src/ (hors ratelimit.py)"
+        run: |
+          COUNT=$(grep -rnE "conditional_limit|def decorator.*return func" \
+              src/ --exclude='ratelimit.py' 2>/dev/null | wc -l)
+          if [ "$COUNT" -gt 0 ]; then
+            echo "❌ VIOLATION rate limit no-op (hors src/ratelimit.py) :"
+            grep -rnE "conditional_limit|def decorator.*return func" \
+              src/ --exclude='ratelimit.py'
+            exit 1
+          fi
+          echo "✅ INV-05 : 0 conditional_limit no-op (hors src/ratelimit.py)"
+
+  # ────────────────────────────────────────────────────────────
+  # JOB 3 — COVERAGE
+  # fail_under conditionnel sur M-TESTS.done
+  # ────────────────────────────────────────────────────────────
+  gate-coverage:
+    name: "Gate · Coverage"
+    runs-on: ubuntu-latest
+    needs: [gate-invariants]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER:     dms
+          POSTGRES_PASSWORD: dms
+          POSTGRES_DB:       dms_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run DB migrations
+        env:
+          DATABASE_URL: >-
+            postgresql://dms:dms@localhost:5432/dms_test
+          TESTING:    "true"
+          SECRET_KEY: "ci-secret-key-not-for-production"
+        run: |
+          alembic upgrade head
+
+      - name: Déterminer seuil coverage
+        id: threshold
+        run: |
+          if [ -f ".milestones/M-TESTS.done" ]; then
+            echo "fail_under=65" >> "$GITHUB_OUTPUT"
+            echo "Seuil : 65% — M-TESTS.done présent (palier 1)"
+          else
+            echo "fail_under=0" >> "$GITHUB_OUTPUT"
+            echo "Seuil : 0% — M-TESTS.done absent"
+          fi
+
+      # INV-06 (Couche A/B boundary) : inclus dans pytest tests/
+      # tests/invariants/test_couche_a_b_boundary.py — conftest exige DATABASE_URL
+      - name: Run tests + coverage
+        env:
+          DATABASE_URL: >-
+            postgresql://dms:dms@localhost:5432/dms_test
+          TESTING:    "true"
+          SECRET_KEY: "ci-secret-key-not-for-production"
+        run: |
+          pytest tests/ \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-fail-under=${{ steps.threshold.outputs.fail_under }} \
+            -q --tb=short
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 7
+
+  # ────────────────────────────────────────────────────────────
+  # JOB 4 — FREEZE INTÉGRITÉ SHA256
+  # ────────────────────────────────────────────────────────────
+  gate-freeze:
+    name: "Gate · Freeze Intégrité"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vérifier intégrité freeze V3.3.2
+        run: |
+          FREEZE_DIR="docs/freeze/v3.3.2"
+          test -f "$FREEZE_DIR/SHA256SUMS.txt" || {
+            echo "❌ SHA256SUMS.txt absent dans $FREEZE_DIR"
+            exit 1
+          }
+          test -f "$FREEZE_DIR/FREEZE_MANIFEST.md" || {
+            echo "❌ FREEZE_MANIFEST.md absent dans $FREEZE_DIR"
+            exit 1
+          }
+          sha256sum -c "$FREEZE_DIR/SHA256SUMS.txt"
+          echo "✅ Freeze V3.3.2 intègre"
+
+  # ────────────────────────────────────────────────────────────
+  # JOB 5 — LINT RUFF + BLACK
+  # ────────────────────────────────────────────────────────────
+  gate-lint:
+    name: "Gate · Lint Ruff + Black"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install linters
+        run: pip install ruff black
+
+      - name: Ruff check
+        run: ruff check src/ services/
+
+      - name: Black check
+        run: black --check src/ services/

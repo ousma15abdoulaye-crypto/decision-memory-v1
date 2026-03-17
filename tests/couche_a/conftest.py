@@ -17,6 +17,9 @@ def db_engine() -> Engine:
         pytest.skip("DATABASE_URL not set – skipping PostgreSQL tests")
     if db_url.startswith("postgres://"):
         db_url = "postgresql://" + db_url[9:]
+    # Forcer psycopg v3 — requirements.txt n'a pas psycopg2
+    if "postgresql://" in db_url and "postgresql+psycopg" not in db_url:
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
     eng = create_engine(db_url)
     yield eng
     eng.dispose()

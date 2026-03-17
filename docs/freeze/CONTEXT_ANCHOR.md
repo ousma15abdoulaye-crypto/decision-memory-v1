@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-03-17 (feat/pre-m12-cleanup Mandat 1)  ║
+║  Dernière mise à jour : 2026-03-17 (feat/pre-m12-db-ci Mandat 2)    ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -89,20 +89,20 @@
 ║  GIT — 2026-03-17                                                    ║
 ║  ──────────────────────────────────────────────────────────────     ║
 ║  main              : 61a2642 (Merge PR#203)                         ║
-║  feat/pre-m12-cleanup : branche active (Mandat 1)                   ║
+║  feat/pre-m12-db-ci : branche active (Mandat 2)                     ║
 ║  feat/fix-backend-production : backend v3.0.1d (en attente merge)   ║
-║  alembic head local : 048_vendors_sensitive_data                     ║
-║  alembic head Railway : 044_decision_history (DÉSYNCHRONISÉ)        ║
-║  migrations pending Railway : 045 046 046b 047 048                   ║
+║  alembic head local : 050_documents_sha256_not_null                  ║
+║  alembic head Railway : 044_decision_history (DÉSYNCHRONISÉ)         ║
+║  migrations pending Railway : 045 046 046b 047 048 049 050          ║
 ║  tags posés :                                                         ║
 ║    v4.1.0-ocr-files-api-done                                         ║
 ║    v4.1.0-m12-dette7-done                                             ║
 ║                                                                      ║
 ║  ALEMBIC — FREEZE ABSOLU                                            ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  head actuel     : 048_vendors_sensitive_data                        ║
+║  head actuel     : 050_documents_sha256_not_null                     ║
 ║  historique      : 001 → 045 — FREEZE TOTAL 001-045                ║
-║  chaîne          : 044 → 045 → 046 → 046b → 047 → 048               ║
+║  chaîne          : 044 → 045 → 046 → 046b → 047 → 048 → 049 → 050   ║
 ║  FREEZE          : 001 → 045 FREEZE TOTAL                          ║
 ║                    046 + 046b = DETTE-7 DONE                        ║
 ║                    047 = PHASE 1B DONE (ORM→psycopg Couche A)       ║
@@ -410,6 +410,20 @@
 ║         ExtractionField + TDRExtractionResult absents.               ║
 ║         M12 Procedure Recognizer architecturalement impossible sans.║
 ║         Ref : ASAP-11                                                ║
+║  E-56  INV-02 alembic heads en CI — URL factice suffit (pas de connexion).║
+║         alembic heads lit les fichiers uniquement. DATABASE_URL_CI opt.  ║
+║         Fix : postgresql://dms:dms@localhost:5432/dms_invariants_check  ║
+║         Ref : Mandat 2 post-probe — 2026-03-17                          ║
+║  E-57  Gates CI référençant des .done inexistants = gates zombies.      ║
+║         Toujours vérifier ls .milestones/ avant d'écrire le YAML.       ║
+║         M-EXTRACTION-ENGINE.done et M-EXTRACTION-CORRECTIONS.done exist.║
+║         CI utilise M-EXTRACTION-CORRECTIONS (aligné réel).              ║
+║         Ref : Mandat 2 post-probe — 2026-03-17                          ║
+║  E-59  Coverage gate trop bas = fausse sécurité dangereuse.              ║
+║         40% gate avec 68% réel = 28 points de marge non protégés.        ║
+║         Standard industrie systèmes critiques : 80% minimum.             ║
+║         Montée progressive : 65 → 70 → 75 → 80. GO CTO avant ajustement.║
+║         Ref : Mandat 2 post-CI — 2026-03-17                              ║
 ║                                                                      ║
 ║  ADR-015  Line items chirurgical — docs/adr/ADR-015_*.md            ║
 ║           Date : 2026-03-16 — Statut : ACCEPTÉ — v3.0.1d           ║
