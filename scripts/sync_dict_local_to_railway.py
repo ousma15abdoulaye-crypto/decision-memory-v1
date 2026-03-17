@@ -75,8 +75,15 @@ def _assert_safe_sync(local_url: str, remote_url: str) -> None:
 #!/usr/bin/env python3
 """
 Sync couche_b.procurement_dict_items local -> Railway.
-Strategie : TRUNCATE + COPY via INSERT batches de 100.
-Neutralise les FK en nullifiant family_id et default_unit.
+
+Stratégie : UPSERT (INSERT ... ON CONFLICT (item_id) DO UPDATE) par lots de 50.
+- Seuls les items actifs (active=TRUE) et dont l'item_id ne commence pas par '_'
+  (items non-test) sont synchronisés.
+- Les colonnes à FK potentiellement absentes sur Railway (family_id) sont exclues
+  de l'insertion.
+- Si la colonne default_unit est présente côté Railway et que la valeur locale est
+  NULL, un fallback est utilisé (première unité disponible sur Railway, ou 'unite').
+- Aucune opération TRUNCATE ni COPY n'est effectuée.
 
 Usage :
   python scripts/sync_dict_local_to_railway.py --dry-run
