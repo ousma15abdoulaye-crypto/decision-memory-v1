@@ -96,17 +96,20 @@ jobs:
 
       - name: "INV-03 · zéro artefact de session versionné"
         run: |
+          # Exclure : requirements, docs/, prompts/ (config ML — pas artefact session)
           COUNT=$(git ls-files \
               | grep -E '\.(txt|csv)$' \
               | grep -v requirements \
               | grep -v "docs/" \
+              | grep -v "prompts/" \
               | wc -l)
           if [ "$COUNT" -gt 0 ]; then
             echo "❌ VIOLATION git hygiène — artefacts versionnés :"
             git ls-files \
                 | grep -E '\.(txt|csv)$' \
                 | grep -v requirements \
-                | grep -v "docs/"
+                | grep -v "docs/" \
+                | grep -v "prompts/"
             exit 1
           fi
           echo "✅ INV-03 : 0 artefact de session versionné"
