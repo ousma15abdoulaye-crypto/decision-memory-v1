@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-03-10 — ETA-GEL
+# Derniere mise a jour : 2026-03-17 — ETA-GEL
 
 ---
 
@@ -78,8 +78,8 @@ audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
   - 050_documents_sha256_not_null     (ASAP-06 — Mandat 2)
 
 ## DIVERGENCE RAILWAY — CRITIQUE
-  4 migrations non appliquées en production.
-  Toute fonctionnalité basée sur 045-048 est silencieusement
+  5 migrations non appliquées en production.
+  Toute fonctionnalité basée sur 045-048 (incl. 046b) est silencieusement
   cassée en production jusqu'à synchronisation.
   GO CTO obligatoire avant alembic upgrade sur Railway.
 
