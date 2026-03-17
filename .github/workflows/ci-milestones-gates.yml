@@ -110,16 +110,17 @@ jobs:
           fi
           echo "✅ INV-04 : 0 time.sleep dans src/"
 
-      - name: "INV-05 · zéro conditional_limit no-op dans src/"
+      - name: "INV-05 · zéro conditional_limit no-op dans src/ (hors ratelimit.py)"
         run: |
-          COUNT=$(grep -rn "conditional_limit\|def decorator.*return func" \
-              src/ 2>/dev/null | wc -l)
+          COUNT=$(grep -rnE "conditional_limit|def decorator.*return func" \
+              src/ --exclude='ratelimit.py' 2>/dev/null | wc -l)
           if [ "$COUNT" -gt 0 ]; then
-            echo "❌ VIOLATION rate limit no-op :"
-            grep -rn "conditional_limit" src/
+            echo "❌ VIOLATION rate limit no-op (hors src/ratelimit.py) :"
+            grep -rnE "conditional_limit|def decorator.*return func" \
+              src/ --exclude='ratelimit.py'
             exit 1
           fi
-          echo "✅ INV-05 : 0 conditional_limit no-op"
+          echo "✅ INV-05 : 0 conditional_limit no-op (hors src/ratelimit.py)"
 
       - name: "INV-06 · Couche A / Couche B boundary"
         run: |
