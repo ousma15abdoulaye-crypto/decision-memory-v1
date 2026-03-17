@@ -141,12 +141,12 @@ def upgrade() -> None:
     else:
         print("[050] Aucun NULL — backfill inutile")
 
-    # ── 8. SET NOT NULL ──────────────────────────────────────────
-    conn.execute(sa.text("""
-        ALTER TABLE documents
-        ALTER COLUMN sha256 SET NOT NULL
-    """))
-    print("[050] documents.sha256 SET NOT NULL")
+    # ── 8. SET NOT NULL (REPORTÉ) ───────────────────────────────
+    # IMPORTANT :
+    #   Le passage en NOT NULL est reporté tant que tous les
+    #   chemins d'écriture applicatifs ne renseignent pas sha256.
+    #   Voir règle Copilot Code Review : risque d'échecs d'INSERT.
+    print("[050] NOTE : documents.sha256 reste NULLABLE — NOT NULL reporté")
 
 
 def downgrade() -> None:
