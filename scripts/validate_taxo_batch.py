@@ -10,7 +10,7 @@ Stratégies :
 
 Usage :
     $env:DATABASE_URL   = "<Railway>"
-    $env:AO_USER_ID     = "<UUID AO dans users>"
+    $env:AO_USER_ID     = "<INTEGER (users.id)>"
 
     python scripts/validate_taxo_batch.py --dry-run
     python scripts/validate_taxo_batch.py
@@ -50,14 +50,21 @@ def get_db_url() -> str:
 
 
 def get_ao_user_id() -> Optional[int]:
-    """DA-AUDIT : actor_id pour traçabilité complète. users.id = INTEGER."""
+    """DA-AUDIT : actor_id pour traçabilité complète. users.id = INTEGER.
+
+    Retourne None si la variable n'est pas définie (autorisé uniquement en
+    dry-run). Quitte le processus si la valeur est définie mais invalide.
+    """
     uid = os.environ.get("AO_USER_ID")
-    if uid:
-        try:
-            return int(uid)
-        except ValueError:
-            logger.warning(f"AO_USER_ID '{uid}' n'est pas un entier valide")
-    return None
+    if uid is None:
+        return None
+    try:
+        return int(uid)
+    except ValueError:
+        sys.exit(
+            f"❌ AO_USER_ID '{uid}' n'est pas un entier valide "
+            f"— attendu : users.id (INTEGER)"
+        )
 
 
 def load_taxonomy_fk(conn: psycopg.Connection) -> dict[str, str]:
@@ -84,9 +91,10 @@ def run(
 ) -> None:
     ao_user_id = get_ao_user_id()
     if not dry_run and ao_user_id is None:
-        logger.warning(
-            "AO_USER_ID absent · approved_by = NULL · "
-            "traçabilité audit dégradée"
+        sys.exit(
+            "❌ AO_USER_ID manquant — export AO_USER_ID=<users.id INTEGER>\n"
+            "   (DA-AUDIT : approved_by obligatoire hors dry-run)\n"
+            "   Utilisez --dry-run pour simuler sans écriture."
         )
 
     with psycopg.connect(get_db_url(), row_factory=dict_row) as conn:
