@@ -410,11 +410,15 @@
 ║         ExtractionField + TDRExtractionResult absents.               ║
 ║         M12 Procedure Recognizer architecturalement impossible sans.║
 ║         Ref : ASAP-11                                                ║
-║  E-56  Mandat 2 : migrations 049/050 + CI gates + M-TESTS.done.      ║
-║         049 : trigger append-only drop/recreate avant DELETE orphelins║
-║         050 : backfill sha256 pgcrypto/md5 — content_hash absent.     ║
-║         CI : 5 jobs — invariants INV-01..06 — fail_under=40 si M-TESTS║
-║         Ref : ASAP-04/05/06/10 — 2026-03-17                          ║
+║  E-56  INV-02 alembic heads en CI — URL factice suffit (pas de connexion).║
+║         alembic heads lit les fichiers uniquement. DATABASE_URL_CI opt.  ║
+║         Fix : postgresql://dms:dms@localhost:5432/dms_invariants_check  ║
+║         Ref : Mandat 2 post-probe — 2026-03-17                          ║
+║  E-57  Gates CI référençant des .done inexistants = gates zombies.      ║
+║         Toujours vérifier ls .milestones/ avant d'écrire le YAML.       ║
+║         M-EXTRACTION-ENGINE.done et M-EXTRACTION-CORRECTIONS.done exist.║
+║         CI utilise M-EXTRACTION-CORRECTIONS (aligné réel).              ║
+║         Ref : Mandat 2 post-probe — 2026-03-17                          ║
 ║                                                                      ║
 ║  ADR-015  Line items chirurgical — docs/adr/ADR-015_*.md            ║
 ║           Date : 2026-03-16 — Statut : ACCEPTÉ — v3.0.1d           ║

@@ -71,6 +71,8 @@ jobs:
 
       - name: "INV-02 · alembic heads = 1"
         run: |
+          # alembic heads lit les fichiers uniquement — pas de connexion DB (E-56)
+          # URL factice suffit pour charger l'env (DATABASE_URL_CI optionnel)
           pip install alembic psycopg --quiet
           HEAD_COUNT=$(python -m alembic heads 2>/dev/null | wc -l)
           if [ "$HEAD_COUNT" -ne 1 ]; then
@@ -80,7 +82,7 @@ jobs:
           fi
           echo "✅ INV-02 : 1 seul head alembic"
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_CI }}
+          DATABASE_URL: postgresql://dms:dms@localhost:5432/dms_invariants_check
 
       - name: "INV-03 · zéro artefact de session versionné"
         run: |
