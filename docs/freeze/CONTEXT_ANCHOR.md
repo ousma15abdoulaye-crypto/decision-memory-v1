@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2025-03-16 (feat/m11-ocr-files-api)         ║
+║  Dernière mise à jour : 2026-03-17 (feat/pre-m12-cleanup Mandat 1)  ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -84,29 +84,19 @@
 ║  ██              FIN CLAUSE D'INTÉGRITÉ                       ██    ║
 ║  ██████████████████████████████████████████████████████████████    ║
 ║                                                                      ║
-╠══════════════════════════════════════════════════════════════════╣
+╠══════════════════════════════════════════════════════════════════════╣
 ║                                                                      ║
-║  GIT                                                                 ║
+║  GIT — 2026-03-17                                                    ║
 ║  ──────────────────────────────────────────────────────────────     ║
-<<<<<<< HEAD
-║  main            : 00e8126 (après merge PR #199 #202, OCR Files API) ║
-║  feat/m11-ocr-files-api : de055df (head)                          ║
-║  tag m10b-done   : 010a353 (merge PR #184 feat/m10b-agent-native)  ║
-║  tag m11-done    : fbc070e (PR #185 feat/m11-signal-integrity)     ║
-║  tag m12-dette7  : v4.1.0-m12-dette7-done                           ║
-║  tag v4.1.0-ocr-files-api-done : PR #202 mergée                    ║
-║  branche active  : feat/m11-ocr-files-api (M11 OCR Files API)    ║
-=======
-║  main            : 65c612f (Merge PR #202 feat/m11-ocr-files-api)   ║
-║  PR#199 merged   : a973784 (feat/m11-llm-upgrade — mistral-large + OCR) ║
-║  PR#202 merged   : 65c612f (feat/m11-ocr-files-api — Files API Mandat 2)║
-║  tag m10b-done   : 010a353 (merge PR #184 feat/m10b-agent-native)  ║
-║  tag m11-done    : fbc070e (PR #185 feat/m11-signal-integrity)     ║
-║  tag m12-dette7  : v4.1.0-m12-dette7-done                           ║
-║  hash actuel     : 65c612f                                           ║
-║  tag posé        : v4.1.0-ocr-files-api-done                        ║
-║  branche active  : main                                              ║
->>>>>>> origin/main
+║  main              : 61a2642 (Merge PR#203)                         ║
+║  feat/pre-m12-cleanup : branche active (Mandat 1)                   ║
+║  feat/fix-backend-production : backend v3.0.1d (en attente merge)   ║
+║  alembic head local : 048_vendors_sensitive_data                     ║
+║  alembic head Railway : 044_decision_history (DÉSYNCHRONISÉ)        ║
+║  migrations pending Railway : 045 046 046b 047 048                   ║
+║  tags posés :                                                         ║
+║    v4.1.0-ocr-files-api-done                                         ║
+║    v4.1.0-m12-dette7-done                                             ║
 ║                                                                      ║
 ║  ALEMBIC — FREEZE ABSOLU                                            ║
 ║  ──────────────────────────────────────────────────────────────     ║
@@ -203,29 +193,20 @@
 ║                        Fix en attente : POSTGRE_PORT=5432 fixe      ║
 ║                        + diagnostic complet Plan Directeur requis   ║
 ║                                                                      ║
-║  ML Backend Mistral                                                  ║
-║    Service Railway   : annotation-backend                           ║
-║    Dossier           : services/annotation-backend/                 ║
-<<<<<<< HEAD
-║    Schéma            : v3.0.1d (ADR-015 line_items unit_raw)       ║
-║    Prompt            : prompts/system_prompt.txt (texte pur)         ║
-║    start.sh          : uvicorn ... 2>&1 (E-45 — logs Railway)       ║
-║    Parse             : 5 tentatives (multi-stratégies robustes)     ║
-║    API Mistral       : v1.x — client.chat.complete() json_object     ║
-║    Port              : $PORT (8080 défaut)                          ║
-║    Zéro stockage     : R-05 — transit uniquement                    ║
-║    Statut            : v3.0.1d — prompt .txt, webhook, 80K truncate  ║
-=======
-║    Schéma            : v3.0.1c — parse 5 tentatives                 ║
-║    Troncature        : 80 000 chars (~40 pages, PR #202)             ║
-║    Modèle annotation : mistral-large-latest (TIER_1_MODEL)          ║
-║    OCR               : mistral-ocr-latest (Files API stream)        ║
-║                        upload → ocr.process(file_id) → delete       ║
-║    RAM/OCR           : ~2 MB (vs 117 MB base64 avant Mandat 2)      ║
-║    Port              : 9090 (ou $PORT Railway)                      ║
-║    Zéro stockage     : R-05 — transit uniquement                    ║
-║    Statut            : DÉPLOYÉ — PR#199 + PR#202 mergées             ║
->>>>>>> origin/main
+║  ML BACKEND — v3.0.1d (feat/fix-backend-production)                   ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  schema          : v3.0.1d                                           ║
+║  prompt          : prompts/system_prompt.txt (texte pur .txt)       ║
+║  validateur      : prompts/schema_validator.py (Pydantic v2)        ║
+║  troncature      : 80 000 chars (env MAX_TEXT_CHARS)                ║
+║  modèle          : mistral-large-latest                              ║
+║  OCR             : mistral-ocr-latest (Files API stream)              ║
+║  max_tokens      : 32 000                                            ║
+║  response_format : json_object                                       ║
+║  3 couches ctrl  : prompt squelette + Pydantic + recalcul Python     ║
+║  start.sh        : uvicorn ... 2>&1 (E-45 — faux positifs Railway)   ║
+║  parse           : 5 tentatives                                     ║
+║  ANNOTATION_BACKEND_URL : à ajouter Railway Variables               ║
 ║                                                                      ║
 ║  RÈGLES ANNOTATION — FIGÉES                                         ║
 ║  ──────────────────────────────────────────────────────────────     ║
@@ -263,24 +244,33 @@
 ║  tests/  : auth/, contracts/, invariants/, mercuriale/              ║
 ║  data/   : uploads, outputs, static                                 ║
 ║                                                                      ║
-║  MILESTONES                                                          ║
+║  MILESTONES — 2026-03-17                                              ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  M9      DONE  578 signaux, formule 1.1, corridors, FEWS           ║
+║  M9      DONE  signaux, formule 1.1, corridors, FEWS                 ║
 ║  M10A    DONE  seasonal_patterns, zone_context, geo_corridors       ║
 ║  M10B    DONE  couche_a, agents, pg_notify (ADR-010)                ║
-║  M11     DONE  5 dettes, 1106 signaux, severity NULL=0 (ADR-011)    ║
-<<<<<<< HEAD
-║  M11-bis DONE — backend v3.0.1d (ADR-015 unit_raw) + XML v3.0.1c   ║
-║                     PR #197 #199 #202 — ADR-015 2026-03-16          ║
-=======
-║  M11-bis DONE — backend.py v3.0.1c + XML Label Studio v3.0.1c-fix   ║
-║                     PR #197 → PR #198 → PR #199 → PR #202           ║
-║  Mandat 1 DONE — mistral-large-latest + mistral-ocr-latest          ║
-║                     llm_router.py + ADR-M11-002 (PR #199)           ║
-║  Mandat 2 DONE — OCR Files API stream + cleanup + troncature 80k    ║
-║                     client.files.upload/ocr.process/delete (PR #202)║
->>>>>>> origin/main
-║  M12     EN COURS                                                   ║
+║  M11     DONE  5 dettes, 1106 signaux, severity NULL=0               ║
+║  M11-bis DONE  backend v3.0.1c + XML + OCR Files API                 ║
+║               PR#197 PR#198 PR#199 PR#202 PR#203                     ║
+║  Mandat 1 DONE mistral-large-latest + OCR Files API stream           ║
+║  Mandat 2 DONE OCR stream + troncature 80K + cleanup                 ║
+║                                                                      ║
+║  PRÉ-M12 EN COURS (feat/pre-m12-cleanup) :                           ║
+║    ASAP-01 : purge git .txt/.csv        ✓ DONE                       ║
+║    ASAP-02 : MRD_CURRENT_STATE.md       ✓ DONE                        ║
+║    ASAP-03 : Railway sync 045→048       ⏳ GO CTO requis              ║
+║    ASAP-04 : M-TESTS.done              ⏳ (Mandat 2)                 ║
+║    ASAP-05 : migration 049 FK validate  ⏳ (Mandat 2)                 ║
+║    ASAP-06 : migration 050 sha256       ⏳ (Mandat 2)                 ║
+║    ASAP-07/08 : Redis rate limit       ⏳ (Mandat 3)                 ║
+║    ASAP-09 : sqlalchemy → psycopg      ⏳ (Mandat 3)                 ║
+║    ASAP-10 : CI gates vivants         ⏳ (Mandat 2)                  ║
+║    ASAP-11 : llm_router.py            ⏳ (Mandat 4)                 ║
+║    ASAP-12 : pont extraction          ⏳ (Mandat 4)                 ║
+║                                                                      ║
+║  M12     BLOQUÉ — 7 ASAP non résolus                                 ║
+║          BLOQUANT : 15 annotated_validated (0/15)                    ║
+║          DETTE-8  : signaux IMC (après backend stable)               ║
 ║          DETTE-7  DONE — imc_category_item_map + 046 + 046b        ║
 ║          DETTE-8  NEXT — signaux IMC → market_signals_v2            ║
 ║                    dépend DETTE-7 ✓                                  ║
@@ -383,6 +373,43 @@
 ║  E-45  Railway classifie stderr en "error" peu importe le niveau. ║
 ║         Uvicorn envoie vers stderr. Fix : 2>&1 dans start.sh.       ║
 ║         Sans fix : faux positifs permanents. Ref : 2026-03-16       ║
+║  E-46  Mistral invente des clés hors schéma sans squelette injecté. ║
+║         Fix : squelette JSON complet dans RÈGLE 0 du prompt.        ║
+║         Ref : audit JSON v3.0.1d — 2026-03-16                        ║
+║  E-47  line_total_check jamais calculé par Mistral.                 ║
+║         Recalcul obligatoire côté backend Python (Pydantic).         ║
+║         Ref : schema_validator.py recalculate_line_total_check      ║
+║  E-48  Équipes terrain : quantity = personnes × jours.              ║
+║         "5 enquêteurs × 40 jours" → qty=200, unit=homme-jour.      ║
+║         Ref : ADR-015 piège terrain — 2026-03-16                    ║
+║  E-49  Pydantic extra=forbid obligatoire sur tous les modèles.      ║
+║         Sans extra=forbid → clés inconnues acceptées silencieusement. ║
+║         Ref : schema_validator.py — 2026-03-16                      ║
+║  E-50  Artefacts session (.txt .csv) jamais dans git.               ║
+║         37 fichiers + 3.7 MB détectés audit 2026-03-17.             ║
+║         .gitignore doit couvrir tous les patterns dès J1.            ║
+║         Un audit SOC2 déclasserait immédiatement ce dépôt.           ║
+║         Ref : ASAP-01                                                ║
+║  E-51  MRD_CURRENT_STATE.md doit refléter le head Alembic réel.    ║
+║         Écart 045 déclaré vs 048 réel = source de vérité mensongère.  ║
+║         Mettre à jour après chaque merge de migration.               ║
+║         Ref : ASAP-02                                                ║
+║  E-52  conditional_limit no-op = fausse protection pire qu'absence.  ║
+║         Rate limiting per-route désactivé silencieusement.            ║
+║         Fix : route_limit() avec Redis en production.               ║
+║         Ref : ASAP-07/08                                              ║
+║  E-53  time.sleep(2) stub en production = vision non validable.      ║
+║         extract_offer_content doit appeler annotation-backend réel.  ║
+║         Sans pont → M12 Procedure Recognizer impossible.             ║
+║         Ref : ASAP-12                                                ║
+║  E-54  CI gate milestones vérifiant des IDs inexistants = gate zombie.║
+║         Ne bloque jamais rien. Pire qu'absent — fausse sécurité.      ║
+║         Synchroniser les IDs avec les fichiers .done réels.          ║
+║         Ref : ASAP-10                                                 ║
+║  E-55  llm_router.py absent malgré référence dans TECHNICAL_DEBT.   ║
+║         ExtractionField + TDRExtractionResult absents.               ║
+║         M12 Procedure Recognizer architecturalement impossible sans.║
+║         Ref : ASAP-11                                                ║
 ║                                                                      ║
 ║  ADR-015  Line items chirurgical — docs/adr/ADR-015_*.md            ║
 ║           Date : 2026-03-16 — Statut : ACCEPTÉ — v3.0.1d           ║

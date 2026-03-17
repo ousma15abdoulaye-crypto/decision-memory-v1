@@ -1,4 +1,0 @@
-﻿INFO ù 4370 surveys proxy calcules
-INFO ù commit final
-
-RESULTAT ok=4370 err=0

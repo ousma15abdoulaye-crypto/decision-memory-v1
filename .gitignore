@@ -1,4 +1,36 @@
-# Python
+# ================================================================
+# ARTEFACTS DE SESSION — JAMAIS VERSIONNER
+# Ref : ASAP-01 — audit CTO senior 2026-03-17
+# ================================================================
+
+# Logs et sorties de scripts
+alembic_m*.txt
+audit_*.txt
+backfill_*.txt
+build_err.txt
+build_out.txt
+m11_*.txt
+m12_*.txt
+pytest_result*.txt
+run_dict*.txt
+phase_*.txt
+probe_*.txt
+*.log
+
+# Outputs de scripts de session
+scripts/_dryrun*.txt
+scripts/_err*.txt
+scripts/_out*.txt
+scripts/_wave*.txt
+scripts/_probe_*.py
+
+# Données de session potentiellement sensibles
+mercurials_mapping_proposals.csv
+*_mapping_proposals.csv
+*_dry*.csv
+*_output*.csv
+
+# Artefacts Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -23,12 +55,14 @@ MANIFEST
 
 # Virtual environments
 venv/
-ENV/
+.venv/
 env/
-.venv
+ENV/
 
 # Environment / secrets (Constitution: no secrets in repo)
 .env
+.env.*
+!.env.example
 .env.local
 .env.*.local
 
@@ -86,6 +120,9 @@ alembic/versions/__pycache__/
 
 # dms.log explicite
 dms.log
+
+# Railway
+.railway/
 
 # CSV processés — optionnel selon décision CTO
 # data/processed/
