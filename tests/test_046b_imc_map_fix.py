@@ -71,10 +71,14 @@ def test_functional_index_imc_entries(db_conn):
     ), "idx_imc_entries_category_norm absent sur imc_entries"
 
 
+# Heads valides — mis à jour après chaque migration
+# Ref : Mandat 2 pré-M12 — 2026-03-17
 VALID_ALEMBIC_HEADS = (
     "046b_imc_map_fix_restrict_indexes",
     "047_couche_a_service_columns",
     "048_vendors_sensitive_data",
+    "049_validate_pipeline_runs_fk",
+    "050_documents_sha256_not_null",
     "m7_4_dict_vivant",  # branche parallèle
 )
 
