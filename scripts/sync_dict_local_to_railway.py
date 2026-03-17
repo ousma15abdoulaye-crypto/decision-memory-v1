@@ -1,3 +1,77 @@
+import os
+from urllib.parse import urlparse
+
+
+def _is_railway_hostname(hostname: str) -> bool:
+    """
+    Return True if the given hostname looks like a Railway host.
+
+    We consider the official Railway domains (*.rlwy.net) and an internal
+    hostname 'railway.internal'. This is intentionally stricter than
+    a plain '"railway" in hostname' substring check.
+    """
+    if not hostname:
+        return False
+    hostname = hostname.lower()
+
+    if hostname == "railway.internal":
+        return True
+
+    if hostname.endswith(".rlwy.net"):
+        return True
+
+    # Optional legacy heuristic: keep accepting other Railway-like hostnames
+    # that explicitly contain "railway" to avoid breaking existing setups.
+    if "railway" in hostname:
+        return True
+
+    return False
+
+
+def _is_local_hostname(hostname: str) -> bool:
+    """
+    Return True if the given hostname is clearly local.
+
+    This intentionally only accepts localhost / 127.0.0.0/8 to avoid
+    accidentally treating arbitrary internal hosts as "local".
+    """
+    if not hostname:
+        return False
+    hostname = hostname.lower()
+
+    if hostname == "localhost":
+        return True
+
+    if hostname.startswith("127."):
+        return True
+
+    return False
+
+
+def _assert_safe_sync(local_url: str, remote_url: str) -> None:
+    """
+    Ensure that we are not accidentally treating a Railway/prod URL as "local".
+
+    - The 'local_url' must resolve to a clearly local hostname.
+    - The 'remote_url' must look like a Railway host.
+    - If 'local_url' is *not* local, require DMS_ALLOW_RAILWAY_SYNC=1 to proceed.
+    """
+    local_host = urlparse(local_url).hostname
+    remote_host = urlparse(remote_url).hostname
+
+    # If the given "local" URL is actually remote, force an explicit opt-in.
+    if not _is_local_hostname(local_host):
+        if os.getenv("DMS_ALLOW_RAILWAY_SYNC") != "1":
+            raise RuntimeError(
+                "Refusing to run sync: 'local' URL does not point to localhost/127.x.x.x "
+                "and DMS_ALLOW_RAILWAY_SYNC is not set to '1'."
+            )
+
+    # Also ensure that the remote side is really Railway to avoid surprises.
+    if not _is_railway_hostname(remote_host):
+        raise RuntimeError(
+            f"Refusing to run sync: remote URL {remote_host!r} does not look like a Railway host."
+        )
 #!/usr/bin/env python3
 """
 Sync couche_b.procurement_dict_items local -> Railway.
