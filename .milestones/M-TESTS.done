@@ -1,0 +1,7 @@
+MILESTONE      : M-TESTS
+DATE           : 2026-03-17
+ACTIVÉ_PAR     : ASAP-04 — audit CTO senior 2026-03-17
+EFFET          : Gate coverage CI passe de fail_under=0 à fail_under=40
+PROCHAINE_ÉTAPE: Augmenter à 60% post-M12 — 80% post-M15
+RÉFÉRENCE      : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
+                 .github/workflows/ci-milestones-gates.yml
