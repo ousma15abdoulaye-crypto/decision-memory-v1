@@ -1,0 +1,311 @@
+﻿======================================================================
+=== REQU╩TE 1 ù COLONNES TABLE MERCURIALS ===
+======================================================================
+  id                             uuid                 null=NO
+  source_id                      uuid                 null=NO
+  item_code                      text                 null=YES
+  item_canonical                 text                 null=NO
+  group_label                    text                 null=YES
+  price_min                      numeric              null=NO
+  price_avg                      numeric              null=NO
+  price_max                      numeric              null=NO
+  unit_price                     numeric              null=NO
+  currency                       text                 null=NO
+  unit_raw                       text                 null=YES
+  unit_id                        uuid                 null=YES
+  item_id                        uuid                 null=YES
+  zone_raw                       text                 null=YES
+  zone_id                        text                 null=YES
+  year                           integer              null=NO
+  confidence                     double precision     null=NO
+  review_required                boolean              null=NO
+  extraction_metadata            jsonb                null=NO
+  created_at                     timestamp with time zone null=NO
+
+======================================================================
+=== REQU╩TE 2 ù SOURCES (via mercuriale_sources) ET PLAGE ===
+======================================================================
+  official_dgmp                            27396 lignes
+
+=== PLAGE TEMPORELLE (year) ===
+  year_min   : 2023
+  year_max   : 2026
+  n_years    : 3
+  total      : 27396
+
+======================================================================
+=== REQU╩TE 3 ù ZONES ET ITEMS ===
+======================================================================
+  zone-bamako-1                  3672 lignes
+  zone-nara-1                    1757 lignes
+  zone-segou-1                   1750 lignes
+  zone-san-1                     1651 lignes
+  zone-koulikoro-1               1622 lignes
+  zone-sikasso-1                 1621 lignes
+  zone-mopti-1                   1540 lignes
+  zone-tombouctou-1              1446 lignes
+  zone-gao-1                     1443 lignes
+  zone-nioro-1                   1378 lignes
+  zone-dioila-1                  1352 lignes
+  zone-koutiala-1                1317 lignes
+  zone-menaka-1                  1262 lignes
+  zone-kita-1                    1085 lignes
+  zone-bougouni-1                1016 lignes
+  zone-taoudeni-1                997 lignes
+  zone-douentza-1                928 lignes
+  zone-bandiagara-1              816 lignes
+  zone-kidal-1                   743 lignes
+
+=== ECHANTILLON ITEMS (50 premiers) ===
+  41022)
+  Abonnement au journal 22 Septembre
+  Abonnement au journal Challenger(10% de reduction de 0 Ó100 journaux,15% de reduction de 100 Ó 200, 200 et
+  Abonnement au journal Challenger 
+(10% de reduction de 0 Ó100 journaux, 
+15% de reduction de 100 Ó 200, 200 et 
+plus 20% de reduction,)
+  Abonnement au journal Challenger(10% de reduction de 0 Ó100 journaux, 15% de reduction de 100 Ó 200, 200 et plus 20% de reduction,)
+  Abonnement au journal Challenger(10% de reduction de 0 Ó100 journaux,15% de reduction de 100 Ó 200, 200 etplus 20% de reduction,)
+  Abonnement au journal ESSOR
+  Abonnement au journal IndÚpendant
+  Abonnement au journal L'Echos
+  Abonnement au journal Le RÚpublicain
+  Abonnement au journal LeRÚpublicain
+  Abonnement au journal L'Inspecteur
+  Abonnement au journal Nouvel Horizon
+  Abonnement au journal NouvelHorizon
+  Abonnement au magazine Jeune Afrique
+  Abonnement au magazine JeuneAfrique
+  AcÚtate d'Úthyle ( Preciser le type)
+  Acide chloyet tech 33 Ó 35░, 6 colorants
+  Acide chloyet tech 33 Ó 35░, 6 Colorants
+  Acide chloyet tech 33 Ó 35░, 6Colorants
+  Acide Gras
+  Acide nitrique
+  Acide pour carreaux 1L
+  Acide pour carreaux 1L avec prÚparation
+  Acide pour carreaux 1L avec prÚparation 
+locale
+  Acide pour carreaux 1L avec prÚparation locale
+  Acide salicylique
+  Acide sulfurique
+  Affiche autocollant A2
+  Agenda Simple
+  Agrafe 23/10
+  Agrafe 23/16
+  Agrafe 23/24
+  Agrafe BÚBÚ
+  Agrafe n░16
+  Agrafes 10 ( 1000 punti/staples) Globe 
+Star
+  Agrafes 10 ( 1000 punti/staples) Globe Star
+  Agrafes 10 ( 1000 punti/staples) GlobeStar
+  Agrafes 10 ( 1000punti/staples) Globe Star
+  Agrafes 23/17( 1000 punti/staples)
+  Agrafes 23/17( 1000punti/staples)
+  Agrafes 23/8( 1000 punti/staples) 
+ImportÚ
+  Agrafes 23/8( 1000 punti/staples) ImportÚ
+  Agrafes 23/8( 1000punti/staples) ImportÚ
+  Agrafes 24/6 ( 1000 punti/staples)
+  Agrafes 24/6 ( 1000punti/staples)
+  Agrafes 26/4( 1000 punti/staples)
+  Agrafes 26/4( 1000punti/staples)
+  Agrafes 8/4 ( 1000 punti/staples)
+  Agrafes 8/4 ( 1000punti/staples)
+
+=== ITEMS IMC (ciment, sable, gravier, bois, fer, etc.) ===
+  Gravier du fleuve                             43 lignes
+  Boisson ivorio 24 unitÚs dans le carton       40 lignes
+  Peinture noire 3 kgs                          40 lignes
+  Peinture noire 1 kg                           40 lignes
+  Gravier de carriÞre(concassÚ 15/25:5/15)      40 lignes
+  Peinture Ó l'huile bo¯te de 3 kgs (Saapec)    39 lignes
+  Peinture rouge pingle 3 Kg                    38 lignes
+  Peinture noire 250 g                          38 lignes
+  Peinture Ó huile 20 kgs (Saapec)              38 lignes
+  Rond Tor N░ 10( barre de 12m) HA 10           37 lignes
+  Peinture noire 250 g (Atlas - Auto)           37 lignes
+  Peinture Ó huile 20 kgs (Sadolac)             36 lignes
+  Papier sable                                  35 lignes
+  Ciment CPA 45                                 35 lignes
+  Peinture Ó l'huile bo¯te de 3 kgs (Sadolac)   35 lignes
+  Vis Ó bois 3x25                               35 lignes
+  Bois rouge 40 cm x 4 mm                       35 lignes
+  Rond Tor N░ 12( barre de 12m) HA12            35 lignes
+  Vis Ó bois 3x20                               35 lignes
+  Rond lisse N░ 6 ( barre de 12m)               34 lignes
+  Ciment CPA 35                                 34 lignes
+  Boisson sucrerie en bouteille                 34 lignes
+  Carreau de ciment 30/30                       34 lignes
+  Carreau de fa´ence 30/20                      34 lignes
+  Rond Tor N░8 ( barre de 12m) HA 8             34 lignes
+  Vis Ó bois 3x30                               34 lignes
+  Carreau grÚ de cÚrame importÚ 30/30           33 lignes
+  Carreau de fa´ence 15/15                      33 lignes
+  Vis Ó bois 3x16                               33 lignes
+  Bois Samba 40 cmx 4 mm                        32 lignes
+
+======================================================================
+=== REQU╩TE 4 ù TABLES prix/price/imc/index/mercurial/survey ===
+======================================================================
+  couche_b        dict_price_references               24 kB
+  couche_b        mercuriale_raw_queue                64 kB
+  pg_catalog      pg_index                            208 kB
+  public          geo_price_corridors                 64 kB
+  public          imc_entries                         424 kB
+  public          imc_sources                         112 kB
+  public          market_surveys                      6472 kB
+  public          mercuriale_sources                  80 kB
+  public          mercurials                          8424 kB
+  public          mercurials_item_map                 552 kB
+  public          price_anomaly_alerts                40 kB
+  public          survey_campaign_items               24 kB
+  public          survey_campaign_zones               24 kB
+  public          survey_campaigns                    16 kB
+
+=== TABLES PUBLIC (taille dÚcroissante) ===
+  mercurials                               8424 kB
+  market_surveys                           6472 kB
+  audit_log                                3440 kB
+  seasonal_patterns                        1712 kB
+  signal_computation_log                   1704 kB
+  vendors                                  568 kB
+  mercurials_item_map                      552 kB
+  market_signals_v2                        528 kB
+  imc_entries                              424 kB
+  analysis_summaries                       376 kB
+  pipeline_runs                            368 kB
+  tracked_market_items                     264 kB
+  cases                                    200 kB
+  score_runs                               136 kB
+  decision_snapshots                       136 kB
+  users                                    112 kB
+  criteria                                 112 kB
+  market_signals                           112 kB
+  pipeline_step_runs                       112 kB
+  extraction_jobs                          112 kB
+  imc_sources                              112 kB
+  decision_history                         104 kB
+  committee_events                         104 kB
+  committees                               96 kB
+  token_blacklist                          96 kB
+  committee_decisions                      96 kB
+  dao_criteria                             88 kB
+  extractions                              80 kB
+  committee_members                        80 kB
+  mercuriale_sources                       80 kB
+
+======================================================================
+=== REQU╩TE A ù CONTENU imc_entries ===
+======================================================================
+=== COLONNES imc_entries ===
+  id                             character varying
+  source_id                      character varying
+  category_raw                   character varying
+  category_normalized            character varying
+  period_year                    integer
+  period_month                   integer
+  index_value                    numeric
+  variation_mom                  numeric
+  variation_yoy                  numeric
+  review_required                boolean
+  created_at                     timestamp with time zone
+
+=== PLAGE TEMPORELLE imc_entries ===
+  year_min             : 2018
+  year_max             : 2026
+  month_min            : 1
+  month_max            : 12
+  total                : 810
+  n_periods            : 88
+
+=== ECHANTILLON imc_entries (10 lignes) ===
+  {'id': 'd5c5b2d8-90d2-4b64-b58c-5503e482bbce', 'source_id': '253a7b9a-c740-491b-9284-ff829ed5d7cb', 'category_raw': 'LIANTS HYDRAULIQUES', 'category_normalized': None, 'period_year': 2018, 'period_month': 8, 'index_value': Decimal('101.1000'), 'variation_mom': None, 'variation_yoy': Decimal('-0.2000'), 'review_required': False, 'created_at': datetime.datetime(2026, 3, 5, 11, 11, 44, 874362, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': 'bd621796-9752-43f0-bd86-bb48399963cd', 'source_id': '253a7b9a-c740-491b-9284-ff829ed5d7cb', 'category_raw': 'AGREGATS', 'category_normalized': None, 'period_year': 2018, 'period_month': 8, 'index_value': Decimal('187.0000'), 'variation_mom': Decimal('1.4000'), 'variation_yoy': Decimal('0.6000'), 'review_required': False, 'created_at': datetime.datetime(2026, 3, 5, 11, 11, 44, 874362, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': '2220cc13-2765-4321-99fe-b7aac0468a09', 'source_id': '253a7b9a-c740-491b-9284-ff829ed5d7cb', 'category_raw': 'BOIS', 'category_normalized': None, 'period_year': 2018, 'period_month': 8, 'index_value': Decimal('139.3000'), 'variation_mom': Decimal('-0.8000'), 'variation_yoy': Decimal('-2.2000'), 'review_required': False, 'created_at': datetime.datetime(2026, 3, 5, 11, 11, 44, 874362, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': '171cbf8d-d1e0-429c-94da-3f11335b870f', 'source_id': '253a7b9a-c740-491b-9284-ff829ed5d7cb', 'category_raw': 'FER A BETON', 'category_normalized': None, 'period_year': 2018, 'period_month': 8, 'index_value': Decimal('111.8000'), 'variation_mom': Decimal('0.1000'), 'variation_yoy': Decimal('-2.6000'), 'review_required': False, 'created_at': datetime.datetime(2026, 3, 5, 11, 11, 44, 874362, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': '39cde3e8-fb0c-47ae-970b-ef4f1f5f410c', 'source_id': '253a7b9a-c740-491b-9284-ff829ed5d7cb', 'category_raw': 'REVETEMENT', 'category_normalized': None, 'period_year': 2018, 'period_month': 8, 'index_value': Decimal('92.6000'), 'variation_mom': Decimal('3.6000'), 'variation_yoy': Decimal('4.6000'), 'review_required': False, 'created_at': datetime.datetime(2026, 3, 5, 11, 11, 44, 874362, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': 'f2206814-9c36-4a3f-a686-53522b71050b', 'source_id': '253a7b9a-c740-491b-9284-ff829ed5d7cb', 'category_raw': 'PLOMBERIE ET SANITAIRE', 'category_normalized': None, 'period_year': 2018, 'period_month': 8, 'index_value': Decimal('81.3000'), 'variation_mom': Decimal('2.2000'), 'variation_yoy': Decimal('0.5000'), 'review_required': False, 'created_at': datetime.datetime(2026, 3, 5, 11, 11, 44, 874362, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': 'f23a5ff7-9745-4063-8d06-33f3ec1a7e66', 'source_id': '253a7b9a-c740-491b-9284-ff829ed5d7cb', 'category_raw': 'PEINTURE', 'category_normalized': None, 'period_year': 2018, 'period_month': 8, 'index_value': Decimal('82.0000'), 'variation_mom': Decimal('-0.7000'), 'variation_yoy': None, 'review_required': False, 'created_at': datetime.datetime(2026, 3, 5, 11, 11, 44, 874362, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': 'bc3a0cfa-af29-46b0-8f48-1124b0a63ef1', 'source_id': '253a7b9a-c740-491b-9284-ff829ed5d7cb', 'category_raw': 'Porte isoplanMe E7N0U/2I2S0E sRaInEs main', 'category_normalized': None, 'period_year': 2018, 'period_month': 8, 'index_value': Decimal('124.7000'), 'variation_mom': Decimal('4.7000'), 'variation_yoy': Decimal('2.1000'), 'review_required': False, 'created_at': datetime.datetime(2026, 3, 5, 11, 11, 44, 874362, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': '82fd5af8-966c-43c1-a194-2292cf310883', 'source_id': '253a7b9a-c740-491b-9284-ff829ed5d7cb', 'category_raw': 'ELECTRICITE', 'category_normalized': None, 'period_year': 2018, 'period_month': 8, 'index_value': Decimal('104.4000'), 'variation_mom': Decimal('-0.9000'), 'variation_yoy': Decimal('-1.2000'), 'review_required': False, 'created_at': datetime.datetime(2026, 3, 5, 11, 11, 44, 874362, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': '94050f9e-fd71-4810-8f92-57b232417bae', 'source_id': '030b1de9-e071-4fac-87a6-efea060bbeea', 'category_raw': 'LIANTS HYDRAULIQUES', 'category_normalized': None, 'period_year': 2019, 'period_month': 8, 'index_value': Decimal('100.9000'), 'variation_mom': Decimal('-4.6000'), 'variation_yoy': Decimal('3.6000'), 'review_required': False, 'created_at': datetime.datetime(2026, 3, 5, 11, 11, 50, 408868, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+
+======================================================================
+=== REQU╩TE B ù imc_sources et mercuriale_sources ===
+======================================================================
+=== imc_sources (20 lignes) ===
+  {'id': '253a7b9a-c740-491b-9284-ff829ed5d7cb', 'sha256': '05920c4810134c75437b46b3657842b0f4f5550649a617a5dee8b9f0bb9dd844', 'filename': 'AOUT18.pdf', 'source_year': 2018, 'source_month': 8, 'period_start': None, 'period_end': None, 'base_year': None, 'gaps_detected': [], 'parse_method': 'native_pdf', 'parse_status': 'success', 'raw_page_count': None, 'imported_at': datetime.datetime(2026, 3, 5, 11, 11, 44, 353343, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': '030b1de9-e071-4fac-87a6-efea060bbeea', 'sha256': '09c539b0400f7fb3946fa0f935e7a4689c91d7b493cc26b00592000a61b52e45', 'filename': 'AOUT19.pdf', 'source_year': 2019, 'source_month': 8, 'period_start': None, 'period_end': None, 'base_year': None, 'gaps_detected': [], 'parse_method': 'native_pdf', 'parse_status': 'success', 'raw_page_count': None, 'imported_at': datetime.datetime(2026, 3, 5, 11, 11, 49, 541401, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': 'a44d053d-5f2b-4a9c-a34c-f6ab1cd7ef59', 'sha256': '0794d953c2ecf19db537232b41da920f903bad9090160c73058deb8647d1f027', 'filename': 'AOUT20.pdf', 'source_year': 2020, 'source_month': 8, 'period_start': None, 'period_end': None, 'base_year': None, 'gaps_detected': [], 'parse_method': 'native_pdf', 'parse_status': 'success', 'raw_page_count': None, 'imported_at': datetime.datetime(2026, 3, 5, 11, 11, 53, 382512, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': '4ac6bde4-f609-4f83-8e19-20769e7a7dcd', 'sha256': '7de23af644510a8e9c970e99c8326594b99024879b4e7e50e7f617ce9ff74fba', 'filename': 'AOUT21.pdf', 'source_year': 2021, 'source_month': 8, 'period_start': None, 'period_end': None, 'base_year': None, 'gaps_detected': [], 'parse_method': 'native_pdf', 'parse_status': 'success', 'raw_page_count': None, 'imported_at': datetime.datetime(2026, 3, 5, 11, 11, 58, 196949, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': 'a104487a-1e8c-44a8-bf08-bb009f017bdb', 'sha256': '714fee335423feb3b6e282f7019d561eee00d8108b327becce19ea8a346197eb', 'filename': 'AOUT23.pdf', 'source_year': 2023, 'source_month': 8, 'period_start': None, 'period_end': None, 'base_year': None, 'gaps_detected': [], 'parse_method': 'native_pdf', 'parse_status': 'success', 'raw_page_count': None, 'imported_at': datetime.datetime(2026, 3, 5, 11, 12, 5, 102107, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': '1c7abdc2-4380-4d3d-836d-a3c3163903b0', 'sha256': 'e2dd4312c5f7f170c9dbbc173ae611076c7b373b14c79d54899784df08c664c6', 'filename': 'AOUT24.pdf', 'source_year': 2024, 'source_month': 8, 'period_start': None, 'period_end': None, 'base_year': None, 'gaps_detected': [], 'parse_method': 'native_pdf', 'parse_status': 'success', 'raw_page_count': None, 'imported_at': datetime.datetime(2026, 3, 5, 11, 12, 8, 980571, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': '11b6f685-16d3-47c1-9451-58f7b5e9a7a6', 'sha256': '11c56d33fe9ff3f214f6f1961d40944d70790b4e87411a57f75c6a547fd94a06', 'filename': 'AOUT25.pdf', 'source_year': 2025, 'source_month': 8, 'period_start': None, 'period_end': None, 'base_year': None, 'gaps_detected': [], 'parse_method': 'native_pdf', 'parse_status': 'success', 'raw_page_count': None, 'imported_at': datetime.datetime(2026, 3, 5, 11, 12, 13, 253673, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': '2461f0bd-e803-43b9-b1fb-1c58cca13638', 'sha256': '93d288ed9ef24248632b037a65c57c35cf3137eaa42bcccfa0abe372ec4dd154', 'filename': 'AV25.pdf', 'source_year': 2025, 'source_month': 4, 'period_start': None, 'period_end': None, 'base_year': None, 'gaps_detected': [], 'parse_method': 'native_pdf', 'parse_status': 'success', 'raw_page_count': None, 'imported_at': datetime.datetime(2026, 3, 5, 11, 12, 16, 810325, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': '904ea8ee-2314-4708-96d1-6ee76cffa49e', 'sha256': '477ffe5e017bbfe512d248771663fdd3e594fcef5d4a00c896e4b639f60ac43a', 'filename': 'AVRIL18.pdf', 'source_year': 2018, 'source_month': 4, 'period_start': None, 'period_end': None, 'base_year': None, 'gaps_detected': [], 'parse_method': 'native_pdf', 'parse_status': 'success', 'raw_page_count': None, 'imported_at': datetime.datetime(2026, 3, 5, 11, 12, 22, 505067, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': '7d56843f-dfd9-4492-9258-541dbe2c9f65', 'sha256': '123adc69b39f4b60a7a71f9dd934919219066a224b2cdfed8ed08b8fc5f8e58d', 'filename': 'AVRIL19.pdf', 'source_year': 2019, 'source_month': 4, 'period_start': None, 'period_end': None, 'base_year': None, 'gaps_detected': [], 'parse_method': 'native_pdf', 'parse_status': 'success', 'raw_page_count': None, 'imported_at': datetime.datetime(2026, 3, 5, 11, 12, 28, 429879, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': '2d5c44ce-a48b-45b7-a536-8f94c31e7926', 'sha256': 'bb660fdb06f9b7e9587eb9675e919faf002cfd606ca3b96f29e860dd8b6912bb', 'filename': 'AVRIL20.pdf', 'source_year': 2020, 'source_month': 4, 'period_start': None, 'period_end': None, 'base_year': None, 'gaps_detected': [], 'parse_method': 'native_pdf', 'parse_status': 'success', 'raw_page_count': None, 'imported_at': datetime.datetime(2026, 3, 5, 11, 12, 32, 496356, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': 'e29582dc-8189-437e-a50d-df7e418f6114', 'sha256': '1ce278179ff2720905282f603f94d703ae2e6b8611302eb89b9f06e51d0a6d6a', 'filename': 'AVRIL21.pdf', 'source_year': 2021, 'source_month': 4, 'period_start': None, 'period_end': None, 'base_year': None, 'gaps_detected': [], 'parse_method': 'native_pdf', 'parse_status': 'success', 'raw_page_count': None, 'imported_at': datetime.datetime(2026, 3, 5, 11, 12, 36, 582009, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': 'f0d6198c-e455-453d-874d-fcdb832ea52d', 'sha256': 'c3eabfd4dc78cd5d623c5de689e6dde2c586948ce0cf55853b69ae8f5aa31b4b', 'filename': 'AVRIL22.pdf', 'source_year': 2022, 'source_month': 4, 'period_start': None, 'period_end': None, 'base_year': None, 'gaps_detected': [], 'parse_method': 'native_pdf', 'parse_status': 'success', 'raw_page_count': None, 'imported_at': datetime.datetime(2026, 3, 5, 11, 12, 40, 946744, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': '3c5b0537-c4dd-4ce2-87e8-7e60b68d4076', 'sha256': '213ebd2cf9e097508a5e9458eb8b2cf3be73cccc0ab414212f640f8116d140ee', 'filename': 'AVRIL23.pdf', 'source_year': 2023, 'source_month': 4, 'period_start': None, 'period_end': None, 'base_year': None, 'gaps_detected': [], 'parse_method': 'native_pdf', 'parse_status': 'success', 'raw_page_count': None, 'imported_at': datetime.datetime(2026, 3, 5, 11, 12, 44, 821468, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': 'e8575bc8-dd43-4fbe-a71e-dbfd1dc37f57', 'sha256': '0308b452d20022619cac9401364ef55293b37ab397473b432931f49f387d4bbf', 'filename': 'AVRIL24.pdf', 'source_year': 2024, 'source_month': 4, 'period_start': None, 'period_end': None, 'base_year': None, 'gaps_detected': [], 'parse_method': 'native_pdf', 'parse_status': 'success', 'raw_page_count': None, 'imported_at': datetime.datetime(2026, 3, 5, 11, 12, 50, 326158, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': '6e5a1f79-8618-4b2a-8706-31ed15561049', 'sha256': '2a9c87a77525332e89e9379c8f3b64adc2c518f071f14941838bcd81687c8b47', 'filename': 'DEC18.pdf', 'source_year': 2018, 'source_month': 12, 'period_start': None, 'period_end': None, 'base_year': None, 'gaps_detected': [], 'parse_method': 'native_pdf', 'parse_status': 'success', 'raw_page_count': None, 'imported_at': datetime.datetime(2026, 3, 5, 11, 12, 53, 196754, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': '0436fba6-768d-4c5d-8ec1-9c93fcc669aa', 'sha256': '529af796766306ee8b088931e047e3a49e8a8f5af981d5df9f51d920791f5c0f', 'filename': 'DEC19.pdf', 'source_year': 2019, 'source_month': 12, 'period_start': None, 'period_end': None, 'base_year': None, 'gaps_detected': [], 'parse_method': 'native_pdf', 'parse_status': 'success', 'raw_page_count': None, 'imported_at': datetime.datetime(2026, 3, 5, 11, 12, 55, 950251, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': '638b3f8d-a84a-4cb1-bbb4-7efc50ccf812', 'sha256': 'b873c3ac573a7540e51f6bbeaa46bbe606175baf2e81e04de4ed3ec97b238c43', 'filename': 'DEC20.pdf', 'source_year': 2020, 'source_month': 12, 'period_start': None, 'period_end': None, 'base_year': None, 'gaps_detected': [], 'parse_method': 'native_pdf', 'parse_status': 'success', 'raw_page_count': None, 'imported_at': datetime.datetime(2026, 3, 5, 11, 12, 58, 917988, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': '69674afc-3063-4a64-9765-2a7522bdbae9', 'sha256': '2bb9039609d24803adf35d2b8897d2124a5fb07c2224fcb62d7a17942235ae9c', 'filename': 'DEC21.pdf', 'source_year': 2021, 'source_month': 12, 'period_start': None, 'period_end': None, 'base_year': None, 'gaps_detected': [], 'parse_method': 'native_pdf', 'parse_status': 'success', 'raw_page_count': None, 'imported_at': datetime.datetime(2026, 3, 5, 11, 13, 2, 392912, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+  {'id': 'bfdbdfd9-42c0-45c8-85be-f218be98c883', 'sha256': '61d8ef177d5ae8838e1022ccd6c39c89883062ec59b6f458744038ee74762a6d', 'filename': 'DEC22.pdf', 'source_year': 2022, 'source_month': 12, 'period_start': None, 'period_end': None, 'base_year': None, 'gaps_detected': [], 'parse_method': 'native_pdf', 'parse_status': 'success', 'raw_page_count': None, 'imported_at': datetime.datetime(2026, 3, 5, 11, 13, 5, 502961, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))}
+
+=== mercuriale_sources (20 lignes) ===
+  {'id': UUID('069e563d-09c0-42f8-9355-e7330f13acc2'), 'filename': 'Mercuriale des prix 2024 ( CombinÚ de Toutes les regions ).pdf', 'sha256': '3371c5e3f34de8d7957ad1678ba8e340d36bcc815f15cf24b0dc1eca52ef76b9', 'year': 2024, 'source_type': 'official_dgmp', 'imported_at': datetime.datetime(2026, 3, 4, 16, 23, 41, 241834, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')), 'row_count': 3188, 'parse_status': 'done', 'extraction_engine': 'llamacloud', 'notes': None}
+  {'id': UUID('56c1cf1c-cc11-4a9b-b7ed-3e51ea743f19'), 'filename': 'Bulletin_Result_Bko2023.pdf', 'sha256': 'dd88537a04a7fcc1542d37706a3fff7eae2fd511c590ee44d2a9b08cdc3b8857', 'year': 2023, 'source_type': 'official_dgmp', 'imported_at': datetime.datetime(2026, 3, 4, 16, 24, 21, 865496, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')), 'row_count': 924, 'parse_status': 'done', 'extraction_engine': 'llamacloud', 'notes': None}
+  {'id': UUID('ee95f055-5316-4e68-9764-07b9f759fe11'), 'filename': 'Bulletin_Result_Bougouni2023.pdf', 'sha256': '2740a2cd4c5e67abed8a943376bd7caa49fd5583184f5b21f59a7d10441eb7cd', 'year': 2023, 'source_type': 'official_dgmp', 'imported_at': datetime.datetime(2026, 3, 4, 16, 24, 22, 641904, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')), 'row_count': 294, 'parse_status': 'done', 'extraction_engine': 'llamacloud', 'notes': None}
+  {'id': UUID('d789a0ad-8be4-48f5-ba02-1f99be5031dd'), 'filename': 'Bulletin_Result_Dioila2023.pdf', 'sha256': '33495dbdb7235f44b4151154e45598482c4eb95f241c15ec27c08118fd3a8553', 'year': 2023, 'source_type': 'official_dgmp', 'imported_at': datetime.datetime(2026, 3, 4, 16, 24, 23, 190619, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')), 'row_count': 316, 'parse_status': 'done', 'extraction_engine': 'llamacloud', 'notes': None}
+  {'id': UUID('300a86b5-1593-468f-a6b3-fa2daa8f5264'), 'filename': 'Bulletin_Result_Gao2023.pdf', 'sha256': 'f8ff25d14d84ba0b75b62855c57aec2c3912f1e7a14eaff83dc6926aeeb31792', 'year': 2023, 'source_type': 'official_dgmp', 'imported_at': datetime.datetime(2026, 3, 4, 16, 24, 23, 951713, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')), 'row_count': 607, 'parse_status': 'done', 'extraction_engine': 'llamacloud', 'notes': None}
+  {'id': UUID('09d726f4-c328-43f1-a393-f30a27705c02'), 'filename': 'Bulletin_Result_Kidal2023.pdf', 'sha256': '88bb28bd034a247d9f29f821154b008d4a091fe61f18829ffff5c679318ee216', 'year': 2023, 'source_type': 'official_dgmp', 'imported_at': datetime.datetime(2026, 3, 4, 16, 24, 24, 785893, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')), 'row_count': 743, 'parse_status': 'done', 'extraction_engine': 'llamacloud', 'notes': None}
+  {'id': UUID('188e22b1-5030-445c-a83c-4c9c55af2946'), 'filename': 'Bulletin_Result_Kita2023.pdf', 'sha256': '281c4fece1718611d08ef4a788f882075e5b77a71b1f8e3c5c189446cb3b03d2', 'year': 2023, 'source_type': 'official_dgmp', 'imported_at': datetime.datetime(2026, 3, 4, 16, 24, 25, 329130, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')), 'row_count': 382, 'parse_status': 'done', 'extraction_engine': 'llamacloud', 'notes': None}
+  {'id': UUID('f795e82e-0a65-4a0a-a3fa-b451fdbfc4c1'), 'filename': 'Bulletin_Result_Koulikoro2023.pdf', 'sha256': '882f570ca4000b46e4f7503700d5d83d650693788acb744d110d2a33cbbb1f01', 'year': 2023, 'source_type': 'official_dgmp', 'imported_at': datetime.datetime(2026, 3, 4, 16, 24, 25, 966382, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')), 'row_count': 711, 'parse_status': 'done', 'extraction_engine': 'llamacloud', 'notes': None}
+  {'id': UUID('d6b7c405-cf1f-4f1a-bb06-eafffad85d92'), 'filename': 'Bulletin_Result_Menaka2023.pdf', 'sha256': '1aff7c5a033951299cf67b64af65c8ef72a6179c54db4fd9335299550c2fe358', 'year': 2023, 'source_type': 'official_dgmp', 'imported_at': datetime.datetime(2026, 3, 4, 16, 24, 26, 737491, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')), 'row_count': 416, 'parse_status': 'done', 'extraction_engine': 'llamacloud', 'notes': None}
+  {'id': UUID('e885e01c-1165-494e-8d2e-7d27cbf97f6d'), 'filename': 'Bulletin_Result_Mopti2023.pdf', 'sha256': '5ab0f3a4dce76382af32c64772a5e09f84867e91fe04dee80a007c42f26c9b10', 'year': 2023, 'source_type': 'official_dgmp', 'imported_at': datetime.datetime(2026, 3, 4, 16, 24, 27, 339548, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')), 'row_count': 651, 'parse_status': 'done', 'extraction_engine': 'llamacloud', 'notes': None}
+  {'id': UUID('67b7f027-94d6-454d-bf42-9e8ce71f96ee'), 'filename': 'Bulletin_Result_Nara2023.pdf', 'sha256': '9936228fee1df96f4883aa172e222fbec6314bff2659bb8ec06d264c592984db', 'year': 2023, 'source_type': 'official_dgmp', 'imported_at': datetime.datetime(2026, 3, 4, 16, 24, 27, 859901, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')), 'row_count': 519, 'parse_status': 'done', 'extraction_engine': 'llamacloud', 'notes': None}
+  {'id': UUID('12c9d26f-eee4-4910-a125-444cab08542a'), 'filename': 'Bulletin_Result_Nioro2023.pdf', 'sha256': 'dc34b53bcf3e12355a3c5ed785fb029c0e2ee282984c6e2464db99ac3f808f27', 'year': 2023, 'source_type': 'official_dgmp', 'imported_at': datetime.datetime(2026, 3, 4, 16, 24, 28, 381858, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')), 'row_count': 396, 'parse_status': 'done', 'extraction_engine': 'llamacloud', 'notes': None}
+  {'id': UUID('e6004e95-9a12-476a-a6d7-969bcabff208'), 'filename': 'Bulletin_Result_San2023.pdf', 'sha256': 'e58a82e379e44d9f78af21551fa8225a34bfe77b10d57b67e6346ddefea7db0a', 'year': 2023, 'source_type': 'official_dgmp', 'imported_at': datetime.datetime(2026, 3, 4, 16, 24, 28, 945678, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')), 'row_count': 415, 'parse_status': 'done', 'extraction_engine': 'llamacloud', 'notes': None}
+  {'id': UUID('d77ea69f-df9f-4766-95c5-8066ac5afdbf'), 'filename': 'Bulletin_Result_Segou2023.pdf', 'sha256': 'ab329d37ec68965a7fa475828d196d5ae73a2b207f1f79210f1f365a769222f5', 'year': 2023, 'source_type': 'official_dgmp', 'imported_at': datetime.datetime(2026, 3, 4, 16, 24, 29, 516119, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')), 'row_count': 744, 'parse_status': 'done', 'extraction_engine': 'llamacloud', 'notes': None}
+  {'id': UUID('d17ce2a2-8198-4a6d-af15-f967949aecd9'), 'filename': 'Bulletin_Result_Sikasso2023.pdf', 'sha256': 'b87b2cb4cde0a43fe7c5d7bb100cd48ab956bb2f4e7d9ec7532cb940a160a12c', 'year': 2023, 'source_type': 'official_dgmp', 'imported_at': datetime.datetime(2026, 3, 4, 16, 24, 30, 91830, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')), 'row_count': 689, 'parse_status': 'done', 'extraction_engine': 'llamacloud', 'notes': None}
+  {'id': UUID('6d72488a-13ae-4f1c-9940-68d9bb80d2e1'), 'filename': 'Bulletin_Result_Taoudeni2023.pdf', 'sha256': 'add61302e086b623c48a5d54bf24e79a6fd3e15b22dfd474f7e50099cc445dda', 'year': 2023, 'source_type': 'official_dgmp', 'imported_at': datetime.datetime(2026, 3, 4, 16, 24, 30, 763460, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')), 'row_count': 639, 'parse_status': 'done', 'extraction_engine': 'llamacloud', 'notes': None}
+  {'id': UUID('f029396c-d50f-4c66-be2e-ce1d7231e4b6'), 'filename': 'Bulletin_Result_Tombouctou2023.pdf', 'sha256': 'ba0dd48939cbf863681fff007ea9b8e05b8d999982a8155c2b8185d4c1bdc66f', 'year': 2023, 'source_type': 'official_dgmp', 'imported_at': datetime.datetime(2026, 3, 4, 16, 24, 31, 281605, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')), 'row_count': 651, 'parse_status': 'done', 'extraction_engine': 'llamacloud', 'notes': None}
+  {'id': UUID('11c50417-9019-4aed-b089-f79deab5f885'), 'filename': 'Bulletin RÚsult Badiangara26.pdf', 'sha256': 'c48f6fab106784df6678cf2cd7c5674a4f433d0f7a8b884435f81e5527cc7ee6', 'year': 2026, 'source_type': 'official_dgmp', 'imported_at': datetime.datetime(2026, 3, 5, 7, 6, 10, 914081, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')), 'row_count': 816, 'parse_status': 'done', 'extraction_engine': 'llamacloud', 'notes': None}
+  {'id': UUID('6edee835-accd-4a6c-af46-3702d2de168b'), 'filename': 'Bulletin RÚsult Bko26.pdf', 'sha256': 'd7e08b0cd7ed2ae29c2f99f2b2cd0cd6ef3bb84c2975ef3ccce515b6132ef42d', 'year': 2026, 'source_type': 'official_dgmp', 'imported_at': datetime.datetime(2026, 3, 5, 7, 6, 12, 183890, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')), 'row_count': 1159, 'parse_status': 'done', 'extraction_engine': 'llamacloud', 'notes': None}
+  {'id': UUID('f1820cef-8564-460c-9ecc-e04d759b66ac'), 'filename': 'Bulletin RÚsult Bougouni26.pdf', 'sha256': '3f26de2c3185cac4448d2e7aea5402bef6e5bc72192c4b34e4c73f715da1b662', 'year': 2026, 'source_type': 'official_dgmp', 'imported_at': datetime.datetime(2026, 3, 5, 7, 6, 13, 269952, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')), 'row_count': 722, 'parse_status': 'done', 'extraction_engine': 'llamacloud', 'notes': None}
+
+======================================================================
+=== REQU╩TE C ù Recouvrement imc_entries vs mercurials ===
+======================================================================
+=== CAT╔GORIES imc_entries NON dans mercurials (category_raw) ===
+  12 catÚgories IMC absentes de mercurials (top 20) :
+    AGREGATS                                           90 lignes
+    ELECTRICITE                                        90 lignes
+    FER A BETON                                        90 lignes
+    LIANTS HYDRAULIQUES                                90 lignes
+    PEINTURE                                           90 lignes
+    PLOMBERIE ET SANITAIRE                             90 lignes
+    REVETEMENT                                         90 lignes
+    MENUISERIE                                         64 lignes
+    Porte isoplanMe E7N0U/2I2S0E sRaInEs main          14 lignes
+    Porte isoplaneM 7E0N/2U2I0S EsaRnIEs main          7 lignes
+    Porte isoplaneM 7E0N/2U2I0S sEaRnIsE main          4 lignes
+    Porte isoplanMe E7N0/U22IS0E sRaInEs main          1 lignes
+
+=== ANN╔ES dans imc_entries (period_year) ===
+  2018 : 99 lignes
+  2019 : 99 lignes
+  2020 : 90 lignes
+  2021 : 108 lignes
+  2022 : 99 lignes
+  2023 : 99 lignes
+  2024 : 108 lignes
+  2025 : 99 lignes
+  2026 : 9 lignes
+
+=== FIN AUDIT ===

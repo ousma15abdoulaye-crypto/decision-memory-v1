@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-03-16 (PR#202 OCR Files API 65c612f)   ║
+║  Dernière mise à jour : 2025-03-16 (feat/m11-ocr-files-api)         ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -88,6 +88,15 @@
 ║                                                                      ║
 ║  GIT                                                                 ║
 ║  ──────────────────────────────────────────────────────────────     ║
+<<<<<<< HEAD
+║  main            : 00e8126 (après merge PR #199 #202, OCR Files API) ║
+║  feat/m11-ocr-files-api : de055df (head)                          ║
+║  tag m10b-done   : 010a353 (merge PR #184 feat/m10b-agent-native)  ║
+║  tag m11-done    : fbc070e (PR #185 feat/m11-signal-integrity)     ║
+║  tag m12-dette7  : v4.1.0-m12-dette7-done                           ║
+║  tag v4.1.0-ocr-files-api-done : PR #202 mergée                    ║
+║  branche active  : feat/m11-ocr-files-api (M11 OCR Files API)    ║
+=======
 ║  main            : 65c612f (Merge PR #202 feat/m11-ocr-files-api)   ║
 ║  PR#199 merged   : a973784 (feat/m11-llm-upgrade — mistral-large + OCR) ║
 ║  PR#202 merged   : 65c612f (feat/m11-ocr-files-api — Files API Mandat 2)║
@@ -97,12 +106,13 @@
 ║  hash actuel     : 65c612f                                           ║
 ║  tag posé        : v4.1.0-ocr-files-api-done                        ║
 ║  branche active  : main                                              ║
+>>>>>>> origin/main
 ║                                                                      ║
 ║  ALEMBIC — FREEZE ABSOLU                                            ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  head actuel     : 047_couche_a_service_columns                     ║
+║  head actuel     : 048_vendors_sensitive_data                        ║
 ║  historique      : 001 → 045 — FREEZE TOTAL 001-045                ║
-║  chaîne          : 044 → 045 → 046 → 046b → 047                     ║
+║  chaîne          : 044 → 045 → 046 → 046b → 047 → 048               ║
 ║  FREEZE          : 001 → 045 FREEZE TOTAL                          ║
 ║                    046 + 046b = DETTE-7 DONE                        ║
 ║                    047 = PHASE 1B DONE (ORM→psycopg Couche A)       ║
@@ -196,6 +206,16 @@
 ║  ML Backend Mistral                                                  ║
 ║    Service Railway   : annotation-backend                           ║
 ║    Dossier           : services/annotation-backend/                 ║
+<<<<<<< HEAD
+║    Schéma            : v3.0.1d (ADR-015 line_items unit_raw)       ║
+║    Prompt            : prompts/system_prompt.txt (texte pur)         ║
+║    start.sh          : uvicorn ... 2>&1 (E-45 — logs Railway)       ║
+║    Parse             : 5 tentatives (multi-stratégies robustes)     ║
+║    API Mistral       : v1.x — client.chat.complete() json_object     ║
+║    Port              : $PORT (8080 défaut)                          ║
+║    Zéro stockage     : R-05 — transit uniquement                    ║
+║    Statut            : v3.0.1d — prompt .txt, webhook, 80K truncate  ║
+=======
 ║    Schéma            : v3.0.1c — parse 5 tentatives                 ║
 ║    Troncature        : 80 000 chars (~40 pages, PR #202)             ║
 ║    Modèle annotation : mistral-large-latest (TIER_1_MODEL)          ║
@@ -205,6 +225,7 @@
 ║    Port              : 9090 (ou $PORT Railway)                      ║
 ║    Zéro stockage     : R-05 — transit uniquement                    ║
 ║    Statut            : DÉPLOYÉ — PR#199 + PR#202 mergées             ║
+>>>>>>> origin/main
 ║                                                                      ║
 ║  RÈGLES ANNOTATION — FIGÉES                                         ║
 ║  ──────────────────────────────────────────────────────────────     ║
@@ -248,12 +269,17 @@
 ║  M10A    DONE  seasonal_patterns, zone_context, geo_corridors       ║
 ║  M10B    DONE  couche_a, agents, pg_notify (ADR-010)                ║
 ║  M11     DONE  5 dettes, 1106 signaux, severity NULL=0 (ADR-011)    ║
+<<<<<<< HEAD
+║  M11-bis DONE — backend v3.0.1d (ADR-015 unit_raw) + XML v3.0.1c   ║
+║                     PR #197 #199 #202 — ADR-015 2026-03-16          ║
+=======
 ║  M11-bis DONE — backend.py v3.0.1c + XML Label Studio v3.0.1c-fix   ║
 ║                     PR #197 → PR #198 → PR #199 → PR #202           ║
 ║  Mandat 1 DONE — mistral-large-latest + mistral-ocr-latest          ║
 ║                     llm_router.py + ADR-M11-002 (PR #199)           ║
 ║  Mandat 2 DONE — OCR Files API stream + cleanup + troncature 80k    ║
 ║                     client.files.upload/ocr.process/delete (PR #202)║
+>>>>>>> origin/main
 ║  M12     EN COURS                                                   ║
 ║          DETTE-7  DONE — imc_category_item_map + 046 + 046b        ║
 ║          DETTE-8  NEXT — signaux IMC → market_signals_v2            ║
@@ -347,6 +373,19 @@
 ║  E-28  g["gate_name"] sur JSON LLM partiel = KeyError silencieux.   ║
 ║         Toujours g.get() + filtre isinstance(g, dict) avant itér.   ║
 ║         Ref : PR #188 Copilot point 3 — safe_build_ls_result         ║
+║  E-43  line_items annotation : jamais vide si montant visible.     ║
+║         unit_raw obligatoire sur chaque ligne. 3 exemples min prompt. ║
+║         Sans exemple → Mistral hallucine ou omet les unités.       ║
+║         Ref : ADR-015 — 2026-03-16                                  ║
+║  E-44  Consultance = line_items aussi. jour/expert/forfait = unités.║
+║         procurement_dict s'appuie sur ces données. Mémoire marché.  ║
+║         Ref : ADR-015 — 2026-03-16                                  ║
+║  E-45  Railway classifie stderr en "error" peu importe le niveau. ║
+║         Uvicorn envoie vers stderr. Fix : 2>&1 dans start.sh.       ║
+║         Sans fix : faux positifs permanents. Ref : 2026-03-16       ║
+║                                                                      ║
+║  ADR-015  Line items chirurgical — docs/adr/ADR-015_*.md            ║
+║           Date : 2026-03-16 — Statut : ACCEPTÉ — v3.0.1d           ║
 ║                                                                      ║
 ║  PROTOCOLE FIN DE SESSION — OBLIGATOIRE                             ║
 ║  ──────────────────────────────────────────────────────────────     ║
