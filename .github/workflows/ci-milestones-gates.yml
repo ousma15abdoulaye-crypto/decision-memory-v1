@@ -55,6 +55,11 @@ jobs:
   gate-invariants:
     name: "Gate · Invariants Constitution"
     runs-on: ubuntu-latest
+    env:
+      # E-56 : alembic heads lit fichiers uniquement — URL factice suffit
+      DATABASE_URL: postgresql://dms:dms@localhost:5432/dms_invariants_check
+      TESTING: "true"
+      SECRET_KEY: "ci-secret-key-not-for-production"
     steps:
       - uses: actions/checkout@v4
 
@@ -91,8 +96,6 @@ jobs:
             exit 1
           fi
           echo "✅ INV-02 : 1 seul head alembic"
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_CI }}
 
       - name: "INV-03 · zéro artefact de session versionné"
         run: |
@@ -135,16 +138,6 @@ jobs:
             exit 1
           fi
           echo "✅ INV-05 : 0 conditional_limit no-op (hors src/ratelimit.py)"
-
-      - name: "INV-06 · Couche A / Couche B boundary"
-        run: |
-          if [ -f "tests/invariants/test_couche_a_b_boundary.py" ]; then
-            pip install pytest --quiet
-            pytest tests/invariants/test_couche_a_b_boundary.py \
-                -q --tb=short
-          else
-            echo "⚠️  Boundary test absent — documenter dans DETTE"
-          fi
 
   # ────────────────────────────────────────────────────────────
   # JOB 3 — COVERAGE
@@ -201,6 +194,8 @@ jobs:
             echo "Seuil : 0% — M-TESTS.done absent"
           fi
 
+      # INV-06 (Couche A/B boundary) : inclus dans pytest tests/
+      # tests/invariants/test_couche_a_b_boundary.py — conftest exige DATABASE_URL
       - name: Run tests + coverage
         env:
           DATABASE_URL: >-
