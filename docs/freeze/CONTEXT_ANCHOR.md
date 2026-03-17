@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-03-17 (feat/pre-m12-db-ci Mandat 2)    ║
+║  Dernière mise à jour : 2026-03-17 (main post-merge Mandat 2)       ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -88,8 +88,8 @@
 ║                                                                      ║
 ║  GIT — 2026-03-17                                                    ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  main              : 61a2642 (Merge PR#203)                         ║
-║  feat/pre-m12-db-ci : branche active (Mandat 2)                     ║
+║  main              : d7da6aa (Merge PR#213 feat/pre-m12-db-ci)     ║
+║  feat/pre-m12-db-ci : MERGÉ dans main (Mandat 2)                    ║
 ║  feat/fix-backend-production : backend v3.0.1d (en attente merge)   ║
 ║  alembic head local : 050_documents_sha256_not_null                  ║
 ║  alembic head Railway : 044_decision_history (DÉSYNCHRONISÉ)         ║

@@ -32,12 +32,12 @@ freeze_hashes_doc     : docs/freeze/FREEZE_HASHES.md
 
 last_completed        : M11
 last_completed_at     : 2026-03-11
-last_merge_commit     : (en attente merge PR feat/m11-signal-integrity)
+last_merge_commit     : d7da6aa (Merge PR#213 feat/pre-m12-db-ci — Mandat 2)
 last_tag              : m11-done (apres merge)
 next_milestone        : M12
 next_status           : IN_PROGRESS
 blocked_on            : aucun
-branch_courante       : feat/m11-signal-integrity
+branch_courante       : main (feat/pre-m12-db-ci mergé)
 
 ---
 
