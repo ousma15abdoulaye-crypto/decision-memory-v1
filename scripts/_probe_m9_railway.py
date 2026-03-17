@@ -6,6 +6,7 @@ Aucune migration, aucune écriture.
 """
 import os
 from pathlib import Path
+import urllib.parse
 try:
     from dotenv import load_dotenv
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
@@ -20,7 +21,10 @@ db = os.environ.get("RAILWAY_DATABASE_URL", "")
 if not db:
     raise SystemExit("RAILWAY_DATABASE_URL absente dans .env")
 db = db.replace("postgresql+psycopg://", "postgresql://")
-print(f"Connexion Railway : {db[:40]}...")
+_parsed = urllib.parse.urlparse(db)
+_host_port = f"{_parsed.hostname}:{_parsed.port}" if _parsed.port else _parsed.hostname
+_safe_url = f"{_parsed.scheme}://{_host_port}{_parsed.path}"
+print(f"Connexion Railway : {_safe_url}")
 
 conn = psycopg.connect(db, row_factory=dict_row, autocommit=True)
 cur = conn.cursor()
