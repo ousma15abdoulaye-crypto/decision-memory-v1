@@ -166,6 +166,15 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Run DB migrations
+        env:
+          DATABASE_URL: >-
+            postgresql://dms:dms@localhost:5432/dms_test
+          TESTING:    "true"
+          SECRET_KEY: "ci-secret-key-not-for-production"
+        run: |
+          alembic upgrade head
+
       - name: Déterminer seuil coverage
         id: threshold
         run: |
