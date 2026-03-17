@@ -21,7 +21,6 @@ Règles :
 """
 
 from alembic import op
-import sqlalchemy as sa
 
 revision = "049_validate_pipeline_runs_fk"
 down_revision = "048_vendors_sensitive_data"
@@ -33,24 +32,24 @@ def upgrade() -> None:
     conn = op.get_bind()
 
     # ── 0. VÉRIFIER QUE LA TABLE EXISTE ─────────────────────────
-    table_exists = conn.execute(sa.text("""
+    table_exists = conn.exec_driver_sql("""
         SELECT COUNT(*) FROM information_schema.tables
         WHERE table_schema = 'public'
           AND table_name   = 'pipeline_runs'
-    """)).scalar()
+    """).scalar()
 
     if not table_exists:
         print("[049] Table pipeline_runs absente — skip")
         return
 
     # ── 1. PROBE — état FK ───────────────────────────────────────
-    fk_row = conn.execute(sa.text("""
+    fk_row = conn.exec_driver_sql("""
         SELECT conname, convalidated
         FROM pg_constraint
         WHERE conrelid = 'pipeline_runs'::regclass
           AND contype   = 'f'
           AND conname   = 'fk_pipeline_runs_case_id'
-    """)).fetchone()
+    """).fetchone()
 
     if not fk_row:
         print("[049] Contrainte fk_pipeline_runs_case_id absente — skip")
@@ -148,19 +147,19 @@ def upgrade() -> None:
 def downgrade() -> None:
     conn = op.get_bind()
 
-    exists = conn.execute(sa.text("""
+    exists = conn.exec_driver_sql("""
         SELECT COUNT(*) FROM pg_constraint
         WHERE conrelid = 'pipeline_runs'::regclass
           AND contype   = 'f'
           AND conname   = 'fk_pipeline_runs_case_id'
-    """)).scalar()
+    """).scalar()
 
     if exists:
         print("[049] downgrade : VALIDATE est irréversible — no-op")
     else:
         print("[049] downgrade : contrainte absente — no-op")
 
-    conn.execute(sa.text("""
+    conn.exec_driver_sql("""
         DROP INDEX IF EXISTS ix_pipeline_runs_case_id
-    """))
+    """)
     print("[049] INDEX ix_pipeline_runs_case_id supprimé")
