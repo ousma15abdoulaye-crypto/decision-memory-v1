@@ -58,24 +58,32 @@ branch_courante       : feat/m11-signal-integrity
 
 ---
 
-## STACK ALEMBIC
+## ÉTAT ALEMBIC — MIS À JOUR 2026-03-17
 
-local_alembic_head        : 045_agent_native_foundation
-local_alembic_current     : 045_agent_native_foundation
-railway_alembic_head      : 044_decision_history (045 a deployer)
-aligned_schema            : NON (045 en attente deploy Railway)
+local_alembic_head       : 048_vendors_sensitive_data
+railway_alembic_head     : 044_decision_history
+migrations_pending_railway:
+  - 045_agent_native_foundation
+  - 046_imc_category_item_map
+  - 046b_imc_map_fix_restrict_indexes
+  - 047_couche_a_service_columns
+  - 048_vendors_sensitive_data
+last_sync_railway        : DÉSYNCHRONISÉ — GO CTO requis avant sync
+last_updated             : 2026-03-17
+updated_by               : AO — post audit CTO senior 2026-03-17
+audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
 
-### Migrations Railway pendantes (a appliquer dans ordre)
+## MIGRATIONS PRÉVUES PRÉ-M12
+  - 049_validate_pipeline_runs_fk     (ASAP-05 — Mandat 2)
+  - 050_documents_sha256_not_null     (ASAP-06 — Mandat 2)
 
-  1. m7_5_fingerprint_triggers  (fingerprint + triggers identite)
-  2. m7_6_item_code             (colonne item_code)
-  3. m7_7_genome_stable         (label_status + taxo_l1/2/3 + collision trigger)
+## DIVERGENCE RAILWAY — CRITIQUE
+  4 migrations non appliquées en production.
+  Toute fonctionnalité basée sur 045-048 est silencieusement
+  cassée en production jusqu'à synchronisation.
+  GO CTO obligatoire avant alembic upgrade sur Railway.
 
-  Commande Railway (apres GO CTO explicite) :
-    railway run alembic upgrade m7_5_fingerprint_triggers
-    railway run alembic upgrade m7_6_item_code
-    railway run alembic upgrade m7_7_genome_stable
-    Verifier : railway run alembic current
+## STACK ALEMBIC (legacy)
 
 railway_access_method     : RAILWAY_DATABASE_URL dans .env (direct)
 railway_cli               : ABSENT (node/npm absents sur ce poste)
