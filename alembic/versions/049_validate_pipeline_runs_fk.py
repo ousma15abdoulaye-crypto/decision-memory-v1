@@ -94,9 +94,13 @@ def upgrade() -> None:
     # ── 4. DELETE ORPHELINS ──────────────────────────────────────
     if orphelins and orphelins > 0:
         deleted = conn.execute(sa.text("""
-            DELETE FROM pipeline_runs
-            WHERE case_id IS NOT NULL
-              AND case_id NOT IN (SELECT id FROM cases)
+            DELETE FROM pipeline_runs pr
+            WHERE pr.case_id IS NOT NULL
+              AND NOT EXISTS (
+                    SELECT 1
+                    FROM cases c
+                    WHERE c.id = pr.case_id
+              )
         """)).rowcount
         print(f"[049] Orphelins supprimés : {deleted}")
     else:
