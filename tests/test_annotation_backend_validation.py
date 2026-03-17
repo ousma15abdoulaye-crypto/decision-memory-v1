@@ -25,6 +25,10 @@ os.environ.setdefault("MISTRAL_API_KEY", "")
 
 try:
     _spec = importlib.util.spec_from_file_location("_backend_valid", _BACKEND_PATH)
+    if _spec is None:
+        raise ImportError(f"spec_from_file_location returned None for path: {_BACKEND_PATH}")
+    if _spec.loader is None:
+        raise ImportError(f"spec.loader is None for path: {_BACKEND_PATH} - cannot exec module")
     _backend = importlib.util.module_from_spec(_spec)
     _spec.loader.exec_module(_backend)
     FALLBACK_RESPONSE = _backend.FALLBACK_RESPONSE
