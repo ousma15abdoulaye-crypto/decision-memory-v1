@@ -10,7 +10,7 @@ Stratégies :
 
 Usage :
     $env:DATABASE_URL   = "<Railway>"
-    $env:AO_USER_ID     = "<INTEGER (users.id)>"
+    $env:AO_USER_ID     = "<id AO dans users — INTEGER ou UUID selon public.users.id>"
 
     python scripts/validate_taxo_batch.py --dry-run
     python scripts/validate_taxo_batch.py
@@ -23,7 +23,8 @@ import argparse
 import logging
 import os
 import sys
-from typing import Optional
+import uuid
+from typing import Optional, Union
 
 import psycopg
 from psycopg.rows import dict_row
@@ -49,22 +50,66 @@ def get_db_url() -> str:
     return url
 
 
-def get_ao_user_id() -> Optional[int]:
-    """DA-AUDIT : actor_id pour traçabilité complète. users.id = INTEGER.
-
-    Retourne None si la variable n'est pas définie (autorisé uniquement en
-    dry-run). Quitte le processus si la valeur est définie mais invalide.
+def _probe_users_id_type(conn: psycopg.Connection) -> str:
+    """Retourne le data_type normalisé de public.users.id (ex: 'integer', 'uuid').
+    Interrompt le script si la table ou la colonne est introuvable.
+    Utilise un curseur dict_row explicite pour ne pas dépendre du row_factory
+    de la connexion parente.
     """
-    uid = os.environ.get("AO_USER_ID")
-    if uid is None:
-        return None
-    try:
-        return int(uid)
-    except ValueError:
+    with conn.cursor(row_factory=dict_row) as cur:
+        row = cur.execute("""
+            SELECT data_type
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name   = 'users'
+              AND column_name  = 'id'
+        """).fetchone()
+    if row is None:
         sys.exit(
-            f"❌ AO_USER_ID '{uid}' n'est pas un entier valide "
-            f"— attendu : users.id (INTEGER)"
+            "⛔ DA-AUDIT : public.users.id introuvable — "
+            "impossible de résoudre le type de AO_USER_ID"
         )
+    return row["data_type"].lower()
+
+
+def resolve_ao_user_id(
+    conn: psycopg.Connection,
+    dry_run: bool,
+) -> Union[int, uuid.UUID, None]:
+    """DA-AUDIT : résout AO_USER_ID selon le type réel de public.users.id.
+
+    Comportement :
+      - dry-run + absent → None (simulation sans écriture)
+      - live    + absent → sys.exit (approved_by NULL interdit par DA-AUDIT)
+      - présent          → cast en INTEGER ou uuid.UUID selon information_schema
+    """
+    raw = os.environ.get("AO_USER_ID")
+    if not raw:
+        if dry_run:
+            logger.info("AO_USER_ID absent · dry-run · actor_id non appliqué")
+            return None
+        sys.exit(
+            "❌ AO_USER_ID obligatoire pour toute écriture d'audit (DA-AUDIT) — "
+            "relancez avec --dry-run ou définissez AO_USER_ID"
+        )
+
+    id_type = _probe_users_id_type(conn)
+    if id_type == "uuid":
+        try:
+            return uuid.UUID(raw)
+        except ValueError:
+            sys.exit(
+                f"❌ AO_USER_ID '{raw}' invalide — "
+                f"public.users.id est de type UUID"
+            )
+    else:
+        try:
+            return int(raw)
+        except ValueError:
+            sys.exit(
+                f"❌ AO_USER_ID '{raw}' invalide — "
+                f"public.users.id est de type {id_type} (entier attendu)"
+            )
 
 
 def load_taxonomy_fk(conn: psycopg.Connection) -> dict[str, str]:
@@ -89,16 +134,9 @@ def run(
     domain_filter: Optional[str] = None,
     approve_item: Optional[str] = None,
 ) -> None:
-    ao_user_id = get_ao_user_id()
-    if not dry_run and ao_user_id is None:
-        sys.exit(
-            "❌ AO_USER_ID manquant — export AO_USER_ID=<users.id INTEGER>\n"
-            "   (DA-AUDIT : approved_by obligatoire hors dry-run)\n"
-            "   Utilisez --dry-run pour simuler sans écriture."
-        )
-
     with psycopg.connect(get_db_url(), row_factory=dict_row) as conn:
 
+        ao_user_id = resolve_ao_user_id(conn, dry_run)
         l2_to_l1 = load_taxonomy_fk(conn)
 
         # Mode approbation manuelle d'un item spécifique
