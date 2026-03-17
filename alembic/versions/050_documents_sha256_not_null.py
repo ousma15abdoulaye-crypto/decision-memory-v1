@@ -22,9 +22,9 @@ Règles :
 """
 
 from alembic import op
-import sqlalchemy as sa
 
 revision = "050_documents_sha256_not_null"
+down_revision = "049_validate_pipeline_runs_fk"
 down_revision = "049_validate_pipeline_runs_fk"
 branch_labels = None
 depends_on = None
@@ -34,22 +34,22 @@ def upgrade() -> None:
     conn = op.get_bind()
 
     # ── 0. TABLE EXISTE ? ────────────────────────────────────────
-    table_exists = conn.execute(sa.text("""
+    table_exists = conn.exec_driver_sql("""
         SELECT COUNT(*) FROM information_schema.tables
         WHERE table_schema = 'public'
           AND table_name   = 'documents'
-    """)).scalar()
+    """).scalar()
 
     if not table_exists:
         print("[050] Table documents absente — skip")
         return
 
     # ── 1. COLONNE sha256 EXISTE ? ───────────────────────────────
-    col_exists = conn.execute(sa.text("""
+    col_exists = conn.exec_driver_sql("""
         SELECT COUNT(*) FROM information_schema.columns
         WHERE table_name  = 'documents'
           AND column_name = 'sha256'
-    """)).scalar()
+    """).scalar()
 
     if not col_exists:
         print("[050] Colonne sha256 absente — skip")
@@ -152,17 +152,17 @@ def upgrade() -> None:
 def downgrade() -> None:
     conn = op.get_bind()
 
-    col_exists = conn.execute(sa.text("""
+    col_exists = conn.exec_driver_sql("""
         SELECT COUNT(*) FROM information_schema.columns
         WHERE table_name  = 'documents'
           AND column_name = 'sha256'
-    """)).scalar()
+    """).scalar()
 
     if col_exists:
-        conn.execute(sa.text("""
+        conn.exec_driver_sql("""
             ALTER TABLE documents
             ALTER COLUMN sha256 DROP NOT NULL
-        """))
+        """)
         print("[050] sha256 DROP NOT NULL")
     else:
         print("[050] Colonne absente — no-op")
