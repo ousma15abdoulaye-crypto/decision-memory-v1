@@ -21,10 +21,11 @@ Règles :
   RÈGLE-ANCHOR-08 : périmètre fermé
 """
 
+import sqlalchemy as sa
+
 from alembic import op
 
 revision = "050_documents_sha256_not_null"
-down_revision = "049_validate_pipeline_runs_fk"
 down_revision = "049_validate_pipeline_runs_fk"
 branch_labels = None
 depends_on = None
@@ -34,22 +35,22 @@ def upgrade() -> None:
     conn = op.get_bind()
 
     # ── 0. TABLE EXISTE ? ────────────────────────────────────────
-    table_exists = conn.exec_driver_sql("""
+    table_exists = conn.execute(sa.text("""
         SELECT COUNT(*) FROM information_schema.tables
         WHERE table_schema = 'public'
           AND table_name   = 'documents'
-    """).scalar()
+    """)).scalar()
 
     if not table_exists:
         print("[050] Table documents absente — skip")
         return
 
     # ── 1. COLONNE sha256 EXISTE ? ───────────────────────────────
-    col_exists = conn.exec_driver_sql("""
+    col_exists = conn.execute(sa.text("""
         SELECT COUNT(*) FROM information_schema.columns
         WHERE table_name  = 'documents'
           AND column_name = 'sha256'
-    """).scalar()
+    """)).scalar()
 
     if not col_exists:
         print("[050] Colonne sha256 absente — skip")
@@ -67,20 +68,16 @@ def upgrade() -> None:
         return
 
     # ── 3. PROBE ÉTAT ────────────────────────────────────────────
-    total = conn.execute(sa.text(
-        "SELECT COUNT(*) FROM documents"
-    )).scalar()
-    nulls = conn.execute(sa.text(
-        "SELECT COUNT(*) FROM documents WHERE sha256 IS NULL"
-    )).scalar()
+    total = conn.execute(sa.text("SELECT COUNT(*) FROM documents")).scalar()
+    nulls = conn.execute(
+        sa.text("SELECT COUNT(*) FROM documents WHERE sha256 IS NULL")
+    ).scalar()
     print(f"[050] documents total={total} sha256_null={nulls}")
 
     # ── 4. VÉRIFIER PGCRYPTO ────────────────────────────────────
     pgcrypto_ok = False
     try:
-        conn.execute(sa.text(
-            "SELECT encode(digest('probe', 'sha256'), 'hex')"
-        ))
+        conn.execute(sa.text("SELECT encode(digest('probe', 'sha256'), 'hex')"))
         pgcrypto_ok = True
         print("[050] pgcrypto disponible")
     except Exception:
@@ -128,9 +125,9 @@ def upgrade() -> None:
         print(f"[050] Backfill : {nulls} lignes mises à jour")
 
         # ── 7. VÉRIFICATION ZÉRO NULL ───────────────────────────
-        final_nulls = conn.execute(sa.text(
-            "SELECT COUNT(*) FROM documents WHERE sha256 IS NULL"
-        )).scalar()
+        final_nulls = conn.execute(
+            sa.text("SELECT COUNT(*) FROM documents WHERE sha256 IS NULL")
+        ).scalar()
 
         if final_nulls > 0:
             raise RuntimeError(
@@ -152,17 +149,17 @@ def upgrade() -> None:
 def downgrade() -> None:
     conn = op.get_bind()
 
-    col_exists = conn.exec_driver_sql("""
+    col_exists = conn.execute(sa.text("""
         SELECT COUNT(*) FROM information_schema.columns
         WHERE table_name  = 'documents'
           AND column_name = 'sha256'
-    """).scalar()
+    """)).scalar()
 
     if col_exists:
-        conn.exec_driver_sql("""
+        conn.execute(sa.text("""
             ALTER TABLE documents
             ALTER COLUMN sha256 DROP NOT NULL
-        """)
+        """))
         print("[050] sha256 DROP NOT NULL")
     else:
         print("[050] Colonne absente — no-op")

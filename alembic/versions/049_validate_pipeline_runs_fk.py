@@ -20,6 +20,8 @@ Règles :
   E-25 : FK ON DELETE RESTRICT sur tables append-only
 """
 
+import sqlalchemy as sa
+
 from alembic import op
 
 revision = "049_validate_pipeline_runs_fk"
@@ -78,9 +80,7 @@ def upgrade() -> None:
           AND pr.case_id IS NOT NULL
     """)).scalar()
 
-    total = conn.execute(sa.text(
-        "SELECT COUNT(*) FROM pipeline_runs"
-    )).scalar()
+    total = conn.execute(sa.text("SELECT COUNT(*) FROM pipeline_runs")).scalar()
 
     print(f"[049] pipeline_runs total={total} orphelins={orphelins}")
 
