@@ -187,8 +187,8 @@ jobs:
         id: threshold
         run: |
           if [ -f ".milestones/M-TESTS.done" ]; then
-            echo "fail_under=40" >> "$GITHUB_OUTPUT"
-            echo "Seuil : 40% — M-TESTS.done présent"
+            echo "fail_under=65" >> "$GITHUB_OUTPUT"
+            echo "Seuil : 65% — M-TESTS.done présent (palier 1)"
           else
             echo "fail_under=0" >> "$GITHUB_OUTPUT"
             echo "Seuil : 0% — M-TESTS.done absent"
