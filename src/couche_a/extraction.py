@@ -672,6 +672,11 @@ def _parse_backend_response(
             raw_text = raw_text[0]
 
         annotation = json.loads(raw_text)
+        if not isinstance(annotation, dict):
+            # On attend toujours un objet JSON (dict) pour construire le résultat.
+            # Toute autre forme (liste, chaîne, etc.) est considérée comme une erreur de parse.
+            raise TypeError("annotation must be a dict")
+
         return _build_result(
             annotation=annotation,
             document_id=document_id,
@@ -679,7 +684,14 @@ def _parse_backend_response(
             latency_ms=latency_ms,
         )
 
-    except (json.JSONDecodeError, KeyError, IndexError, ValueError) as exc:
+    except (
+        json.JSONDecodeError,
+        KeyError,
+        IndexError,
+        ValueError,
+        TypeError,
+        AttributeError,
+    ) as exc:
         logger.error(
             "[EXTRACT] Parse KO — %s — doc=%s",
             exc,
