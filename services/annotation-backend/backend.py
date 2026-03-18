@@ -446,6 +446,7 @@ def _validate_and_correct(annotation: dict, task_id: int = 0) -> tuple[dict, lis
 
         annotation.setdefault("_meta", {})
         annotation["_meta"]["review_required"] = True
+        annotation["_meta"]["annotation_status"] = "review_required"
         annotation.setdefault("ambiguites", [])
         ambig = "AMBIG-6_schema_validation_errors"
         if ambig not in annotation["ambiguites"]:
