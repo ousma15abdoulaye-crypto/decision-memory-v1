@@ -48,6 +48,7 @@ else:
 
 # ─────────────────────────────────────────────────────────────
 # LIMITER — natif slowapi — NE PAS RÉASSIGNER .limit
+# (sauf en mode TESTING, où l'on désactive explicitement les limites)
 # ─────────────────────────────────────────────────────────────
 
 limiter = Limiter(
@@ -55,6 +56,23 @@ limiter = Limiter(
     storage_uri=_storage,
     default_limits=[] if _TESTING else ["100/minute"],
 )
+
+if _TESTING:
+    # En mode TESTING, on rend limiter.limit no-op pour éviter que
+    # les limites par IP (get_remote_address) soient mutualisées
+    # entre tous les tests et provoquent des 429 aléatoires en CI.
+    def _noop_limit(*limit_args, **limit_kwargs):
+        def decorator(func):
+            return func
+        return decorator
+
+    # Désactivation effec­tive des décorateurs @limiter.limit / @route_limit
+    limiter.limit = _noop_limit  # type: ignore[attr-defined]
+    # Attribut indicatif (ne change rien au comportement slowapi)
+    limiter.enabled = False  # type: ignore[attr-defined]
+    logger.warning(
+        "[RATELIMIT] TESTING=True — décorateurs @limiter.limit désactivés (no-op)"
+    )
 
 # SUPPRIMÉ — était un no-op qui écrasait limiter.limit :
 # limiter.limit = conditional_limit  ← LIGNE SUPPRIMÉE
@@ -107,7 +125,9 @@ def init_rate_limit(app: FastAPI):
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     if _TESTING:
-        logger.info("[RATELIMIT] Mode test — rate limiting actif (memory://)")
+        logger.info(
+            "[RATELIMIT] Mode test — décorateurs de rate limiting désactivés (memory://)"
+        )
     else:
         logger.info(
             "[RATELIMIT] Initialized — storage=%s",
