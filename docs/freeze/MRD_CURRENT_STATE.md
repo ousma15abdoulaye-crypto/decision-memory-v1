@@ -75,6 +75,12 @@ last_updated             : 2026-03-17
 updated_by               : AO — post audit CTO senior 2026-03-17 (Mandat 2)
 audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
 
+## MANDAT 4 — EXTRACTION RÉELLE (2026-03-17)
+  branch                  : feat/pre-m12-extraction-reelle
+  livrables               : extraction_models.py, llm_router.py (LLMRouter),
+                            extraction.py (pont annotation-backend /predict)
+  ASAP-11/12              : DONE — stub remplacé par pipeline réel
+
 ## MIGRATIONS 049/050 — CRÉÉES MANDAT 2
   - 049_validate_pipeline_runs_fk     (ASAP-05 — trigger drop/recreate)
   - 050_documents_sha256_not_null     (ASAP-06 — backfill pgcrypto/md5)

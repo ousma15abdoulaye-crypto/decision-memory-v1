@@ -2,15 +2,37 @@
 Extraction documentaire – M3A: Typed criterion extraction.
 """
 
+import asyncio
+import concurrent.futures
+import json
 import logging
+import time
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+import httpx
+
+from src.couche_a.extraction_models import (
+    ExtractionField,
+    LineItem,
+    TDRExtractionResult,
+    Tier,
+    make_fallback_result,
+)
+from src.couche_a.llm_router import router
 from src.db import db_execute, get_connection
 
 logger = logging.getLogger(__name__)
+
+# ── Mapping offer_type → document_role DMS ───────────────────
+_OFFER_TYPE_TO_ROLE: dict[str, str] = {
+    "technique": "technical_offer",
+    "financiere": "financial_offer",
+    "administrative": "supporting_doc",
+    "registre": "supporting_doc",
+}
 
 # ADR-0010 D3 -- no evaluation import in couche_a; values inlined from procurement rules
 _MIN_WEIGHTS: dict[str, float] = {"commercial": 0.40, "sustainability": 0.10}
@@ -406,13 +428,395 @@ def extract_dao_content(case_id: str, artifact_id: str, filepath: str):
 
 
 def extract_offer_content(
-    case_id: str, artifact_id: str, filepath: str, offer_type: str
-):
+    case_id: str,
+    artifact_id: str,
+    filepath: str,
+    offer_type: str,
+) -> None:
     """
-    Extraction (synchrone) selon le type d'offre.
-    E-36: stub remplacé — pending si LLM non configuré.
+    Point d'entrée pipeline — appelé par routers.py via
+    background_tasks.add_task().
+    Signature conservée — compatibilité routers.py garantie.
+
+    Mandat 4 : stub remplacé par appel réel.
+    Lit le fichier via extract_text_any() (PDF/DOCX/texte).
+    Délègue à extract_offer_content_async() via asyncio.
+
+    Fonction de tâche de fond : ne retourne pas de valeur utile
+    (retourne None) et gère les erreurs en interne (journalisation,
+    éventuels fallbacks), sans propager d'exception.
     """
     logger.info(
-        f"Extraction offre {offer_type} terminée pour case {case_id}, artifact {artifact_id}"
+        "[EXTRACT] Début — case=%s artifact=%s type=%s",
+        case_id,
+        artifact_id,
+        offer_type,
     )
-    return {"status": "pending", "reason": "llm_not_configured"}
+
+    # ── 1. Extraire le texte du fichier ──────────────────────
+    # extract_text_any() gère PDF (pypdf), DOCX, texte brut
+    try:
+        text = extract_text_any(filepath)
+        logger.info("[EXTRACT] Texte extrait : %d chars", len(text))
+    except Exception as exc:
+        logger.error("[EXTRACT] Lecture fichier KO : %s", exc)
+        return make_fallback_result(
+            document_id=artifact_id,
+            document_role=str(offer_type),
+            error_reason=f"file_read_{type(exc).__name__}",
+        )
+
+    if not text or not text.strip():
+        logger.warning(
+            "[EXTRACT] Texte vide après extraction — doc=%s",
+            artifact_id,
+        )
+        return make_fallback_result(
+            document_id=artifact_id,
+            document_role=str(offer_type),
+            error_reason="empty_text_after_extraction",
+        )
+
+    # ── 2. Mapper offer_type → document_role DMS ─────────────
+    document_role = _OFFER_TYPE_TO_ROLE.get(str(offer_type).lower(), "supporting_doc")
+
+    # ── 3. Dispatcher vers async via thread pool ─────────────
+    # FastAPI background_tasks exécute les fonctions sync
+    # dans un thread. asyncio.run() crée une nouvelle loop
+    # dans ce thread — compatible avec background_tasks.
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(
+                asyncio.run,
+                extract_offer_content_async(
+                    document_id=artifact_id,
+                    text=text,
+                    document_role=document_role,
+                ),
+            )
+            result = future.result(timeout=router.timeout + 15)
+        logger.info(
+            "[EXTRACT] Terminé — case=%s ok=%s latency=%.0fms",
+            case_id,
+            result.extraction_ok,
+            result.latency_ms,
+        )
+        return result
+
+    except concurrent.futures.TimeoutError:
+        logger.error("[EXTRACT] Timeout dispatch — case=%s", case_id)
+        return make_fallback_result(
+            document_id=artifact_id,
+            document_role=document_role,
+            error_reason="dispatch_timeout",
+        )
+    except Exception as exc:
+        logger.error(
+            "[EXTRACT] Dispatch KO — %s — case=%s",
+            type(exc).__name__,
+            case_id,
+            exc_info=True,
+        )
+        return make_fallback_result(
+            document_id=artifact_id,
+            document_role=document_role,
+            error_reason=f"dispatch_{type(exc).__name__}",
+        )
+
+
+async def extract_offer_content_async(
+    document_id: str,
+    text: str,
+    document_role: str = "financial_offer",
+) -> TDRExtractionResult:
+    """
+    Extraction documentaire réelle — async.
+    Appelle annotation-backend /predict.
+    Fallback traçable si backend KO.
+    """
+    tier = router.select_tier()
+
+    if tier == Tier.T4_OFFLINE:
+        logger.warning("[EXTRACT] TIER 4 offline — doc=%s", document_id)
+        return make_fallback_result(
+            document_id=document_id,
+            document_role=document_role,
+            error_reason="tier4_offline_no_api_key",
+            tier=Tier.T4_OFFLINE,
+        )
+
+    return await _call_annotation_backend(
+        document_id=document_id,
+        text=text,
+        document_role=document_role,
+    )
+
+
+async def _call_annotation_backend(
+    document_id: str,
+    text: str,
+    document_role: str,
+) -> TDRExtractionResult:
+    """Appel HTTP annotation-backend /predict."""
+    t_start = time.monotonic()
+
+    payload = {
+        "tasks": [{"id": 1, "data": {"text": text}}],
+        "document_id": document_id,
+        "document_role": document_role,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=router.timeout) as client:
+            response = await client.post(
+                f"{router.backend_url}/predict",
+                json=payload,
+            )
+            response.raise_for_status()
+            raw = response.json()
+
+        latency_ms = (time.monotonic() - t_start) * 1000
+        logger.info(
+            "[EXTRACT] Backend OK — doc=%s %.0fms",
+            document_id,
+            latency_ms,
+        )
+        return _parse_backend_response(
+            raw=raw,
+            document_id=document_id,
+            document_role=document_role,
+            latency_ms=latency_ms,
+        )
+
+    except httpx.TimeoutException:
+        latency_ms = (time.monotonic() - t_start) * 1000
+        logger.error(
+            "[EXTRACT] Timeout %.0fms — doc=%s",
+            latency_ms,
+            document_id,
+        )
+        return make_fallback_result(
+            document_id=document_id,
+            document_role=document_role,
+            error_reason="backend_timeout",
+        )
+
+    except httpx.HTTPStatusError as exc:
+        logger.error(
+            "[EXTRACT] HTTP %s — doc=%s",
+            exc.response.status_code,
+            document_id,
+        )
+        return make_fallback_result(
+            document_id=document_id,
+            document_role=document_role,
+            error_reason=f"http_{exc.response.status_code}",
+        )
+
+    except httpx.RequestError as exc:
+        logger.error(
+            "[EXTRACT] Connexion KO — %s — doc=%s",
+            type(exc).__name__,
+            document_id,
+        )
+        return make_fallback_result(
+            document_id=document_id,
+            document_role=document_role,
+            error_reason=f"connection_{type(exc).__name__}",
+        )
+
+    except Exception as exc:
+        logger.error(
+            "[EXTRACT] Inattendu — %s — doc=%s",
+            type(exc).__name__,
+            document_id,
+            exc_info=True,
+        )
+        return make_fallback_result(
+            document_id=document_id,
+            document_role=document_role,
+            error_reason=f"unexpected_{type(exc).__name__}",
+        )
+
+
+def _parse_backend_response(
+    raw: dict,
+    document_id: str,
+    document_role: str,
+    latency_ms: float,
+) -> TDRExtractionResult:
+    """Parse réponse /predict → TDRExtractionResult."""
+    try:
+        results = raw.get("results", [])
+        if not results:
+            raise ValueError("results[] vide")
+
+        result_list = results[0].get("result", [])
+
+        json_block = next(
+            (r for r in result_list if r.get("from_name") == "extracted_json"),
+            None,
+        ) or next(
+            (
+                r
+                for r in result_list
+                if isinstance(r.get("value"), dict) and "text" in r["value"]
+            ),
+            None,
+        )
+
+        if json_block is None:
+            raise ValueError("Bloc extracted_json introuvable")
+
+        raw_text = json_block["value"]["text"]
+        if isinstance(raw_text, list):
+            raw_text = raw_text[0]
+
+        annotation = json.loads(raw_text)
+        if not isinstance(annotation, dict):
+            # On attend toujours un objet JSON (dict) pour construire le résultat.
+            # Toute autre forme (liste, chaîne, etc.) est considérée comme une erreur de parse.
+            raise TypeError("annotation must be a dict")
+
+        return _build_result(
+            annotation=annotation,
+            document_id=document_id,
+            document_role=document_role,
+            latency_ms=latency_ms,
+        )
+
+    except (
+        json.JSONDecodeError,
+        KeyError,
+        IndexError,
+        ValueError,
+        TypeError,
+        AttributeError,
+    ) as exc:
+        logger.error(
+            "[EXTRACT] Parse KO — %s — doc=%s",
+            exc,
+            document_id,
+        )
+        return make_fallback_result(
+            document_id=document_id,
+            document_role=document_role,
+            error_reason=f"parse_{type(exc).__name__}",
+        )
+
+
+def _infer_tier_used(annotation: dict) -> Tier:
+    """
+    Déduit le tier effectivement utilisé à partir de l'annotation.
+
+    On tente d'abord de lire une information explicite (routing / _meta),
+    puis on mappe éventuellement une chaîne vers l'enum Tier. En cas
+    d'absence ou d'erreur, on retombe sur Tier.T1 pour conserver le
+    comportement actuel par défaut.
+    """
+    routing = annotation.get("couche_1_routing", {}) or {}
+    meta = annotation.get("_meta", {}) or {}
+
+    tier_value = (
+        routing.get("tier_used")
+        or meta.get("tier_used")
+        or meta.get("llm_tier")
+        or meta.get("mistral_tier")
+    )
+
+    # Si c'est déjà un enum Tier, on le renvoie tel quel.
+    if isinstance(tier_value, Tier):
+        return tier_value
+
+    # Sinon, on tente un mapping à partir d'une chaîne.
+    if isinstance(tier_value, str):
+        normalized = tier_value.strip().upper()
+        # Autoriser "1" / "2" / "3" ou "T1" / "T2" / "T3"
+        if not normalized.startswith("T"):
+            normalized = f"T{normalized}"
+        return getattr(Tier, normalized, Tier.T1)
+
+    # Fallback conservateur.
+    return Tier.T1
+
+
+def _build_result(
+    annotation: dict,
+    document_id: str,
+    document_role: str,
+    latency_ms: float,
+) -> TDRExtractionResult:
+    """Construit TDRExtractionResult depuis JSON DMS v3.0.1d."""
+    routing = annotation.get("couche_1_routing", {})
+    meta = annotation.get("_meta", {})
+    financier = annotation.get("couche_4_atomic", {}).get("financier", {})
+    tier_used = _infer_tier_used(annotation)
+    return TDRExtractionResult(
+        document_id=document_id,
+        document_role=document_role,
+        family_main=routing.get("procurement_family_main", "ABSENT"),
+        family_sub=routing.get("procurement_family_sub", "ABSENT"),
+        taxonomy_core=routing.get("taxonomy_core", "ABSENT"),
+        fields=_extract_fields(annotation, tier_used=tier_used),
+        line_items=_extract_line_items(financier),
+        gates=annotation.get("couche_5_gates", []),
+        ambiguites=annotation.get("ambiguites", []),
+        tier_used=tier_used,
+        latency_ms=latency_ms,
+        extraction_ok=True,
+        review_required=bool(meta.get("review_required", False)),
+        schema_version=meta.get("schema_version", "v3.0.1d"),
+        raw_annotation=annotation,
+    )
+
+
+def _extract_fields(annotation: dict, tier_used: Tier) -> list[ExtractionField]:
+    """Extrait ExtractionField depuis couche_2_core."""
+    fields: list[ExtractionField] = []
+    for name, data in annotation.get("couche_2_core", {}).items():
+        if not isinstance(data, dict):
+            continue
+        conf = data.get("confidence", 0.6)
+        if conf not in {0.6, 0.8, 1.0}:
+            conf = 0.6
+        try:
+            fields.append(
+                ExtractionField(
+                    field_name=name,
+                    value=data.get("value"),
+                    confidence=float(conf),
+                    evidence=str(data.get("evidence") or "ABSENT"),
+                    tier_used=tier_used,
+                )
+            )
+        except ValueError as exc:
+            logger.warning("[EXTRACT] Champ '%s' ignoré : %s", name, exc)
+    return fields
+
+
+def _extract_line_items(financier: dict) -> list[LineItem]:
+    """Extrait LineItem depuis couche_4_atomic.financier."""
+    items: list[LineItem] = []
+    for i, raw in enumerate(financier.get("line_items", []), 1):
+        if not isinstance(raw, dict):
+            continue
+        try:
+            conf = raw.get("confidence", 0.8)
+            if conf not in {0.6, 0.8, 1.0}:
+                conf = 0.8
+            items.append(
+                LineItem(
+                    item_line_no=int(raw.get("item_line_no", i)),
+                    item_description_raw=str(raw.get("item_description_raw", "ABSENT")),
+                    unit_raw=str(raw.get("unit_raw", "") or "non_precise"),
+                    quantity=float(raw.get("quantity", 0) or 0),
+                    unit_price=float(raw.get("unit_price", 0) or 0),
+                    line_total=float(raw.get("line_total", 0) or 0),
+                    line_total_check="NON_VERIFIABLE",
+                    confidence=float(conf),
+                    evidence=str(raw.get("evidence") or "ABSENT"),
+                )
+            )
+        except (ValueError, TypeError) as exc:
+            logger.warning("[EXTRACT] LineItem ignoré : %s", exc)
+    return items

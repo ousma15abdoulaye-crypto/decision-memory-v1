@@ -265,8 +265,8 @@
 ║    ASAP-07/08 : Redis rate limit       ✓ DONE (Mandat 3)            ║
 ║    ASAP-09 : sqlalchemy → psycopg      ✓ DONE (Mandat 3)            ║
 ║    ASAP-10 : CI gates vivants         ⏳ (Mandat 2)                  ║
-║    ASAP-11 : llm_router.py            ⏳ (Mandat 4)                 ║
-║    ASAP-12 : pont extraction          ⏳ (Mandat 4)                 ║
+║    ASAP-11 : llm_router.py            ✓ DONE (Mandat 4)             ║
+║    ASAP-12 : pont extraction          ✓ DONE (Mandat 4)             ║
 ║                                                                      ║
 ║  M12     BLOQUÉ — 7 ASAP non résolus                                 ║
 ║          BLOQUANT : 15 annotated_validated (0/15)                    ║
