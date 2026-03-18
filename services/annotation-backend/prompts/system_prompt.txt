@@ -131,16 +131,16 @@ RÈGLE 0.2 — SQUELETTE OBLIGATOIRE :
     }
   },
   "couche_5_gates": [
-    {"gate_name":"gate_eligibility_passed",     "gate_value":null,"gate_state":"","gate_threshold_value":null,"gate_reason_raw":"","gate_evidence_hint":"","confidence":0.0},
-    {"gate_name":"gate_capacity_passed",        "gate_value":null,"gate_state":"","gate_threshold_value":null,"gate_reason_raw":"","gate_evidence_hint":"","confidence":0.0},
-    {"gate_name":"gate_visit_required",         "gate_value":null,"gate_state":"","gate_threshold_value":null,"gate_reason_raw":"","gate_evidence_hint":"","confidence":0.0},
-    {"gate_name":"gate_visit_passed",           "gate_value":null,"gate_state":"","gate_threshold_value":null,"gate_reason_raw":"","gate_evidence_hint":"","confidence":0.0},
-    {"gate_name":"gate_samples_required",       "gate_value":null,"gate_state":"","gate_threshold_value":null,"gate_reason_raw":"","gate_evidence_hint":"","confidence":0.0},
-    {"gate_name":"gate_samples_passed",         "gate_value":null,"gate_state":"","gate_threshold_value":null,"gate_reason_raw":"","gate_evidence_hint":"","confidence":0.0},
-    {"gate_name":"gate_commercial_eligible",    "gate_value":null,"gate_state":"","gate_threshold_value":null,"gate_reason_raw":"","gate_evidence_hint":"","confidence":0.0},
-    {"gate_name":"gate_financial_format_usable","gate_value":null,"gate_state":"","gate_threshold_value":null,"gate_reason_raw":"","gate_evidence_hint":"","confidence":0.0},
-    {"gate_name":"gate_line_item_extractable",  "gate_value":null,"gate_state":"","gate_threshold_value":null,"gate_reason_raw":"","gate_evidence_hint":"","confidence":0.0},
-    {"gate_name":"gate_negotiation_reached",    "gate_value":null,"gate_state":"","gate_threshold_value":null,"gate_reason_raw":"","gate_evidence_hint":"","confidence":0.0}
+    {"gate_name":"gate_eligibility_passed",     "gate_value":null,"gate_state":"","gate_threshold_value":null,"gate_reason_raw":"","gate_evidence_hint":"","confidence":1.0},
+    {"gate_name":"gate_capacity_passed",        "gate_value":null,"gate_state":"","gate_threshold_value":null,"gate_reason_raw":"","gate_evidence_hint":"","confidence":1.0},
+    {"gate_name":"gate_visit_required",         "gate_value":null,"gate_state":"","gate_threshold_value":null,"gate_reason_raw":"","gate_evidence_hint":"","confidence":1.0},
+    {"gate_name":"gate_visit_passed",           "gate_value":null,"gate_state":"","gate_threshold_value":null,"gate_reason_raw":"","gate_evidence_hint":"","confidence":1.0},
+    {"gate_name":"gate_samples_required",       "gate_value":null,"gate_state":"","gate_threshold_value":null,"gate_reason_raw":"","gate_evidence_hint":"","confidence":1.0},
+    {"gate_name":"gate_samples_passed",         "gate_value":null,"gate_state":"","gate_threshold_value":null,"gate_reason_raw":"","gate_evidence_hint":"","confidence":1.0},
+    {"gate_name":"gate_commercial_eligible",    "gate_value":null,"gate_state":"","gate_threshold_value":null,"gate_reason_raw":"","gate_evidence_hint":"","confidence":1.0},
+    {"gate_name":"gate_financial_format_usable","gate_value":null,"gate_state":"","gate_threshold_value":null,"gate_reason_raw":"","gate_evidence_hint":"","confidence":1.0},
+    {"gate_name":"gate_line_item_extractable",  "gate_value":null,"gate_state":"","gate_threshold_value":null,"gate_reason_raw":"","gate_evidence_hint":"","confidence":1.0},
+    {"gate_name":"gate_negotiation_reached",    "gate_value":null,"gate_state":"","gate_threshold_value":null,"gate_reason_raw":"","gate_evidence_hint":"","confidence":1.0}
   ],
   "identifiants": {
     "supplier_name_raw":        "",
@@ -247,6 +247,27 @@ Chaîne vide "" = INTERDIT dans le JSON final.
 
 INTERDIT : 0.9 — 0.7 — 0.5 — toute autre valeur.
 NOT_APPLICABLE → confidence = 1.0 par convention.
+
+RÈGLE SPÉCIALE GATES :
+  gate_state = "NOT_APPLICABLE" → confidence = 1.0 OBLIGATOIRE
+  gate_state = "APPLICABLE"     → confidence = 0.6 | 0.8 | 1.0
+  confidence = 0.0 EST INTERDIT sur les gates.
+  Aucune exception.
+
+RÈGLE gate_value :
+  gate_state = "APPLICABLE" → gate_value = true OU false
+  gate_state = "NOT_APPLICABLE" → gate_value = null
+
+EXEMPLES CORRECTS :
+  {"gate_name":"gate_visit_required",
+   "gate_value":null,
+   "gate_state":"NOT_APPLICABLE",
+   "confidence":1.0}              ← 1.0 obligatoire
+
+  {"gate_name":"gate_eligibility_passed",
+   "gate_value":true,
+   "gate_state":"APPLICABLE",
+   "confidence":0.8}
 
 ################################################################
 # LOI 5 — EVIDENCE — OBLIGATOIRE PARTOUT
@@ -366,6 +387,7 @@ Tracker TOUJOURS dans ambiguites[] :
   "AMBIG-2_ponderation_incoherente"
   "AMBIG-3_item_N_math_anomaly"    ← N = numéro de ligne
   "AMBIG-4_reference_contradictoire"
+  "AMBIG-5_gate_{gate_name}_value_null_forced_false"  ← backend si gate_value=null+APPLICABLE
   "AMBIG-6_layout_non_structure"
   "AMBIG-7_fournisseur_non_identifiable"
 

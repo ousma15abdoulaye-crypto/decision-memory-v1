@@ -264,12 +264,63 @@ def _parse_mistral_response(raw: str, task_id: int = 0) -> dict:
     return dict(FALLBACK_RESPONSE)
 
 
+_ALLOWED_CONFIDENCE = frozenset({0.6, 0.8, 1.0})
+
+
+def _normalize_gates(annotation: dict) -> dict:
+    """
+    Normalise les gates avant validation Pydantic.
+    Absorbe les imperfections de Mistral (E-65) :
+      - confidence=0.0 sur NOT_APPLICABLE → 1.0 (LOI 4)
+      - confidence=0.0 sur APPLICABLE → 0.6
+      - gate_value=null sur APPLICABLE → False + AMBIG-5
+    """
+    gates = annotation.get("couche_5_gates", [])
+    ambiguites = list(annotation.get("ambiguites", []))
+
+    for gate in gates:
+        if not isinstance(gate, dict):
+            continue
+
+        gate_name = gate.get("gate_name", "unknown")
+        gate_state = gate.get("gate_state", "")
+        gate_value = gate.get("gate_value")
+        confidence = gate.get("confidence", 0.0)
+
+        # FIX 1 : confidence=0.0 + NOT_APPLICABLE → 1.0 (LOI 4)
+        if gate_state == "NOT_APPLICABLE" and confidence == 0.0:
+            gate["confidence"] = 1.0
+
+        # FIX 2 : confidence=0.0 + APPLICABLE → 0.6
+        if gate_state == "APPLICABLE" and confidence == 0.0:
+            gate["confidence"] = 0.6
+
+        # FIX 3 : toute autre confidence invalide → 0.6
+        if gate.get("confidence") not in _ALLOWED_CONFIDENCE:
+            gate["confidence"] = 0.6
+
+        # FIX 4 : gate_value=null + APPLICABLE → False + AMBIG-5
+        if gate_state == "APPLICABLE" and gate_value is None:
+            gate["gate_value"] = False
+            ambig = f"AMBIG-5_gate_{gate_name}_value_null_forced_false"
+            if ambig not in ambiguites:
+                ambiguites.append(ambig)
+
+        # gate_state=NOT_APPLICABLE + gate_value non null → null
+        if gate_state == "NOT_APPLICABLE" and gate.get("gate_value") is not None:
+            gate["gate_value"] = None
+
+    annotation["ambiguites"] = ambiguites
+    return annotation
+
+
 def _validate_and_correct(parsed: dict, task_id: int = 0) -> dict:
     """
     Couche 2 — validation Pydantic v3.0.1d.
     Clé inconnue → rejetée. line_total_check → recalculé par Python.
     Si validation échoue → log erreurs + review_required.
     """
+    parsed = _normalize_gates(copy.deepcopy(parsed))
     try:
         validated = DMSAnnotation.model_validate(parsed)
         return validated.model_dump(by_alias=True)
@@ -354,7 +405,9 @@ def _build_ls_result(parsed: dict, task_id: int) -> list:
         f"model={meta.get('mistral_model_used', MISTRAL_MODEL)}"
     )
 
-    return [
+    # Toujours envoyer le JSON — même si review_required=True (E-65).
+    # L'annotateur voit le JSON et peut corriger.
+    result = [
         {
             "from_name": "extracted_json",
             "to_name": "document_text",
@@ -368,6 +421,14 @@ def _build_ls_result(parsed: dict, task_id: int) -> list:
             "value": {"text": [notes]},
         },
     ]
+    if review:
+        result.append({
+            "from_name": "review_flag",
+            "to_name": "document_text",
+            "type": "choices",
+            "value": {"choices": ["REVIEW_REQUIRED"]},
+        })
+    return result
 
 
 # APPEL MISTRAL
@@ -449,12 +510,13 @@ async def predict(request: Request) -> JSONResponse:
             parsed = await _mistral_extract(text, task_id=task_id)
 
         result = _build_ls_result(parsed, task_id)
+        review_required = parsed.get("_meta", {}).get("review_required", False)
 
         predictions.append(
             {
                 "id": task_id,
                 "result": result,
-                "score": None,
+                "score": 0.5 if review_required else 0.9,
                 "model_version": f"dms-{SCHEMA_VERSION}",
             }
         )
