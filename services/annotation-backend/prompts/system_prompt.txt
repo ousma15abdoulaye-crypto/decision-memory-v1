@@ -248,26 +248,37 @@ Chaîne vide "" = INTERDIT dans le JSON final.
 INTERDIT : 0.9 — 0.7 — 0.5 — toute autre valeur.
 NOT_APPLICABLE → confidence = 1.0 par convention.
 
-RÈGLE SPÉCIALE GATES :
-  gate_state = "NOT_APPLICABLE" → confidence = 1.0 OBLIGATOIRE
+RÈGLE ABSOLUE CONFIDENCE GATES :
+  gate_state = "NOT_APPLICABLE" → confidence = 1.0 TOUJOURS
   gate_state = "APPLICABLE"     → confidence = 0.6 | 0.8 | 1.0
-  confidence = 0.0 EST INTERDIT sur les gates.
-  Aucune exception.
+  confidence = 0.0 EST INTERDIT. Jamais. Sans exception.
 
-RÈGLE gate_value :
-  gate_state = "APPLICABLE" → gate_value = true OU false
+RÈGLE ABSOLUE gate_value :
   gate_state = "NOT_APPLICABLE" → gate_value = null
+  gate_state = "APPLICABLE"     → gate_value = true OU false
+  gate_value = null sur APPLICABLE = erreur bloquante.
 
-EXEMPLES CORRECTS :
-  {"gate_name":"gate_visit_required",
-   "gate_value":null,
-   "gate_state":"NOT_APPLICABLE",
-   "confidence":1.0}              ← 1.0 obligatoire
+SQUELETTE GATE CORRECT (NOT_APPLICABLE) :
+  {
+    "gate_name": "gate_visit_passed",
+    "gate_value": null,
+    "gate_state": "NOT_APPLICABLE",
+    "gate_threshold_value": null,
+    "gate_reason_raw": "Non applicable — visite non requise",
+    "gate_evidence_hint": "NOT_APPLICABLE",
+    "confidence": 1.0
+  }
 
-  {"gate_name":"gate_eligibility_passed",
-   "gate_value":true,
-   "gate_state":"APPLICABLE",
-   "confidence":0.8}
+SQUELETTE GATE CORRECT (APPLICABLE) :
+  {
+    "gate_name": "gate_eligibility_passed",
+    "gate_value": true,
+    "gate_state": "APPLICABLE",
+    "gate_threshold_value": null,
+    "gate_reason_raw": "Tous documents présents",
+    "gate_evidence_hint": "p.2 — NIF, RCCM, RIB présents",
+    "confidence": 0.8
+  }
 
 ################################################################
 # LOI 5 — EVIDENCE — OBLIGATOIRE PARTOUT
