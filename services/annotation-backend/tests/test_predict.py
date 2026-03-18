@@ -10,10 +10,20 @@ import os
 import sys
 from pathlib import Path
 
-# Env requis avant import backend
-os.environ.setdefault("PSEUDONYM_SALT", "test-sel-mandat5")
-os.environ.setdefault("ALLOW_WEAK_PSEUDONYMIZATION", "1")
-os.environ.setdefault("MISTRAL_API_KEY", "")
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _backend_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Configurer l'environnement requis pour le backend pour chaque test.
+
+    On utilise monkeypatch.setenv pour éviter de modifier l'état global
+    du process pytest au moment de l'import du module de test.
+    """
+    monkeypatch.setenv("PSEUDONYM_SALT", os.environ.get("PSEUDONYM_SALT", "test-sel-mandat5"))
+    monkeypatch.setenv("ALLOW_WEAK_PSEUDONYMIZATION", os.environ.get("ALLOW_WEAK_PSEUDONYMIZATION", "1"))
+    monkeypatch.setenv("MISTRAL_API_KEY", os.environ.get("MISTRAL_API_KEY", ""))
+
 
 # Import backend depuis le répertoire parent
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
