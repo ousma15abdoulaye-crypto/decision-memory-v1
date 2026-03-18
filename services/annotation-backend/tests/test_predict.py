@@ -21,8 +21,13 @@ def _backend_env(monkeypatch: pytest.MonkeyPatch) -> None:
     On utilise monkeypatch.setenv pour éviter de modifier l'état global
     du process pytest au moment de l'import du module de test.
     """
-    monkeypatch.setenv("PSEUDONYM_SALT", os.environ.get("PSEUDONYM_SALT", "test-sel-mandat5"))
-    monkeypatch.setenv("ALLOW_WEAK_PSEUDONYMIZATION", os.environ.get("ALLOW_WEAK_PSEUDONYMIZATION", "1"))
+    monkeypatch.setenv(
+        "PSEUDONYM_SALT", os.environ.get("PSEUDONYM_SALT", "test-sel-mandat5")
+    )
+    monkeypatch.setenv(
+        "ALLOW_WEAK_PSEUDONYMIZATION",
+        os.environ.get("ALLOW_WEAK_PSEUDONYMIZATION", "1"),
+    )
     monkeypatch.setenv("MISTRAL_API_KEY", os.environ.get("MISTRAL_API_KEY", ""))
 
 
@@ -39,7 +44,9 @@ def _load_backend_module():
 
     spec = importlib.util.spec_from_file_location("backend", _BACKEND_PATH)
     if spec is None or spec.loader is None:
-        raise ImportError(f"Impossible de charger le module backend depuis {_BACKEND_PATH}")
+        raise ImportError(
+            f"Impossible de charger le module backend depuis {_BACKEND_PATH}"
+        )
 
     module = importlib.util.module_from_spec(spec)
     # Enregistrer le module pour que les imports internes fonctionnent éventuellement
