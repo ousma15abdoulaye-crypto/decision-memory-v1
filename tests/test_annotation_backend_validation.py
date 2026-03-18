@@ -37,6 +37,8 @@ def test_validate_fallback_returns_review_required():
     except Exception as e:
         pytest.skip(f"Backend import failed: {e}")
 
-    result = backend._validate_and_correct(backend.FALLBACK_RESPONSE, task_id=0)
-    assert result.get("_meta", {}).get("review_required") is True
-    assert result.get("_meta", {}).get("annotation_status") == "review_required"
+    annotation, errors = backend._validate_and_correct(
+        backend.FALLBACK_RESPONSE, task_id=0
+    )
+    assert annotation.get("_meta", {}).get("review_required") is True
+    assert annotation.get("_meta", {}).get("annotation_status") == "review_required"

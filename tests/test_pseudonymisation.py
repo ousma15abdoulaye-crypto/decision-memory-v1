@@ -178,35 +178,35 @@ _PARSED_MINIMAL = {
 def test_build_ls_result_phone_raw_absent_du_json():
     """supplier_phone_raw ne doit jamais apparaître dans extracted_json."""
     result = _build_ls_result(_PARSED_MINIMAL, task_id=1)
-    extracted = result[0]["value"]["text"][0]
+    extracted = result["result"][0]["value"]["text"][0]
     assert "supplier_phone_raw" not in extracted
 
 
 def test_build_ls_result_email_raw_absent_du_json():
     """supplier_email_raw ne doit jamais apparaître dans extracted_json."""
     result = _build_ls_result(_PARSED_MINIMAL, task_id=1)
-    extracted = result[0]["value"]["text"][0]
+    extracted = result["result"][0]["value"]["text"][0]
     assert "supplier_email_raw" not in extracted
 
 
 def test_build_ls_result_valeur_phone_en_clair_absente_du_json():
     """La valeur brute du téléphone ne doit pas figurer dans extracted_json."""
     result = _build_ls_result(_PARSED_MINIMAL, task_id=1)
-    extracted = result[0]["value"]["text"][0]
+    extracted = result["result"][0]["value"]["text"][0]
     assert "+223 76 99 88 77" not in extracted
 
 
 def test_build_ls_result_valeur_email_en_clair_absente_du_json():
     """La valeur brute de l'email ne doit pas figurer dans extracted_json."""
     result = _build_ls_result(_PARSED_MINIMAL, task_id=1)
-    extracted = result[0]["value"]["text"][0]
+    extracted = result["result"][0]["value"]["text"][0]
     assert "fournisseur@example.ml" not in extracted
 
 
 def test_build_ls_result_supplier_phone_pseudo_present_dans_json():
     """supplier_phone pseudo-bloc (present=True) figure dans extracted_json."""
     result = _build_ls_result(_PARSED_MINIMAL, task_id=1)
-    extracted_obj = json.loads(result[0]["value"]["text"][0])
+    extracted_obj = json.loads(result["result"][0]["value"]["text"][0])
     phone_bloc = extracted_obj["identifiants"]["supplier_phone"]
     assert phone_bloc["present"] is True
     assert phone_bloc["redacted"] is True
@@ -216,7 +216,7 @@ def test_build_ls_result_supplier_phone_pseudo_present_dans_json():
 def test_build_ls_result_supplier_email_pseudo_present_dans_json():
     """supplier_email pseudo-bloc (present=True) figure dans extracted_json."""
     result = _build_ls_result(_PARSED_MINIMAL, task_id=1)
-    extracted_obj = json.loads(result[0]["value"]["text"][0])
+    extracted_obj = json.loads(result["result"][0]["value"]["text"][0])
     email_bloc = extracted_obj["identifiants"]["supplier_email"]
     assert email_bloc["present"] is True
     assert email_bloc["redacted"] is True
@@ -234,7 +234,7 @@ def test_build_ls_result_sentinelles_donnent_present_false():
         },
     }
     result = _build_ls_result(parsed, task_id=2)
-    extracted_obj = json.loads(result[0]["value"]["text"][0])
+    extracted_obj = json.loads(result["result"][0]["value"]["text"][0])
     assert extracted_obj["identifiants"]["supplier_phone"]["present"] is False
     assert extracted_obj["identifiants"]["supplier_email"]["present"] is False
 

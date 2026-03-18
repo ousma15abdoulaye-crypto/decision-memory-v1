@@ -16,13 +16,19 @@ from pathlib import Path
 
 # Import prompt — chemin absolu garanti — zéro PYTHONPATH
 sys.path.insert(0, str(Path(__file__).parent))
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from mistralai import Mistral
+from pydantic import ValidationError
+
+try:
+    from mistralai import Mistral
+except ImportError:
+    from mistralai.client import Mistral  # mistralai v2.x
+
 from prompts import SYSTEM_PROMPT
 from prompts.schema_validator import DMSAnnotation
-from pydantic import ValidationError
 
 # CONSTANTES — v3.0.1d ADR-015
 SCHEMA_VERSION = "v3.0.1d"
@@ -192,13 +198,17 @@ def _truncate_text(text: str, task_id: int) -> str:
     return text[:MAX_TEXT_CHARS]
 
 
-def _build_messages(user_content: str) -> list[dict]:
+def _build_messages(user_content: str, document_role: str = "") -> list[dict]:
     """
     Construit les messages pour l'API Mistral.
-    user_content contient le document. Instruction JSON pour response_format=json_object.
+    user_content contient le document.
+    document_role : si fourni (extraction.py), injecté pour LOI 1bis.
     """
+    prefix = ""
+    if document_role:
+        prefix = f"CONTEXTE: document_role attendu = {document_role}\n\n"
     user_prompt = (
-        f"{user_content}\n\n"
+        f"{prefix}{user_content}\n\n"
         "Extraire les données en JSON selon les règles du prompt système."
     )
     return [
@@ -269,11 +279,18 @@ _ALLOWED_CONFIDENCE = frozenset({0.6, 0.8, 1.0})
 
 def _normalize_gates(annotation: dict) -> dict:
     """
-    Normalise les gates avant validation Pydantic.
-    Absorbe les imperfections de Mistral (E-65) :
-      - confidence=0.0 sur NOT_APPLICABLE → 1.0 (LOI 4)
-      - confidence=0.0 sur APPLICABLE → 0.6
-      - gate_value=null sur APPLICABLE → False + AMBIG-5
+    Normalise les gates AVANT validation Pydantic.
+
+    Absorbe les imperfections systématiques de Mistral :
+      1. confidence=0.0 + NOT_APPLICABLE → 1.0
+         LOI 4 DMS : NOT_APPLICABLE = certitude maximale
+      2. confidence=0.0 + APPLICABLE → 0.6 (minimum autorisé)
+      3. gate_value=null + APPLICABLE → False + AMBIG-5 tracé
+         Le système ne décide pas → AMBIG tracé → humain valide
+
+    Ces 3 règles sont figées.
+    GO CTO obligatoire avant toute modification.
+    Ref : E-65 — audit logs 2026-03-18
     """
     gates = annotation.get("couche_5_gates", [])
     ambiguites = list(annotation.get("ambiguites", []))
@@ -284,167 +301,283 @@ def _normalize_gates(annotation: dict) -> dict:
 
         gate_name = gate.get("gate_name", "unknown")
         gate_state = gate.get("gate_state", "")
-        gate_value = gate.get("gate_value")
         confidence = gate.get("confidence", 0.0)
 
-        # FIX 1 : confidence=0.0 + NOT_APPLICABLE → 1.0 (LOI 4)
-        if gate_state == "NOT_APPLICABLE" and confidence == 0.0:
-            gate["confidence"] = 1.0
+        # RÈGLE 1 : NOT_APPLICABLE → confidence = 1.0
+        if gate_state == "NOT_APPLICABLE":
+            if confidence != 1.0:
+                gate["confidence"] = 1.0
+            if gate.get("gate_value") is not None:
+                gate["gate_value"] = None
 
-        # FIX 2 : confidence=0.0 + APPLICABLE → 0.6
-        if gate_state == "APPLICABLE" and confidence == 0.0:
-            gate["confidence"] = 0.6
-
-        # FIX 3 : toute autre confidence invalide → 0.6
-        if gate.get("confidence") not in _ALLOWED_CONFIDENCE:
-            gate["confidence"] = 0.6
-
-        # FIX 4 : gate_value=null + APPLICABLE → False + AMBIG-5
-        if gate_state == "APPLICABLE" and gate_value is None:
-            gate["gate_value"] = False
-            ambig = f"AMBIG-5_gate_{gate_name}_value_null_forced_false"
-            if ambig not in ambiguites:
-                ambiguites.append(ambig)
-
-        # gate_state=NOT_APPLICABLE + gate_value non null → null
-        if gate_state == "NOT_APPLICABLE" and gate.get("gate_value") is not None:
-            gate["gate_value"] = None
+        # RÈGLE 2 : APPLICABLE + confidence=0.0 → 0.6
+        elif gate_state == "APPLICABLE":
+            if confidence not in _ALLOWED_CONFIDENCE:
+                gate["confidence"] = 0.6
+            # RÈGLE 3 : APPLICABLE + gate_value=null → False + AMBIG
+            if gate.get("gate_value") is None:
+                gate["gate_value"] = False
+                ambig = f"AMBIG-5_gate_{gate_name}_value_null_forced_false"
+                if ambig not in ambiguites:
+                    ambiguites.append(ambig)
 
     annotation["ambiguites"] = ambiguites
     return annotation
 
 
-def _validate_and_correct(parsed: dict, task_id: int = 0) -> dict:
+def _validate_financial_coherence(annotation: dict, task_id: int) -> list[str]:
     """
-    Couche 2 — validation Pydantic v3.0.1d.
-    Clé inconnue → rejetée. line_total_check → recalculé par Python.
-    Si validation échoue → log erreurs + review_required.
+    Valide la cohérence mathématique des montants.
+        validated = DMSAnnotation.model_validate(annotation)
+        corrected_annotation = validated.model_dump(by_alias=True)
+        return corrected_annotation, []
+      → ANOMALY tracé
+      → review_required = True
+    E-47 étendu au niveau document.
     """
-    parsed = _normalize_gates(copy.deepcopy(parsed))
-    try:
-        validated = DMSAnnotation.model_validate(parsed)
-        return validated.model_dump(by_alias=True)
-    except ValidationError as exc:
-        errors = exc.errors()
-        logger.error(
-            "[VALIDATE] %d erreurs schema — task_id=%s",
-            len(errors),
-            task_id,
+    warnings: list[str] = []
+    routing = annotation.get("couche_1_routing", {})
+    role = routing.get("document_role", "")
+
+    if role not in (
+        "financial_proposal",
+        "offer_financial",
+        "financial_offer",
+        "annex_pricing",
+    ):
+        return warnings
+
+    financier = annotation.get("couche_4_atomic", {}).get("financier", {})
+    total_raw = financier.get("total_price", {})
+    line_items = financier.get("line_items", [])
+
+    total_declared = None
+    if isinstance(total_raw, dict):
+        try:
+            val = total_raw.get("value", 0)
+            if val in (None, "", "ABSENT", "NOT_APPLICABLE"):
+                return warnings
+            s = str(val).replace(" ", "").replace("\u202f", "")
+            total_declared = float(s)
+        except (ValueError, TypeError):
+            return warnings
+    elif isinstance(total_raw, int | float):
+        total_declared = float(total_raw)
+
+    if not total_declared or not line_items:
+        return warnings
+
+    total_computed = sum(
+        float(li.get("line_total", 0) or 0) for li in line_items if isinstance(li, dict)
+    )
+
+    if total_computed == 0:
+        return warnings
+
+    ecart = abs(total_declared - total_computed) / max(total_computed, 1)
+    if ecart > 0.01:
+        msg = (
+            f"ANOMALY_total_price_{int(total_declared)}"
+            f"_vs_sum_items_{int(total_computed)}"
         )
-        for err in errors[:5]:
+        warnings.append(msg)
+        logger.error(
+            "[VALIDATE] Incohérence montant task_id=%s : "
+            "total_price=%s sum_items=%s ecart=%.1f%%",
+            task_id,
+            total_declared,
+            total_computed,
+            ecart * 100,
+        )
+
+    return warnings
+
+
+def _validate_and_correct(annotation: dict, task_id: int = 0) -> tuple[dict, list]:
+    """
+    Valide le JSON annoté contre le schéma DMS v3.0.1d.
+    Retourne (annotation_corrigée, liste_erreurs).
+    Ne lève jamais d'exception — les erreurs sont tracées.
+    """
+    errors: list[dict] = []
+    annotation = copy.deepcopy(annotation)
+
+    try:
+        DMSAnnotation.model_validate(annotation)
+        # Validation cohérence financière (E-47 étendu) — même si schéma OK
+        financial_warnings = _validate_financial_coherence(annotation, task_id)
+        if financial_warnings:
+            annotation.setdefault("ambiguites", [])
+            for w in financial_warnings:
+                if w not in annotation["ambiguites"]:
+                    annotation["ambiguites"].append(w)
+            annotation.setdefault("_meta", {})
+            annotation["_meta"]["review_required"] = True
             logger.error(
-                "[VALIDATE] loc=%s type=%s msg=%s",
-                err.get("loc"),
-                err.get("type"),
-                err.get("msg"),
+                "[VALIDATE] Incohérence financière task_id=%s : %s",
+                task_id,
+                financial_warnings,
             )
-        parsed = copy.deepcopy(parsed)
-        parsed.setdefault("_meta", {})
-        parsed["_meta"]["review_required"] = True
-        parsed["_meta"]["annotation_status"] = "review_required"
-        return parsed
+        return annotation, []
+    except ValidationError as exc:
+        if hasattr(exc, "errors"):
+            for err in exc.errors():
+                loc = err.get("loc", ())
+                msg = err.get("msg", "")
+                errors.append({"loc": loc, "msg": msg})
+                logger.error(
+                    "[VALIDATE] loc=%s msg=%s — task_id=%s",
+                    loc,
+                    msg,
+                    task_id,
+                )
+            logger.error(
+                "[VALIDATE] %d erreurs schema — task_id=%s",
+                len(errors),
+                task_id,
+            )
+        else:
+            errors.append({"loc": (), "msg": str(exc)})
+            logger.error(
+                "[VALIDATE] Erreur validation — task_id=%s : %s",
+                task_id,
+                exc,
+            )
+
+        annotation.setdefault("_meta", {})
+        annotation["_meta"]["review_required"] = True
+        annotation["_meta"]["annotation_status"] = "review_required"
+        annotation.setdefault("ambiguites", [])
+        ambig = "AMBIG-6_schema_validation_errors"
+        if ambig not in annotation["ambiguites"]:
+            annotation["ambiguites"].append(ambig)
+
+    # Validation cohérence financière — même en cas d'erreur schéma
+    financial_warnings = _validate_financial_coherence(annotation, task_id)
+    if financial_warnings:
+        for w in financial_warnings:
+            if w not in annotation["ambiguites"]:
+                annotation["ambiguites"].append(w)
+        annotation["_meta"]["review_required"] = True
+        logger.error(
+            "[VALIDATE] Incohérence financière task_id=%s : %s",
+            task_id,
+            financial_warnings,
+        )
+
+    return annotation, errors
 
 
 # ─────────────────────────────────────────────────────────
-# BUILDER LABEL STUDIO — from_name : extracted_json + annotation_notes
+# BUILDER LABEL STUDIO — structure conforme E-66
 # ─────────────────────────────────────────────────────────
 
 
-def _build_ls_result(parsed: dict, task_id: int) -> list:
+def _build_empty_result(task_id: int, reason: str) -> dict:
     """
-    Pseudonymise phone et email AVANT insertion dans extracted_json.
-    La valeur brute ne quitte jamais le backend.
+    Résultat vide traçable — quand le JSON ne peut pas être produit.
+    Jamais silencieux.
     """
-    parsed = copy.deepcopy(parsed)
+    fallback = {
+        "_meta": {
+            "schema_version": SCHEMA_VERSION,
+            "review_required": True,
+            "annotation_status": "review_required",
+            "error_reason": reason,
+        },
+        "ambiguites": [
+            "AMBIG-6_review_required",
+            f"AMBIG-6_{reason[:50]}",
+        ],
+    }
+    json_str = json.dumps(fallback, ensure_ascii=False, indent=2)
+    return {
+        "id": task_id,
+        "score": 0.1,
+        "result": [
+            {
+                "from_name": "extracted_json",
+                "to_name": "text",
+                "type": "textarea",
+                "value": {"text": [json_str]},
+            }
+        ],
+    }
 
-    # Pseudonymisation phone / email dans identifiants
-    identifiants = parsed.get("identifiants", {})
-    # Protéger contre les types inattendus renvoyés par le LLM (string/list/null, etc.)
+
+def _build_ls_result(
+    annotation: dict,
+    task_id: int,
+    has_errors: bool = False,
+) -> dict:
+    """
+    Construit le résultat Label Studio depuis le JSON annoté.
+
+    RÈGLE ABSOLUE :
+      Toujours envoyer le JSON dans le textarea.
+      Jamais de textarea vide — même si review_required=True.
+      L'annotateur humain voit le JSON et peut corriger.
+
+    Structure Label Studio stricte (E-66) :
+      value.text = [string]  ← liste Python avec 1 élément string
+      to_name = "text"      ← DOIT matcher XML Label Studio
+    """
+    annotation = copy.deepcopy(annotation)
+
+    # Pseudonymisation phone / email — valeur brute ne quitte jamais le backend
+    identifiants = annotation.get("identifiants", {})
     if not isinstance(identifiants, dict):
         identifiants = {}
-
     phone_raw = identifiants.pop("supplier_phone_raw", ABSENT)
     email_raw = identifiants.pop("supplier_email_raw", ABSENT)
-
     identifiants["supplier_phone"] = _pseudonymise_contact(phone_raw)
     identifiants["supplier_email"] = _pseudonymise_contact(email_raw)
-
-    # Address : tronquer à 60 chars
     addr = identifiants.get("supplier_address_raw", ABSENT)
     if addr not in (ABSENT, NOT_APPLICABLE, "", None):
         identifiants["supplier_address_raw"] = str(addr)[:60]
+    annotation["identifiants"] = identifiants
 
-    parsed["identifiants"] = identifiants
+    review_required = annotation.get("_meta", {}).get("review_required", False)
+    json_str = json.dumps(annotation, ensure_ascii=False, indent=2)
 
-    # Suite identique au _build_ls_result existant
-    routing = parsed.get("couche_1_routing", {})
-    meta = parsed.get("_meta", {})
-    gates = parsed.get("couche_5_gates", [])
-    ambig = parsed.get("ambiguites", [])
+    if has_errors or review_required:
+        score = 0.4
+    else:
+        score = 0.9
 
-    valid_gates = [g for g in gates if isinstance(g, dict) and "gate_name" in g]
-    gates_failed = [
-        g.get("gate_name", "unknown")
-        for g in valid_gates
-        if g.get("gate_value") is False and g.get("gate_state") == "APPLICABLE"
-    ]
-
-    family = routing.get("procurement_family_main", "UNKNOWN")
-    sub = routing.get("procurement_family_sub", "UNKNOWN")
-    tax_core = routing.get("taxonomy_core", "UNKNOWN")
-    role = routing.get("document_role", "UNKNOWN")
-    stage = routing.get("document_stage", "UNKNOWN")
-    review = meta.get("review_required", False)
-
-    notes = (
-        f"[{SCHEMA_VERSION}] {family}/{sub}\n"
-        f"taxonomy={tax_core} | role={role} | stage={stage}\n"
-        f"review_required={review}\n"
-        f"gates_failed={gates_failed if gates_failed else 'aucun'}\n"
-        f"ambiguites={ambig if ambig else 'aucune'}\n"
-        f"model={meta.get('mistral_model_used', MISTRAL_MODEL)}"
-    )
-
-    # Toujours envoyer le JSON — même si review_required=True (E-65).
-    # L'annotateur voit le JSON et peut corriger.
-    result = [
-        {
-            "from_name": "extracted_json",
-            "to_name": "document_text",
-            "type": "textarea",
-            "value": {"text": [json.dumps(parsed, ensure_ascii=False, indent=2)]},
-        },
-        {
-            "from_name": "annotation_notes",
-            "to_name": "document_text",
-            "type": "textarea",
-            "value": {"text": [notes]},
-        },
-    ]
-    if review:
-        result.append(
+    return {
+        "id": task_id,
+        "score": score,
+        "result": [
             {
-                "from_name": "review_flag",
-                "to_name": "document_text",
-                "type": "choices",
-                "value": {"choices": ["REVIEW_REQUIRED"]},
+                "from_name": "extracted_json",
+                "to_name": "text",
+                "type": "textarea",
+                "value": {"text": [json_str]},
             }
-        )
-    return result
+        ],
+    }
 
 
 # APPEL MISTRAL
 
 
-async def _mistral_extract(text: str, task_id: int | None = None) -> dict:
-    """Appelle Mistral v3.0.1d. Retourne le dict parsé ou FALLBACK_RESPONSE."""
+async def _call_mistral(
+    text: str,
+    task_id: int | None = None,
+    document_role: str = "",
+) -> dict:
+    """
+    Appelle Mistral v3.0.1d. Retourne le dict parsé brut (sans validation).
+    document_role : si fourni, applique LOI 1bis (squelette conditionné).
+    """
     if not client:
         logger.warning("[MISTRAL] Client non configuré — fallback activé")
-        return FALLBACK_RESPONSE
+        return dict(FALLBACK_RESPONSE)
 
     tid = task_id if task_id is not None else 0
     text = _truncate_text(text, tid)
-    messages = _build_messages(text)
+    messages = _build_messages(text, document_role=document_role)
 
     try:
         response = client.chat.complete(
@@ -456,12 +589,10 @@ async def _mistral_extract(text: str, task_id: int | None = None) -> dict:
         )
         raw = response.choices[0].message.content or ""
         logger.info("[MISTRAL] Réponse reçue — %d caractères", len(raw))
-        parsed = _parse_mistral_response(raw, task_id=tid)
-        return _validate_and_correct(parsed, task_id=tid)
-
+        return _parse_mistral_response(raw, task_id=tid)
     except Exception as exc:
         logger.error("[MISTRAL] Erreur appel API : %s — fallback activé", exc)
-        return FALLBACK_RESPONSE
+        return dict(FALLBACK_RESPONSE)
 
 
 # ENDPOINTS
@@ -492,36 +623,61 @@ async def setup(request: Request) -> JSONResponse:
 
 @app.post("/predict")
 async def predict(request: Request) -> JSONResponse:
-    """Label Studio → pré-annotations Mistral. 1 tâche = 1 document."""
-    body = await request.json()
-    tasks = body.get("tasks", [])
+    """
+    Endpoint ML backend Label Studio.
 
+    Contrat Label Studio :
+      INPUT  : {"tasks": [{"id": N, "data": {"text": "..."}}]}
+      OUTPUT : {"results": [{"id": N, "score": F, "result": [...]}]}
+
+    Structure result obligatoire (E-66) :
+      from_name = nom du widget dans le XML Label Studio
+      to_name   = "text" (objet Data dans le XML)
+      value.text = [string]  ← liste avec 1 string, jamais dict
+    """
+    try:
+        body = await request.json()
+    except Exception as exc:
+        logger.error("[PREDICT] Body non parsable : %s", exc)
+        return JSONResponse({"results": []}, status_code=200)
+
+    tasks = body.get("tasks", [])
     if not tasks:
         return JSONResponse({"results": []})
 
+    document_role = body.get("document_role", "")
     predictions = []
+
     for task in tasks:
         task_id = task.get("id", 0)
-        data = task.get("data", {})
-        text = data.get("text", "") or data.get("content", "") or ""
+        task_data = task.get("data", {})
+        text = task_data.get("text", "") or task_data.get("content", "") or ""
 
-        if not text.strip():
-            logger.warning("[PREDICT] task_id=%s — texte vide, fallback", task_id)
-            parsed = FALLBACK_RESPONSE
-        else:
-            parsed = await _mistral_extract(text, task_id=task_id)
+        logger.info("[PREDICT] task_id=%s text_len=%d", task_id, len(text))
 
-        result = _build_ls_result(parsed, task_id)
-        review_required = parsed.get("_meta", {}).get("review_required", False)
+        if not text or not text.strip():
+            logger.warning("[PREDICT] Texte vide — task_id=%s", task_id)
+            predictions.append(_build_empty_result(task_id, "empty_text"))
+            continue
 
-        predictions.append(
-            {
-                "id": task_id,
-                "result": result,
-                "score": 0.5 if review_required else 0.9,
-                "model_version": f"dms-{SCHEMA_VERSION}",
-            }
-        )
+        try:
+            annotation = await _call_mistral(text, task_id, document_role=document_role)
+            annotation = _normalize_gates(annotation)
+            annotation, errors = _validate_and_correct(annotation, task_id)
+            result = _build_ls_result(
+                annotation=annotation,
+                task_id=task_id,
+                has_errors=bool(errors),
+            )
+            predictions.append(result)
+        except Exception as exc:
+            logger.error(
+                "[PREDICT] Erreur inattendue task_id=%s : %s",
+                task_id,
+                exc,
+                exc_info=True,
+            )
+            predictions.append(_build_empty_result(task_id, str(exc)[:80]))
 
     return JSONResponse({"results": predictions})
 

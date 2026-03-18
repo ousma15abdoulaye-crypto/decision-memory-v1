@@ -426,6 +426,20 @@
 ║         Standard industrie systèmes critiques : 80% minimum.             ║
 ║         Montée progressive : 65 → 70 → 75 → 80. GO CTO avant ajustement.║
 ║         Ref : Mandat 2 post-CI — 2026-03-17                              ║
+║  E-65  Gates confidence=0.0 dans le squelette JSON du prompt.           ║
+║         Mistral reproduit 0.0 depuis le squelette.                       ║
+║         Le validateur Pydantic rejette → textarea vide Label Studio.     ║
+║         Double fix : _normalize_gates() + règle prompt explicite.        ║
+║         NOT_APPLICABLE → confidence=1.0 par convention (LOI 4).          ║
+║         APPLICABLE → confidence 0.6|0.8|1.0 — jamais 0.0.                 ║
+║         Ref : logs annotation-backend 2026-03-18 — Mandat 5              ║
+║  E-66  /predict value.text doit être [string] — jamais [dict].           ║
+║         from_name doit correspondre exactement au name du widget XML.     ║
+║         to_name = "text" — DOIT matcher XML Label Studio.                 ║
+║         Si l'un ou l'autre est faux → textarea vide systématique.         ║
+║         Toujours envoyer le JSON même si review_required=True.           ║
+║         L'annotateur corrige. Le système ne censure pas.                 ║
+║         Ref : Mandat 5 — 2026-03-18                                       ║
 ║                                                                      ║
 ║  ADR-015  Line items chirurgical — docs/adr/ADR-015_*.md            ║
 ║           Date : 2026-03-16 — Statut : ACCEPTÉ — v3.0.1d           ║
