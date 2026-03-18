@@ -328,8 +328,9 @@ def _normalize_gates(annotation: dict) -> dict:
 def _validate_financial_coherence(annotation: dict, task_id: int) -> list[str]:
     """
     Valide la cohérence mathématique des montants.
-
-    Si total_price ≠ sum(line_items) avec marge > 1% :
+        validated = DMSAnnotation.model_validate(annotation)
+        corrected_annotation = validated.model_dump(by_alias=True)
+        return corrected_annotation, []
       → ANOMALY tracé
       → review_required = True
     E-47 étendu au niveau document.
