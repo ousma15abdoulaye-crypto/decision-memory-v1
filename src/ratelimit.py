@@ -109,4 +109,7 @@ def init_rate_limit(app: FastAPI):
     if _TESTING:
         logger.info("[RATELIMIT] Mode test — rate limiting actif (memory://)")
     else:
-        logger.info("[RATELIMIT] Initialized — storage=%s", _storage[:20] + "..." if len(_storage) > 20 else _storage)
+        logger.info(
+            "[RATELIMIT] Initialized — storage=%s",
+            _storage[:20] + "..." if len(_storage) > 20 else _storage,
+        )
