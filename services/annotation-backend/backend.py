@@ -19,7 +19,10 @@ sys.path.insert(0, str(Path(__file__).parent))
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from mistralai import Mistral
+try:
+    from mistralai import Mistral
+except ImportError:
+    from mistralai.client import Mistral  # mistralai v2.x
 from prompts import SYSTEM_PROMPT
 from prompts.schema_validator import DMSAnnotation
 from pydantic import ValidationError
