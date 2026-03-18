@@ -482,7 +482,7 @@ def _build_empty_result(task_id: int, reason: str) -> dict:
         "_meta": {
             "schema_version": SCHEMA_VERSION,
             "review_required": True,
-            "annotation_status": "pending",
+            "annotation_status": "review_required",
             "error_reason": reason,
         },
         "ambiguites": [
