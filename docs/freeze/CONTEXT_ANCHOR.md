@@ -262,8 +262,8 @@
 ║    ASAP-04 : M-TESTS.done              ⏳ (Mandat 2)                 ║
 ║    ASAP-05 : migration 049 FK validate  ⏳ (Mandat 2)                 ║
 ║    ASAP-06 : migration 050 sha256       ⏳ (Mandat 2)                 ║
-║    ASAP-07/08 : Redis rate limit       ⏳ (Mandat 3)                 ║
-║    ASAP-09 : sqlalchemy → psycopg      ⏳ (Mandat 3)                 ║
+║    ASAP-07/08 : Redis rate limit       ✓ DONE (Mandat 3)            ║
+║    ASAP-09 : sqlalchemy → psycopg      ✓ DONE (Mandat 3)            ║
 ║    ASAP-10 : CI gates vivants         ⏳ (Mandat 2)                  ║
 ║    ASAP-11 : llm_router.py            ⏳ (Mandat 4)                 ║
 ║    ASAP-12 : pont extraction          ⏳ (Mandat 4)                 ║

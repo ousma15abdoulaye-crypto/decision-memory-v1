@@ -63,27 +63,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: "INV-01 · zéro sqlalchemy dans src/ (hors ASAP-09 pending)"
+      - name: "INV-01 · zéro sqlalchemy dans src/"
         run: |
-          # ASAP-09 : 2 fichiers tolérés jusqu'à Mandat 3
-          # src/couche_a/scoring/engine.py — sqlalchemy.text wrapper
-          # src/api/auth_helpers.py — sqlalchemy.text wrapper
-          # Ref : audit CTO senior 2026-03-17 ASAP-09
-          COUNT=$(grep -rn "from sqlalchemy\|import sqlalchemy" src/ 2>/dev/null \
-              | grep -v -F "src/couche_a/scoring/engine.py" \
-              | grep -v -F "src/api/auth_helpers.py" \
-              | wc -l)
+          # Constitution §3 — ASAP-09 : sqlalchemy interdit dans src/
+          # Mandat 3 : engine.py + auth_helpers.py migrés psycopg natif
+          COUNT=$(grep -rn "from sqlalchemy\|import sqlalchemy" src/ 2>/dev/null | wc -l)
           if [ "$COUNT" -gt 0 ]; then
             echo "❌ VIOLATION Constitution §3 — sqlalchemy dans src/ :"
-            grep -rn "from sqlalchemy\|import sqlalchemy" src/ \
-                | grep -v -F "src/couche_a/scoring/engine.py" \
-                | grep -v -F "src/api/auth_helpers.py"
+            grep -rn "from sqlalchemy\|import sqlalchemy" src/
             exit 1
           fi
-          echo "✅ INV-01 : 0 nouvelle violation sqlalchemy"
-          echo "⚠️  ASAP-09 exceptions actives (Mandat 3) :"
-          echo "   → src/couche_a/scoring/engine.py"
-          echo "   → src/api/auth_helpers.py"
+          echo "✅ INV-01 : 0 sqlalchemy dans src/"
 
       - name: "INV-02 · alembic heads = 1"
         run: |
