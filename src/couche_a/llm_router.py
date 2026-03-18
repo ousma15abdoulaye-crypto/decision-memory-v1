@@ -82,7 +82,6 @@ class LLMRouter:
     def __init__(self) -> None:
         self._backend_url = ANNOTATION_BACKEND_URL
         self._timeout = ANNOTATION_TIMEOUT_SECONDS
-        self._has_api_key = bool(_MISTRAL_API_KEY)
 
     @property
     def backend_url(self) -> str:
@@ -93,7 +92,9 @@ class LLMRouter:
         return self._timeout
 
     def select_tier(self) -> Tier:
-        if not self._has_api_key:
+        # Relecture dynamique de MISTRAL_API_KEY pour éviter de figer l'état
+        has_api_key = bool(os.environ.get("MISTRAL_API_KEY", ""))
+        if not has_api_key:
             logger.warning("[ROUTER] MISTRAL_API_KEY absente → TIER 4")
             return Tier.T4_OFFLINE
         logger.debug(
@@ -103,7 +104,8 @@ class LLMRouter:
         return Tier.T1
 
     def is_online_capable(self) -> bool:
-        return self._has_api_key
+        # Capacité online basée sur l'état courant de l'environnement
+        return bool(os.environ.get("MISTRAL_API_KEY", ""))
 
 
 # Singleton
