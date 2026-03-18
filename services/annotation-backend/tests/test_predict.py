@@ -9,6 +9,7 @@ import json
 import os
 import sys
 from pathlib import Path
+import importlib.util
 
 import pytest
 
@@ -25,17 +26,35 @@ def _backend_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MISTRAL_API_KEY", os.environ.get("MISTRAL_API_KEY", ""))
 
 
-# Import backend depuis le répertoire parent
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# Chargement hermétique de backend.py sans modifier sys.path globalement
+_BACKEND_MODULE = None
+_BACKEND_PATH = Path(__file__).resolve().parent.parent / "backend.py"
+
+
+def _load_backend_module():
+    """Charge le module backend depuis backend.py sans toucher à sys.path."""
+    global _BACKEND_MODULE
+    if _BACKEND_MODULE is not None:
+        return _BACKEND_MODULE
+
+    spec = importlib.util.spec_from_file_location("backend", _BACKEND_PATH)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Impossible de charger le module backend depuis {_BACKEND_PATH}")
+
+    module = importlib.util.module_from_spec(spec)
+    # Enregistrer le module pour que les imports internes fonctionnent éventuellement
+    sys.modules.setdefault("backend", module)
+    spec.loader.exec_module(module)
+    _BACKEND_MODULE = module
+    return module
 
 
 class TestNormalizeGates:
     """Tests _normalize_gates()."""
 
     def _import(self):
-        from backend import _normalize_gates
-
-        return _normalize_gates
+        backend = _load_backend_module()
+        return backend._normalize_gates
 
     def test_not_applicable_confidence_zero_corrige(self):
         fn = self._import()
