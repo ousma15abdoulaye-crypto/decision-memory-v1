@@ -10,8 +10,6 @@ import json
 import re
 from datetime import UTC, datetime
 
-from sqlalchemy import text
-
 from src.core.models import DAOCriterion, SupplierPackage
 from src.couche_a.scoring.models import EliminationResult, ScoreResult
 from src.db import get_connection
@@ -475,7 +473,7 @@ class ScoringEngine:
                     else str(score.calculation_details)
                 )
                 conn.execute(
-                    text("""
+                    """
                         INSERT INTO public.score_runs (
                             case_id, supplier_name, category,
                             score_value, calculation_details
@@ -483,7 +481,7 @@ class ScoringEngine:
                             :case_id, :supplier_name, :category,
                             :score_value, CAST(:details AS jsonb)
                         )
-                    """),
+                    """,
                     {
                         "case_id": case_id,
                         "supplier_name": score.supplier_name,
@@ -533,10 +531,10 @@ class ScoringEngine:
                     ]
                 }
                 conn.execute(
-                    text("""
+                    """
                         INSERT INTO supplier_eliminations (case_id, supplier_name, reason_codes, details)
                         VALUES (:case_id, :supplier_name, CAST(:reason_codes AS jsonb), CAST(:details AS jsonb))
-                    """),
+                    """,
                     {
                         "case_id": case_id,
                         "supplier_name": supplier_name,

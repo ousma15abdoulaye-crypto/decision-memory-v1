@@ -17,7 +17,6 @@ from datetime import datetime
 
 import bcrypt as _bcrypt
 from fastapi import HTTPException
-from sqlalchemy import text
 
 from src.db import db_execute, db_execute_one, get_connection
 
@@ -108,13 +107,13 @@ def create_user(
             raise HTTPException(409, "Email or username already exists")
 
         conn.execute(
-            text("""
+            """
             INSERT INTO users (email, username, hashed_password, full_name,
                                role_id, is_active, is_superuser, created_at)
             VALUES (:email, :username, :password, :name,
                     :role, TRUE, FALSE, :ts)
             RETURNING id
-            """),
+            """,
             {
                 "email": email,
                 "username": username,
