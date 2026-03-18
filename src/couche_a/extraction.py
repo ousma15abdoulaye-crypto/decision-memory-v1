@@ -28,8 +28,8 @@ logger = logging.getLogger(__name__)
 
 # ── Mapping offer_type → document_role DMS ───────────────────
 _OFFER_TYPE_TO_ROLE: dict[str, str] = {
-    "technique": "offer_technical",
-    "financiere": "offer_financial",
+    "technique": "technical_offer",
+    "financiere": "financial_offer",
     "administrative": "supporting_doc",
     "registre": "supporting_doc",
 }
