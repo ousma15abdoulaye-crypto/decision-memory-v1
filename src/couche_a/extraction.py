@@ -704,6 +704,41 @@ def _parse_backend_response(
         )
 
 
+def _infer_tier_used(annotation: dict) -> Tier:
+    """
+    Déduit le tier effectivement utilisé à partir de l'annotation.
+
+    On tente d'abord de lire une information explicite (routing / _meta),
+    puis on mappe éventuellement une chaîne vers l'enum Tier. En cas
+    d'absence ou d'erreur, on retombe sur Tier.T1 pour conserver le
+    comportement actuel par défaut.
+    """
+    routing = annotation.get("couche_1_routing", {}) or {}
+    meta = annotation.get("_meta", {}) or {}
+
+    tier_value = (
+        routing.get("tier_used")
+        or meta.get("tier_used")
+        or meta.get("llm_tier")
+        or meta.get("mistral_tier")
+    )
+
+    # Si c'est déjà un enum Tier, on le renvoie tel quel.
+    if isinstance(tier_value, Tier):
+        return tier_value
+
+    # Sinon, on tente un mapping à partir d'une chaîne.
+    if isinstance(tier_value, str):
+        normalized = tier_value.strip().upper()
+        # Autoriser "1" / "2" / "3" ou "T1" / "T2" / "T3"
+        if not normalized.startswith("T"):
+            normalized = f"T{normalized}"
+        return getattr(Tier, normalized, Tier.T1)
+
+    # Fallback conservateur.
+    return Tier.T1
+
+
 def _build_result(
     annotation: dict,
     document_id: str,
@@ -714,17 +749,18 @@ def _build_result(
     routing = annotation.get("couche_1_routing", {})
     meta = annotation.get("_meta", {})
     financier = annotation.get("couche_4_atomic", {}).get("financier", {})
+    tier_used = _infer_tier_used(annotation)
     return TDRExtractionResult(
         document_id=document_id,
         document_role=document_role,
         family_main=routing.get("procurement_family_main", "ABSENT"),
         family_sub=routing.get("procurement_family_sub", "ABSENT"),
         taxonomy_core=routing.get("taxonomy_core", "ABSENT"),
-        fields=_extract_fields(annotation),
+        fields=_extract_fields(annotation, tier_used=tier_used),
         line_items=_extract_line_items(financier),
         gates=annotation.get("couche_5_gates", []),
         ambiguites=annotation.get("ambiguites", []),
-        tier_used=Tier.T1,
+        tier_used=tier_used,
         latency_ms=latency_ms,
         extraction_ok=True,
         review_required=bool(meta.get("review_required", False)),
@@ -733,7 +769,7 @@ def _build_result(
     )
 
 
-def _extract_fields(annotation: dict) -> list[ExtractionField]:
+def _extract_fields(annotation: dict, tier_used: Tier) -> list[ExtractionField]:
     """Extrait ExtractionField depuis couche_2_core."""
     fields: list[ExtractionField] = []
     for name, data in annotation.get("couche_2_core", {}).items():
@@ -749,7 +785,7 @@ def _extract_fields(annotation: dict) -> list[ExtractionField]:
                     value=data.get("value"),
                     confidence=float(conf),
                     evidence=str(data.get("evidence") or "ABSENT"),
-                    tier_used=Tier.T1,
+                    tier_used=tier_used,
                 )
             )
         except ValueError as exc:
