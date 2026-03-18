@@ -88,8 +88,8 @@
 ║                                                                      ║
 ║  GIT — 2026-03-17                                                    ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  main              : d7da6aa (Merge PR#213 feat/pre-m12-db-ci)     ║
-║  feat/pre-m12-db-ci : MERGÉ dans main (Mandat 2)                    ║
+║  main              : 87942a3 (Merge PR#215 feat/pre-m12-extraction) ║
+║  feat/pre-m12-extraction-reelle : MERGÉ dans main (Mandat 4)        ║
 ║  feat/fix-backend-production : backend v3.0.1d (en attente merge)   ║
 ║  alembic head local : 050_documents_sha256_not_null                  ║
 ║  alembic head Railway : 044_decision_history (DÉSYNCHRONISÉ)         ║
@@ -97,6 +97,8 @@
 ║  tags posés :                                                         ║
 ║    v4.1.0-ocr-files-api-done                                         ║
 ║    v4.1.0-m12-dette7-done                                             ║
+║    v4.1.0-pre-m12-security-done                                       ║
+║    v4.1.0-pre-m12-extraction-reelle-done                              ║
 ║                                                                      ║
 ║  ALEMBIC — FREEZE ABSOLU                                            ║
 ║  ──────────────────────────────────────────────────────────────     ║

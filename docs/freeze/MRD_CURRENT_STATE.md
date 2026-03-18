@@ -32,12 +32,12 @@ freeze_hashes_doc     : docs/freeze/FREEZE_HASHES.md
 
 last_completed        : M11
 last_completed_at     : 2026-03-11
-last_merge_commit     : d7da6aa (Merge PR#213 feat/pre-m12-db-ci — Mandat 2)
-last_tag              : m11-done (apres merge)
+last_merge_commit     : 87942a3 (Merge PR#215 feat/pre-m12-extraction-reelle — Mandat 4)
+last_tag              : v4.1.0-pre-m12-extraction-reelle-done
 next_milestone        : M12
 next_status           : IN_PROGRESS
 blocked_on            : aucun
-branch_courante       : main (feat/pre-m12-db-ci mergé)
+branch_courante       : main (feat/pre-m12-extraction-reelle mergé)
 
 ---
 
@@ -76,7 +76,8 @@ updated_by               : AO — post audit CTO senior 2026-03-17 (Mandat 2)
 audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
 
 ## MANDAT 4 — EXTRACTION RÉELLE (2026-03-17)
-  branch                  : feat/pre-m12-extraction-reelle
+  merge_commit            : 87942a3 (PR#215)
+  tag                     : v4.1.0-pre-m12-extraction-reelle-done
   livrables               : extraction_models.py, llm_router.py (LLMRouter),
                             extraction.py (pont annotation-backend /predict)
   ASAP-11/12              : DONE — stub remplacé par pipeline réel
