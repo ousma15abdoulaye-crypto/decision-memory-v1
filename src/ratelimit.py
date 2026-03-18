@@ -14,12 +14,12 @@ DÉCOUVERTE AUDIT 2026-03-17 :
 
 import logging
 import os
+from urllib.parse import urlparse
 
 from fastapi import FastAPI
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
-
 logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────
@@ -119,6 +119,33 @@ def conditional_limit(*args, **kwargs):
     )
 
 
+def _describe_storage(storage: str) -> str:
+    """
+    Retourne une description non sensible du backend de stockage
+    (type + éventuellement host/port), sans credentials.
+    """
+    if storage.startswith("memory://") or not storage:
+        return "backend=memory"
+
+    try:
+        parsed = urlparse(storage)
+    except Exception:
+        # En cas de format inattendu, on loggue uniquement que le backend est inconnu.
+        return "backend=unknown"
+
+    if not parsed.scheme:
+        return "backend=unknown"
+
+    host = parsed.hostname or ""
+    port = f":{parsed.port}" if parsed.port else ""
+    hostport = f"{host}{port}" if (host or port) else ""
+
+    if hostport:
+        return f"backend={parsed.scheme} host={hostport}"
+
+    return f"backend={parsed.scheme}"
+
+
 def init_rate_limit(app: FastAPI):
     """Initialise rate limiting sur l'application."""
     app.state.limiter = limiter
@@ -129,7 +156,5 @@ def init_rate_limit(app: FastAPI):
             "[RATELIMIT] Mode test — décorateurs de rate limiting désactivés (memory://)"
         )
     else:
-        logger.info(
-            "[RATELIMIT] Initialized — storage=%s",
-            _storage[:20] + "..." if len(_storage) > 20 else _storage,
-        )
+        safe_storage = _describe_storage(_storage)
+        logger.info("[RATELIMIT] Initialized — %s", safe_storage)
