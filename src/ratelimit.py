@@ -20,6 +20,7 @@ from fastapi import FastAPI
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
+
 logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ if _TESTING:
     def _noop_limit(*limit_args, **limit_kwargs):
         def decorator(func):
             return func
+
         return decorator
 
     # Désactivation effec­tive des décorateurs @limiter.limit / @route_limit
