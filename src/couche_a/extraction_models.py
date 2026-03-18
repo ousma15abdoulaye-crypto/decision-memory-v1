@@ -15,11 +15,11 @@ ADR-015 — ADR-M11-002 — Mandat 4 — 2026-03-17
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class Tier(str, Enum):
+class Tier(StrEnum):
     T1 = "tier_1_mistral_large"
     T2 = "tier_2_mistral_small"
     T3 = "tier_3_mistral_7b"
