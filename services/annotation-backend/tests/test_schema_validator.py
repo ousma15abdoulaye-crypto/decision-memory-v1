@@ -6,6 +6,7 @@ Vérifie : extra=forbid, gates ordre, line_total_check recalculé, confidence 0.
 from __future__ import annotations
 
 import pytest
+
 from prompts.schema_validator import DMSAnnotation, GateName, LineCheck
 
 

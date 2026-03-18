@@ -16,16 +16,19 @@ from pathlib import Path
 
 # Import prompt — chemin absolu garanti — zéro PYTHONPATH
 sys.path.insert(0, str(Path(__file__).parent))
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import ValidationError
+
 try:
     from mistralai import Mistral
 except ImportError:
     from mistralai.client import Mistral  # mistralai v2.x
+
 from prompts import SYSTEM_PROMPT
 from prompts.schema_validator import DMSAnnotation
-from pydantic import ValidationError
 
 # CONSTANTES — v3.0.1d ADR-015
 SCHEMA_VERSION = "v3.0.1d"
@@ -195,13 +198,17 @@ def _truncate_text(text: str, task_id: int) -> str:
     return text[:MAX_TEXT_CHARS]
 
 
-def _build_messages(user_content: str) -> list[dict]:
+def _build_messages(user_content: str, document_role: str = "") -> list[dict]:
     """
     Construit les messages pour l'API Mistral.
-    user_content contient le document. Instruction JSON pour response_format=json_object.
+    user_content contient le document.
+    document_role : si fourni (extraction.py), injecté pour LOI 1bis.
     """
+    prefix = ""
+    if document_role:
+        prefix = f"CONTEXTE: document_role attendu = {document_role}\n\n"
     user_prompt = (
-        f"{user_content}\n\n"
+        f"{prefix}{user_content}\n\n"
         "Extraire les données en JSON selon les règles du prompt système."
     )
     return [
@@ -318,6 +325,73 @@ def _normalize_gates(annotation: dict) -> dict:
     return annotation
 
 
+def _validate_financial_coherence(annotation: dict, task_id: int) -> list[str]:
+    """
+    Valide la cohérence mathématique des montants.
+
+    Si total_price ≠ sum(line_items) avec marge > 1% :
+      → ANOMALY tracé
+      → review_required = True
+    E-47 étendu au niveau document.
+    """
+    warnings: list[str] = []
+    routing = annotation.get("couche_1_routing", {})
+    role = routing.get("document_role", "")
+
+    if role not in (
+        "financial_proposal",
+        "offer_financial",
+        "financial_offer",
+        "annex_pricing",
+    ):
+        return warnings
+
+    financier = annotation.get("couche_4_atomic", {}).get("financier", {})
+    total_raw = financier.get("total_price", {})
+    line_items = financier.get("line_items", [])
+
+    total_declared = None
+    if isinstance(total_raw, dict):
+        try:
+            val = total_raw.get("value", 0)
+            if val in (None, "", "ABSENT", "NOT_APPLICABLE"):
+                return warnings
+            s = str(val).replace(" ", "").replace("\u202f", "")
+            total_declared = float(s)
+        except (ValueError, TypeError):
+            return warnings
+    elif isinstance(total_raw, int | float):
+        total_declared = float(total_raw)
+
+    if not total_declared or not line_items:
+        return warnings
+
+    total_computed = sum(
+        float(li.get("line_total", 0) or 0) for li in line_items if isinstance(li, dict)
+    )
+
+    if total_computed == 0:
+        return warnings
+
+    ecart = abs(total_declared - total_computed) / max(total_computed, 1)
+    if ecart > 0.01:
+        msg = (
+            f"ANOMALY_total_price_{int(total_declared)}"
+            f"_vs_sum_items_{int(total_computed)}"
+        )
+        warnings.append(msg)
+        logger.error(
+            "[VALIDATE] Incohérence montant task_id=%s : "
+            "total_price=%s sum_items=%s ecart=%.1f%%",
+            task_id,
+            total_declared,
+            total_computed,
+            ecart * 100,
+        )
+
+    return warnings
+
+
 def _validate_and_correct(annotation: dict, task_id: int = 0) -> tuple[dict, list]:
     """
     Valide le JSON annoté contre le schéma DMS v3.0.1d.
@@ -329,6 +403,20 @@ def _validate_and_correct(annotation: dict, task_id: int = 0) -> tuple[dict, lis
 
     try:
         DMSAnnotation.model_validate(annotation)
+        # Validation cohérence financière (E-47 étendu) — même si schéma OK
+        financial_warnings = _validate_financial_coherence(annotation, task_id)
+        if financial_warnings:
+            annotation.setdefault("ambiguites", [])
+            for w in financial_warnings:
+                if w not in annotation["ambiguites"]:
+                    annotation["ambiguites"].append(w)
+            annotation.setdefault("_meta", {})
+            annotation["_meta"]["review_required"] = True
+            logger.error(
+                "[VALIDATE] Incohérence financière task_id=%s : %s",
+                task_id,
+                financial_warnings,
+            )
         return annotation, []
     except ValidationError as exc:
         if hasattr(exc, "errors"):
@@ -361,6 +449,19 @@ def _validate_and_correct(annotation: dict, task_id: int = 0) -> tuple[dict, lis
         ambig = "AMBIG-6_schema_validation_errors"
         if ambig not in annotation["ambiguites"]:
             annotation["ambiguites"].append(ambig)
+
+    # Validation cohérence financière — même en cas d'erreur schéma
+    financial_warnings = _validate_financial_coherence(annotation, task_id)
+    if financial_warnings:
+        for w in financial_warnings:
+            if w not in annotation["ambiguites"]:
+                annotation["ambiguites"].append(w)
+        annotation["_meta"]["review_required"] = True
+        logger.error(
+            "[VALIDATE] Incohérence financière task_id=%s : %s",
+            task_id,
+            financial_warnings,
+        )
 
     return annotation, errors
 
@@ -459,10 +560,14 @@ def _build_ls_result(
 # APPEL MISTRAL
 
 
-async def _call_mistral(text: str, task_id: int | None = None) -> dict:
+async def _call_mistral(
+    text: str,
+    task_id: int | None = None,
+    document_role: str = "",
+) -> dict:
     """
     Appelle Mistral v3.0.1d. Retourne le dict parsé brut (sans validation).
-    En cas d'erreur : FALLBACK_RESPONSE.
+    document_role : si fourni, applique LOI 1bis (squelette conditionné).
     """
     if not client:
         logger.warning("[MISTRAL] Client non configuré — fallback activé")
@@ -470,7 +575,7 @@ async def _call_mistral(text: str, task_id: int | None = None) -> dict:
 
     tid = task_id if task_id is not None else 0
     text = _truncate_text(text, tid)
-    messages = _build_messages(text)
+    messages = _build_messages(text, document_role=document_role)
 
     try:
         response = client.chat.complete(
@@ -538,6 +643,7 @@ async def predict(request: Request) -> JSONResponse:
     if not tasks:
         return JSONResponse({"results": []})
 
+    document_role = body.get("document_role", "")
     predictions = []
 
     for task in tasks:
@@ -553,7 +659,7 @@ async def predict(request: Request) -> JSONResponse:
             continue
 
         try:
-            annotation = await _call_mistral(text, task_id)
+            annotation = await _call_mistral(text, task_id, document_role=document_role)
             annotation = _normalize_gates(annotation)
             annotation, errors = _validate_and_correct(annotation, task_id)
             result = _build_ls_result(

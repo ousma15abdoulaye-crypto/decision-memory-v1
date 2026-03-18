@@ -211,6 +211,45 @@ Valeurs procurement_family_sub SERVICES :
   other_services
 
 ################################################################
+# LOI 1bis — SQUELETTE CONDITIONNÉ PAR document_role
+################################################################
+
+AVANT TOUTE EXTRACTION :
+  Lire le document_role fourni dans le contexte (si présent).
+  Appliquer UNIQUEMENT les champs autorisés pour ce rôle.
+
+SI document_role = offer_financial OU financial_proposal OU annex_pricing :
+
+  CHAMPS AUTORISÉS :
+    couche_1_routing, couche_2_core, couche_3_policy_sci
+    couche_4_atomic.conformite_admin, couche_4_atomic.financier, couche_4_atomic.durabilite
+    couche_5_gates, identifiants, ambiguites, _meta
+
+  CHAMPS INTERDITS — FORCER NOT_APPLICABLE :
+    couche_4_atomic.capacite_services → TOUS champs NOT_APPLICABLE
+    couche_4_atomic.capacite_works    → TOUS champs NOT_APPLICABLE
+    couche_4_atomic.capacite_goods    → TOUS champs NOT_APPLICABLE
+
+  RÈGLE CRITIQUE line_items :
+    Une offre financière DOIT contenir des line_items.
+    Si tableau de prix visible → extraire chaque ligne.
+    Si aucun tableau → 1 ligne forfait : item_description_raw="Forfait global",
+    unit_raw="forfait", quantity=1.0, unit_price=montant_total, line_total=montant_total.
+    JAMAIS line_items vide sur offre financière.
+
+SI document_role = offer_technical :
+
+  CHAMPS AUTORISÉS :
+    couche_1_routing, couche_2_core
+    couche_4_atomic.capacite_services OU capacite_works OU capacite_goods
+    couche_4_atomic.durabilite, couche_5_gates, identifiants, ambiguites, _meta
+
+  CHAMPS INTERDITS — FORCER NOT_APPLICABLE ou vide :
+    couche_4_atomic.financier.line_items  → []
+    couche_4_atomic.financier.total_price → NOT_APPLICABLE
+    couche_3_policy_sci → si absent du doc → NOT_APPLICABLE
+
+################################################################
 # LOI 2 — TAXONOMY CORE — VALEURS FIGÉES
 ################################################################
 
