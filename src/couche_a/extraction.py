@@ -432,7 +432,7 @@ def extract_offer_content(
     artifact_id: str,
     filepath: str,
     offer_type: str,
-) -> TDRExtractionResult:
+) -> None:
     """
     Point d'entrée pipeline — appelé par routers.py via
     background_tasks.add_task().
@@ -442,8 +442,9 @@ def extract_offer_content(
     Lit le fichier via extract_text_any() (PDF/DOCX/texte).
     Délègue à extract_offer_content_async() via asyncio.
 
-    Retourne toujours TDRExtractionResult.
-    Jamais d'exception propagée.
+    Fonction de tâche de fond : ne retourne pas de valeur utile
+    (retourne None) et gère les erreurs en interne (journalisation,
+    éventuels fallbacks), sans propager d'exception.
     """
     logger.info(
         "[EXTRACT] Début — case=%s artifact=%s type=%s",
