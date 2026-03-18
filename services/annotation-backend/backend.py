@@ -422,12 +422,14 @@ def _build_ls_result(parsed: dict, task_id: int) -> list:
         },
     ]
     if review:
-        result.append({
-            "from_name": "review_flag",
-            "to_name": "document_text",
-            "type": "choices",
-            "value": {"choices": ["REVIEW_REQUIRED"]},
-        })
+        result.append(
+            {
+                "from_name": "review_flag",
+                "to_name": "document_text",
+                "type": "choices",
+                "value": {"choices": ["REVIEW_REQUIRED"]},
+            }
+        )
     return result
 
 
