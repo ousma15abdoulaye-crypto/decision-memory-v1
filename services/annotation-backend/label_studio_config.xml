@@ -1,0 +1,66 @@
+<View>
+  <Style>
+    .main { max-width: 1400px; margin: 0 auto; }
+    .source { width: 48%; float: left; padding: 10px;
+              border-right: 2px solid #eee; }
+    .review { width: 48%; float: right; padding: 10px; }
+  </Style>
+
+  <!-- Texte source — LEFT PANEL -->
+  <View className="source">
+    <Header value="Document source — texte extrait"/>
+    <Text name="document_text" value="$text"/>
+  </View>
+
+  <!-- Review Mistral — RIGHT PANEL -->
+  <View className="review">
+    <Header value="Extraction Mistral — Valider ou corriger"/>
+
+    <TextArea name="extracted_json"
+              toName="document_text"
+              placeholder="JSON extrait par Mistral — éditable si correction nécessaire"
+              rows="30"
+              editable="true"/>
+
+    <Header value="Routing correct ? (taxonomy_core + family)"/>
+    <Choices name="routing_ok"
+             toName="document_text"
+             choice="single"
+             showInLine="true"
+             required="true">
+      <Choice value="ok"    label="✓ Correct"/>
+      <Choice value="wrong" label="✗ Corrigé dans le JSON ci-dessus"/>
+    </Choices>
+
+    <Header value="Champs financiers corrects ? (total + line_items)"/>
+    <Choices name="financial_ok"
+             toName="document_text"
+             choice="single"
+             showInLine="true"
+             required="true">
+      <Choice value="ok"    label="✓ Correct"/>
+      <Choice value="wrong" label="✗ Corrigé dans le JSON ci-dessus"/>
+      <Choice value="na"    label="N/A — pas une offre financière"/>
+    </Choices>
+
+    <Header value="Notes correcteur (AMBIG · doutes · décisions)"/>
+    <TextArea name="annotation_notes"
+              toName="document_text"
+              placeholder="Ex: AMBIG-3 line_total incorrect corrigé · scan dégradé p.4 · NIF absent confirmé"
+              rows="4"/>
+
+    <Header value="Statut final — OBLIGATOIRE"/>
+    <Choices name="annotation_status"
+             toName="document_text"
+             choice="single"
+             required="true"
+             showInLine="true">
+      <Choice value="annotated_validated"
+              label="✓ VALIDÉ — comptable M12"/>
+      <Choice value="review_required"
+              label="⚠ REVIEW — à repasser"/>
+      <Choice value="rejected"
+              label="✗ REJETÉ"/>
+    </Choices>
+  </View>
+</View>
