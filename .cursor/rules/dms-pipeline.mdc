@@ -1,0 +1,56 @@
+---
+description: Règles pipeline annotation DMS
+globs: ["**/backend.py", "**/router.py", "**/schema_validator.py",
+        "**/label_studio_config.xml", "**/prompts/**"]
+alwaysApply: false
+---
+
+# DMS Pipeline Rules
+
+## Lire avant tout
+1. CLAUDE.md
+2. docs/freeze/CONTEXT_ANCHOR.md (E-43 à E-67)
+3. docs/freeze/PIPELINE_REFONTE_FREEZE.md
+
+## Bugs connus — ne pas reproduire
+E-66 : to_name="text" → corriger en "document_text"
+E-65 : confidence=0.0 dans squelette → corriger en 0.8
+E-28 : g["key"] → corriger en g.get("key")
+E-49 : extra=forbid absent → ajouter sur tous modèles
+E-47 : line_total_check délégué Mistral → recalcul Python obligatoire
+E-43 : unit_raw absent sur line_item → obligatoire
+E-48 : quantity=personnes×jours — jamais quantity=jours seul
+
+## Contrats interface
+Brique A ingestion  : → {text, text_quality_score, extraction_method, ocr_used}
+Brique B router     : → {document_type, routing_confidence, routing_evidence[],
+                          routing_failure_reason, ambiguity_class, review_required}
+Brique C extracteur : → DMSExtractionResult — UNIQUEMENT si ambiguity_class="clear"
+Brique D validator  : → DMSExtractionResult validé OU erreur structurée
+Brique E Label Studio: → {annotation_status}
+
+## OCR Gate
+text_quality_score = ratio_alphanum×0.4 + densité_lignes×0.3 + mots_clés×0.3
+mots_clés = ["DAO","RFQ","TDR","NIF","RCCM","RIB","XOF","FCFA",
+             "offre","fournisseur","montant","délai","lot","bordereau"]
+score_mots_clés = min(1.0, count_présents / 5)
+OCR si text_quality_score < 0.4
+INTERDIT : text_len seul
+
+## Router — sortie contractuelle
+ambiguity_class ∈ {clear, mixed_bundle, uncertain_role, multi_doc_pdf, unclear}
+Si ambiguity_class != "clear" → STOP extraction downstream
+routing_evidence : jamais vide
+routing_failure_reason : null si clear — obligatoire sinon
+
+## Extracteur
+json_schema mode — jamais json_object
+temperature=0
+prompt spécialisé par document_type — jamais monolithique
+squelette JSON confidence=0.8 par défaut — JAMAIS 0.0
+
+## Label Studio
+value.text = [string] — jamais [dict]
+to_name = "document_text" — jamais "text"
+from_name doit matcher exactement name du widget XML
+Envoyer JSON même si review_required=True
