@@ -1,0 +1,33 @@
+---
+description: Règles DMS core — actif sur tous les fichiers
+globs: ["**/*.py", "**/*.md", "**/*.xml", "**/*.json"]
+alwaysApply: true
+---
+
+# DMS Core Rules
+
+## Avant tout mandat
+1. Lire CLAUDE.md intégralement
+2. Lire docs/freeze/CONTEXT_ANCHOR.md — E-01 à E-67
+3. Vérifier git branch — refuser main
+4. git status — signaler fichiers non committés
+
+## Périmètre fermé
+Modifier uniquement les fichiers listés dans le mandat.
+Fichier hors liste → STOP + signaler CTO.
+
+## Invariants code
+- confidence : {0.6, 0.8, 1.0} uniquement
+- to_name : "document_text" — jamais "text"
+- gate_value=null sur gate_state=APPLICABLE → forcer false + AMBIG-5
+- extra=forbid sur tous les modèles Pydantic (E-49)
+- g.get() obligatoire — jamais g["key"] direct (E-28)
+
+## Alembic
+alembic/versions/ : JAMAIS sans mandat dédié.
+Jamais autogenerate (RÈGLE-12).
+
+## Git
+1 branche par mandat — jamais main.
+**Format des commits :** `docs/CONTRIBUTING.md` — convention **`<type>(<milestone>): <description>`** (ADR-0003 §3.2). Ne pas utiliser un autre format sans ADR / validation CTO.
+Merge = humain uniquement.
