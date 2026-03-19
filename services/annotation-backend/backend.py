@@ -31,6 +31,9 @@ from prompts import SYSTEM_PROMPT
 from prompts.schema_validator import DMSAnnotation
 
 # CONSTANTES — v3.0.1d ADR-015
+# Label Studio : <Text name="document_text" …/> + toName="document_text" sur les contrôles (E-66)
+LS_TEXTAREA_TO_NAME = "document_text"
+
 SCHEMA_VERSION = "v3.0.1d"
 FRAMEWORK_VERSION = "annotation-framework-v3.0.1d"
 MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
@@ -497,7 +500,7 @@ def _build_empty_result(task_id: int, reason: str) -> dict:
         "result": [
             {
                 "from_name": "extracted_json",
-                "to_name": "text",
+                "to_name": LS_TEXTAREA_TO_NAME,
                 "type": "textarea",
                 "value": {"text": [json_str]},
             }
@@ -520,7 +523,7 @@ def _build_ls_result(
 
     Structure Label Studio stricte (E-66) :
       value.text = [string]  ← liste Python avec 1 élément string
-      to_name = "text"      ← DOIT matcher XML Label Studio
+      to_name = LS_TEXTAREA_TO_NAME  ← aligné sur <Text name="document_text"/> / toName
     """
     annotation = copy.deepcopy(annotation)
 
@@ -551,7 +554,7 @@ def _build_ls_result(
         "result": [
             {
                 "from_name": "extracted_json",
-                "to_name": "text",
+                "to_name": LS_TEXTAREA_TO_NAME,
                 "type": "textarea",
                 "value": {"text": [json_str]},
             }
@@ -631,9 +634,10 @@ async def predict(request: Request) -> JSONResponse:
       OUTPUT : {"results": [{"id": N, "score": F, "result": [...]}]}
 
     Structure result obligatoire (E-66) :
-      from_name = nom du widget dans le XML Label Studio
-      to_name   = "text" (objet Data dans le XML)
+      from_name = extracted_json (TextArea dans le XML)
+      to_name   = document_text (cible toName — voir LS_TEXTAREA_TO_NAME)
       value.text = [string]  ← liste avec 1 string, jamais dict
+    Données tâche : data.text ou data.content ; distinct du nom de tag LS.
     """
     try:
         body = await request.json()
@@ -645,13 +649,14 @@ async def predict(request: Request) -> JSONResponse:
     if not tasks:
         return JSONResponse({"results": []})
 
-    document_role = body.get("document_role", "")
+    body_document_role = body.get("document_role", "")
     predictions = []
 
     for task in tasks:
         task_id = task.get("id", 0)
         task_data = task.get("data", {})
         text = task_data.get("text", "") or task_data.get("content", "") or ""
+        document_role = task_data.get("document_role", "") or body_document_role
 
         logger.info("[PREDICT] task_id=%s text_len=%d", task_id, len(text))
 

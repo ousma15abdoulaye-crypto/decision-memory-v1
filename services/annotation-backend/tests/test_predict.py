@@ -171,7 +171,7 @@ class TestBuildLsResult:
 
         r = result["result"][0]
         assert r["from_name"] == "extracted_json"
-        assert r["to_name"] == "text"
+        assert r["to_name"] == "document_text"
         assert r["type"] == "textarea"
         assert isinstance(r["value"]["text"], list)
         assert len(r["value"]["text"]) == 1
