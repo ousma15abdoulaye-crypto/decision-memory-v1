@@ -1,0 +1,103 @@
+"""
+Tests extract_text_any — M-FIX-EXTRACT-02
+Périmètre : PDF natif + fallback pdfminer + cas dégradés
+OCR (Mistral / Tesseract) = hors scope — M10A
+"""
+import pytest
+from pathlib import Path
+from unittest.mock import patch, MagicMock
+
+from src.couche_a.extraction import extract_text_any
+
+
+class TestExtractTextAny:
+
+    def test_pdf_natif_pypdf_ok(self, tmp_path):
+        """pypdf retourne > 100 chars → pdfminer non appelé"""
+        pdf_file = tmp_path / "test.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4 fake")
+
+        texte_attendu = "A" * 500
+
+        with patch("pypdf.PdfReader") as mock_reader:
+            mock_page = MagicMock()
+            mock_page.extract_text.return_value = texte_attendu
+            mock_reader.return_value.pages = [mock_page]
+
+            result = extract_text_any(str(pdf_file))
+
+        assert len(result) >= 100
+        assert "A" * 100 in result
+
+    def test_pdf_corrompu_retourne_chaine_vide(self, tmp_path):
+        """PDF corrompu → pypdf lève exception → retour "" propre"""
+        pdf_file = tmp_path / "corrompu.pdf"
+        pdf_file.write_bytes(b"NOT A PDF")
+
+        with patch("pypdf.PdfReader", side_effect=Exception("EOF")):
+            with patch(
+                "pdfminer.high_level.extract_text",
+                side_effect=Exception("pdfminer fail"),
+            ):
+                result = extract_text_any(str(pdf_file))
+
+        assert result == ""
+        assert isinstance(result, str)
+
+    def test_pdf_court_fallback_pdfminer(self, tmp_path):
+        """pypdf retourne < 100 chars → pdfminer appelé et retourne plus"""
+        pdf_file = tmp_path / "court.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4 fake")
+
+        texte_court = "X" * 50  # pypdf — trop court
+        texte_long = "Y" * 2000  # pdfminer — meilleur
+
+        with patch("pypdf.PdfReader") as mock_reader:
+            mock_page = MagicMock()
+            mock_page.extract_text.return_value = texte_court
+            mock_reader.return_value.pages = [mock_page]
+
+            with patch(
+                "pdfminer.high_level.extract_text",
+                return_value=texte_long,
+            ):
+                result = extract_text_any(str(pdf_file))
+
+        assert len(result) >= 100
+        assert "Y" in result
+
+    def test_pdf_scan_retourne_vide_avec_warning(self, tmp_path, caplog):
+        """PDF scan → pypdf et pdfminer retournent "" → warning loggé"""
+        pdf_file = tmp_path / "scan.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4 fake")
+
+        with patch("pypdf.PdfReader") as mock_reader:
+            mock_page = MagicMock()
+            mock_page.extract_text.return_value = ""
+            mock_reader.return_value.pages = [mock_page]
+
+            with patch(
+                "pdfminer.high_level.extract_text",
+                return_value="",
+            ):
+                with caplog.at_level("WARNING"):
+                    result = extract_text_any(str(pdf_file))
+
+        assert result == ""
+        assert "PDF_SCAN_SANS_OCR" in caplog.text or "text_len=0" in caplog.text
+
+    def test_docx_extrait_correctement(self, tmp_path):
+        """DOCX → python-docx appelé"""
+        docx_file = tmp_path / "test.docx"
+        docx_file.write_bytes(b"fake docx content")
+
+        texte_attendu = "Contenu DOCX extrait correctement " * 10
+
+        with patch("docx.Document") as mock_doc:
+            mock_para = MagicMock()
+            mock_para.text = texte_attendu
+            mock_doc.return_value.paragraphs = [mock_para]
+
+            result = extract_text_any(str(docx_file))
+
+        assert texte_attendu in result

@@ -58,26 +58,123 @@ class DaoCriterion:
 # TEXT EXTRACTION
 # ------------------------------------------------------------
 def extract_text_any(filepath: str) -> str:
-    """Extract text from PDF, DOCX, or other supported formats."""
+    """
+    Extraction texte — PDF natif uniquement en beta.
+    OCR (Mistral / Tesseract) = M10A — hors scope ici.
+
+    Cas gérés :
+      PDF natif extractible  → pypdf principal
+      PDF natif court < 100  → fallback pdfminer.six
+      PDF corrompu EOF       → log ERROR + retour ""
+      PDF scan 0 chars       → log WARNING + retour ""
+      DOCX                   → python-docx
+      Autre                  → path.read_text()
+    """
+    path = Path(filepath)
+    ext = path.suffix.lower()
+
+    if ext == ".pdf":
+        return _extract_pdf_text(filepath)
+    elif ext in (".docx", ".doc"):
+        return _extract_docx_text(filepath)
+    else:
+        try:
+            return path.read_text(encoding="utf-8", errors="replace")
+        except Exception as e:
+            logger.error(
+                "[EXTRACT] read_text échec — filepath=%s error=%s",
+                path.name,
+                str(e),
+            )
+            return ""
+
+
+def _extract_docx_text(filepath: str) -> str:
+    """Extraction DOCX via python-docx."""
     from docx import Document as DocxDocument
-    from pypdf import PdfReader
+
+    doc = DocxDocument(str(filepath))
+    return "\n".join(paragraph.text for paragraph in doc.paragraphs)
+
+
+def _extract_pdf_text(filepath: str) -> str:
+    """
+    Étape 1 : pypdf
+    Étape 2 : fallback pdfminer.six si text_len < 100
+    """
+    import pypdf
 
     path = Path(filepath)
-    suffix = path.suffix.lower()
+    text_pypdf = ""
 
+    # ÉTAPE 1 — pypdf
     try:
-        if suffix == ".pdf":
-            reader = PdfReader(str(path))
-            pages = [page.extract_text() or "" for page in reader.pages]
-            return "\n".join(pages)
-        elif suffix in {".docx", ".doc"}:
-            doc = DocxDocument(str(path))
-            return "\n".join(paragraph.text for paragraph in doc.paragraphs)
-        else:
-            return path.read_text(errors="ignore")
+        reader = pypdf.PdfReader(str(path))
+        pages_text = []
+        for i, page in enumerate(reader.pages):
+            raw = page.extract_text() or ""
+            pages_text.append(raw)
+            logger.debug(
+                "[EXTRACT] pypdf page=%d chars=%d filepath=%s",
+                i,
+                len(raw),
+                path.name,
+            )
+        text_pypdf = "\n".join(pages_text)
+
     except Exception as e:
-        logger.error(f"[EXTRACTION] Failed to extract text from {filepath}: {e}")
-        return ""
+        logger.error(
+            "[EXTRACT] pypdf échec — filepath=%s error=%s — tentative pdfminer",
+            path.name,
+            str(e),
+        )
+
+    # Si pypdf a extrait suffisamment → retourner
+    if len(text_pypdf.strip()) >= 100:
+        logger.info(
+            "[EXTRACT] pypdf OK — filepath=%s text_len=%d",
+            path.name,
+            len(text_pypdf),
+        )
+        return text_pypdf
+
+    # ÉTAPE 2 — fallback pdfminer.six
+    # pypdf court ou échoué — pdfminer.six tente
+    try:
+        from pdfminer.high_level import extract_text as pdfminer_extract
+
+        text_pdfminer = pdfminer_extract(str(path)) or ""
+
+        if len(text_pdfminer.strip()) > len(text_pypdf.strip()):
+            logger.info(
+                "[EXTRACT] pdfminer fallback OK — filepath=%s text_len=%d (pypdf était %d)",
+                path.name,
+                len(text_pdfminer),
+                len(text_pypdf),
+            )
+            return text_pdfminer
+
+    except Exception as e:
+        logger.error(
+            "[EXTRACT] pdfminer échec — filepath=%s error=%s",
+            path.name,
+            str(e),
+        )
+
+    # Les deux ont échoué ou retourné quasi-vide
+    if len(text_pypdf.strip()) == 0:
+        logger.warning(
+            "[EXTRACT] text_len=0 — filepath=%s — PDF_SCAN_SANS_OCR ou PDF_CORROMPU — OCR requis (M10A)",
+            path.name,
+        )
+    else:
+        logger.warning(
+            "[EXTRACT] text_len=%d tres court — filepath=%s — confidence faible — review_required conseille",
+            len(text_pypdf.strip()),
+            path.name,
+        )
+
+    return text_pypdf
 
 
 # ------------------------------------------------------------
