@@ -1,7 +1,7 @@
 # FREEZE_HASHES
 # SHA256 documents gelés — référence centrale
 # Mis à jour uniquement par AO
-# Dernière mise à jour : 2026-03-10 — ETA-GEL
+# Dernière mise à jour : 2026-03-18 — PIPELINE_REFONTE_FREEZE enregistré (reprise revue PR)
 #
 # Format : NOM_DOCUMENT.md = <sha256_64_chars>
 # Un hash par ligne. Commentaires avec #.
@@ -20,3 +20,7 @@ DMS_MRD_PLAN_V1.md = 5c025e4a8133dd82f40142c8716d47fe900a312a9f20cc24e673a7de225
 
 DMS_ENTERPRISE_TARGET_ARCHITECTURE_V1.md = c0369ca14803c629bd8dfbc93367791c03cc44e5a14438cf7c542a7b37afac27
 ADR-META-001-AMENDMENT-PROCESS.md = 0e43674a933acdff0905b874cbf3f25d4d20a2af6e5fbfa5236e2be7a6a54fcd
+
+# PIPELINE_REFONTE_FREEZE.md — gouvernance pipeline annotation (GOV-01 / ADR-META-001)
+# Hash figé au contenu du fichier au moment de l’enregistrement — append-only
+PIPELINE_REFONTE_FREEZE.md = 5ad252fa251e9822848711f8c5e378f0ab19b81ca807526cff9d8cd181ae4ef0
