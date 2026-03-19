@@ -1,6 +1,7 @@
-# PIPELINE REFONTE — FREEZE DÉFINITIF
+# PIPELINE REFONTE — FREEZE
 Date : 2026-03-18
-Statut : FREEZE — supérieur à tout mandat pipeline antérieur
+Statut : FREEZE — périmètre **pipeline annotation** uniquement. **Subordonné** au Plan Directeur DMS V4.1 (`docs/freeze/DMS_V4.1.0_FREEZE.md`) et à `docs/freeze/CONTEXT_ANCHOR.md` (RÈGLE-ANCHOR-10). Prévaut sur les mandats pipeline **antérieurs** contradictoires dans ce périmètre.
+Empreinte SHA256 (gel formel ADR-META-001) : **`docs/freeze/FREEZE_HASHES.md`** — entrée `PIPELINE_REFONTE_FREEZE.md`.
 
 ## DÉCISION CTO
 M12 bloqué sur 0/15 annotated_validated.

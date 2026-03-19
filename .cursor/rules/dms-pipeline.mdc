@@ -8,9 +8,10 @@ alwaysApply: false
 # DMS Pipeline Rules
 
 ## Lire avant tout
+Hiérarchie des autorités : **RÈGLE-ANCHOR-10** dans `docs/freeze/CONTEXT_ANCHOR.md` (avant toute interprétation de ce fichier).
 1. CLAUDE.md
 2. docs/freeze/CONTEXT_ANCHOR.md (E-43 à E-67)
-3. docs/freeze/PIPELINE_REFONTE_FREEZE.md
+3. docs/freeze/PIPELINE_REFONTE_FREEZE.md (empreinte : `docs/freeze/FREEZE_HASHES.md`)
 
 ## Bugs connus — ne pas reproduire
 E-66 : to_name="text" → corriger en "document_text"

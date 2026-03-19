@@ -2,13 +2,19 @@
 ## LIRE EN PREMIER — OBLIGATOIRE AVANT TOUT MANDAT
 
 ## HIÉRARCHIE DES SOURCES DE VÉRITÉ
-1. docs/freeze/DMS_V4.1.0_FREEZE.md          — IMMUABLE — supérieur à tout
-2. docs/freeze/CONTEXT_ANCHOR.md              — état courant — E-01 à E-67
-3. docs/freeze/PIPELINE_REFONTE_FREEZE.md     — pipeline annotation
-4. CLAUDE.md (ce fichier)                     — gouvernance agent session
-En cas de conflit → source de rang inférieur cède.
-En cas de conflit avec 1 → STOP immédiat + GO CTO obligatoire.
-L'agent ne tranche jamais un conflit de sources.
+Réf. **opposable** : `docs/freeze/CONTEXT_ANCHOR.md` — **RÈGLE-ANCHOR-10** (hiérarchie des autorités).
+
+Ordre de primauté (du plus fort au plus faible) :
+1. **Plan Directeur DMS V4.1** (document source). *Dans ce dépôt, le corps normatif gelé qui en matérialise le contenu est* **`docs/freeze/DMS_V4.1.0_FREEZE.md`** *(IMMUTABLE — jamais modifié hors processus ADR / GO CTO).*
+2. **`docs/freeze/CONTEXT_ANCHOR.md`** — condensé opposable (E-01 à E-67).
+3. **Mandats CTO** — instructions de session écrites.
+4. **`docs/freeze/PIPELINE_REFONTE_FREEZE.md`** — cadrage pipeline annotation ; **ne prime jamais** sur 1–3.
+5. **`CLAUDE.md`** (ce fichier) — aide-mémoire agent session ; **aucune autorité** au-dessus de 1–3.
+6. **LLM (exécutant)** — zéro autorité propre (RÈGLE-ANCHOR-10 §4).
+
+En cas de conflit : l’autorité de rang supérieur **prime** ; l’agent **STOP** et signale le CTO si le conflit implique le Plan Directeur ou l’anchor.
+Conflit avec **`DMS_V4.1.0_FREEZE.md`** → STOP immédiat + GO CTO obligatoire.
+L’agent **ne tranche jamais** un conflit entre sources d’autorité.
 
 ## KILL LIST — REJET IMMÉDIAT
 - confidence hors {0.6, 0.8, 1.0}

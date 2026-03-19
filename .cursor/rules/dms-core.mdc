@@ -29,5 +29,5 @@ Jamais autogenerate (RÈGLE-12).
 
 ## Git
 1 branche par mandat — jamais main.
-Format commit : "feat/fix/docs: [description courte]"
+**Format des commits :** `docs/CONTRIBUTING.md` — convention **`<type>(<milestone>): <description>`** (ADR-0003 §3.2). Ne pas utiliser un autre format sans ADR / validation CTO.
 Merge = humain uniquement.
