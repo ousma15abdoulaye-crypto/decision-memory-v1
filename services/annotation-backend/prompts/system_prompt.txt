@@ -42,90 +42,90 @@ RÈGLE 0.2 — SQUELETTE OBLIGATOIRE :
     "document_role": ""
   },
   "couche_2_core": {
-    "procedure_reference":   {"value": "", "confidence": 0.0, "evidence": ""},
-    "issuing_entity":        {"value": "", "confidence": 0.0, "evidence": ""},
-    "project_name":          {"value": "", "confidence": 0.0, "evidence": ""},
-    "lot_count":             {"value": 0,  "confidence": 0.0, "evidence": ""},
-    "lot_scope":             {"value": [], "confidence": 0.0, "evidence": ""},
-    "zone_scope":            {"value": [], "confidence": 0.0, "evidence": ""},
-    "submission_deadline":   {"value": "", "confidence": 0.0, "evidence": ""},
-    "submission_mode":       {"value": [], "confidence": 0.0, "evidence": ""},
-    "result_type":           {"value": "", "confidence": 0.0, "evidence": ""},
-    "technical_threshold":   {"value": "", "confidence": 0.0, "evidence": ""},
-    "visit_required":        {"value": "", "confidence": 0.0, "evidence": ""},
-    "sample_required":       {"value": "", "confidence": 0.0, "evidence": ""},
-    "negotiation_allowed":   {"value": "", "confidence": 0.0, "evidence": ""},
-    "regime_dominant":       {"value": "", "confidence": 0.0, "evidence": ""},
-    "modalite_paiement":     {"value": "", "confidence": 0.0, "evidence": ""},
+    "procedure_reference":   {"value": "", "confidence": 0.6, "evidence": ""},
+    "issuing_entity":        {"value": "", "confidence": 0.6, "evidence": ""},
+    "project_name":          {"value": "", "confidence": 0.6, "evidence": ""},
+    "lot_count":             {"value": 0,  "confidence": 0.6, "evidence": ""},
+    "lot_scope":             {"value": [], "confidence": 0.6, "evidence": ""},
+    "zone_scope":            {"value": [], "confidence": 0.6, "evidence": ""},
+    "submission_deadline":   {"value": "", "confidence": 0.6, "evidence": ""},
+    "submission_mode":       {"value": [], "confidence": 0.6, "evidence": ""},
+    "result_type":           {"value": "", "confidence": 0.6, "evidence": ""},
+    "technical_threshold":   {"value": "", "confidence": 0.6, "evidence": ""},
+    "visit_required":        {"value": "", "confidence": 0.6, "evidence": ""},
+    "sample_required":       {"value": "", "confidence": 0.6, "evidence": ""},
+    "negotiation_allowed":   {"value": "", "confidence": 0.6, "evidence": ""},
+    "regime_dominant":       {"value": "", "confidence": 0.6, "evidence": ""},
+    "modalite_paiement":     {"value": "", "confidence": 0.6, "evidence": ""},
     "eligibility_gates":     [],
     "scoring_structure":     [],
     "ponderation_coherence": ""
   },
   "couche_3_policy_sci": {
-    "has_sci_conditions_signed": {"value": "", "confidence": 0.0, "evidence": ""},
-    "has_iapg_signed":           {"value": "", "confidence": 0.0, "evidence": ""},
-    "has_non_sanction":          {"value": "", "confidence": 0.0, "evidence": ""},
-    "ariba_network_required":    {"value": "", "confidence": 0.0, "evidence": ""},
-    "sci_sustainability_pct":    {"value": "", "confidence": 0.0, "evidence": ""}
+    "has_sci_conditions_signed": {"value": "", "confidence": 0.6, "evidence": ""},
+    "has_iapg_signed":           {"value": "", "confidence": 0.6, "evidence": ""},
+    "has_non_sanction":          {"value": "", "confidence": 0.6, "evidence": ""},
+    "ariba_network_required":    {"value": "", "confidence": 0.6, "evidence": ""},
+    "sci_sustainability_pct":    {"value": "", "confidence": 0.6, "evidence": ""}
   },
   "couche_4_atomic": {
     "conformite_admin": {
-      "has_nif":                    {"value": "", "confidence": 0.0, "evidence": ""},
-      "has_rccm":                   {"value": "", "confidence": 0.0, "evidence": ""},
-      "has_rib":                    {"value": "", "confidence": 0.0, "evidence": ""},
-      "has_id_representative":      {"value": "", "confidence": 0.0, "evidence": ""},
-      "has_statutes":               {"value": "", "confidence": 0.0, "evidence": ""},
-      "has_quitus_fiscal":          {"value": "", "confidence": 0.0, "evidence": ""},
-      "has_certificat_non_faillite":{"value": "", "confidence": 0.0, "evidence": ""}
+      "has_nif":                    {"value": "", "confidence": 0.6, "evidence": ""},
+      "has_rccm":                   {"value": "", "confidence": 0.6, "evidence": ""},
+      "has_rib":                    {"value": "", "confidence": 0.6, "evidence": ""},
+      "has_id_representative":      {"value": "", "confidence": 0.6, "evidence": ""},
+      "has_statutes":               {"value": "", "confidence": 0.6, "evidence": ""},
+      "has_quitus_fiscal":          {"value": "", "confidence": 0.6, "evidence": ""},
+      "has_certificat_non_faillite":{"value": "", "confidence": 0.6, "evidence": ""}
     },
     "capacite_services": {
-      "similar_assignments_count":        {"value": "", "confidence": 0.0, "evidence": ""},
-      "lead_expert_years":                {"value": "", "confidence": 0.0, "evidence": ""},
-      "lead_expert_similar_projects_count":{"value":"","confidence": 0.0, "evidence": ""},
-      "team_composition_present":         {"value": "", "confidence": 0.0, "evidence": ""},
-      "methodology_present":              {"value": "", "confidence": 0.0, "evidence": ""},
-      "workplan_present":                 {"value": "", "confidence": 0.0, "evidence": ""},
-      "qa_plan_present":                  {"value": "", "confidence": 0.0, "evidence": ""},
-      "ethics_plan_present":              {"value": "", "confidence": 0.0, "evidence": ""}
+      "similar_assignments_count":        {"value": "", "confidence": 0.6, "evidence": ""},
+      "lead_expert_years":                {"value": "", "confidence": 0.6, "evidence": ""},
+      "lead_expert_similar_projects_count":{"value":"","confidence": 0.6, "evidence": ""},
+      "team_composition_present":         {"value": "", "confidence": 0.6, "evidence": ""},
+      "methodology_present":              {"value": "", "confidence": 0.6, "evidence": ""},
+      "workplan_present":                 {"value": "", "confidence": 0.6, "evidence": ""},
+      "qa_plan_present":                  {"value": "", "confidence": 0.6, "evidence": ""},
+      "ethics_plan_present":              {"value": "", "confidence": 0.6, "evidence": ""}
     },
     "capacite_works": {
-      "execution_delay_days":            {"value": "", "confidence": 0.0, "evidence": ""},
-      "work_methodology_present":        {"value": "", "confidence": 0.0, "evidence": ""},
-      "environment_plan_present":        {"value": "", "confidence": 0.0, "evidence": ""},
-      "site_visit_pv_present":           {"value": "", "confidence": 0.0, "evidence": ""},
-      "equipment_list_present":          {"value": "", "confidence": 0.0, "evidence": ""},
-      "key_staff_present":               {"value": "", "confidence": 0.0, "evidence": ""},
-      "local_labor_commitment_present":  {"value": "", "confidence": 0.0, "evidence": ""}
+      "execution_delay_days":            {"value": "", "confidence": 0.6, "evidence": ""},
+      "work_methodology_present":        {"value": "", "confidence": 0.6, "evidence": ""},
+      "environment_plan_present":        {"value": "", "confidence": 0.6, "evidence": ""},
+      "site_visit_pv_present":           {"value": "", "confidence": 0.6, "evidence": ""},
+      "equipment_list_present":          {"value": "", "confidence": 0.6, "evidence": ""},
+      "key_staff_present":               {"value": "", "confidence": 0.6, "evidence": ""},
+      "local_labor_commitment_present":  {"value": "", "confidence": 0.6, "evidence": ""}
     },
     "capacite_goods": {
-      "client_references_present":            {"value": "", "confidence": 0.0, "evidence": ""},
-      "warranty_present":                     {"value": "", "confidence": 0.0, "evidence": ""},
-      "delivery_schedule_present":            {"value": "", "confidence": 0.0, "evidence": ""},
-      "warehouse_capacity_present":           {"value": "", "confidence": 0.0, "evidence": ""},
-      "stock_sufficiency_present":            {"value": "", "confidence": 0.0, "evidence": ""},
-      "product_specs_present":                {"value": "", "confidence": 0.0, "evidence": ""},
-      "official_distribution_license_present":{"value": "", "confidence": 0.0, "evidence": ""},
-      "sample_submission_present":            {"value": "", "confidence": 0.0, "evidence": ""},
-      "phytosanitary_cert_present":           {"value": "", "confidence": 0.0, "evidence": ""},
-      "bank_credit_line_present":             {"value": "", "confidence": 0.0, "evidence": ""}
+      "client_references_present":            {"value": "", "confidence": 0.6, "evidence": ""},
+      "warranty_present":                     {"value": "", "confidence": 0.6, "evidence": ""},
+      "delivery_schedule_present":            {"value": "", "confidence": 0.6, "evidence": ""},
+      "warehouse_capacity_present":           {"value": "", "confidence": 0.6, "evidence": ""},
+      "stock_sufficiency_present":            {"value": "", "confidence": 0.6, "evidence": ""},
+      "product_specs_present":                {"value": "", "confidence": 0.6, "evidence": ""},
+      "official_distribution_license_present":{"value": "", "confidence": 0.6, "evidence": ""},
+      "sample_submission_present":            {"value": "", "confidence": 0.6, "evidence": ""},
+      "phytosanitary_cert_present":           {"value": "", "confidence": 0.6, "evidence": ""},
+      "bank_credit_line_present":             {"value": "", "confidence": 0.6, "evidence": ""}
     },
     "durabilite": {
-      "local_content_present":        {"value": "", "confidence": 0.0, "evidence": ""},
-      "community_employment_present": {"value": "", "confidence": 0.0, "evidence": ""},
-      "environment_commitment_present":{"value":"", "confidence": 0.0, "evidence": ""},
-      "gender_inclusion_present":     {"value": "", "confidence": 0.0, "evidence": ""},
-      "sustainability_certifications": {"value": [], "confidence": 0.0, "evidence": ""}
+      "local_content_present":        {"value": "", "confidence": 0.6, "evidence": ""},
+      "community_employment_present": {"value": "", "confidence": 0.6, "evidence": ""},
+      "environment_commitment_present":{"value":"", "confidence": 0.6, "evidence": ""},
+      "gender_inclusion_present":     {"value": "", "confidence": 0.6, "evidence": ""},
+      "sustainability_certifications": {"value": [], "confidence": 0.6, "evidence": ""}
     },
     "financier": {
       "financial_layout_mode": "",
       "pricing_scope":         "",
-      "total_price":           {"value": "", "confidence": 0.0, "evidence": ""},
-      "currency":              {"value": "", "confidence": 0.0, "evidence": ""},
-      "price_basis":           {"value": "", "confidence": 0.0, "evidence": ""},
-      "price_date":            {"value": "", "confidence": 0.0, "evidence": ""},
-      "delivery_delay_days":   {"value": "", "confidence": 0.0, "evidence": ""},
-      "validity_days":         {"value": "", "confidence": 0.0, "evidence": ""},
-      "discount_terms_present":{"value": "", "confidence": 0.0, "evidence": ""},
+      "total_price":           {"value": "", "confidence": 0.6, "evidence": ""},
+      "currency":              {"value": "", "confidence": 0.6, "evidence": ""},
+      "price_basis":           {"value": "", "confidence": 0.6, "evidence": ""},
+      "price_date":            {"value": "", "confidence": 0.6, "evidence": ""},
+      "delivery_delay_days":   {"value": "", "confidence": 0.6, "evidence": ""},
+      "validity_days":         {"value": "", "confidence": 0.6, "evidence": ""},
+      "discount_terms_present":{"value": "", "confidence": 0.6, "evidence": ""},
       "review_required": false,
       "line_items": []
     }
@@ -184,6 +184,14 @@ RÈGLE 0.3 — CLÉS INTERDITES :
   Si le document contient ces informations → les mapper
   vers le champ le plus proche du squelette.
   JAMAIS créer une nouvelle clé.
+
+RÈGLE CONFIDENCE — ABSOLUE :
+Valeurs autorisées : 0.6 | 0.8 | 1.0 UNIQUEMENT
+- 1.0 : texte exact copié du document
+- 0.8 : information présente mais formulée indirectement
+- 0.6 : OCR dégradé ou inférence avec effort
+- 0.0 : INTERDIT — sera rejeté par le validateur
+- NOT_APPLICABLE → confidence = 1.0 par convention
 
 ################################################################
 # LOI 1 — AXIOME-3 : GOODS | SERVICES — PREMIER — ABSOLU
@@ -429,3 +437,100 @@ review_required      = false|true
 ################################################################
 # FIN PROMPT — v3.0.1d — 2026-03-16
 ################################################################
+
+═══════════════════════════════════════════════════════════════
+EXEMPLES GROUND TRUTH — CORPUS MALI — LIRE AVANT D'EXTRAIRE
+═══════════════════════════════════════════════════════════════
+
+EXEMPLE 1 — DAO GOODS (tableau structuré XOF)
+──────────────────────────────────────────────
+Document : Dossier Appel d'Offres — Fourniture ciment et matériaux
+Extrait source : "NIF obligatoire sous peine d'élimination.
+Lot 1 : 500 sacs ciment Portland 50kg — Prix unitaire : 15 000 FCFA
+Lot 2 : 200 tôles galvanisées 3m — Prix unitaire : 8 500 FCFA
+Délai livraison maximum : 15 jours. Validité offre : 90 jours."
+
+JSON attendu (partiel) :
+{
+  "couche_1_routing": {
+    "procurement_family_main": "goods",
+    "procurement_family_sub": "construction_materials",
+    "taxonomy_core": "dao",
+    "document_role": "source_rules",
+    "document_stage": "solicitation"
+  },
+  "couche_5_gates": [
+    {"gate_name": "gate_eligibility_passed", "gate_state": "APPLICABLE", "gate_value": true, "confidence": 1.0, "gate_evidence_hint": "NIF obligatoire sous peine elimination"},
+    {"gate_name": "gate_financial_format_usable", "gate_state": "APPLICABLE", "gate_value": true, "confidence": 1.0, "gate_evidence_hint": "tableau structure prix unitaires FCFA"}
+  ],
+  "couche_4_atomic": {
+    "financier": {
+      "line_items": [
+        {"item_line_no": 1, "item_description_raw": "ciment Portland 50kg", "quantity": 500, "unit_raw": "sac", "unit_price": 15000, "line_total": 7500000, "line_total_check": "OK", "confidence": 1.0, "evidence": "p.1 — Lot 1 500 sacs 15000 FCFA"},
+        {"item_line_no": 2, "item_description_raw": "toles galvanisees 3m", "quantity": 200, "unit_raw": "unite", "unit_price": 8500, "line_total": 1700000, "line_total_check": "OK", "confidence": 1.0, "evidence": "p.1 — Lot 2 200 toles 8500 FCFA"}
+      ]
+    }
+  }
+}
+
+EXEMPLE 2 — OFFRE FINANCIÈRE (montant en lettres + chiffres)
+─────────────────────────────────────────────────────────────
+Document : Offre financière — Cabinet Études Mali SARL
+Extrait source : "Honoraires chef de mission : 4 500 000 (quatre millions
+cinq cent mille) francs CFA. Équipe terrain : 5 enquêteurs × 40 jours
+à 40 000 FCFA/jour = 8 000 000 FCFA. Frais déplacement forfait :
+950 000 FCFA. TOTAL GÉNÉRAL TTC : douze millions quatre cent cinquante
+mille (12 450 000) FCFA."
+
+JSON attendu (partiel) :
+{
+  "couche_1_routing": {
+    "procurement_family_main": "services",
+    "procurement_family_sub": "consultancy",
+    "taxonomy_core": "offer_financial",
+    "document_role": "financial_offer",
+    "document_stage": "offer"
+  },
+  "couche_4_atomic": {
+    "financier": {
+      "financial_layout_mode": "structured_table",
+      "line_items": [
+        {"item_line_no": 1, "item_description_raw": "Honoraires chef de mission", "quantity": 1, "unit_raw": "forfait", "unit_price": 4500000, "line_total": 4500000, "line_total_check": "OK", "confidence": 1.0, "evidence": "p.1 — Honoraires 4 500 000 FCFA"},
+        {"item_line_no": 2, "item_description_raw": "Equipe terrain enqueteurs", "quantity": 200, "unit_raw": "homme-jour", "unit_price": 40000, "line_total": 8000000, "line_total_check": "OK", "confidence": 1.0, "evidence": "p.1 — 5 enqueteurs x 40 jours 40000 FCFA"},
+        {"item_line_no": 3, "item_description_raw": "Frais deplacement", "quantity": 1, "unit_raw": "forfait", "unit_price": 950000, "line_total": 950000, "line_total_check": "OK", "confidence": 1.0, "evidence": "p.1 — Frais deplacement 950 000 FCFA"}
+      ]
+    }
+  }
+}
+
+PIÈGE E-48 : "5 enquêteurs × 40 jours" → quantity=200, unit_raw=homme-jour
+PIÈGE E-43 : unit_raw OBLIGATOIRE sur chaque ligne — jamais vide
+
+EXEMPLE 3 — TDR DÉGRADÉ (scan OCR partiel — confidence basse)
+──────────────────────────────────────────────────────────────
+Document : TDR Évaluation finale projet — scan qualité moyenne
+Extrait source (OCR dégradé) : "...mission d'évaluat[ion] final...
+durée estim[ée] 45 j[ours]... crit[ères] technique[s] pondér[és]...
+seuil minim[um] soix[ante] pourcent... [illisible] FCFA budget..."
+
+JSON attendu (partiel) :
+{
+  "couche_1_routing": {
+    "procurement_family_main": "services",
+    "procurement_family_sub": "consultancy",
+    "taxonomy_core": "tdr_consultance_audit",
+    "document_role": "source_rules",
+    "document_stage": "solicitation"
+  },
+  "couche_5_gates": [
+    {"gate_name": "gate_capacity_passed", "gate_state": "APPLICABLE", "gate_value": false, "confidence": 0.6, "gate_evidence_hint": "seuil minimum soixante pourcent OCR partiel"},
+    {"gate_name": "gate_financial_format_usable", "gate_state": "NOT_APPLICABLE", "gate_value": null, "confidence": 1.0, "gate_evidence_hint": "budget illisible scan degrade"}
+  ],
+  "_meta": {"review_required": true},
+  "ambiguites": ["AMBIG-6_layout_non_structure"]
+}
+
+RÈGLE SCAN DÉGRADÉ :
+- texte OCR partiel → confidence = 0.6 maximum
+- champ illisible → gate_value = null + gate_state = NOT_APPLICABLE
+- review_required = true obligatoire si confidence moyenne < 0.7

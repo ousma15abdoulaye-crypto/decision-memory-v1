@@ -467,9 +467,20 @@ def extract_offer_content(
         )
 
     if not text or not text.strip():
+        # Log explicite text_len=0 — distinguer les cas (FAILLE-8)
+        suffix = filepath.lower() if filepath else ""
+        if suffix.endswith(".pdf"):
+            probable_cause = "PDF_SCAN_SANS_OCR_ou_PDF_VIDE"
+        elif suffix.endswith((".docx", ".doc")):
+            probable_cause = "DOCX_VIDE_ou_ERREUR_LECTURE"
+        else:
+            probable_cause = "FICHIER_ILLISIBLE_ou_FORMAT_INCONNU"
         logger.warning(
-            "[EXTRACT] Texte vide après extraction — doc=%s",
+            "[EXTRACT] text_len=0 — document_id=%s — cause_probable=%s "
+            "— filepath=%s — pipeline continue avec empty_result",
             artifact_id,
+            probable_cause,
+            Path(filepath).name if filepath else "unknown",
         )
         return make_fallback_result(
             document_id=artifact_id,
