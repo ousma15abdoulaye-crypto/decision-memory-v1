@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-03-17 (main post-merge Mandat 2)       ║
+║  Dernière mise à jour : 2026-03-19 (main post-merge M-FIX-EXTRACT-02)║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -86,9 +86,10 @@
 ║                                                                      ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║                                                                      ║
-║  GIT — 2026-03-17                                                    ║
+║  GIT — 2026-03-19                                                    ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  main              : 87942a3 (Merge PR#215 feat/pre-m12-extraction) ║
+║  main              : a8aec01 (Merge M-FIX-EXTRACT-02 feat/fix-extract-02)║
+║  feat/fix-extract-02 : MERGÉ dans main (M-FIX-EXTRACT-02)            ║
 ║  feat/pre-m12-extraction-reelle : MERGÉ dans main (Mandat 4)        ║
 ║  feat/fix-backend-production : backend v3.0.1d (en attente merge)   ║
 ║  alembic head local : 050_documents_sha256_not_null                  ║
@@ -99,6 +100,8 @@
 ║    v4.1.0-m12-dette7-done                                             ║
 ║    v4.1.0-pre-m12-security-done                                       ║
 ║    v4.1.0-pre-m12-extraction-reelle-done                              ║
+║    v4.1.0-fix-pipeline-done                                          ║
+║    v4.1.0-fix-extract-done                                            ║
 ║                                                                      ║
 ║  ALEMBIC — FREEZE ABSOLU                                            ║
 ║  ──────────────────────────────────────────────────────────────     ║
@@ -195,6 +198,17 @@
 ║                        Fix en attente : POSTGRE_PORT=5432 fixe      ║
 ║                        + diagnostic complet Plan Directeur requis   ║
 ║                                                                      ║
+║  EXTRACTION — ÉTAT RÉEL POST-MERGE M-FIX-EXTRACT-02                   ║
+║  ──────────────────────────────────────────────────────────────     ║
+║  extract_text_any :                                                    ║
+║    pypdf principal                                                      ║
+║    pdfminer.six fallback si text_len < 100                              ║
+║    log WARNING text_len=0 → PDF_SCAN_SANS_OCR ou PDF_CORROMPU          ║
+║    OCR (Mistral / Tesseract) = M10A — hors scope beta                   ║
+║  Cas non résolus (M10A) :                                               ║
+║    PDF scan sans OCR → text_len=0 → review_required                     ║
+║    PDF corrompu → text_len=0 → rejeté                                   ║
+║                                                                      ║
 ║  ML BACKEND — v3.0.1d (feat/fix-backend-production)                   ║
 ║  ──────────────────────────────────────────────────────────────     ║
 ║  schema          : v3.0.1d                                           ║
@@ -246,8 +260,10 @@
 ║  tests/  : auth/, contracts/, invariants/, mercuriale/              ║
 ║  data/   : uploads, outputs, static                                 ║
 ║                                                                      ║
-║  MILESTONES — 2026-03-17                                              ║
+║  MILESTONES — 2026-03-19                                              ║
 ║  ──────────────────────────────────────────────────────────────     ║
+║  M-FIX-PIPELINE-01 : DONE — v4.1.0-fix-pipeline-done                 ║
+║  M-FIX-EXTRACT-02  : DONE — v4.1.0-fix-extract-done                   ║
 ║  M9      DONE  signaux, formule 1.1, corridors, FEWS                 ║
 ║  M10A    DONE  seasonal_patterns, zone_context, geo_corridors       ║
 ║  M10B    DONE  couche_a, agents, pg_notify (ADR-010)                ║
@@ -440,6 +456,10 @@
 ║         Toujours envoyer le JSON même si review_required=True.           ║
 ║         L'annotateur corrige. Le système ne censure pas.                 ║
 ║         Ref : Mandat 5 — 2026-03-18                                       ║
+║  E-67  Cursor a implémenté M-FIX-EXTRACT-02 sans mandat CTO.             ║
+║         Revert appliqué immédiatement (Option A).                         ║
+║         Règle : zéro implémentation sans mandat émis explicitement.       ║
+║         Ref : session 2026-03-19                                          ║
 ║                                                                      ║
 ║  ADR-015  Line items chirurgical — docs/adr/ADR-015_*.md            ║
 ║           Date : 2026-03-16 — Statut : ACCEPTÉ — v3.0.1d           ║
