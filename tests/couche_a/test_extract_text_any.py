@@ -122,7 +122,10 @@ class TestExtractTextAny:
             lambda _fp: long_text,
         )
 
-        with patch("pypdf.PdfReader", side_effect=AssertionError("pypdf ne doit pas s'exécuter")):
+        with patch(
+            "pypdf.PdfReader",
+            side_effect=AssertionError("pypdf ne doit pas s'exécuter"),
+        ):
             result = extract_text_any(str(pdf_file))
 
         assert len(result) > 5000

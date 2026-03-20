@@ -14,7 +14,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 _BRIDGE_PATH = ROOT / "scripts" / "ingest_to_annotation_bridge.py"
-_spec = importlib.util.spec_from_file_location("ingest_to_annotation_bridge", _BRIDGE_PATH)
+_spec = importlib.util.spec_from_file_location(
+    "ingest_to_annotation_bridge", _BRIDGE_PATH
+)
 assert _spec and _spec.loader
 _bridge = importlib.util.module_from_spec(_spec)
 sys.modules["ingest_to_annotation_bridge"] = _bridge
@@ -58,6 +60,7 @@ def test_run_ingest_writes_ls_tasks_json(
         "extract_text_any",
         lambda _p: "x" * 120,
     )
+
     def _no_mistral(*_a, **_k):
         raise AssertionError("mistral should not run")
 
