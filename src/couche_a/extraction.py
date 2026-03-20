@@ -22,9 +22,17 @@ from src.couche_a.extraction_models import (
     make_fallback_result,
 )
 from src.couche_a.llm_router import router
-from src.db import db_execute, get_connection
+from src.db import db_execute, db_execute_one, get_connection
 
 logger = logging.getLogger(__name__)
+
+# M-ANNOTATION-CONTAINMENT-01 — seuil minimal conservateur (aligné historique pypdf < 100)
+MIN_EXTRACTED_TEXT_CHARS_FOR_ML = 100
+
+
+class ExtractionInsufficientTextError(ValueError):
+    """Texte extrait trop court ou vide pour tout flux annotation / ML (containment)."""
+
 
 # ── Mapping offer_type → document_role DMS ───────────────────
 _OFFER_TYPE_TO_ROLE: dict[str, str] = {
@@ -62,39 +70,89 @@ def extract_text_any(filepath: str) -> str:
     Extraction texte — PDF natif uniquement en beta.
     OCR (Mistral / Tesseract) = M10A — hors scope ici.
 
+    M-ANNOTATION-CONTAINMENT-01 : journalisation de chaque voie ; si le texte final
+    reste sous ``MIN_EXTRACTED_TEXT_CHARS_FOR_ML``, lève ``ExtractionInsufficientTextError``
+    (jamais de chaîne courte renvoyée silencieusement pour les flux couche A).
+
     Cas gérés :
-      PDF natif extractible  → pypdf principal
-      PDF natif court < 100  → fallback pdfminer.six (peut récupérer du texte si pypdf échoue ou est pauvre)
-      PDF corrompu / scan    → après essai pypdf puis pdfminer : retour "" si les deux échouent ou ne
-                               livrent aucun texte exploitable ; sinon le meilleur extrait disponible
-      DOCX                   → python-docx
-      .doc (Word 97–2003)    → non supporté (binaire) — log ERROR + retour ""
-      Autre                  → path.read_text()
+      PDF   → pypdf puis pdfminer (voir ``_extract_pdf_text``)
+      DOCX  → python-docx
+      .doc  → non supporté → erreur explicite (insuffisant)
+      Autre → path.read_text()
     """
     path = Path(filepath)
     ext = path.suffix.lower()
+    text = ""
+    method = "unknown"
 
     if ext == ".pdf":
-        return _extract_pdf_text(filepath)
+        text = _extract_pdf_text(filepath)
+        method = "pdf_pypdf_or_pdfminer"
     elif ext == ".docx":
-        return _extract_docx_text(filepath)
+        text = _extract_docx_text(filepath)
+        method = "docx_python_docx"
+        logger.info(
+            "[EXTRACT] docx done filepath=%s text_len=%d method=%s",
+            path.name,
+            len(text or ""),
+            method,
+        )
     elif ext == ".doc":
         logger.error(
             "[EXTRACT] format .doc (Word 97-2003 binaire) non supporté — "
             "convertir en .docx ou PDF — filepath=%s",
             path.name,
         )
-        return ""
+        method = "doc_legacy_unsupported"
+        logger.info(
+            "[EXTRACT] ocr phase=not_available scope=M10A filepath=%s text_len=0",
+            path.name,
+        )
+        raise ExtractionInsufficientTextError(
+            f"Format .doc non supporté — fichier={path.name} ; OCR M10A requis pour texte exploitable."
+        )
     else:
         try:
-            return path.read_text(encoding="utf-8", errors="replace")
+            text = path.read_text(encoding="utf-8", errors="replace")
+            method = "plain_read_text"
+            logger.info(
+                "[EXTRACT] read_text done filepath=%s text_len=%d method=%s",
+                path.name,
+                len(text or ""),
+                method,
+            )
         except Exception as e:
             logger.error(
                 "[EXTRACT] read_text échec — filepath=%s error=%s",
                 path.name,
                 str(e),
             )
-            return ""
+            raise ExtractionInsufficientTextError(
+                f"Lecture fichier impossible — {path.name}: {e}"
+            ) from e
+
+    stripped_len = len((text or "").strip())
+    logger.info(
+        "[EXTRACT] extract_text_any summary filepath=%s ext=%s method=%s text_len=%d min_required=%d",
+        path.name,
+        ext,
+        method,
+        stripped_len,
+        MIN_EXTRACTED_TEXT_CHARS_FOR_ML,
+    )
+    if stripped_len < MIN_EXTRACTED_TEXT_CHARS_FOR_ML:
+        logger.error(
+            "[EXTRACT] INSUFFICIENT_TEXT filepath=%s method=%s text_len=%d min_required=%d",
+            path.name,
+            method,
+            stripped_len,
+            MIN_EXTRACTED_TEXT_CHARS_FOR_ML,
+        )
+        raise ExtractionInsufficientTextError(
+            f"Texte extrait insuffisant pour ML — fichier={path.name} text_len={stripped_len} "
+            f"min_required={MIN_EXTRACTED_TEXT_CHARS_FOR_ML} method={method}"
+        )
+    return text
 
 
 def _extract_docx_text(filepath: str) -> str:
@@ -139,10 +197,17 @@ def _extract_pdf_text(filepath: str) -> str:
             str(e),
         )
 
+    pypdf_len = len(text_pypdf.strip())
+    logger.info(
+        "[EXTRACT] pdf step=pypdf filepath=%s text_len=%d",
+        path.name,
+        pypdf_len,
+    )
+
     # Si pypdf a extrait suffisamment → retourner
-    if len(text_pypdf.strip()) >= 100:
+    if pypdf_len >= 100:
         logger.info(
-            "[EXTRACT] pypdf OK — filepath=%s text_len=%d",
+            "[EXTRACT] pypdf OK — filepath=%s text_len=%d method=pypdf",
             path.name,
             len(text_pypdf),
         )
@@ -150,17 +215,24 @@ def _extract_pdf_text(filepath: str) -> str:
 
     # ÉTAPE 2 — fallback pdfminer.six
     # pypdf court ou échoué — pdfminer.six tente
+    text_pdfminer = ""
     try:
         from pdfminer.high_level import extract_text as pdfminer_extract
 
         text_pdfminer = pdfminer_extract(str(path)) or ""
+        pm_len = len(text_pdfminer.strip())
+        logger.info(
+            "[EXTRACT] pdf step=pdfminer filepath=%s text_len=%d (pypdf était %d)",
+            path.name,
+            pm_len,
+            pypdf_len,
+        )
 
-        if len(text_pdfminer.strip()) > len(text_pypdf.strip()):
+        if pm_len > pypdf_len:
             logger.info(
-                "[EXTRACT] pdfminer fallback OK — filepath=%s text_len=%d (pypdf était %d)",
+                "[EXTRACT] pdfminer fallback OK — filepath=%s text_len=%d method=pdfminer",
                 path.name,
                 len(text_pdfminer),
-                len(text_pypdf),
             )
             return text_pdfminer
 
@@ -171,16 +243,22 @@ def _extract_pdf_text(filepath: str) -> str:
             str(e),
         )
 
-    # Les deux ont échoué ou retourné quasi-vide
-    if len(text_pypdf.strip()) == 0:
+    # Les deux ont échoué ou retourné quasi-vide — remonter au résumé extract_text_any
+    logger.info(
+        "[EXTRACT] ocr phase=not_available scope=M10A filepath=%s pypdf_len=%d pdfminer_len=%d",
+        path.name,
+        pypdf_len,
+        len(text_pdfminer.strip()),
+    )
+    if pypdf_len == 0:
         logger.warning(
             "[EXTRACT] text_len=0 — filepath=%s — PDF_SCAN_SANS_OCR ou PDF_CORROMPU — OCR requis (M10A)",
             path.name,
         )
     else:
         logger.warning(
-            "[EXTRACT] text_len=%d tres court — filepath=%s — confidence faible — review_required conseille",
-            len(text_pypdf.strip()),
+            "[EXTRACT] text_len=%d tres court — filepath=%s — sous seuil ML",
+            pypdf_len,
             path.name,
         )
 
@@ -539,19 +617,16 @@ def extract_offer_content(
     artifact_id: str,
     filepath: str,
     offer_type: str,
-) -> None:
+) -> TDRExtractionResult:
     """
     Point d'entrée pipeline — appelé par routers.py via
-    background_tasks.add_task().
-    Signature conservée — compatibilité routers.py garantie.
+    background_tasks.add_task() ou par _extract_and_persist_offer.
 
     Mandat 4 : stub remplacé par appel réel.
     Lit le fichier via extract_text_any() (PDF/DOCX/texte).
     Délègue à extract_offer_content_async() via asyncio.
 
-    Fonction de tâche de fond : ne retourne pas de valeur utile
-    (retourne None) et gère les erreurs en interne (journalisation,
-    éventuels fallbacks), sans propager d'exception.
+    Retourne toujours un ``TDRExtractionResult`` (succès ou fallback traçable).
     """
     logger.info(
         "[EXTRACT] Début — case=%s artifact=%s type=%s",
@@ -565,6 +640,18 @@ def extract_offer_content(
     try:
         text = extract_text_any(filepath)
         logger.info("[EXTRACT] Texte extrait : %d chars", len(text))
+    except ExtractionInsufficientTextError as exc:
+        logger.error(
+            "[EXTRACT] Texte insuffisant ou illisible — case=%s artifact=%s — %s",
+            case_id,
+            artifact_id,
+            exc,
+        )
+        return make_fallback_result(
+            document_id=artifact_id,
+            document_role=str(offer_type),
+            error_reason="insufficient_extracted_text",
+        )
     except Exception as exc:
         logger.error("[EXTRACT] Lecture fichier KO : %s", exc)
         return make_fallback_result(
@@ -868,6 +955,19 @@ def _infer_tier_used(annotation: dict) -> Tier:
     return Tier.T1
 
 
+def _ambiguity_codes(ambiguites: list) -> set[str]:
+    """Normalise ambiguites (str ou dict avec clé code) en ensemble de codes."""
+    codes: set[str] = set()
+    for item in ambiguites or []:
+        if isinstance(item, str):
+            codes.add(item)
+        elif isinstance(item, dict):
+            c = item.get("code")
+            if c is not None:
+                codes.add(str(c))
+    return codes
+
+
 def _build_result(
     annotation: dict,
     document_id: str,
@@ -875,27 +975,271 @@ def _build_result(
     latency_ms: float,
 ) -> TDRExtractionResult:
     """Construit TDRExtractionResult depuis JSON DMS v3.0.1d."""
-    routing = annotation.get("couche_1_routing", {})
-    meta = annotation.get("_meta", {})
-    financier = annotation.get("couche_4_atomic", {}).get("financier", {})
+    routing = annotation.get("couche_1_routing", {}) or {}
+    meta = annotation.get("_meta", {}) or {}
+    couche_4 = annotation.get("couche_4_atomic", {}) or {}
+    financier = couche_4.get("financier", {}) or {}
     tier_used = _infer_tier_used(annotation)
+    fields = _extract_fields(annotation, tier_used=tier_used)
+    line_items = _extract_line_items(financier)
+    ambiguites = list(annotation.get("ambiguites", []) or [])
+
+    # Schéma routing : les clés vivent dans couche_1_routing, pas dans couche_2_core
+    routing_vals = [
+        routing.get("procurement_family_main", "ABSENT"),
+        routing.get("procurement_family_sub", "ABSENT"),
+        routing.get("taxonomy_core", "ABSENT"),
+    ]
+    routing_absent_count = sum(1 for v in routing_vals if v in (None, "", "ABSENT"))
+    schema_ok = routing_absent_count < 3
+
+    identifiants = annotation.get("identifiants", {}) or {}
+    supplier_absent = not identifiants.get("supplier_name_raw") and not identifiants.get(
+        "supplier_name_normalized"
+    )
+
+    financial_layout = couche_4.get("financial_layout_mode", "") or ""
+    items_empty = len(line_items) == 0 and financial_layout == "structured_table"
+
+    critical_ambig_codes = {"AMBIG-3_critical", "AMBIG-4_unresolvable", "AMBIG-7_schema_failure"}
+    has_critical_ambig = bool(critical_ambig_codes & _ambiguity_codes(ambiguites))
+
+    critical_violation = supplier_absent or items_empty or has_critical_ambig
+    extraction_ok = schema_ok and not critical_violation
+    review_required_flag = bool(meta.get("review_required", False)) or not extraction_ok
+
     return TDRExtractionResult(
         document_id=document_id,
         document_role=document_role,
         family_main=routing.get("procurement_family_main", "ABSENT"),
         family_sub=routing.get("procurement_family_sub", "ABSENT"),
         taxonomy_core=routing.get("taxonomy_core", "ABSENT"),
-        fields=_extract_fields(annotation, tier_used=tier_used),
-        line_items=_extract_line_items(financier),
+        fields=fields,
+        line_items=line_items,
         gates=annotation.get("couche_5_gates", []),
-        ambiguites=annotation.get("ambiguites", []),
+        ambiguites=ambiguites,
         tier_used=tier_used,
         latency_ms=latency_ms,
-        extraction_ok=True,
-        review_required=bool(meta.get("review_required", False)),
+        extraction_ok=extraction_ok,
+        review_required=review_required_flag,
         schema_version=meta.get("schema_version", "v3.0.1d"),
         raw_annotation=annotation,
     )
+
+
+def _tdr_result_to_offer_extraction_row(
+    result: TDRExtractionResult,
+    case_id: str,
+    artifact_id: str,
+) -> dict[str, str]:
+    """
+    Mapper explicite TDRExtractionResult → payload ``offer_extractions``.
+
+    Règle de priorité ``supplier_name`` :
+      1. raw_annotation.identifiants.supplier_name_raw
+      2. raw_annotation.identifiants.supplier_name_normalized
+      3. champ extrait dans fields (field_name == \"supplier_name\")
+      4. ABSENT
+
+    Ne jamais utiliser asdict(result) brut.
+    """
+    supplier_name = "ABSENT"
+    if result.raw_annotation:
+        identifiants = result.raw_annotation.get("identifiants", {}) or {}
+        supplier_name = (
+            identifiants.get("supplier_name_raw")
+            or identifiants.get("supplier_name_normalized")
+            or supplier_name
+        )
+    if supplier_name == "ABSENT":
+        supplier_name = next(
+            (
+                f.value
+                for f in result.fields
+                if f.field_name == "supplier_name"
+                and f.value not in (None, "", "ABSENT")
+            ),
+            "ABSENT",
+        )
+
+    tier_val = (
+        result.tier_used.value
+        if hasattr(result.tier_used, "value")
+        else str(result.tier_used)
+    )
+
+    extracted_payload = {
+        "schema_version": result.schema_version,
+        "document_role": result.document_role,
+        "family_main": result.family_main,
+        "family_sub": result.family_sub,
+        "taxonomy_core": result.taxonomy_core,
+        "extraction_ok": result.extraction_ok,
+        "review_required": result.review_required,
+        "tier_used": tier_val,
+        "latency_ms": result.latency_ms,
+        "fields": [
+            {
+                "name": f.field_name,
+                "value": f.value,
+                "confidence": f.confidence,
+                "evidence": f.evidence,
+            }
+            for f in result.fields
+        ],
+        "line_items": [
+            {
+                "item_line_no": li.item_line_no,
+                "item_description_raw": li.item_description_raw,
+                "unit_raw": li.unit_raw,
+                "unit_price": li.unit_price,
+                "quantity": li.quantity,
+                "line_total": li.line_total,
+                "line_total_check": li.line_total_check,
+                "confidence": li.confidence,
+            }
+            for li in result.line_items
+        ],
+        "gates": result.gates,
+        "ambiguites": result.ambiguites,
+        "error_reason": result.error_reason,
+    }
+
+    critical_fields = {
+        "supplier_name",
+        "total_amount",
+        "currency",
+        "deadline",
+        "family_main",
+        "family_sub",
+        "taxonomy_core",
+    }
+    missing: list[str] = [
+        f.field_name
+        for f in result.fields
+        if f.field_name in critical_fields and f.value in (None, "ABSENT", "")
+    ]
+    if supplier_name == "ABSENT":
+        missing.append("supplier_name")
+    if result.family_main in (None, "ABSENT", ""):
+        missing.append("family_main")
+    if result.family_sub in (None, "ABSENT", ""):
+        missing.append("family_sub")
+    if result.taxonomy_core in (None, "ABSENT", ""):
+        missing.append("taxonomy_core")
+    # Dédupliquer en conservant l'ordre
+    seen: set[str] = set()
+    missing_unique = []
+    for m in missing:
+        if m not in seen:
+            seen.add(m)
+            missing_unique.append(m)
+
+    return {
+        "id": str(uuid.uuid4()),
+        "cid": case_id,
+        "aid": artifact_id,
+        "supplier": str(supplier_name),
+        "extracted": json.dumps(extracted_payload, ensure_ascii=False),
+        "missing": json.dumps(missing_unique, ensure_ascii=False),
+        "ts": datetime.now(UTC).isoformat(),
+    }
+
+
+def _persist_tdr_result_to_db(
+    result: TDRExtractionResult,
+    case_id: str,
+    artifact_id: str,
+) -> None:
+    """
+    Persistance ``TDRExtractionResult`` → ``public.offer_extractions``.
+
+    **Tactique M-FIX-PERSISTENCE-BRIDGE** — pas le writer canonique final.
+    Décision CTO 2026-03-20 : merge tactique autorisé ; cible
+    ``persist_offer_extraction()`` (sprint M-WRITER-CANONIQUE-OFFER).
+    Voir ``docs/freeze/DECISION_CTO_OFFER_EXTRACTIONS_WRITER_2026-03-20.md``.
+
+    PRE-FLIGHT repo (alembic ``002_add_couche_a``) : pas de UNIQUE sur
+    ``artifact_id`` → upsert applicatif : dernière ligne par ``artifact_id``
+    mise à jour, sinon INSERT.
+
+    **Limitation** : ce ``SELECT`` puis ``UPDATE``/``INSERT`` n'est pas
+    concurrency-safe si deux insertions concurrentes voient « aucune ligne »
+    pour le même ``artifact_id`` — accepté comme dette jusqu'au writer
+    canonique + migration ``UNIQUE(artifact_id)``.
+    """
+    row = _tdr_result_to_offer_extraction_row(result, case_id, artifact_id)
+    with get_connection() as conn:
+        existing = db_execute_one(
+            conn,
+            """
+            SELECT id FROM offer_extractions
+            WHERE artifact_id = :aid
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            {"aid": artifact_id},
+        )
+        if existing:
+            db_execute(
+                conn,
+                """
+                UPDATE offer_extractions SET
+                    supplier_name = :supplier,
+                    extracted_data_json = :extracted,
+                    missing_fields_json = :missing
+                WHERE id = :existing_id
+                """,
+                {
+                    "supplier": row["supplier"],
+                    "extracted": row["extracted"],
+                    "missing": row["missing"],
+                    "existing_id": existing["id"],
+                },
+            )
+            logger.info(
+                "[BRIDGE] Mis à jour — artifact_id=%s supplier=%s",
+                artifact_id,
+                row["supplier"],
+            )
+        else:
+            db_execute(
+                conn,
+                """
+                INSERT INTO offer_extractions
+                  (id, case_id, artifact_id, supplier_name,
+                   extracted_data_json, missing_fields_json, created_at)
+                VALUES (:id, :cid, :aid, :supplier, :extracted, :missing, :ts)
+                """,
+                row,
+            )
+            logger.info(
+                "[BRIDGE] Inséré — artifact_id=%s supplier=%s",
+                artifact_id,
+                row["supplier"],
+            )
+
+
+def _extract_and_persist_offer(
+    case_id: str,
+    artifact_id: str,
+    file_path: str,
+    offer_type: str,
+) -> None:
+    """
+    Wrapper canonique : extraction + persistance DB (M-FIX-PERSISTENCE-BRIDGE).
+    À utiliser depuis ``background_tasks`` à la place de ``extract_offer_content`` seul.
+    """
+    try:
+        result = extract_offer_content(case_id, artifact_id, file_path, offer_type)
+        _persist_tdr_result_to_db(result, case_id, artifact_id)
+    except Exception as exc:
+        logger.error(
+            "[BRIDGE] Échec persistance — artifact=%s — %s",
+            artifact_id,
+            exc,
+            exc_info=True,
+        )
 
 
 def _extract_fields(annotation: dict, tier_used: Tier) -> list[ExtractionField]:

@@ -39,6 +39,8 @@ FRAMEWORK_VERSION = "annotation-framework-v3.0.1d"
 MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
 MAX_TEXT_CHARS = int(os.environ.get("MAX_TEXT_CHARS", "80000"))
+# M-ANNOTATION-CONTAINMENT-01 — aligné couche A (MIN_EXTRACTED_TEXT_CHARS_FOR_ML)
+MIN_LLM_CONTEXT_CHARS = int(os.environ.get("MIN_LLM_CONTEXT_CHARS", "100"))
 
 # E-27 : CORS restrictif — CORS_ORIGINS env (comma-separated)
 # Default localhost:8080 pour dev. Prod Railway : définir CORS_ORIGINS=URL_LABEL_STUDIO
@@ -188,6 +190,13 @@ def _pseudonymise_contact(raw_value: str) -> dict:
 
 
 # PROMPT — pattern fichier texte pur — prompts/system_prompt.txt (ADR-015)
+def _normalize_input_text(text: str) -> str:
+    """Normalisation légère avant seuil — espaces, pas de mutation sémantique."""
+    if not text or not isinstance(text, str):
+        return ""
+    return re.sub(r"\s+", " ", text.strip())
+
+
 def _truncate_text(text: str, task_id: int) -> str:
     """Tronque le texte à MAX_TEXT_CHARS. Log si troncature appliquée."""
     if len(text) <= MAX_TEXT_CHARS:
@@ -206,13 +215,30 @@ def _build_messages(user_content: str, document_role: str = "") -> list[dict]:
     Construit les messages pour l'API Mistral.
     user_content contient le document.
     document_role : si fourni (extraction.py), injecté pour LOI 1bis.
+
+    M-ANNOTATION-CONTAINMENT-01 : refuse texte vide / trop court — ne pas construire
+    de prompt exploitable sans contexte documentaire minimal.
     """
+    normalized = _normalize_input_text(user_content)
+    if len(normalized) < MIN_LLM_CONTEXT_CHARS:
+        raise ValueError(
+            f"INSUFFICIENT_TEXT_FOR_LLM len={len(normalized)} min={MIN_LLM_CONTEXT_CHARS}"
+        )
+
     prefix = ""
     if document_role:
         prefix = f"CONTEXTE: document_role attendu = {document_role}\n\n"
+
+    anti_invention = (
+        "\n\nRÈGLES STRICTES — NE PAS INVENTER : toute information absente du document "
+        "ci-dessus doit rester ABSENT, NOT_APPLICABLE ou AMBIGUOUS selon le cadre DMS. "
+        "Ne pas déduire de valeurs numériques ou de noms non présents dans le texte. "
+        "Chaque champ extrait doit respecter value + confidence + evidence (pas de valeur nue)."
+    )
     user_prompt = (
         f"{prefix}{user_content}\n\n"
         "Extraire les données en JSON selon les règles du prompt système."
+        f"{anti_invention}"
     )
     return [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -325,6 +351,72 @@ def _normalize_gates(annotation: dict) -> dict:
                     ambiguites.append(ambig)
 
     annotation["ambiguites"] = ambiguites
+    return annotation
+
+
+def _norm_spot(s: str) -> str:
+    """Normalisation pour comparaison tolérante (espaces, casse)."""
+    return re.sub(r"\s+", " ", (s or "").lower().strip())
+
+
+def _digits_compact(s: str) -> str:
+    return re.sub(r"\D", "", s or "")
+
+
+def _spot_check_annotation_vs_source(
+    annotation: dict, source_text: str, task_id: int
+) -> dict:
+    """
+    Spot-check minimal post-réponse LLM — M-ANNOTATION-CONTAINMENT-01.
+    Non destructif : marque review_required + ambiguïté, ne « corrige » pas le JSON.
+    """
+    annotation = copy.deepcopy(annotation)
+    src = _norm_spot(source_text)
+    amb = list(annotation.get("ambiguites", []))
+    meta = annotation.setdefault("_meta", {})
+    skip_vals = (ABSENT, NOT_APPLICABLE, AMBIGUOUS, "", None)
+
+    ident = annotation.get("identifiants")
+    ident = ident if isinstance(ident, dict) else {}
+    raw_name = ident.get("supplier_name_raw")
+    if raw_name not in skip_vals:
+        needle = _norm_spot(str(raw_name))
+        if len(needle) >= 3 and needle not in src:
+            code = "AMBIG-SPOT-supplier_not_in_source"
+            if code not in amb:
+                amb.append(code)
+            meta["review_required"] = True
+            logger.warning(
+                "[SPOT_CHECK] task_id=%s reason=supplier_not_in_source preview=%r",
+                task_id,
+                str(raw_name)[:80],
+            )
+
+    fin_block = annotation.get("couche_4_atomic")
+    fin_block = fin_block if isinstance(fin_block, dict) else {}
+    fin = fin_block.get("financier")
+    fin = fin if isinstance(fin, dict) else {}
+    total_raw = fin.get("total_price")
+    val = None
+    if isinstance(total_raw, dict):
+        val = total_raw.get("value")
+    elif total_raw not in skip_vals:
+        val = total_raw
+    if val not in skip_vals and val is not None:
+        td = _digits_compact(str(val))
+        src_d = _digits_compact(source_text)
+        if len(td) >= 5 and td not in src_d:
+            code = "AMBIG-SPOT-total_not_in_source"
+            if code not in amb:
+                amb.append(code)
+            meta["review_required"] = True
+            logger.warning(
+                "[SPOT_CHECK] task_id=%s reason=total_not_in_source value_digits=%s",
+                task_id,
+                td[:24],
+            )
+
+    annotation["ambiguites"] = amb
     return annotation
 
 
@@ -476,10 +568,11 @@ def _validate_and_correct(annotation: dict, task_id: int = 0) -> tuple[dict, lis
 # ─────────────────────────────────────────────────────────
 
 
-def _build_empty_result(task_id: int, reason: str) -> dict:
+def _build_empty_result(task_id: int, reason: str, score: float = 0.1) -> dict:
     """
     Résultat vide traçable — quand le JSON ne peut pas être produit.
     Jamais silencieux.
+    score=0.0 pour refus entrée (text_insufficient) ; défaut 0.1 pour autres cas.
     """
     fallback = {
         "_meta": {
@@ -496,7 +589,7 @@ def _build_empty_result(task_id: int, reason: str) -> dict:
     json_str = json.dumps(fallback, ensure_ascii=False, indent=2)
     return {
         "id": task_id,
-        "score": 0.1,
+        "score": score,
         "result": [
             {
                 "from_name": "extracted_json",
@@ -579,8 +672,26 @@ async def _call_mistral(
         return dict(FALLBACK_RESPONSE)
 
     tid = task_id if task_id is not None else 0
+    pre_len = len(_normalize_input_text(text))
+    if pre_len < MIN_LLM_CONTEXT_CHARS:
+        logger.error(
+            "[MISTRAL] SKIP insufficient context task_id=%s text_len_norm=%d min=%d — pas d'appel LLM",
+            tid,
+            pre_len,
+            MIN_LLM_CONTEXT_CHARS,
+        )
+        return dict(FALLBACK_RESPONSE)
+
     text = _truncate_text(text, tid)
-    messages = _build_messages(text, document_role=document_role)
+    try:
+        messages = _build_messages(text, document_role=document_role)
+    except ValueError as exc:
+        logger.error(
+            "[MISTRAL] SKIP build_messages refusé task_id=%s — %s",
+            tid,
+            exc,
+        )
+        return dict(FALLBACK_RESPONSE)
 
     try:
         response = client.chat.complete(
@@ -592,7 +703,8 @@ async def _call_mistral(
         )
         raw = response.choices[0].message.content or ""
         logger.info("[MISTRAL] Réponse reçue — %d caractères", len(raw))
-        return _parse_mistral_response(raw, task_id=tid)
+        parsed = _parse_mistral_response(raw, task_id=tid)
+        return _spot_check_annotation_vs_source(parsed, text, tid)
     except Exception as exc:
         logger.error("[MISTRAL] Erreur appel API : %s — fallback activé", exc)
         return dict(FALLBACK_RESPONSE)
@@ -655,14 +767,47 @@ async def predict(request: Request) -> JSONResponse:
     for task in tasks:
         task_id = task.get("id", 0)
         task_data = task.get("data", {})
-        text = task_data.get("text", "") or task_data.get("content", "") or ""
-        document_role = task_data.get("document_role", "") or body_document_role
+        raw_td = task_data.get("text")
+        raw_cd = task_data.get("content")
+        raw_text = raw_td if raw_td not in (None, "") else raw_cd
+        if raw_text is None:
+            raw_text = ""
+        if not isinstance(raw_text, str):
+            raw_text = str(raw_text)
 
-        logger.info("[PREDICT] task_id=%s text_len=%d", task_id, len(text))
+        field_used = (
+            "text"
+            if raw_td not in (None, "")
+            else ("content" if raw_cd not in (None, "") else "none")
+        )
+        text = _normalize_input_text(raw_text)
+        document_role = task_data.get("document_role", "") or body_document_role
+        doc_id = body.get("document_id") or task_data.get("document_id") or "n/a"
+
+        logger.info(
+            "[PREDICT] task_id=%s text_len_raw=%d text_len_norm=%d document_id=%s field=%s",
+            task_id,
+            len(raw_text),
+            len(text),
+            doc_id,
+            field_used,
+        )
 
         if not text or not text.strip():
-            logger.warning("[PREDICT] Texte vide — task_id=%s", task_id)
-            predictions.append(_build_empty_result(task_id, "empty_text"))
+            logger.warning("[PREDICT] Texte vide — task_id=%s document_id=%s", task_id, doc_id)
+            predictions.append(_build_empty_result(task_id, "empty_text", score=0.0))
+            continue
+
+        if len(text) < MIN_LLM_CONTEXT_CHARS:
+            logger.error(
+                "[PREDICT] BLOCK llm_skipped=1 reason=text_insufficient task_id=%s "
+                "text_len_norm=%d min=%d document_id=%s",
+                task_id,
+                len(text),
+                MIN_LLM_CONTEXT_CHARS,
+                doc_id,
+            )
+            predictions.append(_build_empty_result(task_id, "text_insufficient", score=0.0))
             continue
 
         try:
