@@ -937,9 +937,7 @@ async def predict(request: Request) -> JSONResponse:
         document_role = task_data.get("document_role", "") or body_document_role
         raw_fn = task_data.get("filename")
         source_filename = (
-            raw_fn.strip()
-            if isinstance(raw_fn, str) and raw_fn.strip()
-            else ""
+            raw_fn.strip() if isinstance(raw_fn, str) and raw_fn.strip() else ""
         )
         doc_id = body.get("document_id") or task_data.get("document_id") or "n/a"
 
