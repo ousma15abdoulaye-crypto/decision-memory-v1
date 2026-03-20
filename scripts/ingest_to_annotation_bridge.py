@@ -124,7 +124,7 @@ def extract_with_route(
     if classification == "mixed_pdf" and len(stripped) >= _MIN_NATIVE_CHARS:
         return text_after_local_extract, "local", None
 
-    # STORAGE_BASE_PATH : positionné au démarrage de run_ingest() (première racine).
+    # STORAGE_BASE_PATH : positionné dans run_ingest() (FIX-01, voir _storage_base_for_bridge).
 
     # Besoin d’un moteur cloud
     if (
@@ -183,6 +183,38 @@ def discover_pdfs(source_roots: list[str]) -> list[Path]:
     return unique
 
 
+def _storage_base_for_bridge(
+    source_roots: list[str], discovered_pdfs: list[Path]
+) -> str:
+    """
+    Répertoire de base pour STORAGE_BASE_PATH : uniquement chemins existants,
+    normalisés (resolve). Combine racines source valides et parents des PDF
+    découverts, puis commonpath — évite une première racine invalide ou hors lot.
+    """
+    candidates: list[str] = []
+    for raw in source_roots:
+        if not raw:
+            continue
+        rp = Path(raw)
+        if rp.is_dir():
+            candidates.append(str(rp.resolve()))
+    for pdf in discovered_pdfs:
+        candidates.append(str(pdf.resolve().parent))
+    seen: set[str] = set()
+    uniq: list[str] = []
+    for c in candidates:
+        if c not in seen:
+            seen.add(c)
+            uniq.append(c)
+    if not uniq:
+        return ""
+    try:
+        return os.path.commonpath(uniq)
+    except ValueError:
+        # Ex. lecteurs Windows différents : couvrir au moins le premier chemin valide
+        return uniq[0]
+
+
 def build_ls_task(
     rec: PdfRecord,
     default_document_role: str,
@@ -219,13 +251,14 @@ def run_ingest(
     out_dir = Path(output_root)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # DETTE TECHNIQUE : mutation globale confinée à ce seul point.
+    all_pdfs = discover_pdfs(source_roots)
+
+    # DETTE TECHNIQUE : mutation globale confinée à ce seul point (FIX-01).
     # Découplage réel = mandat ultérieur dédié.
-    storage_base = str(source_roots[0]) if source_roots else ""
+    storage_base = _storage_base_for_bridge(source_roots, all_pdfs)
     os.environ["STORAGE_BASE_PATH"] = storage_base
     logger.info("[BRIDGE] STORAGE_BASE_PATH=%s", storage_base)
 
-    all_pdfs = discover_pdfs(source_roots)
     pdfs = (
         all_pdfs[:ingest_limit]
         if ingest_limit is not None and ingest_limit >= 0
