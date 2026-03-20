@@ -44,3 +44,5 @@ Alignement XML : `label_studio_config.xml` — `toName="document_text"`.
 - `MISTRAL_API_KEY`, `MISTRAL_MODEL`, `CORS_ORIGINS`, `PSEUDONYM_SALT` (voir `backend.py`).
 
 Réf. gouvernance : `docs/freeze/PIPELINE_REFONTE_FREEZE.md`, `CLAUDE.md`.
+
+**M12 (engagement annotation)** : [`docs/m12/README.md`](../../docs/m12/README.md).

@@ -681,7 +681,15 @@ async def _call_annotation_backend(
     t_start = time.monotonic()
 
     payload = {
-        "tasks": [{"id": 1, "data": {"text": text}}],
+        "tasks": [
+            {
+                "id": 1,
+                "data": {
+                    "text": text,
+                    "document_role": document_role,
+                },
+            }
+        ],
         "document_id": document_id,
         "document_role": document_role,
     }
