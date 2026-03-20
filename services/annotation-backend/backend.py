@@ -39,6 +39,7 @@ FRAMEWORK_VERSION = "annotation-framework-v3.0.1d"
 MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
 MAX_TEXT_CHARS = int(os.environ.get("MAX_TEXT_CHARS", "80000"))
+MIN_PREDICT_TEXT_CHARS = int(os.environ.get("MIN_PREDICT_TEXT_CHARS", "200"))
 
 # E-27 : CORS restrictif — CORS_ORIGINS env (comma-separated)
 # Default localhost:8080 pour dev. Prod Railway : définir CORS_ORIGINS=URL_LABEL_STUDIO
@@ -663,6 +664,17 @@ async def predict(request: Request) -> JSONResponse:
         if not text or not text.strip():
             logger.warning("[PREDICT] Texte vide — task_id=%s", task_id)
             predictions.append(_build_empty_result(task_id, "empty_text"))
+            continue
+
+        stripped_len = len(text.strip())
+        if stripped_len < MIN_PREDICT_TEXT_CHARS:
+            logger.warning(
+                "[PREDICT] Texte trop court — task_id=%s text_len=%d (min=%d)",
+                task_id,
+                stripped_len,
+                MIN_PREDICT_TEXT_CHARS,
+            )
+            predictions.append(_build_empty_result(task_id, "text_too_short"))
             continue
 
         try:

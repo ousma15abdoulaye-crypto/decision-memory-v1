@@ -84,6 +84,9 @@ data/**/*.zip
 # Cache LlamaCloud/extraction — artefacts générés, ne pas versionner
 data/imports/m5/cache/
 data/imports/imc/
+# Corpus annotation — PDFs lourds / sensibles : dépôt local uniquement (comme m4 xlsx)
+data/imports/annotation/**/*.pdf
+data/ingest/test_mistral/**/*.pdf
 *.sqlite3
 *.db
 uploads/

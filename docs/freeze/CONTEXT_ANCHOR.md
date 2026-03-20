@@ -572,3 +572,27 @@ Interdictions sans GO CTO : supprimer gate, affaiblir line-item, relâcher suppl
   - Commit : "docs(anchor): session YYYY-MM-DD"
   - Ce document ne peut jamais être raccourci
 ```
+
+---
+
+## AJOUT 2026-03-20 — M-INGEST-TO-ANNOTATION-BRIDGE-00 (DONE PARTIEL MERGEABLE)
+
+**Statut :** mandat bridge **clos partiellement** ; livrable **mergeable** ; **sans** contournement SSL/TLS ; **sans** réouverture d’architecture pour ce clos.
+
+**Run de référence** (`run_id: test-mistral-run`, sorties sous `data/ingest/test_mistral_output/`) :
+
+| Métrique | Valeur |
+|----------|--------|
+| pdf_files_seen | **221** |
+| tasks_emitted | **137** |
+| tasks_skipped | **84** |
+
+**Sous-lot non bouclé :** les **84** skips sont **PDFs classés `scanned_pdf`** — **aucun texte** après extracteurs locaux + tentative OCR cloud ; **liste tabulaire** : `docs/freeze/M_INGEST_BRIDGE_00_SKIPPED_SCANNED_PDFS.md` (dérivée de `skipped.json`).
+
+**Cause résiduelle documentée (local) :** OCR cloud **bloqué** (SSL/TLS environnement) + **clé Llama** non utilisable sur le même poste pour ce run. **Le plan global ne dépend pas** de la résolution immédiate de ce sous-lot.
+
+**Handover détaillé :** `docs/milestones/HANDOVER_M_INGEST_ANNOTATION_BRIDGE_00.md`
+
+**STOP mandat bridge** — suite : environnement conforme (clés + TLS) ou autre mandat ; pas de chantier SSL dans ce périmètre.
+
+---
