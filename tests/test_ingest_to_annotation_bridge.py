@@ -45,14 +45,18 @@ def test_classify_pdf_native_when_long_text(tmp_path: Path) -> None:
 def test_classify_to_document_role_from_filename() -> None:
     mod = _load_bridge_module()
     assert (
-        mod._classify_to_document_role("native_pdf", "/x/PROPOSITION FINANCIERE A-Z.pdf")
+        mod._classify_to_document_role(
+            "native_pdf", "/x/PROPOSITION FINANCIERE A-Z.pdf"
+        )
         == "financial_offer"
     )
     assert (
         mod._classify_to_document_role("native_pdf", r"C:\d\OFFRE TECHNIQUE SARL.pdf")
         == "offer_technical"
     )
-    assert mod._classify_to_document_role("native_pdf", "/d/doc.pdf") == "supporting_doc"
+    assert (
+        mod._classify_to_document_role("native_pdf", "/d/doc.pdf") == "supporting_doc"
+    )
 
 
 @pytest.fixture
