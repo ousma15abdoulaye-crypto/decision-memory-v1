@@ -1183,7 +1183,7 @@ def _persist_tdr_result_to_db(
         existing = db_execute_one(
             conn,
             """
-            SELECT id FROM offer_extractions
+            SELECT id FROM public.offer_extractions
             WHERE artifact_id = :aid
             ORDER BY created_at DESC
             LIMIT 1
@@ -1194,7 +1194,7 @@ def _persist_tdr_result_to_db(
             db_execute(
                 conn,
                 """
-                UPDATE offer_extractions SET
+                UPDATE public.offer_extractions SET
                     supplier_name = :supplier,
                     extracted_data_json = :extracted,
                     missing_fields_json = :missing
@@ -1216,7 +1216,7 @@ def _persist_tdr_result_to_db(
             db_execute(
                 conn,
                 """
-                INSERT INTO offer_extractions
+                INSERT INTO public.offer_extractions
                   (id, case_id, artifact_id, supplier_name,
                    extracted_data_json, missing_fields_json, created_at)
                 VALUES (:id, :cid, :aid, :supplier, :extracted, :missing, :ts)

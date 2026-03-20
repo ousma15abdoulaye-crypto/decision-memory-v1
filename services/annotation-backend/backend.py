@@ -372,8 +372,19 @@ def _spot_check_annotation_vs_source(
     """
     annotation = copy.deepcopy(annotation)
     src = _norm_spot(source_text)
-    amb = list(annotation.get("ambiguites", []))
-    meta = annotation.setdefault("_meta", {})
+    raw_amb = annotation.get("ambiguites", [])
+    if isinstance(raw_amb, list):
+        amb = list(raw_amb)
+    elif isinstance(raw_amb, (tuple, set)):
+        amb = list(raw_amb)
+    else:
+        amb = []
+    raw_meta = annotation.get("_meta")
+    if isinstance(raw_meta, dict):
+        meta = raw_meta
+    else:
+        meta = {}
+        annotation["_meta"] = meta
     skip_vals = (ABSENT, NOT_APPLICABLE, AMBIGUOUS, "", None)
 
     ident = annotation.get("identifiants")

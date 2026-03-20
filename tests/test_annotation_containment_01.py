@@ -38,7 +38,11 @@ def _load_backend():
         raise ImportError(f"backend load fail {BACKEND_PATH}")
     mod = importlib.util.module_from_spec(spec)
     sys.modules[name] = mod
+    be_root = str(BACKEND_PATH.parent)
     spec.loader.exec_module(mod)
+    # backend.py fait sys.path.insert(0, ...) à chaque import — éviter les doublons.
+    while len(sys.path) > 1 and sys.path[0] == be_root and sys.path[1] == be_root:
+        sys.path.pop(0)
     return mod
 
 
@@ -144,6 +148,23 @@ def test_spot_check_total_not_in_source_flags_review():
     )
     assert "AMBIG-SPOT-total_not_in_source" in out["ambiguites"]
     assert out["_meta"]["review_required"] is True
+
+
+def test_spot_check_invalid_meta_amb_types_non_destructive():
+    """_meta / ambiguites mal typés → normalisés, pas d'exception."""
+    mod = _load_backend()
+    ann = {
+        "identifiants": {"supplier_name_raw": "GhostCo"},
+        "ambiguites": "not-a-list",
+        "_meta": "broken",
+    }
+    out = mod._spot_check_annotation_vs_source(
+        ann,
+        "Le soumissionnaire GhostCo est cite ici.",
+        77,
+    )
+    assert isinstance(out["_meta"], dict)
+    assert isinstance(out["ambiguites"], list)
 
 
 def test_normalize_input_text_collapses_whitespace():

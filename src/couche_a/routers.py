@@ -276,10 +276,14 @@ async def upload_offer(
     # Update quota after success
     update_case_quota(case_id, size)
 
-    from src.couche_a.extraction import extract_offer_content
+    from src.couche_a.extraction import _extract_and_persist_offer
 
     background_tasks.add_task(
-        extract_offer_content, case_id, artifact_id, str(file_path), offer_type.value
+        _extract_and_persist_offer,
+        case_id,
+        artifact_id,
+        str(file_path),
+        offer_type.value,
     )
 
     return {
