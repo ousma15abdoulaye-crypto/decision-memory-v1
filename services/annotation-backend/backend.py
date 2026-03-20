@@ -397,6 +397,8 @@ def _spot_check_annotation_vs_source(
     fin = fin_block.get("financier")
     fin = fin if isinstance(fin, dict) else {}
     total_raw = fin.get("total_price")
+    if total_raw in skip_vals or total_raw is None:
+        total_raw = fin.get("total")
     val = None
     if isinstance(total_raw, dict):
         val = total_raw.get("value")

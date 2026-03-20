@@ -123,6 +123,25 @@ def test_spot_check_supplier_in_source_clean():
     assert "AMBIG-SPOT-supplier_not_in_source" not in out.get("ambiguites", [])
 
 
+def test_spot_check_total_not_in_source_flags_review():
+    mod = _load_backend()
+    ann = {
+        "identifiants": {},
+        "couche_4_atomic": {
+            "financier": {"total_price": {"value": "999999.00", "confidence": 0.8}}
+        },
+        "ambiguites": [],
+        "_meta": {},
+    }
+    out = mod._spot_check_annotation_vs_source(
+        ann,
+        "Devis sans aucun montant numérique long dans le corps.",
+        42,
+    )
+    assert "AMBIG-SPOT-total_not_in_source" in out["ambiguites"]
+    assert out["_meta"]["review_required"] is True
+
+
 def test_normalize_input_text_collapses_whitespace():
     mod = _load_backend()
     assert mod._normalize_input_text("  a \n\t b  ") == "a b"

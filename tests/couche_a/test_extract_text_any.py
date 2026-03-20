@@ -110,3 +110,10 @@ class TestExtractTextAny:
             result = extract_text_any(str(docx_file))
 
         assert texte_attendu in result
+
+    def test_plain_text_too_short_raises(self, tmp_path):
+        """Fichier texte brut < MIN_EXTRACTED_TEXT_CHARS_FOR_ML → erreur explicite"""
+        p = tmp_path / "short.txt"
+        p.write_text("trois mots", encoding="utf-8")
+        with pytest.raises(ExtractionInsufficientTextError):
+            extract_text_any(str(p))

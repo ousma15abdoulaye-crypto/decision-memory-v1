@@ -88,6 +88,12 @@ def extract_text_any(filepath: str) -> str:
     if ext == ".pdf":
         text = _extract_pdf_text(filepath)
         method = "pdf_pypdf_or_pdfminer"
+        logger.info(
+            "[EXTRACT] pdf done filepath=%s text_len=%d method=%s",
+            path.name,
+            len(text or ""),
+            method,
+        )
     elif ext == ".docx":
         text = _extract_docx_text(filepath)
         method = "docx_python_docx"
@@ -205,7 +211,7 @@ def _extract_pdf_text(filepath: str) -> str:
     )
 
     # Si pypdf a extrait suffisamment → retourner
-    if pypdf_len >= 100:
+    if pypdf_len >= MIN_EXTRACTED_TEXT_CHARS_FOR_ML:
         logger.info(
             "[EXTRACT] pypdf OK — filepath=%s text_len=%d method=pypdf",
             path.name,
