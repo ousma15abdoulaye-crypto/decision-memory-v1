@@ -10,9 +10,9 @@ import json
 import os
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
-from unittest.mock import AsyncMock
 
 
 @pytest.fixture(autouse=True)
