@@ -226,7 +226,7 @@ AVANT TOUTE EXTRACTION :
   Lire le document_role fourni dans le contexte (si présent).
   Appliquer UNIQUEMENT les champs autorisés pour ce rôle.
 
-SI document_role = offer_financial OU financial_proposal OU annex_pricing :
+SI document_role = offer_financial OU financial_offer OU financial_proposal OU annex_pricing :
 
   CHAMPS AUTORISÉS :
     couche_1_routing, couche_2_core, couche_3_policy_sci
@@ -261,6 +261,34 @@ SI document_role = offer_technical :
 # LOI 2 — TAXONOMY CORE — VALEURS FIGÉES
 ################################################################
 
+################################################################
+# LOI 2 — TAXONOMY CORE — DISCRIMINATION CRITIQUE
+################################################################
+
+RÈGLE ABSOLUE AVANT CLASSIFICATION :
+
+SI le document contient UN DE CES ÉLÉMENTS :
+  - titre "PROPOSITION FINANCIERE" ou "OFFRE FINANCIERE"
+  - "Lettre de soumission" + montant total + signature
+  - "Bordereau des Prix" + tableau de prix + total chiffré
+  - montant en lettres ET en chiffres avec devise
+  → taxonomy_core = "offer_financial" OBLIGATOIRE
+  → document_role = "financial_offer" OBLIGATOIRE
+  → JAMAIS supporting_doc sur ces signaux
+
+SI le document contient UN DE CES ÉLÉMENTS :
+  - titre "OFFRE TECHNIQUE" ou "PROPOSITION TECHNIQUE"
+  - CV + méthodologie + plan de travail SANS budget global
+  → taxonomy_core = "offer_technical" OBLIGATOIRE
+  → document_role = "offer_technical" OBLIGATOIRE
+
+supporting_doc = UNIQUEMENT :
+  - annexe sans valeur contractuelle propre
+  - pièce jointe sans montant ni engagement
+  - certificat / attestation isolé
+  - JAMAIS si montant total présent
+  - JAMAIS si lettre de soumission présente
+
 Valeurs autorisées UNIQUEMENT :
   dao | rfq | rfp_consultance | tdr_consultance_audit |
   offer_technical | offer_financial | offer_combined |
@@ -271,7 +299,6 @@ evaluation_report :
   Remplir le squelette avec NOT_APPLICABLE partout.
   annotation_status = "review_required".
   Ne jamais extraire de contenu.
-
 ################################################################
 # LOI 3 — NULL DOCTRINE
 ################################################################
@@ -382,10 +409,17 @@ Sur offer_* :
   quitus_fiscal_date     : YYYY-MM-DD|ABSENT
   cert_non_faillite_date : YYYY-MM-DD|ABSENT
 
-  evidence pour has_nif/has_rccm/has_rib :
+  evidence pour has_nif/has_rccm :
     CORRECT   : "p.1 — NIF présent"
     INTERDIT  : "NIF: 0832022001"
     INTERDIT  : "RCCM: MA.BKO.2022.B.1234"
+
+  has_rib evidence :
+    CORRECT   : "p.N — RIB présent"
+    CORRECT   : "p.N — coordonnées bancaires présentes"
+    INTERDIT  : tout numéro de compte dans evidence
+    INTERDIT  : "compte n°XXXXXXX" dans evidence
+    INTERDIT  : tout IBAN ou RIB dans evidence
 
 Sur source_rules/tdr/rfq/dao :
   Tous les champs identifiants = "NOT_APPLICABLE"
@@ -485,7 +519,7 @@ review_required      = false|true
 8. NIF/RCCM/IBAN jamais dans evidence
 
 ################################################################
-# FIN PROMPT — v3.0.1d — 2026-03-16
+# FIN PROMPT — v3.0.1d — 2026-03-20
 ################################################################
 
 ═══════════════════════════════════════════════════════════════
