@@ -288,15 +288,11 @@ def build_ls_task(
     else:
         document_role = "supporting_doc"
 
-    prefix = (
-        f"[MÉTADONNÉES FICHIER]\n"
-        f"Nom du fichier : {filename}\n"
-        f"Type détecté : {document_role}\n"
-        f"[FIN MÉTADONNÉES]\n\n"
-    )
+    # text = corps document seul (pas de préfixe) : le backend applique MIN_* sur ce
+    # champ ; filename + document_role sont des champs séparés (injectés au prompt LS).
     return {
         "data": {
-            "text": prefix + rec.text,
+            "text": rec.text,
             "filename": filename,
             "document_role": document_role,
             "classification": rec.classification,
@@ -316,6 +312,7 @@ def run_ingest(
     default_document_role: str,
     run_id: str | None = None,
     ingest_limit: int | None = None,
+    include_manifest_tasks: bool = False,
 ) -> dict:
     if not source_roots:
         raise ValueError(
@@ -406,17 +403,18 @@ def run_ingest(
             dr,
             r.engine_route,
         )
-        manifest_tasks.append(
-            {
-                "path": r.path,
-                "filename": Path(r.path).name,
-                "document_role": dr,
-                "engine_route": r.engine_route,
-                "pdf_classification": r.classification,
-            }
-        )
+        if include_manifest_tasks:
+            manifest_tasks.append(
+                {
+                    "path": r.path,
+                    "filename": Path(r.path).name,
+                    "document_role": dr,
+                    "engine_route": r.engine_route,
+                    "pdf_classification": r.classification,
+                }
+            )
 
-    manifest = {
+    manifest: dict = {
         "run_id": run_id,
         "created_at": datetime.now(UTC).isoformat(),
         "source_roots": source_roots,
@@ -427,8 +425,9 @@ def run_ingest(
         "pdf_files_seen": len(pdfs),
         "tasks_emitted": len(records),
         "tasks_skipped": len(skipped),
-        "tasks": manifest_tasks,
     }
+    if include_manifest_tasks:
+        manifest["tasks"] = manifest_tasks
 
     report = {
         **manifest,
@@ -495,6 +494,12 @@ def main() -> None:
         metavar="N",
         help="Nombre max de PDFs à traiter (ordre rglob), ex. 100 pour un batch offres.",
     )
+    parser.add_argument(
+        "--manifest-tasks",
+        action="store_true",
+        help="Inclure la liste détaillée tasks dans run_manifest.json "
+        "(défaut : non — évite la duplication lourde avec ls_tasks.json).",
+    )
     args = parser.parse_args()
 
     roots = args.source_roots if args.source_roots else DEFAULT_SOURCE_ROOTS
@@ -504,6 +509,7 @@ def main() -> None:
         default_document_role=args.default_document_role,
         run_id=args.run_id,
         ingest_limit=args.limit,
+        include_manifest_tasks=args.manifest_tasks,
     )
     print(json.dumps(report, ensure_ascii=False, indent=2))
 

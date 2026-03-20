@@ -42,6 +42,19 @@ def test_classify_pdf_native_when_long_text(tmp_path: Path) -> None:
     assert mod.classify_pdf(f, text) == "native_pdf"
 
 
+def test_classify_to_document_role_from_filename() -> None:
+    mod = _load_bridge_module()
+    assert (
+        mod._classify_to_document_role("native_pdf", "/x/PROPOSITION FINANCIERE A-Z.pdf")
+        == "financial_offer"
+    )
+    assert (
+        mod._classify_to_document_role("native_pdf", r"C:\d\OFFRE TECHNIQUE SARL.pdf")
+        == "offer_technical"
+    )
+    assert mod._classify_to_document_role("native_pdf", "/d/doc.pdf") == "supporting_doc"
+
+
 @pytest.fixture
 def bridge_mod():
     return _load_bridge_module()
@@ -76,6 +89,7 @@ def test_run_ingest_writes_ls_tasks_json(
         output_root=str(out),
         default_document_role="dao",
         run_id="test-run-1",
+        include_manifest_tasks=True,
     )
     assert report["tasks_emitted"] == 1
     assert report["tasks_skipped"] == 0
@@ -83,10 +97,8 @@ def test_run_ingest_writes_ls_tasks_json(
     ls_tasks = json.loads((out / "ls_tasks.json").read_text(encoding="utf-8"))
     assert len(ls_tasks) == 1
     row = ls_tasks[0]["data"]
-    body = "x" * 120
-    assert row["text"].endswith(body)
-    assert "Nom du fichier : doc.pdf" in row["text"]
-    assert "Type détecté : dao" in row["text"]
+    assert row["text"] == "x" * 120
+    assert row["filename"] == "doc.pdf"
     assert row["document_role"] == "dao"
     assert row["process_name"] == "process_a"
     assert row["ingest_run_id"] == "test-run-1"
@@ -96,6 +108,31 @@ def test_run_ingest_writes_ls_tasks_json(
     assert manifest["run_id"] == "test-run-1"
     assert len(manifest["tasks"]) == 1
     assert manifest["tasks"][0]["document_role"] == "dao"
+
+
+def test_run_ingest_manifest_omits_tasks_by_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, bridge_mod
+) -> None:
+    src = tmp_path / "p"
+    src.mkdir()
+    pdf = src / "x.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+    monkeypatch.setattr(
+        bridge_mod,
+        "extract_pdf_text_local_only",
+        lambda _p: "z" * 120,
+    )
+    monkeypatch.setattr(bridge_mod, "_extract_mistral_ocr", lambda *_a, **_k: ("", ""))
+    monkeypatch.setattr(bridge_mod, "_extract_llamaparse", lambda *_a, **_k: ("", ""))
+    out = tmp_path / "out2"
+    bridge_mod.run_ingest(
+        source_roots=[str(src)],
+        output_root=str(out),
+        default_document_role="supporting_doc",
+        run_id="no-tasks-manifest",
+    )
+    manifest = json.loads((out / "run_manifest.json").read_text(encoding="utf-8"))
+    assert "tasks" not in manifest
 
 
 def test_run_ingest_rejects_empty_source_roots(tmp_path: Path, bridge_mod) -> None:
