@@ -270,7 +270,7 @@ SI le document contient UN DE CES ÉLÉMENTS :
   - montant en lettres ET en chiffres avec devise
   → taxonomy_core = "offer_financial" OBLIGATOIRE
   → document_role = "financial_offer" OBLIGATOIRE
-  → JAMAIS supporting_doc sur ces signaux
+  → JAMAIS taxonomy_core = "supporting_doc" sur ces signaux
 
 SI le document contient UN DE CES ÉLÉMENTS :
   - titre "OFFRE TECHNIQUE" ou "PROPOSITION TECHNIQUE"
@@ -278,12 +278,12 @@ SI le document contient UN DE CES ÉLÉMENTS :
   → taxonomy_core = "offer_technical" OBLIGATOIRE
   → document_role = "offer_technical" OBLIGATOIRE
 
-supporting_doc = UNIQUEMENT :
+taxonomy_core = "supporting_doc" — UNIQUEMENT dans ces cas :
   - annexe sans valeur contractuelle propre
   - pièce jointe sans montant ni engagement
   - certificat / attestation isolé
-  - JAMAIS si montant total présent
-  - JAMAIS si lettre de soumission présente
+  - JAMAIS taxonomy_core = "supporting_doc" si montant total présent
+  - JAMAIS taxonomy_core = "supporting_doc" si lettre de soumission présente
 
 Valeurs autorisées UNIQUEMENT :
   dao | rfq | rfp_consultance | tdr_consultance_audit |
