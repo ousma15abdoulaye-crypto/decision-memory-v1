@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-03-20 (session M-CONTAINMENT + hygiene PR)║
+║  Dernière mise à jour : 2026-03-19 (main post-merge M-FIX-EXTRACT-02)║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -460,25 +460,6 @@
 ║         Revert appliqué immédiatement (Option A).                         ║
 ║         Règle : zéro implémentation sans mandat émis explicitement.       ║
 ║         Ref : session 2026-03-19                                          ║
-║  E-68  Mandat à périmètre fermé + git diff hors liste = NOT MERGE.       ║
-║         Exemple 2026-03-20 : FREEZE_HASHES, MRD_CURRENT_STATE, routers   ║
-║         mélangés au PR M-ANNOTATION-CONTAINMENT-01 → verdict NOT DONE.   ║
-║         Avant merge CTO : git diff --name-only = liste mandat uniquement. ║
-║         Preuves obligatoires : alembic heads (1 head) + pytest complet   ║
-║         + runtime logs (text_len, BLOCK llm_skipped) si mandat exige.    ║
-║         Ref : M-ANNOTATION-CONTAINMENT-01 — lecture CTO 2026-03-20       ║
-║  E-69  Texte court (<100 chars normés) jusqu’au /predict puis LLM =     ║
-║         fuite containment. Corrections : couche A MIN_EXTRACTED_TEXT_    ║
-║         CHARS_FOR_ML=100 + ExtractionInsufficientTextError ; backend    ║
-║         MIN_LLM_CONTEXT_CHARS (env MIN_LLM_CONTEXT_CHARS, défaut 100) ;   ║
-║         predict BLOCK sans appel Mistral ; _build_messages refuse ;      ║
-║         spot-check post-LLM AMBIG-SPOT-supplier / total (non destructif). ║
-║         Ref : M-ANNOTATION-CONTAINMENT-01 — GO CTO 2026-03-20            ║
-║  E-70  offer_extractions : deux producteurs directs (bridge Mistral +   ║
-║         analysis.py) = dette jusqu’au writer canonique unique.         ║
-║         Sprint cible M-WRITER-CANONIQUE-OFFER — pas clos par containment.║
-║         Réinscrire dette dans MRD_CURRENT_STATE quand PR dette mergé.    ║
-║         Ref : Décision CTO M-FIX-PERSISTENCE-BRIDGE 2026-03-20           ║
 ║                                                                      ║
 ║  ADR-015  Line items chirurgical — docs/adr/ADR-015_*.md            ║
 ║           Date : 2026-03-16 — Statut : ACCEPTÉ — v3.0.1d           ║
@@ -578,48 +559,6 @@ Confidence gates : 0.6 / 0.8 / 1.0 strictement.
 
 Évolution future : additive uniquement. GO CTO obligatoire.  
 Interdictions sans GO CTO : supprimer gate, affaiblir line-item, relâcher supplier/lot/zone/evidence, fusionner POLICY dans CORE, modifier NULL doctrine, modifier grille confidence, contourner LIST-NULL-RULE/OCR-RULE, modifier gate_value/gate_state, activer evaluation_report avant M15.
-
----
-
-## ADDENDUM CONTEXT ANCHOR — 2026-03-20 — SESSION SUCCESSEUR (OBLIGATOIRE)
-
-**Objectif** : état réel pour l’agent suivant — aligné F4 (dire vrai sur repo, périmètre, tests).
-
-### Mandats et statut (au moment de la rédaction)
-
-| Référence | Objet | Statut |
-|-----------|--------|--------|
-| **M-ANNOTATION-CONTAINMENT-01** | Garde-fous entrée texte + zéro LLM si contexte insuffisant + logs `predict` + spot-check post-LLM + `extract_text_any` explicite | **Code préparé** ; merge **conditionné** à branche propre + preuves runtime CTO |
-| **M-FIX-PERSISTENCE-BRIDGE** | `TDRExtractionResult` → `offer_extractions` + `_build_result.extraction_ok` + wrapper persistance | Peut coexister dans `extraction.py` ; **ne pas mélanger** au PR containment sans mandat |
-| **M-WRITER-CANONIQUE-OFFER** (futur) | Un seul writer `offer_extractions` + champs `producer` / `validation_status` / etc. | Non démarré — **dette architecture** |
-
-### Fichiers attendus pour un PR **containment seul** (M-ANNOTATION-CONTAINMENT-01)
-
-- `services/annotation-backend/backend.py`
-- `src/couche_a/extraction.py`
-- `tests/test_annotation_containment_01.py` (**à `git add`** si nouveau — sinon absent de `git diff --name-only`)
-- `tests/couche_a/test_extract_text_any.py`
-
-**Interdit dans ce PR** (sinon **NOT DONE** / revert) : `docs/freeze/*` (sauf mandat explicite), `src/couche_a/routers.py`, workflows CI, Alembic, `schema_validator.py`, `src/api/analysis.py`.
-
-**Hygiène exécutée en session** : `git restore` sur `FREEZE_HASHES.md`, `MRD_CURRENT_STATE.md`, `routers.py` pour isoler le containment.
-
-### Invariants à poster avant merge (CTO)
-
-1. `python -m alembic heads` → **exactement une ligne** `050_documents_sha256_not_null (head)` (ou head courant unique du repo).
-2. `pytest` ciblé → sortie **complète** avec `passed` / `failed` visible.
-3. Runtime (si exigé par mandat) : logs `text_len_raw`, `text_len_norm`, `field=`, `BLOCK llm_skipped=1`, pas d’appel Mistral sur cas bloqué.
-
-### Points de code à connaître (successeur)
-
-- **Couche A** : `MIN_EXTRACTED_TEXT_CHARS_FOR_ML = 100` ; `ExtractionInsufficientTextError` ; `extract_offer_content` attrape insuffisant → `make_fallback_result(..., error_reason="insufficient_extracted_text")`.
-- **annotation-backend** : `MIN_LLM_CONTEXT_CHARS` (défaut 100, env `MIN_LLM_CONTEXT_CHARS`) ; `_normalize_input_text` ; `predict` refuse &lt; seuil → `_build_empty_result(..., score=0.0)` ; `_build_messages` + consignes anti-invention ; `_spot_check_annotation_vs_source` → `AMBIG-SPOT-*`.
-- **Suite canonique CTO** (hors ce patch) : **M-ANNOTATION-PREFLIGHT-02** puis **M-ANNOTATION-CONTRACT-03** (flux unique, JSON contractuel, validator souverain, review soutenable).
-
-### Documents session complémentaires (si présents sur la branche locale)
-
-- `docs/PIPELINE_INVENTORY.md` (inventaire pipelines — peut être non suivi).
-- `docs/freeze/DECISION_CTO_OFFER_EXTRACTIONS_WRITER_2026-03-20.md` (décision writer — ne pas fusionner avec containment sans mandat).
 
 ---
 
