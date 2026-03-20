@@ -275,7 +275,9 @@ class TestPredictTextGuards:
         data = r.json()
         assert data["results"][0]["id"] == 1
 
-    def test_whitespace_only_treated_as_empty(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_whitespace_only_treated_as_empty(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         backend = _load_backend_module()
         mistral = AsyncMock(side_effect=RuntimeError("Mistral ne doit pas être appelé"))
         monkeypatch.setattr(backend, "_call_mistral", mistral)
