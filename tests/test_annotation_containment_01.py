@@ -5,6 +5,7 @@ Périmètre : services/annotation-backend/backend.py (via importlib) + assertion
 
 from __future__ import annotations
 
+import copy
 import importlib.util
 import json
 import os
@@ -148,6 +149,49 @@ def test_spot_check_total_not_in_source_flags_review():
     )
     assert "AMBIG-SPOT-total_not_in_source" in out["ambiguites"]
     assert out["_meta"]["review_required"] is True
+
+
+def test_fallback_response_validates_dms_annotation():
+    """M-CONTRACT-02 : squelette FALLBACK = 0 erreur Pydantic (sans assouplir le schéma)."""
+    mod = _load_backend()
+    # _load_backend charge backend.py qui insère le répertoire annotation-backend dans sys.path.
+    from prompts.schema_validator import DMSAnnotation
+
+    DMSAnnotation.model_validate(mod.FALLBACK_RESPONSE)
+    assert len(mod.FALLBACK_RESPONSE["couche_5_gates"]) == 10
+    assert "AMBIG-PARSE_FAILED" in mod.FALLBACK_RESPONSE["ambiguites"]
+
+
+def test_validate_and_correct_fallback_zero_schema_errors():
+    """Même annotation qu’après parse Mistral → _validate_and_correct sans erreurs schéma."""
+    mod = _load_backend()
+    ann = copy.deepcopy(mod.FALLBACK_RESPONSE)
+    _fixed, errors = mod._validate_and_correct(ann, task_id=42)
+    assert errors == []
+
+
+def test_predict_mock_fallback_no_validate_errors_logged(caplog, monkeypatch):
+    """Cas valide + mock renvoie FALLBACK : pas de log « N erreurs schema »."""
+    monkeypatch.setenv("PSEUDONYM_SALT", "test-salt-containment")
+    monkeypatch.setenv("ALLOW_WEAK_PSEUDONYMIZATION", "1")
+    monkeypatch.setenv("MISTRAL_API_KEY", "fake-key")
+    mod = _load_backend()
+    mod.client = MagicMock()
+    rmock = MagicMock()
+    rmock.choices = [MagicMock()]
+    rmock.choices[0].message.content = json.dumps(mod.FALLBACK_RESPONSE)
+    mod.client.chat.complete.return_value = rmock
+    with caplog.at_level("ERROR"):
+        with TestClient(mod.app) as client:
+            r = client.post(
+                "/predict",
+                json={
+                    "document_id": "contract-02",
+                    "tasks": [{"id": 5, "data": {"text": "Z" * 200}}],
+                },
+            )
+    assert r.status_code == 200
+    assert "erreurs schema" not in caplog.text
 
 
 def test_spot_check_invalid_meta_amb_types_non_destructive():
