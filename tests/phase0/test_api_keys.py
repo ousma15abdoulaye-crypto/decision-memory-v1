@@ -27,50 +27,74 @@ from src.core.api_keys import (
 # ── Classe 1 — get_llama_cloud_api_key ──────────────────────────
 
 
+def _clear_llama_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("LLAMADMS", raising=False)
+    monkeypatch.delenv("LLAMA_CLOUD_API_KEY", raising=False)
+
+
 class TestGetLlamaCloudApiKey:
-    """LLAMA_CLOUD_API_KEY : lazy-load + validation."""
+    """LLAMADMS + LLAMA_CLOUD_API_KEY : lazy-load + validation."""
 
     def test_absent_raises_api_key_missing_error(self, monkeypatch):
-        """Variable absente → APIKeyMissingError."""
-        monkeypatch.delenv("LLAMA_CLOUD_API_KEY", raising=False)
-        with pytest.raises(APIKeyMissingError, match="LLAMA_CLOUD_API_KEY"):
+        """Les deux variables absentes → APIKeyMissingError."""
+        _clear_llama_keys(monkeypatch)
+        with pytest.raises(APIKeyMissingError, match="LLAMADMS"):
             get_llama_cloud_api_key()
 
     def test_empty_raises_api_key_missing_error(self, monkeypatch):
-        """Variable vide → APIKeyMissingError."""
+        """Les deux vides → APIKeyMissingError."""
+        _clear_llama_keys(monkeypatch)
+        monkeypatch.setenv("LLAMADMS", "")
         monkeypatch.setenv("LLAMA_CLOUD_API_KEY", "")
         with pytest.raises(APIKeyMissingError, match="LLAMA_CLOUD_API_KEY"):
             get_llama_cloud_api_key()
 
     def test_whitespace_only_raises_api_key_missing_error(self, monkeypatch):
-        """Variable = espaces uniquement → APIKeyMissingError (strip appliqué)."""
+        """Les deux = espaces uniquement → APIKeyMissingError (strip appliqué)."""
+        _clear_llama_keys(monkeypatch)
+        monkeypatch.setenv("LLAMADMS", "   \t  ")
         monkeypatch.setenv("LLAMA_CLOUD_API_KEY", "   \t  ")
         with pytest.raises(APIKeyMissingError):
             get_llama_cloud_api_key()
 
     def test_valid_key_returned_stripped(self, monkeypatch):
-        """Variable définie avec espaces → retournée sans espaces."""
+        """LLAMA_CLOUD_API_KEY avec espaces → retournée sans espaces."""
+        _clear_llama_keys(monkeypatch)
         monkeypatch.setenv("LLAMA_CLOUD_API_KEY", "  llx-test-key-123  ")
         result = get_llama_cloud_api_key()
         assert result == "llx-test-key-123"
 
     def test_valid_key_returned(self, monkeypatch):
-        """Variable définie → retournée telle quelle."""
+        """LLAMA_CLOUD_API_KEY définie → retournée."""
+        _clear_llama_keys(monkeypatch)
         monkeypatch.setenv("LLAMA_CLOUD_API_KEY", "llx-real-key")
         assert get_llama_cloud_api_key() == "llx-real-key"
 
+    def test_llamadms_alone_works(self, monkeypatch):
+        """LLAMADMS seul (Railway) → retourné."""
+        _clear_llama_keys(monkeypatch)
+        monkeypatch.setenv("LLAMADMS", "  llx-from-railway  ")
+        assert get_llama_cloud_api_key() == "llx-from-railway"
+
+    def test_llamadms_precedence_over_llama_cloud(self, monkeypatch):
+        """LLAMADMS prime sur LLAMA_CLOUD_API_KEY."""
+        monkeypatch.setenv("LLAMADMS", "llx-primary")
+        monkeypatch.setenv("LLAMA_CLOUD_API_KEY", "llx-secondary")
+        assert get_llama_cloud_api_key() == "llx-primary"
+
     def test_error_message_contains_env_ref(self, monkeypatch):
-        """§9 : message d'erreur contient le nom de la variable ET .env."""
-        monkeypatch.delenv("LLAMA_CLOUD_API_KEY", raising=False)
+        """§9 : message d'erreur cite les variables ET .env."""
+        _clear_llama_keys(monkeypatch)
         with pytest.raises(APIKeyMissingError) as exc:
             get_llama_cloud_api_key()
         msg = str(exc.value)
+        assert "LLAMADMS" in msg
         assert "LLAMA_CLOUD_API_KEY" in msg
         assert ".env" in msg
 
     def test_error_warns_never_commit(self, monkeypatch):
         """§9 : message d'erreur rappelle de ne jamais commiter la clé."""
-        monkeypatch.delenv("LLAMA_CLOUD_API_KEY", raising=False)
+        _clear_llama_keys(monkeypatch)
         with pytest.raises(APIKeyMissingError, match="commit"):
             get_llama_cloud_api_key()
 
@@ -150,6 +174,7 @@ class TestLazyLoadContract:
 
     def test_import_sans_env_vars_ne_leve_pas(self, monkeypatch):
         """Import du module sans clés dans l'env → aucune exception."""
+        monkeypatch.delenv("LLAMADMS", raising=False)
         monkeypatch.delenv("LLAMA_CLOUD_API_KEY", raising=False)
         monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
         # Reload ici (pas en top-level) pour forcer un re-import frais

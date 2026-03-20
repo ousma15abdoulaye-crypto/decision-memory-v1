@@ -7,7 +7,8 @@ validated at module-load time, so the app starts normally even if the keys
 are absent.
 
 Environment variables (set in .env / .env.local — never commit real keys):
-  LLAMA_CLOUD_API_KEY  — LlamaParse / LlamaCloud
+  LLAMADMS             — LlamaParse / LlamaCloud (nom Railway / entreprise, prioritaire)
+  LLAMA_CLOUD_API_KEY  — même clé, alias local / docs / LlamaIndex
   MISTRAL_API_KEY      — Mistral AI (OCR fallback + LLM extraction)
 """
 
@@ -23,14 +24,17 @@ class APIKeyMissingError(RuntimeError):
 def get_llama_cloud_api_key() -> str:
     """Return the LlamaParse / LlamaCloud API key.
 
-    Reads LLAMA_CLOUD_API_KEY from the environment at call time.
-    Raises APIKeyMissingError if the variable is not set or is empty.
+    Résolution alignée mercuriale / Railway : **LLAMADMS** d’abord, puis
+    **LLAMA_CLOUD_API_KEY**. Lazy-load à l’appel uniquement.
     """
-    key = os.environ.get("LLAMA_CLOUD_API_KEY", "").strip()
+    key = (
+        os.environ.get("LLAMADMS", "").strip()
+        or os.environ.get("LLAMA_CLOUD_API_KEY", "").strip()
+    )
     if not key:
         raise APIKeyMissingError(
-            "LLAMA_CLOUD_API_KEY is not set. "
-            "Add it to your .env or .env.local file (see .env.example). "
+            "No Llama Cloud API key: set LLAMADMS (Railway / entreprise) or "
+            "LLAMA_CLOUD_API_KEY in .env or .env.local (see .env.example). "
             "Never commit the real key to the repository."
         )
     return key

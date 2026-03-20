@@ -111,6 +111,25 @@ class TestExtractTextAny:
 
         assert texte_attendu in result
 
+    def test_pdf_llamaparse_priority_long_text(self, tmp_path, monkeypatch):
+        """LlamaParse priorité 1 : texte > 5000 car. sans passer par pypdf."""
+        pdf_file = tmp_path / "lp.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4 fake")
+        long_text = "Z" * 5200
+
+        monkeypatch.setattr(
+            "src.couche_a.extraction._try_llamaparse_pdf_first",
+            lambda _fp: long_text,
+        )
+
+        with patch(
+            "pypdf.PdfReader",
+            side_effect=AssertionError("pypdf ne doit pas s'exécuter"),
+        ):
+            result = extract_text_any(str(pdf_file))
+
+        assert len(result) > 5000
+
     def test_plain_text_too_short_raises(self, tmp_path):
         """Fichier texte brut < MIN_EXTRACTED_TEXT_CHARS_FOR_ML → erreur explicite"""
         p = tmp_path / "short.txt"

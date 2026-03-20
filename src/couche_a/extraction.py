@@ -6,6 +6,7 @@ import asyncio
 import concurrent.futures
 import json
 import logging
+import os
 import time
 import uuid
 from dataclasses import asdict, dataclass
@@ -14,6 +15,7 @@ from pathlib import Path
 
 import httpx
 
+from src.core.api_keys import APIKeyMissingError
 from src.couche_a.extraction_models import (
     ExtractionField,
     LineItem,
@@ -21,10 +23,17 @@ from src.couche_a.extraction_models import (
     Tier,
     make_fallback_result,
 )
-from src.couche_a.llm_router import router
 from src.db import db_execute, db_execute_one, get_connection
 
 logger = logging.getLogger(__name__)
+
+
+def _get_router():
+    """Import différé : évite de charger llm_router tant qu’aucun appel async / HTTP n’est fait."""
+    from src.couche_a.llm_router import router
+
+    return router
+
 
 # M-ANNOTATION-CONTAINMENT-01 — seuil minimal conservateur (aligné historique pypdf < 100)
 MIN_EXTRACTED_TEXT_CHARS_FOR_ML = 100
@@ -75,9 +84,10 @@ def extract_text_any(filepath: str) -> str:
     (jamais de chaîne courte renvoyée silencieusement pour les flux couche A).
 
     Cas gérés :
-      PDF   → pypdf puis pdfminer (voir ``_extract_pdf_text``)
+      PDF + LLAMADMS ou LLAMA_CLOUD_API_KEY → LlamaParse en priorité 1 (si ≥100 car. utiles)
+      PDF   → sinon pypdf puis pdfminer (voir ``_extract_pdf_text``)
       DOCX  → python-docx
-      .doc  → non supporté → erreur explicite (insuffisant)
+      .doc  → non supporté (binaire) → erreur explicite (insuffisant)
       Autre → path.read_text()
     """
     path = Path(filepath)
@@ -169,16 +179,70 @@ def _extract_docx_text(filepath: str) -> str:
     return "\n".join(paragraph.text for paragraph in doc.paragraphs)
 
 
-def _extract_pdf_text(filepath: str) -> str:
+def _try_llamaparse_pdf_first(filepath: str) -> str | None:
+    """LlamaParse si clé présente et texte suffisant ; sinon None (fallback pypdf/pdfminer)."""
+    path = Path(filepath).resolve()
+    try:
+        from src.core.api_keys import get_llama_cloud_api_key
+
+        get_llama_cloud_api_key()
+    except APIKeyMissingError:
+        logger.debug(
+            "[EXTRACT] llamaparse skip — pas de LLAMADMS ni LLAMA_CLOUD_API_KEY — filepath=%s",
+            path.name,
+        )
+        return None
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[EXTRACT] llamaparse skip — %s — filepath=%s", exc, path.name)
+        return None
+
+    prev = os.environ.get("STORAGE_BASE_PATH")
+    raw_out = ""
+    try:
+        os.environ["STORAGE_BASE_PATH"] = str(path.parent)
+        from src.extraction.engine import _extract_llamaparse
+
+        raw_out, _ = _extract_llamaparse(str(path))
+    except Exception as exc:
+        logger.info(
+            "[EXTRACT] llamaparse échec — filepath=%s error=%s — fallback pypdf",
+            path.name,
+            exc,
+        )
+        return None
+    finally:
+        if prev is None:
+            os.environ.pop("STORAGE_BASE_PATH", None)
+        else:
+            os.environ["STORAGE_BASE_PATH"] = prev
+
+    if raw_out and len(raw_out.strip()) >= 100:
+        return raw_out
+    return None
+
+
+def _extract_pdf_text(filepath: str, *, skip_llamaparse: bool = False) -> str:
     """
+    Étape 0 : LlamaParse (clé nuage) si texte riche — sautée si skip_llamaparse=True.
     Étape 1 : pypdf (toutes les pages).
     Étape 2 : si pypdf échoue ou texte < 100 caractères, tentative pdfminer.six.
     Retour : le meilleur texte obtenu ; chaîne vide uniquement si aucun extracteur
     ne produit de contenu exploitable (les deux ont échoué ou ont retourné vide).
     """
+    path = Path(filepath)
+
+    if not skip_llamaparse:
+        lp = _try_llamaparse_pdf_first(str(path))
+        if lp is not None:
+            logger.info(
+                "[EXTRACT] llamaparse OK — filepath=%s text_len=%d",
+                path.name,
+                len(lp),
+            )
+            return lp
+
     import pypdf
 
-    path = Path(filepath)
     text_pypdf = ""
 
     # ÉTAPE 1 — pypdf
@@ -269,6 +333,14 @@ def _extract_pdf_text(filepath: str) -> str:
         )
 
     return text_pypdf
+
+
+def extract_pdf_text_local_only(filepath: str) -> str:
+    """
+    PDF : pypdf puis pdfminer uniquement — pas LlamaParse, pas seuil ML, pas d'exception
+    sur texte court. Pour heuristiques (ex. bridge ingest : classification native vs scan).
+    """
+    return _extract_pdf_text(filepath, skip_llamaparse=True)
 
 
 # ------------------------------------------------------------
@@ -717,7 +789,7 @@ def extract_offer_content(
                     document_role=document_role,
                 ),
             )
-            result = future.result(timeout=router.timeout + 15)
+            result = future.result(timeout=_get_router().timeout + 15)
         logger.info(
             "[EXTRACT] Terminé — case=%s ok=%s latency=%.0fms",
             case_id,
@@ -757,7 +829,7 @@ async def extract_offer_content_async(
     Appelle annotation-backend /predict.
     Fallback traçable si backend KO.
     """
-    tier = router.select_tier()
+    tier = _get_router().select_tier()
 
     if tier == Tier.T4_OFFLINE:
         logger.warning("[EXTRACT] TIER 4 offline — doc=%s", document_id)
@@ -798,9 +870,10 @@ async def _call_annotation_backend(
     }
 
     try:
-        async with httpx.AsyncClient(timeout=router.timeout) as client:
+        r = _get_router()
+        async with httpx.AsyncClient(timeout=r.timeout) as client:
             response = await client.post(
-                f"{router.backend_url}/predict",
+                f"{r.backend_url}/predict",
                 json=payload,
             )
             response.raise_for_status()

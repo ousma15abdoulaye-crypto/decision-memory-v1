@@ -35,8 +35,6 @@ def _make_client_mock(file_id: str = "file-abc123") -> MagicMock:
 
 def test_ocr_files_api_order_upload_process_delete(tmp_path, monkeypatch):
     """upload() → ocr.process(file_id) → files.delete() dans cet ordre exact."""
-    import mistralai as _mistralai
-
     import src.extraction.engine as eng
 
     fake_pdf = tmp_path / "tdr.pdf"
@@ -48,7 +46,11 @@ def test_ocr_files_api_order_upload_process_delete(tmp_path, monkeypatch):
     monkeypatch.setattr(eng.os.path, "getsize", lambda _: 1024)
 
     mock_client = _make_client_mock(file_id="file-xyz789")
-    monkeypatch.setattr(_mistralai, "Mistral", lambda **kw: mock_client)
+    monkeypatch.setattr(
+        eng,
+        "_mistral_client_factory",
+        lambda: MagicMock(return_value=mock_client),
+    )
 
     raw_text, _ = eng._extract_mistral_ocr(str(fake_pdf))
 
@@ -67,8 +69,6 @@ def test_ocr_files_api_order_upload_process_delete(tmp_path, monkeypatch):
 
 def test_ocr_files_api_cleanup_on_error(tmp_path, monkeypatch):
     """files.delete() appelé même si ocr.process() lève une RuntimeError."""
-    import mistralai as _mistralai
-
     import src.extraction.engine as eng
 
     fake_pdf = tmp_path / "offre.pdf"
@@ -81,7 +81,11 @@ def test_ocr_files_api_cleanup_on_error(tmp_path, monkeypatch):
 
     mock_client = _make_client_mock(file_id="file-cleanup-test")
     mock_client.ocr.process.side_effect = RuntimeError("Mistral 500")
-    monkeypatch.setattr(_mistralai, "Mistral", lambda **kw: mock_client)
+    monkeypatch.setattr(
+        eng,
+        "_mistral_client_factory",
+        lambda: MagicMock(return_value=mock_client),
+    )
 
     try:
         eng._extract_mistral_ocr(str(fake_pdf))

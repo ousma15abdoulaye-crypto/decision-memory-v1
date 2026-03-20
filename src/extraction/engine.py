@@ -251,8 +251,9 @@ def _extract_docx(storage_uri: str) -> tuple[str, dict]:
 def _extract_llamaparse(storage_uri: str) -> tuple[str, dict]:
     """Extraction via LlamaParse (SLA-B).
 
-    La clé API est lue depuis LLAMA_CLOUD_API_KEY (jamais dans le code).
-    Lève APIKeyMissingError si la variable d'environnement est absente.
+    La clé API est lue via get_llama_cloud_api_key() : LLAMADMS puis
+    LLAMA_CLOUD_API_KEY (jamais dans le code).
+    Lève APIKeyMissingError si les deux sont absentes.
     """
     _validate_storage_uri(storage_uri)
     api_key = get_llama_cloud_api_key()  # raises APIKeyMissingError if absent
@@ -283,6 +284,27 @@ def _ocr_pages_to_text(response: object) -> str:
             getattr(p, "markdown", "") or getattr(p, "text", "") for p in response.pages
         )
     return getattr(response, "text", "") or ""
+
+
+def _mistral_client_factory():
+    """Retourne la classe constructeur Mistral(api_key=...) selon la version du SDK.
+
+    mistralai récent : ``Mistral`` vit souvent sous ``mistralai.client`` ; un
+    ``ImportError`` sur ``from mistralai import Mistral`` ne signifie pas que le
+    package est absent (sous-import ou API déplacée).
+    """
+    try:
+        from mistralai import Mistral as MistralCls  # type: ignore
+    except ImportError as exc_top:
+        try:
+            from mistralai.client import Mistral as MistralCls  # type: ignore
+        except ImportError as exc_client:
+            raise ImportError(
+                "Impossible d'importer la classe Mistral depuis mistralai "
+                f"(toplevel: {exc_top!r}; mistralai.client: {exc_client!r}). "
+                "Vérifiez mistralai (requirements.txt) et l'installation du package."
+            ) from exc_client
+    return MistralCls
 
 
 def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
@@ -317,16 +339,10 @@ def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
             "Configurer AZURE_FORM_RECOGNIZER_ENDPOINT pour le fallback."
         )
 
-    try:
-        from mistralai import Mistral  # type: ignore
-    except ImportError as exc:
-        raise ImportError(
-            "mistralai non installé. Ajouter 'mistralai' à requirements.txt."
-        ) from exc
-
     from src.couche_a.llm_router import TIER_1_OCR_MODEL
 
-    client = Mistral(api_key=api_key)
+    mistral_cls = _mistral_client_factory()
+    client = mistral_cls(api_key=api_key)
     file_name = os.path.basename(storage_uri)
     uploaded_id: str | None = None
 

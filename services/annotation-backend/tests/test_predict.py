@@ -10,6 +10,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -253,3 +254,58 @@ class TestNormalizeGatesJsonReel:
         assert len(result["ambiguites"]) == 0
         for gate in result["couche_5_gates"]:
             assert gate["confidence"] == 1.0
+
+
+class TestPredictTextGuards:
+    """Garde-fous /predict — texte vide ou trop court (PDF vide côté LS)."""
+
+    def test_empty_text_no_mistral(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        backend = _load_backend_module()
+        mistral = AsyncMock(side_effect=RuntimeError("Mistral ne doit pas être appelé"))
+        monkeypatch.setattr(backend, "_call_mistral", mistral)
+        from starlette.testclient import TestClient
+
+        client = TestClient(backend.app)
+        r = client.post(
+            "/predict",
+            json={"tasks": [{"id": 1, "data": {"text": ""}}]},
+        )
+        assert r.status_code == 200
+        assert mistral.await_count == 0
+        data = r.json()
+        assert data["results"][0]["id"] == 1
+
+    def test_whitespace_only_treated_as_empty(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        backend = _load_backend_module()
+        mistral = AsyncMock(side_effect=RuntimeError("Mistral ne doit pas être appelé"))
+        monkeypatch.setattr(backend, "_call_mistral", mistral)
+        from starlette.testclient import TestClient
+
+        client = TestClient(backend.app)
+        r = client.post(
+            "/predict",
+            json={"tasks": [{"id": 2, "data": {"text": "  \n\t  "}}]},
+        )
+        assert r.status_code == 200
+        assert mistral.await_count == 0
+
+    def test_text_under_200_chars_text_too_short(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        backend = _load_backend_module()
+        mistral = AsyncMock(side_effect=RuntimeError("Mistral ne doit pas être appelé"))
+        monkeypatch.setattr(backend, "_call_mistral", mistral)
+        from starlette.testclient import TestClient
+
+        client = TestClient(backend.app)
+        short = "a" * 199
+        r = client.post(
+            "/predict",
+            json={"tasks": [{"id": 99, "data": {"text": short}}]},
+        )
+        assert r.status_code == 200
+        assert mistral.await_count == 0
+        payload = r.json()["results"][0]["result"][0]["value"]["text"][0]
+        assert "text_too_short" in payload

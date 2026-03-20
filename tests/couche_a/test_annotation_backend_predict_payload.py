@@ -45,8 +45,10 @@ def test_predict_payload_includes_document_role_in_task_data(monkeypatch):
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=False)
 
-    monkeypatch.setattr(extraction_module.router, "_timeout", 30)
-    monkeypatch.setattr(extraction_module.router, "_backend_url", "http://test-backend")
+    mock_router = MagicMock()
+    mock_router.timeout = 30
+    mock_router.backend_url = "http://test-backend"
+    monkeypatch.setattr(extraction_module, "_get_router", lambda: mock_router)
 
     async def _run():
         with patch(

@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import importlib
 import os
-import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -77,18 +76,10 @@ def test_extract_mistral_ocr_pages_joined(tmp_path, monkeypatch):
     )
     mock_client.files.delete.return_value = None
 
-    mock_mistralai = MagicMock()
-    mock_mistralai.Mistral.return_value = mock_client
+    ctor = MagicMock(return_value=mock_client)
+    monkeypatch.setattr(eng, "_mistral_client_factory", lambda: ctor)
 
-    orig = sys.modules.get("mistralai")
-    sys.modules["mistralai"] = mock_mistralai
-    try:
-        raw_text, _ = eng._extract_mistral_ocr(str(fake_pdf))
-    finally:
-        if orig is None:
-            sys.modules.pop("mistralai", None)
-        else:
-            sys.modules["mistralai"] = orig
+    raw_text, _ = eng._extract_mistral_ocr(str(fake_pdf))
 
     assert "Page 1" in raw_text
     assert "Page 2" in raw_text

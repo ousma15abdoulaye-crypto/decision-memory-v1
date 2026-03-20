@@ -42,6 +42,7 @@ MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
 MAX_TEXT_CHARS = int(os.environ.get("MAX_TEXT_CHARS", "80000"))
 # M-ANNOTATION-CONTAINMENT-01 — aligné couche A (MIN_EXTRACTED_TEXT_CHARS_FOR_ML)
 MIN_LLM_CONTEXT_CHARS = int(os.environ.get("MIN_LLM_CONTEXT_CHARS", "100"))
+MIN_PREDICT_TEXT_CHARS = int(os.environ.get("MIN_PREDICT_TEXT_CHARS", "200"))
 
 # E-27 : CORS restrictif — CORS_ORIGINS env (comma-separated)
 # Default localhost:8080 pour dev. Prod Railway : définir CORS_ORIGINS=URL_LABEL_STUDIO
@@ -503,7 +504,7 @@ def _spot_check_annotation_vs_source(
     raw_amb = annotation.get("ambiguites", [])
     if isinstance(raw_amb, list):
         amb = list(raw_amb)
-    elif isinstance(raw_amb, (tuple, set)):
+    elif isinstance(raw_amb, tuple | set):
         amb = list(raw_amb)
     else:
         amb = []
@@ -953,6 +954,17 @@ async def predict(request: Request) -> JSONResponse:
             predictions.append(
                 _build_empty_result(task_id, "text_insufficient", score=0.0)
             )
+            continue
+
+        stripped_len = len(text.strip())
+        if stripped_len < MIN_PREDICT_TEXT_CHARS:
+            logger.warning(
+                "[PREDICT] Texte trop court — task_id=%s text_len=%d (min=%d)",
+                task_id,
+                stripped_len,
+                MIN_PREDICT_TEXT_CHARS,
+            )
+            predictions.append(_build_empty_result(task_id, "text_too_short"))
             continue
 
         try:
