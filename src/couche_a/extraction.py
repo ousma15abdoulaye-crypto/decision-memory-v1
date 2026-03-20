@@ -1000,14 +1000,18 @@ def _build_result(
     schema_ok = routing_absent_count < 3
 
     identifiants = annotation.get("identifiants", {}) or {}
-    supplier_absent = not identifiants.get("supplier_name_raw") and not identifiants.get(
-        "supplier_name_normalized"
-    )
+    supplier_absent = not identifiants.get(
+        "supplier_name_raw"
+    ) and not identifiants.get("supplier_name_normalized")
 
     financial_layout = couche_4.get("financial_layout_mode", "") or ""
     items_empty = len(line_items) == 0 and financial_layout == "structured_table"
 
-    critical_ambig_codes = {"AMBIG-3_critical", "AMBIG-4_unresolvable", "AMBIG-7_schema_failure"}
+    critical_ambig_codes = {
+        "AMBIG-3_critical",
+        "AMBIG-4_unresolvable",
+        "AMBIG-7_schema_failure",
+    }
     has_critical_ambig = bool(critical_ambig_codes & _ambiguity_codes(ambiguites))
 
     critical_violation = supplier_absent or items_empty or has_critical_ambig

@@ -796,7 +796,9 @@ async def predict(request: Request) -> JSONResponse:
         )
 
         if not text or not text.strip():
-            logger.warning("[PREDICT] Texte vide — task_id=%s document_id=%s", task_id, doc_id)
+            logger.warning(
+                "[PREDICT] Texte vide — task_id=%s document_id=%s", task_id, doc_id
+            )
             predictions.append(_build_empty_result(task_id, "empty_text", score=0.0))
             continue
 
@@ -809,7 +811,9 @@ async def predict(request: Request) -> JSONResponse:
                 MIN_LLM_CONTEXT_CHARS,
                 doc_id,
             )
-            predictions.append(_build_empty_result(task_id, "text_insufficient", score=0.0))
+            predictions.append(
+                _build_empty_result(task_id, "text_insufficient", score=0.0)
+            )
             continue
 
         try:
