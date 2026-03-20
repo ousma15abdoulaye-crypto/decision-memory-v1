@@ -15,6 +15,7 @@ from pathlib import Path
 
 import httpx
 
+from src.core.api_keys import APIKeyMissingError
 from src.couche_a.extraction_models import (
     ExtractionField,
     LineItem,
@@ -22,7 +23,6 @@ from src.couche_a.extraction_models import (
     Tier,
     make_fallback_result,
 )
-from src.core.api_keys import APIKeyMissingError
 from src.db import db_execute, db_execute_one, get_connection
 
 logger = logging.getLogger(__name__)
