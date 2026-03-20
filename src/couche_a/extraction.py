@@ -566,7 +566,17 @@ def extract_dao_content(case_id: str, artifact_id: str, filepath: str):
     """
     try:
         # 1. Extraire le texte du fichier
-        text_content = extract_text_any(filepath)
+        try:
+            text_content = extract_text_any(filepath)
+        except ExtractionInsufficientTextError as exc:
+            # PDF brouillon / scan sans OCR : ne pas faire échouer l'upload (background task).
+            logger.error(
+                "[EXTRACTION] DAO texte insuffisant — case=%s artifact=%s — %s",
+                case_id,
+                artifact_id,
+                exc,
+            )
+            return
 
         # 2. Extraire les critères bruts
         raw_criteria = extract_dao_criteria_structured(text_content)
