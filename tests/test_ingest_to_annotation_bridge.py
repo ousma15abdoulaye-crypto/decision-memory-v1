@@ -83,7 +83,10 @@ def test_run_ingest_writes_ls_tasks_json(
     ls_tasks = json.loads((out / "ls_tasks.json").read_text(encoding="utf-8"))
     assert len(ls_tasks) == 1
     row = ls_tasks[0]["data"]
-    assert row["text"] == "x" * 120
+    body = "x" * 120
+    assert row["text"].endswith(body)
+    assert "Nom du fichier : doc.pdf" in row["text"]
+    assert "Type détecté : dao" in row["text"]
     assert row["document_role"] == "dao"
     assert row["process_name"] == "process_a"
     assert row["ingest_run_id"] == "test-run-1"
@@ -91,6 +94,8 @@ def test_run_ingest_writes_ls_tasks_json(
 
     manifest = json.loads((out / "run_manifest.json").read_text(encoding="utf-8"))
     assert manifest["run_id"] == "test-run-1"
+    assert len(manifest["tasks"]) == 1
+    assert manifest["tasks"][0]["document_role"] == "dao"
 
 
 def test_run_ingest_rejects_empty_source_roots(tmp_path: Path, bridge_mod) -> None:
