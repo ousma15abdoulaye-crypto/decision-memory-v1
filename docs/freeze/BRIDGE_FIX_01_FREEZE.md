@@ -8,7 +8,7 @@
 Variables requises :
 
 - **MISTRAL_API_KEY** — non vide (OCR Mistral)
-- **LLAMADMS** ou **LLAMA_CLOUD_API_KEY** — non vide (LlamaParse ; `LLAMADMS` prioritaire, aligné `src/core/api_keys.py`)
+- **LlamaParse** — clé résolue par `get_llama_cloud_api_key()` dans `src/core/api_keys.py` : lecture **LLAMADMS** en premier ; si absent ou vide, **LLAMA_CLOUD_API_KEY**. Au moins une des deux doit être non vide pour que le test ci-dessous réussisse.
 
 Tests de validation avant run :
 
@@ -41,3 +41,13 @@ Ce gate valide l’environnement OCR — pas la correction du script.
 - `tasks_emitted` ≥ 190  
 - `skip_by_classification.scanned_pdf` < 30  
 - `skip_by_reason.no_text_all_extractors` < 30  
+
+---
+
+## Réserve CTO — non bloquante merge, bloquante gate OCR prod
+
+Avant le **gate opérationnel** sur l’environnement **Railway production**, l’AO doit confirmer **quelle variable Llama est réellement renseignée** (souvent une seule en prod).
+
+**Action après merge sur `main`, avant gate OCR :** mettre à jour ce freeze avec le **nom unique** de variable actif en prod Railway (retirer toute mention redondante), puis commit :
+
+`docs(freeze): clarify llama key name post-merge`
