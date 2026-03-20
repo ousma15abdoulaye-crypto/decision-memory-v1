@@ -99,27 +99,6 @@ def classify_pdf(path: Path, text_probe: str) -> str:
     return "mixed_pdf"
 
 
-def _set_storage_base_for_paths(paths: list[str]) -> None:
-    """
-    Le moteur engine valide storage_uri sous STORAGE_BASE_PATH.
-    On aligne la base sur les racines sources pour autoriser les chemins bureau.
-    Si ``paths`` est vide ou aucun chemin n'existe : ne modifie pas STORAGE_BASE_PATH.
-    """
-    if not paths:
-        return
-    resolved = [str(Path(p).resolve()) for p in paths if p and Path(p).exists()]
-    if not resolved:
-        return
-    try:
-        common = os.path.commonpath(resolved)
-    except ValueError:
-        # Lecteurs différents (Windows) : prendre le parent du premier fichier connu
-        common = str(Path(resolved[0]).parent)
-    if Path(common).is_file():
-        common = str(Path(common).parent)
-    os.environ["STORAGE_BASE_PATH"] = common
-
-
 def extract_with_route(
     path: str,
     classification: str,
@@ -145,7 +124,7 @@ def extract_with_route(
     if classification == "mixed_pdf" and len(stripped) >= _MIN_NATIVE_CHARS:
         return text_after_local_extract, "local", None
 
-    # STORAGE_BASE_PATH déjà positionné dans run_ingest() sur les racines sources.
+    # STORAGE_BASE_PATH : positionné dans run_ingest() (FIX-01, voir _storage_base_for_bridge).
 
     # Besoin d’un moteur cloud
     if (
@@ -204,6 +183,38 @@ def discover_pdfs(source_roots: list[str]) -> list[Path]:
     return unique
 
 
+def _storage_base_for_bridge(
+    source_roots: list[str], discovered_pdfs: list[Path]
+) -> str:
+    """
+    Répertoire de base pour STORAGE_BASE_PATH : uniquement chemins existants,
+    normalisés (resolve). Combine racines source valides et parents des PDF
+    découverts, puis commonpath — évite une première racine invalide ou hors lot.
+    """
+    candidates: list[str] = []
+    for raw in source_roots:
+        if not raw:
+            continue
+        rp = Path(raw)
+        if rp.is_dir():
+            candidates.append(str(rp.resolve()))
+    for pdf in discovered_pdfs:
+        candidates.append(str(pdf.resolve().parent))
+    seen: set[str] = set()
+    uniq: list[str] = []
+    for c in candidates:
+        if c not in seen:
+            seen.add(c)
+            uniq.append(c)
+    if not uniq:
+        return ""
+    try:
+        return os.path.commonpath(uniq)
+    except ValueError:
+        # Ex. lecteurs Windows différents : couvrir au moins le premier chemin valide
+        return uniq[0]
+
+
 def build_ls_task(
     rec: PdfRecord,
     default_document_role: str,
@@ -240,9 +251,14 @@ def run_ingest(
     out_dir = Path(output_root)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    _set_storage_base_for_paths(source_roots)
-
     all_pdfs = discover_pdfs(source_roots)
+
+    # DETTE TECHNIQUE : mutation globale confinée à ce seul point (FIX-01).
+    # Découplage réel = mandat ultérieur dédié.
+    storage_base = _storage_base_for_bridge(source_roots, all_pdfs)
+    os.environ["STORAGE_BASE_PATH"] = storage_base
+    logger.info("[BRIDGE] STORAGE_BASE_PATH=%s", storage_base)
+
     pdfs = (
         all_pdfs[:ingest_limit]
         if ingest_limit is not None and ingest_limit >= 0
@@ -296,6 +312,14 @@ def run_ingest(
             )
         )
 
+    skip_by_classification: dict[str, int] = {}
+    skip_by_reason: dict[str, int] = {}
+    for s in skipped:
+        cls = s.get("classification", "unknown")
+        reason = s.get("reason", "unknown")
+        skip_by_classification[cls] = skip_by_classification.get(cls, 0) + 1
+        skip_by_reason[reason] = skip_by_reason.get(reason, 0) + 1
+
     manifest = {
         "run_id": run_id,
         "created_at": datetime.now(UTC).isoformat(),
@@ -315,6 +339,8 @@ def run_ingest(
         **manifest,
         "by_classification": {},
         "by_engine": {},
+        "skip_by_classification": skip_by_classification,
+        "skip_by_reason": skip_by_reason,
     }
     for r in records:
         report["by_classification"][r.classification] = (

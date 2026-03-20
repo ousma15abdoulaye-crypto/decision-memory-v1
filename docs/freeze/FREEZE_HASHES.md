@@ -1,7 +1,7 @@
 # FREEZE_HASHES
 # SHA256 documents gelés — référence centrale
 # Mis à jour uniquement par AO
-# Dernière mise à jour : 2026-03-18 — PIPELINE_REFONTE_FREEZE enregistré (reprise revue PR)
+# Dernière mise à jour : 2026-03-21 — BRIDGE_FIX_01_FREEZE enregistré (Copilot / ADR-META-001)
 #
 # Format : NOM_DOCUMENT.md = <sha256_64_chars>
 # Un hash par ligne. Commentaires avec #.
@@ -24,3 +24,7 @@ ADR-META-001-AMENDMENT-PROCESS.md = 0e43674a933acdff0905b874cbf3f25d4d20a2af6e5f
 # PIPELINE_REFONTE_FREEZE.md — gouvernance pipeline annotation (GOV-01 / ADR-META-001)
 # Hash figé au contenu du fichier au moment de l’enregistrement — append-only
 PIPELINE_REFONTE_FREEZE.md = 5ad252fa251e9822848711f8c5e378f0ab19b81ca807526cff9d8cd181ae4ef0
+
+# BRIDGE_FIX_01_FREEZE.md — bridge OCR / STORAGE_BASE_PATH (FIX-01)
+# Hash figé au contenu du fichier — append-only
+BRIDGE_FIX_01_FREEZE.md = 27c4534467b6b3d2d999f3e59504c235f17ac3668c8a4a42773c2df15df57789
