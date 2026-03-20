@@ -44,7 +44,9 @@ def _load_backend():
 
 @pytest.fixture
 def backend_module(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("PSEUDONYM_SALT", os.environ.get("PSEUDONYM_SALT", "test-salt-containment"))
+    monkeypatch.setenv(
+        "PSEUDONYM_SALT", os.environ.get("PSEUDONYM_SALT", "test-salt-containment")
+    )
     monkeypatch.setenv("ALLOW_WEAK_PSEUDONYMIZATION", "1")
     monkeypatch.setenv("MISTRAL_API_KEY", "")
     return _load_backend()
@@ -72,7 +74,9 @@ def test_predict_text_insufficient_no_llm(monkeypatch: pytest.MonkeyPatch):
     assert "text_insufficient" in inner["_meta"]["error_reason"]
 
 
-def test_predict_empty_text_field_content_fallback(backend_module, monkeypatch: pytest.MonkeyPatch):
+def test_predict_empty_text_field_content_fallback(
+    backend_module, monkeypatch: pytest.MonkeyPatch
+):
     """data.text vide mais data.content assez long → utilise content."""
     monkeypatch.setenv("MISTRAL_API_KEY", "")
     mod = _load_backend()
