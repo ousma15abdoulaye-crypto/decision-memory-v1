@@ -339,14 +339,16 @@ def _truncate_text(text: str, task_id: int) -> str:
     return text[:MAX_TEXT_CHARS]
 
 
-def _build_messages(user_content: str, document_role: str = "") -> list[dict]:
+def _build_messages(
+    user_content: str,
+    document_role: str = "",
+    source_filename: str = "",
+) -> list[dict]:
     """
     Construit les messages pour l'API Mistral.
-    user_content contient le document.
-    document_role : si fourni (extraction.py), injecté pour LOI 1bis.
-
-    M-ANNOTATION-CONTAINMENT-01 : refuse texte vide / trop court — ne pas construire
-    de prompt exploitable sans contexte documentaire minimal.
+    user_content contient le document (seuls ces caractères comptent pour MIN_LLM).
+    document_role / source_filename : métadonnées injectées après contrôle de longueur
+    du corps (évite d'« acheter » un seuil avec un préfixe artificiel dans data.text).
     """
     normalized = _normalize_input_text(user_content)
     if len(normalized) < MIN_LLM_CONTEXT_CHARS:
@@ -354,9 +356,12 @@ def _build_messages(user_content: str, document_role: str = "") -> list[dict]:
             f"INSUFFICIENT_TEXT_FOR_LLM len={len(normalized)} min={MIN_LLM_CONTEXT_CHARS}"
         )
 
-    prefix = ""
+    ctx_parts: list[str] = []
     if document_role:
-        prefix = f"CONTEXTE: document_role attendu = {document_role}\n\n"
+        ctx_parts.append(f"CONTEXTE: document_role attendu = {document_role}")
+    if source_filename:
+        ctx_parts.append(f"CONTEXTE: nom_fichier_source = {source_filename}")
+    prefix = ("\n\n".join(ctx_parts) + "\n\n") if ctx_parts else ""
 
     anti_invention = (
         "\n\nRÈGLES STRICTES — NE PAS INVENTER : toute information absente du document "
@@ -804,10 +809,12 @@ async def _call_mistral(
     text: str,
     task_id: int | None = None,
     document_role: str = "",
+    source_filename: str = "",
 ) -> dict:
     """
     Appelle Mistral v3.0.1d. Retourne le dict parsé brut (sans validation).
     document_role : si fourni, applique LOI 1bis (squelette conditionné).
+    source_filename : nom fichier LS / bridge (signal quand l'en-tête PDF est image).
     """
     if not client:
         logger.warning("[MISTRAL] Client non configuré — fallback activé")
@@ -826,7 +833,11 @@ async def _call_mistral(
 
     text = _truncate_text(text, tid)
     try:
-        messages = _build_messages(text, document_role=document_role)
+        messages = _build_messages(
+            text,
+            document_role=document_role,
+            source_filename=source_filename,
+        )
     except ValueError as exc:
         logger.error(
             "[MISTRAL] SKIP build_messages refusé task_id=%s — %s",
@@ -924,6 +935,10 @@ async def predict(request: Request) -> JSONResponse:
         )
         text = _normalize_input_text(raw_text)
         document_role = task_data.get("document_role", "") or body_document_role
+        raw_fn = task_data.get("filename")
+        source_filename = (
+            raw_fn.strip() if isinstance(raw_fn, str) and raw_fn.strip() else ""
+        )
         doc_id = body.get("document_id") or task_data.get("document_id") or "n/a"
 
         logger.info(
@@ -968,7 +983,12 @@ async def predict(request: Request) -> JSONResponse:
             continue
 
         try:
-            annotation = await _call_mistral(text, task_id, document_role=document_role)
+            annotation = await _call_mistral(
+                text,
+                task_id,
+                document_role=document_role,
+                source_filename=source_filename,
+            )
             annotation = _normalize_gates(annotation)
             annotation, errors = _validate_and_correct(annotation, task_id)
             result = _build_ls_result(

@@ -101,6 +101,26 @@ def test_build_messages_rejects_short():
         mod._build_messages("x" * 50, document_role="")
 
 
+def test_build_messages_injects_filename_without_bypassing_length_gate():
+    mod = _load_backend()
+    with pytest.raises(ValueError, match="INSUFFICIENT_TEXT_FOR_LLM"):
+        mod._build_messages(
+            "x" * 50,
+            document_role="financial_offer",
+            source_filename="PROPOSITION FINANCIERE X.pdf",
+        )
+    body = "y" * 120
+    msgs = mod._build_messages(
+        body,
+        document_role="financial_offer",
+        source_filename="PROPOSITION FINANCIERE X.pdf",
+    )
+    user = msgs[1]["content"]
+    assert "nom_fichier_source" in user
+    assert "PROPOSITION FINANCIERE X.pdf" in user
+    assert body in user
+
+
 def test_spot_check_supplier_not_in_source_flags_review():
     mod = _load_backend()
     ann = {

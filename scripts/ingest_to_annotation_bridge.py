@@ -183,6 +183,63 @@ def discover_pdfs(source_roots: list[str]) -> list[Path]:
     return unique
 
 
+def _classify_to_document_role(classification: str, filename: str) -> str:
+    """
+    Déduit un document_role initial depuis la classification PDF
+    et le nom de fichier. Heuristique — corrigeable par l'annotateur.
+    """
+    _ = classification  # réservé (alignement API / évolutions futures)
+    name_upper = Path(filename).name.upper()
+    if any(
+        k in name_upper
+        for k in (
+            "PROPOSITION FINANCIERE",
+            "OFFRE FINANCIERE",
+            "OFFRE FIN",
+            "FINANCIAL",
+            "BORDEREAU",
+        )
+    ):
+        return "financial_offer"
+    if any(
+        k in name_upper
+        for k in (
+            "OFFRE TECHNIQUE",
+            "PROPOSITION TECHNIQUE",
+            "OFFER TECH",
+            "TECHNIQUE",
+        )
+    ):
+        return "offer_technical"
+    if any(
+        k in name_upper
+        for k in (
+            "TDR",
+            "TERMES DE REFERENCE",
+            "TERMS OF REFERENCE",
+        )
+    ):
+        return "source_rules"
+    if any(
+        k in name_upper
+        for k in (
+            "DAO",
+            "APPEL D'OFFRES",
+            "DOSSIER APPEL",
+        )
+    ):
+        return "source_rules"
+    if any(
+        k in name_upper
+        for k in (
+            "RFQ",
+            "DEMANDE DE COTATION",
+        )
+    ):
+        return "source_rules"
+    return "supporting_doc"
+
+
 def _storage_base_for_bridge(
     source_roots: list[str], discovered_pdfs: list[Path]
 ) -> str:
@@ -221,11 +278,24 @@ def build_ls_task(
     run_id: str,
 ) -> dict:
     rel = rec.path
-    source_tag = f"{rec.process_name}:{Path(rec.path).name}"
+    filename = Path(rec.path).name
+    source_tag = f"{rec.process_name}:{filename}"
+    inferred = _classify_to_document_role(rec.classification, rec.path)
+    if inferred != "supporting_doc":
+        document_role = inferred
+    elif default_document_role != "supporting_doc":
+        document_role = default_document_role
+    else:
+        document_role = "supporting_doc"
+
+    # text = corps document seul (pas de préfixe) : le backend applique MIN_* sur ce
+    # champ ; filename + document_role sont des champs séparés (injectés au prompt LS).
     return {
         "data": {
             "text": rec.text,
-            "document_role": default_document_role,
+            "filename": filename,
+            "document_role": document_role,
+            "classification": rec.classification,
             "source": source_tag,
             "process_name": rec.process_name,
             "source_path": rel,
@@ -242,6 +312,7 @@ def run_ingest(
     default_document_role: str,
     run_id: str | None = None,
     ingest_limit: int | None = None,
+    include_manifest_tasks: bool = False,
 ) -> dict:
     if not source_roots:
         raise ValueError(
@@ -320,7 +391,30 @@ def run_ingest(
         skip_by_classification[cls] = skip_by_classification.get(cls, 0) + 1
         skip_by_reason[reason] = skip_by_reason.get(reason, 0) + 1
 
-    manifest = {
+    ls_tasks: list[dict] = []
+    manifest_tasks: list[dict] = []
+    for r in records:
+        task = build_ls_task(r, default_document_role, run_id)
+        ls_tasks.append(task)
+        dr = task["data"]["document_role"]
+        logger.info(
+            "[BRIDGE] task=%s document_role=%s engine=%s",
+            Path(r.path).name,
+            dr,
+            r.engine_route,
+        )
+        if include_manifest_tasks:
+            manifest_tasks.append(
+                {
+                    "path": r.path,
+                    "filename": Path(r.path).name,
+                    "document_role": dr,
+                    "engine_route": r.engine_route,
+                    "pdf_classification": r.classification,
+                }
+            )
+
+    manifest: dict = {
         "run_id": run_id,
         "created_at": datetime.now(UTC).isoformat(),
         "source_roots": source_roots,
@@ -332,8 +426,8 @@ def run_ingest(
         "tasks_emitted": len(records),
         "tasks_skipped": len(skipped),
     }
-
-    ls_tasks = [build_ls_task(r, default_document_role, run_id) for r in records]
+    if include_manifest_tasks:
+        manifest["tasks"] = manifest_tasks
 
     report = {
         **manifest,
@@ -400,6 +494,12 @@ def main() -> None:
         metavar="N",
         help="Nombre max de PDFs à traiter (ordre rglob), ex. 100 pour un batch offres.",
     )
+    parser.add_argument(
+        "--manifest-tasks",
+        action="store_true",
+        help="Inclure la liste détaillée tasks dans run_manifest.json "
+        "(défaut : non — évite la duplication lourde avec ls_tasks.json).",
+    )
     args = parser.parse_args()
 
     roots = args.source_roots if args.source_roots else DEFAULT_SOURCE_ROOTS
@@ -409,6 +509,7 @@ def main() -> None:
         default_document_role=args.default_document_role,
         run_id=args.run_id,
         ingest_limit=args.limit,
+        include_manifest_tasks=args.manifest_tasks,
     )
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
