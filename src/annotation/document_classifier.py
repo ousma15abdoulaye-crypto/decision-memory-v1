@@ -36,16 +36,13 @@ class TaxonomyCore(str, Enum):
 
 @unique
 class DocumentRole(str, Enum):
+    SOURCE_RULES = "source_rules"
     FINANCIAL_OFFER = "financial_offer"
     TECHNICAL_OFFER = "technical_offer"
     COMBINED_OFFER = "combined_offer"
-    TDR = "tdr"
-    DAO = "dao"
-    RFQ = "rfq"
+    ANNEX_PRICING = "annex_pricing"
     SUPPORTING_DOC = "supporting_doc"
-    UNKNOWN = "unknown"
-
-
+    EVALUATION_REPORT = "evaluation_report"
 class ClassificationResult:
     """
     Résultat immuable du classifieur.
