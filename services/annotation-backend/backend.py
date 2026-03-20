@@ -504,7 +504,7 @@ def _spot_check_annotation_vs_source(
     raw_amb = annotation.get("ambiguites", [])
     if isinstance(raw_amb, list):
         amb = list(raw_amb)
-    elif isinstance(raw_amb, (tuple, set)):
+    elif isinstance(raw_amb, tuple | set):
         amb = list(raw_amb)
     else:
         amb = []
