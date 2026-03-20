@@ -1,66 +1,84 @@
 <View>
   <Style>
-    .main { max-width: 1400px; margin: 0 auto; }
-    .source { width: 48%; float: left; padding: 10px;
-              border-right: 2px solid #eee; }
-    .review { width: 48%; float: right; padding: 10px; }
+    .main  { max-width: 1400px; margin: 0 auto; overflow: hidden; }
+    .left  { width: 48%; float: left;  padding: 10px;
+             border-right: 2px solid #ddd; box-sizing: border-box; }
+    .right { width: 48%; float: right; padding: 10px;
+             box-sizing: border-box; }
+    .label { font-weight: bold; margin-top: 12px;
+             display: block; color: #333; }
   </Style>
 
-  <!-- Texte source — LEFT PANEL -->
-  <View className="source">
-    <Header value="Document source — texte extrait"/>
-    <Text name="document_text" value="$text"/>
-  </View>
+  <View className="main">
+    <!-- PANNEAU GAUCHE — texte source -->
+    <View className="left">
+      <Header value="Document source — texte extrait"/>
+      <Text name="document_text" value="$text"/>
+    </View>
 
-  <!-- Review Mistral — RIGHT PANEL -->
-  <View className="review">
-    <Header value="Extraction Mistral — Valider ou corriger"/>
+    <!-- PANNEAU DROIT — review Mistral -->
+    <View className="right">
 
-    <TextArea name="extracted_json"
-              toName="document_text"
-              placeholder="JSON extrait par Mistral — éditable si correction nécessaire"
-              rows="30"
-              editable="true"/>
+      <Header value="1 — JSON extrait par Mistral — corriger si nécessaire"/>
+      <TextArea
+        name="extracted_json"
+        toName="document_text"
+        placeholder="JSON Mistral — éditable"
+        rows="28"
+        editable="true"/>
 
-    <Header value="Routing correct ? (taxonomy_core + family)"/>
-    <Choices name="routing_ok"
-             toName="document_text"
-             choice="single"
-             showInLine="true"
-             required="true">
-      <Choice value="ok"    label="✓ Correct"/>
-      <Choice value="wrong" label="✗ Corrigé dans le JSON ci-dessus"/>
-    </Choices>
+      <Header value="2 — Type de document détecté (taxonomy_core)"/>
+      <Choices
+        name="routing_ok"
+        toName="document_text"
+        choice="single"
+        showInLine="false"
+        required="true">
+        <Choice value="correct"
+                label="✓ Routing correct — taxonomy_core conforme"/>
+        <Choice value="corrected"
+                label="✗ Routing corrigé dans le JSON ci-dessus"/>
+        <Choice value="not_applicable"
+                label="N/A — classification taxonomy non applicable"/>
+      </Choices>
 
-    <Header value="Champs financiers corrects ? (total + line_items)"/>
-    <Choices name="financial_ok"
-             toName="document_text"
-             choice="single"
-             showInLine="true"
-             required="true">
-      <Choice value="ok"    label="✓ Correct"/>
-      <Choice value="wrong" label="✗ Corrigé dans le JSON ci-dessus"/>
-      <Choice value="na"    label="N/A — pas une offre financière"/>
-    </Choices>
+      <Header value="3 — Champs financiers (total_price + line_items)"/>
+      <Choices
+        name="financial_ok"
+        toName="document_text"
+        choice="single"
+        showInLine="false"
+        required="true">
+        <Choice value="correct"
+                label="✓ Montants et lignes corrects"/>
+        <Choice value="corrected"
+                label="✗ Corrigé dans le JSON ci-dessus"/>
+        <Choice value="not_applicable"
+                label="N/A — pas une offre financière"/>
+      </Choices>
 
-    <Header value="Notes correcteur (AMBIG · doutes · décisions)"/>
-    <TextArea name="annotation_notes"
-              toName="document_text"
-              placeholder="Ex: AMBIG-3 line_total incorrect corrigé · scan dégradé p.4 · NIF absent confirmé"
-              rows="4"/>
+      <Header value="4 — Notes correcteur (AMBIG · doutes · décisions)"/>
+      <TextArea
+        name="annotation_notes"
+        toName="document_text"
+        placeholder="Ex: taxonomy_core corrigé · RIB evidence tronquée · budget détaillé niveau récap retenu"
+        rows="4"/>
 
-    <Header value="Statut final — OBLIGATOIRE"/>
-    <Choices name="annotation_status"
-             toName="document_text"
-             choice="single"
-             required="true"
-             showInLine="true">
-      <Choice value="annotated_validated"
-              label="✓ VALIDÉ — comptable M12"/>
-      <Choice value="review_required"
-              label="⚠ REVIEW — à repasser"/>
-      <Choice value="rejected"
-              label="✗ REJETÉ"/>
-    </Choices>
+      <Header value="5 — Statut final OBLIGATOIRE"/>
+      <Choices
+        name="annotation_status"
+        toName="document_text"
+        choice="single"
+        required="true"
+        showInLine="false">
+        <Choice value="annotated_validated"
+                label="✓ VALIDÉ — comptable M12"/>
+        <Choice value="review_required"
+                label="⚠ À REPASSER"/>
+        <Choice value="rejected"
+                label="✗ REJETÉ"/>
+      </Choices>
+
+    </View>
   </View>
 </View>
