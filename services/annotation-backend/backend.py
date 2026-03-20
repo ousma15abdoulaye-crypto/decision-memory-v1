@@ -250,7 +250,7 @@ def _build_fallback_response() -> dict[str, Any]:
             "framework_version": FRAMEWORK_VERSION,
             "mistral_model_used": MISTRAL_MODEL,
             "review_required": True,
-            "annotation_status": "pending",
+            "annotation_status": "review_required",
             "list_null_reason": {},
             "page_range": {"start": None, "end": None},
             "parent_document_id": NOT_APPLICABLE,
