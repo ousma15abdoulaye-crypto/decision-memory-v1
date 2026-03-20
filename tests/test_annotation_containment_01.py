@@ -154,7 +154,7 @@ def test_spot_check_total_not_in_source_flags_review():
 def test_fallback_response_validates_dms_annotation():
     """M-CONTRACT-02 : squelette FALLBACK = 0 erreur Pydantic (sans assouplir le schéma)."""
     mod = _load_backend()
-    sys.path.insert(0, str(BACKEND_PATH.parent))
+    # _load_backend charge backend.py qui insère le répertoire annotation-backend dans sys.path.
     from prompts.schema_validator import DMSAnnotation
 
     DMSAnnotation.model_validate(mod.FALLBACK_RESPONSE)

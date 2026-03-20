@@ -61,9 +61,10 @@ def test_predict_payload_includes_document_role_in_task_data(monkeypatch):
 
     asyncio.run(_run())
 
+    assert "tasks" in json_sent
+    assert isinstance(json_sent["tasks"], list)
     assert len(json_sent["tasks"]) == 1
     assert json_sent["tasks"][0]["data"]["text"] == "corps du document"
     assert json_sent["tasks"][0]["data"]["document_role"] == "financial_offer"
     assert json_sent["document_role"] == "financial_offer"
     assert json_sent["document_id"] == "doc-1"
-    assert "tasks" in json_sent and isinstance(json_sent["tasks"], list)

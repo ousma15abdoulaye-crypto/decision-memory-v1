@@ -258,7 +258,8 @@ def _build_fallback_response() -> dict[str, Any]:
             "supplier_inherited_from": None,
         },
     }
-    DMSAnnotation.model_validate(out)
+    # Conformité DMSAnnotation : vérifiée en CI (tests), pas au import — évite crash
+    # démarrage si dérive schéma / Pydantic ; le fallback doit toujours être chargeable.
     return out
 
 
