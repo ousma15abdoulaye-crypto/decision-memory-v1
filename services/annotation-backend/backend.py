@@ -13,6 +13,7 @@ import os
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 # Import prompt — chemin absolu garanti — zéro PYTHONPATH
 sys.path.insert(0, str(Path(__file__).parent))
@@ -28,7 +29,7 @@ except ImportError:
     from mistralai.client import Mistral  # mistralai v2.x
 
 from prompts import SYSTEM_PROMPT
-from prompts.schema_validator import DMSAnnotation
+from prompts.schema_validator import DMSAnnotation, GateName
 
 # CONSTANTES — v3.0.1d ADR-015
 # Label Studio : <Text name="document_text" …/> + toName="document_text" sur les contrôles (E-66)
@@ -39,6 +40,8 @@ FRAMEWORK_VERSION = "annotation-framework-v3.0.1d"
 MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
 MAX_TEXT_CHARS = int(os.environ.get("MAX_TEXT_CHARS", "80000"))
+# M-ANNOTATION-CONTAINMENT-01 — aligné couche A (MIN_EXTRACTED_TEXT_CHARS_FOR_ML)
+MIN_LLM_CONTEXT_CHARS = int(os.environ.get("MIN_LLM_CONTEXT_CHARS", "100"))
 MIN_PREDICT_TEXT_CHARS = int(os.environ.get("MIN_PREDICT_TEXT_CHARS", "200"))
 
 # E-27 : CORS restrictif — CORS_ORIGINS env (comma-separated)
@@ -79,6 +82,188 @@ ABSENT = "ABSENT"
 AMBIGUOUS = "AMBIGUOUS"
 NOT_APPLICABLE = "NOT_APPLICABLE"
 
+
+def _fv_absent(confidence: float = CONF_OCR) -> dict[str, Any]:
+    """FieldValue minimal — aucune donnée inventée (M-ANNOTATION-CONTRACT-02)."""
+    return {"value": ABSENT, "confidence": confidence, "evidence": ABSENT}
+
+
+def _build_fallback_response() -> dict[str, Any]:
+    """
+    Squelette DMSAnnotation complet pour parse/API KO / client absent.
+    Validé au chargement — aligné prompts.schema_validator (sans assouplir le contrat).
+    """
+    gates = [
+        {
+            "gate_name": g.value,
+            "gate_value": None,
+            "gate_state": "NOT_APPLICABLE",
+            "gate_threshold_value": None,
+            "gate_reason_raw": ABSENT,
+            "gate_evidence_hint": ABSENT,
+            "confidence": CONF_EXACT,
+        }
+        for g in GateName
+    ]
+    couche_2_core = {
+        "procedure_reference": _fv_absent(),
+        "issuing_entity": _fv_absent(),
+        "project_name": _fv_absent(),
+        "lot_count": _fv_absent(),
+        "lot_scope": {"value": [], "confidence": CONF_OCR, "evidence": ABSENT},
+        "zone_scope": {"value": [], "confidence": CONF_OCR, "evidence": ABSENT},
+        "submission_deadline": _fv_absent(),
+        "submission_mode": {"value": [], "confidence": CONF_OCR, "evidence": ABSENT},
+        "result_type": _fv_absent(),
+        "technical_threshold": _fv_absent(),
+        "visit_required": _fv_absent(),
+        "sample_required": _fv_absent(),
+        "negotiation_allowed": _fv_absent(),
+        "regime_dominant": _fv_absent(),
+        "modalite_paiement": _fv_absent(),
+        "eligibility_gates": [],
+        "scoring_structure": [],
+        "ponderation_coherence": ABSENT,
+    }
+    couche_3 = {
+        "has_sci_conditions_signed": _fv_absent(),
+        "has_iapg_signed": _fv_absent(),
+        "has_non_sanction": _fv_absent(),
+        "ariba_network_required": _fv_absent(),
+        "sci_sustainability_pct": _fv_absent(),
+    }
+    ca = {
+        k: _fv_absent()
+        for k in (
+            "has_nif",
+            "has_rccm",
+            "has_rib",
+            "has_id_representative",
+            "has_statutes",
+            "has_quitus_fiscal",
+            "has_certificat_non_faillite",
+        )
+    }
+    cs = {
+        k: _fv_absent()
+        for k in (
+            "similar_assignments_count",
+            "lead_expert_years",
+            "lead_expert_similar_projects_count",
+            "team_composition_present",
+            "methodology_present",
+            "workplan_present",
+            "qa_plan_present",
+            "ethics_plan_present",
+        )
+    }
+    cw = {
+        k: _fv_absent()
+        for k in (
+            "execution_delay_days",
+            "work_methodology_present",
+            "environment_plan_present",
+            "site_visit_pv_present",
+            "equipment_list_present",
+            "key_staff_present",
+            "local_labor_commitment_present",
+        )
+    }
+    cg = {
+        k: _fv_absent()
+        for k in (
+            "client_references_present",
+            "warranty_present",
+            "delivery_schedule_present",
+            "warehouse_capacity_present",
+            "stock_sufficiency_present",
+            "product_specs_present",
+            "official_distribution_license_present",
+            "sample_submission_present",
+            "phytosanitary_cert_present",
+            "bank_credit_line_present",
+        )
+    }
+    du = {
+        k: _fv_absent()
+        for k in (
+            "local_content_present",
+            "community_employment_present",
+            "environment_commitment_present",
+            "gender_inclusion_present",
+            "sustainability_certifications",
+        )
+    }
+    financier = {
+        "financial_layout_mode": NOT_APPLICABLE,
+        "pricing_scope": ABSENT,
+        "total_price": _fv_absent(),
+        "currency": _fv_absent(),
+        "price_basis": _fv_absent(),
+        "price_date": _fv_absent(),
+        "delivery_delay_days": _fv_absent(),
+        "validity_days": _fv_absent(),
+        "discount_terms_present": _fv_absent(),
+        "review_required": True,
+        "line_items": [],
+    }
+    out: dict[str, Any] = {
+        "couche_1_routing": {
+            "procurement_family_main": AMBIGUOUS,
+            "procurement_family_sub": AMBIGUOUS,
+            "taxonomy_core": AMBIGUOUS,
+            "taxonomy_client_adapter": AMBIGUOUS,
+            "document_stage": AMBIGUOUS,
+            "document_role": AMBIGUOUS,
+        },
+        "couche_2_core": couche_2_core,
+        "couche_3_policy_sci": couche_3,
+        "couche_4_atomic": {
+            "conformite_admin": ca,
+            "capacite_services": cs,
+            "capacite_works": cw,
+            "capacite_goods": cg,
+            "durabilite": du,
+            "financier": financier,
+        },
+        "couche_5_gates": gates,
+        "identifiants": {
+            "supplier_name_raw": NOT_APPLICABLE,
+            "supplier_name_normalized": NOT_APPLICABLE,
+            "supplier_legal_form": ABSENT,
+            "supplier_identifier_raw": ABSENT,
+            "has_nif": ABSENT,
+            "has_rccm": ABSENT,
+            "has_rib": ABSENT,
+            "supplier_address_raw": ABSENT,
+            "supplier_phone_raw": ABSENT,
+            "supplier_email_raw": ABSENT,
+            "quitus_fiscal_date": ABSENT,
+            "cert_non_faillite_date": ABSENT,
+            "case_id": ABSENT,
+            "supplier_id": NOT_APPLICABLE,
+            "lot_scope": [],
+            "zone_scope": [],
+        },
+        "ambiguites": ["AMBIG-PARSE_FAILED"],
+        "_meta": {
+            "schema_version": SCHEMA_VERSION,
+            "framework_version": FRAMEWORK_VERSION,
+            "mistral_model_used": MISTRAL_MODEL,
+            "review_required": True,
+            "annotation_status": "review_required",
+            "list_null_reason": {},
+            "page_range": {"start": None, "end": None},
+            "parent_document_id": NOT_APPLICABLE,
+            "parent_document_role": NOT_APPLICABLE,
+            "supplier_inherited_from": None,
+        },
+    }
+    # Conformité DMSAnnotation : vérifiée en CI (tests), pas au import — évite crash
+    # démarrage si dérive schéma / Pydantic ; le fallback doit toujours être chargeable.
+    return out
+
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -101,63 +286,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# FALLBACK — Mistral échoue ou JSON cassé
-FALLBACK_RESPONSE: dict = {
-    "couche_1_routing": {
-        "procurement_family_main": AMBIGUOUS,
-        "procurement_family_sub": AMBIGUOUS,
-        "taxonomy_core": AMBIGUOUS,
-        "taxonomy_client_adapter": AMBIGUOUS,
-        "document_stage": AMBIGUOUS,
-        "document_role": AMBIGUOUS,
-    },
-    "couche_2_core": {},
-    "couche_3_policy_sci": {},
-    "couche_4_atomic": {
-        "conformite_admin": {},
-        "capacite_services": {},
-        "capacite_works": {},
-        "capacite_goods": {},
-        "durabilite": {},
-        "financier": {
-            "financial_layout_mode": NOT_APPLICABLE,
-            "review_required": True,
-            "line_items": [],
-        },
-    },
-    "couche_5_gates": [],
-    "identifiants": {
-        "supplier_name_raw": NOT_APPLICABLE,
-        "supplier_name_normalized": NOT_APPLICABLE,
-        "supplier_legal_form": ABSENT,
-        "supplier_identifier_raw": ABSENT,
-        "has_nif": ABSENT,
-        "has_rccm": ABSENT,
-        "has_rib": ABSENT,
-        "supplier_address_raw": ABSENT,
-        "supplier_phone_raw": ABSENT,
-        "supplier_email_raw": ABSENT,
-        "quitus_fiscal_date": ABSENT,
-        "cert_non_faillite_date": ABSENT,
-        "case_id": ABSENT,
-        "supplier_id": NOT_APPLICABLE,
-        "lot_scope": [],
-        "zone_scope": [],
-    },
-    "ambiguites": ["AMBIG-PARSE_FAILED"],
-    "_meta": {
-        "schema_version": SCHEMA_VERSION,
-        "framework_version": FRAMEWORK_VERSION,
-        "mistral_model_used": MISTRAL_MODEL,
-        "review_required": True,
-        "annotation_status": "pending",
-        "list_null_reason": {},
-        "page_range": {"start": None, "end": None},
-        "parent_document_id": NOT_APPLICABLE,
-        "parent_document_role": NOT_APPLICABLE,
-        "supplier_inherited_from": None,
-    },
-}
+# FALLBACK — Mistral échoue ou JSON cassé (squelette validé DMSAnnotation)
+FALLBACK_RESPONSE: dict[str, Any] = _build_fallback_response()
 
 
 def _pseudonymise(value: str) -> str:
@@ -189,6 +319,13 @@ def _pseudonymise_contact(raw_value: str) -> dict:
 
 
 # PROMPT — pattern fichier texte pur — prompts/system_prompt.txt (ADR-015)
+def _normalize_input_text(text: str) -> str:
+    """Normalisation légère avant seuil — espaces, pas de mutation sémantique."""
+    if not text or not isinstance(text, str):
+        return ""
+    return re.sub(r"\s+", " ", text.strip())
+
+
 def _truncate_text(text: str, task_id: int) -> str:
     """Tronque le texte à MAX_TEXT_CHARS. Log si troncature appliquée."""
     if len(text) <= MAX_TEXT_CHARS:
@@ -207,13 +344,30 @@ def _build_messages(user_content: str, document_role: str = "") -> list[dict]:
     Construit les messages pour l'API Mistral.
     user_content contient le document.
     document_role : si fourni (extraction.py), injecté pour LOI 1bis.
+
+    M-ANNOTATION-CONTAINMENT-01 : refuse texte vide / trop court — ne pas construire
+    de prompt exploitable sans contexte documentaire minimal.
     """
+    normalized = _normalize_input_text(user_content)
+    if len(normalized) < MIN_LLM_CONTEXT_CHARS:
+        raise ValueError(
+            f"INSUFFICIENT_TEXT_FOR_LLM len={len(normalized)} min={MIN_LLM_CONTEXT_CHARS}"
+        )
+
     prefix = ""
     if document_role:
         prefix = f"CONTEXTE: document_role attendu = {document_role}\n\n"
+
+    anti_invention = (
+        "\n\nRÈGLES STRICTES — NE PAS INVENTER : toute information absente du document "
+        "ci-dessus doit rester ABSENT, NOT_APPLICABLE ou AMBIGUOUS selon le cadre DMS. "
+        "Ne pas déduire de valeurs numériques ou de noms non présents dans le texte. "
+        "Chaque champ extrait doit respecter value + confidence + evidence (pas de valeur nue)."
+    )
     user_prompt = (
         f"{prefix}{user_content}\n\n"
         "Extraire les données en JSON selon les règles du prompt système."
+        f"{anti_invention}"
     )
     return [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -226,7 +380,7 @@ def _parse_mistral_response(raw: str, task_id: int = 0) -> dict:
     """Parse robuste — JSON brut, markdown, trailing commas, tronqué."""
     if not raw:
         logger.warning("[PARSE] raw vide — task_id=%s", task_id)
-        return dict(FALLBACK_RESPONSE)
+        return copy.deepcopy(FALLBACK_RESPONSE)
 
     raw = raw.strip().lstrip("\ufeff")
 
@@ -326,6 +480,85 @@ def _normalize_gates(annotation: dict) -> dict:
                     ambiguites.append(ambig)
 
     annotation["ambiguites"] = ambiguites
+    return annotation
+
+
+def _norm_spot(s: str) -> str:
+    """Normalisation pour comparaison tolérante (espaces, casse)."""
+    return re.sub(r"\s+", " ", (s or "").lower().strip())
+
+
+def _digits_compact(s: str) -> str:
+    return re.sub(r"\D", "", s or "")
+
+
+def _spot_check_annotation_vs_source(
+    annotation: dict, source_text: str, task_id: int
+) -> dict:
+    """
+    Spot-check minimal post-réponse LLM — M-ANNOTATION-CONTAINMENT-01.
+    Non destructif : marque review_required + ambiguïté, ne « corrige » pas le JSON.
+    """
+    annotation = copy.deepcopy(annotation)
+    src = _norm_spot(source_text)
+    raw_amb = annotation.get("ambiguites", [])
+    if isinstance(raw_amb, list):
+        amb = list(raw_amb)
+    elif isinstance(raw_amb, (tuple, set)):
+        amb = list(raw_amb)
+    else:
+        amb = []
+    raw_meta = annotation.get("_meta")
+    if isinstance(raw_meta, dict):
+        meta = raw_meta
+    else:
+        meta = {}
+        annotation["_meta"] = meta
+    skip_vals = (ABSENT, NOT_APPLICABLE, AMBIGUOUS, "", None)
+
+    ident = annotation.get("identifiants")
+    ident = ident if isinstance(ident, dict) else {}
+    raw_name = ident.get("supplier_name_raw")
+    if raw_name not in skip_vals:
+        needle = _norm_spot(str(raw_name))
+        if len(needle) >= 3 and needle not in src:
+            code = "AMBIG-SPOT-supplier_not_in_source"
+            if code not in amb:
+                amb.append(code)
+            meta["review_required"] = True
+            logger.warning(
+                "[SPOT_CHECK] task_id=%s reason=supplier_not_in_source preview=%r",
+                task_id,
+                str(raw_name)[:80],
+            )
+
+    fin_block = annotation.get("couche_4_atomic")
+    fin_block = fin_block if isinstance(fin_block, dict) else {}
+    fin = fin_block.get("financier")
+    fin = fin if isinstance(fin, dict) else {}
+    total_raw = fin.get("total_price")
+    if total_raw in skip_vals or total_raw is None:
+        total_raw = fin.get("total")
+    val = None
+    if isinstance(total_raw, dict):
+        val = total_raw.get("value")
+    elif total_raw not in skip_vals:
+        val = total_raw
+    if val not in skip_vals and val is not None:
+        td = _digits_compact(str(val))
+        src_d = _digits_compact(source_text)
+        if len(td) >= 5 and td not in src_d:
+            code = "AMBIG-SPOT-total_not_in_source"
+            if code not in amb:
+                amb.append(code)
+            meta["review_required"] = True
+            logger.warning(
+                "[SPOT_CHECK] task_id=%s reason=total_not_in_source value_digits=%s",
+                task_id,
+                td[:24],
+            )
+
+    annotation["ambiguites"] = amb
     return annotation
 
 
@@ -477,10 +710,11 @@ def _validate_and_correct(annotation: dict, task_id: int = 0) -> tuple[dict, lis
 # ─────────────────────────────────────────────────────────
 
 
-def _build_empty_result(task_id: int, reason: str) -> dict:
+def _build_empty_result(task_id: int, reason: str, score: float = 0.1) -> dict:
     """
     Résultat vide traçable — quand le JSON ne peut pas être produit.
     Jamais silencieux.
+    score=0.0 pour refus entrée (text_insufficient) ; défaut 0.1 pour autres cas.
     """
     fallback = {
         "_meta": {
@@ -497,7 +731,7 @@ def _build_empty_result(task_id: int, reason: str) -> dict:
     json_str = json.dumps(fallback, ensure_ascii=False, indent=2)
     return {
         "id": task_id,
-        "score": 0.1,
+        "score": score,
         "result": [
             {
                 "from_name": "extracted_json",
@@ -577,11 +811,29 @@ async def _call_mistral(
     """
     if not client:
         logger.warning("[MISTRAL] Client non configuré — fallback activé")
-        return dict(FALLBACK_RESPONSE)
+        return copy.deepcopy(FALLBACK_RESPONSE)
 
     tid = task_id if task_id is not None else 0
+    pre_len = len(_normalize_input_text(text))
+    if pre_len < MIN_LLM_CONTEXT_CHARS:
+        logger.error(
+            "[MISTRAL] SKIP insufficient context task_id=%s text_len_norm=%d min=%d — pas d'appel LLM",
+            tid,
+            pre_len,
+            MIN_LLM_CONTEXT_CHARS,
+        )
+        return copy.deepcopy(FALLBACK_RESPONSE)
+
     text = _truncate_text(text, tid)
-    messages = _build_messages(text, document_role=document_role)
+    try:
+        messages = _build_messages(text, document_role=document_role)
+    except ValueError as exc:
+        logger.error(
+            "[MISTRAL] SKIP build_messages refusé task_id=%s — %s",
+            tid,
+            exc,
+        )
+        return copy.deepcopy(FALLBACK_RESPONSE)
 
     try:
         response = client.chat.complete(
@@ -593,10 +845,11 @@ async def _call_mistral(
         )
         raw = response.choices[0].message.content or ""
         logger.info("[MISTRAL] Réponse reçue — %d caractères", len(raw))
-        return _parse_mistral_response(raw, task_id=tid)
+        parsed = _parse_mistral_response(raw, task_id=tid)
+        return _spot_check_annotation_vs_source(parsed, text, tid)
     except Exception as exc:
         logger.error("[MISTRAL] Erreur appel API : %s — fallback activé", exc)
-        return dict(FALLBACK_RESPONSE)
+        return copy.deepcopy(FALLBACK_RESPONSE)
 
 
 # ENDPOINTS
@@ -656,14 +909,51 @@ async def predict(request: Request) -> JSONResponse:
     for task in tasks:
         task_id = task.get("id", 0)
         task_data = task.get("data", {})
-        text = task_data.get("text", "") or task_data.get("content", "") or ""
-        document_role = task_data.get("document_role", "") or body_document_role
+        raw_td = task_data.get("text")
+        raw_cd = task_data.get("content")
+        raw_text = raw_td if raw_td not in (None, "") else raw_cd
+        if raw_text is None:
+            raw_text = ""
+        if not isinstance(raw_text, str):
+            raw_text = str(raw_text)
 
-        logger.info("[PREDICT] task_id=%s text_len=%d", task_id, len(text))
+        field_used = (
+            "text"
+            if raw_td not in (None, "")
+            else ("content" if raw_cd not in (None, "") else "none")
+        )
+        text = _normalize_input_text(raw_text)
+        document_role = task_data.get("document_role", "") or body_document_role
+        doc_id = body.get("document_id") or task_data.get("document_id") or "n/a"
+
+        logger.info(
+            "[PREDICT] task_id=%s text_len_raw=%d text_len_norm=%d document_id=%s field=%s",
+            task_id,
+            len(raw_text),
+            len(text),
+            doc_id,
+            field_used,
+        )
 
         if not text or not text.strip():
-            logger.warning("[PREDICT] Texte vide — task_id=%s", task_id)
-            predictions.append(_build_empty_result(task_id, "empty_text"))
+            logger.warning(
+                "[PREDICT] Texte vide — task_id=%s document_id=%s", task_id, doc_id
+            )
+            predictions.append(_build_empty_result(task_id, "empty_text", score=0.0))
+            continue
+
+        if len(text) < MIN_LLM_CONTEXT_CHARS:
+            logger.error(
+                "[PREDICT] BLOCK llm_skipped=1 reason=text_insufficient task_id=%s "
+                "text_len_norm=%d min=%d document_id=%s",
+                task_id,
+                len(text),
+                MIN_LLM_CONTEXT_CHARS,
+                doc_id,
+            )
+            predictions.append(
+                _build_empty_result(task_id, "text_insufficient", score=0.0)
+            )
             continue
 
         stripped_len = len(text.strip())

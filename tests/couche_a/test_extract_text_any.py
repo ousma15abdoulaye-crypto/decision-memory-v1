@@ -6,7 +6,12 @@ OCR (Mistral / Tesseract) = hors scope — M10A
 
 from unittest.mock import MagicMock, patch
 
-from src.couche_a.extraction import extract_text_any
+import pytest
+
+from src.couche_a.extraction import (
+    ExtractionInsufficientTextError,
+    extract_text_any,
+)
 
 
 class TestExtractTextAny:
@@ -28,8 +33,8 @@ class TestExtractTextAny:
         assert len(result) >= 100
         assert "A" * 100 in result
 
-    def test_pdf_corrompu_retourne_chaine_vide(self, tmp_path):
-        """pypdf et pdfminer échouent → retour "" (les deux extracteurs ont échoué)"""
+    def test_pdf_corrompu_insufficient_raises(self, tmp_path):
+        """pypdf et pdfminer échouent → ExtractionInsufficientTextError (M-CONTAINMENT-01)"""
         pdf_file = tmp_path / "corrompu.pdf"
         pdf_file.write_bytes(b"NOT A PDF")
 
@@ -38,10 +43,8 @@ class TestExtractTextAny:
                 "pdfminer.high_level.extract_text",
                 side_effect=Exception("pdfminer fail"),
             ):
-                result = extract_text_any(str(pdf_file))
-
-        assert result == ""
-        assert isinstance(result, str)
+                with pytest.raises(ExtractionInsufficientTextError):
+                    extract_text_any(str(pdf_file))
 
     def test_pdf_court_fallback_pdfminer(self, tmp_path):
         """pypdf retourne < 100 chars → pdfminer appelé et retourne plus"""
@@ -65,15 +68,15 @@ class TestExtractTextAny:
         assert len(result) >= 100
         assert "Y" in result
 
-    def test_doc_legacy_retourne_vide(self, tmp_path):
-        """Fichier .doc binaire — non supporté par python-docx → retour "" """
+    def test_doc_legacy_raises(self, tmp_path):
+        """Fichier .doc binaire — non supporté → ExtractionInsufficientTextError"""
         doc_file = tmp_path / "legacy.doc"
         doc_file.write_bytes(b"\xd0\xcf\x11\xe0 fake ole")
-        result = extract_text_any(str(doc_file))
-        assert result == ""
+        with pytest.raises(ExtractionInsufficientTextError):
+            extract_text_any(str(doc_file))
 
-    def test_pdf_scan_retourne_vide_avec_warning(self, tmp_path, caplog):
-        """PDF scan → pypdf et pdfminer retournent "" → warning loggé"""
+    def test_pdf_scan_insufficient_raises(self, tmp_path, caplog):
+        """PDF scan → texte nul → ExtractionInsufficientTextError"""
         pdf_file = tmp_path / "scan.pdf"
         pdf_file.write_bytes(b"%PDF-1.4 fake")
 
@@ -87,10 +90,10 @@ class TestExtractTextAny:
                 return_value="",
             ):
                 with caplog.at_level("WARNING"):
-                    result = extract_text_any(str(pdf_file))
+                    with pytest.raises(ExtractionInsufficientTextError):
+                        extract_text_any(str(pdf_file))
 
-        assert result == ""
-        assert "PDF_SCAN_SANS_OCR" in caplog.text or "text_len=0" in caplog.text
+        assert "PDF_SCAN_SANS_OCR" in caplog.text or "INSUFFICIENT_TEXT" in caplog.text
 
     def test_docx_extrait_correctement(self, tmp_path):
         """DOCX → python-docx appelé"""
@@ -123,3 +126,10 @@ class TestExtractTextAny:
             result = extract_text_any(str(pdf_file))
 
         assert len(result) > 5000
+
+    def test_plain_text_too_short_raises(self, tmp_path):
+        """Fichier texte brut < MIN_EXTRACTED_TEXT_CHARS_FOR_ML → erreur explicite"""
+        p = tmp_path / "short.txt"
+        p.write_text("trois mots", encoding="utf-8")
+        with pytest.raises(ExtractionInsufficientTextError):
+            extract_text_any(str(p))

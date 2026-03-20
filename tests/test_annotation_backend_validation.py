@@ -1,6 +1,6 @@
 """
 Tests backend _validate_and_correct — Couche 2 validation flow.
-FALLBACK_RESPONSE (structure incomplète) → review_required=True.
+FALLBACK_RESPONSE : squelette contractuel valide + review_required (parse/API KO).
 Charge le backend via importlib (mistralai requis).
 """
 
@@ -29,7 +29,7 @@ def _annotation_env(monkeypatch):
 
 
 def test_validate_fallback_returns_review_required():
-    """FALLBACK_RESPONSE ne passe pas DMSAnnotation → review_required=True."""
+    """FALLBACK_RESPONSE : _meta review_required et statut review_required inchangés."""
     try:
         spec = importlib.util.spec_from_file_location("_backend_valid", _BACKEND_PATH)
         backend = importlib.util.module_from_spec(spec)

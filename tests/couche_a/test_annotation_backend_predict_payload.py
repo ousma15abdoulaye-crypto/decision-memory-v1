@@ -1,4 +1,8 @@
-"""Vérifie le payload /predict — parité Label Studio (document_role dans task.data)."""
+"""Vérifie le payload /predict — parité Label Studio (document_role dans task.data).
+
+M-ANNOTATION-CONTRACT-02 : contrat sortie corrigé côté backend ; ce test garantit
+que le payload émis par couche A reste aligné (text + document_role + enveloppe).
+"""
 
 from __future__ import annotations
 
@@ -59,6 +63,9 @@ def test_predict_payload_includes_document_role_in_task_data(monkeypatch):
 
     asyncio.run(_run())
 
+    assert "tasks" in json_sent
+    assert isinstance(json_sent["tasks"], list)
+    assert len(json_sent["tasks"]) == 1
     assert json_sent["tasks"][0]["data"]["text"] == "corps du document"
     assert json_sent["tasks"][0]["data"]["document_role"] == "financial_offer"
     assert json_sent["document_role"] == "financial_offer"
