@@ -3,6 +3,7 @@ Tests extract_text_any — M-FIX-EXTRACT-02
 Périmètre : PDF natif + fallback pdfminer + cas dégradés
 OCR (Mistral / Tesseract) = hors scope — M10A
 """
+
 from unittest.mock import MagicMock, patch
 
 from src.couche_a.extraction import extract_text_any
