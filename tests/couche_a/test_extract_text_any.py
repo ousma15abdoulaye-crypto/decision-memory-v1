@@ -3,9 +3,7 @@ Tests extract_text_any — M-FIX-EXTRACT-02
 Périmètre : PDF natif + fallback pdfminer + cas dégradés
 OCR (Mistral / Tesseract) = hors scope — M10A
 """
-import pytest
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from src.couche_a.extraction import extract_text_any
 
@@ -30,7 +28,7 @@ class TestExtractTextAny:
         assert "A" * 100 in result
 
     def test_pdf_corrompu_retourne_chaine_vide(self, tmp_path):
-        """PDF corrompu → pypdf lève exception → retour "" propre"""
+        """pypdf et pdfminer échouent → retour "" (les deux extracteurs ont échoué)"""
         pdf_file = tmp_path / "corrompu.pdf"
         pdf_file.write_bytes(b"NOT A PDF")
 
@@ -65,6 +63,13 @@ class TestExtractTextAny:
 
         assert len(result) >= 100
         assert "Y" in result
+
+    def test_doc_legacy_retourne_vide(self, tmp_path):
+        """Fichier .doc binaire — non supporté par python-docx → retour "" """
+        doc_file = tmp_path / "legacy.doc"
+        doc_file.write_bytes(b"\xd0\xcf\x11\xe0 fake ole")
+        result = extract_text_any(str(doc_file))
+        assert result == ""
 
     def test_pdf_scan_retourne_vide_avec_warning(self, tmp_path, caplog):
         """PDF scan → pypdf et pdfminer retournent "" → warning loggé"""

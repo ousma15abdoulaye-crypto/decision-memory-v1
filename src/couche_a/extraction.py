@@ -64,10 +64,11 @@ def extract_text_any(filepath: str) -> str:
 
     Cas gérés :
       PDF natif extractible  → pypdf principal
-      PDF natif court < 100  → fallback pdfminer.six
-      PDF corrompu EOF       → log ERROR + retour ""
-      PDF scan 0 chars       → log WARNING + retour ""
+      PDF natif court < 100  → fallback pdfminer.six (peut récupérer du texte si pypdf échoue ou est pauvre)
+      PDF corrompu / scan    → après essai pypdf puis pdfminer : retour "" si les deux échouent ou ne
+                               livrent aucun texte exploitable ; sinon le meilleur extrait disponible
       DOCX                   → python-docx
+      .doc (Word 97–2003)    → non supporté (binaire) — log ERROR + retour ""
       Autre                  → path.read_text()
     """
     path = Path(filepath)
@@ -75,8 +76,15 @@ def extract_text_any(filepath: str) -> str:
 
     if ext == ".pdf":
         return _extract_pdf_text(filepath)
-    elif ext in (".docx", ".doc"):
+    elif ext == ".docx":
         return _extract_docx_text(filepath)
+    elif ext == ".doc":
+        logger.error(
+            "[EXTRACT] format .doc (Word 97-2003 binaire) non supporté — "
+            "convertir en .docx ou PDF — filepath=%s",
+            path.name,
+        )
+        return ""
     else:
         try:
             return path.read_text(encoding="utf-8", errors="replace")
@@ -99,8 +107,10 @@ def _extract_docx_text(filepath: str) -> str:
 
 def _extract_pdf_text(filepath: str) -> str:
     """
-    Étape 1 : pypdf
-    Étape 2 : fallback pdfminer.six si text_len < 100
+    Étape 1 : pypdf (toutes les pages).
+    Étape 2 : si pypdf échoue ou texte < 100 caractères, tentative pdfminer.six.
+    Retour : le meilleur texte obtenu ; chaîne vide uniquement si aucun extracteur
+    ne produit de contenu exploitable (les deux ont échoué ou ont retourné vide).
     """
     import pypdf
 
@@ -568,8 +578,10 @@ def extract_offer_content(
         suffix = filepath.lower() if filepath else ""
         if suffix.endswith(".pdf"):
             probable_cause = "PDF_SCAN_SANS_OCR_ou_PDF_VIDE"
-        elif suffix.endswith((".docx", ".doc")):
+        elif suffix.endswith(".docx"):
             probable_cause = "DOCX_VIDE_ou_ERREUR_LECTURE"
+        elif suffix.endswith(".doc"):
+            probable_cause = "DOC_LEGACY_NON_SUPPORT_ou_VIDE"
         else:
             probable_cause = "FICHIER_ILLISIBLE_ou_FORMAT_INCONNU"
         logger.warning(
