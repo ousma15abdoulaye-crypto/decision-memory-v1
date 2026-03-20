@@ -8,4 +8,4 @@
 Date :  
 Signé :  
 
-Renommer ce fichier en `M12_TRAIN_TEST_SPLIT.md` une fois rempli (ne pas committer si contient des références sensibles).
+Procédure : **copier** ce fichier vers `M12_TRAIN_TEST_SPLIT.md` dans ce même dossier, puis remplir (ne pas committer si le fichier contient des références sensibles).

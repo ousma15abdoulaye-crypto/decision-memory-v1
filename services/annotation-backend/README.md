@@ -3,7 +3,7 @@
 ## Endpoints
 
 | Méthode | Chemin | Rôle |
-|---------|--------|------|
+| --- | --- | --- |
 | GET | `/health` | Santé + version schéma / modèle |
 | POST | `/setup` | Appelé par LS au branchement du modèle |
 | POST | `/predict` | Prédictions ML (JSON dans le textarea LS) |

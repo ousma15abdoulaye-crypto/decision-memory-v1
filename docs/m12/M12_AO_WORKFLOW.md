@@ -10,11 +10,11 @@ Réf. gel : [ANNOTATION_FRAMEWORK_DMS_v3.0.1.md](../freeze/ANNOTATION_FRAMEWORK_
 ## 2. Découpage train / test (BP-12)
 
 | Ensemble | Nombre | Règle |
-|----------|--------|--------|
+| --- | --- | --- |
 | **Train** | 12 | Ne pas utiliser pour évaluation finale recognizer |
 | **Test** | 3 | Isolés dès l’import (tag LS, préfixe id, ou liste séparée) |
 
-Documenter la liste des **3** IDs de tâches test dans `data/annotations/M12_TRAIN_TEST_SPLIT.md` (à créer par AO lors du premier batch).
+Documenter la liste des **3** IDs de tâches test : copier le template versionné [`data/annotations/M12_TRAIN_TEST_SPLIT.template.md`](../../data/annotations/M12_TRAIN_TEST_SPLIT.template.md) vers `data/annotations/M12_TRAIN_TEST_SPLIT.md` (fichier de travail AO, **non versionné** s’il contient des données sensibles), puis remplir les IDs.
 
 ## 3. Import Label Studio
 

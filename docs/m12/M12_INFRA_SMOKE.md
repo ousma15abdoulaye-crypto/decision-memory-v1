@@ -16,7 +16,7 @@ URL notée : `ANNOTATION_BACKEND_URL` (ex. service Railway séparé).
 Variables obligatoires :
 
 | Variable | Rôle |
-|----------|------|
+| --- | --- |
 | `MISTRAL_API_KEY` | Appel Mistral |
 | `MISTRAL_MODEL` | ex. `mistral-small-latest` |
 | `PSEUDONYM_SALT` | Sel HMAC (ou `ALLOW_WEAK_PSEUDONYMIZATION=1` **dev uniquement**) |
