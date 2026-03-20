@@ -8,22 +8,21 @@
 
 ---
 
-## Contenu de la PR (périmètre fermé)
+## Contenu réel de la PR (branche = mandat bridge + merge main + garde-fous CI)
 
-| Livrable | Chemin |
-|----------|--------|
-| Script bridge | `scripts/ingest_to_annotation_bridge.py` |
+Cette branche **dépasse** le périmètre minimal du mandat initial (un seul script + tests) : elle intègre les **résolutions de conflit** avec `main` et les **correctifs lint** nécessaires pour faire passer la CI. Le tableau ci-dessous reflète **ce qui est effectivement modifié** dans la PR — à utiliser pour la revue.
+
+| Zone | Fichiers typiques |
+|------|-------------------|
+| Bridge ingest | `scripts/ingest_to_annotation_bridge.py` — PDF → `ls_tasks.json` / `skipped.json` ; classification sur **sonde locale** (`extract_pdf_text_local_only`) ; `source_roots` non vide ; pas d’`IndexError` si racines absentes pour `STORAGE_BASE_PATH`. |
 | Tests bridge | `tests/test_ingest_to_annotation_bridge.py` |
-| Context anchor (ajout mandat) | `docs/freeze/CONTEXT_ANCHOR.md` |
-| Handover | `docs/milestones/HANDOVER_M_INGEST_ANNOTATION_BRIDGE_00.md` |
-| Liste PDFs scannés non traités | `docs/freeze/M_INGEST_BRIDGE_00_SKIPPED_SCANNED_PDFS.md` |
-| Texte PR (copier-coller forge) | `docs/freeze/PR_DESCRIPTION_M_INGEST_ANNOTATION_BRIDGE_00.md` |
-| Ignore PDFs corpus local | `.gitignore` (ligne `data/ingest/test_mistral/**/*.pdf` uniquement si pas déjà sur `main`) |
-| Marqueur dossier corpus (optionnel) | `data/ingest/test_mistral/.gitkeep` |
+| Couche A extraction | `src/couche_a/extraction.py` — `_extract_pdf_text(..., skip_llamaparse=)` ; **`extract_pdf_text_local_only`** pour heuristiques sans LlamaParse ; imports / containment (merge main). |
+| Annotation backend | `services/annotation-backend/backend.py` , `services/annotation-backend/tests/test_predict.py` — garde-fous `/predict`, Ruff/Black. |
+| Autres (merge main) | Ex. `src/couche_a/routers.py`, `tests/couche_a/test_extract_text_any.py`, `tests/couche_a/test_annotation_backend_predict_payload.py`, `tests/test_annotation_containment_01.py`, `tests/test_annotation_backend_validation.py` selon historique de merge. |
+| Docs mandat | `docs/freeze/CONTEXT_ANCHOR.md`, `docs/milestones/HANDOVER_M_INGEST_ANNOTATION_BRIDGE_00.md`, `docs/freeze/M_INGEST_BRIDGE_00_SKIPPED_SCANNED_PDFS.md`, ce fichier |
+| Données / ignore | `.gitignore` / `data/ingest/test_mistral/.gitkeep` si présents sur la branche |
 
-**Hors PR (ne pas mélanger) :** autres fichiers modifiés dans le working tree (backend, `extraction.py`, `engine.py`, `api_keys`, tests M11, etc.) — autre(s) PR ou mandat.
-
-**Ne pas committer :** PDFs sous `data/ingest/test_mistral/`, ni `*_output/*.json` (déjà couverts par `.gitignore` / politique données).
+**Ne pas committer :** PDFs sous `data/ingest/test_mistral/`, ni `*_output/*.json` (gitignore / politique données).
 
 ---
 
@@ -49,7 +48,7 @@ Résumé :
 - **221** PDFs vus  
 - **137** tâches émises (`ls_tasks.json`)  
 - **84** skippés (`skipped.json`)  
-- **`by_engine` : `{"local": 137}`** — toutes les tâches émises passent par l’extraction locale (pypdf/pdfminer / `extract_text_any`) ; **aucune** tâche via `mistral_ocr` / `llamaparse` sur ce run.
+- **`by_engine` : `{"local": 137}`** — tâches émises avec texte suffisant issu de la **voie locale (pypdf/pdfminer)** après classification ; OCR cloud (Mistral / Llama) **non effectif** sur le run de référence (voir ci-dessous).
 
 ---
 
@@ -57,7 +56,7 @@ Résumé :
 
 Les **84** skips correspondent à des PDFs **non convertis en tâche** avec texte exploitable : classification **`scanned_pdf`**, raison **`no_text_all_extractors`**, route **`blocked`**.
 
-Liste exploitable (chemins relatifs logiques + noms de fichier) : **`docs/freeze/M_INGEST_BRIDGE_00_SKIPPED_SCANNED_PDFS.md`** (dérivée de `skipped.json` au moment du run).
+Liste exploitable : **`docs/freeze/M_INGEST_BRIDGE_00_SKIPPED_SCANNED_PDFS.md`** (dérivée de `skipped.json` au moment du run).
 
 ---
 
@@ -71,9 +70,11 @@ Liste exploitable (chemins relatifs logiques + noms de fichier) : **`docs/freeze
 ## Checklist merge
 
 - [ ] `pytest tests/test_ingest_to_annotation_bridge.py -q`  
-- [ ] Revue limitée au périmètre tableau ci-dessus  
-- [ ] Aucun débat d’architecture dans les commentaires de PR — suite tracée au handover / prochain mandat  
+- [ ] `ruff check src tests` et `ruff check src/ services/` (gate milestones)  
+- [ ] `black --check src tests` et `black --check src/ services/`  
+- [ ] Revue : tableau « Contenu réel » ci-dessus  
+- [ ] Aucun débat d’architecture hors scope — suite au handover  
 
 ---
 
-**STOP** — description PR prête ; ouvrir la PR sur la forge avec ce corps (copier-coller).
+**STOP** — description PR alignée sur le diff réel ; copier-coller sur la forge.

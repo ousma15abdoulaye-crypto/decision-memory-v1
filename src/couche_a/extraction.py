@@ -221,9 +221,9 @@ def _try_llamaparse_pdf_first(filepath: str) -> str | None:
     return None
 
 
-def _extract_pdf_text(filepath: str) -> str:
+def _extract_pdf_text(filepath: str, *, skip_llamaparse: bool = False) -> str:
     """
-    Étape 0 : LlamaParse (clé nuage) si texte riche.
+    Étape 0 : LlamaParse (clé nuage) si texte riche — sautée si skip_llamaparse=True.
     Étape 1 : pypdf (toutes les pages).
     Étape 2 : si pypdf échoue ou texte < 100 caractères, tentative pdfminer.six.
     Retour : le meilleur texte obtenu ; chaîne vide uniquement si aucun extracteur
@@ -231,14 +231,15 @@ def _extract_pdf_text(filepath: str) -> str:
     """
     path = Path(filepath)
 
-    lp = _try_llamaparse_pdf_first(str(path))
-    if lp is not None:
-        logger.info(
-            "[EXTRACT] llamaparse OK — filepath=%s text_len=%d",
-            path.name,
-            len(lp),
-        )
-        return lp
+    if not skip_llamaparse:
+        lp = _try_llamaparse_pdf_first(str(path))
+        if lp is not None:
+            logger.info(
+                "[EXTRACT] llamaparse OK — filepath=%s text_len=%d",
+                path.name,
+                len(lp),
+            )
+            return lp
 
     import pypdf
 
@@ -332,6 +333,14 @@ def _extract_pdf_text(filepath: str) -> str:
         )
 
     return text_pypdf
+
+
+def extract_pdf_text_local_only(filepath: str) -> str:
+    """
+    PDF : pypdf puis pdfminer uniquement — pas LlamaParse, pas seuil ML, pas d'exception
+    sur texte court. Pour heuristiques (ex. bridge ingest : classification native vs scan).
+    """
+    return _extract_pdf_text(filepath, skip_llamaparse=True)
 
 
 # ------------------------------------------------------------

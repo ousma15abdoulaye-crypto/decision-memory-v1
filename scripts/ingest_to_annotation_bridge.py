@@ -3,7 +3,8 @@
 M-INGEST-TO-ANNOTATION-BRIDGE-00 — PDFs externes → JSON type Label Studio.
 
 - Pas de copie des PDF dans le dépôt, pas d’écriture DB.
-- Texte uniquement depuis extracteurs réels (extract_text_any, LlamaParse, Mistral OCR).
+- Texte final depuis extracteurs réels (local pypdf/pdfminer, LlamaParse, Mistral OCR).
+- Classification PDF : sonde locale uniquement (``extract_pdf_text_local_only``), sans LlamaParse.
 - Mesure des changements Git : uniquement par rapport au commit baseline figé au démarrage du mandat.
 
 Run 1 (défaut CTO) :
@@ -30,7 +31,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from src.core.api_keys import APIKeyMissingError  # noqa: E402
-from src.couche_a.extraction import extract_text_any  # noqa: E402
+from src.couche_a.extraction import extract_pdf_text_local_only  # noqa: E402
 from src.extraction.engine import (  # noqa: E402
     _extract_llamaparse,
     _extract_mistral_ocr,
@@ -81,13 +82,13 @@ def _image_marker_density(path: Path) -> float:
     return raw.count(b"/Image") / max(len(raw), 1)
 
 
-def classify_pdf(path: Path, text_local: str) -> str:
-    """Classification uniquement à partir du fichier + texte extrait localement."""
+def classify_pdf(path: Path, text_probe: str) -> str:
+    """Classification à partir du fichier + texte issu d'extracteurs locaux (pypdf/pdfminer)."""
     if path.suffix.lower() != ".pdf":
         return "rejected"
     if not _is_pdf_magic(path):
         return "rejected"
-    stripped = text_local.strip()
+    stripped = text_probe.strip()
     img_d = _image_marker_density(path)
     if len(stripped) >= _MIN_NATIVE_CHARS and img_d < 0.002:
         return "native_pdf"
@@ -102,10 +103,13 @@ def _set_storage_base_for_paths(paths: list[str]) -> None:
     """
     Le moteur engine valide storage_uri sous STORAGE_BASE_PATH.
     On aligne la base sur les racines sources pour autoriser les chemins bureau.
+    Si ``paths`` est vide ou aucun chemin n'existe : ne modifie pas STORAGE_BASE_PATH.
     """
+    if not paths:
+        return
     resolved = [str(Path(p).resolve()) for p in paths if p and Path(p).exists()]
     if not resolved:
-        resolved = [str(Path(paths[0]).resolve().parent)]
+        return
     try:
         common = os.path.commonpath(resolved)
     except ValueError:
@@ -119,11 +123,12 @@ def _set_storage_base_for_paths(paths: list[str]) -> None:
 def extract_with_route(
     path: str,
     classification: str,
-    text_local: str,
+    text_after_local_extract: str,
 ) -> tuple[str, str, str | None]:
     """
     Retourne (texte, engine_route, skip_reason).
     Ne fabrique jamais de texte : chaîne vide si aucun extracteur ne produit de contenu.
+    ``text_after_local_extract`` : texte pypdf/pdfminer (même source que la classification).
     """
     p = Path(path)
     real = str(p.resolve())
@@ -131,35 +136,50 @@ def extract_with_route(
     if classification == "rejected":
         return "", "blocked", "not_pdf_or_corrupt"
 
-    stripped = text_local.strip()
+    stripped = text_after_local_extract.strip()
 
     # PDF majoritairement lisible en local
     if classification == "native_pdf" and len(stripped) >= _MIN_NATIVE_CHARS:
-        return text_local, "local", None
+        return text_after_local_extract, "local", None
 
     if classification == "mixed_pdf" and len(stripped) >= _MIN_NATIVE_CHARS:
-        return text_local, "local", None
+        return text_after_local_extract, "local", None
 
     # STORAGE_BASE_PATH déjà positionné dans run_ingest() sur les racines sources.
 
     # Besoin d’un moteur cloud
-    if classification in ("scanned_pdf", "mixed_pdf") or len(stripped) < _MIN_NATIVE_CHARS:
+    if (
+        classification in ("scanned_pdf", "mixed_pdf")
+        or len(stripped) < _MIN_NATIVE_CHARS
+    ):
         try:
             raw, _ = _extract_mistral_ocr(real)
             if raw and raw.strip():
                 return raw, "mistral_ocr", None
-        except (APIKeyMissingError, ImportError, ValueError, OSError, RuntimeError) as e:
+        except (
+            APIKeyMissingError,
+            ImportError,
+            ValueError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.info("[BRIDGE] mistral_ocr indisponible ou échec — %s", e)
 
         try:
             raw, _ = _extract_llamaparse(real)
             if raw and raw.strip():
                 return raw, "llamaparse", None
-        except (APIKeyMissingError, ImportError, ValueError, OSError, RuntimeError) as e:
+        except (
+            APIKeyMissingError,
+            ImportError,
+            ValueError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.info("[BRIDGE] llamaparse indisponible ou échec — %s", e)
 
     if stripped:
-        return text_local, "local", None
+        return text_after_local_extract, "local", None
 
     return "", "blocked", "no_text_all_extractors"
 
@@ -212,6 +232,10 @@ def run_ingest(
     run_id: str | None = None,
     ingest_limit: int | None = None,
 ) -> dict:
+    if not source_roots:
+        raise ValueError(
+            "source_roots ne peut pas être vide — fournir au moins une racine dossier."
+        )
     run_id = run_id or f"bridge-{uuid.uuid4().hex[:12]}"
     out_dir = Path(output_root)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -230,8 +254,12 @@ def run_ingest(
     for pdf in pdfs:
         path_str = str(pdf.resolve())
         process_name = pdf.parent.name or "."
-        text_local = extract_text_any(path_str) if pdf.suffix.lower() == ".pdf" else ""
-        klass = classify_pdf(pdf, text_local)
+        text_probe = (
+            extract_pdf_text_local_only(path_str)
+            if pdf.suffix.lower() == ".pdf"
+            else ""
+        )
+        klass = classify_pdf(pdf, text_probe)
 
         if klass == "rejected":
             skipped.append(
@@ -244,7 +272,7 @@ def run_ingest(
             )
             continue
 
-        text, route, skip_reason = extract_with_route(path_str, klass, text_local)
+        text, route, skip_reason = extract_with_route(path_str, klass, text_probe)
         if not text.strip():
             skipped.append(
                 {

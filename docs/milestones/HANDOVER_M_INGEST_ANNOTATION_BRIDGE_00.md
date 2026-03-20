@@ -62,7 +62,7 @@ Puis réexécuter le script de génération de liste (voir historique commit ou 
 - Dossiers données : `data/ingest/test_mistral/` (PDFs locaux, gitignore ciblé), `data/ingest/test_mistral_output/`
 - Docs : ce handover, `docs/freeze/M_INGEST_BRIDGE_00_SKIPPED_SCANNED_PDFS.md`, complément CONTEXT_ANCHOR
 
-**Hors mandat explicite** : correctifs transverses déjà mergés ou en cours (api_keys LLAMADMS, `engine` Mistral import, `extraction` LlamaParse prio, garde-fou `backend` text &lt; 200) — ne pas les attribuer au seul bridge sans relecture git.
+**Hors mandat explicite (mais présents sur la branche PR)** : merge `main` + correctifs CI (backend `/predict`, Ruff/Black, `extraction` containment + **`extract_pdf_text_local_only`** pour classification bridge sans biais LlamaParse). Ne pas les attribuer au seul script bridge sans relecture git.
 
 ---
 

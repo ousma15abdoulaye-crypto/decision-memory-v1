@@ -57,7 +57,7 @@ def test_run_ingest_writes_ls_tasks_json(
 
     monkeypatch.setattr(
         bridge_mod,
-        "extract_text_any",
+        "extract_pdf_text_local_only",
         lambda _p: "x" * 120,
     )
 
@@ -91,3 +91,13 @@ def test_run_ingest_writes_ls_tasks_json(
 
     manifest = json.loads((out / "run_manifest.json").read_text(encoding="utf-8"))
     assert manifest["run_id"] == "test-run-1"
+
+
+def test_run_ingest_rejects_empty_source_roots(tmp_path: Path, bridge_mod) -> None:
+    with pytest.raises(ValueError, match="source_roots ne peut pas être vide"):
+        bridge_mod.run_ingest(
+            source_roots=[],
+            output_root=str(tmp_path / "out"),
+            default_document_role="dao",
+            run_id="empty-roots",
+        )
