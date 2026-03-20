@@ -258,10 +258,6 @@ SI document_role = offer_technical :
     couche_3_policy_sci → si absent du doc → NOT_APPLICABLE
 
 ################################################################
-# LOI 2 — TAXONOMY CORE — VALEURS FIGÉES
-################################################################
-
-################################################################
 # LOI 2 — TAXONOMY CORE — DISCRIMINATION CRITIQUE
 ################################################################
 
