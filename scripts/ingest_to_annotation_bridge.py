@@ -7,6 +7,9 @@ M-INGEST-TO-ANNOTATION-BRIDGE-00 — PDFs externes → JSON type Label Studio.
 - Classification PDF : sonde locale uniquement (``extract_pdf_text_local_only``), sans LlamaParse.
 - Mesure des changements Git : uniquement par rapport au commit baseline figé au démarrage du mandat.
 
+Chaque tâche inclut ``data.structured_preview`` (tables sur les N premières pages, pdfplumber).
+Désactiver : ``--structured-preview-pages 0``.
+
 Run 1 (défaut CTO) :
   SOURCE_ROOT  = C:\\Users\\...\\Desktop\\test mistral
   OUTPUT_ROOT  = C:\\Users\\...\\Desktop\\DMS_ANNOTATION_OUTPUT
@@ -30,6 +33,9 @@ _PROJECT_ROOT = _SCRIPT_DIR.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+from src.annotation.structured_pdf_preview import (  # noqa: E402
+    structured_preview_from_pdf,
+)
 from src.core.api_keys import APIKeyMissingError  # noqa: E402
 from src.couche_a.extraction import extract_pdf_text_local_only  # noqa: E402
 from src.extraction.engine import (  # noqa: E402
@@ -276,6 +282,8 @@ def build_ls_task(
     rec: PdfRecord,
     default_document_role: str,
     run_id: str,
+    *,
+    structured_preview_pages: int = 5,
 ) -> dict:
     rel = rec.path
     filename = Path(rec.path).name
@@ -287,6 +295,12 @@ def build_ls_task(
         document_role = default_document_role
     else:
         document_role = "supporting_doc"
+
+    structured: dict = {}
+    if structured_preview_pages > 0 and Path(rec.path).suffix.lower() == ".pdf":
+        structured = structured_preview_from_pdf(
+            rec.path, max_pages=structured_preview_pages
+        )
 
     # text = corps document seul (pas de préfixe) : le backend applique MIN_* sur ce
     # champ ; filename + document_role sont des champs séparés (injectés au prompt LS).
@@ -302,6 +316,7 @@ def build_ls_task(
             "ingest_run_id": run_id,
             "pdf_classification": rec.classification,
             "engine_route": rec.engine_route,
+            "structured_preview": structured,
         }
     }
 
@@ -313,6 +328,7 @@ def run_ingest(
     run_id: str | None = None,
     ingest_limit: int | None = None,
     include_manifest_tasks: bool = False,
+    structured_preview_pages: int = 5,
 ) -> dict:
     if not source_roots:
         raise ValueError(
@@ -394,7 +410,12 @@ def run_ingest(
     ls_tasks: list[dict] = []
     manifest_tasks: list[dict] = []
     for r in records:
-        task = build_ls_task(r, default_document_role, run_id)
+        task = build_ls_task(
+            r,
+            default_document_role,
+            run_id,
+            structured_preview_pages=structured_preview_pages,
+        )
         ls_tasks.append(task)
         dr = task["data"]["document_role"]
         logger.info(
@@ -421,6 +442,7 @@ def run_ingest(
         "output_root": str(out_dir.resolve()),
         "default_document_role": default_document_role,
         "ingest_limit": ingest_limit,
+        "structured_preview_pages": structured_preview_pages,
         "pdf_files_discovered": len(all_pdfs),
         "pdf_files_seen": len(pdfs),
         "tasks_emitted": len(records),
@@ -500,6 +522,13 @@ def main() -> None:
         help="Inclure la liste détaillée tasks dans run_manifest.json "
         "(défaut : non — évite la duplication lourde avec ls_tasks.json).",
     )
+    parser.add_argument(
+        "--structured-preview-pages",
+        type=int,
+        default=5,
+        metavar="N",
+        help="Nombre max de pages PDF pour structured_preview (pdfplumber). 0 = désactivé.",
+    )
     args = parser.parse_args()
 
     roots = args.source_roots if args.source_roots else DEFAULT_SOURCE_ROOTS
@@ -510,6 +539,7 @@ def main() -> None:
         run_id=args.run_id,
         ingest_limit=args.limit,
         include_manifest_tasks=args.manifest_tasks,
+        structured_preview_pages=args.structured_preview_pages,
     )
     print(json.dumps(report, ensure_ascii=False, indent=2))
 

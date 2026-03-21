@@ -15,6 +15,7 @@ from pydantic import BaseModel, EmailStr, Field
 from src.api.auth_helpers import authenticate_user, create_user, get_user_by_id
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.couche_a.auth.jwt_handler import create_access_token
+from src.db import db_execute_one, get_connection
 from src.ratelimit import limiter
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -61,8 +62,16 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
     }
     role_raw = user.get("role_name", user.get("role", "viewer"))
     role = _role_mapping.get(role_raw, "viewer")
+    with get_connection() as conn:
+        trow = db_execute_one(
+            conn,
+            "SELECT tenant_id FROM user_tenants WHERE user_id = :id",
+            {"id": user["id"]},
+        )
+    # tenant_id dans le JWT : même sémantique que « org » métier (isolation R7 / RLS).
+    tenant_id = trow["tenant_id"] if trow else f"tenant-{user['id']}"
     try:
-        access_token = create_access_token(str(user["id"]), role)
+        access_token = create_access_token(str(user["id"]), role, tenant_id)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -49,9 +49,10 @@ def _build_claims(
     role: str,
     token_type: str,
     expires_delta: timedelta,
+    tenant_id: str | None = None,
 ) -> dict[str, Any]:
     now = datetime.now(UTC)
-    return {
+    claims: dict[str, Any] = {
         "sub": str(user_id),
         "role": role,
         "jti": str(uuid.uuid4()),
@@ -59,6 +60,9 @@ def _build_claims(
         "exp": now + expires_delta,
         "type": token_type,
     }
+    if tenant_id is not None:
+        claims["tenant_id"] = str(tenant_id)
+    return claims
 
 
 def _validate_role(role: str) -> None:
@@ -68,25 +72,29 @@ def _validate_role(role: str) -> None:
         )
 
 
-def create_access_token(user_id: str, role: str) -> str:
+def create_access_token(user_id: str, role: str, tenant_id: str | None = None) -> str:
     """Émet un access token signé HS256.
 
     Raises:
         ValueError: rôle non reconnu ou SECRET_KEY absent.
     """
     _validate_role(role)
-    claims = _build_claims(user_id, role, "access", timedelta(minutes=_access_ttl()))
+    claims = _build_claims(
+        user_id, role, "access", timedelta(minutes=_access_ttl()), tenant_id
+    )
     return jwt.encode(claims, _secret_key(), algorithm=ALGORITHM)
 
 
-def create_refresh_token(user_id: str, role: str) -> str:
+def create_refresh_token(user_id: str, role: str, tenant_id: str | None = None) -> str:
     """Émet un refresh token signé HS256.
 
     Raises:
         ValueError: rôle non reconnu ou SECRET_KEY absent.
     """
     _validate_role(role)
-    claims = _build_claims(user_id, role, "refresh", timedelta(days=_refresh_ttl()))
+    claims = _build_claims(
+        user_id, role, "refresh", timedelta(days=_refresh_ttl()), tenant_id
+    )
     return jwt.encode(claims, _secret_key(), algorithm=ALGORITHM)
 
 
@@ -174,6 +182,25 @@ def rotate_refresh_token(
 
     user_id = payload["sub"]
     role = payload["role"]
-    new_access = create_access_token(user_id, role)
-    new_refresh = create_refresh_token(user_id, role)
+    tid = payload.get("tenant_id")
+    if not tid:
+        tid = None
+        try:
+            uid = int(user_id)
+        except (TypeError, ValueError):
+            uid = None
+        if uid is not None:
+            with db_conn.cursor() as cur:
+                cur.execute(
+                    "SELECT tenant_id FROM user_tenants WHERE user_id = %s",
+                    (uid,),
+                )
+                r = cur.fetchone()
+            tid = r[0] if r else None
+        if not tid:
+            tid = f"tenant-{user_id}"
+    else:
+        tid = str(tid)
+    new_access = create_access_token(user_id, role, tid)
+    new_refresh = create_refresh_token(user_id, role, tid)
     return new_access, new_refresh

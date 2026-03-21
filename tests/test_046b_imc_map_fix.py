@@ -79,6 +79,7 @@ VALID_ALEMBIC_HEADS = (
     "048_vendors_sensitive_data",
     "049_validate_pipeline_runs_fk",
     "050_documents_sha256_not_null",
+    "051_cases_tenant_user_tenants_rls",
     "m7_4_dict_vivant",  # branche parallèle
 )
 

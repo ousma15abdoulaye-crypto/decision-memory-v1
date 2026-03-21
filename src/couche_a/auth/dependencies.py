@@ -17,6 +17,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from src.couche_a.auth.jwt_handler import verify_token
 from src.couche_a.auth.rbac import ROLES
+from src.db.tenant_context import set_db_tenant_id, set_rls_is_admin
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -28,6 +29,7 @@ class UserClaims:
     user_id: str
     role: str
     jti: str
+    tenant_id: str | None = None
 
 
 def _get_db_conn() -> Generator[psycopg.Connection, None, None]:
@@ -82,10 +84,26 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    tid = payload.get("tenant_id")
+    if not tid:
+        with db_conn.cursor() as cur:
+            cur.execute(
+                "SELECT tenant_id FROM user_tenants WHERE user_id = %s",
+                (int(payload["sub"]),),
+            )
+            r = cur.fetchone()
+        tid = r[0] if r else None
+    else:
+        tid = str(tid)
+
+    set_db_tenant_id(tid)
+    set_rls_is_admin(role == "admin")
+
     return UserClaims(
         user_id=payload["sub"],
         role=role,
         jti=payload["jti"],
+        tenant_id=tid,
     )
 
 

@@ -86,6 +86,11 @@ def test_run_ingest_writes_ls_tasks_json(
 
     monkeypatch.setattr(bridge_mod, "_extract_mistral_ocr", _no_mistral)
     monkeypatch.setattr(bridge_mod, "_extract_llamaparse", _no_llama)
+    monkeypatch.setattr(
+        bridge_mod,
+        "structured_preview_from_pdf",
+        lambda path, max_pages=5: {"version": 1, "stub": True, "path": path},
+    )
 
     out = tmp_path / "out"
     report = bridge_mod.run_ingest(
@@ -107,6 +112,7 @@ def test_run_ingest_writes_ls_tasks_json(
     assert row["process_name"] == "process_a"
     assert row["ingest_run_id"] == "test-run-1"
     assert "source" in row and "doc.pdf" in row["source"]
+    assert row["structured_preview"].get("stub") is True
 
     manifest = json.loads((out / "run_manifest.json").read_text(encoding="utf-8"))
     assert manifest["run_id"] == "test-run-1"

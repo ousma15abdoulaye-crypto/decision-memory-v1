@@ -150,6 +150,19 @@ def get_connection() -> Iterator[_ConnectionWrapper]:
 
     conn = _connect()
     wrapper = _ConnectionWrapper(conn)
+    from src.db.tenant_context import get_db_tenant_id, get_rls_is_admin
+
+    tid = get_db_tenant_id()
+    if tid:
+        wrapper.execute(
+            "SELECT set_config('app.tenant_id', :tid, true)",
+            {"tid": tid},
+        )
+    if get_rls_is_admin():
+        wrapper.execute(
+            "SELECT set_config('app.is_admin', :v, true)",
+            {"v": "true"},
+        )
     try:
         yield wrapper
         conn.commit()
@@ -204,7 +217,9 @@ def init_db_schema() -> None:
             title TEXT NOT NULL,
             lot TEXT,
             created_at TEXT NOT NULL,
-            status TEXT NOT NULL
+            status TEXT NOT NULL,
+            owner_id INTEGER,
+            tenant_id TEXT DEFAULT 'legacy-default'
         )
         """,
         """
@@ -272,3 +287,8 @@ def init_db_schema() -> None:
     with get_db_cursor() as cur:
         for stmt in statements:
             cur.execute(stmt.strip())
+        for alter in (
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS owner_id INTEGER",
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT 'legacy-default'",
+        ):
+            cur.execute(alter)

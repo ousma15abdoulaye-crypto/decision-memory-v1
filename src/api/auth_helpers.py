@@ -128,6 +128,16 @@ def create_user(
             raise RuntimeError(f"create_user: INSERT vide pour {username}")
         user_id = row["id"] if isinstance(row, dict) else row[0]
 
+        db_execute(
+            conn,
+            """
+            INSERT INTO user_tenants (user_id, tenant_id)
+            VALUES (:uid, :tid)
+            ON CONFLICT (user_id) DO NOTHING
+            """,
+            {"uid": user_id, "tid": f"tenant-{user_id}"},
+        )
+
         return db_execute_one(
             conn,
             """

@@ -28,16 +28,22 @@ import uuid
 # ─────────────────────────────────────────────────────────────
 
 
-def _create_test_case(db_conn, status: str = "draft") -> str:
-    """Crée un dossier de test et retourne son case_id."""
+def _create_test_case(
+    db_conn,
+    tenant_id: str,
+    *,
+    owner_id: int = 1,
+    status: str = "draft",
+) -> str:
+    """Crée un dossier de test (tenant_id aligné JWT pour R7 + RLS)."""
     case_id = f"api-test-{uuid.uuid4().hex[:8]}"
     with db_conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO cases (id, case_type, title, created_at, status)
-            VALUES (%s, 'API_CRITERIA_TEST', %s, NOW()::TEXT, %s)
+            INSERT INTO cases (id, case_type, title, created_at, status, currency, owner_id, tenant_id)
+            VALUES (%s, 'API_CRITERIA_TEST', %s, NOW()::TEXT, %s, 'XOF', %s, %s)
             """,
-            (case_id, f"AO Test Critères {case_id}", status),
+            (case_id, f"AO Test Critères {case_id}", status, owner_id, tenant_id),
         )
     return case_id
 
@@ -69,24 +75,30 @@ def _cleanup(db_conn, case_id: str) -> None:
 def _post_criterion(
     test_client,
     case_id: str,
-    org_id: str = "org-api-test",
+    crit_auth: dict,
+    *,
+    org_id: str | None = None,
     label: str = "Prix rendu site",
     category: str = "commercial",
     weight_pct: float = 60.0,
     scoring_method: str = "formula",
     **kwargs,
-) -> dict:
-    """Helper POST — retourne la réponse JSON."""
+):
+    """Helper POST — retourne l'objet Response."""
+    tid = org_id if org_id is not None else crit_auth["tid"]
     body = {
-        "org_id": org_id,
+        "org_id": tid,
         "label": label,
         "category": category,
         "weight_pct": weight_pct,
         "scoring_method": scoring_method,
         **kwargs,
     }
-    resp = test_client.post(f"/cases/{case_id}/criteria", json=body)
-    return resp
+    return test_client.post(
+        f"/cases/{case_id}/criteria",
+        json=body,
+        headers=crit_auth["headers"],
+    )
 
 
 # ─────────────────────────────────────────────────────────────
@@ -95,15 +107,15 @@ def _post_criterion(
 
 
 class TestPostCriterion:
-    def test_creation_nominale_201(self, test_client, db_conn):
+    def test_creation_nominale_201(self, test_client, db_conn, crit_auth):
         """POST nominal → 201 + champs conformes."""
-        case_id = _create_test_case(db_conn, "draft")
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
-            resp = _post_criterion(test_client, case_id)
+            resp = _post_criterion(test_client, case_id, crit_auth)
             assert resp.status_code == 201, resp.text
             data = resp.json()
             assert data["case_id"] == case_id
-            assert data["org_id"] == "org-api-test"
+            assert data["org_id"] == crit_auth["tid"]
             assert data["label"] == "Prix rendu site"
             assert data["category"] == "commercial"
             assert abs(data["weight_pct"] - 60.0) < 0.001
@@ -115,87 +127,96 @@ class TestPostCriterion:
         finally:
             _cleanup(db_conn, case_id)
 
-    def test_currency_defaut_xof(self, test_client, db_conn):
+    def test_currency_defaut_xof(self, test_client, db_conn, crit_auth):
         """POST sans currency explicite → XOF (Règle R4)."""
-        case_id = _create_test_case(db_conn, "draft")
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
-            resp = _post_criterion(test_client, case_id)
+            resp = _post_criterion(test_client, case_id, crit_auth)
             assert resp.status_code == 201
             assert resp.json()["currency"] == "XOF"
         finally:
             _cleanup(db_conn, case_id)
 
-    def test_case_id_introuvable_404(self, test_client):
+    def test_case_id_introuvable_404(self, test_client, crit_auth):
         """POST case_id inexistant → 404."""
         fake_case = f"inexistant-{uuid.uuid4().hex[:8]}"
-        resp = _post_criterion(test_client, fake_case)
+        resp = _post_criterion(test_client, fake_case, crit_auth)
         assert resp.status_code == 404
-        assert "case_id" in resp.json()["detail"].lower()
+        detail = resp.json()["detail"].lower()
+        assert "case" in detail and ("not found" in detail or "introuvable" in detail)
 
-    def test_categorie_invalide_422(self, test_client, db_conn):
+    def test_categorie_invalide_422(self, test_client, db_conn, crit_auth):
         """POST category invalide → 422 (Pydantic field_validator)."""
-        case_id = _create_test_case(db_conn, "draft")
-        try:
-            resp = _post_criterion(test_client, case_id, category="invalide_xyz")
-            assert resp.status_code == 422
-        finally:
-            _cleanup(db_conn, case_id)
-
-    def test_scoring_method_invalide_422(self, test_client, db_conn):
-        """POST scoring_method invalide → 422 (Pydantic field_validator)."""
-        case_id = _create_test_case(db_conn, "draft")
-        try:
-            resp = _post_criterion(test_client, case_id, scoring_method="robot_scorer")
-            assert resp.status_code == 422
-        finally:
-            _cleanup(db_conn, case_id)
-
-    def test_poids_negatif_422(self, test_client, db_conn):
-        """POST weight_pct < 0 → 422 (Pydantic ge=0)."""
-        case_id = _create_test_case(db_conn, "draft")
-        try:
-            resp = _post_criterion(test_client, case_id, weight_pct=-5.0)
-            assert resp.status_code == 422
-        finally:
-            _cleanup(db_conn, case_id)
-
-    def test_poids_superieur_100_422(self, test_client, db_conn):
-        """POST weight_pct > 100 → 422 (Pydantic le=100)."""
-        case_id = _create_test_case(db_conn, "draft")
-        try:
-            resp = _post_criterion(test_client, case_id, weight_pct=150.0)
-            assert resp.status_code == 422
-        finally:
-            _cleanup(db_conn, case_id)
-
-    def test_label_vide_422(self, test_client, db_conn):
-        """POST label vide → 422 (Pydantic min_length=1)."""
-        case_id = _create_test_case(db_conn, "draft")
-        try:
-            resp = _post_criterion(test_client, case_id, label="")
-            assert resp.status_code == 422
-        finally:
-            _cleanup(db_conn, case_id)
-
-    def test_canonical_item_id_optionnel(self, test_client, db_conn):
-        """POST avec canonical_item_id → OK (R6 : optionnel avant M-NORMALISATION-ITEMS)."""
-        case_id = _create_test_case(db_conn, "draft")
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
             resp = _post_criterion(
-                test_client, case_id, canonical_item_id="gasoil-sahel"
+                test_client, case_id, crit_auth, category="invalide_xyz"
+            )
+            assert resp.status_code == 422
+        finally:
+            _cleanup(db_conn, case_id)
+
+    def test_scoring_method_invalide_422(self, test_client, db_conn, crit_auth):
+        """POST scoring_method invalide → 422 (Pydantic field_validator)."""
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
+        try:
+            resp = _post_criterion(
+                test_client, case_id, crit_auth, scoring_method="robot_scorer"
+            )
+            assert resp.status_code == 422
+        finally:
+            _cleanup(db_conn, case_id)
+
+    def test_poids_negatif_422(self, test_client, db_conn, crit_auth):
+        """POST weight_pct < 0 → 422 (Pydantic ge=0)."""
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
+        try:
+            resp = _post_criterion(test_client, case_id, crit_auth, weight_pct=-5.0)
+            assert resp.status_code == 422
+        finally:
+            _cleanup(db_conn, case_id)
+
+    def test_poids_superieur_100_422(self, test_client, db_conn, crit_auth):
+        """POST weight_pct > 100 → 422 (Pydantic le=100)."""
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
+        try:
+            resp = _post_criterion(test_client, case_id, crit_auth, weight_pct=150.0)
+            assert resp.status_code == 422
+        finally:
+            _cleanup(db_conn, case_id)
+
+    def test_label_vide_422(self, test_client, db_conn, crit_auth):
+        """POST label vide → 422 (Pydantic min_length=1)."""
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
+        try:
+            resp = _post_criterion(test_client, case_id, crit_auth, label="")
+            assert resp.status_code == 422
+        finally:
+            _cleanup(db_conn, case_id)
+
+    def test_canonical_item_id_optionnel(self, test_client, db_conn, crit_auth):
+        """POST avec canonical_item_id → OK (R6 : optionnel avant M-NORMALISATION-ITEMS)."""
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
+        try:
+            resp = _post_criterion(
+                test_client,
+                case_id,
+                crit_auth,
+                canonical_item_id="gasoil-sahel",
             )
             assert resp.status_code == 201
             assert resp.json()["canonical_item_id"] == "gasoil-sahel"
         finally:
             _cleanup(db_conn, case_id)
 
-    def test_is_essential_accepte(self, test_client, db_conn):
+    def test_is_essential_accepte(self, test_client, db_conn, crit_auth):
         """POST critère essentiel → is_essential=True retourné."""
-        case_id = _create_test_case(db_conn, "draft")
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
             resp = _post_criterion(
                 test_client,
                 case_id,
+                crit_auth,
                 category="essential",
                 is_essential=True,
                 weight_pct=0.0,
@@ -212,25 +233,29 @@ class TestPostCriterion:
 
 
 class TestGetCriteriaList:
-    def test_liste_vide(self, test_client, db_conn):
+    def test_liste_vide(self, test_client, db_conn, crit_auth):
         """GET dossier sans critères → liste vide []."""
-        case_id = _create_test_case(db_conn, "draft")
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
             resp = test_client.get(
-                f"/cases/{case_id}/criteria", params={"org_id": "org-api-test"}
+                f"/cases/{case_id}/criteria",
+                params={"org_id": crit_auth["tid"]},
+                headers=crit_auth["headers"],
             )
             assert resp.status_code == 200
             assert resp.json() == []
         finally:
             _cleanup(db_conn, case_id)
 
-    def test_liste_retourne_critere_cree(self, test_client, db_conn):
+    def test_liste_retourne_critere_cree(self, test_client, db_conn, crit_auth):
         """GET après POST → le critère est présent dans la liste."""
-        case_id = _create_test_case(db_conn, "draft")
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
-            _post_criterion(test_client, case_id)
+            _post_criterion(test_client, case_id, crit_auth)
             resp = test_client.get(
-                f"/cases/{case_id}/criteria", params={"org_id": "org-api-test"}
+                f"/cases/{case_id}/criteria",
+                params={"org_id": crit_auth["tid"]},
+                headers=crit_auth["headers"],
             )
             assert resp.status_code == 200
             data = resp.json()
@@ -239,25 +264,32 @@ class TestGetCriteriaList:
         finally:
             _cleanup(db_conn, case_id)
 
-    def test_liste_plusieurs_criteres(self, test_client, db_conn):
+    def test_liste_plusieurs_criteres(self, test_client, db_conn, crit_auth):
         """GET avec plusieurs critères → tous retournés, triés par created_at."""
-        case_id = _create_test_case(db_conn, "draft")
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
-            _post_criterion(test_client, case_id, label="Critère A")
-            _post_criterion(test_client, case_id, label="Critère B", weight_pct=40.0)
+            _post_criterion(test_client, case_id, crit_auth, label="Critère A")
+            _post_criterion(
+                test_client, case_id, crit_auth, label="Critère B", weight_pct=40.0
+            )
             resp = test_client.get(
-                f"/cases/{case_id}/criteria", params={"org_id": "org-api-test"}
+                f"/cases/{case_id}/criteria",
+                params={"org_id": crit_auth["tid"]},
+                headers=crit_auth["headers"],
             )
             assert resp.status_code == 200
             assert len(resp.json()) == 2
         finally:
             _cleanup(db_conn, case_id)
 
-    def test_liste_org_id_obligatoire(self, test_client, db_conn):
+    def test_liste_org_id_obligatoire(self, test_client, db_conn, crit_auth):
         """GET sans org_id → 422 (Query obligatoire)."""
-        case_id = _create_test_case(db_conn, "draft")
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
-            resp = test_client.get(f"/cases/{case_id}/criteria")
+            resp = test_client.get(
+                f"/cases/{case_id}/criteria",
+                headers=crit_auth["headers"],
+            )
             assert resp.status_code == 422
         finally:
             _cleanup(db_conn, case_id)
@@ -269,16 +301,21 @@ class TestGetCriteriaList:
 
 
 class TestValidateWeights:
-    def test_somme_valide_100_pct(self, test_client, db_conn):
+    def test_somme_valide_100_pct(self, test_client, db_conn, crit_auth):
         """validate/weights — somme = 100% → is_valid=True (R1)."""
-        case_id = _create_test_case(db_conn, "draft")
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
             _post_criterion(
-                test_client, case_id, label="Critère unique", weight_pct=100.0
+                test_client,
+                case_id,
+                crit_auth,
+                label="Critère unique",
+                weight_pct=100.0,
             )
             resp = test_client.get(
                 f"/cases/{case_id}/criteria/validate/weights",
-                params={"org_id": "org-api-test"},
+                params={"org_id": crit_auth["tid"]},
+                headers=crit_auth["headers"],
             )
             assert resp.status_code == 200
             data = resp.json()
@@ -289,14 +326,15 @@ class TestValidateWeights:
         finally:
             _cleanup(db_conn, case_id)
 
-    def test_somme_invalide_retourne_message(self, test_client, db_conn):
+    def test_somme_invalide_retourne_message(self, test_client, db_conn, crit_auth):
         """validate/weights — somme != 100% → is_valid=False + message (R1)."""
-        case_id = _create_test_case(db_conn, "draft")
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
-            _post_criterion(test_client, case_id, weight_pct=60.0)
+            _post_criterion(test_client, case_id, crit_auth, weight_pct=60.0)
             resp = test_client.get(
                 f"/cases/{case_id}/criteria/validate/weights",
-                params={"org_id": "org-api-test"},
+                params={"org_id": crit_auth["tid"]},
+                headers=crit_auth["headers"],
             )
             assert resp.status_code == 200
             data = resp.json()
@@ -307,16 +345,17 @@ class TestValidateWeights:
         finally:
             _cleanup(db_conn, case_id)
 
-    def test_essentiels_exclus_de_la_somme(self, test_client, db_conn):
+    def test_essentiels_exclus_de_la_somme(self, test_client, db_conn, crit_auth):
         """validate/weights — critères essentiels exclus du total (R1)."""
-        case_id = _create_test_case(db_conn, "draft")
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
             # Critère non-essentiel : 100%
-            _post_criterion(test_client, case_id, weight_pct=100.0)
+            _post_criterion(test_client, case_id, crit_auth, weight_pct=100.0)
             # Critère essentiel : hors somme
             _post_criterion(
                 test_client,
                 case_id,
+                crit_auth,
                 label="Essentiel",
                 category="essential",
                 weight_pct=0.0,
@@ -324,7 +363,8 @@ class TestValidateWeights:
             )
             resp = test_client.get(
                 f"/cases/{case_id}/criteria/validate/weights",
-                params={"org_id": "org-api-test"},
+                params={"org_id": crit_auth["tid"]},
+                headers=crit_auth["headers"],
             )
             assert resp.status_code == 200
             data = resp.json()
@@ -333,22 +373,26 @@ class TestValidateWeights:
         finally:
             _cleanup(db_conn, case_id)
 
-    def test_validate_weights_org_id_obligatoire(self, test_client, db_conn):
+    def test_validate_weights_org_id_obligatoire(self, test_client, db_conn, crit_auth):
         """validate/weights sans org_id → 422."""
-        case_id = _create_test_case(db_conn, "draft")
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
-            resp = test_client.get(f"/cases/{case_id}/criteria/validate/weights")
+            resp = test_client.get(
+                f"/cases/{case_id}/criteria/validate/weights",
+                headers=crit_auth["headers"],
+            )
             assert resp.status_code == 422
         finally:
             _cleanup(db_conn, case_id)
 
-    def test_validate_weights_dossier_vide(self, test_client, db_conn):
+    def test_validate_weights_dossier_vide(self, test_client, db_conn, crit_auth):
         """validate/weights dossier sans critères → total=0, is_valid=False."""
-        case_id = _create_test_case(db_conn, "draft")
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
             resp = test_client.get(
                 f"/cases/{case_id}/criteria/validate/weights",
-                params={"org_id": "org-api-test"},
+                params={"org_id": crit_auth["tid"]},
+                headers=crit_auth["headers"],
             )
             assert resp.status_code == 200
             data = resp.json()
@@ -364,15 +408,16 @@ class TestValidateWeights:
 
 
 class TestGetCriterionById:
-    def test_get_criterion_ok(self, test_client, db_conn):
+    def test_get_criterion_ok(self, test_client, db_conn, crit_auth):
         """GET /{criterion_id} → 200 + champs corrects."""
-        case_id = _create_test_case(db_conn, "draft")
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
-            created = _post_criterion(test_client, case_id).json()
+            created = _post_criterion(test_client, case_id, crit_auth).json()
             criterion_id = created["id"]
             resp = test_client.get(
                 f"/cases/{case_id}/criteria/{criterion_id}",
-                params={"org_id": "org-api-test"},
+                params={"org_id": crit_auth["tid"]},
+                headers=crit_auth["headers"],
             )
             assert resp.status_code == 200
             data = resp.json()
@@ -381,24 +426,28 @@ class TestGetCriterionById:
         finally:
             _cleanup(db_conn, case_id)
 
-    def test_get_criterion_introuvable_404(self, test_client, db_conn):
+    def test_get_criterion_introuvable_404(self, test_client, db_conn, crit_auth):
         """GET critère inexistant → 404."""
-        case_id = _create_test_case(db_conn, "draft")
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
             fake_id = str(uuid.uuid4())
             resp = test_client.get(
                 f"/cases/{case_id}/criteria/{fake_id}",
-                params={"org_id": "org-api-test"},
+                params={"org_id": crit_auth["tid"]},
+                headers=crit_auth["headers"],
             )
             assert resp.status_code == 404
         finally:
             _cleanup(db_conn, case_id)
 
-    def test_get_criterion_org_id_obligatoire(self, test_client, db_conn):
+    def test_get_criterion_org_id_obligatoire(self, test_client, db_conn, crit_auth):
         """GET /{criterion_id} sans org_id → 422."""
-        case_id = _create_test_case(db_conn, "draft")
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
-            resp = test_client.get(f"/cases/{case_id}/criteria/{uuid.uuid4()}")
+            resp = test_client.get(
+                f"/cases/{case_id}/criteria/{uuid.uuid4()}",
+                headers=crit_auth["headers"],
+            )
             assert resp.status_code == 422
         finally:
             _cleanup(db_conn, case_id)
@@ -410,45 +459,50 @@ class TestGetCriterionById:
 
 
 class TestDeleteCriterion:
-    def test_delete_criterion_204(self, test_client, db_conn):
+    def test_delete_criterion_204(self, test_client, db_conn, crit_auth):
         """DELETE critère en draft → 204 No Content."""
-        case_id = _create_test_case(db_conn, "draft")
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
-            created = _post_criterion(test_client, case_id).json()
+            created = _post_criterion(test_client, case_id, crit_auth).json()
             criterion_id = created["id"]
             resp = test_client.delete(
                 f"/cases/{case_id}/criteria/{criterion_id}",
-                params={"org_id": "org-api-test"},
+                params={"org_id": crit_auth["tid"]},
+                headers=crit_auth["headers"],
             )
             assert resp.status_code == 204
             # Vérification : le critère n'existe plus
             resp2 = test_client.get(
                 f"/cases/{case_id}/criteria/{criterion_id}",
-                params={"org_id": "org-api-test"},
+                params={"org_id": crit_auth["tid"]},
+                headers=crit_auth["headers"],
             )
             assert resp2.status_code == 404
         finally:
             _cleanup(db_conn, case_id)
 
-    def test_delete_criterion_introuvable_404(self, test_client, db_conn):
+    def test_delete_criterion_introuvable_404(self, test_client, db_conn, crit_auth):
         """DELETE critère inexistant → 404."""
-        case_id = _create_test_case(db_conn, "draft")
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
             fake_id = str(uuid.uuid4())
             resp = test_client.delete(
                 f"/cases/{case_id}/criteria/{fake_id}",
-                params={"org_id": "org-api-test"},
+                params={"org_id": crit_auth["tid"]},
+                headers=crit_auth["headers"],
             )
             assert resp.status_code == 404
         finally:
             _cleanup(db_conn, case_id)
 
-    def test_delete_gouvernance_hors_draft_404(self, test_client, db_conn):
+    def test_delete_gouvernance_hors_draft_404(self, test_client, db_conn, crit_auth):
         """DELETE critère d'un dossier hors 'draft' → 404 (gouvernance)."""
-        case_id = _create_test_case(db_conn, "draft")
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
             # Créer critère avec poids 100% pour satisfaire le trigger DEFERRED
-            created = _post_criterion(test_client, case_id, weight_pct=100.0).json()
+            created = _post_criterion(
+                test_client, case_id, crit_auth, weight_pct=100.0
+            ).json()
             criterion_id = created["id"]
             # Passer en evaluation (trigger poids actif au commit)
             with db_conn.cursor() as cur:
@@ -458,17 +512,21 @@ class TestDeleteCriterion:
             # Tenter suppression → interdit par règle gouvernance
             resp = test_client.delete(
                 f"/cases/{case_id}/criteria/{criterion_id}",
-                params={"org_id": "org-api-test"},
+                params={"org_id": crit_auth["tid"]},
+                headers=crit_auth["headers"],
             )
             assert resp.status_code == 404
         finally:
             _cleanup(db_conn, case_id)
 
-    def test_delete_org_id_obligatoire(self, test_client, db_conn):
+    def test_delete_org_id_obligatoire(self, test_client, db_conn, crit_auth):
         """DELETE sans org_id → 422."""
-        case_id = _create_test_case(db_conn, "draft")
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
-            resp = test_client.delete(f"/cases/{case_id}/criteria/{uuid.uuid4()}")
+            resp = test_client.delete(
+                f"/cases/{case_id}/criteria/{uuid.uuid4()}",
+                headers=crit_auth["headers"],
+            )
             assert resp.status_code == 422
         finally:
             _cleanup(db_conn, case_id)
@@ -480,48 +538,57 @@ class TestDeleteCriterion:
 
 
 class TestMultiTenantIsolation:
-    def test_org_a_ne_voit_pas_criteres_org_b(self, test_client, db_conn):
-        """GET org_a ne retourne pas les critères de org_b (R7)."""
-        case_id = _create_test_case(db_conn, "draft")
+    """R7 : org_id doit correspondre à cases.tenant_id (422 avant toute lecture DB métier)."""
+
+    def test_post_org_id_mismatch_case_tenant_422(
+        self, test_client, db_conn, crit_auth
+    ):
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
-            # org_b crée un critère
-            _post_criterion(test_client, case_id, org_id="org-b")
-            # org_a liste → liste vide
-            resp = test_client.get(
-                f"/cases/{case_id}/criteria", params={"org_id": "org-a"}
+            resp = _post_criterion(
+                test_client, case_id, crit_auth, org_id="wrong-tenant-xyz"
             )
-            assert resp.status_code == 200
-            assert resp.json() == []
+            assert resp.status_code == 422
         finally:
             _cleanup(db_conn, case_id)
 
-    def test_org_a_ne_peut_supprimer_critere_org_b(self, test_client, db_conn):
-        """DELETE org_a sur critère org_b → 404 (R7)."""
-        case_id = _create_test_case(db_conn, "draft")
+    def test_list_criteria_wrong_org_id_422(self, test_client, db_conn, crit_auth):
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
-            # org_b crée
-            created = _post_criterion(test_client, case_id, org_id="org-b").json()
+            _post_criterion(test_client, case_id, crit_auth)
+            resp = test_client.get(
+                f"/cases/{case_id}/criteria",
+                params={"org_id": "wrong-tenant-xyz"},
+                headers=crit_auth["headers"],
+            )
+            assert resp.status_code == 422
+        finally:
+            _cleanup(db_conn, case_id)
+
+    def test_delete_wrong_org_id_422(self, test_client, db_conn, crit_auth):
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
+        try:
+            created = _post_criterion(test_client, case_id, crit_auth).json()
             criterion_id = created["id"]
-            # org_a tente de supprimer
             resp = test_client.delete(
                 f"/cases/{case_id}/criteria/{criterion_id}",
-                params={"org_id": "org-a"},
+                params={"org_id": "wrong-tenant-xyz"},
+                headers=crit_auth["headers"],
             )
-            assert resp.status_code == 404
+            assert resp.status_code == 422
         finally:
             _cleanup(db_conn, case_id)
 
-    def test_get_criterion_org_incorrect_404(self, test_client, db_conn):
-        """GET /{criterion_id} avec mauvais org_id → 404 (R7)."""
-        case_id = _create_test_case(db_conn, "draft")
+    def test_get_criterion_wrong_org_id_422(self, test_client, db_conn, crit_auth):
+        case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
-            created = _post_criterion(test_client, case_id, org_id="org-owner").json()
+            created = _post_criterion(test_client, case_id, crit_auth).json()
             criterion_id = created["id"]
-            # Tenter d'accéder avec un org_id différent
             resp = test_client.get(
                 f"/cases/{case_id}/criteria/{criterion_id}",
-                params={"org_id": "org-intrus"},
+                params={"org_id": "wrong-tenant-xyz"},
+                headers=crit_auth["headers"],
             )
-            assert resp.status_code == 404
+            assert resp.status_code == 422
         finally:
             _cleanup(db_conn, case_id)

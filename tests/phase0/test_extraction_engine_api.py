@@ -8,17 +8,52 @@ ADR-0002 §2.5 (SLA deux classes).
 
 from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from src.api.main import app
+from src.couche_a.auth.dependencies import UserClaims, get_current_user
 
 client = TestClient(app)
+
+# Accès document : mocké ici (import réel dans case_access, pas dans extractions).
+_PATCH_GET_DOCUMENT = "src.couche_a.auth.case_access.get_document"
+
+
+@pytest.fixture(autouse=True)
+def _phase0_extraction_auth_override():
+    """Admin fictif : évite JWT/DB login ; les tests mockent get_document + engine."""
+
+    def _admin() -> UserClaims:
+        return UserClaims(
+            user_id="1",
+            role="admin",
+            jti="test-jti-phase0",
+            tenant_id="tenant-1",
+        )
+
+    app.dependency_overrides[get_current_user] = _admin
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.fixture(autouse=True)
+def _phase0_skip_case_row_lookup(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pas de ligne `cases` en DB test : on unit-teste le routeur + engine mockés."""
+    import src.couche_a.auth.case_access as case_access_mod
+
+    monkeypatch.setattr(
+        case_access_mod,
+        "require_case_access",
+        lambda case_id, user: None,
+    )
 
 
 # ── Fixtures ─────────────────────────────────────────────────────
 
 FAKE_DOC_PDF = {
     "id": "doc-test-pdf-001",
+    "case_id": "case-phase0-test",
     "mime_type": "application/pdf",
     "storage_uri": "/tmp/test.pdf",
     "extraction_status": "pending",
@@ -27,6 +62,7 @@ FAKE_DOC_PDF = {
 
 FAKE_DOC_SCAN = {
     "id": "doc-test-scan-001",
+    "case_id": "case-phase0-test",
     "mime_type": "image/tiff",
     "storage_uri": "/tmp/test.tif",
     "extraction_status": "pending",
@@ -35,6 +71,7 @@ FAKE_DOC_SCAN = {
 
 FAKE_DOC_DONE = {
     "id": "doc-test-done-001",
+    "case_id": "case-phase0-test",
     "mime_type": "application/pdf",
     "storage_uri": "/tmp/done.pdf",
     "extraction_status": "done",
@@ -102,7 +139,7 @@ class TestTriggerExtractionSLAA:
         """PDF natif → 202 + status done + sla_class A."""
         with (
             patch(
-                "src.api.routes.extractions.get_document",
+                _PATCH_GET_DOCUMENT,
                 return_value=FAKE_DOC_PDF,
             ),
             patch(
@@ -124,7 +161,7 @@ class TestTriggerExtractionSLAA:
         """SLA-A : duration_ms < 60000 dans la réponse."""
         with (
             patch(
-                "src.api.routes.extractions.get_document",
+                _PATCH_GET_DOCUMENT,
                 return_value=FAKE_DOC_PDF,
             ),
             patch(
@@ -143,7 +180,7 @@ class TestTriggerExtractionSLAA:
         """SLA-A TimeoutError → 504."""
         with (
             patch(
-                "src.api.routes.extractions.get_document",
+                _PATCH_GET_DOCUMENT,
                 return_value=FAKE_DOC_PDF,
             ),
             patch(
@@ -169,7 +206,7 @@ class TestTriggerExtractionSLAB:
         """Scan OCR → 202 + status pending + job_id."""
         with (
             patch(
-                "src.api.routes.extractions.get_document",
+                _PATCH_GET_DOCUMENT,
                 return_value=FAKE_DOC_SCAN,
             ),
             patch(
@@ -191,7 +228,7 @@ class TestTriggerExtractionSLAB:
         """SLA-B : job_id non null dans la réponse."""
         with (
             patch(
-                "src.api.routes.extractions.get_document",
+                _PATCH_GET_DOCUMENT,
                 return_value=FAKE_DOC_SCAN,
             ),
             patch(
@@ -216,7 +253,7 @@ class TestErreurs:
     def test_document_inconnu_returns_404(self):
         """Document inexistant → 404 avec message explicite."""
         with patch(
-            "src.api.routes.extractions.get_document",
+            _PATCH_GET_DOCUMENT,
             side_effect=ValueError("Document 'xyz' introuvable."),
         ):
             response = client.post("/api/extractions/documents/xyz/extract")
@@ -227,7 +264,7 @@ class TestErreurs:
     def test_document_deja_extrait_returns_409(self):
         """Document déjà extrait → 409 Conflict."""
         with patch(
-            "src.api.routes.extractions.get_document",
+            _PATCH_GET_DOCUMENT,
             return_value=FAKE_DOC_DONE,
         ):
             response = client.post(
@@ -241,7 +278,7 @@ class TestErreurs:
         """Exception interne → 500 avec message."""
         with (
             patch(
-                "src.api.routes.extractions.get_document",
+                _PATCH_GET_DOCUMENT,
                 return_value=FAKE_DOC_PDF,
             ),
             patch(
@@ -268,7 +305,10 @@ class TestJobStatus:
         mock_cursor = MagicMock()
         mock_cursor.fetchone.return_value = FAKE_JOB
 
-        with patch("src.api.routes.extractions.get_db_cursor") as mock_ctx:
+        with (
+            patch(_PATCH_GET_DOCUMENT, return_value=FAKE_DOC_SCAN),
+            patch("src.api.routes.extractions.get_db_cursor") as mock_ctx,
+        ):
             mock_ctx.return_value.__enter__ = lambda s: mock_cursor
             mock_ctx.return_value.__exit__ = MagicMock(return_value=False)
             response = client.get("/api/extractions/jobs/job-test-001/status")
@@ -304,7 +344,10 @@ class TestGetExtractionResult:
         mock_cursor = MagicMock()
         mock_cursor.fetchone.return_value = FAKE_EXTRACTION_ROW
 
-        with patch("src.api.routes.extractions.get_db_cursor") as mock_ctx:
+        with (
+            patch(_PATCH_GET_DOCUMENT, return_value=FAKE_DOC_PDF),
+            patch("src.api.routes.extractions.get_db_cursor") as mock_ctx,
+        ):
             mock_ctx.return_value.__enter__ = lambda s: mock_cursor
             mock_ctx.return_value.__exit__ = MagicMock(return_value=False)
             response = client.get("/api/extractions/documents/doc-test-pdf-001")
@@ -319,8 +362,15 @@ class TestGetExtractionResult:
         """Aucune extraction → 404 explicite."""
         mock_cursor = MagicMock()
         mock_cursor.fetchone.return_value = None
+        doc_intrus = {
+            **FAKE_DOC_PDF,
+            "id": "doc-inexistant",
+        }
 
-        with patch("src.api.routes.extractions.get_db_cursor") as mock_ctx:
+        with (
+            patch(_PATCH_GET_DOCUMENT, return_value=doc_intrus),
+            patch("src.api.routes.extractions.get_db_cursor") as mock_ctx,
+        ):
             mock_ctx.return_value.__enter__ = lambda s: mock_cursor
             mock_ctx.return_value.__exit__ = MagicMock(return_value=False)
             response = client.get("/api/extractions/documents/doc-inexistant")
@@ -332,7 +382,10 @@ class TestGetExtractionResult:
         mock_cursor = MagicMock()
         mock_cursor.fetchone.return_value = FAKE_EXTRACTION_LOW_CONF
 
-        with patch("src.api.routes.extractions.get_db_cursor") as mock_ctx:
+        with (
+            patch(_PATCH_GET_DOCUMENT, return_value=FAKE_DOC_PDF),
+            patch("src.api.routes.extractions.get_db_cursor") as mock_ctx,
+        ):
             mock_ctx.return_value.__enter__ = lambda s: mock_cursor
             mock_ctx.return_value.__exit__ = MagicMock(return_value=False)
             response = client.get("/api/extractions/documents/doc-test-pdf-001")

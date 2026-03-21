@@ -57,6 +57,15 @@ def _load_backend_module():
     return module
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _autoload_backend_module() -> None:
+    """Charger backend une fois — variables d'env avant import (PSEUDONYM_SALT)."""
+    os.environ.setdefault("PSEUDONYM_SALT", "test-sel-mandat5")
+    os.environ.setdefault("ALLOW_WEAK_PSEUDONYMIZATION", "1")
+    _load_backend_module()
+    yield
+
+
 class TestNormalizeGates:
     """Tests _normalize_gates()."""
 
@@ -98,7 +107,8 @@ class TestNormalizeGates:
         gate = result["couche_5_gates"][0]
         assert gate["confidence"] == 0.6
 
-    def test_applicable_gate_value_null_force_false(self):
+    def test_applicable_gate_value_null_not_inferred(self):
+        """Pas d'inférence booléenne — gate_value reste null (Pydantic échouera ensuite)."""
         fn = self._import()
         annotation = {
             "couche_5_gates": [
@@ -113,9 +123,8 @@ class TestNormalizeGates:
         }
         result = fn(annotation)
         gate = result["couche_5_gates"][0]
-        ambiguites = result["ambiguites"]
-        assert gate["gate_value"] is False
-        assert any("gate_negotiation_reached" in a for a in ambiguites)
+        assert gate["gate_value"] is None
+        assert result["ambiguites"] == []
 
     def test_confidence_correcte_non_touchee(self):
         fn = self._import()

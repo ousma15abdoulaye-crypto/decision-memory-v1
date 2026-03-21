@@ -11,7 +11,23 @@ import psycopg
 from dotenv import load_dotenv
 from psycopg.rows import dict_row
 
+from src.db.tenant_context import get_rls_is_admin, get_rls_tenant_id
+
 load_dotenv()
+
+
+def _apply_rls_session_settings(cur) -> None:
+    """Pose app.tenant_id / app.is_admin pour les policies RLS (transaction-local)."""
+    tid = get_rls_tenant_id()
+    if tid:
+        cur.execute(
+            "SELECT set_config('app.tenant_id', %s, true)",
+            (tid,),
+        )
+    if get_rls_is_admin():
+        cur.execute(
+            "SELECT set_config('app.is_admin', 'true', true)",
+        )
 
 
 @contextmanager
@@ -31,6 +47,7 @@ def get_db_cursor():
 
     with psycopg.connect(database_url, row_factory=dict_row) as conn:
         with conn.cursor() as cur:
+            _apply_rls_session_settings(cur)
             try:
                 yield cur
                 conn.commit()

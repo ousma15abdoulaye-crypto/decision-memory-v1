@@ -7,7 +7,7 @@ Checklist avant d’engager les 15 documents AO. Réf. : [PIPELINE_REFONTE_FREEZ
 - [ ] Service **label-studio-dms** (ou équivalent) **running** (pas de crash loop).
 - [ ] PostgreSQL dédié LS : variable **`POSTGRE_PORT=5432`** si `${{Postgres-LS.PGPORT}}` pose problème (voir CONTEXT_ANCHOR).
 - [ ] Healthcheck `/health` OK (depuis Railway ou navigateur).
-- [ ] Projet créé avec labeling config alignée sur [`services/annotation-backend/label_studio_config.xml`](../../services/annotation-backend/label_studio_config.xml).
+- [ ] Projet créé avec labeling config alignée sur [`services/annotation-backend/label_studio_config.xml`](../../services/annotation-backend/label_studio_config.xml) (champs **evidence_attestation**, **no_invented_numbers**, **extracted_json**, statut final).
 
 ## 2. Annotation backend (ML)
 
@@ -21,10 +21,11 @@ Variables obligatoires :
 | `MISTRAL_MODEL` | ex. `mistral-small-latest` |
 | `PSEUDONYM_SALT` | Sel HMAC (ou `ALLOW_WEAK_PSEUDONYMIZATION=1` **dev uniquement**) |
 | `CORS_ORIGINS` | URL **publique** de Label Studio (ex. `https://xxx.up.railway.app`) ou `*` en debug |
+| `STRICT_PREDICT` | Optionnel — `1` pour refuser une pré-annotation non valide (schéma / finances / evidence). Voir [`services/annotation-backend/ENVIRONMENT.md`](../../services/annotation-backend/ENVIRONMENT.md) |
 
 Vérifications :
 
-- [ ] `GET {ANNOTATION_BACKEND_URL}/health` → JSON `status: ok`
+- [ ] `GET {ANNOTATION_BACKEND_URL}/health` → JSON `status: ok` (vérifier `strict_predict` si vous utilisez le mode strict)
 - [ ] `POST {ANNOTATION_BACKEND_URL}/setup` → `status: ready`
 
 ## 3. Liaison LS → backend
