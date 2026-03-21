@@ -458,17 +458,27 @@ SCHÉMA OBLIGATOIRE — zéro champ supplémentaire :
   "quantity":             <float>,
   "unit_price":           <float>,
   "line_total":           <float — valeur du document>,
-  "line_total_check":     "<OK|ANOMALY|NON_VERIFIABLE>",
+  "line_total_check":     "<OK|ANOMALY|NON_VERIFIABLE|SUBTOTAL_NOT_CHECKED_HERE>",
   "confidence":           <0.6|0.8|1.0>,
-  "evidence":             "p.N — fragment exact"
+  "evidence":             "p.N — fragment exact",
+  "level":                "<detail|subtotal|total>",
+  "parent_subtotal_no":   <entier|null — lien vers ligne subtotal parente si détail>
 }
 
-RÈGLE CRITIQUE line_total_check :
-  Calculer : quantity × unit_price
-  Si résultat = line_total (écart ≤ 1%) → "OK"
-  Si écart > 1%                         → "ANOMALY"
-    ET ambiguites += "AMBIG-3_item_N"
-  Si qty ou unit_price absent            → "NON_VERIFIABLE"
+CHAMP level — OBLIGATOIRE sur chaque line_item :
+  "detail"   — ligne individuelle : quantity × unit_price vérifiable côté backend
+  "subtotal" — agrégat intermédiaire (ex. ligne récap « Honoraires et perdiem » forfait)
+  "total"    — total général affiché dans un tableau — NE PAS l’extraire comme line_item
+               si le montant global est déjà dans financier.total_price
+
+RÈGLE hiérarchique (récap + budget détaillé) :
+  Extraire les deux niveaux : récap → level="subtotal", détail → level="detail"
+  NE PAS dupliquer le total document en line_item si total_price est renseigné.
+
+RÈGLE CRITIQUE line_total_check (rappel — le backend recalcule) :
+  Sur level="detail" : quantity × unit_price vs line_total (écart ≤ 1%) → OK / ANOMALY
+  Sur level="subtotal"|"total" : pas de contrôle qty×prix sur la ligne (backend → SUBTOTAL_NOT_CHECKED_HERE)
+  Si qty ou unit_price absent sur une ligne detail → NON_VERIFIABLE
 
 ATTENTION PIÈGES TERRAIN :
   "5 enquêteurs × 40 jours × 30 000" :

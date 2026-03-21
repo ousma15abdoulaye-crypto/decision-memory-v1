@@ -40,6 +40,16 @@ class LineCheck(StrEnum):
     OK = "OK"
     ANOMALY = "ANOMALY"
     NON_VERIFIABLE = "NON_VERIFIABLE"
+    # ARCH-03 — agrégat : pas de contrôle qty×unit_price sur cette ligne
+    SUBTOTAL_NOT_CHECKED_HERE = "SUBTOTAL_NOT_CHECKED_HERE"
+
+
+class LineItemLevel(StrEnum):
+    """ARCH-03 — hiérarchie budget (récap vs détail)."""
+
+    DETAIL = "detail"
+    SUBTOTAL = "subtotal"
+    TOTAL = "total"
 
 
 class AnnotationStatus(StrEnum):
@@ -87,7 +97,7 @@ class FieldValue(BaseModel):
 
 
 class LineItem(BaseModel):
-    """Ligne de prix — schéma ADR-015 strict."""
+    """Ligne de prix — schéma ADR-015 strict + ARCH-03 hiérarchie."""
 
     model_config = {"extra": "forbid"}
 
@@ -100,6 +110,8 @@ class LineItem(BaseModel):
     line_total_check: LineCheck
     confidence: float
     evidence: str
+    level: LineItemLevel = LineItemLevel.DETAIL
+    parent_subtotal_no: int | None = None
 
     @model_validator(mode="after")
     def validate_unit_not_empty(self) -> LineItem:
@@ -115,6 +127,19 @@ class LineItem(BaseModel):
         if self.confidence not in {0.6, 0.8, 1.0}:
             raise ValueError(f"confidence={self.confidence} interdit sur LineItem.")
         return self
+
+
+def _total_price_field_to_float(fv: FieldValue) -> float | None:
+    """Parse financier.total_price.value (aligné parse_loose_money_float)."""
+    val = fv.value
+    if val in (None, "", "ABSENT", "NOT_APPLICABLE"):
+        return None
+    s = str(val).replace("\u202f", "").replace("\u00a0", "").replace(" ", "")
+    s = s.replace(",", ".")
+    try:
+        return float(s)
+    except (ValueError, TypeError):
+        return None
 
 
 class Gate(BaseModel):
@@ -372,13 +397,18 @@ class DMSAnnotation(BaseModel):
     def recalculate_line_total_check(self) -> DMSAnnotation:
         """
         Recalcul mathématique par le backend — jamais par Mistral.
-        Mistral peut se tromper. Python ne se trompe pas.
+        ARCH-03 : level=subtotal|total → pas de qty×price ; cohérence globale vs total_price.
 
         Tolérance : écart relatif |expected−actual|/max(actual,1) ≤ 0,01 (~1 %).
         quantity ou unit_price « falsy » (0.0 inclus) → NON_VERIFIABLE (pas d’assertion math).
         """
-        items = self.couche_4_atomic.financier.line_items
+        fin = self.couche_4_atomic.financier
+        items = fin.line_items
+
         for item in items:
+            if item.level in (LineItemLevel.SUBTOTAL, LineItemLevel.TOTAL):
+                item.line_total_check = LineCheck.SUBTOTAL_NOT_CHECKED_HERE
+                continue
             if item.quantity and item.unit_price:
                 expected = round(item.quantity * item.unit_price, 2)
                 actual = round(item.line_total, 2)
@@ -395,4 +425,32 @@ class DMSAnnotation(BaseModel):
                         self.ambiguites.append(ambig)
             else:
                 item.line_total_check = LineCheck.NON_VERIFIABLE
+
+        total_val = _total_price_field_to_float(fin.total_price)
+        if total_val is None or not items:
+            return self
+
+        subtotals = [i for i in items if i.level == LineItemLevel.SUBTOTAL]
+        details = [i for i in items if i.level == LineItemLevel.DETAIL]
+        tol = max(1.0, abs(total_val) * 0.01)
+
+        if subtotals:
+            sum_sub = sum(i.line_total for i in subtotals)
+            if abs(sum_sub - total_val) > tol:
+                code = (
+                    f"ANOMALY_subtotals_sum_{int(sum_sub)}"
+                    f"_vs_total_price_{int(total_val)}"
+                )
+                if code not in self.ambiguites:
+                    self.ambiguites.append(code)
+        else:
+            sum_det = sum(i.line_total for i in details)
+            if abs(sum_det - total_val) > tol:
+                code = (
+                    f"ANOMALY_details_sum_{int(sum_det)}"
+                    f"_vs_total_price_{int(total_val)}"
+                )
+                if code not in self.ambiguites:
+                    self.ambiguites.append(code)
+
         return self
