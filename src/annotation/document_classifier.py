@@ -14,6 +14,7 @@ TAXONOMIE PROVISOIRE : bornée au routing initial, pas au canon métier final.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from enum import Enum, unique
 
 
@@ -43,9 +44,16 @@ class DocumentRole(str, Enum):
     ANNEX_PRICING = "annex_pricing"
     SUPPORTING_DOC = "supporting_doc"
     EVALUATION_REPORT = "evaluation_report"
+    TDR = "tdr"
+    DAO = "dao"
+    RFQ = "rfq"
+    UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True, slots=True)
 class ClassificationResult:
     """
-    Résultat immuable du classifieur.
+    Résultat immuable du classifieur (frozen dataclass).
 
     Attributs :
       taxonomy_core : TaxonomyCore — famille documentaire
@@ -55,29 +63,13 @@ class ClassificationResult:
       deterministic : bool — True = LLM ne surcharge PAS
     """
 
-    __slots__ = (
-        "taxonomy_core",
-        "document_role",
-        "confidence",
-        "matched_rule",
-        "deterministic",
-    )
+    taxonomy_core: TaxonomyCore
+    document_role: DocumentRole
+    confidence: float
+    matched_rule: str
+    deterministic: bool
 
-    def __init__(
-        self,
-        taxonomy_core: TaxonomyCore,
-        document_role: DocumentRole,
-        confidence: float,
-        matched_rule: str,
-        deterministic: bool,
-    ) -> None:
-        self.taxonomy_core = taxonomy_core
-        self.document_role = document_role
-        self.confidence = confidence
-        self.matched_rule = matched_rule
-        self.deterministic = deterministic
-
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, str | float | bool]:
         return {
             "taxonomy_core": self.taxonomy_core.value,
             "document_role": self.document_role.value,
