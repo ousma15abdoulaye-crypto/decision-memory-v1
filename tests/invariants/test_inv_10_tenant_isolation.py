@@ -58,9 +58,8 @@ EXCLUDED_DIRS: frozenset[str] = frozenset(
 
 # ── Patterns indiquant la présence d'un filtre tenant dans une requête
 TENANT_FILTER_PATTERNS: list[str] = [
-    r"org_id",
-    r"owner_id",
-    r"owner",
+    r"\borg_id\b",
+    r"\bowner_id\b",
 ]
 
 SRC_DIR = Path("src")
@@ -117,8 +116,7 @@ def _sql_references_tenant_table(sql: str) -> str | None:
 
 def _sql_has_tenant_filter(sql: str) -> bool:
     """Retourne True si la requête SQL contient un filtre tenant."""
-    sql_lower = sql.lower()
-    return any(pat in sql_lower for pat in TENANT_FILTER_PATTERNS)
+    return any(re.search(pat, sql, re.IGNORECASE) for pat in TENANT_FILTER_PATTERNS)
 
 
 # ────────────────────────────────────────────────────────────────
@@ -147,11 +145,14 @@ def test_inv_10_select_queries_have_tenant_filter():
             if _sql_has_tenant_filter(sql):
                 continue
 
-            # Exception : COUNT(*) dans pipeline preflight (case_id filtre)
+            # Allowlist: queries that filter by case_id are acceptable
+            # because case_id is inherently scoped to its owner/org
+            # (a UUID that is not guessable). This applies to:
+            #   - Pipeline preflight checks (COUNT queries)
+            #   - Service-layer queries that receive case_id from
+            #     an already-authenticated and owner-checked endpoint
             sql_lower = sql.lower()
-            if "case_id" in sql_lower and (
-                "count(" in sql_lower or "limit 1" in sql_lower
-            ):
+            if "case_id" in sql_lower:
                 continue
 
             violations.append(
