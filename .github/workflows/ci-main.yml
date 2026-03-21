@@ -27,6 +27,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql+psycopg://postgres:testpass@localhost:5432/dmstest
+      DATABASE_URL_RLS_TEST: postgresql+psycopg://dm_app:dm_app_ci_test@localhost:5432/dmstest
       PGPASSWORD: testpass
 
     steps:
@@ -71,6 +72,11 @@ jobs:
           alembic upgrade head
           echo "=== Alembic current (after upgrade) ==="
           alembic current
+
+      - name: Enable dm_app LOGIN for RLS integration tests
+        run: |
+          psql -h localhost -U postgres -d dmstest -c \
+            "ALTER ROLE dm_app WITH LOGIN PASSWORD 'dm_app_ci_test';"
 
       - name: Proof — alembic_version in DB (DB-level)
         run: |
@@ -132,8 +138,26 @@ jobs:
       - name: Black check
         run: black --check src tests
 
-      - name: Auth coverage audit (extractions)
+      - name: Auth coverage audit (main:app — extractions)
         run: python scripts/audit_fastapi_auth_coverage.py --app main:app --fail-prefix /api/extractions
+
+      - name: Auth audit (src.api.main:app — informational Markdown)
+        continue-on-error: true
+        run: |
+          python scripts/audit_fastapi_auth_coverage.py --app src.api.main:app \
+            --report-md docs/audits/artifacts/audit_src_api_main_app_table.md
+
+      - name: Auth + case-guard gates (modular app)
+        run: |
+          python scripts/audit_fastapi_auth_coverage.py --app src.api.main:app \
+            --fail-prefix /mercuriale \
+            --fail-prefix /price-check \
+            --fail-prefix /vendors \
+            --fail-prefix /api/documents \
+            --fail-prefix /api/analysis \
+            --fail-prefix /api/memory \
+            --fail-prefix /api/scoring \
+            --fail-sensitive-prefix /api/cases
 
       - name: Resolve coverage gate
         id: cov_gate

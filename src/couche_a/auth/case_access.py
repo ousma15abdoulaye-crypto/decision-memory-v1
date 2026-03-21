@@ -8,11 +8,29 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import HTTPException
+from fastapi import Depends, HTTPException
 
-from src.couche_a.auth.dependencies import UserClaims
+from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.db import db_execute_one, get_connection
 from src.extraction.engine import get_document
+
+
+def require_case_access_dep(
+    case_id: str,
+    user: UserClaims = Depends(get_current_user),
+) -> UserClaims:
+    """FastAPI Depends : JWT + propriété du dossier (audit SEC-MT / arbre deps)."""
+    require_case_access(case_id, user)
+    return user
+
+
+def require_document_case_access_dep(
+    document_id: str,
+    user: UserClaims = Depends(get_current_user),
+) -> UserClaims:
+    """FastAPI Depends : JWT + document rattaché au dossier autorisé."""
+    require_document_case_access(document_id, user)
+    return user
 
 
 def require_case_access(case_id: str, user: UserClaims) -> None:

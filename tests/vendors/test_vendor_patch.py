@@ -16,6 +16,13 @@ client = TestClient(app)
 _SOURCE_PATCH = "TEST_PATCH"
 
 
+@pytest.fixture(scope="module")
+def vendor_auth_headers() -> dict[str, str]:
+    r = client.post("/auth/token", data={"username": "admin", "password": "admin123"})
+    assert r.status_code == 200, r.text
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
 @pytest.fixture(autouse=True)
 def cleanup_patch_vendors(db_conn):
     """Nettoie les vendors de test patch avant et après chaque test."""
@@ -164,16 +171,20 @@ def test_p6_skipped_no_region_removed_from_etl_report():
 # ── P7 : activity_status invalide → 422 ──────────────────────────
 
 
-def test_p7_invalid_activity_status_returns_422():
+def test_p7_invalid_activity_status_returns_422(vendor_auth_headers):
     """P7 : GET /vendors?activity_status=INVALID doit retourner 422."""
-    resp = client.get("/vendors?activity_status=INVALID_STATUS")
+    resp = client.get(
+        "/vendors?activity_status=INVALID_STATUS", headers=vendor_auth_headers
+    )
     assert resp.status_code == 422, f"Attendu 422, reçu {resp.status_code}"
 
 
-def test_p7_valid_activity_statuses_return_200():
+def test_p7_valid_activity_statuses_return_200(vendor_auth_headers):
     """P7 : Les valeurs canoniques doivent être acceptées (200)."""
     for status in ["VERIFIED_ACTIVE", "UNVERIFIED", "INACTIVE", "GHOST_SUSPECTED"]:
-        resp = client.get(f"/vendors?activity_status={status}")
+        resp = client.get(
+            f"/vendors?activity_status={status}", headers=vendor_auth_headers
+        )
         assert (
             resp.status_code == 200
         ), f"Statut {status!r} rejeté — attendu 200, reçu {resp.status_code}"
@@ -182,7 +193,7 @@ def test_p7_valid_activity_statuses_return_200():
 # ── P8 : filtre VERIFIED_ACTIVE cohérent ─────────────────────────
 
 
-def test_p8_filter_verified_active_only_returns_verified():
+def test_p8_filter_verified_active_only_returns_verified(vendor_auth_headers):
     """P8 : GET /vendors?activity_status=VERIFIED_ACTIVE ne retourne que des verts."""
     vid = insert_vendor(
         name_raw="P8 Verified",
@@ -201,7 +212,9 @@ def test_p8_filter_verified_active_only_returns_verified():
     )
     assert vid is not None
 
-    resp = client.get("/vendors?activity_status=VERIFIED_ACTIVE")
+    resp = client.get(
+        "/vendors?activity_status=VERIFIED_ACTIVE", headers=vendor_auth_headers
+    )
     assert resp.status_code == 200
     data = resp.json()
     for v in data:

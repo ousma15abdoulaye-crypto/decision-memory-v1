@@ -1,1 +1,1 @@
-# tests.integration
+# Integration tests (DB, RLS, etc.)

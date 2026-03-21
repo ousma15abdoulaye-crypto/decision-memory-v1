@@ -80,14 +80,16 @@ VALID_ALEMBIC_HEADS = (
     "049_validate_pipeline_runs_fk",
     "050_documents_sha256_not_null",
     "051_cases_tenant_user_tenants_rls",
+    "052_dm_app_rls_role",
+    "053_dm_app_enforce_security_attrs",
     "m7_4_dict_vivant",  # branche parallèle
 )
 
 
 def test_alembic_head_is_046b(db_conn):
     """
-    Head Alembic dans la liste des heads valides (046b, 047, m7_4...).
-    ANCHOR-05 : chaîne Alembic intacte.
+    Head Alembic dans la liste des heads valides (046b → 052, m7_4…).
+    ANCHOR-05 : chaîne Alembic intacte — étendre VALID_ALEMBIC_HEADS à chaque migration head.
     """
     with db_conn.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT version_num FROM alembic_version;")

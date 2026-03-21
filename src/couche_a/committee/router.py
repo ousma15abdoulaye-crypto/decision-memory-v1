@@ -9,6 +9,10 @@ import psycopg
 from fastapi import APIRouter, Depends, HTTPException, status
 from psycopg.rows import dict_row
 
+from src.couche_a.auth.case_access import require_case_access
+from src.couche_a.auth.dependencies import UserClaims, get_current_user
+from src.db.connection import apply_rls_session_vars_to_connection
+
 from . import service
 from .models import (
     AddMemberRequest,
@@ -23,12 +27,25 @@ from .models import (
 router = APIRouter(prefix="/committee", tags=["committee"])
 
 
+def _committee_row_or_404(committee_id: str, conn) -> dict[str, Any]:
+    """Charge le comité une fois ; lève HTTP 404 si absent."""
+    try:
+        return service.get_committee(committee_id, conn)
+    except CommitteeNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+def _committee_case_id(committee_id: str, conn) -> str:
+    return str(_committee_row_or_404(committee_id, conn)["case_id"])
+
+
 def _get_conn():
     """Dependency FastAPI : connexion psycopg autocommit=True (dict_row)."""
     url = os.environ.get("DATABASE_URL", "").replace(
         "postgresql+psycopg://", "postgresql://"
     )
     conn = psycopg.connect(url, row_factory=dict_row, autocommit=False)
+    apply_rls_session_vars_to_connection(conn)
     try:
         yield conn
         conn.commit()
@@ -44,8 +61,11 @@ def _get_conn():
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def create_committee(
-    req: CreateCommitteeRequest, conn=Depends(_get_conn)
+    req: CreateCommitteeRequest,
+    user: UserClaims = Depends(get_current_user),
+    conn=Depends(_get_conn),
 ) -> dict[str, Any]:
+    require_case_access(req.case_id, user)
     try:
         committee_id = service.create_committee(req, conn)
         return {"committee_id": committee_id}
@@ -54,15 +74,25 @@ def create_committee(
 
 
 @router.get("/{committee_id}")
-def get_committee(committee_id: str, conn=Depends(_get_conn)) -> dict[str, Any]:
-    try:
-        return service.get_committee(committee_id, conn)
-    except CommitteeNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+def get_committee(
+    committee_id: str,
+    user: UserClaims = Depends(get_current_user),
+    conn=Depends(_get_conn),
+) -> dict[str, Any]:
+    row = _committee_row_or_404(committee_id, conn)
+    require_case_access(str(row["case_id"]), user)
+    return row
 
 
 @router.post("/{committee_id}/open", status_code=status.HTTP_200_OK)
-def open_session(committee_id: str, by: str, conn=Depends(_get_conn)) -> dict[str, Any]:
+def open_session(
+    committee_id: str,
+    by: str,
+    user: UserClaims = Depends(get_current_user),
+    conn=Depends(_get_conn),
+) -> dict[str, Any]:
+    case_id = _committee_case_id(committee_id, conn)
+    require_case_access(case_id, user)
     try:
         service.open_session(committee_id, by, conn)
         return {"status": "ok"}
@@ -72,8 +102,13 @@ def open_session(committee_id: str, by: str, conn=Depends(_get_conn)) -> dict[st
 
 @router.post("/{committee_id}/review", status_code=status.HTTP_200_OK)
 def set_in_review(
-    committee_id: str, by: str, conn=Depends(_get_conn)
+    committee_id: str,
+    by: str,
+    user: UserClaims = Depends(get_current_user),
+    conn=Depends(_get_conn),
 ) -> dict[str, Any]:
+    case_id = _committee_case_id(committee_id, conn)
+    require_case_access(case_id, user)
     try:
         service.set_in_review(committee_id, by, conn)
         return {"status": "ok"}
@@ -89,8 +124,11 @@ def add_member(
     committee_id: str,
     req: AddMemberRequest,
     by: str,
+    user: UserClaims = Depends(get_current_user),
     conn=Depends(_get_conn),
 ) -> dict[str, Any]:
+    case_id = _committee_case_id(committee_id, conn)
+    require_case_access(case_id, user)
     try:
         member_id = service.add_member(committee_id, req, by, conn)
         return {"member_id": member_id}
@@ -104,8 +142,14 @@ def add_member(
 
 @router.delete("/{committee_id}/members/{member_id}", status_code=status.HTTP_200_OK)
 def remove_member(
-    committee_id: str, member_id: str, by: str, conn=Depends(_get_conn)
+    committee_id: str,
+    member_id: str,
+    by: str,
+    user: UserClaims = Depends(get_current_user),
+    conn=Depends(_get_conn),
 ) -> dict[str, Any]:
+    case_id = _committee_case_id(committee_id, conn)
+    require_case_access(case_id, user)
     try:
         service.remove_member(committee_id, member_id, by, conn)
         return {"status": "ok"}
@@ -114,7 +158,13 @@ def remove_member(
 
 
 @router.get("/{committee_id}/members")
-def list_members(committee_id: str, conn=Depends(_get_conn)) -> list[dict[str, Any]]:
+def list_members(
+    committee_id: str,
+    user: UserClaims = Depends(get_current_user),
+    conn=Depends(_get_conn),
+) -> list[dict[str, Any]]:
+    case_id = _committee_case_id(committee_id, conn)
+    require_case_access(case_id, user)
     try:
         return service.list_members(committee_id, conn)
     except CommitteeNotFoundError as exc:
@@ -129,8 +179,11 @@ def set_decision(
     committee_id: str,
     req: SetDecisionRequest,
     by: str,
+    user: UserClaims = Depends(get_current_user),
     conn=Depends(_get_conn),
 ) -> dict[str, Any]:
+    case_id = _committee_case_id(committee_id, conn)
+    require_case_access(case_id, user)
     try:
         decision_id = service.set_decision_candidate(committee_id, req, by, conn)
         return {"decision_id": decision_id}
@@ -139,7 +192,13 @@ def set_decision(
 
 
 @router.get("/{committee_id}/readiness")
-def validate_readiness(committee_id: str, conn=Depends(_get_conn)) -> dict[str, Any]:
+def validate_readiness(
+    committee_id: str,
+    user: UserClaims = Depends(get_current_user),
+    conn=Depends(_get_conn),
+) -> dict[str, Any]:
+    case_id = _committee_case_id(committee_id, conn)
+    require_case_access(case_id, user)
     try:
         return service.validate_readiness(committee_id, conn)
     except CommitteeNotFoundError as exc:
@@ -153,8 +212,11 @@ def validate_readiness(committee_id: str, conn=Depends(_get_conn)) -> dict[str, 
 def seal(
     committee_id: str,
     req: SealRequest,
+    user: UserClaims = Depends(get_current_user),
     conn=Depends(_get_conn),
 ) -> dict[str, Any]:
+    case_id = _committee_case_id(committee_id, conn)
+    require_case_access(case_id, user)
     try:
         result = service.seal_committee_decision(committee_id, req, conn)
         return {"seal_id": result.seal_id, "snapshot_hash": result.snapshot_hash}
@@ -171,8 +233,14 @@ def seal(
 
 @router.post("/{committee_id}/cancel", status_code=status.HTTP_200_OK)
 def cancel(
-    committee_id: str, reason: str, by: str, conn=Depends(_get_conn)
+    committee_id: str,
+    reason: str,
+    by: str,
+    user: UserClaims = Depends(get_current_user),
+    conn=Depends(_get_conn),
 ) -> dict[str, Any]:
+    case_id = _committee_case_id(committee_id, conn)
+    require_case_access(case_id, user)
     try:
         service.cancel_committee(committee_id, reason, by, conn)
         return {"status": "ok"}
@@ -181,7 +249,13 @@ def cancel(
 
 
 @router.get("/{committee_id}/events")
-def get_events(committee_id: str, conn=Depends(_get_conn)) -> list[dict[str, Any]]:
+def get_events(
+    committee_id: str,
+    user: UserClaims = Depends(get_current_user),
+    conn=Depends(_get_conn),
+) -> list[dict[str, Any]]:
+    case_id = _committee_case_id(committee_id, conn)
+    require_case_access(case_id, user)
     try:
         return service.get_events(committee_id, conn)
     except CommitteeNotFoundError as exc:
@@ -189,7 +263,13 @@ def get_events(committee_id: str, conn=Depends(_get_conn)) -> list[dict[str, Any
 
 
 @router.get("/{committee_id}/snapshot")
-def get_snapshot(committee_id: str, conn=Depends(_get_conn)) -> dict[str, Any] | None:
+def get_snapshot(
+    committee_id: str,
+    user: UserClaims = Depends(get_current_user),
+    conn=Depends(_get_conn),
+) -> dict[str, Any] | None:
+    case_id = _committee_case_id(committee_id, conn)
+    require_case_access(case_id, user)
     try:
         snap = service.get_decision_snapshot(committee_id, conn)
         if snap is None:

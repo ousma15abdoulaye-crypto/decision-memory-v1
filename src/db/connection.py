@@ -30,6 +30,17 @@ def _apply_rls_session_settings(cur) -> None:
         )
 
 
+def apply_rls_session_vars_to_connection(conn: psycopg.Connection) -> None:
+    """Applique le même contexte RLS que `get_db_cursor` sur une connexion psycopg brute.
+
+    À appeler après `psycopg.connect` dans les dépendances FastAPI qui ne passent pas
+    par `get_db_cursor` (ex. pipeline, analysis_summary, committee) une fois que
+    `get_current_user` / `require_case_access_dep` ont posé le contexte requête.
+    """
+    with conn.cursor() as cur:
+        _apply_rls_session_settings(cur)
+
+
 @contextmanager
 def get_db_cursor():
     """

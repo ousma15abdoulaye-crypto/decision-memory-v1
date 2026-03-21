@@ -1,0 +1,68 @@
+﻿python : [RATELIMIT] REDIS_URL absent ù fallback memory://. Rate limiting non persistant entre restarts. Configurer 
+REDIS_URL en production (Railway Dashboard).
+Au caractère C:\Users\abdoulaye.ousmane\AppData\Local\Temp\ps-script-4e620741-1a61-4d45-97a2-35211805980a.ps1:77 : 230
++ ... in_app.txt; python scripts/audit_fastapi_auth_coverage.py --app src.a ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([RATELIMIT] RED...way Dashboard).:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+METHOD   AUTH  GUARD  SENS  PATH
+--------------------------------------------------------------------------------
+GET      NO    no     no    /
+POST     yes   no     no    /api/analyze
+GET      yes   no     no    /api/cases
+POST     yes   no     no    /api/cases
+GET      yes   yes    yes   /api/cases/{case_id}
+POST     yes   yes    yes   /api/cases/{case_id}/analysis-summary/generate
+GET      yes   yes    yes   /api/cases/{case_id}/analysis-summary/last
+GET      yes   yes    yes   /api/cases/{case_id}/pipeline/a/last
+POST     yes   yes    yes   /api/cases/{case_id}/pipeline/a/run
+GET      NO    no     no    /api/constitution
+POST     yes   no     no    /api/decide
+GET      yes   no     yes   /api/download/{case_id}/{kind}
+GET      yes   no     yes   /api/extractions/documents/{document_id}
+POST     yes   no     yes   /api/extractions/documents/{document_id}/corrections
+GET      yes   no     yes   /api/extractions/documents/{document_id}/corrections/history
+GET      yes   no     yes   /api/extractions/documents/{document_id}/effective
+POST     yes   no     yes   /api/extractions/documents/{document_id}/extract
+GET      yes   no     yes   /api/extractions/jobs/{job_id}/status
+GET      NO    no     no    /api/health
+GET      yes   no     yes   /api/memory/{case_id}
+GET      yes   no     yes   /api/search_memory/{case_id}
+POST     yes   no     yes   /api/upload/{case_id}/{kind}
+GET      yes   no     no    /auth/me
+POST     NO    no     no    /auth/register
+POST     NO    no     no    /auth/token
+GET      yes   no     yes   /cases/{case_id}/criteria
+POST     yes   no     yes   /cases/{case_id}/criteria
+GET      yes   no     yes   /cases/{case_id}/criteria/validate/weights
+DELETE   yes   no     yes   /cases/{case_id}/criteria/{criterion_id}
+GET      yes   no     yes   /cases/{case_id}/criteria/{criterion_id}
+POST     yes   no     no    /committee/
+GET      yes   no     no    /committee/{committee_id}
+POST     yes   no     no    /committee/{committee_id}/cancel
+POST     yes   no     no    /committee/{committee_id}/decision
+GET      yes   no     no    /committee/{committee_id}/events
+GET      yes   no     no    /committee/{committee_id}/members
+POST     yes   no     no    /committee/{committee_id}/members
+DELETE   yes   no     no    /committee/{committee_id}/members/{member_id}
+POST     yes   no     no    /committee/{committee_id}/open
+GET      yes   no     no    /committee/{committee_id}/readiness
+POST     yes   no     no    /committee/{committee_id}/review
+POST     yes   no     no    /committee/{committee_id}/seal
+GET      yes   no     no    /committee/{committee_id}/snapshot
+GET      NO    no     no    /docs
+GET      NO    no     no    /docs/oauth2-redirect
+GET      NO    no     no    /geo/cercles/{cercle_id}/communes
+GET      NO    no     no    /geo/communes/search
+GET      NO    no     no    /geo/countries
+GET      NO    no     no    /geo/countries/{iso2}/regions
+GET      NO    no     no    /geo/regions/{region_id}/cercles
+GET      NO    no     no    /geo/zones
+POST     yes   no     no    /mercuriale/parse
+GET      NO    no     no    /openapi.json
+POST     yes   no     no    /price-check/analyze
+POST     yes   no     no    /price-check/analyze-batch
+GET      NO    no     no    /redoc
+GET      yes   no     no    /vendors
+GET      yes   no     no    /vendors/{vendor_id}

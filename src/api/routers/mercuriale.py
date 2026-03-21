@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.couche_b.mercuriale.parser import parse_batch
 from src.couche_b.mercuriale.schemas import (
     MercurialeParsedLine,
@@ -80,7 +81,10 @@ def _persist(conn, results: list[MercurialeParsedLine], source: str | None) -> N
 
 
 @router.post("/parse", response_model=list[MercurialeParsedLine])
-def parse_mercuriale(body: MercurialeParseRequest) -> list[MercurialeParsedLine]:
+def parse_mercuriale(
+    body: MercurialeParseRequest,
+    _user: UserClaims = Depends(get_current_user),
+) -> list[MercurialeParsedLine]:
     """
     Parse une liste de lignes brutes mercuriale.
     persist=true -> ecrit dans couche_b.mercuriale_raw_queue (si table existe).

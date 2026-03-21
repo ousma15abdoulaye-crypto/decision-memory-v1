@@ -23,8 +23,9 @@ import psycopg
 from fastapi import APIRouter, Body, Depends, HTTPException
 from psycopg.rows import dict_row
 
-from src.couche_a.auth.case_access import require_case_access
-from src.couche_a.auth.dependencies import UserClaims, get_current_user
+from src.couche_a.auth.case_access import require_case_access_dep
+from src.couche_a.auth.dependencies import UserClaims
+from src.db.connection import apply_rls_session_vars_to_connection
 
 from . import service
 from .models import PipelineLastRunResponse, PipelineResult, PipelineRunRequest
@@ -38,6 +39,7 @@ def _get_conn() -> Generator[psycopg.Connection, None, None]:
         "postgresql+psycopg://", "postgresql://"
     )
     conn = psycopg.connect(url, row_factory=dict_row, autocommit=False)
+    apply_rls_session_vars_to_connection(conn)
     try:
         yield conn
         conn.commit()
@@ -51,7 +53,7 @@ def _get_conn() -> Generator[psycopg.Connection, None, None]:
 @router.post("/{case_id}/pipeline/a/run", response_model=PipelineResult)
 def run_pipeline_a(
     case_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: Annotated[UserClaims, Depends(require_case_access_dep)],
     body: PipelineRunRequest = Body(default_factory=PipelineRunRequest),
     conn: psycopg.Connection = Depends(_get_conn),
 ) -> PipelineResult:
@@ -64,8 +66,6 @@ def run_pipeline_a(
     blocked/incomplete/failed ne sont pas des erreurs HTTP.
     INV-API-11-01 : zéro logique métier ici.
     """
-    require_case_access(case_id, user)
-
     if body.mode == "e2e":
         return service.run_pipeline_a_e2e(
             case_id=case_id,
@@ -83,7 +83,7 @@ def run_pipeline_a(
 @router.get("/{case_id}/pipeline/a/last", response_model=PipelineLastRunResponse)
 def get_last_pipeline_a_run(
     case_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: Annotated[UserClaims, Depends(require_case_access_dep)],
     conn: psycopg.Connection = Depends(_get_conn),
 ) -> PipelineLastRunResponse:
     """
@@ -91,8 +91,6 @@ def get_last_pipeline_a_run(
     Lit depuis result_jsonb — pas de recalcul (INV-P9).
     HTTP 404 si aucun run trouvé.
     """
-    require_case_access(case_id, user)
-
     result = service.get_last_pipeline_run(case_id=case_id, conn=conn)
     if result is None:
         raise HTTPException(

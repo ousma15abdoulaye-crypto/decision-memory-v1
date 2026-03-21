@@ -88,11 +88,20 @@ class RedisRateLimitMiddleware(BaseHTTPMiddleware):
             self._redis.ping()
             return self._redis
         except Exception as exc:
-            logger.warning(
-                "Redis indisponible — rate limiting désactivé (fallback no-op). "
-                "Erreur : %s",
-                exc,
+            _prod = os.environ.get("RAILWAY_ENVIRONMENT") == "production" or (
+                os.environ.get("ENV", "").lower() == "production"
             )
+            if _prod:
+                logger.error(
+                    "PROD — Redis indisponible : rate limiting en no-op. Erreur : %s",
+                    exc,
+                )
+            else:
+                logger.warning(
+                    "Redis indisponible — rate limiting désactivé (fallback no-op). "
+                    "Erreur : %s",
+                    exc,
+                )
             self._redis_unavailable = True
             self._redis = None
             return None
