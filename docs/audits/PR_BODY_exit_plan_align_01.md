@@ -1,10 +1,11 @@
-# PR — `feat/exit-plan-align-01-enterprise-bundle`
+# PR #234 — `chore/copilot-tenant-pr-alignment`
 
-> À coller dans la description GitHub de la PR (section principale / body).
+> À coller dans la description GitHub de la PR **#234** (body).  
+> Branche canonique : **`chore/copilot-tenant-pr-alignment`** (la branche distante `feat/exit-plan-align-01-enterprise-bundle` a été supprimée ; tout le travail est ici).
 
 ## Résumé
 
-Branche **exit-plan / alignement enterprise** : durcissement multi-tenant (`tenant_id`, RLS, critères, extractions), CI, documentation d’audit, et **intégration des correctifs issus de la revue CI de la PR Copilot** (sans dupliquer `org_id` dans le JWT — le claim unique reste **`tenant_id`**).
+Durcissement multi-tenant (`tenant_id`, RLS 051, critères, extractions), CI (dont audit auth extractions), documentation d’audit, et **correctifs revue CI PR Copilot** (sans `org_id` JWT dupliqué — claim unique **`tenant_id`**).
 
 ## Dernier commit (ce push)
 

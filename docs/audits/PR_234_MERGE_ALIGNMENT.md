@@ -1,7 +1,7 @@
 # PR #234 — alignement après fusion des branches
 
-Branche : `chore/copilot-tenant-pr-alignment`  
-Dernière synchro : **fast-forward** depuis `feat/exit-plan-align-01-enterprise-bundle` sur l’ancêtre commun `0db837d`.
+Branche **active et canonique** : `chore/copilot-tenant-pr-alignment` (PR **#234**).  
+Historique : le contenu de l’ancienne branche distante `feat/exit-plan-align-01-enterprise-bundle` (supprimée sur `origin`) a été **fast-forward** ici depuis l’ancêtre `0db837d`, puis commits inv10 / Black / doc d’alignement.
 
 ## Rôles respectifs (éviter la redondance)
 
@@ -10,7 +10,7 @@ Dernière synchro : **fast-forward** depuis `feat/exit-plan-align-01-enterprise-
 | **Agents / commit `0db837d`** | Bundle tenant : RLS 051, auth extractions, critères, JWT `tenant_id`, `user_tenants`, CI M12 / docs alignement | — |
 | **PR Copilot (fermée / non mergée telle quelle)** | Proposait `org_id` JWT + `require_org_id` + filtre liste **owner-only** | **Non repris** : un seul claim **`tenant_id`** ; liste non-admin = **tenant + owner** (cohérent `require_case_access`) |
 | **Invariant inv10 + `inv10_tenant_sql_scan.py`** | Scan statique SQL vs tables RLS **051** ; warnings **vendors** ; docstrings / ruff | Complète le bundle ; ne remplace pas RLS runtime |
-| **Styles / tests (`31cbd97` → `772acf6`)** | Ruff I001/UP035/F401, Black sur fichiers touchés, critères API / intégration `conftest` | Orthogonal au métier tenant |
+| **Styles / tests (`31cbd97` → `772acf6`, puis `93f637b`)** | Ruff, Black (CI), critères API / intégration `conftest` | Orthogonal au métier tenant |
 
 ## Vérifications rapides
 
