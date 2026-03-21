@@ -188,13 +188,21 @@ def rotate_refresh_token(
     role = payload["role"]
     tid = payload.get("tenant_id")
     if not tid:
-        with db_conn.cursor() as cur:
-            cur.execute(
-                "SELECT tenant_id FROM user_tenants WHERE user_id = %s",
-                (int(user_id),),
-            )
-            r = cur.fetchone()
-        tid = r[0] if r else f"tenant-{user_id}"
+        tid = None
+        try:
+            uid = int(user_id)
+        except (TypeError, ValueError):
+            uid = None
+        if uid is not None:
+            with db_conn.cursor() as cur:
+                cur.execute(
+                    "SELECT tenant_id FROM user_tenants WHERE user_id = %s",
+                    (uid,),
+                )
+                r = cur.fetchone()
+            tid = r[0] if r else None
+        if not tid:
+            tid = f"tenant-{user_id}"
     else:
         tid = str(tid)
     new_access = create_access_token(user_id, role, tid)

@@ -115,8 +115,16 @@ def _get_conn():
 
 @pytest.fixture
 def integration_client():
-    """TestClient FastAPI pour tests d'intégration."""
-    return TestClient(app)
+    """TestClient FastAPI pour tests d'intégration (Bearer admin, aligné extractions auth)."""
+    client = TestClient(app)
+    r = client.post(
+        "/auth/token",
+        data={"username": "admin", "password": "admin123"},
+    )
+    assert r.status_code == 200, r.text
+    token = r.json()["access_token"]
+    client.headers.update({"Authorization": f"Bearer {token}"})
+    return client
 
 
 # db_conn fourni par tests.db_integrity.conftest (pytest_plugins)
@@ -126,20 +134,37 @@ def integration_client():
 def test_case_id(db_conn):
     """
     Crée un case de test et le supprime après le test.
+    owner_id / tenant_id alignés sur l'admin (require_case_access extractions).
     """
     case_id = f"integ-case-{uuid.uuid4().hex[:8]}"
     with db_conn.cursor() as cur:
         cur.execute(
             """
+            SELECT u.id,
+                   COALESCE(ut.tenant_id, 'tenant-' || u.id::text) AS tenant_id
+            FROM users u
+            LEFT JOIN user_tenants ut ON ut.user_id = u.id
+            WHERE u.username = 'admin'
+            LIMIT 1
+            """
+        )
+        row = cur.fetchone()
+        assert row is not None, "Utilisateur admin requis pour les tests d'intégration"
+        owner_id = row["id"]
+        tenant_id = row["tenant_id"]
+        cur.execute(
+            """
             INSERT INTO cases
-                (id, case_type, title, status, created_at)
-            VALUES (%s, %s, %s, 'DRAFT', NOW()::TEXT)
+                (id, case_type, title, status, created_at, owner_id, tenant_id)
+            VALUES (%s, %s, %s, 'DRAFT', NOW()::TEXT, %s, %s)
             ON CONFLICT (id) DO NOTHING
         """,
             (
                 case_id,
                 "INTEGRATION_TEST",
                 f"Case intégration {case_id}",
+                owner_id,
+                tenant_id,
             ),
         )
     yield case_id

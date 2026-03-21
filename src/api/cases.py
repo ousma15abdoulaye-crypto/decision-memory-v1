@@ -86,8 +86,12 @@ def list_cases(
         elif user.tenant_id:
             rows = db_fetchall(
                 conn,
-                "SELECT * FROM cases WHERE tenant_id = :tid ORDER BY created_at DESC",
-                {"tid": user.tenant_id},
+                """
+                SELECT * FROM cases
+                WHERE tenant_id = :tid AND owner_id = :oid
+                ORDER BY created_at DESC
+                """,
+                {"tid": user.tenant_id, "oid": int(user.user_id)},
             )
         else:
             rows = []

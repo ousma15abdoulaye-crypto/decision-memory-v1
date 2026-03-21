@@ -219,7 +219,9 @@ def init_db_schema() -> None:
             title TEXT NOT NULL,
             lot TEXT,
             created_at TEXT NOT NULL,
-            status TEXT NOT NULL
+            status TEXT NOT NULL,
+            owner_id INTEGER,
+            tenant_id TEXT DEFAULT 'legacy-default'
         )
         """,
         """
@@ -287,3 +289,8 @@ def init_db_schema() -> None:
     with get_db_cursor() as cur:
         for stmt in statements:
             cur.execute(stmt.strip())
+        for alter in (
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS owner_id INTEGER",
+            "ALTER TABLE cases ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT 'legacy-default'",
+        ):
+            cur.execute(alter)

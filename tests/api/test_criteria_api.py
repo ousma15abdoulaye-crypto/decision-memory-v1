@@ -142,7 +142,10 @@ class TestPostCriterion:
         fake_case = f"inexistant-{uuid.uuid4().hex[:8]}"
         resp = _post_criterion(test_client, fake_case, crit_auth)
         assert resp.status_code == 404
-        assert "case_id" in resp.json()["detail"].lower()
+        detail = resp.json()["detail"].lower()
+        assert "case" in detail and (
+            "not found" in detail or "introuvable" in detail
+        )
 
     def test_categorie_invalide_422(self, test_client, db_conn, crit_auth):
         """POST category invalide → 422 (Pydantic field_validator)."""

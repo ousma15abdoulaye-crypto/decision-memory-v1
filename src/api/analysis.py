@@ -50,7 +50,7 @@ def extract_dao_criteria_structured(
     )
 
 
-@router.post("/api/analyze")
+@router.post("/analyze")
 def analyze(
     payload: AnalyzeRequest,
     user: Annotated[UserClaims, Depends(get_current_user)],
@@ -268,7 +268,7 @@ def analyze(
     }
 
 
-@router.post("/api/decide")
+@router.post("/decide")
 def decide(
     payload: DecideRequest,
     user: Annotated[UserClaims, Depends(get_current_user)],
