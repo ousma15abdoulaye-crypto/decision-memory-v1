@@ -1,16 +1,19 @@
 """
 Case management endpoints.
+
+Règle R7 : org_id obligatoire — isolation multi-tenant.
 """
 
 import uuid
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from src.core.dependencies import get_artifacts, list_memory
 from src.core.models import CaseCreate
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
+from src.couche_a.auth.tenant_guard import require_org_id
 from src.db import db_execute, db_execute_one, db_fetchall, get_connection
 from src.ratelimit import limiter
 
@@ -64,17 +67,40 @@ async def create_case(
 
 @router.get("")
 @limiter.limit("50/minute")
-def list_cases(request: Request):
-    """Liste tous les cases (rate limited)."""
+def list_cases(
+    request: Request,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+):
+    """Liste les cases de l'organisation (rate limited).
+
+    Règle R7 : filtre par owner_id — aucune fuite inter-utilisateur.
+    """
+    owner_id = int(user.user_id)
     with get_connection() as conn:
-        rows = db_fetchall(conn, "SELECT * FROM cases ORDER BY created_at DESC")
+        rows = db_fetchall(
+            conn,
+            "SELECT * FROM cases WHERE owner_id=:owner ORDER BY created_at DESC",
+            {"owner": owner_id},
+        )
     return rows
 
 
 @router.get("/{case_id}")
-def get_case(case_id: str):
+def get_case(
+    case_id: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+):
+    """Récupère un case par son id.
+
+    Règle R7 : vérifie que le case appartient à l'utilisateur authentifié.
+    """
+    owner_id = int(user.user_id)
     with get_connection() as conn:
-        c = db_execute_one(conn, "SELECT * FROM cases WHERE id=:id", {"id": case_id})
+        c = db_execute_one(
+            conn,
+            "SELECT * FROM cases WHERE id=:id AND owner_id=:owner",
+            {"id": case_id, "owner": owner_id},
+        )
     if not c:
         raise HTTPException(status_code=404, detail="case not found")
 

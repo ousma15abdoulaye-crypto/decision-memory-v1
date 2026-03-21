@@ -49,9 +49,10 @@ def _build_claims(
     role: str,
     token_type: str,
     expires_delta: timedelta,
+    org_id: str | None = None,
 ) -> dict[str, Any]:
     now = datetime.now(UTC)
-    return {
+    claims: dict[str, Any] = {
         "sub": str(user_id),
         "role": role,
         "jti": str(uuid.uuid4()),
@@ -59,6 +60,9 @@ def _build_claims(
         "exp": now + expires_delta,
         "type": token_type,
     }
+    if org_id is not None:
+        claims["org_id"] = org_id
+    return claims
 
 
 def _validate_role(role: str) -> None:
@@ -68,25 +72,39 @@ def _validate_role(role: str) -> None:
         )
 
 
-def create_access_token(user_id: str, role: str) -> str:
+def create_access_token(
+    user_id: str, role: str, org_id: str | None = None
+) -> str:
     """Émet un access token signé HS256.
+
+    Args:
+        org_id: identifiant organisation — isolation multi-tenant (Règle R7).
 
     Raises:
         ValueError: rôle non reconnu ou SECRET_KEY absent.
     """
     _validate_role(role)
-    claims = _build_claims(user_id, role, "access", timedelta(minutes=_access_ttl()))
+    claims = _build_claims(
+        user_id, role, "access", timedelta(minutes=_access_ttl()), org_id=org_id
+    )
     return jwt.encode(claims, _secret_key(), algorithm=ALGORITHM)
 
 
-def create_refresh_token(user_id: str, role: str) -> str:
+def create_refresh_token(
+    user_id: str, role: str, org_id: str | None = None
+) -> str:
     """Émet un refresh token signé HS256.
+
+    Args:
+        org_id: identifiant organisation — isolation multi-tenant (Règle R7).
 
     Raises:
         ValueError: rôle non reconnu ou SECRET_KEY absent.
     """
     _validate_role(role)
-    claims = _build_claims(user_id, role, "refresh", timedelta(days=_refresh_ttl()))
+    claims = _build_claims(
+        user_id, role, "refresh", timedelta(days=_refresh_ttl()), org_id=org_id
+    )
     return jwt.encode(claims, _secret_key(), algorithm=ALGORITHM)
 
 
@@ -174,6 +192,7 @@ def rotate_refresh_token(
 
     user_id = payload["sub"]
     role = payload["role"]
-    new_access = create_access_token(user_id, role)
-    new_refresh = create_refresh_token(user_id, role)
+    org_id = payload.get("org_id")
+    new_access = create_access_token(user_id, role, org_id=org_id)
+    new_refresh = create_refresh_token(user_id, role, org_id=org_id)
     return new_access, new_refresh

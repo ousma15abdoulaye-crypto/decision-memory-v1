@@ -23,11 +23,17 @@ _bearer_scheme = HTTPBearer(auto_error=False)
 
 @dataclass(frozen=True)
 class UserClaims:
-    """Claims extraits et validés d'un token JWT."""
+    """Claims extraits et validés d'un token JWT.
+
+    org_id : identifiant organisation — isolation multi-tenant (Règle R7).
+             None si le token a été émis avant l'ajout du claim org_id
+             (migration progressive).
+    """
 
     user_id: str
     role: str
     jti: str
+    org_id: str | None = None
 
 
 def _get_db_conn() -> Generator[psycopg.Connection, None, None]:
@@ -86,6 +92,7 @@ def get_current_user(
         user_id=payload["sub"],
         role=role,
         jti=payload["jti"],
+        org_id=payload.get("org_id"),
     )
 
 
