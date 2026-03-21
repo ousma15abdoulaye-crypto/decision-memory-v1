@@ -815,7 +815,7 @@ def _validate_and_correct(annotation: dict, task_id: int = 0) -> tuple[dict, lis
     errors: list[dict] = []
     annotation = copy.deepcopy(annotation)
     _normalize_identifiants_for_schema(annotation)
-    annotation = normalize_annotation_output(annotation)
+    # Normalisation : uniquement via DMSAnnotation.normalize_annotation_before (pas de double passe)
 
     try:
         validated = DMSAnnotation.model_validate(annotation)
@@ -830,6 +830,8 @@ def _validate_and_correct(annotation: dict, task_id: int = 0) -> tuple[dict, lis
             )
         return annotation, []
     except ValidationError as exc:
+        # model_validate normalise sur une copie interne ; le dict local reste brut
+        annotation = normalize_annotation_output(annotation)
         if hasattr(exc, "errors"):
             for err in exc.errors():
                 loc = err.get("loc", ())
@@ -1183,6 +1185,7 @@ async def predict(request: Request) -> JSONResponse:
             annotation = _sync_gate_reasons_with_document_role(annotation)
             annotation, errors = _validate_and_correct(annotation, task_id)
             annotation = _apply_financial_offer_review_rules(annotation)
+            annotation = normalize_annotation_output(annotation)
             if STRICT_PREDICT:
                 if errors:
                     predictions.append(

@@ -227,8 +227,8 @@ class TestBuildLsResult:
         parsed = json.loads(json_str)
         assert parsed["_meta"]["review_required"] is True
 
-    def test_identifiants_export_keeps_raw_keys_and_strips_secrets(self):
-        """Export LS (ADR-013) : pas de clés *_raw phone/email dans le JSON ; blocs pseudo présents."""
+    def test_identifiants_export_omits_phone_email_raw_keys(self):
+        """Export LS (ADR-013) : pas de clés supplier_phone_raw / supplier_email_raw dans le JSON."""
         import json
 
         from backend import ABSENT, _build_ls_result

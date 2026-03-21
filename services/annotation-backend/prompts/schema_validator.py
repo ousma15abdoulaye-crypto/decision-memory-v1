@@ -8,6 +8,7 @@ ADR-015 — 2026-03-16
 
 from __future__ import annotations
 
+import copy
 import logging
 import math
 from enum import StrEnum
@@ -353,11 +354,11 @@ def resequence_line_items(line_items: list[Any]) -> list[dict[str, Any]]:
         item["item_line_no"] = i
         item.pop("parent_subtotal_no", None)
         lvl = item.get("level")
-        if isinstance(lvl, str):
+        if isinstance(lvl, LineItemLevel):
+            item["level"] = lvl.value
+        elif isinstance(lvl, str):
             ls = lvl.strip().lower()
-            if ls == "total":
-                item["level"] = "subtotal"
-            elif ls in ("detail", "subtotal"):
+            if ls in ("detail", "subtotal", "total"):
                 item["level"] = ls
             else:
                 item["level"] = "detail"
@@ -440,9 +441,11 @@ class LineItem(BaseModel):
     def coerce_level(cls, v: Any) -> str:
         if v is None or v == "":
             return LineItemLevel.DETAIL.value
+        if isinstance(v, LineItemLevel):
+            return v.value
         s = str(v).strip().lower()
         if s == "total":
-            return LineItemLevel.SUBTOTAL.value
+            return LineItemLevel.TOTAL.value
         if s in ("detail", "subtotal"):
             return s
         return LineItemLevel.DETAIL.value
@@ -725,9 +728,12 @@ class DMSAnnotation(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def normalize_annotation_before(cls, data: Any) -> Any:
-        """JSON-FIX-ANNOT-01-v2 — normalisation types / sentinelles avant contrat Pydantic."""
+        """
+        JSON-FIX-ANNOT-01-v2 — normalisation types / sentinelles avant contrat Pydantic.
+        Copie profonde : le dict passé à model_validate n'est pas muté sur place.
+        """
         if isinstance(data, dict):
-            return normalize_annotation_output(data)
+            return normalize_annotation_output(copy.deepcopy(data))
         return data
 
     couche_1_routing: Couche1Routing
@@ -763,7 +769,7 @@ class DMSAnnotation(BaseModel):
         items = fin.line_items
 
         for item in items:
-            if item.level == LineItemLevel.SUBTOTAL:
+            if item.level in (LineItemLevel.SUBTOTAL, LineItemLevel.TOTAL):
                 item.line_total_check = LineCheck.SUBTOTAL_NOT_CHECKED_HERE
                 continue
             if item.quantity and item.unit_price:
@@ -787,7 +793,9 @@ class DMSAnnotation(BaseModel):
         if total_val is None or not items:
             return self
 
-        subtotals = [i for i in items if i.level == LineItemLevel.SUBTOTAL]
+        subtotals = [
+            i for i in items if i.level == LineItemLevel.SUBTOTAL
+        ]  # TOTAL exclu — évite double comptage avec une ligne grand total
         details = [i for i in items if i.level == LineItemLevel.DETAIL]
         tol = max(1.0, abs(total_val) * 0.01)
 
