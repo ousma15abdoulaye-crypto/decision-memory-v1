@@ -98,7 +98,7 @@ def test_p0c_bordereau_plus_total():
 def test_p1_technique_titre_h1():
     r = classify_document(F_TECHNIQUE_H1)
     assert r.taxonomy_core == TaxonomyCore.OFFER_TECHNICAL
-    assert r.document_role == DocumentRole.TECHNICAL_OFFER
+    assert r.document_role == DocumentRole.OFFER_TECHNICAL
     assert r.confidence == 1.0
     assert r.deterministic is True
 
@@ -106,21 +106,21 @@ def test_p1_technique_titre_h1():
 def test_p2_tdr():
     r = classify_document(F_TDR)
     assert r.taxonomy_core == TaxonomyCore.TDR_CONSULTANCE_AUDIT
-    assert r.document_role == DocumentRole.TDR
+    assert r.document_role == DocumentRole.SOURCE_RULES
     assert r.confidence == 1.0
 
 
 def test_p3_dao():
     r = classify_document(F_DAO)
-    assert r.taxonomy_core == TaxonomyCore.DAO
-    assert r.document_role == DocumentRole.DAO
+    assert r.taxonomy_core == TaxonomyCore.DAO_CONSTRUCTION
+    assert r.document_role == DocumentRole.SOURCE_RULES
     assert r.confidence == 0.8
 
 
 def test_p4_rfq():
     r = classify_document(F_RFQ)
     assert r.taxonomy_core == TaxonomyCore.RFQ
-    assert r.document_role == DocumentRole.RFQ
+    assert r.document_role == DocumentRole.SOURCE_RULES
     assert r.confidence == 0.8
 
 
@@ -185,7 +185,7 @@ def test_faux_positif_rfq_dans_corps_dao():
     assert "RFQ" not in F_DAO_AVEC_RFQ_DANS_CORPS[:_HEADER_LEN]
     assert len(F_DAO_AVEC_RFQ_DANS_CORPS[:_HEADER_LEN]) == _HEADER_LEN
     r = classify_document(F_DAO_AVEC_RFQ_DANS_CORPS)
-    assert r.taxonomy_core == TaxonomyCore.DAO
+    assert r.taxonomy_core == TaxonomyCore.DAO_CONSTRUCTION
     assert r.matched_rule == "P3_dao_header"
 
 
@@ -219,7 +219,7 @@ def test_ocr_bruite_titre_sans_p0_mais_p0b_lettre_et_total_ht():
 def test_golden_az_sarl_ne_regresse_jamais():
     """
     GOLDEN — texte réel Offre-Financiere.pdf (A-Z SARL, 29 194 950 FCFA).
-    'Objet : Offre technique' dans la lettre NE doit PAS router technical_offer.
+    'Objet : Offre technique' dans la lettre NE doit PAS router offer_technical.
     Ce test ne doit JAMAIS régresser.
     """
     r = classify_document(F_FINANCIERE_H1)
@@ -248,16 +248,23 @@ def test_to_dict_structure_et_types():
     assert isinstance(d["confidence"], float)
     assert isinstance(d["matched_rule"], str)
     assert isinstance(d["deterministic"], bool)
-    # Valeurs string conformes au canon §2
-    assert d["document_role"] != "offer_technical"  # jamais cette valeur
+    # Offre financière : pas de confusion avec offer_technical
+    assert d["document_role"] == "financial_offer"
+    assert d["document_role"] != "offer_technical"
     assert d["taxonomy_core"] == "offer_financial"
+
+
+def test_technical_fixture_emits_offer_technical_role():
+    d = classify_document(F_TECHNIQUE_H1).to_dict()
+    assert d["taxonomy_core"] == "offer_technical"
+    assert d["document_role"] == "offer_technical"
 
 
 def test_classification_result_est_frozen():
     """Contrat doc : résultat immuable (dataclass frozen)."""
     r = ClassificationResult(
-        TaxonomyCore.DAO,
-        DocumentRole.DAO,
+        TaxonomyCore.DAO_CONSTRUCTION,
+        DocumentRole.SOURCE_RULES,
         0.8,
         "P3_dao_header",
         True,

@@ -8,7 +8,9 @@ CONTRAT TRANSITOIRE (ARCH-01) :
                         ARCH-02 imposera validation contre enums fermées
                         et escalade review_required si LLM incohérent.
 
-TAXONOMIE PROVISOIRE : bornée au routing initial, pas au canon métier final.
+Valeurs ``taxonomy_core`` / ``document_role`` : alignées sur
+``services/annotation-backend/prompts/system_prompt.txt`` (instruction prioritaire /
+LOI 2) pour cohérence avec le squelette Mistral et le validateur Pydantic.
 """
 
 from __future__ import annotations
@@ -37,16 +39,15 @@ class TaxonomyCore(str, Enum):
 
 @unique
 class DocumentRole(str, Enum):
+    """Rôles tels que dans le prompt DMS (couche_1_routing.document_role)."""
+
     SOURCE_RULES = "source_rules"
     FINANCIAL_OFFER = "financial_offer"
-    TECHNICAL_OFFER = "technical_offer"
+    OFFER_TECHNICAL = "offer_technical"
     COMBINED_OFFER = "combined_offer"
     ANNEX_PRICING = "annex_pricing"
     SUPPORTING_DOC = "supporting_doc"
     EVALUATION_REPORT = "evaluation_report"
-    TDR = "tdr"
-    DAO = "dao"
-    RFQ = "rfq"
     UNKNOWN = "unknown"
 
 
@@ -168,7 +169,7 @@ def classify_document(raw_text: str) -> ClassificationResult:
     if _P1_TECHNICAL.search(header):
         return ClassificationResult(
             TaxonomyCore.OFFER_TECHNICAL,
-            DocumentRole.TECHNICAL_OFFER,
+            DocumentRole.OFFER_TECHNICAL,
             1.0,
             "P1_technical_title_header",
             True,
@@ -176,15 +177,15 @@ def classify_document(raw_text: str) -> ClassificationResult:
     if _P2_TDR.search(header):
         return ClassificationResult(
             TaxonomyCore.TDR_CONSULTANCE_AUDIT,
-            DocumentRole.TDR,
+            DocumentRole.SOURCE_RULES,
             1.0,
             "P2_tdr_header",
             True,
         )
     if _P3_DAO.search(header):
         return ClassificationResult(
-            TaxonomyCore.DAO,
-            DocumentRole.DAO,
+            TaxonomyCore.DAO_CONSTRUCTION,
+            DocumentRole.SOURCE_RULES,
             0.8,
             "P3_dao_header",
             True,
@@ -192,7 +193,7 @@ def classify_document(raw_text: str) -> ClassificationResult:
     if _P4_RFQ.search(header):
         return ClassificationResult(
             TaxonomyCore.RFQ,
-            DocumentRole.RFQ,
+            DocumentRole.SOURCE_RULES,
             0.8,
             "P4_rfq_header",
             True,
