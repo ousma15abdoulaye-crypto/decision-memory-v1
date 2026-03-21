@@ -127,9 +127,32 @@ def financial_coherence_warnings(annotation: dict, task_id: int = 0) -> list[str
     if not total_declared or not line_items:
         return warnings
 
-    total_computed = sum(
-        float(li.get("line_total", 0) or 0) for li in line_items if isinstance(li, dict)
-    )
+    dict_items = [li for li in line_items if isinstance(li, dict)]
+    if not dict_items:
+        return warnings
+
+    def _line_item_level(li: dict) -> str:
+        raw = li.get("level")
+        if raw is None:
+            return "detail"
+        return str(raw).strip().lower()
+
+    levels = {_line_item_level(li) for li in dict_items}
+    has_subtotal = "subtotal" in levels
+
+    # ARCH-03 : récap (subtotal) + détail → ne pas sommer tout (double comptage)
+    if has_subtotal:
+        total_computed = sum(
+            float(li.get("line_total", 0) or 0)
+            for li in dict_items
+            if _line_item_level(li) == "subtotal"
+        )
+    else:
+        total_computed = sum(
+            float(li.get("line_total", 0) or 0)
+            for li in dict_items
+            if _line_item_level(li) not in ("subtotal", "total")
+        )
 
     if total_computed == 0:
         return warnings

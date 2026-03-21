@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from prompts.schema_validator import DMSAnnotation, GateName, LineCheck
+from prompts.schema_validator import DMSAnnotation, GateName, LineCheck, LineItemLevel
 
 
 def _fv(v, c=1.0, e=""):
@@ -307,3 +307,181 @@ def test_dms_annotation_unit_raw_empty_rejected():
     ]
     with pytest.raises(ValueError, match="unit_raw vide"):
         DMSAnnotation.model_validate(d)
+
+
+def test_arch03_detail_level_arithmetic_ok():
+    """Ligne detail : quantity × unit_price = line_total → OK."""
+    d = _minimal_valid()
+    d["couche_4_atomic"]["financier"]["total_price"] = _fv(4_950_000)
+    d["couche_4_atomic"]["financier"]["line_items"] = [
+        {
+            "item_line_no": 1,
+            "item_description_raw": "Honoraire consultant",
+            "unit_raw": "homme-jour",
+            "quantity": 45.0,
+            "unit_price": 110_000.0,
+            "line_total": 4_950_000.0,
+            "line_total_check": "OK",
+            "level": "detail",
+            "confidence": 1.0,
+            "evidence": "p.3 — test",
+        }
+    ]
+    v = DMSAnnotation.model_validate(d)
+    assert v.couche_4_atomic.financier.line_items[0].line_total_check == LineCheck.OK
+
+
+def test_arch03_subtotal_level_not_arithmetic_checked():
+    """Ligne subtotal : pas de contrôle qty×unit_price → SUBTOTAL_NOT_CHECKED_HERE."""
+    d = _minimal_valid()
+    d["couche_4_atomic"]["financier"]["total_price"] = _fv(18_050_000)
+    d["couche_4_atomic"]["financier"]["line_items"] = [
+        {
+            "item_line_no": 1,
+            "item_description_raw": "Sous-total honoraires",
+            "unit_raw": "forfait",
+            "quantity": 1.0,
+            "unit_price": 18_050_000.0,
+            "line_total": 18_050_000.0,
+            "line_total_check": "OK",
+            "level": "subtotal",
+            "confidence": 1.0,
+            "evidence": "p.2 — test",
+        }
+    ]
+    v = DMSAnnotation.model_validate(d)
+    li = v.couche_4_atomic.financier.line_items[0]
+    assert li.level == LineItemLevel.SUBTOTAL
+    assert li.line_total_check == LineCheck.SUBTOTAL_NOT_CHECKED_HERE
+    assert not any("ANOMALY_" in a for a in v.ambiguites)
+
+
+def test_arch03_recap_plus_detail_no_double_count_false_positive():
+    """
+    4 subtotaux (récap) + ligne détail : somme des subtotaux = total_price.
+    Les détails ne sont pas additionnés au total quand des subtotaux existent.
+    """
+    d = _minimal_valid()
+    d["couche_4_atomic"]["financier"]["total_price"] = _fv(29_194_950)
+    d["couche_4_atomic"]["financier"]["line_items"] = [
+        {
+            "item_line_no": 1,
+            "item_description_raw": "Honoraires et perdiem",
+            "unit_raw": "forfait",
+            "quantity": 1.0,
+            "unit_price": 18_050_000.0,
+            "line_total": 18_050_000.0,
+            "line_total_check": "OK",
+            "level": "subtotal",
+            "confidence": 1.0,
+            "evidence": "p.2",
+        },
+        {
+            "item_line_no": 2,
+            "item_description_raw": "Logistique",
+            "unit_raw": "forfait",
+            "quantity": 1.0,
+            "unit_price": 7_365_000.0,
+            "line_total": 7_365_000.0,
+            "line_total_check": "OK",
+            "level": "subtotal",
+            "confidence": 1.0,
+            "evidence": "p.2",
+        },
+        {
+            "item_line_no": 3,
+            "item_description_raw": "Frais administratifs",
+            "unit_raw": "forfait",
+            "quantity": 1.0,
+            "unit_price": 1_870_000.0,
+            "line_total": 1_870_000.0,
+            "line_total_check": "OK",
+            "level": "subtotal",
+            "confidence": 1.0,
+            "evidence": "p.2",
+        },
+        {
+            "item_line_no": 4,
+            "item_description_raw": "Frais de gestion (7%)",
+            "unit_raw": "forfait",
+            "quantity": 1.0,
+            "unit_price": 1_909_950.0,
+            "line_total": 1_909_950.0,
+            "line_total_check": "OK",
+            "level": "subtotal",
+            "confidence": 1.0,
+            "evidence": "p.2",
+        },
+        {
+            "item_line_no": 5,
+            "item_description_raw": "Ligne budget détaillé (exemple)",
+            "unit_raw": "homme-jour",
+            "quantity": 10.0,
+            "unit_price": 20_000.0,
+            "line_total": 200_000.0,
+            "line_total_check": "OK",
+            "level": "detail",
+            "confidence": 1.0,
+            "evidence": "p.3",
+        },
+    ]
+    v = DMSAnnotation.model_validate(d)
+    assert not any("ANOMALY_subtotals_sum_" in a for a in v.ambiguites)
+    assert not any("ANOMALY_details_sum_" in a for a in v.ambiguites)
+
+
+def test_total_price_field_parses_ocr_unicode_spaces():
+    """total_price aligné annotation_qa : espaces Unicode (\u2009, \u202f, etc.) retirés."""
+    d = _minimal_valid()
+    raw = "29\u2009194\u202f950"
+    d["couche_4_atomic"]["financier"]["total_price"] = _fv(raw)
+    d["couche_4_atomic"]["financier"]["line_items"] = [
+        {
+            "item_line_no": 1,
+            "item_description_raw": "Forfait",
+            "unit_raw": "forfait",
+            "quantity": 1.0,
+            "unit_price": 29_194_950.0,
+            "line_total": 29_194_950.0,
+            "line_total_check": "OK",
+            "level": "detail",
+            "confidence": 1.0,
+            "evidence": "p.1",
+        }
+    ]
+    v = DMSAnnotation.model_validate(d)
+    assert not any("ANOMALY_details_sum_" in a for a in v.ambiguites)
+
+
+def test_arch03_subtotals_sum_mismatch_vs_total_price_anomaly():
+    """Subtotaux déclarés ne correspondent pas à total_price → ANOMALY."""
+    d = _minimal_valid()
+    d["couche_4_atomic"]["financier"]["total_price"] = _fv(29_194_950)
+    d["couche_4_atomic"]["financier"]["line_items"] = [
+        {
+            "item_line_no": 1,
+            "item_description_raw": "Bloc A",
+            "unit_raw": "forfait",
+            "quantity": 1.0,
+            "unit_price": 10_000_000.0,
+            "line_total": 10_000_000.0,
+            "line_total_check": "OK",
+            "level": "subtotal",
+            "confidence": 1.0,
+            "evidence": "p.1",
+        },
+        {
+            "item_line_no": 2,
+            "item_description_raw": "Bloc B",
+            "unit_raw": "forfait",
+            "quantity": 1.0,
+            "unit_price": 5_000_000.0,
+            "line_total": 5_000_000.0,
+            "line_total_check": "OK",
+            "level": "subtotal",
+            "confidence": 1.0,
+            "evidence": "p.1",
+        },
+    ]
+    v = DMSAnnotation.model_validate(d)
+    assert any("ANOMALY_subtotals_sum_" in a for a in v.ambiguites)
