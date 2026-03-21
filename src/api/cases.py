@@ -8,12 +8,11 @@ import uuid
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from src.core.dependencies import get_artifacts, list_memory
 from src.core.models import CaseCreate
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
-from src.couche_a.auth.tenant_guard import require_org_id
 from src.db import db_execute, db_execute_one, db_fetchall, get_connection
 from src.ratelimit import limiter
 

@@ -13,7 +13,6 @@ Principe : analyse statique AST + regex — aucun runtime DB requis.
 from __future__ import annotations
 
 import ast
-import os
 import re
 from pathlib import Path
 
@@ -90,10 +89,7 @@ def _extract_sql_strings(filepath: Path) -> list[tuple[int, str]]:
         # Chaînes simples
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             val = node.value.strip().upper()
-            if any(
-                kw in val
-                for kw in ("SELECT ", "INSERT ", "UPDATE ", "DELETE ")
-            ):
+            if any(kw in val for kw in ("SELECT ", "INSERT ", "UPDATE ", "DELETE ")):
                 results.append((getattr(node, "lineno", 0), node.value))
         # f-strings
         elif isinstance(node, ast.JoinedStr):
@@ -102,13 +98,8 @@ def _extract_sql_strings(filepath: Path) -> list[tuple[int, str]]:
                 if isinstance(v, ast.Constant) and isinstance(v.value, str):
                     parts.append(v.value)
             joined = "".join(parts).strip().upper()
-            if any(
-                kw in joined
-                for kw in ("SELECT ", "INSERT ", "UPDATE ", "DELETE ")
-            ):
-                results.append(
-                    (getattr(node, "lineno", 0), "".join(parts))
-                )
+            if any(kw in joined for kw in ("SELECT ", "INSERT ", "UPDATE ", "DELETE ")):
+                results.append((getattr(node, "lineno", 0), "".join(parts)))
 
     return results
 
