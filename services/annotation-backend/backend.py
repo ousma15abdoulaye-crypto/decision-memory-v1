@@ -28,6 +28,11 @@ try:
 except ImportError:
     from mistralai.client import Mistral  # mistralai v2.x
 
+from annotation_qa import (
+    apply_financial_warnings_to_annotation,
+    evidence_substring_violations,
+    financial_coherence_warnings,
+)
 from prompts import SYSTEM_PROMPT
 from prompts.schema_validator import DMSAnnotation, GateName
 
@@ -43,6 +48,14 @@ MAX_TEXT_CHARS = int(os.environ.get("MAX_TEXT_CHARS", "80000"))
 # M-ANNOTATION-CONTAINMENT-01 — aligné couche A (MIN_EXTRACTED_TEXT_CHARS_FOR_ML)
 MIN_LLM_CONTEXT_CHARS = int(os.environ.get("MIN_LLM_CONTEXT_CHARS", "100"))
 MIN_PREDICT_TEXT_CHARS = int(os.environ.get("MIN_PREDICT_TEXT_CHARS", "200"))
+
+# STRICT_PREDICT — pas de pré-annotation si schéma / finances / evidence échouent
+STRICT_PREDICT = os.environ.get("STRICT_PREDICT", "").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
 # E-27 : CORS restrictif — CORS_ORIGINS env (comma-separated)
 # Default localhost:8080 pour dev. Prod Railway : définir CORS_ORIGINS=URL_LABEL_STUDIO
@@ -448,12 +461,11 @@ def _normalize_gates(annotation: dict) -> dict:
       1. confidence=0.0 + NOT_APPLICABLE → 1.0
          LOI 4 DMS : NOT_APPLICABLE = certitude maximale
       2. confidence=0.0 + APPLICABLE → 0.6 (minimum autorisé)
-      3. gate_value=null + APPLICABLE → False + AMBIG-5 tracé
-         Le système ne décide pas → AMBIG tracé → humain valide
 
-    Ces 3 règles sont figées.
-    GO CTO obligatoire avant toute modification.
-    Ref : E-65 — audit logs 2026-03-18
+    APPLICABLE + gate_value=null : plus d'inférence booléenne (E-65 révisé) —
+    laisser tel quel → ValidationError Pydantic → humain corrige dans LS.
+
+    Ref : plan annotation entreprise — zéro inférence sur gate_value
     """
     gates = annotation.get("couche_5_gates", [])
     ambiguites = list(annotation.get("ambiguites", []))
@@ -462,7 +474,6 @@ def _normalize_gates(annotation: dict) -> dict:
         if not isinstance(gate, dict):
             continue
 
-        gate_name = gate.get("gate_name", "unknown")
         gate_state = gate.get("gate_state", "")
         confidence = gate.get("confidence", 0.0)
 
@@ -477,12 +488,6 @@ def _normalize_gates(annotation: dict) -> dict:
         elif gate_state == "APPLICABLE":
             if confidence not in _ALLOWED_CONFIDENCE:
                 gate["confidence"] = 0.6
-            # RÈGLE 3 : APPLICABLE + gate_value=null → False + AMBIG
-            if gate.get("gate_value") is None:
-                gate["gate_value"] = False
-                ambig = f"AMBIG-5_gate_{gate_name}_value_null_forced_false"
-                if ambig not in ambiguites:
-                    ambiguites.append(ambig)
 
     annotation["ambiguites"] = ambiguites
     return annotation
@@ -567,74 +572,6 @@ def _spot_check_annotation_vs_source(
     return annotation
 
 
-def _validate_financial_coherence(annotation: dict, task_id: int) -> list[str]:
-    """
-    Valide la cohérence mathématique des montants.
-        validated = DMSAnnotation.model_validate(annotation)
-        corrected_annotation = validated.model_dump(by_alias=True)
-        return corrected_annotation, []
-      → ANOMALY tracé
-      → review_required = True
-    E-47 étendu au niveau document.
-    """
-    warnings: list[str] = []
-    routing = annotation.get("couche_1_routing", {})
-    role = routing.get("document_role", "")
-
-    if role not in (
-        "financial_proposal",
-        "offer_financial",
-        "financial_offer",
-        "annex_pricing",
-    ):
-        return warnings
-
-    financier = annotation.get("couche_4_atomic", {}).get("financier", {})
-    total_raw = financier.get("total_price", {})
-    line_items = financier.get("line_items", [])
-
-    total_declared = None
-    if isinstance(total_raw, dict):
-        try:
-            val = total_raw.get("value", 0)
-            if val in (None, "", "ABSENT", "NOT_APPLICABLE"):
-                return warnings
-            s = str(val).replace(" ", "").replace("\u202f", "")
-            total_declared = float(s)
-        except (ValueError, TypeError):
-            return warnings
-    elif isinstance(total_raw, int | float):
-        total_declared = float(total_raw)
-
-    if not total_declared or not line_items:
-        return warnings
-
-    total_computed = sum(
-        float(li.get("line_total", 0) or 0) for li in line_items if isinstance(li, dict)
-    )
-
-    if total_computed == 0:
-        return warnings
-
-    ecart = abs(total_declared - total_computed) / max(total_computed, 1)
-    if ecart > 0.01:
-        msg = (
-            f"ANOMALY_total_price_{int(total_declared)}"
-            f"_vs_sum_items_{int(total_computed)}"
-        )
-        warnings.append(msg)
-        logger.error(
-            "[VALIDATE] Incohérence montant task_id=%s : "
-            "total_price=%s sum_items=%s ecart=%.1f%%",
-            task_id,
-            total_declared,
-            total_computed,
-            ecart * 100,
-        )
-
-    return warnings
-
-
 def _validate_and_correct(annotation: dict, task_id: int = 0) -> tuple[dict, list]:
     """
     Valide le JSON annoté contre le schéma DMS v3.0.1d.
@@ -645,16 +582,11 @@ def _validate_and_correct(annotation: dict, task_id: int = 0) -> tuple[dict, lis
     annotation = copy.deepcopy(annotation)
 
     try:
-        DMSAnnotation.model_validate(annotation)
-        # Validation cohérence financière (E-47 étendu) — même si schéma OK
-        financial_warnings = _validate_financial_coherence(annotation, task_id)
+        validated = DMSAnnotation.model_validate(annotation)
+        annotation = validated.model_dump(by_alias=True)
+        financial_warnings = financial_coherence_warnings(annotation, task_id)
         if financial_warnings:
-            annotation.setdefault("ambiguites", [])
-            for w in financial_warnings:
-                if w not in annotation["ambiguites"]:
-                    annotation["ambiguites"].append(w)
-            annotation.setdefault("_meta", {})
-            annotation["_meta"]["review_required"] = True
+            apply_financial_warnings_to_annotation(annotation, financial_warnings)
             logger.error(
                 "[VALIDATE] Incohérence financière task_id=%s : %s",
                 task_id,
@@ -694,13 +626,10 @@ def _validate_and_correct(annotation: dict, task_id: int = 0) -> tuple[dict, lis
         if ambig not in annotation["ambiguites"]:
             annotation["ambiguites"].append(ambig)
 
-    # Validation cohérence financière — même en cas d'erreur schéma
-    financial_warnings = _validate_financial_coherence(annotation, task_id)
+    # Validation cohérence financière — même en cas d'erreur schéma (best-effort)
+    financial_warnings = financial_coherence_warnings(annotation, task_id)
     if financial_warnings:
-        for w in financial_warnings:
-            if w not in annotation["ambiguites"]:
-                annotation["ambiguites"].append(w)
-        annotation["_meta"]["review_required"] = True
+        apply_financial_warnings_to_annotation(annotation, financial_warnings)
         logger.error(
             "[VALIDATE] Incohérence financière task_id=%s : %s",
             task_id,
@@ -850,7 +779,7 @@ async def _call_mistral(
         response = client.chat.complete(
             model=MISTRAL_MODEL,
             messages=messages,
-            temperature=0.1,
+            temperature=0.0,
             max_tokens=32000,
             response_format={"type": "json_object"},
         )
@@ -874,6 +803,7 @@ def health() -> dict:
         "framework": FRAMEWORK_VERSION,
         "model": MISTRAL_MODEL,
         "mistral_configured": bool(MISTRAL_API_KEY),
+        "strict_predict": STRICT_PREDICT,
     }
 
 
@@ -991,6 +921,36 @@ async def predict(request: Request) -> JSONResponse:
             )
             annotation = _normalize_gates(annotation)
             annotation, errors = _validate_and_correct(annotation, task_id)
+            if STRICT_PREDICT:
+                if errors:
+                    predictions.append(
+                        _build_empty_result(
+                            task_id,
+                            "strict_schema_failed",
+                            score=0.1,
+                        )
+                    )
+                    continue
+                fin_strict = financial_coherence_warnings(annotation, task_id)
+                if fin_strict:
+                    predictions.append(
+                        _build_empty_result(
+                            task_id,
+                            f"strict_financial_failed:{fin_strict[0][:60]}",
+                            score=0.1,
+                        )
+                    )
+                    continue
+                ev_strict = evidence_substring_violations(annotation, text)
+                if ev_strict:
+                    predictions.append(
+                        _build_empty_result(
+                            task_id,
+                            f"strict_evidence_failed:{ev_strict[0][:60]}",
+                            score=0.1,
+                        )
+                    )
+                    continue
             result = _build_ls_result(
                 annotation=annotation,
                 task_id=task_id,

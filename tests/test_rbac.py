@@ -45,6 +45,36 @@ def test_admin_can_access_all_cases():
     assert response.status_code == 200
 
 
+def test_list_cases_requires_auth():
+    """GET /api/cases sans token → 401."""
+    response = client.get("/api/cases")
+    assert response.status_code == 401
+
+
+def test_get_case_other_user_forbidden():
+    """Un utilisateur ne peut pas lire le case d'un autre (GET legacy /api/cases/{id})."""
+    unique_id1 = uuid.uuid4().hex[:8]
+    unique_id2 = uuid.uuid4().hex[:8]
+    user1 = create_test_user(f"ga_{unique_id1}", f"ga_{unique_id1}@test.com")
+    user2 = create_test_user(f"gb_{unique_id2}", f"gb_{unique_id2}@test.com")
+    token1 = get_token(user1["username"], user1.get("password", "testpass"))
+    token2 = get_token(user2["username"], user2.get("password", "testpass"))
+
+    create_response = client.post(
+        "/api/cases",
+        json={"case_type": "DAO", "title": f"Private {unique_id1}", "lot": None},
+        headers={"Authorization": f"Bearer {token1}"},
+    )
+    assert create_response.status_code == 200
+    case_id = create_response.json()["id"]
+
+    other_get = client.get(
+        f"/api/cases/{case_id}",
+        headers={"Authorization": f"Bearer {token2}"},
+    )
+    assert other_get.status_code == 403
+
+
 def test_procurement_officer_can_create_case():
     """Procurement officer peut créer un case."""
     unique_id = uuid.uuid4().hex[:8]

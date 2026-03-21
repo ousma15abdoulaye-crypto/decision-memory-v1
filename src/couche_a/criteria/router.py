@@ -14,10 +14,14 @@ Règles absolues :
 
 from __future__ import annotations
 
+from typing import Annotated
+
 import psycopg.errors
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field, field_validator
 
+from src.couche_a.auth.case_access import require_case_tenant_org
+from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.couche_a.criteria.service import (
     CriterionCreateInput,
     CriterionRecord,
@@ -140,12 +144,14 @@ class WeightSumResponse(BaseModel):
 def create_criterion_endpoint(
     case_id: str,
     body: CriterionCreateRequest,
+    user: Annotated[UserClaims, Depends(get_current_user)],
 ):
     """
     Crée un critère pour le dossier AO identifié par case_id (path).
     Règle R4 : currency défaut XOF.
-    Règle R7 : org_id dans le body — isolation multi-tenant.
+    Règle R7 : org_id dans le body — doit correspondre au tenant serveur du dossier.
     """
+    require_case_tenant_org(case_id, body.org_id, user)
     try:
         record = create_criterion(
             CriterionCreateInput(
@@ -201,12 +207,14 @@ def create_criterion_endpoint(
 )
 def list_criteria_by_case(
     case_id: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
     org_id: str = Query(..., description="Identifiant organisation — obligatoire"),
 ):
     """
     Retourne tous les critères du dossier triés par created_at ASC.
     Règle R7 : filtre org_id — aucune fuite inter-org.
     """
+    require_case_tenant_org(case_id, org_id, user)
     records = get_criteria_by_case(case_id, org_id)
     return [_record_to_response(r) for r in records]
 
@@ -218,6 +226,7 @@ def list_criteria_by_case(
 )
 def validate_weights_endpoint(
     case_id: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
     org_id: str = Query(..., description="Identifiant organisation — obligatoire"),
 ):
     """
@@ -225,6 +234,7 @@ def validate_weights_endpoint(
     Règle R1 : somme valide si |total - 100| <= 0.01%.
     Outil préventif — le trigger DEFERRED reste le verrou final.
     """
+    require_case_tenant_org(case_id, org_id, user)
     result = validate_weight_sum(case_id, org_id)
     return WeightSumResponse(**result)
 
@@ -237,6 +247,7 @@ def validate_weights_endpoint(
 def get_criterion_endpoint(
     case_id: str,
     criterion_id: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
     org_id: str = Query(..., description="Identifiant organisation — obligatoire"),
 ):
     """
@@ -245,8 +256,14 @@ def get_criterion_endpoint(
     case_id présent dans la signature pour cohérence du path
     mais le filtre d'isolation repose sur criterion_id + org_id.
     """
+    require_case_tenant_org(case_id, org_id, user)
     record = get_criterion_by_id(criterion_id, org_id)
     if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Critère introuvable",
+        )
+    if record.case_id != case_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Critère introuvable",
@@ -262,6 +279,7 @@ def get_criterion_endpoint(
 def delete_criterion_endpoint(
     case_id: str,
     criterion_id: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
     org_id: str = Query(..., description="Identifiant organisation — obligatoire"),
 ):
     """
@@ -270,6 +288,7 @@ def delete_criterion_endpoint(
     Règle gouvernance : suppression autorisée uniquement si dossier en 'draft'
     (enforced dans service.delete_criterion).
     """
+    require_case_tenant_org(case_id, org_id, user)
     deleted = delete_criterion(criterion_id, org_id)
     if not deleted:
         raise HTTPException(

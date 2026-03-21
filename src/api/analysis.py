@@ -8,8 +8,9 @@ import uuid
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from src.business.extraction import extract_text_any
 from src.business.offer_processor import (
@@ -21,6 +22,8 @@ from src.business.offer_processor import (
 from src.business.templates import fill_cba_adaptive, generate_pv_adaptive
 from src.core.dependencies import add_memory, get_artifacts, register_artifact
 from src.core.models import AnalyzeRequest, DAOCriterion, DecideRequest
+from src.couche_a.auth.case_access import require_case_access
+from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.db import db_execute, db_execute_one, db_fetchall, get_connection
 
 router = APIRouter(prefix="/api", tags=["analysis"])
@@ -48,7 +51,10 @@ def extract_dao_criteria_structured(
 
 
 @router.post("/api/analyze")
-def analyze(payload: AnalyzeRequest):
+def analyze(
+    payload: AnalyzeRequest,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+):
     """
     Main analysis pipeline:
     1. Extract DAO criteria (structured)
@@ -58,6 +64,7 @@ def analyze(payload: AnalyzeRequest):
     5. Store memory (passive)
     """
     case_id = payload.case_id
+    require_case_access(case_id, user)
 
     with get_connection() as conn:
         case = db_execute_one(conn, "SELECT * FROM cases WHERE id=:id", {"id": case_id})
@@ -262,9 +269,13 @@ def analyze(payload: AnalyzeRequest):
 
 
 @router.post("/api/decide")
-def decide(payload: DecideRequest):
+def decide(
+    payload: DecideRequest,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+):
     """Record human decision and regenerate PV"""
     case_id = payload.case_id
+    require_case_access(case_id, user)
 
     with get_connection() as conn:
         case = db_execute_one(conn, "SELECT * FROM cases WHERE id=:id", {"id": case_id})

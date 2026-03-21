@@ -138,51 +138,46 @@ pip install -r requirements.txt
 # migrations
 alembic upgrade head
 
-# run api
-uvicorn src.main:app --reload
-Tests
+# run api (aligné Railway / start.sh — voir docs/audits/SYSMAP_DMS_EXIT_PLAN_01.md)
+uvicorn main:app --reload
+```
+
+### Tests
+```bash
 pytest -q
-Coverage (si gate activé)
+```
+
+### Coverage (si gate activé)
+```bash
 pytest --cov=src --cov-report=term-missing
-CI / Qualité
+```
+
+### CI / qualité
 La CI est l’arbitre :
 
-CI verte obligatoire
+- CI verte obligatoire
+- tests invariants (voir `tests/invariants/`)
+- gate coverage selon phase (voir plan milestones)
+- aucune PR mergée avec CI rouge
 
-tests invariants obligatoires (voir tests/invariants/)
-
-gate coverage selon phase (voir plan milestones)
-
-Aucune PR ne doit être mergée avec CI rouge.
-
-Sécurité (résumé)
+### Sécurité (résumé)
 DMS implémente / prévoit :
 
-JWT + RBAC (rôles)
+- JWT + RBAC (rôles)
+- validation upload (magic bytes, taille, etc.)
+- rate limiting
+- secrets uniquement via env
+- logs structurés + audit log
 
-validation upload (magic bytes, taille, etc.)
+Détails : [`docs/SECURITY.md`](docs/SECURITY.md)
 
-rate limiting
+### Déploiement
+Déploiement cible : Railway (PostgreSQL + app). Checklist : [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
-secrets uniquement via env
+### Module — CBA Template Mapping Engine
+Si tu utilises le moteur de mapping CBA (pré-large + masquage fournisseurs), la doc module vit hors README racine : [`docs/modules/MAPPING_ENGINE.md`](docs/modules/MAPPING_ENGINE.md) (recommandé) ou `src/mapping/README.md`.
 
-logs structurés + audit log
-
-Détails : docs/SECURITY.md
-
-Déploiement
-Déploiement cible : Railway (PostgreSQL + app).
-Checklist & validation : docs/DEPLOYMENT.md (ou section deployment du plan milestones).
-
-Module — CBA Template Mapping Engine
-Si tu utilises le moteur de mapping CBA (pré-large + masquage fournisseurs), la doc module doit vivre hors README racine :
-
-doc module : docs/modules/MAPPING_ENGINE.md (recommandé)
-ou src/mapping/README.md (acceptable)
-
-Le README racine doit rester produit/architecture, pas “un seul sous-module”.
-
-Licence / Propriété intellectuelle
+### Licence / propriété intellectuelle
 Ce dépôt et son contenu sont une propriété intellectuelle.
 L’usage, la reproduction et la redistribution sont soumis aux règles définies par l’auteur.
 

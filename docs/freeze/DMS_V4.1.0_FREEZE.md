@@ -1194,7 +1194,7 @@ anonymized          Données identifiantes remplacées.
                     SHA256 dans annotation_registry (DB)
 
 annotated_validated Fichier JSONL ground_truth créé ET validé
-                    par scripts/validate_annotation.py
+                    par scripts/validate_annotation.py (script livré — voir docs/m12/M12_EXPORT.md)
                     SHA256 du JSONL dans annotation_registry
                     Seul état comptant pour RÈGLE-23
 ```

@@ -12,6 +12,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from src.couche_a.auth.case_access import require_document_case_access
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.db.connection import get_db_cursor
 from src.extraction.engine import (
@@ -19,7 +20,6 @@ from src.extraction.engine import (
     SLA_B_METHODS,
     extract_async,
     extract_sync,
-    get_document,
 )
 
 router = APIRouter(
@@ -109,16 +109,15 @@ def _content_hash(data: dict) -> str:
         "§9 : erreur explicite si document inconnu ou déjà extrait."
     ),
 )
-def trigger_extraction(document_id: str) -> ExtractionResponse:
+def trigger_extraction(
+    document_id: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+) -> ExtractionResponse:
     """
     Lance l'extraction d'un document.
     Détecte automatiquement SLA-A ou SLA-B selon la méthode.
     """
-    # §9 : document inconnu → 404 explicite
-    try:
-        doc = get_document(document_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+    doc = require_document_case_access(document_id, user)
 
     # §9 : déjà extrait → 409 explicite
     if doc.get("extraction_status") == "done":
@@ -170,7 +169,10 @@ def trigger_extraction(document_id: str) -> ExtractionResponse:
     response_model=JobStatusResponse,
     summary="Statut d'un job d'extraction OCR (SLA-B)",
 )
-def get_job_status(job_id: str) -> JobStatusResponse:
+def get_job_status(
+    job_id: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+) -> JobStatusResponse:
     """
     Retourne le statut courant d'un job d'extraction asynchrone.
     §9 : 404 explicite si job inconnu.
@@ -202,6 +204,8 @@ def get_job_status(job_id: str) -> JobStatusResponse:
             detail=f"Job '{job_id}' introuvable.",
         )
 
+    require_document_case_access(str(job["document_id"]), user)
+
     return JobStatusResponse(
         job_id=str(job["id"]),
         document_id=str(job["document_id"]),
@@ -223,12 +227,15 @@ def get_job_status(job_id: str) -> JobStatusResponse:
 )
 def get_extraction_result(
     document_id: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
 ) -> ExtractionResultResponse:
     """
     Retourne le résultat d'extraction le plus récent.
     §9 : 404 si aucune extraction.
          _warning si confidence faible (< 0.6).
     """
+    require_document_case_access(document_id, user)
+
     with get_db_cursor() as cur:
         cur.execute(
             """
@@ -294,11 +301,16 @@ def get_extraction_result(
     response_model=EffectiveDataResponse,
     summary="Données effectives (extraction + corrections)",
 )
-def get_effective_data(document_id: str) -> EffectiveDataResponse:
+def get_effective_data(
+    document_id: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+) -> EffectiveDataResponse:
     """
     Retourne structured_data_effective + content_hash.
     Vue : structured_data_effective (dernière correction ou original).
     """
+    require_document_case_access(document_id, user)
+
     with get_db_cursor() as cur:
         cur.execute(
             """
@@ -353,6 +365,7 @@ async def post_correction(
     Enregistre une correction append-only.
     Si expected_content_hash fourni et ≠ hash effectif courant → 409 Conflict.
     """
+    require_document_case_access(document_id, current_user)
     corrected_by = current_user.user_id
 
     with get_db_cursor() as cur:
@@ -422,8 +435,13 @@ async def post_correction(
     "/documents/{document_id}/corrections/history",
     summary="Historique des corrections",
 )
-def get_corrections_history(document_id: str) -> list[dict]:
+def get_corrections_history(
+    document_id: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+) -> list[dict]:
     """Historique des corrections pour le document (extraction_corrections_history)."""
+    require_document_case_access(document_id, user)
+
     with get_db_cursor() as cur:
         cur.execute(
             """

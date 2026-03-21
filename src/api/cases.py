@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from src.core.dependencies import get_artifacts, list_memory
 from src.core.models import CaseCreate
+from src.couche_a.auth.case_access import require_case_access
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.db import db_execute, db_execute_one, db_fetchall, get_connection
 from src.ratelimit import limiter
@@ -32,13 +33,19 @@ async def create_case(
     case_id = str(uuid.uuid4())
     now = datetime.now(UTC).isoformat()
     owner_id = int(user.user_id)
+    tenant_id = user.tenant_id
+    if not tenant_id:
+        raise HTTPException(
+            status_code=400,
+            detail="tenant_id manquant pour l'utilisateur — reconnectez-vous après migration",
+        )
 
     with get_connection() as conn:
         db_execute(
             conn,
             """
-            INSERT INTO cases (id, case_type, title, lot, created_at, status, owner_id)
-            VALUES (:id, :ctype, :title, :lot, :ts, :status, :owner)
+            INSERT INTO cases (id, case_type, title, lot, created_at, status, owner_id, tenant_id)
+            VALUES (:id, :ctype, :title, :lot, :ts, :status, :owner, :tenant)
         """,
             {
                 "id": case_id,
@@ -48,6 +55,7 @@ async def create_case(
                 "ts": now,
                 "status": "open",
                 "owner": owner_id,
+                "tenant": tenant_id,
             },
         )
 
@@ -59,20 +67,40 @@ async def create_case(
         "created_at": now,
         "status": "open",
         "owner_id": owner_id,
+        "tenant_id": tenant_id,
     }
 
 
 @router.get("")
 @limiter.limit("50/minute")
-def list_cases(request: Request):
-    """Liste tous les cases (rate limited)."""
+def list_cases(
+    request: Request,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+):
+    """Liste les cases : tout pour admin, sinon ceux du tenant JWT."""
     with get_connection() as conn:
-        rows = db_fetchall(conn, "SELECT * FROM cases ORDER BY created_at DESC")
+        if user.role == "admin":
+            rows = db_fetchall(
+                conn, "SELECT * FROM cases ORDER BY created_at DESC"
+            )
+        elif user.tenant_id:
+            rows = db_fetchall(
+                conn,
+                "SELECT * FROM cases WHERE tenant_id = :tid ORDER BY created_at DESC",
+                {"tid": user.tenant_id},
+            )
+        else:
+            rows = []
     return rows
 
 
 @router.get("/{case_id}")
-def get_case(case_id: str):
+def get_case(
+    case_id: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+):
+    require_case_access(case_id, user)
+
     with get_connection() as conn:
         c = db_execute_one(conn, "SELECT * FROM cases WHERE id=:id", {"id": case_id})
     if not c:

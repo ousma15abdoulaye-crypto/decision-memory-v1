@@ -150,6 +150,21 @@ def get_connection() -> Iterator[_ConnectionWrapper]:
 
     conn = _connect()
     wrapper = _ConnectionWrapper(conn)
+    from src.db.tenant_context import get_db_tenant_id
+
+    from src.db.tenant_context import get_rls_is_admin
+
+    tid = get_db_tenant_id()
+    if tid:
+        wrapper.execute(
+            "SELECT set_config('app.tenant_id', :tid, true)",
+            {"tid": tid},
+        )
+    if get_rls_is_admin():
+        wrapper.execute(
+            "SELECT set_config('app.is_admin', :v, true)",
+            {"v": "true"},
+        )
     try:
         yield wrapper
         conn.commit()

@@ -4,10 +4,13 @@ Document upload, download, and memory endpoints.
 
 import json
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
+from src.couche_a.auth.case_access import require_case_access
+from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.core.dependencies import (
     get_artifacts,
     list_memory,
@@ -20,8 +23,15 @@ router = APIRouter(prefix="/api", tags=["documents"])
 
 
 @router.post("/upload/{case_id}/{kind}")
-def upload(case_id: str, kind: str, file: UploadFile = File(...)):
+def upload(
+    case_id: str,
+    kind: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+    file: UploadFile = File(...),
+):
     """Upload document for a case (DAO, offer, template)."""
+    require_case_access(case_id, user)
+
     with get_connection() as conn:
         c = db_execute_one(conn, "SELECT id FROM cases WHERE id=:id", {"id": case_id})
     if not c:
@@ -43,8 +53,14 @@ def upload(case_id: str, kind: str, file: UploadFile = File(...)):
 
 
 @router.get("/download/{case_id}/{kind}")
-def download_latest(case_id: str, kind: str):
+def download_latest(
+    case_id: str,
+    kind: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+):
     """Download latest generated artifact"""
+    require_case_access(case_id, user)
+
     kind = kind.strip().lower()
     if kind not in {"output_cba", "output_pv"}:
         raise HTTPException(
@@ -65,14 +81,24 @@ def download_latest(case_id: str, kind: str):
 
 
 @router.get("/memory/{case_id}")
-def memory(case_id: str):
+def memory(
+    case_id: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+):
     """Retrieve all memory entries for a case"""
+    require_case_access(case_id, user)
     return {"case_id": case_id, "memory": list_memory(case_id)}
 
 
 @router.get("/search_memory/{case_id}")
-def search_memory(case_id: str, q: str):
+def search_memory(
+    case_id: str,
+    q: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+):
     """Search memory entries by keyword"""
+    require_case_access(case_id, user)
+
     q = (q or "").strip().lower()
     if not q:
         return {"case_id": case_id, "hits": []}

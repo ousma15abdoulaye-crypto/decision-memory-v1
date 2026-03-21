@@ -19,6 +19,30 @@
     <!-- PANNEAU DROIT — review Mistral -->
     <View className="right">
 
+      <Header value="0 — Doctrine evidence (obligatoire avant VALIDÉ)"/>
+      <Choices
+        name="evidence_attestation"
+        toName="document_text"
+        choice="single"
+        showInLine="false"
+        required="true">
+        <Choice value="confirmed_from_doc"
+                label="Je confirme : chaque valeur non-ABSENT du JSON a une evidence issue du document (citer page/section dans le champ evidence du JSON)."/>
+        <Choice value="corrected_in_json"
+                label="J'ai corrigé le JSON pour aligner evidence et texte source."/>
+      </Choices>
+      <Choices
+        name="no_invented_numbers"
+        toName="document_text"
+        choice="single"
+        showInLine="false"
+        required="true">
+        <Choice value="confirmed"
+                label="Aucun montant / quantité inventé : tout provient du texte affiché à gauche."/>
+        <Choice value="corrected"
+                label="J'ai corrigé des chiffres dans le JSON pour correspondre au document."/>
+      </Choices>
+
       <Header value="1 — JSON extrait par Mistral — corriger si nécessaire"/>
       <TextArea
         name="extracted_json"

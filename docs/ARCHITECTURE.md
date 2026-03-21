@@ -14,6 +14,16 @@ Le Decision Memory System (DMS) est un assistant intelligent de procurement stru
 
 **Formule fondatrice :** « Le DMS est la mémoire intelligente et le cerveau auxiliaire du procurement — jamais son juge. »
 
+### Vérité d'exécution (référence repo — EXIT-PLAN-ALIGN-01)
+
+Pour le **montage réel** des applications FastAPI, la terminologie des « pipelines » et les **écarts** document / runtime / code :
+
+- [`docs/audits/SYSMAP_DMS_EXIT_PLAN_01.md`](audits/SYSMAP_DMS_EXIT_PLAN_01.md) — cartographie opposable ;
+- [`docs/audits/RUNTIME_DOC_ALIGNMENT_MATRIX_EXIT_01.md`](audits/RUNTIME_DOC_ALIGNMENT_MATRIX_EXIT_01.md) — matrice d'alignement ;
+- [`docs/audits/SEC_MT_THREAT_MODEL_MINIMAL_EXIT_01.md`](audits/SEC_MT_THREAT_MODEL_MINIMAL_EXIT_01.md) — modèle de menace minimal.
+
+**Déploiement type (Railway / `start.sh`) :** `uvicorn main:app` — [`main.py`](../main.py) à la racine ; distinct de [`src/api/main.py`](../src/api/main.py).
+
 ---
 
 ## Couche A (Scoring, règles constitutionnelles, SLA 60s)
@@ -75,9 +85,9 @@ Le Decision Memory System (DMS) est un assistant intelligent de procurement stru
 La séparation entre Couche A et Couche B est **structurelle et non négociable** (Constitution V3.3.2 §7).
 
 **Règles d'isolation (ADR-0003 §3.1) :**
-- ❌ **Interdit :** Importer un module de la Couche B dans les modules de la Couche A (`src/scoring/`, `src/pipeline/`, `src/normalisation/`, `src/criteria/`, `src/extraction/`, `src/committee/`, `src/generation/`)
-- ✅ **Test CI bloquant :** `test_couche_a_b_boundary.py` vérifie automatiquement cette séparation via analyse AST
-- ✅ **Architecture :** Les deux couches communiquent uniquement via la base de données PostgreSQL, jamais via imports Python directs
+- ❌ **Interdit :** Importer un module de la Couche B dans les modules de la Couche A (chemins effectifs sous `src/couche_a/` : scoring, pipeline, criteria, extraction, committee, generation, etc. — voir ADR-0003)
+- ✅ **Tests CI :** `tests/boundary/test_couche_a_b_boundary.py` (AST, périmètre ciblé) ; `tests/invariants/test_no_couche_b_import_in_couche_a.py` existe mais est actuellement **skippé** — voir matrice RUNTIME-DOC
+- ✅ **Architecture visée :** Découplage fort A/B. Les **écarts runtime** observés (ex. SQL cross-schema, import dynamique documentés) sont inventoriés dans [`docs/audits/RUNTIME_DOC_ALIGNMENT_MATRIX_EXIT_01.md`](audits/RUNTIME_DOC_ALIGNMENT_MATRIX_EXIT_01.md) ; leur résolution = doc, code ou ADR explicite, sans modifier la Constitution à la place d'un ADR
 
 **Frontière technique :**
 - La Couche A écrit dans les schémas `couche_a.*` (cases, submissions, scores, exports)

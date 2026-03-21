@@ -28,7 +28,9 @@
 ### Exports et diagnostics
 | Script | Usage | Environnement |
 |--------|-------|---------------|
-| `export_annotation_jsonl.py` | Export JSONL entraînement M12 | Local |
+| `export_ls_to_dms_jsonl.py` | Export LS → JSONL M12 (m12-v2 ou `--legacy-mandat-fields`) | Local |
+| `validate_annotation.py` | Valide JSONL (schéma DMS + options QA) | Local + CI |
+| `ingest_to_annotation_bridge.py` | PDF → `ls_tasks.json` (+ `data.structured_preview`) | Local |
 | `probe_railway_counts.py` | Vérifier counts tables Railway | Local |
 
 ## SONDES TEMPORAIRES (_probe_*)

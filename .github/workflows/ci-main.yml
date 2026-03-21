@@ -132,6 +132,9 @@ jobs:
       - name: Black check
         run: black --check src tests
 
+      - name: Auth coverage audit (extractions)
+        run: python scripts/audit_fastapi_auth_coverage.py --app main:app --fail-prefix /api/extractions
+
       - name: Resolve coverage gate
         id: cov_gate
         run: |
@@ -150,6 +153,16 @@ jobs:
             --cov-report=xml \
             --cov-fail-under=${{ steps.cov_gate.outputs.fail_under }} \
             -v --tb=short
+
+      - name: Annotation backend + M12 export (services/annotation-backend)
+        env:
+          PSEUDONYM_SALT: "ci-test-salt"
+          ALLOW_WEAK_PSEUDONYMIZATION: "1"
+        run: |
+          pip install -q -r services/annotation-backend/requirements.txt
+          pytest services/annotation-backend/tests -q --tb=short
+          pytest tests/test_export_ls_m12_v2.py -q --tb=short
+          python scripts/validate_annotation.py data/annotations/fixtures/golden_dms_line.jsonl
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4

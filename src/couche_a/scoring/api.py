@@ -6,6 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from src.couche_a.auth.case_access import require_case_access
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.couche_a.scoring.models import ScoringRequest
 from src.db import db_fetchall, get_connection
@@ -42,6 +43,8 @@ async def get_scores(
     user: Annotated[UserClaims, Depends(get_current_user)],
 ):
     """Retrieve calculated scores for a case."""
+    require_case_access(case_id, user)
+
     try:
         with get_connection() as conn:
             scores = db_fetchall(
