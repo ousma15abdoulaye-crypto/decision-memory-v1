@@ -680,6 +680,40 @@ def _normalize_gates(annotation: dict) -> dict:
     return annotation
 
 
+def _sync_gate_reasons_with_document_role(annotation: dict) -> dict:
+    """
+    Quand le routeur déterministe écrase document_role (ex. financial_offer),
+    Mistral peut laisser des gate_reason_raw obsolètes « document_role = supporting_doc ».
+    On aligne le libellé sur le rôle effectif pour un JSON cohérent.
+    """
+    cr = annotation.get("couche_1_routing")
+    if not isinstance(cr, dict):
+        return annotation
+    role = str(cr.get("document_role") or "").strip()
+    if not role or role == DocumentRole.SUPPORTING_DOC.value:
+        return annotation
+    gates = annotation.get("couche_5_gates")
+    if not isinstance(gates, list):
+        return annotation
+    needle = "document_role = supporting_doc"
+    for g in gates:
+        if not isinstance(g, dict):
+            continue
+        reason = str(g.get("gate_reason_raw") or "")
+        if needle in reason:
+            g["gate_reason_raw"] = f"Non applicable — document_role = {role}"
+    return annotation
+
+
+def _export_safe_contact_raw(pseudo_block: dict, raw_before: Any) -> str:
+    """Valeur pour supplier_*_raw dans le JSON exporté — jamais la donnée sensible si redacted."""
+    if pseudo_block.get("redacted"):
+        return ""
+    if raw_before in (ABSENT, NOT_APPLICABLE, "", None, "AMBIGUOUS"):
+        return ABSENT
+    return str(raw_before)
+
+
 def _norm_spot(s: str) -> str:
     """Normalisation pour comparaison tolérante (espaces, casse)."""
     return re.sub(r"\s+", " ", (s or "").lower().strip())
@@ -889,8 +923,13 @@ def _build_ls_result(
         identifiants = {}
     phone_raw = identifiants.pop("supplier_phone_raw", ABSENT)
     email_raw = identifiants.pop("supplier_email_raw", ABSENT)
-    identifiants["supplier_phone"] = _pseudonymise_contact(phone_raw)
-    identifiants["supplier_email"] = _pseudonymise_contact(email_raw)
+    phone_block = _pseudonymise_contact(phone_raw)
+    email_block = _pseudonymise_contact(email_raw)
+    identifiants["supplier_phone"] = phone_block
+    identifiants["supplier_email"] = email_block
+    # Schéma DMS : *_raw toujours présents ; jamais republier téléphone/email en clair
+    identifiants["supplier_phone_raw"] = _export_safe_contact_raw(phone_block, phone_raw)
+    identifiants["supplier_email_raw"] = _export_safe_contact_raw(email_block, email_raw)
     addr = identifiants.get("supplier_address_raw", ABSENT)
     if addr not in (ABSENT, NOT_APPLICABLE, "", None):
         identifiants["supplier_address_raw"] = str(addr)[:60]
@@ -1127,6 +1166,7 @@ async def predict(request: Request) -> JSONResponse:
             )
             annotation = _apply_deterministic_routing(annotation, text, task_id)
             annotation = _normalize_gates(annotation)
+            annotation = _sync_gate_reasons_with_document_role(annotation)
             annotation, errors = _validate_and_correct(annotation, task_id)
             annotation = _apply_financial_offer_review_rules(annotation)
             if STRICT_PREDICT:

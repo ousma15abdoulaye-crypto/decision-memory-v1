@@ -12,7 +12,7 @@ from enum import StrEnum
 from typing import Any, Literal
 
 from annotation_qa import parse_loose_money_float
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 # ─────────────────────────────────────────────
 # ÉNUMÉRATIONS FIGÉES
@@ -97,6 +97,34 @@ class FieldValue(BaseModel):
         return self
 
 
+def _coerce_whole_int(v: Any, field_label: str) -> Any:
+    """LLM / JSON : item_line_no souvent 1.0, 2.0 — Pydantic int strict refuse les float."""
+    if v is None:
+        return None
+    if isinstance(v, bool):
+        return int(v)
+    if isinstance(v, int):
+        return v
+    if isinstance(v, float):
+        r = int(round(v))
+        if abs(v - r) > 1e-9:
+            raise ValueError(f"{field_label} doit être un entier, reçu {v!r}")
+        return r
+    if isinstance(v, str):
+        s = v.strip().replace("\u202f", "").replace("\u00a0", " ").replace(" ", "")
+        if not s:
+            return v
+        try:
+            x = float(s.replace(",", "."))
+        except (ValueError, TypeError):
+            return v
+        r = int(round(x))
+        if abs(x - r) > 1e-9:
+            raise ValueError(f"{field_label} doit être un entier, reçu {v!r}")
+        return r
+    return v
+
+
 class LineItem(BaseModel):
     """Ligne de prix — schéma ADR-015 strict + ARCH-03 hiérarchie."""
 
@@ -113,6 +141,16 @@ class LineItem(BaseModel):
     evidence: str
     level: LineItemLevel = LineItemLevel.DETAIL
     parent_subtotal_no: int | None = None
+
+    @field_validator("item_line_no", mode="before")
+    @classmethod
+    def coerce_item_line_no(cls, v: Any) -> Any:
+        return _coerce_whole_int(v, "item_line_no")
+
+    @field_validator("parent_subtotal_no", mode="before")
+    @classmethod
+    def coerce_parent_subtotal_no(cls, v: Any) -> Any:
+        return _coerce_whole_int(v, "parent_subtotal_no")
 
     @model_validator(mode="after")
     def validate_unit_not_empty(self) -> LineItem:
@@ -315,6 +353,16 @@ class Couche4Atomic(BaseModel):
     financier: Financier
 
 
+class SupplierContactRedacted(BaseModel):
+    """Bloc pseudonymisé — rempli à l’export LS ; absent à la sortie Mistral brute."""
+
+    model_config = {"extra": "forbid"}
+
+    pseudo: str | None = None
+    present: bool
+    redacted: bool
+
+
 class Identifiants(BaseModel):
     model_config = {"extra": "forbid"}
 
@@ -334,6 +382,8 @@ class Identifiants(BaseModel):
     supplier_id: str
     lot_scope: list[str]
     zone_scope: list[str]
+    supplier_phone: SupplierContactRedacted | None = None
+    supplier_email: SupplierContactRedacted | None = None
 
 
 class Meta(BaseModel):

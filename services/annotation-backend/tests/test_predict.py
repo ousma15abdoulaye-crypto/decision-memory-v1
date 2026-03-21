@@ -227,6 +227,47 @@ class TestBuildLsResult:
         parsed = json.loads(json_str)
         assert parsed["_meta"]["review_required"] is True
 
+    def test_identifiants_export_keeps_raw_keys_and_strips_secrets(self):
+        """Export LS : supplier_phone_raw / supplier_email_raw restent (schéma) ; secrets vidés."""
+        import json
+
+        from backend import ABSENT, _build_ls_result
+
+        annotation = {
+            "_meta": {"review_required": False},
+            "identifiants": {
+                "supplier_phone_raw": "+33601020304",
+                "supplier_email_raw": ABSENT,
+            },
+        }
+        result = _build_ls_result(annotation, task_id=42, has_errors=False)
+        parsed = json.loads(result["result"][0]["value"]["text"][0])
+        ident = parsed["identifiants"]
+        assert "supplier_phone_raw" in ident
+        assert ident["supplier_phone_raw"] == ""
+        assert ident["supplier_phone"]["present"] is True
+        assert ident["supplier_phone"]["redacted"] is True
+        assert ident["supplier_email_raw"] == ABSENT
+        assert ident["supplier_email"]["present"] is False
+
+
+def test_sync_gate_reasons_replaces_stale_supporting_doc_label():
+    from backend import _sync_gate_reasons_with_document_role
+
+    ann = {
+        "couche_1_routing": {"document_role": "financial_offer"},
+        "couche_5_gates": [
+            {
+                "gate_name": "gate_eligibility_passed",
+                "gate_reason_raw": "Non applicable — document_role = supporting_doc",
+            },
+        ],
+    }
+    _sync_gate_reasons_with_document_role(ann)
+    assert ann["couche_5_gates"][0]["gate_reason_raw"] == (
+        "Non applicable — document_role = financial_offer"
+    )
+
 
 class TestNormalizeGatesJsonReel:
     """Test avec le JSON réel produit par Mistral (Mandat 5)."""
