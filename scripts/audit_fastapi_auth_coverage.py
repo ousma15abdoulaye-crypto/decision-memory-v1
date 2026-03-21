@@ -32,6 +32,8 @@ _CASE_GUARD_NAMES = frozenset(
         "require_case_access_dep",
         "require_document_case_access",
         "require_document_case_access_dep",
+        "require_document_case_access_row_dep",
+        "require_extraction_job_document_access_dep",
         "require_case_tenant_org",
     }
 )

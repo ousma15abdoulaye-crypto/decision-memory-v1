@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import sys
@@ -202,9 +203,7 @@ def ls_annotation_to_m12_v2_line(
     if dms_annotation is not None:
         fin_warnings = financial_coherence_warnings(dms_annotation, task_id or 0)
         if source_text.strip():
-            ev_violations = evidence_substring_violations(
-                dms_annotation, source_text
-            )
+            ev_violations = evidence_substring_violations(dms_annotation, source_text)
 
     status = (ls_meta.get("annotation_status") or "").strip()
     if require_ls_attestations and status == "annotated_validated":
@@ -217,13 +216,9 @@ def ls_annotation_to_m12_v2_line(
         if export_errors:
             export_errors.append("validated_but_export_errors")
         if fin_warnings:
-            export_errors.append(
-                f"validated_but_financial:{fin_warnings[0][:80]}"
-            )
+            export_errors.append(f"validated_but_financial:{fin_warnings[0][:80]}")
         if ev_violations:
-            export_errors.append(
-                f"validated_but_evidence:{ev_violations[0][:80]}"
-            )
+            export_errors.append(f"validated_but_evidence:{ev_violations[0][:80]}")
 
     export_ok = not export_errors
 
@@ -243,9 +238,9 @@ def ls_annotation_to_m12_v2_line(
         "export_errors": sorted(set(export_errors)),
         "ls_meta": ls_meta,
         "dms_annotation": dms_annotation,
-        "ambig_tracked": list(dms_annotation.get("ambiguites", []))
-        if dms_annotation
-        else [],
+        "ambig_tracked": (
+            list(dms_annotation.get("ambiguites", [])) if dms_annotation else []
+        ),
         "financial_warnings": fin_warnings,
         "source_task": {"id": task_id, "data_keys": list(task_data.keys())},
     }
@@ -281,6 +276,14 @@ def main() -> None:
         action="store_true",
         help="Si annotated_validated : exiger evidence_attestation + no_invented_numbers (XML v2)",
     )
+    parser.add_argument(
+        "--m15-gate",
+        action="store_true",
+        help=(
+            "DATA-M15 : exit≠0 si une ligne annotated_validated a export_ok=false "
+            "(scripts/m15_export_gate.py)"
+        ),
+    )
     args = parser.parse_args()
 
     if args.from_export_json:
@@ -293,7 +296,9 @@ def main() -> None:
         ls_url = os.environ.get("LABEL_STUDIO_URL", "").rstrip("/")
         ls_key = os.environ.get("LABEL_STUDIO_API_KEY", "")
         if not ls_url or not ls_key:
-            sys.exit("STOP — LABEL_STUDIO_URL et LABEL_STUDIO_API_KEY requis (ou --from-export-json)")
+            sys.exit(
+                "STOP — LABEL_STUDIO_URL et LABEL_STUDIO_API_KEY requis (ou --from-export-json)"
+            )
         if args.project_id is None:
             sys.exit("STOP — --project-id requis pour l'export API")
         data = fetch_annotations(args.project_id, ls_url, ls_key)
@@ -319,6 +324,29 @@ def main() -> None:
                     require_ls_attestations=require_att,
                 )
             lines.append(line)
+
+    if args.m15_gate:
+        _gate_path = _SCRIPT_DIR / "m15_export_gate.py"
+        if not _gate_path.is_file():
+            print(
+                f"STOP — m15_export_gate introuvable : {_gate_path}",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        _spec = importlib.util.spec_from_file_location("m15_export_gate", _gate_path)
+        if _spec is None or _spec.loader is None:
+            print(
+                f"STOP — chargement m15_export_gate impossible : {_gate_path}",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        _m15 = importlib.util.module_from_spec(_spec)
+        _spec.loader.exec_module(_m15)
+        violations = _m15.collect_m15_gate_violations(lines)
+        if violations:
+            for idx, msg in violations[:50]:
+                print(f"m15-gate ligne {idx + 1}: {msg}", file=sys.stderr)
+            sys.exit(2)
 
     out = args.output
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)

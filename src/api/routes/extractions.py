@@ -12,8 +12,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from src.couche_a.auth.case_access import require_document_case_access
-from src.couche_a.auth.dependencies import UserClaims, get_current_user
+from src.couche_a.auth.case_access import (
+    require_document_case_access_dep,
+    require_document_case_access_row_dep,
+    require_extraction_job_document_access_dep,
+)
+from src.couche_a.auth.dependencies import UserClaims
 from src.db.connection import get_db_cursor
 from src.extraction.engine import (
     SLA_A_METHODS,
@@ -111,14 +115,12 @@ def _content_hash(data: dict) -> str:
 )
 def trigger_extraction(
     document_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    doc: Annotated[dict, Depends(require_document_case_access_row_dep)],
 ) -> ExtractionResponse:
     """
     Lance l'extraction d'un document.
     Détecte automatiquement SLA-A ou SLA-B selon la méthode.
     """
-    doc = require_document_case_access(document_id, user)
-
     # §9 : déjà extrait → 409 explicite
     if doc.get("extraction_status") == "done":
         raise HTTPException(
@@ -170,42 +172,12 @@ def trigger_extraction(
     summary="Statut d'un job d'extraction OCR (SLA-B)",
 )
 def get_job_status(
-    job_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    job: Annotated[dict, Depends(require_extraction_job_document_access_dep)],
 ) -> JobStatusResponse:
     """
     Retourne le statut courant d'un job d'extraction asynchrone.
     §9 : 404 explicite si job inconnu.
     """
-    with get_db_cursor() as cur:
-        cur.execute(
-            """
-            SELECT
-                id,
-                document_id,
-                status,
-                method,
-                sla_class,
-                queued_at,
-                started_at,
-                completed_at,
-                duration_ms,
-                error_message
-            FROM extraction_jobs
-            WHERE id = %s
-        """,
-            (job_id,),
-        )
-        job = cur.fetchone()
-
-    if job is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Job '{job_id}' introuvable.",
-        )
-
-    require_document_case_access(str(job["document_id"]), user)
-
     return JobStatusResponse(
         job_id=str(job["id"]),
         document_id=str(job["document_id"]),
@@ -213,8 +185,8 @@ def get_job_status(
         method=job["method"],
         sla_class=job["sla_class"],
         queued_at=str(job["queued_at"]),
-        started_at=(str(job["started_at"]) if job["started_at"] else None),
-        completed_at=(str(job["completed_at"]) if job["completed_at"] else None),
+        started_at=(str(job["started_at"]) if job.get("started_at") else None),
+        completed_at=(str(job["completed_at"]) if job.get("completed_at") else None),
         duration_ms=job["duration_ms"],
         error_message=job["error_message"],
     )
@@ -227,15 +199,13 @@ def get_job_status(
 )
 def get_extraction_result(
     document_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    _access: Annotated[UserClaims, Depends(require_document_case_access_dep)],
 ) -> ExtractionResultResponse:
     """
     Retourne le résultat d'extraction le plus récent.
     §9 : 404 si aucune extraction.
          _warning si confidence faible (< 0.6).
     """
-    require_document_case_access(document_id, user)
-
     with get_db_cursor() as cur:
         cur.execute(
             """
@@ -303,14 +273,12 @@ def get_extraction_result(
 )
 def get_effective_data(
     document_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    _access: Annotated[UserClaims, Depends(require_document_case_access_dep)],
 ) -> EffectiveDataResponse:
     """
     Retourne structured_data_effective + content_hash.
     Vue : structured_data_effective (dernière correction ou original).
     """
-    require_document_case_access(document_id, user)
-
     with get_db_cursor() as cur:
         cur.execute(
             """
@@ -359,13 +327,12 @@ def get_effective_data(
 async def post_correction(
     document_id: str,
     body: CorrectionCreate,
-    current_user: Annotated[UserClaims, Depends(get_current_user)],
+    current_user: Annotated[UserClaims, Depends(require_document_case_access_dep)],
 ) -> CorrectionResponse:
     """
     Enregistre une correction append-only.
     Si expected_content_hash fourni et ≠ hash effectif courant → 409 Conflict.
     """
-    require_document_case_access(document_id, current_user)
     corrected_by = current_user.user_id
 
     with get_db_cursor() as cur:
@@ -437,11 +404,9 @@ async def post_correction(
 )
 def get_corrections_history(
     document_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    _access: Annotated[UserClaims, Depends(require_document_case_access_dep)],
 ) -> list[dict]:
     """Historique des corrections pour le document (extraction_corrections_history)."""
-    require_document_case_access(document_id, user)
-
     with get_db_cursor() as cur:
         cur.execute(
             """

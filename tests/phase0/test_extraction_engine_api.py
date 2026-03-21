@@ -16,7 +16,7 @@ from src.couche_a.auth.dependencies import UserClaims, get_current_user
 
 client = TestClient(app)
 
-# Accès document : mocké ici (import réel dans case_access, pas dans extractions).
+# Accès document : mock sur case_access (deps FastAPI).
 _PATCH_GET_DOCUMENT = "src.couche_a.auth.case_access.get_document"
 
 
@@ -138,10 +138,7 @@ class TestTriggerExtractionSLAA:
     def test_sla_a_returns_202_done(self):
         """PDF natif → 202 + status done + sla_class A."""
         with (
-            patch(
-                _PATCH_GET_DOCUMENT,
-                return_value=FAKE_DOC_PDF,
-            ),
+            patch(_PATCH_GET_DOCUMENT, return_value=FAKE_DOC_PDF),
             patch(
                 "src.api.routes.extractions.extract_sync",
                 return_value=FAKE_EXTRACT_RESULT_SLA_A,
@@ -160,10 +157,7 @@ class TestTriggerExtractionSLAA:
     def test_sla_a_duration_sous_60s(self):
         """SLA-A : duration_ms < 60000 dans la réponse."""
         with (
-            patch(
-                _PATCH_GET_DOCUMENT,
-                return_value=FAKE_DOC_PDF,
-            ),
+            patch(_PATCH_GET_DOCUMENT, return_value=FAKE_DOC_PDF),
             patch(
                 "src.api.routes.extractions.extract_sync",
                 return_value=FAKE_EXTRACT_RESULT_SLA_A,
@@ -179,10 +173,7 @@ class TestTriggerExtractionSLAA:
     def test_sla_a_timeout_returns_504(self):
         """SLA-A TimeoutError → 504."""
         with (
-            patch(
-                _PATCH_GET_DOCUMENT,
-                return_value=FAKE_DOC_PDF,
-            ),
+            patch(_PATCH_GET_DOCUMENT, return_value=FAKE_DOC_PDF),
             patch(
                 "src.api.routes.extractions.extract_sync",
                 side_effect=TimeoutError("SLA-A violé : 65000ms"),
@@ -205,10 +196,7 @@ class TestTriggerExtractionSLAB:
     def test_sla_b_returns_202_pending(self):
         """Scan OCR → 202 + status pending + job_id."""
         with (
-            patch(
-                _PATCH_GET_DOCUMENT,
-                return_value=FAKE_DOC_SCAN,
-            ),
+            patch(_PATCH_GET_DOCUMENT, return_value=FAKE_DOC_SCAN),
             patch(
                 "src.api.routes.extractions.extract_async",
                 return_value=FAKE_EXTRACT_RESULT_SLA_B,
@@ -227,10 +215,7 @@ class TestTriggerExtractionSLAB:
     def test_sla_b_retourne_job_id(self):
         """SLA-B : job_id non null dans la réponse."""
         with (
-            patch(
-                _PATCH_GET_DOCUMENT,
-                return_value=FAKE_DOC_SCAN,
-            ),
+            patch(_PATCH_GET_DOCUMENT, return_value=FAKE_DOC_SCAN),
             patch(
                 "src.api.routes.extractions.extract_async",
                 return_value=FAKE_EXTRACT_RESULT_SLA_B,
@@ -263,10 +248,7 @@ class TestErreurs:
 
     def test_document_deja_extrait_returns_409(self):
         """Document déjà extrait → 409 Conflict."""
-        with patch(
-            _PATCH_GET_DOCUMENT,
-            return_value=FAKE_DOC_DONE,
-        ):
+        with patch(_PATCH_GET_DOCUMENT, return_value=FAKE_DOC_DONE):
             response = client.post(
                 "/api/extractions/documents/doc-test-done-001/extract"
             )
@@ -277,10 +259,7 @@ class TestErreurs:
     def test_exception_interne_returns_500(self):
         """Exception interne → 500 avec message."""
         with (
-            patch(
-                _PATCH_GET_DOCUMENT,
-                return_value=FAKE_DOC_PDF,
-            ),
+            patch(_PATCH_GET_DOCUMENT, return_value=FAKE_DOC_PDF),
             patch(
                 "src.api.routes.extractions.extract_sync",
                 side_effect=RuntimeError("Parseur planté"),
@@ -307,7 +286,7 @@ class TestJobStatus:
 
         with (
             patch(_PATCH_GET_DOCUMENT, return_value=FAKE_DOC_SCAN),
-            patch("src.api.routes.extractions.get_db_cursor") as mock_ctx,
+            patch("src.couche_a.auth.case_access.get_db_cursor") as mock_ctx,
         ):
             mock_ctx.return_value.__enter__ = lambda s: mock_cursor
             mock_ctx.return_value.__exit__ = MagicMock(return_value=False)
@@ -324,7 +303,7 @@ class TestJobStatus:
         mock_cursor = MagicMock()
         mock_cursor.fetchone.return_value = None
 
-        with patch("src.api.routes.extractions.get_db_cursor") as mock_ctx:
+        with patch("src.couche_a.auth.case_access.get_db_cursor") as mock_ctx:
             mock_ctx.return_value.__enter__ = lambda s: mock_cursor
             mock_ctx.return_value.__exit__ = MagicMock(return_value=False)
             response = client.get("/api/extractions/jobs/job-inexistant/status")

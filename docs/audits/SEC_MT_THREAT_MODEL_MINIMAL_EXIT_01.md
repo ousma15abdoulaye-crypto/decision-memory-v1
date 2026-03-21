@@ -2,8 +2,8 @@
 
 **Référence :** EXIT-PLAN-ALIGN-01 · Mandat SEC-MT  
 **Date :** 2026-03-21  
-**Révision :** 2026-03-21 — surface dual-app + outil d’audit référencé  
-**Statut :** SOCLE — à itérer par mandats SEC-MT-01/02/03 ; **ne pas** mélanger avec le rail annotation (hors périmètre).
+**Révision :** 2026-03-21 — post SEC-MT-01 (merge durcissement)  
+**Statut :** SOCLE **mis à jour** — SEC-MT-01 **partiellement livré** (voir §4–5) ; suite §7. **Ne pas** mélanger avec le rail annotation (hors périmètre).
 
 ---
 
@@ -26,7 +26,7 @@ Ce document **ne** prétend pas que le système est « multi-tenant complet ». 
 | **PostgreSQL** | Données dossiers, schémas public / `couche_b` | [`alembic/`](../../alembic/) |
 | **Rate limit / headers** | Dépend Redis + import (app modulaire) | [`src/couche_a/auth/middleware.py`](../../src/couche_a/auth/middleware.py) |
 
-**Multi-tenant DB (RLS) :** **UNKNOWN** dans ce document — pas d’attestation sans revue migrations + politiques.
+**Multi-tenant DB (RLS) :** **partiellement attesté** (2026-03) — migrations `051` + rôle applicatif `dm_app` (`052`/`053`) + test d’intégration cross-tenant + `set_config` sur connexions dédiées (pipeline, analysis_summary, committee). **CI Postgres superuser** ne prouve pas RLS en prod : voir [`SEC_MT_01_BASELINE.md`](SEC_MT_01_BASELINE.md) et [`OPS_SEC_MT_PRODUCTION.md`](OPS_SEC_MT_PRODUCTION.md). Politique données export M15 : [`DATA-M15.md`](../mandates/DATA-M15.md).
 
 ---
 
@@ -50,17 +50,20 @@ Ce document **ne** prétend pas que le système est « multi-tenant complet ». 
 
 ## 4. Barrières déjà présentes (vérifiables)
 
-- **Contrôle applicatif case/document :** `require_case_access`, `require_document_case_access` — [`case_access.py`](../../src/couche_a/auth/case_access.py).
-- **JWT + dépendances FastAPI** sur les routes qui les déclarent.
-- **Gate CI partiel :** [`scripts/audit_fastapi_auth_coverage.py`](../../scripts/audit_fastapi_auth_coverage.py) — heuristique « arbre de dépendances contient `get_current_user` » pour les routes sous un préfixe donné (voir `.github/workflows/ci-main.yml`).
+- **Contrôle applicatif case/document :** `require_case_access`, `require_document_case_access` et dépendances FastAPI **`require_case_access_dep` / `require_document_case_access_dep`** (visibles par l’audit CI) — [`case_access.py`](../../src/couche_a/auth/case_access.py).
+- **JWT + dépendances FastAPI** sur les routes qui les déclarent ; app modulaire : gates sur `/mercuriale`, `/price-check`, `/vendors`, `/api/cases` (sensitive), `/api/documents`, `/api/analysis`, `/api/memory`, `/api/scoring`, etc. — voir [`.github/workflows/ci-main.yml`](../../.github/workflows/ci-main.yml).
+- **Outil d’audit :** [`scripts/audit_fastapi_auth_coverage.py`](../../scripts/audit_fastapi_auth_coverage.py) — `get_current_user`, garde-fous case/document, `--fail-sensitive-prefix`, rapports MD/CSV.
+- **Baseline & dual-app :** [`SEC_MT_01_BASELINE.md`](SEC_MT_01_BASELINE.md) ; ops Redis / health / secrets : [`OPS_SEC_MT_PRODUCTION.md`](OPS_SEC_MT_PRODUCTION.md).
+- **RLS + rôle `dm_app` :** migrations Alembic `051`–`053` ; test [`tests/integration/test_rls_dm_app_cross_tenant.py`](../../tests/integration/test_rls_dm_app_cross_tenant.py).
 
 ---
 
-## 5. Lacunes explicites (non promesses)
+## 5. Lacunes explicites (restes honnêtes)
 
-- **Inventaire fermé IDOR** : **non livré** ici — mandat suivant : tableau routes × présence `get_current_user` / `require_case_access`.
-- **RLS PostgreSQL** comme barrière principale : **non attesté** — SEC-MT-01.
-- **Une seule app en prod** : si les deux apps sont déployées, **documenter** ou **retirer** l’exposition — sinon risque structurel.
+- **Inventaire IDOR « zéro trou » :** la couverture est **forte mais heuristique** (arbre de deps uniquement) ; toute **nouvelle** route sensible doit utiliser `Depends(require_*_dep)` dès l’écriture — `/api/extractions` : gate `--fail-sensitive-prefix` active (refactor deps).
+- **RLS en production :** la preuve opposable = connexion **non superuser** + `NOBYPASSRLS` + politiques ; pas seulement CI verte — runbook [`OPS_SEC_MT_PRODUCTION.md`](OPS_SEC_MT_PRODUCTION.md).
+- **Une seule app en prod :** décision documentée dans [`SEC_MT_01_BASELINE.md`](SEC_MT_01_BASELINE.md) (`main:app`) ; toute exposition parallèle de `src.api.main:app` = ré-inventaire complet des gates.
+- **Export / qualité données M15 :** politique mandat [`DATA-M15.md`](../mandates/DATA-M15.md) — exécution technique et owner produit à finaliser.
 
 ---
 
@@ -72,8 +75,9 @@ Ce document **ne** prétend pas que le système est « multi-tenant complet ». 
 
 ---
 
-## 7. Prochaine étape recommandée (mandat SEC-MT-01)
+## 7. Suite recommandée (post SEC-MT-01)
 
-1. Générer deux inventaires : `audit_fastapi_auth_coverage.py --app main:app` et `--app src.api.main:app` (sans `--fail-prefix` d’abord).
-2. Produire tableau **fermé** : routes sensibles (`/api/cases`, `/api/documents`, `/committee`, `/price-check`, etc.) × statut auth / case_access.
-3. Corriger les **trous** par PRs **ciblées** ; étendre le gate CI avec préfixes additionnels **après** stabilisation.
+1. **SEC-MT-02 — suite :** étendre le même pattern (deps + `--fail-sensitive-prefix`) à toute **nouvelle** surface `{case_id|document_id|job_id}` ; revue périodique des sorties audit.
+2. **DATA-M15 :** désigner l’owner (échéance §5 mandat), remplir le rapport [`M15_validation_report.md`](../reports/M15_validation_report.md) au gel — mandat [`DATA-M15.md`](../mandates/DATA-M15.md).
+3. **Backlog (priorité produit) :** voir [`SEC_MT_POST_MERGE_BACKLOG_OPTIONAL.md`](SEC_MT_POST_MERGE_BACKLOG_OPTIONAL.md) (`tenant_id` vendors, Compose `dm_app`, invariant `test_couche_a_b_boundary`).
+4. **Inventaires :** régénérer les sorties décrites dans [`SEC_MT_01_BASELINE.md`](SEC_MT_01_BASELINE.md) lors des jalons (commandes `audit_fastapi_auth_coverage.py`).

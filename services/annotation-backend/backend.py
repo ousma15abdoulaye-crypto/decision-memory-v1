@@ -43,6 +43,7 @@ from annotation_qa import (
     apply_financial_warnings_to_annotation,
     evidence_substring_violations,
     financial_coherence_warnings,
+    parse_loose_money_float,
 )
 
 from prompts import SYSTEM_PROMPT
@@ -68,6 +69,24 @@ MAX_TEXT_CHARS = int(os.environ.get("MAX_TEXT_CHARS", "80000"))
 # M-ANNOTATION-CONTAINMENT-01 — aligné couche A (MIN_EXTRACTED_TEXT_CHARS_FOR_ML)
 MIN_LLM_CONTEXT_CHARS = int(os.environ.get("MIN_LLM_CONTEXT_CHARS", "100"))
 MIN_PREDICT_TEXT_CHARS = int(os.environ.get("MIN_PREDICT_TEXT_CHARS", "200"))
+
+_DEFAULT_FINANCIAL_REVIEW_THRESHOLD_XOF = 10_000_000.0
+
+
+def _parse_financial_review_threshold_xof_from_env() -> float:
+    """Seuil ARCH-04 — tolère espaces/NBSP/virgules milliers ; défaut sûr si valeur illisible."""
+    raw = os.environ.get("FINANCIAL_REVIEW_THRESHOLD_XOF", "10000000")
+    try:
+        s = str(raw).strip()
+        for ch in ("\u202f", "\u00a0", "\u2009", "\u2007", "\u2028", "\u2008"):
+            s = s.replace(ch, "")
+        s = re.sub(r"[\s,]+", "", s)
+        if not s:
+            return _DEFAULT_FINANCIAL_REVIEW_THRESHOLD_XOF
+        return float(s)
+    except (ValueError, TypeError):
+        return _DEFAULT_FINANCIAL_REVIEW_THRESHOLD_XOF
+
 
 # STRICT_PREDICT — pas de pré-annotation si schéma / finances / evidence échouent
 STRICT_PREDICT = os.environ.get("STRICT_PREDICT", "").lower() in {
@@ -386,15 +405,14 @@ def _apply_financial_offer_review_rules(
     ARCH-04 — Règles locales de prudence pour offres financières (pas invariant métier DMS).
     Complète _spot_check sans le remplacer. Seuil monétaire paramétrable (env).
     """
+    cr0 = annotation.get("couche_1_routing")
+    if not isinstance(cr0, dict) or cr0.get("taxonomy_core") != "offer_financial":
+        return annotation
+
     if total_price_threshold is None:
-        total_price_threshold = float(
-            os.environ.get("FINANCIAL_REVIEW_THRESHOLD_XOF", "10000000")
-        )
+        total_price_threshold = _parse_financial_review_threshold_xof_from_env()
 
     annotation = copy.deepcopy(annotation)
-    cr = annotation.get("couche_1_routing")
-    if not isinstance(cr, dict) or cr.get("taxonomy_core") != "offer_financial":
-        return annotation
 
     reasons: list[str] = []
     meta = annotation.get("_meta")
@@ -429,15 +447,12 @@ def _apply_financial_offer_review_rules(
 
     total_raw = financier.get("total_price")
     if isinstance(total_raw, dict):
-        try:
-            raw_v = total_raw.get("value")
-            total = float(str(raw_v).replace(" ", "").replace(",", "."))
-            if total > total_price_threshold:
-                reasons.append(
-                    f"high_value_above_{int(total_price_threshold)}_local_prudence"
-                )
-        except (ValueError, TypeError):
-            pass
+        raw_v = total_raw.get("value")
+        total = parse_loose_money_float(raw_v)
+        if total is not None and total > total_price_threshold:
+            reasons.append(
+                f"high_value_above_{int(total_price_threshold)}_local_prudence"
+            )
 
     if reasons:
         meta["review_required"] = True

@@ -32,6 +32,33 @@ MONETARY_TAXONOMY_CORE = frozenset(
 VALUE_SKIP = frozenset({None, "", "ABSENT", "NOT_APPLICABLE", "AMBIGUOUS"})
 EVIDENCE_SKIP = frozenset({None, "", "ABSENT", "NOT_APPLICABLE"})
 
+# Espaces fréquents dans les montants PDF/OCR (ex. espace insécable étroit)
+_MONEY_SPACE_CHARS = (
+    "\u202f",
+    "\u00a0",
+    "\u2009",
+    "\u2007",
+    "\u2028",
+    "\u2008",
+)
+
+
+def parse_loose_money_float(raw: Any) -> float | None:
+    """
+    Parse un montant style total_price (PDF/OCR) : espaces, NBSP étroit, virgule décimale.
+    Retourne None si absent ou non interprétable.
+    """
+    if raw in VALUE_SKIP:
+        return None
+    s = str(raw)
+    for ch in _MONEY_SPACE_CHARS:
+        s = s.replace(ch, "")
+    s = s.replace(" ", "").replace(",", ".")
+    try:
+        return float(s)
+    except (ValueError, TypeError):
+        return None
+
 
 def _norm_spot(s: str) -> str:
     return re.sub(r"\s+", " ", (s or "").lower().strip())
@@ -64,11 +91,7 @@ def should_run_financial_reconciliation(annotation: dict) -> bool:
         val = total_raw.get("value")
         if val in (None, "", "ABSENT", "NOT_APPLICABLE"):
             return False
-        try:
-            float(str(val).replace(" ", "").replace("\u202f", ""))
-            return True
-        except (ValueError, TypeError):
-            return False
+        return parse_loose_money_float(val) is not None
     if isinstance(total_raw, int | float):
         return True
     return False
@@ -92,13 +115,11 @@ def financial_coherence_warnings(annotation: dict, task_id: int = 0) -> list[str
 
     total_declared: float | None = None
     if isinstance(total_raw, dict):
-        try:
-            val = total_raw.get("value", 0)
-            if val in (None, "", "ABSENT", "NOT_APPLICABLE"):
-                return warnings
-            s = str(val).replace(" ", "").replace("\u202f", "")
-            total_declared = float(s)
-        except (ValueError, TypeError):
+        val = total_raw.get("value", 0)
+        if val in (None, "", "ABSENT", "NOT_APPLICABLE"):
+            return warnings
+        total_declared = parse_loose_money_float(val)
+        if total_declared is None:
             return warnings
     elif isinstance(total_raw, int | float):
         total_declared = float(total_raw)
