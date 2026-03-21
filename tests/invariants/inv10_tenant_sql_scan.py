@@ -25,6 +25,7 @@ _SQL_ALLOWLIST_NORMALIZED: tuple[tuple[str, str], ...] = (
     ("src/api/cases.py", "select * from cases order by created_at desc"),
 )
 
+
 def _normalize_sql_snippet(s: str) -> str:
     return " ".join(s.lower().split())
 
@@ -32,9 +33,13 @@ def _normalize_sql_snippet(s: str) -> str:
 def _first_from_table(sl: str, tables: frozenset[str]) -> str | None:
     """Première table `FROM`/`JOIN` parmi `tables` (re.IGNORECASE sur le motif)."""
     for t in tables:
-        if re.search(rf"\bfrom\s+(?:public\.)?{re.escape(t)}\b", sl, flags=re.IGNORECASE):
+        if re.search(
+            rf"\bfrom\s+(?:public\.)?{re.escape(t)}\b", sl, flags=re.IGNORECASE
+        ):
             return t
-        if re.search(rf"\bjoin\s+(?:public\.)?{re.escape(t)}\b", sl, flags=re.IGNORECASE):
+        if re.search(
+            rf"\bjoin\s+(?:public\.)?{re.escape(t)}\b", sl, flags=re.IGNORECASE
+        ):
             return t
     return None
 
@@ -105,7 +110,9 @@ def iter_sql_select_strings_from_py(source: str) -> list[tuple[str, int]]:
     return out
 
 
-def scan_src_violations(repo_root: Path) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+def scan_src_violations(
+    repo_root: Path,
+) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
     """
     Parcourt src/**/*.py : SELECT touchant une table RLS sans indice de périmètre.
 

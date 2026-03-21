@@ -138,16 +138,14 @@ def test_case_id(db_conn):
     """
     case_id = f"integ-case-{uuid.uuid4().hex[:8]}"
     with db_conn.cursor() as cur:
-        cur.execute(
-            """
+        cur.execute("""
             SELECT u.id,
                    COALESCE(ut.tenant_id, 'tenant-' || u.id::text) AS tenant_id
             FROM users u
             LEFT JOIN user_tenants ut ON ut.user_id = u.id
             WHERE u.username = 'admin'
             LIMIT 1
-            """
-        )
+            """)
         row = cur.fetchone()
         assert row is not None, "Utilisateur admin requis pour les tests d'intégration"
         owner_id = row["id"]

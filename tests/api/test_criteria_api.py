@@ -143,9 +143,7 @@ class TestPostCriterion:
         resp = _post_criterion(test_client, fake_case, crit_auth)
         assert resp.status_code == 404
         detail = resp.json()["detail"].lower()
-        assert "case" in detail and (
-            "not found" in detail or "introuvable" in detail
-        )
+        assert "case" in detail and ("not found" in detail or "introuvable" in detail)
 
     def test_categorie_invalide_422(self, test_client, db_conn, crit_auth):
         """POST category invalide → 422 (Pydantic field_validator)."""
@@ -173,9 +171,7 @@ class TestPostCriterion:
         """POST weight_pct < 0 → 422 (Pydantic ge=0)."""
         case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
-            resp = _post_criterion(
-                test_client, case_id, crit_auth, weight_pct=-5.0
-            )
+            resp = _post_criterion(test_client, case_id, crit_auth, weight_pct=-5.0)
             assert resp.status_code == 422
         finally:
             _cleanup(db_conn, case_id)
@@ -184,9 +180,7 @@ class TestPostCriterion:
         """POST weight_pct > 100 → 422 (Pydantic le=100)."""
         case_id = _create_test_case(db_conn, crit_auth["tid"], status="draft")
         try:
-            resp = _post_criterion(
-                test_client, case_id, crit_auth, weight_pct=150.0
-            )
+            resp = _post_criterion(test_client, case_id, crit_auth, weight_pct=150.0)
             assert resp.status_code == 422
         finally:
             _cleanup(db_conn, case_id)

@@ -135,7 +135,9 @@ def test_require_ls_attestations_blocks_validated_without_choices(
     # Retirer les attestations du résultat LS
     res = item["annotations"][0]["result"]
     item["annotations"][0]["result"] = [
-        r for r in res if r["from_name"] not in ("evidence_attestation", "no_invented_numbers")
+        r
+        for r in res
+        if r["from_name"] not in ("evidence_attestation", "no_invented_numbers")
     ]
     line = export_mod.ls_annotation_to_m12_v2_line(
         item["annotations"][0],

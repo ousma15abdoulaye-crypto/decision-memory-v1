@@ -28,9 +28,9 @@ def test_inv_10_jwt_emits_tenant_claim_parameter() -> None:
     from src.couche_a.auth import jwt_handler
 
     sig = inspect.signature(jwt_handler.create_access_token)
-    assert "tenant_id" in sig.parameters, (
-        "create_access_token doit exposer tenant_id pour le contexte multi-tenant"
-    )
+    assert (
+        "tenant_id" in sig.parameters
+    ), "create_access_token doit exposer tenant_id pour le contexte multi-tenant"
 
 
 def test_inv_10_user_claims_includes_tenant_id() -> None:
