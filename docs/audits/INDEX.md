@@ -17,6 +17,7 @@
 | SEC_MT_THREAT_MODEL_MINIMAL_EXIT_01.md | 2026-03-21 | LIVRÉ | Menace minimale + barrières (hors annotation) |
 | RUNTIME_DOC_ALIGNMENT_MATRIX_EXIT_01.md | 2026-03-21 | LIVRÉ | Matrice doc vs runtime — 10 lignes fermées |
 | COPILOT_PR_MULTI_TENANT_REVIEW.md | 2026-03-21 | LIVRÉ | Revue PR GitHub Copilot (org_id JWT vs tenant_id) + merge |
+| PR_234_MERGE_ALIGNMENT.md | 2026-03-21 | LIVRÉ | PR #234 : fusion exit-plan + anti-redondance agents / Copilot |
 
 ## RAPPORTS ARCHIVÉS — RÉSOLUS
 
