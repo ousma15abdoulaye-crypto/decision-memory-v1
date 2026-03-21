@@ -11,9 +11,8 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
-
 from annotation_qa import parse_loose_money_float
+from pydantic import BaseModel, Field, model_validator
 
 # ─────────────────────────────────────────────
 # ÉNUMÉRATIONS FIGÉES
