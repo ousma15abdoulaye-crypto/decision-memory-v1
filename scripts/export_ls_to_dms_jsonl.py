@@ -327,8 +327,19 @@ def main() -> None:
 
     if args.m15_gate:
         _gate_path = _SCRIPT_DIR / "m15_export_gate.py"
+        if not _gate_path.is_file():
+            print(
+                f"STOP — m15_export_gate introuvable : {_gate_path}",
+                file=sys.stderr,
+            )
+            sys.exit(2)
         _spec = importlib.util.spec_from_file_location("m15_export_gate", _gate_path)
-        assert _spec and _spec.loader
+        if _spec is None or _spec.loader is None:
+            print(
+                f"STOP — chargement m15_export_gate impossible : {_gate_path}",
+                file=sys.stderr,
+            )
+            sys.exit(2)
         _m15 = importlib.util.module_from_spec(_spec)
         _spec.loader.exec_module(_m15)
         violations = _m15.collect_m15_gate_violations(lines)

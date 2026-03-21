@@ -2,6 +2,16 @@
 
 Déploiement (Railway, Docker, etc.) : aligner avec [`docs/m12/M12_INFRA_SMOKE.md`](../../docs/m12/M12_INFRA_SMOKE.md).
 
+## Railway (build Docker monorepo)
+
+Le `Dockerfile` copie `services/annotation-backend/*` **et** `src/annotation` depuis la **racine du dépôt**. Le contexte Docker doit donc être le repo entier.
+
+1. Service → **Settings** → **Root Directory** : laisser **vide** ou `.` (racine du repo), **pas** `services/annotation-backend`.
+2. **Dockerfile Path** : `services/annotation-backend/Dockerfile` (déjà indiqué dans `railway.json` si la config code est reliée depuis ce fichier).
+3. Fichier config Railway : le [guide monorepo](https://docs.railway.com/guides/monorepo) précise que le chemin du `railway.json` ne suit pas automatiquement le root — pointer vers `services/annotation-backend/railway.json` si besoin.
+
+Si le root reste `services/annotation-backend` seul, l’erreur `"/src": not found` (ou équivalent) est attendue : Docker ne peut pas lire le dossier parent.
+
 ## Obligatoires (prod)
 
 | Variable | Description |

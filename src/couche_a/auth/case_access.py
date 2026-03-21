@@ -34,6 +34,14 @@ def require_document_case_access_dep(
     return user
 
 
+def require_document_case_access_row_dep(
+    document_id: str,
+    user: UserClaims = Depends(get_current_user),
+) -> dict[str, Any]:
+    """JWT + document : une seule lecture DB + même 404/403 que require_document_case_access."""
+    return require_document_case_access(document_id, user)
+
+
 def require_extraction_job_document_access_dep(
     job_id: str,
     user: UserClaims = Depends(get_current_user),

@@ -1,7 +1,7 @@
 # Politique d’export ground truth — M15 (pré-entraînement)
 
 **Statut :** politique produit / export — complète l’export M12 sans le remplacer.  
-**Gel formel :** ce fichier n’est **pas** référencé dans [`FREEZE_HASHES.md`](FREEZE_HASHES.md) ; il ne constitue pas un document « opposable » au sens [ADR-META-001-AMENDMENT-PROCESS.md](../adr/ADR-META-001-AMENDMENT-PROCESS.md) tant qu’aucun enregistrement append-only de hash n’a été effectué.  
+**Gel formel :** ce fichier n’est **pas** référencé dans [`FREEZE_HASHES.md`](FREEZE_HASHES.md) ; il ne constitue pas un document « opposable » au sens [ADR-META-001-AMENDMENT-PROCESS.md](./ADR-META-001-AMENDMENT-PROCESS.md) tant qu’aucun enregistrement append-only de hash n’a été effectué.  
 **Références :** [ADR-M12-EXPORT-V2.md](../adr/ADR-M12-EXPORT-V2.md), [`src/annotation/m12_export_io.py`](../../src/annotation/m12_export_io.py), schéma `DMSAnnotation` v3.0.1d.
 
 ## Portée

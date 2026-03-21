@@ -6,7 +6,6 @@ Constitution V3.3.2 §9 (doctrine échec).
 ADR-0002 §2.5 (SLA deux classes).
 """
 
-from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -17,19 +16,8 @@ from src.couche_a.auth.dependencies import UserClaims, get_current_user
 
 client = TestClient(app)
 
-# Accès document : case_access (deps) + extractions (2e lecture POST /extract).
+# Accès document : mock sur case_access (deps FastAPI).
 _PATCH_GET_DOCUMENT = "src.couche_a.auth.case_access.get_document"
-_PATCH_GET_DOCUMENT_ROUTES = "src.api.routes.extractions.get_document"
-
-
-@contextmanager
-def _patch_get_document_twice(**kwargs):
-    """POST /extract : dep + handler appellent chacun get_document."""
-    with (
-        patch(_PATCH_GET_DOCUMENT, **kwargs),
-        patch(_PATCH_GET_DOCUMENT_ROUTES, **kwargs),
-    ):
-        yield
 
 
 @pytest.fixture(autouse=True)
@@ -150,7 +138,7 @@ class TestTriggerExtractionSLAA:
     def test_sla_a_returns_202_done(self):
         """PDF natif → 202 + status done + sla_class A."""
         with (
-            _patch_get_document_twice(return_value=FAKE_DOC_PDF),
+            patch(_PATCH_GET_DOCUMENT, return_value=FAKE_DOC_PDF),
             patch(
                 "src.api.routes.extractions.extract_sync",
                 return_value=FAKE_EXTRACT_RESULT_SLA_A,
@@ -169,7 +157,7 @@ class TestTriggerExtractionSLAA:
     def test_sla_a_duration_sous_60s(self):
         """SLA-A : duration_ms < 60000 dans la réponse."""
         with (
-            _patch_get_document_twice(return_value=FAKE_DOC_PDF),
+            patch(_PATCH_GET_DOCUMENT, return_value=FAKE_DOC_PDF),
             patch(
                 "src.api.routes.extractions.extract_sync",
                 return_value=FAKE_EXTRACT_RESULT_SLA_A,
@@ -185,7 +173,7 @@ class TestTriggerExtractionSLAA:
     def test_sla_a_timeout_returns_504(self):
         """SLA-A TimeoutError → 504."""
         with (
-            _patch_get_document_twice(return_value=FAKE_DOC_PDF),
+            patch(_PATCH_GET_DOCUMENT, return_value=FAKE_DOC_PDF),
             patch(
                 "src.api.routes.extractions.extract_sync",
                 side_effect=TimeoutError("SLA-A violé : 65000ms"),
@@ -208,7 +196,7 @@ class TestTriggerExtractionSLAB:
     def test_sla_b_returns_202_pending(self):
         """Scan OCR → 202 + status pending + job_id."""
         with (
-            _patch_get_document_twice(return_value=FAKE_DOC_SCAN),
+            patch(_PATCH_GET_DOCUMENT, return_value=FAKE_DOC_SCAN),
             patch(
                 "src.api.routes.extractions.extract_async",
                 return_value=FAKE_EXTRACT_RESULT_SLA_B,
@@ -227,7 +215,7 @@ class TestTriggerExtractionSLAB:
     def test_sla_b_retourne_job_id(self):
         """SLA-B : job_id non null dans la réponse."""
         with (
-            _patch_get_document_twice(return_value=FAKE_DOC_SCAN),
+            patch(_PATCH_GET_DOCUMENT, return_value=FAKE_DOC_SCAN),
             patch(
                 "src.api.routes.extractions.extract_async",
                 return_value=FAKE_EXTRACT_RESULT_SLA_B,
@@ -260,7 +248,7 @@ class TestErreurs:
 
     def test_document_deja_extrait_returns_409(self):
         """Document déjà extrait → 409 Conflict."""
-        with _patch_get_document_twice(return_value=FAKE_DOC_DONE):
+        with patch(_PATCH_GET_DOCUMENT, return_value=FAKE_DOC_DONE):
             response = client.post(
                 "/api/extractions/documents/doc-test-done-001/extract"
             )
@@ -271,7 +259,7 @@ class TestErreurs:
     def test_exception_interne_returns_500(self):
         """Exception interne → 500 avec message."""
         with (
-            _patch_get_document_twice(return_value=FAKE_DOC_PDF),
+            patch(_PATCH_GET_DOCUMENT, return_value=FAKE_DOC_PDF),
             patch(
                 "src.api.routes.extractions.extract_sync",
                 side_effect=RuntimeError("Parseur planté"),

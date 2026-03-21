@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from src.couche_a.auth.case_access import (
     require_document_case_access_dep,
+    require_document_case_access_row_dep,
     require_extraction_job_document_access_dep,
 )
 from src.couche_a.auth.dependencies import UserClaims
@@ -23,7 +24,6 @@ from src.extraction.engine import (
     SLA_B_METHODS,
     extract_async,
     extract_sync,
-    get_document,
 )
 
 router = APIRouter(
@@ -115,14 +115,12 @@ def _content_hash(data: dict) -> str:
 )
 def trigger_extraction(
     document_id: str,
-    _access: Annotated[UserClaims, Depends(require_document_case_access_dep)],
+    doc: Annotated[dict, Depends(require_document_case_access_row_dep)],
 ) -> ExtractionResponse:
     """
     Lance l'extraction d'un document.
     Détecte automatiquement SLA-A ou SLA-B selon la méthode.
     """
-    doc = get_document(document_id)
-
     # §9 : déjà extrait → 409 explicite
     if doc.get("extraction_status") == "done":
         raise HTTPException(
