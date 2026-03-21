@@ -40,6 +40,7 @@ ignore = [
 known-first-party = ["src", "prompts"]
 
 [tool.ruff.lint.per-file-ignores]
+"services/annotation-backend/backend.py" = ["E402"]  # sys.path monorepo avant imports prompts / src
 "__init__.py" = ["F401"]  # Allow unused imports in __init__.py
 "tests/**/*.py" = ["E501"]  # Allow long lines in tests
 "src/business/templates.py" = ["N806"]  # Constants in functions (ORANGE_FILL, REVUE_MANUELLE)

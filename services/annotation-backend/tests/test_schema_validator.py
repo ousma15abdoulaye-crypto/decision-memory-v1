@@ -218,6 +218,69 @@ def test_dms_annotation_line_total_check_recalculated():
     assert any("AMBIG-3_item_1" in a for a in v.ambiguites)
 
 
+def test_dms_annotation_line_total_check_ok_exact():
+    """qty × unit_price == line_total → OK."""
+    d = _minimal_valid()
+    d["couche_4_atomic"]["financier"]["line_items"] = [
+        {
+            "item_line_no": 1,
+            "item_description_raw": "Ligne",
+            "unit_raw": "u",
+            "quantity": 10.0,
+            "unit_price": 100.0,
+            "line_total": 1000.0,
+            "line_total_check": "ANOMALY",
+            "confidence": 1.0,
+            "evidence": "p.1 — test",
+        }
+    ]
+    v = DMSAnnotation.model_validate(d)
+    assert v.couche_4_atomic.financier.line_items[0].line_total_check == LineCheck.OK
+
+
+def test_dms_annotation_line_total_check_within_relative_tolerance():
+    """Écart relatif ≤ 1 % vs max(line_total,1) → OK."""
+    d = _minimal_valid()
+    d["couche_4_atomic"]["financier"]["line_items"] = [
+        {
+            "item_line_no": 1,
+            "item_description_raw": "Ligne",
+            "unit_raw": "u",
+            "quantity": 10.0,
+            "unit_price": 100.0,
+            "line_total": 1005.0,
+            "line_total_check": "ANOMALY",
+            "confidence": 1.0,
+            "evidence": "p.1 — test",
+        }
+    ]
+    v = DMSAnnotation.model_validate(d)
+    assert v.couche_4_atomic.financier.line_items[0].line_total_check == LineCheck.OK
+
+
+def test_dms_annotation_line_total_check_non_verifiable_zero_quantity():
+    """quantity 0.0 → NON_VERIFIABLE (branche falsy, pas de contrôle math)."""
+    d = _minimal_valid()
+    d["couche_4_atomic"]["financier"]["line_items"] = [
+        {
+            "item_line_no": 1,
+            "item_description_raw": "Ligne",
+            "unit_raw": "u",
+            "quantity": 0.0,
+            "unit_price": 100.0,
+            "line_total": 0.0,
+            "line_total_check": "OK",
+            "confidence": 1.0,
+            "evidence": "p.1 — test",
+        }
+    ]
+    v = DMSAnnotation.model_validate(d)
+    assert (
+        v.couche_4_atomic.financier.line_items[0].line_total_check
+        == LineCheck.NON_VERIFIABLE
+    )
+
+
 def test_dms_annotation_gate_confidence_rejected():
     """Gate confidence 0.9 → ValidationError (E-17)."""
     d = _minimal_valid()

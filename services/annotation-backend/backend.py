@@ -16,7 +16,18 @@ from pathlib import Path
 from typing import Any
 
 # Import prompt — chemin absolu garanti — zéro PYTHONPATH
-sys.path.insert(0, str(Path(__file__).parent))
+_backend_dir = Path(__file__).resolve().parent
+sys.path.insert(0, str(_backend_dir))
+# ARCH-02A/02B : `src.annotation` depuis racine monorepo (dev) ou /app (image Docker)
+_monorepo_root = _backend_dir.parents[2]
+if (_monorepo_root / "src" / "annotation").is_dir():
+    _root_for_src = str(_monorepo_root)
+    if _root_for_src not in sys.path:
+        sys.path.insert(0, _root_for_src)
+elif (_backend_dir / "src" / "annotation").is_dir():
+    _app_root = str(_backend_dir)
+    if _app_root not in sys.path:
+        sys.path.insert(0, _app_root)
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,6 +47,14 @@ from annotation_qa import (
 
 from prompts import SYSTEM_PROMPT
 from prompts.schema_validator import DMSAnnotation, GateName
+from src.annotation.document_classifier import (
+    DocumentRole,
+    TaxonomyCore,
+    classify_document,
+)
+
+_VALID_TAXONOMY_CORE = frozenset(e.value for e in TaxonomyCore)
+_VALID_DOCUMENT_ROLE = frozenset(e.value for e in DocumentRole)
 
 # CONSTANTES — v3.0.1d ADR-015
 # Label Studio : <Text name="document_text" …/> + toName="document_text" sur les contrôles (E-66)
@@ -302,6 +321,136 @@ app.add_middleware(
 
 # FALLBACK — Mistral échoue ou JSON cassé (squelette validé DMSAnnotation)
 FALLBACK_RESPONSE: dict[str, Any] = _build_fallback_response()
+
+
+def _apply_deterministic_routing(
+    annotation: dict[str, Any],
+    source_text: str,
+    task_id: int,
+) -> dict[str, Any]:
+    """
+    ARCH-02 — Classifieur déterministe avant validation Pydantic.
+    Ne définit pas review_required (spot check / ARCH-04 séparés).
+    """
+    annotation = copy.deepcopy(annotation)
+    clf = classify_document(source_text)
+
+    cr = annotation.get("couche_1_routing")
+    if not isinstance(cr, dict):
+        cr = {}
+        annotation["couche_1_routing"] = cr
+    meta = annotation.get("_meta")
+    if not isinstance(meta, dict):
+        meta = {}
+        annotation["_meta"] = meta
+
+    if clf.deterministic:
+        cr["taxonomy_core"] = clf.taxonomy_core.value
+        cr["document_role"] = clf.document_role.value
+        meta["routing_source"] = "deterministic_classifier"
+        meta["routing_matched_rule"] = clf.matched_rule
+        meta["routing_confidence"] = clf.confidence
+        logger.info(
+            "[ROUTING] task_id=%s deterministic=1 rule=%s tax=%s role=%s",
+            task_id,
+            clf.matched_rule,
+            clf.taxonomy_core.value,
+            clf.document_role.value,
+        )
+    else:
+        llm_tax = str(cr.get("taxonomy_core") or "")
+        llm_role = str(cr.get("document_role") or "")
+        if llm_tax not in _VALID_TAXONOMY_CORE or llm_role not in _VALID_DOCUMENT_ROLE:
+            cr["taxonomy_core"] = TaxonomyCore.UNKNOWN.value
+            cr["document_role"] = DocumentRole.UNKNOWN.value
+            meta["routing_source"] = "llm_fallback_unresolved"
+            logger.warning(
+                "[ROUTING] task_id=%s llm_fallback_unresolved tax=%r role=%r",
+                task_id,
+                llm_tax,
+                llm_role,
+            )
+        else:
+            meta["routing_source"] = "llm_fallback_validated"
+        meta["routing_matched_rule"] = clf.matched_rule
+        meta["routing_confidence"] = clf.confidence
+
+    return annotation
+
+
+def _apply_financial_offer_review_rules(
+    annotation: dict[str, Any],
+    total_price_threshold: float | None = None,
+) -> dict[str, Any]:
+    """
+    ARCH-04 — Règles locales de prudence pour offres financières (pas invariant métier DMS).
+    Complète _spot_check sans le remplacer. Seuil monétaire paramétrable (env).
+    """
+    if total_price_threshold is None:
+        total_price_threshold = float(
+            os.environ.get("FINANCIAL_REVIEW_THRESHOLD_XOF", "10000000")
+        )
+
+    annotation = copy.deepcopy(annotation)
+    cr = annotation.get("couche_1_routing")
+    if not isinstance(cr, dict) or cr.get("taxonomy_core") != "offer_financial":
+        return annotation
+
+    reasons: list[str] = []
+    meta = annotation.get("_meta")
+    if not isinstance(meta, dict):
+        meta = {}
+        annotation["_meta"] = meta
+
+    c4 = annotation.get("couche_4_atomic")
+    c4 = c4 if isinstance(c4, dict) else {}
+    conformite = c4.get("conformite_admin")
+    conformite = conformite if isinstance(conformite, dict) else {}
+    financier = c4.get("financier")
+    financier = financier if isinstance(financier, dict) else {}
+
+    for field in ("has_nif", "has_rccm"):
+        val = conformite.get(field)
+        if isinstance(val, dict) and val.get("value") == ABSENT:
+            reasons.append(f"admin_{field}_absent")
+
+    line_items = financier.get("line_items")
+    if not isinstance(line_items, list):
+        line_items = []
+
+    for i, item in enumerate(line_items):
+        if not isinstance(item, dict):
+            continue
+        if item.get("line_total_check") == "ANOMALY":
+            reasons.append(f"arithmetic_anomaly_item_{i + 1}")
+
+    if not line_items:
+        reasons.append("line_items_empty_on_financial_offer")
+
+    total_raw = financier.get("total_price")
+    if isinstance(total_raw, dict):
+        try:
+            raw_v = total_raw.get("value")
+            total = float(str(raw_v).replace(" ", "").replace(",", "."))
+            if total > total_price_threshold:
+                reasons.append(
+                    f"high_value_above_{int(total_price_threshold)}_local_prudence"
+                )
+        except (ValueError, TypeError):
+            pass
+
+    if reasons:
+        meta["review_required"] = True
+        existing = meta.get("review_reasons")
+        if not isinstance(existing, list):
+            existing = []
+        for r in reasons:
+            if r not in existing:
+                existing.append(r)
+        meta["review_reasons"] = existing
+
+    annotation["_meta"] = meta
+    return annotation
 
 
 def _pseudonymise(value: str) -> str:
@@ -920,8 +1069,10 @@ async def predict(request: Request) -> JSONResponse:
                 document_role=document_role,
                 source_filename=source_filename,
             )
+            annotation = _apply_deterministic_routing(annotation, text, task_id)
             annotation = _normalize_gates(annotation)
             annotation, errors = _validate_and_correct(annotation, task_id)
+            annotation = _apply_financial_offer_review_rules(annotation)
             if STRICT_PREDICT:
                 if errors:
                     predictions.append(

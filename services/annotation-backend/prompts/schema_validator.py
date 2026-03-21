@@ -325,6 +325,12 @@ class Meta(BaseModel):
     parent_document_id: str
     parent_document_role: str
     supplier_inherited_from: str | None
+    # ARCH-02 — traçabilité routeur (déterministe / fallback LLM borné)
+    routing_source: str | None = None
+    routing_matched_rule: str | None = None
+    routing_confidence: float | None = None
+    # ARCH-04 — raisons review financier (liste optionnelle)
+    review_reasons: list[str] | None = None
 
 
 # ─────────────────────────────────────────────
@@ -367,6 +373,9 @@ class DMSAnnotation(BaseModel):
         """
         Recalcul mathématique par le backend — jamais par Mistral.
         Mistral peut se tromper. Python ne se trompe pas.
+
+        Tolérance : écart relatif |expected−actual|/max(actual,1) ≤ 0,01 (~1 %).
+        quantity ou unit_price « falsy » (0.0 inclus) → NON_VERIFIABLE (pas d’assertion math).
         """
         items = self.couche_4_atomic.financier.line_items
         for item in items:

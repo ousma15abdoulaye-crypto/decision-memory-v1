@@ -5,6 +5,7 @@ Vérifie la structure Label Studio et la normalisation gates.
 
 from __future__ import annotations
 
+import copy
 import importlib.util
 import json
 import os
@@ -48,6 +49,10 @@ def _load_backend_module():
         raise ImportError(
             f"Impossible de charger le module backend depuis {_BACKEND_PATH}"
         )
+
+    _repo = Path(__file__).resolve().parents[3]
+    if str(_repo) not in sys.path:
+        sys.path.insert(0, str(_repo))
 
     module = importlib.util.module_from_spec(spec)
     # Enregistrer le module pour que les imports internes fonctionnent éventuellement
@@ -318,3 +323,93 @@ class TestPredictTextGuards:
         assert mistral.await_count == 0
         payload = r.json()["results"][0]["result"][0]["value"]["text"][0]
         assert "text_too_short" in payload
+
+
+class TestDeterministicRoutingArch02:
+    """ARCH-02 — routeur déterministe + fallback enums."""
+
+    def test_financial_header_overwrites_routing(self) -> None:
+        backend = _load_backend_module()
+        ann = copy.deepcopy(backend.FALLBACK_RESPONSE)
+        ann["couche_1_routing"]["taxonomy_core"] = "rfq"
+        ann["couche_1_routing"]["document_role"] = "source_rules"
+        text = "# PROPOSITION FINANCIÈRE\n" + "x" * 500
+        out = backend._apply_deterministic_routing(ann, text, 1)
+        assert out["couche_1_routing"]["taxonomy_core"] == "offer_financial"
+        assert out["couche_1_routing"]["document_role"] == "financial_offer"
+        assert out["_meta"]["routing_source"] == "deterministic_classifier"
+        assert out["_meta"]["routing_matched_rule"] == "P0_financial_title_header"
+
+    def test_llm_invalid_enum_becomes_unknown(self) -> None:
+        backend = _load_backend_module()
+        ann = copy.deepcopy(backend.FALLBACK_RESPONSE)
+        ann["couche_1_routing"]["taxonomy_core"] = "not_a_real_taxonomy"
+        ann["couche_1_routing"]["document_role"] = "not_a_role"
+        text = "hello " * 400
+        out = backend._apply_deterministic_routing(ann, text, 2)
+        assert out["couche_1_routing"]["taxonomy_core"] == "unknown"
+        assert out["couche_1_routing"]["document_role"] == "unknown"
+        assert out["_meta"]["routing_source"] == "llm_fallback_unresolved"
+
+    def test_llm_valid_enum_keeps_routing(self) -> None:
+        backend = _load_backend_module()
+        ann = copy.deepcopy(backend.FALLBACK_RESPONSE)
+        ann["couche_1_routing"]["taxonomy_core"] = "rfq"
+        ann["couche_1_routing"]["document_role"] = "source_rules"
+        text = "hello " * 400
+        out = backend._apply_deterministic_routing(ann, text, 3)
+        assert out["couche_1_routing"]["taxonomy_core"] == "rfq"
+        assert out["couche_1_routing"]["document_role"] == "source_rules"
+        assert out["_meta"]["routing_source"] == "llm_fallback_validated"
+
+
+class TestFinancialReviewArch04:
+    """ARCH-04 — review_required sur offre financière (prudence locale)."""
+
+    def test_non_financial_untouched(self) -> None:
+        backend = _load_backend_module()
+        ann = copy.deepcopy(backend.FALLBACK_RESPONSE)
+        ann["couche_1_routing"]["taxonomy_core"] = "rfq"
+        ann["_meta"]["review_required"] = False
+        out = backend._apply_financial_offer_review_rules(ann)
+        assert out["_meta"].get("review_reasons") in (None, [])
+
+    def test_financial_empty_line_items_triggers_review(self) -> None:
+        backend = _load_backend_module()
+        ann = copy.deepcopy(backend.FALLBACK_RESPONSE)
+        ann["couche_1_routing"]["taxonomy_core"] = "offer_financial"
+        ann["couche_1_routing"]["document_role"] = "financial_offer"
+        ann["couche_4_atomic"]["financier"]["line_items"] = []
+        ann["_meta"]["review_required"] = False
+        out = backend._apply_financial_offer_review_rules(
+            ann, total_price_threshold=1e12
+        )
+        assert out["_meta"]["review_required"] is True
+        assert "line_items_empty_on_financial_offer" in out["_meta"]["review_reasons"]
+
+    def test_financial_anomaly_line_triggers_review(self) -> None:
+        backend = _load_backend_module()
+        ann = copy.deepcopy(backend.FALLBACK_RESPONSE)
+        ann["couche_1_routing"]["taxonomy_core"] = "offer_financial"
+        ann["couche_4_atomic"]["financier"]["line_items"] = [
+            {
+                "item_line_no": 1,
+                "item_description_raw": "x",
+                "unit_raw": "u",
+                "quantity": 1.0,
+                "unit_price": 10.0,
+                "line_total": 999.0,
+                "line_total_check": "ANOMALY",
+                "confidence": 1.0,
+                "evidence": "p.1",
+            }
+        ]
+        ann["_meta"]["review_required"] = False
+        out = backend._apply_financial_offer_review_rules(
+            ann, total_price_threshold=1e12
+        )
+        assert out["_meta"]["review_required"] is True
+        assert any(
+            x.startswith("arithmetic_anomaly_item_")
+            for x in out["_meta"]["review_reasons"]
+        )
