@@ -12,6 +12,11 @@
 | Fichier | Date | Statut | Actions |
 |---------|------|--------|---------|
 | AUDIT_CTO_SENIOR_2026-03-17.md | 2026-03-17 | EN COURS | 12 ASAP + 13 DETTE |
+| EXIT_PLAN_ALIGN_01_MANIFEST.md | 2026-03-21 | LIVRÉ | **Paquet** EXIT-PLAN-ALIGN-01 — entrée unique |
+| SYSMAP_DMS_EXIT_PLAN_01.md | 2026-03-21 | LIVRÉ | Cartographie système opposable (révisé : dual-app) |
+| SEC_MT_THREAT_MODEL_MINIMAL_EXIT_01.md | 2026-03-21 | LIVRÉ | Menace minimale + barrières (hors annotation) |
+| RUNTIME_DOC_ALIGNMENT_MATRIX_EXIT_01.md | 2026-03-21 | LIVRÉ | Matrice doc vs runtime — 10 lignes fermées |
+| COPILOT_PR_MULTI_TENANT_REVIEW.md | 2026-03-21 | LIVRÉ | Revue PR GitHub Copilot (org_id JWT vs tenant_id) + merge |
 
 ## RAPPORTS ARCHIVÉS — RÉSOLUS
 
