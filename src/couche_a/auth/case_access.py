@@ -43,9 +43,7 @@ def require_document_case_access(document_id: str, user: UserClaims) -> dict[str
 
     case_id = doc.get("case_id")
     if not case_id:
-        raise HTTPException(
-            status_code=404, detail="Document has no associated case"
-        )
+        raise HTTPException(status_code=404, detail="Document has no associated case")
 
     require_case_access(str(case_id), user)
     return doc

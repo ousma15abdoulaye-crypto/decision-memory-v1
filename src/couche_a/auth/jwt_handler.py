@@ -72,9 +72,7 @@ def _validate_role(role: str) -> None:
         )
 
 
-def create_access_token(
-    user_id: str, role: str, tenant_id: str | None = None
-) -> str:
+def create_access_token(user_id: str, role: str, tenant_id: str | None = None) -> str:
     """Émet un access token signé HS256.
 
     Raises:
@@ -87,9 +85,7 @@ def create_access_token(
     return jwt.encode(claims, _secret_key(), algorithm=ALGORITHM)
 
 
-def create_refresh_token(
-    user_id: str, role: str, tenant_id: str | None = None
-) -> str:
+def create_refresh_token(user_id: str, role: str, tenant_id: str | None = None) -> str:
     """Émet un refresh token signé HS256.
 
     Raises:

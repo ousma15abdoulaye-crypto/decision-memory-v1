@@ -51,9 +51,7 @@ def should_run_financial_reconciliation(annotation: dict) -> bool:
     if role in MONETARY_DOCUMENT_ROLES or tax in MONETARY_TAXONOMY_CORE:
         return True
 
-    financier = (
-        annotation.get("couche_4_atomic", {}) or {}
-    ).get("financier", {})
+    financier = (annotation.get("couche_4_atomic", {}) or {}).get("financier", {})
     if not isinstance(financier, dict):
         return False
 
@@ -135,7 +133,9 @@ def _is_fieldvalue_block(d: dict) -> bool:
     )
 
 
-def _fieldvalue_evidence_violation(fv: dict, source_norm: str, src_digits: str) -> str | None:
+def _fieldvalue_evidence_violation(
+    fv: dict, source_norm: str, src_digits: str
+) -> str | None:
     val = fv.get("value")
     ev = fv.get("evidence")
 
@@ -165,7 +165,9 @@ def _fieldvalue_evidence_violation(fv: dict, source_norm: str, src_digits: str) 
     return "evidence_not_substring"
 
 
-def _line_item_evidence_violation(li: dict, source_norm: str, src_digits: str) -> str | None:
+def _line_item_evidence_violation(
+    li: dict, source_norm: str, src_digits: str
+) -> str | None:
     if not isinstance(li, dict):
         return None
     ev = li.get("evidence", "")

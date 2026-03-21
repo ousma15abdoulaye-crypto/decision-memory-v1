@@ -84,9 +84,7 @@ def list_cases(
     """Liste les cases : admin = tous ; sinon même tenant JWT que l’utilisateur et owner_id = user."""
     with get_connection() as conn:
         if user.role == "admin":
-            rows = db_fetchall(
-                conn, "SELECT * FROM cases ORDER BY created_at DESC"
-            )
+            rows = db_fetchall(conn, "SELECT * FROM cases ORDER BY created_at DESC")
         elif user.tenant_id:
             rows = db_fetchall(
                 conn,
