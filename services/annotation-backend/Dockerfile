@@ -23,13 +23,11 @@ COPY services/annotation-backend/prompts/ ./prompts/
 COPY src/__init__.py ./src/__init__.py
 COPY src/annotation ./src/annotation
 
-# Pas de COPY start.sh : certains contextes Railway / caches ont omis ce fichier du tar
-# (voir historique « not found »). Logique alignée sur start.sh du repo.
-# En local : tu peux toujours lancer `./start.sh` depuis services/annotation-backend.
-# $$ → $ dans l’image (syntaxe Dockerfile).
+# Pas de COPY start.sh : démarrage inline. En Dockerfile, $$ → $ pour le shell final.
+# Ne jamais écrire $$PORT : sous sh, $$ = PID (souvent 1) → littéral « 1PORT » si mal réduit.
 CMD ["/bin/sh", "-c", "set -e; \
   if [ ! -f ./backend.py ]; then echo '[start] ERROR: backend.py absent — mauvaise image.' >&2; exit 1; fi; \
-  if [ -z \"$$MISTRAL_API_KEY\" ]; then echo '[start] ERROR: MISTRAL_API_KEY is required.' >&2; exit 1; fi; \
+  if [ -z \"$${MISTRAL_API_KEY}\" ]; then echo '[start] ERROR: MISTRAL_API_KEY is required.' >&2; exit 1; fi; \
   PORT=$${PORT:-8080}; \
-  echo \"[start] DMS annotation-backend — uvicorn backend:app — port=$$PORT\"; \
-  exec uvicorn backend:app --host 0.0.0.0 --port \"$$PORT\" --log-level info"]
+  echo \"[start] DMS annotation-backend — uvicorn backend:app — port=$${PORT}\"; \
+  exec uvicorn backend:app --host 0.0.0.0 --port \"$${PORT}\" --log-level info"]
