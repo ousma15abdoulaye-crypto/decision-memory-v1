@@ -51,6 +51,18 @@ docker run --rm -e PSEUDONYM_SALT=test -e MISTRAL_API_KEY=… <image> \
 
 **Railway** : dans les paramètres du service, régler **Root Directory** sur la racine du repo (`.`) et **Dockerfile Path** sur `services/annotation-backend/Dockerfile`. Si le contexte reste `services/annotation-backend` seul, les `COPY src/…` échouent.
 
+L’image Docker n’utilise plus `COPY start.sh` : le démarrage est dans le `CMD` du Dockerfile (évite les échecs « start.sh not found » selon contexte / cache). Vide le **Custom Start Command** dans l’UI Railway si tu avais `./start.sh`, pour laisser le `CMD` de l’image s’appliquer. En local, `start.sh` reste utilisable à la main.
+
+**Label Studio — « health check failed » / 404 sur `/health`** : ce backend expose `GET /health`, `GET /`, et le log au démarrage contient `[BOOT] dms-annotation-backend`. Si tu obtiens **404** alors que ça **marchait avant** les changements ARCH / Docker monorepo, le service Railway ne tourne presque plus sur la **bonne image** :
+
+| Symptôme | Cause fréquente |
+| --- | --- |
+| 404 sur `/health` | Image **API DMS** (`Dockerfile` racine, `main:app`) ou ancienne image sans route `/health` ; ou **Custom Start Command** qui lance `main:app`. |
+| Build OK mais mauvais runtime | **Start Command** dans l’UI Railway **remplace** `./start.sh` du `railway.json` — le vider ou mettre explicitement `./start.sh`. |
+| Logs sans `[BOOT] dms-annotation-backend` | Ce n’est pas `backend:app`. |
+
+Vérifications rapides : navigateur ou `curl` sur `…/` → JSON avec `"service":"dms-annotation-backend"` ; `…/health` → 200 JSON. Logs de déploiement : ligne `DMS annotation-backend — uvicorn backend:app`.
+
 ## Développement local / pytest
 
 - Image Docker : `PYTHONPATH=/app` (voir ci-dessus).
