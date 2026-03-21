@@ -150,9 +150,7 @@ def get_connection() -> Iterator[_ConnectionWrapper]:
 
     conn = _connect()
     wrapper = _ConnectionWrapper(conn)
-    from src.db.tenant_context import get_db_tenant_id
-
-    from src.db.tenant_context import get_rls_is_admin
+    from src.db.tenant_context import get_db_tenant_id, get_rls_is_admin
 
     tid = get_db_tenant_id()
     if tid:

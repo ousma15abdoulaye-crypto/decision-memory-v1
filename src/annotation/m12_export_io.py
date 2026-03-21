@@ -10,8 +10,9 @@ Formats supportés :
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 
 def iter_m12_jsonl_lines(path: Path | str) -> Iterator[dict[str, Any]]:

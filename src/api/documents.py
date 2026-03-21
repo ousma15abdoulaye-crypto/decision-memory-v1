@@ -9,14 +9,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
-from src.couche_a.auth.case_access import require_case_access
-from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.core.dependencies import (
     get_artifacts,
     list_memory,
     register_artifact,
     safe_save_upload,
 )
+from src.couche_a.auth.case_access import require_case_access
+from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.db import db_execute_one, get_connection
 
 router = APIRouter(prefix="/api", tags=["documents"])
