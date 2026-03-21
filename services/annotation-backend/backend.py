@@ -947,8 +947,12 @@ def _build_ls_result(
     identifiants["supplier_phone"] = phone_block
     identifiants["supplier_email"] = email_block
     # Schéma DMS : *_raw toujours présents ; jamais republier téléphone/email en clair
-    identifiants["supplier_phone_raw"] = _export_safe_contact_raw(phone_block, phone_raw)
-    identifiants["supplier_email_raw"] = _export_safe_contact_raw(email_block, email_raw)
+    identifiants["supplier_phone_raw"] = _export_safe_contact_raw(
+        phone_block, phone_raw
+    )
+    identifiants["supplier_email_raw"] = _export_safe_contact_raw(
+        email_block, email_raw
+    )
     addr = identifiants.get("supplier_address_raw", ABSENT)
     if addr not in (ABSENT, NOT_APPLICABLE, "", None):
         identifiants["supplier_address_raw"] = str(addr)[:60]
