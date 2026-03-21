@@ -1,5 +1,9 @@
 """
 Case management endpoints.
+
+Règle R7 : chaque case a un tenant_id (colonne DB + claim JWT). Admin : liste globale.
+Non-admin : liste filtrée sur tenant_id du token et owner_id (cohérent avec
+require_case_access sur GET détail). L’org_id côté API critères = tenant du dossier.
 """
 
 import uuid
@@ -77,7 +81,7 @@ def list_cases(
     request: Request,
     user: Annotated[UserClaims, Depends(get_current_user)],
 ):
-    """Liste les cases : tout pour admin, sinon ceux du tenant JWT."""
+    """Liste les cases : admin = tous ; sinon même tenant JWT que l’utilisateur et owner_id = user."""
     with get_connection() as conn:
         if user.role == "admin":
             rows = db_fetchall(

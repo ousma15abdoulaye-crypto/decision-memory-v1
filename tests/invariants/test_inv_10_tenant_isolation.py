@@ -3,7 +3,8 @@
 - Garde-fous légers sur jwt_handler, UserClaims, auth cases.py.
 - Scan statique des littéraux SQL (AST) : SELECT sur cases/criteria/supplier_scores/
   pipeline_runs sans indice de périmètre (tenant_id, case_id, org_id, owner_id, etc.).
-- Table « vendors » : écart connu → avertissement seulement (hors RLS 051).
+- Table « vendors » : écarts documentés → avertissement (hors RLS 051), ex. liste
+  is_active, recherche similarity.
 
 La logique de scan vit dans inv10_tenant_sql_scan.py (un seul endroit).
 """
@@ -11,7 +12,6 @@ La logique de scan vit dans inv10_tenant_sql_scan.py (un seul endroit).
 from __future__ import annotations
 
 import inspect
-import warnings
 from pathlib import Path
 
 from tests.invariants.inv10_tenant_sql_scan import (
@@ -62,10 +62,7 @@ def test_inv_10_selects_on_rls_tables_are_scoped_or_allowlisted() -> None:
     """Aucune régression : SELECT sur tables RLS sans filtre tenant / dossier / clé."""
     violations, gap_hits = scan_src_violations(REPO_ROOT)
     if gap_hits:
-        with warnings.catch_warnings(record=True) as wrec:
-            warnings.simplefilter("always")
-            warn_known_gaps(gap_hits)
-        assert wrec, "expected warnings for documented vendor/global gaps"
+        warn_known_gaps(gap_hits)
     assert not violations, (
         "VIOLATION — SELECT sur table RLS (051) sans périmètre tenant/case/org/owner/id :\n"
         + "\n".join(

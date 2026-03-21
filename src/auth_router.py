@@ -68,6 +68,7 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
             "SELECT tenant_id FROM user_tenants WHERE user_id = :id",
             {"id": user["id"]},
         )
+    # tenant_id dans le JWT : même sémantique que « org » métier (isolation R7 / RLS).
     tenant_id = trow["tenant_id"] if trow else f"tenant-{user['id']}"
     try:
         access_token = create_access_token(str(user["id"]), role, tenant_id)
