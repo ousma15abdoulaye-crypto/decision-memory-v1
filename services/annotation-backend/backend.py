@@ -19,16 +19,27 @@ from typing import Any
 # Import prompt — chemin absolu garanti — zéro PYTHONPATH
 _backend_dir = Path(__file__).resolve().parent
 sys.path.insert(0, str(_backend_dir))
-# ARCH-02A/02B : `src.annotation` depuis racine monorepo (dev) ou /app (image Docker)
-_monorepo_root = _backend_dir.parents[2]
-if (_monorepo_root / "src" / "annotation").is_dir():
-    _root_for_src = str(_monorepo_root)
-    if _root_for_src not in sys.path:
-        sys.path.insert(0, _root_for_src)
-elif (_backend_dir / "src" / "annotation").is_dir():
-    _app_root = str(_backend_dir)
-    if _app_root not in sys.path:
-        sys.path.insert(0, _app_root)
+
+
+def _find_root_with_src_annotation(start: Path) -> Path | None:
+    """Remonte depuis ce dossier jusqu’à trouver src/annotation (Docker /app ou racine monorepo)."""
+    cur = start.resolve()
+    for _ in range(10):
+        if (cur / "src" / "annotation").is_dir():
+            return cur
+        parent = cur.parent
+        if parent == cur:
+            break
+        cur = parent
+    return None
+
+
+# ARCH-02A/02B : ne pas utiliser parents[2] — sous Docker WORKDIR=/app, parents[2] lève IndexError.
+_root_src = _find_root_with_src_annotation(_backend_dir)
+if _root_src is not None:
+    _rs = str(_root_src)
+    if _rs not in sys.path:
+        sys.path.insert(0, _rs)
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
