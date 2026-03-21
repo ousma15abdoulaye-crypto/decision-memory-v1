@@ -315,6 +315,16 @@ class Couche4Atomic(BaseModel):
     financier: Financier
 
 
+class SupplierContactRedacted(BaseModel):
+    """Bloc pseudonymisé — rempli à l’export LS ; absent à la sortie Mistral brute."""
+
+    model_config = {"extra": "forbid"}
+
+    pseudo: str | None = None
+    present: bool
+    redacted: bool
+
+
 class Identifiants(BaseModel):
     model_config = {"extra": "forbid"}
 
@@ -334,6 +344,8 @@ class Identifiants(BaseModel):
     supplier_id: str
     lot_scope: list[str]
     zone_scope: list[str]
+    supplier_phone: SupplierContactRedacted | None = None
+    supplier_email: SupplierContactRedacted | None = None
 
 
 class Meta(BaseModel):
