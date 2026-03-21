@@ -218,6 +218,27 @@ def test_dms_annotation_line_total_check_recalculated():
     assert any("AMBIG-3_item_1" in a for a in v.ambiguites)
 
 
+def test_line_item_item_line_no_float_from_json_coerced():
+    """Mistral / JSON numérique : item_line_no 1.0 → int 1 (Railway contract)."""
+    d = _minimal_valid()
+    d["couche_4_atomic"]["financier"]["total_price"] = _fv(1000.0)
+    d["couche_4_atomic"]["financier"]["line_items"] = [
+        {
+            "item_line_no": 1.0,
+            "item_description_raw": "Ligne",
+            "unit_raw": "u",
+            "quantity": 10.0,
+            "unit_price": 100.0,
+            "line_total": 1000.0,
+            "line_total_check": "OK",
+            "confidence": 1.0,
+            "evidence": "p.1 — test",
+        }
+    ]
+    v = DMSAnnotation.model_validate(d)
+    assert v.couche_4_atomic.financier.line_items[0].item_line_no == 1
+
+
 def test_dms_annotation_line_total_check_ok_exact():
     """qty × unit_price == line_total → OK."""
     d = _minimal_valid()
