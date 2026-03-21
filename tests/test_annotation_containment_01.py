@@ -34,6 +34,9 @@ def _containment_backend_env(monkeypatch: pytest.MonkeyPatch) -> None:
 def _load_backend():
     """Charge backend.py à chaque appel (ré-exec pour ENV à jour)."""
     name = "ab_containment_backend"
+    _repo = Path(__file__).resolve().parents[1]
+    if str(_repo) not in sys.path:
+        sys.path.insert(0, str(_repo))
     spec = importlib.util.spec_from_file_location(name, BACKEND_PATH)
     if spec is None or spec.loader is None:
         raise ImportError(f"backend load fail {BACKEND_PATH}")

@@ -39,12 +39,24 @@
 
 Alignement XML : `label_studio_config.xml` — `toName="document_text"`.
 
+## Docker (ARCH-02A — contexte monorepo)
+
+Le `Dockerfile` suppose un **contexte de build = racine du dépôt** (pas ce dossier seul) :
+
+```bash
+docker build -f services/annotation-backend/Dockerfile .
+docker run --rm -e PSEUDONYM_SALT=test -e MISTRAL_API_KEY=… <image> \
+  python -c "from src.annotation.document_classifier import classify_document; print('OK')"
+```
+
+**Railway** : dans les paramètres du service, régler **Root Directory** sur la racine du repo (`.`) et **Dockerfile Path** sur `services/annotation-backend/Dockerfile`. Si le contexte reste `services/annotation-backend` seul, les `COPY src/…` échouent.
+
 ## Développement local / pytest
 
-- Le `Dockerfile` fixe `PYTHONPATH=/app` (aligné avec `WORKDIR`).
-- Pour lancer les tests du service depuis ce dossier sans Docker :  
-  `PYTHONPATH=. pytest tests/ -q`  
-  (le code ajoute aussi le répertoire courant dans `sys.path` pour les imports relatifs).
+- Image Docker : `PYTHONPATH=/app` (voir ci-dessus).
+- Tests depuis ce dossier : le paquet `src.annotation` vit à la racine du monorepo. Utiliser la racine comme `PYTHONPATH` **ou** s’appuyer sur `tests/conftest.py` qui ajoute la racine.
+- Exemple depuis la racine du repo :  
+  `PYTHONPATH=. pytest services/annotation-backend/tests/ -q`
 
 ## Variables d’environnement (rappel)
 

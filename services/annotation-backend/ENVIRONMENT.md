@@ -19,6 +19,12 @@ Déploiement (Railway, Docker, etc.) : aligner avec [`docs/m12/M12_INFRA_SMOKE.m
 | `MIN_LLM_CONTEXT_CHARS` | Seuil minimum pour appeler Mistral |
 | `MIN_PREDICT_TEXT_CHARS` | Seuil côté `/predict` avant refus « texte trop court » |
 
+## Review financier (ARCH-04)
+
+| Variable | Description |
+| --- | --- |
+| `FINANCIAL_REVIEW_THRESHOLD_XOF` | Seuil « montant élevé » (prudence locale pipeline) pour `taxonomy_core=offer_financial`. Défaut : `10000000`. |
+
 ## Mode strict pré-annotation
 
 | Variable | Description |
