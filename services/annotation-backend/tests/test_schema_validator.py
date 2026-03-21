@@ -16,7 +16,6 @@ from prompts.schema_validator import (
     LineItemLevel,
     normalize_annotation_output,
     normalize_boolean,
-    normalize_item_line_no,
     normalize_item_line_no_strict,
     normalize_sentinel,
     resequence_line_items,

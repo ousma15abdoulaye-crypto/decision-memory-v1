@@ -59,7 +59,11 @@ from annotation_qa import (
 )
 
 from prompts import SYSTEM_PROMPT
-from prompts.schema_validator import DMSAnnotation, GateName, normalize_annotation_output
+from prompts.schema_validator import (
+    DMSAnnotation,
+    GateName,
+    normalize_annotation_output,
+)
 from src.annotation.document_classifier import (
     DocumentRole,
     TaxonomyCore,
