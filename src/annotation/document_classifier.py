@@ -17,11 +17,11 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from enum import Enum, unique
+from enum import StrEnum, unique
 
 
 @unique
-class TaxonomyCore(str, Enum):
+class TaxonomyCore(StrEnum):
     OFFER_FINANCIAL = "offer_financial"
     OFFER_TECHNICAL = "offer_technical"
     OFFER_COMBINED = "offer_combined"
@@ -38,7 +38,7 @@ class TaxonomyCore(str, Enum):
 
 
 @unique
-class DocumentRole(str, Enum):
+class DocumentRole(StrEnum):
     """Rôles tels que dans le prompt DMS (couche_1_routing.document_role)."""
 
     SOURCE_RULES = "source_rules"
