@@ -1,10 +1,8 @@
 #!/bin/sh
 set -e
 #
-# Déploiement Railway : l’image utilise le CMD du Dockerfile (inline), pas ce fichier.
-# Bug « port=1PORT » : venait de $$PORT dans le CMD Docker — sous sh, $$ = PID (souvent 1),
-# pas une variable PORT. Corrigé dans le Dockerfile avec $${PORT} uniquement.
-# Ce script est pour dev local ; PORT a déjà une défaut 8080.
+# Point d’entrée image Docker (CMD ./start.sh) : pas d’interpolation $$ du Dockerfile
+# (sur certains builders ça produisait 1PORT / 1{PORT}). PORT défaut 8080 si non défini.
 
 # Image attendue : Dockerfile services/annotation-backend (backend.py à la racine de WORKDIR).
 # Si ce fichier manque, Railway build probablement le Dockerfile racine (API DMS) : /health LS échouera.

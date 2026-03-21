@@ -51,7 +51,7 @@ docker run --rm -e PSEUDONYM_SALT=test -e MISTRAL_API_KEY=… <image> \
 
 **Railway** : dans les paramètres du service, régler **Root Directory** sur la racine du repo (`.`) et **Dockerfile Path** sur `services/annotation-backend/Dockerfile`. Si le contexte reste `services/annotation-backend` seul, les `COPY src/…` échouent.
 
-L’image Docker n’utilise plus `COPY start.sh` : le démarrage est dans le `CMD` du Dockerfile (évite les échecs « start.sh not found » selon contexte / cache). Vide le **Custom Start Command** dans l’UI Railway si tu avais `./start.sh`, pour laisser le `CMD` de l’image s’appliquer. En local, `start.sh` reste utilisable à la main.
+L’image copie `start.sh` et exécute `CMD ["./start.sh"]` (évite le `CMD` inline Docker où `$$` / `$${PORT}` se casse sur certains builders → erreurs `1PORT` / `1{PORT}`). Le `.dockerignore` racine ne doit **pas** exclure tout `services/annotation-backend`. Vide le **Custom Start Command** Railway sauf si tu forces `./start.sh` explicitement.
 
 **Label Studio — « health check failed » / 404 sur `/health`** : ce backend expose `GET /health`, `GET /`, et le log au démarrage contient `[BOOT] dms-annotation-backend`. Si tu obtiens **404** alors que ça **marchait avant** les changements ARCH / Docker monorepo, le service Railway ne tourne presque plus sur la **bonne image** :
 

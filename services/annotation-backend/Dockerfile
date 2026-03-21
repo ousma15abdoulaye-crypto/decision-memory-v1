@@ -19,15 +19,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY services/annotation-backend/backend.py .
 COPY services/annotation-backend/annotation_qa.py .
 COPY services/annotation-backend/prompts/ ./prompts/
+COPY services/annotation-backend/start.sh .
+RUN chmod +x start.sh
 
 COPY src/__init__.py ./src/__init__.py
 COPY src/annotation ./src/annotation
 
-# Pas de COPY start.sh : démarrage inline. En Dockerfile, $$ → $ pour le shell final.
-# Ne jamais écrire $$PORT : sous sh, $$ = PID (souvent 1) → littéral « 1PORT » si mal réduit.
-CMD ["/bin/sh", "-c", "set -e; \
-  if [ ! -f ./backend.py ]; then echo '[start] ERROR: backend.py absent — mauvaise image.' >&2; exit 1; fi; \
-  if [ -z \"$${MISTRAL_API_KEY}\" ]; then echo '[start] ERROR: MISTRAL_API_KEY is required.' >&2; exit 1; fi; \
-  PORT=$${PORT:-8080}; \
-  echo \"[start] DMS annotation-backend — uvicorn backend:app — port=$${PORT}\"; \
-  exec uvicorn backend:app --host 0.0.0.0 --port \"$${PORT}\" --log-level info"]
+# Pas de CMD inline : sur Railway le JSON + $$ produisait « 1{PORT} » / « 1PORT » (sh : $$ = PID).
+CMD ["./start.sh"]
