@@ -228,7 +228,7 @@ class TestBuildLsResult:
         assert parsed["_meta"]["review_required"] is True
 
     def test_identifiants_export_keeps_raw_keys_and_strips_secrets(self):
-        """Export LS : supplier_phone_raw / supplier_email_raw restent (schéma) ; secrets vidés."""
+        """Export LS (ADR-013) : pas de clés *_raw phone/email dans le JSON ; blocs pseudo présents."""
         import json
 
         from backend import ABSENT, _build_ls_result
@@ -243,11 +243,10 @@ class TestBuildLsResult:
         result = _build_ls_result(annotation, task_id=42, has_errors=False)
         parsed = json.loads(result["result"][0]["value"]["text"][0])
         ident = parsed["identifiants"]
-        assert "supplier_phone_raw" in ident
-        assert ident["supplier_phone_raw"] == ""
+        assert "supplier_phone_raw" not in ident
+        assert "supplier_email_raw" not in ident
         assert ident["supplier_phone"]["present"] is True
         assert ident["supplier_phone"]["redacted"] is True
-        assert ident["supplier_email_raw"] == ABSENT
         assert ident["supplier_email"]["present"] is False
 
 
