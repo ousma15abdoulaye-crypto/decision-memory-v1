@@ -793,6 +793,24 @@ def _spot_check_annotation_vs_source(
     return annotation
 
 
+def _normalize_identifiants_for_schema(annotation: dict) -> None:
+    """
+    Garantit supplier_phone_raw / supplier_email_raw si le LLM n’envoie que les blocs
+    supplier_phone / supplier_email (ou omet les *_raw) — évite ValidationError Identifiants.
+    """
+    ident = annotation.get("identifiants")
+    if not isinstance(ident, dict):
+        return
+    if "supplier_phone_raw" not in ident:
+        ident["supplier_phone_raw"] = (
+            "" if isinstance(ident.get("supplier_phone"), dict) else ABSENT
+        )
+    if "supplier_email_raw" not in ident:
+        ident["supplier_email_raw"] = (
+            "" if isinstance(ident.get("supplier_email"), dict) else ABSENT
+        )
+
+
 def _validate_and_correct(annotation: dict, task_id: int = 0) -> tuple[dict, list]:
     """
     Valide le JSON annoté contre le schéma DMS v3.0.1d.
@@ -801,6 +819,7 @@ def _validate_and_correct(annotation: dict, task_id: int = 0) -> tuple[dict, lis
     """
     errors: list[dict] = []
     annotation = copy.deepcopy(annotation)
+    _normalize_identifiants_for_schema(annotation)
 
     try:
         validated = DMSAnnotation.model_validate(annotation)

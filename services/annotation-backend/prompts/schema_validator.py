@@ -98,7 +98,7 @@ class FieldValue(BaseModel):
 
 
 def _coerce_whole_int(v: Any, field_label: str) -> Any:
-    """LLM / JSON : item_line_no souvent 1.0, 2.0 — Pydantic int strict refuse les float."""
+    """parent_subtotal_no : entier (référence sous-total parent)."""
     if v is None:
         return None
     if isinstance(v, bool):
@@ -125,12 +125,33 @@ def _coerce_whole_int(v: Any, field_label: str) -> Any:
     return v
 
 
+def _coerce_line_item_number(v: Any) -> Any:
+    """
+    item_line_no : entier, float JSON (1.0), ou hiérarchique (1.1, 2.3) — ref budget multi-niveaux.
+    """
+    if v is None:
+        return None
+    if isinstance(v, bool):
+        return float(int(v))
+    if isinstance(v, int | float):
+        return float(v)
+    if isinstance(v, str):
+        s = v.strip().replace("\u202f", "").replace("\u00a0", "").replace(" ", "")
+        if not s:
+            return v
+        try:
+            return float(s.replace(",", "."))
+        except (ValueError, TypeError):
+            return v
+    return v
+
+
 class LineItem(BaseModel):
     """Ligne de prix — schéma ADR-015 strict + ARCH-03 hiérarchie."""
 
     model_config = {"extra": "forbid"}
 
-    item_line_no: int
+    item_line_no: float
     item_description_raw: str
     unit_raw: str
     quantity: float
@@ -145,7 +166,7 @@ class LineItem(BaseModel):
     @field_validator("item_line_no", mode="before")
     @classmethod
     def coerce_item_line_no(cls, v: Any) -> Any:
-        return _coerce_whole_int(v, "item_line_no")
+        return _coerce_line_item_number(v)
 
     @field_validator("parent_subtotal_no", mode="before")
     @classmethod

@@ -251,6 +251,23 @@ class TestBuildLsResult:
         assert ident["supplier_email"]["present"] is False
 
 
+def test_normalize_identifiants_fills_missing_raw_when_nested_contact_blocks():
+    from backend import ABSENT, _normalize_identifiants_for_schema
+
+    ann = {
+        "identifiants": {
+            "supplier_phone": {"pseudo": None, "present": False, "redacted": False},
+            "supplier_email": {"pseudo": None, "present": False, "redacted": False},
+        }
+    }
+    _normalize_identifiants_for_schema(ann)
+    assert ann["identifiants"]["supplier_phone_raw"] == ""
+    assert ann["identifiants"]["supplier_email_raw"] == ""
+    ann2 = {"identifiants": {"supplier_name_raw": "X"}}
+    _normalize_identifiants_for_schema(ann2)
+    assert ann2["identifiants"]["supplier_phone_raw"] == ABSENT
+
+
 def test_sync_gate_reasons_replaces_stale_supporting_doc_label():
     from backend import _sync_gate_reasons_with_document_role
 

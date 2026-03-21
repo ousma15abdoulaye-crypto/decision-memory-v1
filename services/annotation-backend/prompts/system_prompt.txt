@@ -452,7 +452,7 @@ OBLIGATION :
 
 SCHÉMA OBLIGATOIRE — zéro champ supplémentaire :
 {
-  "item_line_no":         <entier>,
+  "item_line_no":         <nombre — entier 1,2,3 ou hiérarchique 1.1, 2.3 si détail sous sous-total>,
   "item_description_raw": "<texte EXACT>",
   "unit_raw":             "<unité EXACTE|non_precise>",
   "quantity":             <float>,
