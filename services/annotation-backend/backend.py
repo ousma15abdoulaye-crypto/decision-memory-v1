@@ -59,7 +59,11 @@ from annotation_qa import (
 )
 
 from prompts import SYSTEM_PROMPT
-from prompts.schema_validator import DMSAnnotation, GateName
+from prompts.schema_validator import (
+    DMSAnnotation,
+    GateName,
+    normalize_annotation_output,
+)
 from src.annotation.document_classifier import (
     DocumentRole,
     TaxonomyCore,
@@ -705,15 +709,6 @@ def _sync_gate_reasons_with_document_role(annotation: dict) -> dict:
     return annotation
 
 
-def _export_safe_contact_raw(pseudo_block: dict, raw_before: Any) -> str:
-    """Valeur pour supplier_*_raw dans le JSON exporté — jamais la donnée sensible si redacted."""
-    if pseudo_block.get("redacted"):
-        return ""
-    if raw_before in (ABSENT, NOT_APPLICABLE, "", None, "AMBIGUOUS"):
-        return ABSENT
-    return str(raw_before)
-
-
 def _norm_spot(s: str) -> str:
     """Normalisation pour comparaison tolérante (espaces, casse)."""
     return re.sub(r"\s+", " ", (s or "").lower().strip())
@@ -820,6 +815,7 @@ def _validate_and_correct(annotation: dict, task_id: int = 0) -> tuple[dict, lis
     errors: list[dict] = []
     annotation = copy.deepcopy(annotation)
     _normalize_identifiants_for_schema(annotation)
+    # Normalisation : uniquement via DMSAnnotation.normalize_annotation_before (pas de double passe)
 
     try:
         validated = DMSAnnotation.model_validate(annotation)
@@ -834,6 +830,8 @@ def _validate_and_correct(annotation: dict, task_id: int = 0) -> tuple[dict, lis
             )
         return annotation, []
     except ValidationError as exc:
+        # model_validate normalise sur une copie interne ; le dict local reste brut
+        annotation = normalize_annotation_output(annotation)
         if hasattr(exc, "errors"):
             for err in exc.errors():
                 loc = err.get("loc", ())
@@ -946,13 +944,8 @@ def _build_ls_result(
     email_block = _pseudonymise_contact(email_raw)
     identifiants["supplier_phone"] = phone_block
     identifiants["supplier_email"] = email_block
-    # Schéma DMS : *_raw toujours présents ; jamais republier téléphone/email en clair
-    identifiants["supplier_phone_raw"] = _export_safe_contact_raw(
-        phone_block, phone_raw
-    )
-    identifiants["supplier_email_raw"] = _export_safe_contact_raw(
-        email_block, email_raw
-    )
+    # ADR-013 : supplier_phone_raw / supplier_email_raw ne figurent pas dans extracted_json
+    # (évite toute fuite de structure ; seuls les blocs pseudonymisés sont exportés)
     addr = identifiants.get("supplier_address_raw", ABSENT)
     if addr not in (ABSENT, NOT_APPLICABLE, "", None):
         identifiants["supplier_address_raw"] = str(addr)[:60]
@@ -1192,6 +1185,7 @@ async def predict(request: Request) -> JSONResponse:
             annotation = _sync_gate_reasons_with_document_role(annotation)
             annotation, errors = _validate_and_correct(annotation, task_id)
             annotation = _apply_financial_offer_review_rules(annotation)
+            annotation = normalize_annotation_output(annotation)
             if STRICT_PREDICT:
                 if errors:
                     predictions.append(

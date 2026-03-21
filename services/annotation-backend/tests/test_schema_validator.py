@@ -5,9 +5,21 @@ Vérifie : extra=forbid, gates ordre, line_total_check recalculé, confidence 0.
 
 from __future__ import annotations
 
+import copy
+
 import pytest
 
-from prompts.schema_validator import DMSAnnotation, GateName, LineCheck, LineItemLevel
+from prompts.schema_validator import (
+    DMSAnnotation,
+    GateName,
+    LineCheck,
+    LineItemLevel,
+    normalize_annotation_output,
+    normalize_boolean,
+    normalize_item_line_no_strict,
+    normalize_sentinel,
+    resequence_line_items,
+)
 
 
 def _fv(v, c=1.0, e=""):
@@ -219,7 +231,7 @@ def test_dms_annotation_line_total_check_recalculated():
 
 
 def test_line_item_item_line_no_hierarchical_decimal_ok():
-    """Budget récap + détail : item_line_no 1.1, 2.3 (schéma float)."""
+    """Budget récap + détail : entrée 1.1 → normalize → resequence → int 1 ; parent_subtotal_no exclu V1."""
     d = _minimal_valid()
     d["couche_4_atomic"]["financier"]["total_price"] = _fv(1000.0)
     d["couche_4_atomic"]["financier"]["line_items"] = [
@@ -236,12 +248,18 @@ def test_line_item_item_line_no_hierarchical_decimal_ok():
             "parent_subtotal_no": 1,
         }
     ]
-    v = DMSAnnotation.model_validate(d)
-    assert v.couche_4_atomic.financier.line_items[0].item_line_no == 1.1
+    norm = normalize_annotation_output(copy.deepcopy(d))
+    v = DMSAnnotation.model_validate(norm)
+    assert v.couche_4_atomic.financier.line_items[0].item_line_no == 1
+    assert isinstance(v.couche_4_atomic.financier.line_items[0].item_line_no, int)
+    assert (
+        "parent_subtotal_no"
+        not in norm["couche_4_atomic"]["financier"]["line_items"][0]
+    )
 
 
 def test_line_item_item_line_no_float_from_json_coerced():
-    """Mistral / JSON numérique : item_line_no 1.0 → float 1 (Railway contract)."""
+    """Mistral / JSON numérique : item_line_no 1.0 → int 1."""
     d = _minimal_valid()
     d["couche_4_atomic"]["financier"]["total_price"] = _fv(1000.0)
     d["couche_4_atomic"]["financier"]["line_items"] = [
@@ -259,6 +277,241 @@ def test_line_item_item_line_no_float_from_json_coerced():
     ]
     v = DMSAnnotation.model_validate(d)
     assert v.couche_4_atomic.financier.line_items[0].item_line_no == 1
+    assert isinstance(v.couche_4_atomic.financier.line_items[0].item_line_no, int)
+
+
+def test_item_line_no_hierarchical_resequenced():
+    """Entrée Mistral hiérarchique → entiers séquentiels."""
+    items = [
+        {
+            "item_line_no": 1,
+            "item_description_raw": "Honoraires",
+            "level": "subtotal",
+        },
+        {
+            "item_line_no": 1.1,
+            "item_description_raw": "Consultant principal",
+            "level": "detail",
+        },
+        {
+            "item_line_no": 1.2,
+            "item_description_raw": "Consultant associé",
+            "level": "detail",
+        },
+        {
+            "item_line_no": 2,
+            "item_description_raw": "Logistique",
+            "level": "subtotal",
+        },
+        {
+            "item_line_no": 2.1,
+            "item_description_raw": "Transport",
+            "level": "detail",
+        },
+    ]
+    result = resequence_line_items(items)
+    assert [r["item_line_no"] for r in result] == [1, 2, 3, 4, 5]
+    assert all(isinstance(r["item_line_no"], int) for r in result)
+
+
+def test_item_line_no_int_and_string_normalized():
+    """Entiers, floats entiers, strings → int séquentiel."""
+    items = [
+        {"item_line_no": 1, "item_description_raw": "A", "level": "detail"},
+        {"item_line_no": 2.0, "item_description_raw": "B", "level": "detail"},
+        {"item_line_no": "3", "item_description_raw": "C", "level": "detail"},
+        {"item_line_no": "4.0", "item_description_raw": "D", "level": "detail"},
+    ]
+    result = resequence_line_items(items)
+    assert [r["item_line_no"] for r in result] == [1, 2, 3, 4]
+    assert all(isinstance(r["item_line_no"], int) for r in result)
+
+
+def test_boolean_string_normalized():
+    """'true'/'false' strings → True/False natifs."""
+    assert normalize_boolean("true", "has_rib") is True
+    assert normalize_boolean("false", "has_rib") is False
+    assert normalize_boolean("True", "has_nif") is True
+    assert normalize_boolean("FALSE", "has_rccm") is False
+    assert normalize_boolean(True, "has_rib") is True
+    assert normalize_boolean(False, "has_rib") is False
+
+
+def test_empty_string_to_sentinel():
+    """'' sur champs ciblés → 'ABSENT', pas chaîne vide."""
+    assert normalize_sentinel("", "procedure_reference") == "ABSENT"
+    assert normalize_sentinel("", "has_nif") == "ABSENT"
+    assert normalize_sentinel("", "supplier_address_raw") == "ABSENT"
+    assert normalize_sentinel("Bamako", "supplier_address_raw") == "Bamako"
+    assert normalize_sentinel("ABSENT", "has_nif") == "ABSENT"
+    assert normalize_sentinel("NOT_APPLICABLE", "has_nif") == "NOT_APPLICABLE"
+
+
+def test_financial_offer_az_hierarchical_passes():
+    """JSON type A-Z : après normalisation — types propres, AMBIG-6 fantôme retiré, review aligné."""
+    raw_json = _minimal_valid()
+    raw_json["couche_1_routing"]["document_role"] = "financial_offer"
+    raw_json["couche_4_atomic"]["conformite_admin"]["has_rib"] = {
+        "value": "true",
+        "confidence": 1.0,
+        "evidence": "p.1",
+    }
+    raw_json["couche_4_atomic"]["conformite_admin"]["has_nif"] = {
+        "value": "",
+        "confidence": 0.6,
+        "evidence": "ABSENT",
+    }
+    raw_json["couche_4_atomic"]["financier"]["total_price"] = _fv("29194950")
+    raw_json["couche_4_atomic"]["financier"]["line_items"] = [
+        {
+            "item_line_no": 1,
+            "item_description_raw": "Honoraires",
+            "unit_raw": "forfait",
+            "level": "subtotal",
+            "parent_subtotal_no": None,
+            "quantity": 1.0,
+            "unit_price": 18_050_000.0,
+            "line_total": 18_050_000.0,
+            "line_total_check": "OK",
+            "confidence": 1.0,
+            "evidence": "p.1",
+        },
+        {
+            "item_line_no": 1.1,
+            "item_description_raw": "Consultant principal",
+            "unit_raw": "hj",
+            "level": "detail",
+            "parent_subtotal_no": 1,
+            "quantity": 45.0,
+            "unit_price": 110_000.0,
+            "line_total": 4_950_000.0,
+            "line_total_check": "OK",
+            "confidence": 1.0,
+            "evidence": "p.1",
+        },
+        {
+            "item_line_no": 1.2,
+            "item_description_raw": "Consultant statisticien",
+            "unit_raw": "hj",
+            "level": "detail",
+            "parent_subtotal_no": 1,
+            "quantity": 30.0,
+            "unit_price": 100_000.0,
+            "line_total": 3_000_000.0,
+            "line_total_check": "OK",
+            "confidence": 1.0,
+            "evidence": "p.1",
+        },
+    ]
+    raw_json["_meta"]["review_required"] = True
+    raw_json["couche_4_atomic"]["financier"]["review_required"] = False
+    raw_json["ambiguites"] = ["AMBIG-6_schema_validation_errors"]
+
+    result = normalize_annotation_output(copy.deepcopy(raw_json))
+
+    items = result["couche_4_atomic"]["financier"]["line_items"]
+    assert [i["item_line_no"] for i in items] == [1, 2, 3]
+    assert all(isinstance(i["item_line_no"], int) for i in items)
+    assert all("parent_subtotal_no" not in i for i in items)
+    assert items[0]["level"] == "subtotal"
+    assert items[1]["level"] == "detail"
+    assert result["couche_4_atomic"]["conformite_admin"]["has_rib"]["value"] is True
+    assert result["couche_4_atomic"]["conformite_admin"]["has_nif"]["value"] == "ABSENT"
+    assert "AMBIG-6_schema_validation_errors" not in result["ambiguites"]
+    assert result["_meta"]["review_required"] is True
+    assert result["couche_4_atomic"]["financier"]["review_required"] is True
+
+    DMSAnnotation.model_validate(result)
+
+
+def test_flat_json_backward_compatible():
+    """JSON ancien format sans level : level par défaut = detail."""
+    raw_json = _minimal_valid()
+    raw_json["couche_4_atomic"]["financier"]["total_price"] = _fv("5000000")
+    raw_json["couche_4_atomic"]["financier"]["line_items"] = [
+        {
+            "item_line_no": 1,
+            "item_description_raw": "Article A",
+            "unit_raw": "u",
+            "quantity": 10.0,
+            "unit_price": 250_000.0,
+            "line_total": 2_500_000.0,
+            "line_total_check": "OK",
+            "confidence": 1.0,
+            "evidence": "p.1",
+        },
+        {
+            "item_line_no": 2,
+            "item_description_raw": "Article B",
+            "unit_raw": "u",
+            "quantity": 5.0,
+            "unit_price": 500_000.0,
+            "line_total": 2_500_000.0,
+            "line_total_check": "OK",
+            "confidence": 0.8,
+            "evidence": "p.1",
+        },
+    ]
+    raw_json["_meta"]["review_required"] = False
+    raw_json["ambiguites"] = []
+
+    result = normalize_annotation_output(copy.deepcopy(raw_json))
+    items = result["couche_4_atomic"]["financier"]["line_items"]
+    assert [i["item_line_no"] for i in items] == [1, 2]
+    assert all(i["level"] == "detail" for i in items)
+    assert all("parent_subtotal_no" not in i for i in items)
+    DMSAnnotation.model_validate(result)
+
+
+def test_routing_and_gates_unchanged_after_normalization():
+    """La normalisation ne modifie ni couche_1_routing ni couche_5_gates."""
+    raw_json = _minimal_valid()
+    raw_json["couche_1_routing"] = {
+        "procurement_family_main": "services",
+        "procurement_family_sub": "consulting",
+        "taxonomy_core": "rfq",
+        "taxonomy_client_adapter": "rfq",
+        "document_stage": "solicitation",
+        "document_role": "financial_offer",
+    }
+    raw_json["couche_5_gates"] = [
+        {
+            "gate_name": g.value,
+            "gate_value": None,
+            "gate_state": "NOT_APPLICABLE",
+            "gate_threshold_value": None,
+            "gate_reason_raw": "",
+            "gate_evidence_hint": "",
+            "confidence": 1.0,
+        }
+        for g in GateName
+    ]
+    raw_json["couche_5_gates"][6] = {
+        "gate_name": "gate_commercial_eligible",
+        "gate_value": True,
+        "gate_state": "APPLICABLE",
+        "gate_threshold_value": None,
+        "gate_reason_raw": "",
+        "gate_evidence_hint": "",
+        "confidence": 1.0,
+    }
+
+    original_routing = copy.deepcopy(raw_json["couche_1_routing"])
+    original_gates = copy.deepcopy(raw_json["couche_5_gates"])
+
+    result = normalize_annotation_output(copy.deepcopy(raw_json))
+    assert result["couche_1_routing"] == original_routing
+    assert result["couche_5_gates"] == original_gates
+
+
+def test_item_line_no_invalid_rejected():
+    """null, '', 'abc' → ValueError."""
+    with pytest.raises(ValueError):
+        normalize_item_line_no_strict(None)
+    with pytest.raises(ValueError):
+        normalize_item_line_no_strict("")
+    with pytest.raises(ValueError):
+        normalize_item_line_no_strict("abc")
 
 
 def test_dms_annotation_line_total_check_ok_exact():

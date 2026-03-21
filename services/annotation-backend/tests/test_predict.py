@@ -227,8 +227,8 @@ class TestBuildLsResult:
         parsed = json.loads(json_str)
         assert parsed["_meta"]["review_required"] is True
 
-    def test_identifiants_export_keeps_raw_keys_and_strips_secrets(self):
-        """Export LS : supplier_phone_raw / supplier_email_raw restent (schéma) ; secrets vidés."""
+    def test_identifiants_export_omits_phone_email_raw_keys(self):
+        """Export LS (ADR-013) : pas de clés supplier_phone_raw / supplier_email_raw dans le JSON."""
         import json
 
         from backend import ABSENT, _build_ls_result
@@ -243,11 +243,10 @@ class TestBuildLsResult:
         result = _build_ls_result(annotation, task_id=42, has_errors=False)
         parsed = json.loads(result["result"][0]["value"]["text"][0])
         ident = parsed["identifiants"]
-        assert "supplier_phone_raw" in ident
-        assert ident["supplier_phone_raw"] == ""
+        assert "supplier_phone_raw" not in ident
+        assert "supplier_email_raw" not in ident
         assert ident["supplier_phone"]["present"] is True
         assert ident["supplier_phone"]["redacted"] is True
-        assert ident["supplier_email_raw"] == ABSENT
         assert ident["supplier_email"]["present"] is False
 
 
@@ -523,3 +522,12 @@ class TestFinancialReviewArch04:
             x.startswith("arithmetic_anomaly_item_")
             for x in out["_meta"]["review_reasons"]
         )
+
+
+def test_normalize_annotation_output_importable():
+    """JSON-FIX-ANNOT-01-v2 — même module que le backend (/predict)."""
+    from prompts.schema_validator import normalize_annotation_output
+
+    d = {"_meta": {"review_required": False}, "ambiguites": []}
+    out = normalize_annotation_output(d)
+    assert out["_meta"]["review_required"] is False
