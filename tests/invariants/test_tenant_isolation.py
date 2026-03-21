@@ -51,6 +51,10 @@ _KNOWN_VIOLATIONS: set[tuple[str, str]] = {
     ("src/couche_a/market/signal_engine.py", "market_surveys"),
 }
 
+# Maximum characters between SELECT and FROM in the global-read regex.
+# 200 covers all projection lists in the codebase (longest observed: ~120).
+_MAX_SELECT_PROJECTION_LEN = 200
+
 
 def _is_allowed_path(filepath: str) -> bool:
     """Return True if the file is in an allowed (non-app) path."""
@@ -216,7 +220,7 @@ def test_no_global_select_on_tenant_tables():
 
                 for table in TENANT_SCOPED_TABLES:
                     # Pattern: SELECT ... FROM table ... without WHERE org_id
-                    pattern = rf"SELECT\s+.{{0,200}}\bFROM\s+(?:public\.)?{re.escape(table)}\b"
+                    pattern = rf"SELECT\s+.{{0,{_MAX_SELECT_PROJECTION_LEN}}}\bFROM\s+(?:public\.)?{re.escape(table)}\b"
                     for match in re.finditer(
                         pattern, content, re.IGNORECASE | re.DOTALL
                     ):

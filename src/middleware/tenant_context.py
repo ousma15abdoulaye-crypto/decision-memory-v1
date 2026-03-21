@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 
+import psycopg
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
@@ -31,9 +32,13 @@ def _extract_org_id_from_token(request: Request) -> str | None:
     """Extract ``org_id`` from an unverified JWT Bearer token.
 
     Returns *None* when the header is absent, malformed, or the claim
-    is missing.  Full token verification is left to the auth dependency
-    (``get_current_user``); here we only need the claim value to seed
-    the DB session variable.
+    is missing.
+
+    SECURITY NOTE: This reads **unverified** claims for convenience only.
+    The actual security boundary is the ``get_current_user`` dependency,
+    which performs full JWT signature + expiry + blacklist verification.
+    ``request.state.org_id`` must NEVER be trusted without a prior call
+    to ``get_current_user`` in the same request lifecycle.
     """
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
@@ -48,8 +53,8 @@ def _extract_org_id_from_token(request: Request) -> str | None:
         return None
 
 
-def set_tenant_context(conn, org_id: str) -> None:
-    """Set ``app.org_id`` on a psycopg connection for RLS policies.
+def set_tenant_context(conn: psycopg.Connection, org_id: str) -> None:
+    """Set ``app.org_id`` on a psycopg **connection** for RLS policies.
 
     This is the **canonical** way to inject tenant context into a DB
     session.  It must be called before any tenant-scoped query when
@@ -57,16 +62,15 @@ def set_tenant_context(conn, org_id: str) -> None:
 
     Parameters
     ----------
-    conn : psycopg.Connection or cursor
-        An open psycopg connection (or its cursor's connection).
+    conn : psycopg.Connection
+        An open psycopg v3 connection.
     org_id : str
         The organisation identifier to scope the session to.
     """
     if not org_id:
         return
-    cur = conn.cursor() if hasattr(conn, "cursor") else conn
     try:
-        cur.execute("SET LOCAL app.org_id = %s", (org_id,))
+        conn.execute("SET LOCAL app.org_id = %s", (org_id,))
     except Exception as exc:
         logger.warning("Failed to SET app.org_id: %s", exc)
 

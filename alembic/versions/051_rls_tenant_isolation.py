@@ -98,8 +98,16 @@ def upgrade() -> None:
         # current_setting('app.org_id', true) returns '' if not set.
         # The policy allows access when:
         #   a) app.org_id matches the row's org_id, OR
-        #   b) app.org_id is not set (empty string) — permissive fallback
-        #      until FORCE ROW LEVEL SECURITY is enabled.
+        #   b) app.org_id is not set (empty string) — TEMPORARY
+        #      permissive fallback for backward compatibility.
+        #
+        # ⚠️  SECURITY DEBT: The OR clause below allows unscoped access
+        #     when no tenant context is set.  This MUST be removed in a
+        #     follow-up migration that:
+        #       1. Verifies ALL code paths call set_tenant_context()
+        #       2. Enables FORCE ROW LEVEL SECURITY on each table
+        #       3. Removes the "OR ... = ''" fallback
+        #     Until then, RLS acts as a safety net (not the sole barrier).
         conn.execute(
             sa.text(
                 f"CREATE POLICY {policy_name} ON public.{table} "
