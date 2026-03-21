@@ -29,8 +29,8 @@ def _scan_file(py_file: Path) -> list[tuple[int, str]]:
     violations: list[tuple[int, str]] = []
     try:
         tree = ast.parse(py_file.read_text(encoding="utf-8"))
-    except SyntaxError:
-        return violations
+    except SyntaxError as exc:
+        pytest.fail(f"{py_file.as_posix()}: syntaxe Python invalide — {exc}")
 
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):

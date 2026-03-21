@@ -39,7 +39,7 @@ Sorties archivées (noms sans préfixe `audit_*.txt`, [exclus du dépôt par `.g
 
 ## CI Postgres superuser vs RLS prod
 
-La CI migre et teste avec **`postgres` (superuser)** → **RLS contournee** (`BYPASSRLS`). **Vert CI ≠ preuve RLS en prod** tant que les tests [`tests/integration/test_rls_dm_app_cross_tenant.py`](../../tests/integration/test_rls_dm_app_cross_tenant.py) avec rôle **`dm_app`** ne sont pas verts (voir migration `052` + variable `DATABASE_URL_RLS_TEST` en CI).
+La CI migre et teste avec **`postgres` (superuser)** → **RLS contournee** (`BYPASSRLS`). **Vert CI ≠ preuve RLS en prod** tant que les tests [`tests/integration/test_rls_dm_app_cross_tenant.py`](../../tests/integration/test_rls_dm_app_cross_tenant.py) avec rôle **`dm_app`** ne sont pas verts (voir migrations `052` / `053` + variable `DATABASE_URL_RLS_TEST` en CI). La révision **`053`** ré-applique `NOSUPERUSER NOBYPASSRLS` sur `dm_app` pour les bases ayant déjà appliqué `052` avant cette contrainte.
 
 ## Références
 

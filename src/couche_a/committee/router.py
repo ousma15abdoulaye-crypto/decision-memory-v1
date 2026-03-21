@@ -11,6 +11,7 @@ from psycopg.rows import dict_row
 
 from src.couche_a.auth.case_access import require_case_access
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
+from src.db.connection import apply_rls_session_vars_to_connection
 
 from . import service
 from .models import (
@@ -26,12 +27,16 @@ from .models import (
 router = APIRouter(prefix="/committee", tags=["committee"])
 
 
-def _committee_case_id(committee_id: str, conn) -> str:
+def _committee_row_or_404(committee_id: str, conn) -> dict[str, Any]:
+    """Charge le comité une fois ; lève HTTP 404 si absent."""
     try:
-        row = service.get_committee(committee_id, conn)
+        return service.get_committee(committee_id, conn)
     except CommitteeNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return str(row["case_id"])
+
+
+def _committee_case_id(committee_id: str, conn) -> str:
+    return str(_committee_row_or_404(committee_id, conn)["case_id"])
 
 
 def _get_conn():
@@ -40,6 +45,7 @@ def _get_conn():
         "postgresql+psycopg://", "postgresql://"
     )
     conn = psycopg.connect(url, row_factory=dict_row, autocommit=False)
+    apply_rls_session_vars_to_connection(conn)
     try:
         yield conn
         conn.commit()
@@ -73,9 +79,9 @@ def get_committee(
     user: UserClaims = Depends(get_current_user),
     conn=Depends(_get_conn),
 ) -> dict[str, Any]:
-    case_id = _committee_case_id(committee_id, conn)
-    require_case_access(case_id, user)
-    return service.get_committee(committee_id, conn)
+    row = _committee_row_or_404(committee_id, conn)
+    require_case_access(str(row["case_id"]), user)
+    return row
 
 
 @router.post("/{committee_id}/open", status_code=status.HTTP_200_OK)

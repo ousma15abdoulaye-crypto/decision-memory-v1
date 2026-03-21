@@ -25,6 +25,7 @@ from psycopg.rows import dict_row
 
 from src.couche_a.auth.case_access import require_case_access_dep
 from src.couche_a.auth.dependencies import UserClaims
+from src.db.connection import apply_rls_session_vars_to_connection
 
 from . import service
 from .models import PipelineLastRunResponse, PipelineResult, PipelineRunRequest
@@ -38,6 +39,7 @@ def _get_conn() -> Generator[psycopg.Connection, None, None]:
         "postgresql+psycopg://", "postgresql://"
     )
     conn = psycopg.connect(url, row_factory=dict_row, autocommit=False)
+    apply_rls_session_vars_to_connection(conn)
     try:
         yield conn
         conn.commit()

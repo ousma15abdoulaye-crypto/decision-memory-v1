@@ -27,6 +27,10 @@ def upgrade() -> None:
         END
         $$;
     """)
+    # Attributs de sécurité même si le rôle préexistait (BYPASSRLS / SUPERUSER manuels)
+    op.execute(
+        "ALTER ROLE dm_app NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;"
+    )
     op.execute("""
         DO $$
         DECLARE dbname text;

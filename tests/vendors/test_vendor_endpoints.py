@@ -14,7 +14,9 @@ from src.vendors.repository import insert_vendor
 client = TestClient(app)
 
 
-def _auth_headers() -> dict[str, str]:
+@pytest.fixture(scope="module")
+def vendor_auth_headers() -> dict[str, str]:
+    """Un seul login JWT pour le module (évite /auth/token à chaque requête)."""
     r = client.post("/auth/token", data={"username": "admin", "password": "admin123"})
     assert r.status_code == 200, r.text
     return {"Authorization": f"Bearer {r.json()['access_token']}"}
@@ -63,42 +65,42 @@ def seeded_vendors(db_conn_vendors):
         cur.execute("DELETE FROM vendors WHERE source = 'TEST_M4'")
 
 
-def test_list_vendors_200(seeded_vendors):
+def test_list_vendors_200(seeded_vendors, vendor_auth_headers):
     """GET /vendors doit retourner 200 avec une liste non vide."""
-    resp = client.get("/vendors", headers=_auth_headers())
+    resp = client.get("/vendors", headers=vendor_auth_headers)
     assert resp.status_code == 200
     data = resp.json()
     assert isinstance(data, list)
     assert len(data) >= len(seeded_vendors)
 
 
-def test_list_vendors_filter_bko(seeded_vendors):
+def test_list_vendors_filter_bko(seeded_vendors, vendor_auth_headers):
     """GET /vendors?region=BKO doit retourner uniquement des vendors BKO."""
-    resp = client.get("/vendors?region=BKO", headers=_auth_headers())
+    resp = client.get("/vendors?region=BKO", headers=vendor_auth_headers)
     assert resp.status_code == 200
     data = resp.json()
     for v in data:
         assert v["region_code"] == "BKO", f"Vendor hors BKO : {v['vendor_id']}"
 
 
-def test_get_vendor_valid_id_200(seeded_vendors):
+def test_get_vendor_valid_id_200(seeded_vendors, vendor_auth_headers):
     """GET /vendors/{id_valide} doit retourner 200 et les données correctes."""
     assert seeded_vendors, "Aucun vendor inséré"
     vid = seeded_vendors[0]
-    resp = client.get(f"/vendors/{vid}", headers=_auth_headers())
+    resp = client.get(f"/vendors/{vid}", headers=vendor_auth_headers)
     assert resp.status_code == 200
     data = resp.json()
     assert data["vendor_id"] == vid
 
 
-def test_get_vendor_unknown_id_404():
+def test_get_vendor_unknown_id_404(vendor_auth_headers):
     """GET /vendors/{id_inexistant} doit retourner 404."""
-    resp = client.get("/vendors/DMS-VND-XXX-9999-Z", headers=_auth_headers())
+    resp = client.get("/vendors/DMS-VND-XXX-9999-Z", headers=vendor_auth_headers)
     assert resp.status_code == 404
 
 
-def test_list_vendors_pagination(seeded_vendors):
+def test_list_vendors_pagination(seeded_vendors, vendor_auth_headers):
     """GET /vendors?limit=1 doit retourner au plus 1 élément."""
-    resp = client.get("/vendors?limit=1", headers=_auth_headers())
+    resp = client.get("/vendors?limit=1", headers=vendor_auth_headers)
     assert resp.status_code == 200
     assert len(resp.json()) <= 1
