@@ -8,11 +8,15 @@ ADR-015 — 2026-03-16
 
 from __future__ import annotations
 
+import logging
+import math
 from enum import StrEnum
 from typing import Any, Literal
 
 from annotation_qa import parse_loose_money_float
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────
 # ÉNUMÉRATIONS FIGÉES
@@ -46,7 +50,7 @@ class LineCheck(StrEnum):
 
 
 class LineItemLevel(StrEnum):
-    """ARCH-03 — hiérarchie budget (récap vs détail)."""
+    """ARCH-03 — hiérarchie budget (récap vs détail) ; item_line_no séquentiel (JSON-FIX-ANNOT-01-v2 D3)."""
 
     DETAIL = "detail"
     SUBTOTAL = "subtotal"
@@ -125,25 +129,290 @@ def _coerce_whole_int(v: Any, field_label: str) -> Any:
     return v
 
 
-def _coerce_line_item_number(v: Any) -> Any:
-    """
-    item_line_no : entier, float JSON (1.0), ou hiérarchique (1.1, 2.3) — ref budget multi-niveaux.
-    """
-    if v is None:
-        return None
+# ─────────────────────────────────────────────
+# JSON-FIX-ANNOT-01-v2 — normalisation post-Mistral (Phase 1)
+# ─────────────────────────────────────────────
+
+BOOLEAN_FIELDS = frozenset(
+    {
+        "has_nif",
+        "has_rccm",
+        "has_rib",
+        "has_id_representative",
+        "has_statutes",
+        "has_quitus_fiscal",
+        "has_certificat_non_faillite",
+        "has_sci_conditions_signed",
+        "has_iapg_signed",
+        "has_non_sanction",
+        "ariba_network_required",
+        "discount_terms_present",
+        "review_required",
+    }
+)
+
+BOOL_MAP = {
+    "true": True,
+    "false": False,
+    "True": True,
+    "False": False,
+    "TRUE": True,
+    "FALSE": False,
+}
+
+ABSENT_ON_EMPTY = frozenset(
+    {
+        "procedure_reference",
+        "submission_deadline",
+        "submission_mode",
+        "result_type",
+        "technical_threshold",
+        "negotiation_allowed",
+        "ponderation_coherence",
+        "has_sci_conditions_signed",
+        "has_iapg_signed",
+        "has_non_sanction",
+        "ariba_network_required",
+        "sci_sustainability_pct",
+        "has_nif",
+        "has_rccm",
+        "has_statutes",
+        "has_quitus_fiscal",
+        "has_certificat_non_faillite",
+        "local_content_present",
+        "community_employment_present",
+        "environment_commitment_present",
+        "gender_inclusion_present",
+        "supplier_name_normalized",
+        "supplier_identifier_raw",
+        "supplier_address_raw",
+    }
+)
+
+LIST_VALUE_FIELDS = frozenset({"submission_mode", "lot_scope", "zone_scope"})
+
+_IDENT_BOOL_KEYS = frozenset({"has_nif", "has_rccm", "has_rib"})
+
+_VALID_LINE_LEVELS = frozenset({"detail", "subtotal", "total"})
+
+
+def normalize_boolean(value: Any, field_name: str) -> Any:
+    """Normalise un booléen potentiellement string ; sentinelles texte inchangées."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        if value in BOOL_MAP:
+            return BOOL_MAP[value]
+        if value in ("ABSENT", "NOT_APPLICABLE"):
+            return value
+        if value == "":
+            return None
+        logger.warning(
+            "booléen non reconnu pour %s : %r — laissé inchangé",
+            field_name,
+            value,
+        )
+        return value
+    return value
+
+
+def normalize_sentinel(value: Any, field_name: str) -> Any:
+    """Convertit '' vers la sentinelle appropriée (D5)."""
+    if not isinstance(value, str):
+        return value
+    if value != "":
+        return value
+    if field_name in ABSENT_ON_EMPTY:
+        return "ABSENT"
+    return None
+
+
+def normalize_extraction_field(field: dict[str, Any], field_name: str) -> dict[str, Any]:
+    """Normalise un champ {value, confidence, evidence}."""
+    if not isinstance(field, dict):
+        return field
+    v = field.get("value")
+
+    if isinstance(v, str) and v == "":
+        if field_name in LIST_VALUE_FIELDS:
+            field["value"] = []
+        elif field_name in ABSENT_ON_EMPTY:
+            field["value"] = "ABSENT"
+        elif field_name in BOOLEAN_FIELDS:
+            field["value"] = None
+        else:
+            field["value"] = None
+    elif field_name in BOOLEAN_FIELDS:
+        field["value"] = normalize_boolean(v, field_name)
+
+    if field.get("evidence") == "":
+        field["evidence"] = "ABSENT"
+    return field
+
+
+def _looks_like_field_value(d: dict[str, Any]) -> bool:
+    return (
+        "value" in d
+        and "confidence" in d
+        and "evidence" in d
+        and isinstance(d.get("confidence"), (int, float))
+    )
+
+
+def _normalize_extraction_fields_recursive(obj: Any) -> None:
+    if isinstance(obj, dict):
+        for k, v in list(obj.items()):
+            if k == "line_items":
+                continue
+            if isinstance(v, dict) and _looks_like_field_value(v):
+                normalize_extraction_field(v, k)
+            elif k in _IDENT_BOOL_KEYS and isinstance(v, str) and v in BOOL_MAP:
+                obj[k] = BOOL_MAP[v]
+            elif isinstance(v, str) and v == "" and k in ABSENT_ON_EMPTY:
+                obj[k] = normalize_sentinel(v, k)
+            elif isinstance(v, (dict, list)):
+                _normalize_extraction_fields_recursive(v)
+    elif isinstance(obj, list):
+        for el in obj:
+            _normalize_extraction_fields_recursive(el)
+
+
+def _coerce_review_flag(v: Any) -> bool:
     if isinstance(v, bool):
-        return float(int(v))
-    if isinstance(v, int | float):
-        return float(v)
+        return v
+    if isinstance(v, str) and v in BOOL_MAP:
+        return BOOL_MAP[v]
+    return False
+
+
+def ensure_item_line_no_parseable(v: Any) -> None:
+    """Valide qu'une entrée Mistral est un nombre utilisable (y compris hiérarchique 1.1)."""
+    if v is None:
+        raise ValueError("item_line_no ne peut pas être null")
+    if isinstance(v, bool):
+        raise ValueError("item_line_no ne peut pas être booléen")
     if isinstance(v, str):
         s = v.strip().replace("\u202f", "").replace("\u00a0", "").replace(" ", "")
         if not s:
-            return v
+            raise ValueError("item_line_no ne peut pas être vide")
         try:
-            return float(s.replace(",", "."))
-        except (ValueError, TypeError):
-            return v
-    return v
+            float(s.replace(",", "."))
+        except (ValueError, TypeError) as exc:
+            raise ValueError(f"item_line_no non numérique : {v!r}") from exc
+        return
+    if isinstance(v, int | float):
+        if math.isnan(v) or math.isinf(v):
+            raise ValueError(f"item_line_no invalide : {v}")
+        return
+    raise ValueError(f"item_line_no type inattendu : {type(v)}")
+
+
+def normalize_item_line_no_value(v: Any) -> int:
+    """
+    Int strict pour LineItem après resequence.
+    Lève pour null, vide, non numérique, ou float hiérarchique (1.1) non resequencé.
+    """
+    if v is None:
+        raise ValueError("item_line_no ne peut pas être null")
+    if isinstance(v, bool):
+        raise ValueError("item_line_no ne peut pas être booléen")
+    if isinstance(v, str):
+        s = v.strip().replace("\u202f", "").replace("\u00a0", "").replace(" ", "")
+        if not s:
+            raise ValueError("item_line_no ne peut pas être vide")
+        try:
+            fv = float(s.replace(",", "."))
+        except (ValueError, TypeError) as exc:
+            raise ValueError(f"item_line_no non numérique : {v!r}") from exc
+    elif isinstance(v, int | float):
+        if math.isnan(v) or math.isinf(v):
+            raise ValueError(f"item_line_no invalide : {v}")
+        fv = float(v)
+    else:
+        raise ValueError(f"item_line_no type inattendu : {type(v)}")
+    if abs(fv - round(fv)) > 1e-9:
+        raise ValueError(
+            "item_line_no hiérarchique — appliquer normalize_annotation_output avant validation"
+        )
+    return int(round(fv))
+
+
+def resequence_line_items(line_items: list[Any]) -> list[dict[str, Any]]:
+    """
+    Réattribue item_line_no 1..n, supprime parent_subtotal_no (D2), défaut level (D3).
+    """
+    out: list[dict[str, Any]] = []
+    for raw in line_items:
+        if not isinstance(raw, dict):
+            raise ValueError("line_items : chaque entrée doit être un objet")
+        ensure_item_line_no_parseable(raw.get("item_line_no"))
+        out.append(raw)
+    for i, item in enumerate(out, start=1):
+        item["item_line_no"] = i
+        item.pop("parent_subtotal_no", None)
+        lvl = item.get("level")
+        if isinstance(lvl, str):
+            ls = lvl.strip().lower()
+            if ls == "total":
+                item["level"] = "subtotal"
+            elif ls in ("detail", "subtotal"):
+                item["level"] = ls
+            else:
+                item["level"] = "detail"
+        else:
+            item["level"] = "detail"
+    return out
+
+
+def align_review_required(json_output: dict[str, Any]) -> dict[str, Any]:
+    """D6 — _meta.review_required est autoritaire ; financier aligné."""
+    meta = json_output.setdefault("_meta", {})
+    meta_r = _coerce_review_flag(meta.get("review_required"))
+    c4 = json_output.get("couche_4_atomic")
+    fin_r = False
+    if isinstance(c4, dict):
+        financier = c4.get("financier")
+        if isinstance(financier, dict) and "review_required" in financier:
+            fin_r = _coerce_review_flag(financier.get("review_required"))
+    final = meta_r or fin_r
+    if isinstance(c4, dict):
+        fin = c4.get("financier")
+        if isinstance(fin, dict):
+            fin["review_required"] = final
+    meta["review_required"] = final
+    return json_output
+
+
+def clean_ambiguities(json_output: dict[str, Any]) -> dict[str, Any]:
+    amb = json_output.get("ambiguites")
+    if not isinstance(amb, list):
+        return json_output
+    json_output["ambiguites"] = [
+        a for a in amb if a != "AMBIG-6_schema_validation_errors"
+    ]
+    return json_output
+
+
+def normalize_annotation_output(json_output: dict[str, Any]) -> dict[str, Any]:
+    """
+    Point d'entrée unique — après parsing JSON Mistral, avant validation schéma.
+    Ordre : sentinelles / FieldValue → line_items → review_required → ambiguïtés.
+    """
+    _normalize_extraction_fields_recursive(json_output)
+
+    c4 = json_output.get("couche_4_atomic")
+    if isinstance(c4, dict):
+        financier = c4.get("financier")
+        if isinstance(financier, dict) and isinstance(financier.get("line_items"), list):
+            financier["line_items"] = resequence_line_items(financier["line_items"])
+
+    align_review_required(json_output)
+    clean_ambiguities(json_output)
+    return json_output
+
+
+normalize_item_line_no_strict = normalize_item_line_no_value
+normalize_item_line_no = normalize_item_line_no_value
 
 
 class LineItem(BaseModel):
@@ -151,7 +420,7 @@ class LineItem(BaseModel):
 
     model_config = {"extra": "forbid"}
 
-    item_line_no: float
+    item_line_no: int
     item_description_raw: str
     unit_raw: str
     quantity: float
@@ -161,17 +430,23 @@ class LineItem(BaseModel):
     confidence: float
     evidence: str
     level: LineItemLevel = LineItemLevel.DETAIL
-    parent_subtotal_no: int | None = None
+
+    @field_validator("level", mode="before")
+    @classmethod
+    def coerce_level(cls, v: Any) -> str:
+        if v is None or v == "":
+            return LineItemLevel.DETAIL.value
+        s = str(v).strip().lower()
+        if s == "total":
+            return LineItemLevel.SUBTOTAL.value
+        if s in ("detail", "subtotal"):
+            return s
+        return LineItemLevel.DETAIL.value
 
     @field_validator("item_line_no", mode="before")
     @classmethod
-    def coerce_item_line_no(cls, v: Any) -> Any:
-        return _coerce_line_item_number(v)
-
-    @field_validator("parent_subtotal_no", mode="before")
-    @classmethod
-    def coerce_parent_subtotal_no(cls, v: Any) -> Any:
-        return _coerce_whole_int(v, "parent_subtotal_no")
+    def coerce_item_line_no(cls, v: Any) -> int:
+        return normalize_item_line_no_value(v)
 
     @model_validator(mode="after")
     def validate_unit_not_empty(self) -> LineItem:
@@ -443,6 +718,14 @@ class DMSAnnotation(BaseModel):
 
     model_config = {"extra": "forbid"}
 
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_annotation_before(cls, data: Any) -> Any:
+        """JSON-FIX-ANNOT-01-v2 — normalisation types / sentinelles avant contrat Pydantic."""
+        if isinstance(data, dict):
+            return normalize_annotation_output(data)
+        return data
+
     couche_1_routing: Couche1Routing
     couche_2_core: Couche2Core
     couche_3_policy_sci: Couche3PolicySci
@@ -467,7 +750,7 @@ class DMSAnnotation(BaseModel):
     def recalculate_line_total_check(self) -> DMSAnnotation:
         """
         Recalcul mathématique par le backend — jamais par Mistral.
-        ARCH-03 : level=subtotal|total → pas de qty×price ; cohérence globale vs total_price.
+        ARCH-03 : level=subtotal → pas de qty×price ; cohérence globale vs total_price.
 
         Tolérance : écart relatif |expected−actual|/max(actual,1) ≤ 0,01 (~1 %).
         quantity ou unit_price « falsy » (0.0 inclus) → NON_VERIFIABLE (pas d’assertion math).
@@ -476,7 +759,7 @@ class DMSAnnotation(BaseModel):
         items = fin.line_items
 
         for item in items:
-            if item.level in (LineItemLevel.SUBTOTAL, LineItemLevel.TOTAL):
+            if item.level == LineItemLevel.SUBTOTAL:
                 item.line_total_check = LineCheck.SUBTOTAL_NOT_CHECKED_HERE
                 continue
             if item.quantity and item.unit_price:

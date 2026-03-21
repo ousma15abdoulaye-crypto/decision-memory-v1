@@ -59,7 +59,7 @@ from annotation_qa import (
 )
 
 from prompts import SYSTEM_PROMPT
-from prompts.schema_validator import DMSAnnotation, GateName
+from prompts.schema_validator import DMSAnnotation, GateName, normalize_annotation_output
 from src.annotation.document_classifier import (
     DocumentRole,
     TaxonomyCore,
@@ -820,6 +820,7 @@ def _validate_and_correct(annotation: dict, task_id: int = 0) -> tuple[dict, lis
     errors: list[dict] = []
     annotation = copy.deepcopy(annotation)
     _normalize_identifiants_for_schema(annotation)
+    annotation = normalize_annotation_output(annotation)
 
     try:
         validated = DMSAnnotation.model_validate(annotation)

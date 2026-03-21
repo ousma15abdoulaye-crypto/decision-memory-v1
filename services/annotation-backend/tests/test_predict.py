@@ -523,3 +523,12 @@ class TestFinancialReviewArch04:
             x.startswith("arithmetic_anomaly_item_")
             for x in out["_meta"]["review_reasons"]
         )
+
+
+def test_normalize_annotation_output_importable():
+    """JSON-FIX-ANNOT-01-v2 — même module que le backend (/predict)."""
+    from prompts.schema_validator import normalize_annotation_output
+
+    d = {"_meta": {"review_required": False}, "ambiguites": []}
+    out = normalize_annotation_output(d)
+    assert out["_meta"]["review_required"] is False
