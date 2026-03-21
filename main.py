@@ -107,6 +107,16 @@ async def lifespan(app):
 
 app = FastAPI(title=APP_TITLE, version=APP_VERSION, lifespan=lifespan)
 
+
+@app.get("/health")
+def health_probe() -> dict[str, str]:
+    """
+    Sonde légère pour Railway / LB (souvent healthcheckPath=/health).
+    Contrôle DB + Redis : GET /api/health.
+    """
+    return {"status": "ok", "service": "dms-api", "version": APP_VERSION}
+
+
 # Initialize rate limiting
 init_rate_limit(app)
 

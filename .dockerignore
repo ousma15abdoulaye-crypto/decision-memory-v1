@@ -14,4 +14,7 @@ coverage.xml
 venv
 .venv
 node_modules
-services/annotation-backend
+# Ne pas ignorer tout services/annotation-backend : sinon le build du Dockerfile
+# services/annotation-backend (contexte = racine repo) échoue sur COPY …/start.sh.
+# L’image API racine ne copie pas ce dossier ; seul le contexte envoyé au daemon grossit un peu.
+services/annotation-backend/tests

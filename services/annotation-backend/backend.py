@@ -12,6 +12,7 @@ import logging
 import os
 import re
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -326,10 +327,20 @@ client = Mistral(api_key=MISTRAL_API_KEY) if MISTRAL_API_KEY else None
 # APP
 # ─────────────────────────────────────────────────────────
 
+
+@asynccontextmanager
+async def _annotation_lifespan(_app: FastAPI):
+    logger.info(
+        "[BOOT] dms-annotation-backend — uvicorn backend:app ; LS healthcheck: GET /health"
+    )
+    yield
+
+
 app = FastAPI(
     title="DMS Annotation Backend",
     version=SCHEMA_VERSION,
     description=f"Framework {FRAMEWORK_VERSION}",
+    lifespan=_annotation_lifespan,
 )
 app.add_middleware(
     CORSMiddleware,
@@ -960,16 +971,35 @@ async def _call_mistral(
 # ENDPOINTS
 
 
-@app.get("/health")
-def health() -> dict:
+def _health_payload() -> dict[str, Any]:
+    """Réponse unique pour toutes les URLs de santé (LS 1.23 : GET …/health)."""
     return {
         "status": "ok",
+        "service": "dms-annotation-backend",
         "schema": SCHEMA_VERSION,
         "framework": FRAMEWORK_VERSION,
         "model": MISTRAL_MODEL,
         "mistral_configured": bool(MISTRAL_API_KEY),
         "strict_predict": STRICT_PREDICT,
     }
+
+
+@app.get("/")
+def root() -> dict[str, str]:
+    """Permet de vifier rapidement que ce n’est pas l’API DMS racine (main:app)."""
+    return {
+        "service": "dms-annotation-backend",
+        "health": "/health",
+        "setup": "/setup",
+        "predict": "/predict",
+    }
+
+
+@app.get("/health")
+@app.get("/health/")
+@app.get("/api/health")
+def health() -> dict[str, Any]:
+    return _health_payload()
 
 
 @app.post("/setup")
