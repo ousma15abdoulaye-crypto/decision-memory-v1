@@ -12,6 +12,7 @@ from fastapi import Depends, HTTPException
 
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.db import db_execute_one, get_connection
+from src.db.connection import get_db_cursor
 from src.extraction.engine import get_document
 
 
@@ -31,6 +32,42 @@ def require_document_case_access_dep(
     """FastAPI Depends : JWT + document rattaché au dossier autorisé."""
     require_document_case_access(document_id, user)
     return user
+
+
+def require_extraction_job_document_access_dep(
+    job_id: str,
+    user: UserClaims = Depends(get_current_user),
+) -> dict[str, Any]:
+    """JWT + job → document ; même barrière IDOR que GET /jobs/{job_id}/status (audit deps)."""
+    with get_db_cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                id,
+                document_id,
+                status,
+                method,
+                sla_class,
+                queued_at,
+                started_at,
+                completed_at,
+                duration_ms,
+                error_message
+            FROM extraction_jobs
+            WHERE id = %s
+        """,
+            (job_id,),
+        )
+        job = cur.fetchone()
+
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Job '{job_id}' introuvable.",
+        )
+
+    require_document_case_access(str(job["document_id"]), user)
+    return dict(job)
 
 
 def require_case_access(case_id: str, user: UserClaims) -> None:

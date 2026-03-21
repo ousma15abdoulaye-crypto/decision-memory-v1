@@ -157,7 +157,8 @@ jobs:
             --fail-prefix /api/analysis \
             --fail-prefix /api/memory \
             --fail-prefix /api/scoring \
-            --fail-sensitive-prefix /api/cases
+            --fail-sensitive-prefix /api/cases \
+            --fail-sensitive-prefix /api/extractions
 
       - name: Resolve coverage gate
         id: cov_gate

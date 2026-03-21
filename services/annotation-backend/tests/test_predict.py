@@ -372,7 +372,59 @@ class TestFinancialReviewArch04:
         ann["couche_1_routing"]["taxonomy_core"] = "rfq"
         ann["_meta"]["review_required"] = False
         out = backend._apply_financial_offer_review_rules(ann)
+        assert out is ann
         assert out["_meta"].get("review_reasons") in (None, [])
+
+    def _sample_line_item(self) -> dict:
+        return {
+            "item_line_no": 1,
+            "item_description_raw": "x",
+            "unit_raw": "u",
+            "quantity": 1.0,
+            "unit_price": 10.0,
+            "line_total": 10.0,
+            "line_total_check": "OK",
+            "confidence": 1.0,
+            "evidence": "p.1",
+        }
+
+    def test_invalid_financial_review_threshold_env_uses_default(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        backend = _load_backend_module()
+        monkeypatch.setenv("FINANCIAL_REVIEW_THRESHOLD_XOF", "totally_bad")
+        ann = copy.deepcopy(backend.FALLBACK_RESPONSE)
+        ann["couche_1_routing"]["taxonomy_core"] = "offer_financial"
+        ann["couche_1_routing"]["document_role"] = "financial_offer"
+        ann["couche_4_atomic"]["financier"]["line_items"] = [self._sample_line_item()]
+        ann["couche_4_atomic"]["financier"]["total_price"] = {
+            "value": "11000000",
+            "confidence": 1.0,
+            "evidence": "p.1",
+        }
+        ann["_meta"] = {"review_required": False}
+        out = backend._apply_financial_offer_review_rules(ann)
+        reasons = out["_meta"].get("review_reasons") or []
+        assert any("high_value_above" in r for r in reasons)
+
+    def test_total_price_with_narrow_nbsp_triggers_high_value(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        backend = _load_backend_module()
+        monkeypatch.setenv("FINANCIAL_REVIEW_THRESHOLD_XOF", "1000000")
+        ann = copy.deepcopy(backend.FALLBACK_RESPONSE)
+        ann["couche_1_routing"]["taxonomy_core"] = "offer_financial"
+        ann["couche_1_routing"]["document_role"] = "financial_offer"
+        ann["couche_4_atomic"]["financier"]["line_items"] = [self._sample_line_item()]
+        ann["couche_4_atomic"]["financier"]["total_price"] = {
+            "value": "15\u202f000\u202f000",
+            "confidence": 1.0,
+            "evidence": "p.1",
+        }
+        ann["_meta"] = {"review_required": False}
+        out = backend._apply_financial_offer_review_rules(ann)
+        reasons = out["_meta"].get("review_reasons") or []
+        assert any("high_value_above" in r for r in reasons)
 
     def test_financial_empty_line_items_triggers_review(self) -> None:
         backend = _load_backend_module()
