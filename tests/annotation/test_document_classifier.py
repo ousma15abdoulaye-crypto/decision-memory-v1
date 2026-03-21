@@ -1,14 +1,20 @@
 """
 Tests déterministes — classifieur documentaire DMS.
 Zéro LLM · Zéro DB · Zéro réseau.
-17 cas : succès + priorité de patterns + faux positifs + cas mixtes + dégradés.
+18 cas : succès + priorité + faux positifs + mixtes + dégradés + frozen.
 """
 
+import pytest
+
 from src.annotation.document_classifier import (
+    ClassificationResult,
     DocumentRole,
     TaxonomyCore,
     classify_document,
 )
+
+# Aligné sur document_classifier._HEADER_WINDOW (non importé : API privée).
+_HEADER_LEN = 800
 
 # ── Fixtures corpus Mali ──────────────────────────────────────────────────────
 
@@ -53,9 +59,12 @@ F_OCR_BRUITE_FINANCIER = (
     "P R O P O S I T I O N   F I N A N C I E R E\n"
     "LETTRE DE SOUMISSION\nTOTAL HT 5 000 000 Francs CFA HT\n"
 )
-# Cas faux positif RFQ vs DAO : RFQ mentionné dans le corps d'un DAO
+# RFQ uniquement après les _HEADER_LEN premiers caractères : P4 ne voit pas « RFQ » dans le header.
+_DAO_RFQ_PREFIX = "DOSSIER D'APPEL D'OFFRES\n"
+_DAO_RFQ_PAD = "." * max(0, _HEADER_LEN - len(_DAO_RFQ_PREFIX))
 F_DAO_AVEC_RFQ_DANS_CORPS = (
-    "DOSSIER D'APPEL D'OFFRES\nSuite à la RFQ préliminaire du 01/07/2025\n"
+    f"{_DAO_RFQ_PREFIX}{_DAO_RFQ_PAD}"
+    "\nSuite à la RFQ préliminaire du 01/07/2025\n"
     "Lot 1 — fourniture\n"
 )
 
@@ -170,10 +179,11 @@ def test_dao_avec_bordereau_retourne_financier():
 
 def test_faux_positif_rfq_dans_corps_dao():
     """
-    'RFQ' mentionné dans le corps d'un DAO → P3 DAO doit gagner
-    car le titre H1 'DOSSIER D'APPEL D'OFFRES' est dans la fenêtre header.
-    P4 RFQ cherche dans header uniquement — 'RFQ' est après les 800 chars.
+    Padding entre titre DAO et « RFQ » : la mention est hors fenêtre header (800).
+    P3 matche sur le titre dans raw_text[:800] ; P4 (\bRFQ\b) ne matche pas le header.
     """
+    assert "RFQ" not in F_DAO_AVEC_RFQ_DANS_CORPS[:_HEADER_LEN]
+    assert len(F_DAO_AVEC_RFQ_DANS_CORPS[:_HEADER_LEN]) == _HEADER_LEN
     r = classify_document(F_DAO_AVEC_RFQ_DANS_CORPS)
     assert r.taxonomy_core == TaxonomyCore.DAO
     assert r.matched_rule == "P3_dao_header"
@@ -192,16 +202,13 @@ def test_corps_ambigu_retourne_fallback():
 # ── Test dégradé OCR ──────────────────────────────────────────────────────────
 
 
-def test_ocr_bruite_financier_retourne_fallback():
+def test_ocr_bruite_titre_sans_p0_mais_p0b_lettre_et_total_ht():
     """
-    OCR bruité : 'P R O P O S I T I O N   F I N A N C I E R E' avec espaces.
-    Le pattern P0 actuel ne couvre PAS ce cas (espaces parasites entre lettres).
-    Ce test documente la limite connue → UNKNOWN → fallback LLM.
-    Ce cas sera adressé dans un mandat futur si corpus bruité significatif.
+    Titre bruité : espaces entre lettres → P0 (regex compact) ne matche pas.
+    LETTRE DE SOUMISSION + TOTAL HT / Francs CFA HT dans le corps → P0b classe
+    offer_financial / financial_offer (pas UNKNOWN / fallback LLM).
     """
     r = classify_document(F_OCR_BRUITE_FINANCIER)
-    # P0b peut matcher si LETTRE DE SOUMISSION + TOTAL HT présents
-    # Ici ils sont présents → P0b gagne malgré le titre bruité
     assert r.taxonomy_core == TaxonomyCore.OFFER_FINANCIAL
     assert r.matched_rule == "P0b_lettre_soumission_plus_montant"
 
@@ -244,3 +251,16 @@ def test_to_dict_structure_et_types():
     # Valeurs string conformes au canon §2
     assert d["document_role"] != "offer_technical"  # jamais cette valeur
     assert d["taxonomy_core"] == "offer_financial"
+
+
+def test_classification_result_est_frozen():
+    """Contrat doc : résultat immuable (dataclass frozen)."""
+    r = ClassificationResult(
+        TaxonomyCore.DAO,
+        DocumentRole.DAO,
+        0.8,
+        "P3_dao_header",
+        True,
+    )
+    with pytest.raises(AttributeError, match="cannot assign|frozen"):
+        r.matched_rule = "x"  # type: ignore[misc]
