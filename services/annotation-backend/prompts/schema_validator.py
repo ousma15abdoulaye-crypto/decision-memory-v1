@@ -110,7 +110,7 @@ class LineItem(BaseModel):
     line_total_check: LineCheck
     confidence: float
     evidence: str
-    level: LineItemLevel = LineItemLevel.DETAIL
+    level: LineItemLevel
     parent_subtotal_no: int | None = None
 
     @model_validator(mode="after")
