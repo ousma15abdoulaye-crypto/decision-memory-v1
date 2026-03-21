@@ -1,4 +1,14 @@
-# DMS Local Development — PostgreSQL only (Constitution V2.1)
+# DMS — dev local : Postgres + Redis + API (optionnel)
+#
+# Stack minimale (DB seule) :
+#   docker compose up postgres
+#
+# Parité ops (rate limit Redis + RLS : DB toujours via DATABASE_URL) :
+#   docker compose --profile full up
+#
+# Après premier démarrage : alembic upgrade head (dans le conteneur api ou depuis l'hôte
+# avec DATABASE_URL=postgresql+psycopg://dms:dms@localhost:5432/dms).
+
 services:
   postgres:
     image: postgres:16
@@ -13,3 +23,34 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    profiles:
+      - full
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles:
+      - full
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://dms:dms@postgres:5432/dms
+      REDIS_URL: redis://redis:6379/0
+      PORT: "8000"
+      SECRET_KEY: dev-docker-compose-change-me
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy

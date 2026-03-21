@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from src.core.dependencies import get_artifacts, list_memory
 from src.core.models import CaseCreate
-from src.couche_a.auth.case_access import require_case_access
+from src.couche_a.auth.case_access import require_case_access_dep
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.db import db_execute, db_execute_one, db_fetchall, get_connection
 from src.ratelimit import limiter
@@ -103,10 +103,8 @@ def list_cases(
 @router.get("/{case_id}")
 def get_case(
     case_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: Annotated[UserClaims, Depends(require_case_access_dep)],
 ):
-    require_case_access(case_id, user)
-
     with get_connection() as conn:
         c = db_execute_one(conn, "SELECT * FROM cases WHERE id=:id", {"id": case_id})
     if not c:

@@ -90,6 +90,14 @@ except ImportError as _e:
         "[main] router optionnel src.couche_a.analysis_summary non chargé : %s", _e
     )
 
+_committee_router = None
+try:
+    from src.couche_a.committee.router import router as committee_router
+
+    _committee_router = committee_router
+except ImportError as _e:
+    logger.warning("[main] router optionnel src.couche_a.committee non chargé : %s", _e)
+
 _geo_router = None
 try:
     from src.geo.router import router as geo_router
@@ -120,6 +128,7 @@ async def lifespan(app: FastAPI):
         "price_check": _price_check_router,
         "pipeline_a": _pipeline_a_router,
         "analysis_summary": _analysis_summary_router,
+        "committee": _committee_router,
         "geo": _geo_router,
         "vendors": _vendors_router,
     }
@@ -181,6 +190,7 @@ for _router in [
     _price_check_router,
     _pipeline_a_router,
     _analysis_summary_router,
+    _committee_router,
     _geo_router,
     _vendors_router,
 ]:

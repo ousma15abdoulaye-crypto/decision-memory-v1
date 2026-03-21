@@ -45,12 +45,16 @@ Pour le **montage réel** des applications FastAPI, la terminologie des « pipel
 - **Règles constitutionnelles :** Les calculs de scoring sont factuels et non prescriptifs (Constitution V3.3.2 §7)
 - **Primauté absolue :** La Couche A est la seule autorisée à modifier les scores, classements et exports (Invariant V3)
 
-**Modules principaux :**
+**Modules principaux (chemins code réels) :**
 - `src/couche_a/extraction/` — Extraction de données depuis documents
 - `src/couche_a/normalisation/` — Normalisation des items selon dictionnaire Sahel
 - `src/couche_a/scoring/` — Moteur de calcul des scores
 - `src/couche_a/pipeline/` — Pipeline end-to-end de traitement
 - `src/couche_a/generation/` — Génération des exports (CBA, PV)
+- `src/couche_a/auth/` — JWT, RBAC, garde-fous `case_id` / `document_id`, middleware sécurité
+- `src/api/` — Routers FastAPI « façade » (cases, documents, health, critères, etc.)
+- `src/geo/` — Référentiel géographique lecture seule ([`ADR-0053`](adr/ADR-0053_geo_public_readonly.md))
+- `src/vendors/` — Annuaire fournisseurs ([`ADR-0052`](adr/ADR-0052_vendors_global_catalog_auth.md))
 
 ---
 
@@ -86,7 +90,7 @@ La séparation entre Couche A et Couche B est **structurelle et non négociable*
 
 **Règles d'isolation (ADR-0003 §3.1) :**
 - ❌ **Interdit :** Importer un module de la Couche B dans les modules de la Couche A (chemins effectifs sous `src/couche_a/` : scoring, pipeline, criteria, extraction, committee, generation, etc. — voir ADR-0003)
-- ✅ **Tests CI :** `tests/boundary/test_couche_a_b_boundary.py` (AST, périmètre ciblé) ; `tests/invariants/test_no_couche_b_import_in_couche_a.py` existe mais est actuellement **skippé** — voir matrice RUNTIME-DOC
+- ✅ **Tests CI :** `tests/boundary/test_couche_a_b_boundary.py` (AST, périmètre historique `src/scoring` …) ; `tests/invariants/test_no_couche_b_import_in_couche_a.py` — AST actif sur **`src/couche_a/`** (imports `couche_b` / `src.couche_b` interdits ; import dynamique hors AST — voir ADR-0009)
 - ✅ **Architecture visée :** Découplage fort A/B. Les **écarts runtime** observés (ex. SQL cross-schema, import dynamique documentés) sont inventoriés dans [`docs/audits/RUNTIME_DOC_ALIGNMENT_MATRIX_EXIT_01.md`](audits/RUNTIME_DOC_ALIGNMENT_MATRIX_EXIT_01.md) ; leur résolution = doc, code ou ADR explicite, sans modifier la Constitution à la place d'un ADR
 
 **Frontière technique :**

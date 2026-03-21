@@ -1,0 +1,17 @@
+.git
+.github
+.cursor
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+htmlcov
+.coverage
+coverage.xml
+.env
+.env.*
+!.env.example
+venv
+.venv
+node_modules
+services/annotation-backend

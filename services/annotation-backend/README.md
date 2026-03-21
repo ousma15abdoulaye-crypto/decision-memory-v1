@@ -39,6 +39,13 @@
 
 Alignement XML : `label_studio_config.xml` — `toName="document_text"`.
 
+## Développement local / pytest
+
+- Le `Dockerfile` fixe `PYTHONPATH=/app` (aligné avec `WORKDIR`).
+- Pour lancer les tests du service depuis ce dossier sans Docker :  
+  `PYTHONPATH=. pytest tests/ -q`  
+  (le code ajoute aussi le répertoire courant dans `sys.path` pour les imports relatifs).
+
 ## Variables d’environnement (rappel)
 
 - `MISTRAL_API_KEY`, `MISTRAL_MODEL`, `CORS_ORIGINS`, `PSEUDONYM_SALT` (voir `backend.py`).

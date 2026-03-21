@@ -7,8 +7,9 @@ Patch M4 : filtre activity_status ajouté avec validation canonique.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.vendors import service
 
 router = APIRouter(prefix="/vendors", tags=["vendors"])
@@ -23,6 +24,7 @@ _VALID_ACTIVITY_STATUSES = {
 
 @router.get("")
 def list_vendors(
+    _user: UserClaims = Depends(get_current_user),
     region: str | None = Query(None, description="Code région ex: BKO"),
     activity_status: str | None = Query(
         None,
@@ -52,7 +54,10 @@ def list_vendors(
 
 
 @router.get("/{vendor_id}")
-def get_vendor(vendor_id: str) -> dict:
+def get_vendor(
+    vendor_id: str,
+    _user: UserClaims = Depends(get_current_user),
+) -> dict:
     """Détail d'un fournisseur par DMS_VENDOR_ID."""
     vendor = service.get_vendor_by_id(vendor_id)
     if not vendor:

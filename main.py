@@ -7,6 +7,7 @@ import uuid
 # Load .env and .env.local before db import (DATABASE_URL required)
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
     load_dotenv(".env.local")
 except ImportError:
@@ -14,6 +15,7 @@ except ImportError:
 
 # Configure logging pour resilience patterns
 from src.logging_config import configure_logging
+
 configure_logging()
 
 from datetime import datetime
@@ -25,20 +27,38 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from src.db import get_connection, db_execute, db_execute_one, db_fetchall, init_db_schema
+from src.db import (
+    get_connection,
+    db_execute,
+    db_execute_one,
+    db_fetchall,
+    init_db_schema,
+)
 from src.couche_a.routers import router as upload_router
 from src.auth_router import router as auth_router
 from src.ratelimit import init_rate_limit, limiter
 from src.core.config import (
-    APP_TITLE, APP_VERSION, BASE_DIR, DATA_DIR, UPLOADS_DIR, OUTPUTS_DIR, 
-    STATIC_DIR, INVARIANTS
+    APP_TITLE,
+    APP_VERSION,
+    BASE_DIR,
+    DATA_DIR,
+    UPLOADS_DIR,
+    OUTPUTS_DIR,
+    STATIC_DIR,
+    INVARIANTS,
 )
 from src.core.models import (
-    CaseCreate, AnalyzeRequest, DecideRequest,
-    CBATemplateSchema, DAOCriterion, OfferSubtype, SupplierPackage
+    CaseCreate,
+    AnalyzeRequest,
+    DecideRequest,
+    CBATemplateSchema,
+    DAOCriterion,
+    OfferSubtype,
+    SupplierPackage,
 )
 from src.api import health, cases, documents, analysis
 from src.api.routes.extractions import router as extraction_router
+from src.couche_a.committee.router import router as committee_router
 
 # ❌ REMOVED: from src.couche_a.procurement import router as procurement_router (M2-Extended)
 
@@ -46,6 +66,7 @@ from src.api.routes.extractions import router as extraction_router
 # Database — PostgreSQL only (schema created on startup)
 # =========================
 from contextlib import asynccontextmanager
+
 
 @asynccontextmanager
 async def lifespan(app):
@@ -61,7 +82,10 @@ async def lifespan(app):
     if _run_mig and not _is_testing:
         import subprocess
         import sys
-        _logger.info("[lifespan] RUN_MIGRATIONS_ON_STARTUP=true — running alembic upgrade head")
+
+        _logger.info(
+            "[lifespan] RUN_MIGRATIONS_ON_STARTUP=true — running alembic upgrade head"
+        )
         try:
             result = subprocess.run(
                 [sys.executable, "-m", "alembic", "upgrade", "head"],
@@ -73,11 +97,13 @@ async def lifespan(app):
         except subprocess.CalledProcessError as exc:
             _logger.error(
                 "[lifespan] alembic upgrade head FAILED (rc=%d):\n%s",
-                exc.returncode, exc.stderr or exc.stdout,
+                exc.returncode,
+                exc.stderr or exc.stdout,
             )
             raise RuntimeError("Alembic migration failed, aborting startup") from exc
     init_db_schema()
     yield
+
 
 app = FastAPI(title=APP_TITLE, version=APP_VERSION, lifespan=lifespan)
 
@@ -92,7 +118,9 @@ app.include_router(cases.router)
 app.include_router(documents.router)
 app.include_router(analysis.router)
 app.include_router(extraction_router)
+app.include_router(committee_router)
 from src.couche_a.scoring import api as scoring_api
+
 app.include_router(scoring_api.router)
 # ❌ REMOVED: app.include_router(procurement_router) (M2-Extended)
 
@@ -109,4 +137,5 @@ except Exception:
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=5000)
