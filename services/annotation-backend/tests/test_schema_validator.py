@@ -430,6 +430,29 @@ def test_arch03_recap_plus_detail_no_double_count_false_positive():
     assert not any("ANOMALY_details_sum_" in a for a in v.ambiguites)
 
 
+def test_total_price_field_parses_ocr_unicode_spaces():
+    """total_price aligné annotation_qa : espaces Unicode (\u2009, \u202f, etc.) retirés."""
+    d = _minimal_valid()
+    raw = "29\u2009194\u202f950"
+    d["couche_4_atomic"]["financier"]["total_price"] = _fv(raw)
+    d["couche_4_atomic"]["financier"]["line_items"] = [
+        {
+            "item_line_no": 1,
+            "item_description_raw": "Forfait",
+            "unit_raw": "forfait",
+            "quantity": 1.0,
+            "unit_price": 29_194_950.0,
+            "line_total": 29_194_950.0,
+            "line_total_check": "OK",
+            "level": "detail",
+            "confidence": 1.0,
+            "evidence": "p.1",
+        }
+    ]
+    v = DMSAnnotation.model_validate(d)
+    assert not any("ANOMALY_details_sum_" in a for a in v.ambiguites)
+
+
 def test_arch03_subtotals_sum_mismatch_vs_total_price_anomaly():
     """Subtotaux déclarés ne correspondent pas à total_price → ANOMALY."""
     d = _minimal_valid()

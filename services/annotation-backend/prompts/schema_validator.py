@@ -13,6 +13,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from annotation_qa import parse_loose_money_float
+
 # ─────────────────────────────────────────────
 # ÉNUMÉRATIONS FIGÉES
 # ─────────────────────────────────────────────
@@ -130,16 +132,14 @@ class LineItem(BaseModel):
 
 
 def _total_price_field_to_float(fv: FieldValue) -> float | None:
-    """Parse financier.total_price.value (aligné parse_loose_money_float)."""
-    val = fv.value
-    if val in (None, "", "ABSENT", "NOT_APPLICABLE"):
-        return None
-    s = str(val).replace("\u202f", "").replace("\u00a0", "").replace(" ", "")
-    s = s.replace(",", ".")
-    try:
-        return float(s)
-    except (ValueError, TypeError):
-        return None
+    """Parse financier.total_price.value — même logique que annotation_qa.parse_loose_money_float (OCR)."""
+    return parse_loose_money_float(fv.value)
+
+
+def _anomaly_money_token(amount: float) -> str:
+    """Montant dans un code ANOMALY : arrondi 2 décimales, pas de troncature int (évite collisions)."""
+    rounded = round(float(amount), 2)
+    return f"{rounded:.2f}".replace(".", "p")
 
 
 class Gate(BaseModel):
@@ -438,8 +438,8 @@ class DMSAnnotation(BaseModel):
             sum_sub = sum(i.line_total for i in subtotals)
             if abs(sum_sub - total_val) > tol:
                 code = (
-                    f"ANOMALY_subtotals_sum_{int(sum_sub)}"
-                    f"_vs_total_price_{int(total_val)}"
+                    f"ANOMALY_subtotals_sum_{_anomaly_money_token(sum_sub)}"
+                    f"_vs_total_price_{_anomaly_money_token(total_val)}"
                 )
                 if code not in self.ambiguites:
                     self.ambiguites.append(code)
@@ -447,8 +447,8 @@ class DMSAnnotation(BaseModel):
             sum_det = sum(i.line_total for i in details)
             if abs(sum_det - total_val) > tol:
                 code = (
-                    f"ANOMALY_details_sum_{int(sum_det)}"
-                    f"_vs_total_price_{int(total_val)}"
+                    f"ANOMALY_details_sum_{_anomaly_money_token(sum_det)}"
+                    f"_vs_total_price_{_anomaly_money_token(total_val)}"
                 )
                 if code not in self.ambiguites:
                     self.ambiguites.append(code)
