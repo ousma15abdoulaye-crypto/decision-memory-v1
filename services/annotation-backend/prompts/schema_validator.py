@@ -227,7 +227,9 @@ def normalize_sentinel(value: Any, field_name: str) -> Any:
     return None
 
 
-def normalize_extraction_field(field: dict[str, Any], field_name: str) -> dict[str, Any]:
+def normalize_extraction_field(
+    field: dict[str, Any], field_name: str
+) -> dict[str, Any]:
     """Normalise un champ {value, confidence, evidence}."""
     if not isinstance(field, dict):
         return field
@@ -403,7 +405,9 @@ def normalize_annotation_output(json_output: dict[str, Any]) -> dict[str, Any]:
     c4 = json_output.get("couche_4_atomic")
     if isinstance(c4, dict):
         financier = c4.get("financier")
-        if isinstance(financier, dict) and isinstance(financier.get("line_items"), list):
+        if isinstance(financier, dict) and isinstance(
+            financier.get("line_items"), list
+        ):
             financier["line_items"] = resequence_line_items(financier["line_items"])
 
     align_review_required(json_output)

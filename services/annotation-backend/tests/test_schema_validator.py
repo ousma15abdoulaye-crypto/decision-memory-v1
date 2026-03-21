@@ -252,7 +252,10 @@ def test_line_item_item_line_no_hierarchical_decimal_ok():
     v = DMSAnnotation.model_validate(norm)
     assert v.couche_4_atomic.financier.line_items[0].item_line_no == 1
     assert isinstance(v.couche_4_atomic.financier.line_items[0].item_line_no, int)
-    assert "parent_subtotal_no" not in norm["couche_4_atomic"]["financier"]["line_items"][0]
+    assert (
+        "parent_subtotal_no"
+        not in norm["couche_4_atomic"]["financier"]["line_items"][0]
+    )
 
 
 def test_line_item_item_line_no_float_from_json_coerced():
