@@ -17,31 +17,12 @@ import re
 from pathlib import Path
 
 import pytest
+from src.couche_a.auth.tenant_guard import (
+    TENANT_SCOPED_TABLES as GUARD_TENANT_SCOPED_TABLES,
+)
 
 # ── Tables classifiées TENANT_SCOPED — org_id obligatoire
-TENANT_SCOPED_TABLES: frozenset[str] = frozenset(
-    {
-        "cases",
-        "documents",
-        "offers",
-        "offer_extractions",
-        "dao_criteria",
-        "committees",
-        "committee_members",
-        "committee_decisions",
-        "committee_events",
-        "decision_snapshots",
-        "decision_history",
-        "pipeline_runs",
-        "pipeline_steps",
-        "vendors",
-        "vendors_sensitive_data",
-        "extraction_jobs",
-        "market_surveys",
-        "artifacts",
-        "memory_entries",
-    }
-)
+TENANT_SCOPED_TABLES: frozenset[str] = frozenset(GUARD_TENANT_SCOPED_TABLES)
 
 # ── Fichiers exclus de l'analyse (tests, migrations, scripts utilitaires)
 EXCLUDED_DIRS: frozenset[str] = frozenset(
