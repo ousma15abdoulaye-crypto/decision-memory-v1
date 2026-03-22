@@ -214,7 +214,7 @@
 ║  schema          : v3.0.1d                                           ║
 ║  prompt          : prompts/system_prompt.txt (texte pur .txt)       ║
 ║  validateur      : prompts/schema_validator.py (Pydantic v2)        ║
-║  troncature      : 80 000 chars (env MAX_TEXT_CHARS)                ║
+║  troncature      : 200 000 chars (env MAX_TEXT_CHARS)               ║
 ║  modèle          : mistral-large-latest                              ║
 ║  OCR             : mistral-ocr-latest (Files API stream)              ║
 ║  max_tokens      : 32 000                                            ║
