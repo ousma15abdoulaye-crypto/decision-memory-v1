@@ -220,6 +220,17 @@ def test_normalize_financier_total_price_scalar_to_fieldvalue():
     DMSAnnotation.model_validate(norm)
 
 
+def test_normalize_identifiants_lot_scope_dicts_to_strings():
+    """Mistral renvoie parfois des objets dans lot_scope / zone_scope — list[str] requis."""
+    d = _minimal_valid()
+    d["identifiants"]["lot_scope"] = [{"lot": "Lot 1"}, {"label": "Lot 2"}]
+    d["identifiants"]["zone_scope"] = [{"zone": "Kayes"}]
+    norm = normalize_annotation_output(copy.deepcopy(d))
+    assert norm["identifiants"]["lot_scope"] == ["Lot 1", "Lot 2"]
+    assert norm["identifiants"]["zone_scope"] == ["Kayes"]
+    DMSAnnotation.model_validate(norm)
+
+
 def test_dms_annotation_gates_order_rejected():
     """Gates dans le mauvais ordre → ValidationError."""
     d = _minimal_valid()

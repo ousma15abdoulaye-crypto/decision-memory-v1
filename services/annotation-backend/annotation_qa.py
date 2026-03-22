@@ -43,11 +43,17 @@ _MONEY_SPACE_CHARS = (
 )
 
 
-def parse_loose_money_float(raw: Any) -> float | None:
+def parse_loose_money_float(raw: Any, _depth: int = 0) -> float | None:
     """
     Parse un montant style total_price (PDF/OCR) : espaces, NBSP étroit, virgule décimale.
     Retourne None si absent ou non interprétable.
+    Accepte un dict imbriqué (ex. value mal structuré) — avant ``raw in VALUE_SKIP``
+    pour éviter TypeError: unhashable type dict sur les frozensets.
     """
+    if _depth > 8:
+        return None
+    if isinstance(raw, dict):
+        return parse_loose_money_float(raw.get("value"), _depth + 1)
     if raw in VALUE_SKIP:
         return None
     s = str(raw)
