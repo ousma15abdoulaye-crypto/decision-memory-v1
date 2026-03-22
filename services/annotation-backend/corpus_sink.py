@@ -48,16 +48,28 @@ class S3CorpusSink:
     ) -> None:
         import boto3  # lazy
 
+        ep = endpoint_url or None
+        region_raw = os.environ.get("S3_REGION", "").strip()
+        if region_raw:
+            region_name: str | None = region_raw
+        elif ep:
+            # R2 / MinIO / endpoint custom — « auto » évite une région AWS invalide
+            region_name = "auto"
+        else:
+            # AWS S3 régional : laisser boto3 (None = chaîne de config / métadonnées)
+            region_name = None
+
         session = boto3.session.Session()
-        self._client = session.client(
-            "s3",
-            endpoint_url=endpoint_url or None,
-            aws_access_key_id=os.environ.get("S3_ACCESS_KEY_ID")
+        client_kw: dict[str, Any] = {
+            "endpoint_url": ep,
+            "aws_access_key_id": os.environ.get("S3_ACCESS_KEY_ID")
             or os.environ.get("AWS_ACCESS_KEY_ID"),
-            aws_secret_access_key=os.environ.get("S3_SECRET_ACCESS_KEY")
+            "aws_secret_access_key": os.environ.get("S3_SECRET_ACCESS_KEY")
             or os.environ.get("AWS_SECRET_ACCESS_KEY"),
-            region_name=os.environ.get("S3_REGION", "auto"),
-        )
+        }
+        if region_name is not None:
+            client_kw["region_name"] = region_name
+        self._client = session.client("s3", **client_kw)
         self._bucket = bucket
         self._prefix = prefix.rstrip("/")
 

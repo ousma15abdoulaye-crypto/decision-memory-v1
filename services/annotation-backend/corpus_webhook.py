@@ -39,15 +39,30 @@ def _require_ls_attestations() -> bool:
 
 
 def _project_id_from_payload(payload: dict[str, Any], task: dict[str, Any]) -> int:
-    """project_id depuis webhook, tâche LS, ou env."""
+    """project_id depuis webhook, tâche LS (API re-fetch), ou env."""
     proj = payload.get("project") or {}
     if isinstance(proj, dict) and proj.get("id") is not None:
         return int(proj["id"])
-    tproj = task.get("project") if isinstance(task, dict) else None
-    if isinstance(tproj, dict) and tproj.get("id") is not None:
-        return int(tproj["id"])
-    if isinstance(tproj, int):
-        return tproj
+    if (
+        isinstance(payload.get("project_id"), (int, str))
+        and str(payload.get("project_id")).strip()
+    ):
+        try:
+            return int(payload["project_id"])
+        except (TypeError, ValueError):
+            pass
+    if isinstance(task, dict):
+        tproj = task.get("project")
+        if isinstance(tproj, dict) and tproj.get("id") is not None:
+            return int(tproj["id"])
+        if isinstance(tproj, int):
+            return tproj
+        tid = task.get("project_id")
+        if tid is not None:
+            try:
+                return int(tid)
+            except (TypeError, ValueError):
+                pass
     return _parse_int_env("LABEL_STUDIO_PROJECT_ID", 0)
 
 
@@ -125,8 +140,12 @@ def process_label_studio_webhook_for_corpus(
     project_id = _project_id_from_payload(payload, task)
     if project_id == 0:
         logger.warning(
-            "[CORPUS] project_id=0 — définir project.id dans le webhook ou LABEL_STUDIO_PROJECT_ID"
+            "[CORPUS] project_id introuvable — skip écriture "
+            "(project.id webhook, task.project / task.project_id après re-fetch, "
+            "ou LABEL_STUDIO_PROJECT_ID) — task_id=%s",
+            task.get("id"),
         )
+        return
 
     line = ls_annotation_to_m12_v2_line(
         ann,

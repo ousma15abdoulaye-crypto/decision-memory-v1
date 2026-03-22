@@ -104,6 +104,36 @@ class TestCorpusWebhookProcessing:
         )
         assert called == []
 
+    def test_skipped_when_project_id_unresolved(self, monkeypatch):
+        """project_id==0 : pas d'écriture (collision de clés S3 / partitionnement)."""
+        monkeypatch.setenv("CORPUS_WEBHOOK_ENABLED", "1")
+        monkeypatch.setenv("LABEL_STUDIO_URL", "https://ls.example")
+        monkeypatch.setenv("LABEL_STUDIO_API_KEY", "k")
+        monkeypatch.delenv("LABEL_STUDIO_PROJECT_ID", raising=False)
+
+        _ab = Path(__file__).resolve().parent.parent
+        if str(_ab) not in sys.path:
+            sys.path.insert(0, str(_ab))
+        import corpus_webhook
+
+        captured: list[dict] = []
+
+        class Sink:
+            def append_line(self, line):
+                captured.append(line)
+
+        with patch.object(
+            corpus_webhook,
+            "resolve_task_and_annotation",
+            return_value=({"id": 1, "data": {}}, {"id": 2, "result": []}),
+        ):
+            corpus_webhook.process_label_studio_webhook_for_corpus(
+                {"action": "ANNOTATION_UPDATED"},
+                sink=Sink(),
+            )
+
+        assert captured == []
+
     def test_appends_when_enabled_mocked_line(self, monkeypatch):
         monkeypatch.setenv("CORPUS_WEBHOOK_ENABLED", "1")
         monkeypatch.setenv("LABEL_STUDIO_URL", "https://ls.example")
