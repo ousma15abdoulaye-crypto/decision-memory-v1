@@ -170,6 +170,13 @@ BOOL_MAP = {
     "requis": True,
     "REQUIS": True,
     "Requis": True,
+    # Listes de pièces / specs (anglais)
+    "required": True,
+    "Required": True,
+    "REQUIRED": True,
+    "optional": False,
+    "Optional": False,
+    "OPTIONAL": False,
 }
 
 
@@ -187,6 +194,10 @@ def _parse_bool_string(s: str) -> bool | None:
         return False
     if low == "requis":
         return True
+    if low == "required":
+        return True
+    if low == "optional":
+        return False
     return None
 
 
