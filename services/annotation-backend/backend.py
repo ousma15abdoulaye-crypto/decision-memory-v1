@@ -57,7 +57,6 @@ from annotation_qa import (
     financial_coherence_warnings,
     parse_loose_money_float,
 )
-from corpus_webhook import process_label_studio_webhook_for_corpus
 
 from prompts import SYSTEM_PROMPT
 from prompts.schema_validator import (
@@ -1057,7 +1056,10 @@ def _webhook_corpus_secret_ok(request: Request) -> bool:
 
 
 def _run_corpus_webhook(payload: dict[str, Any]) -> None:
+    """Import paresseux : évite crash au boot si l’image Docker omet un module (déploiement)."""
     try:
+        from corpus_webhook import process_label_studio_webhook_for_corpus
+
         process_label_studio_webhook_for_corpus(payload)
     except Exception as exc:
         logger.error(
