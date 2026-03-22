@@ -18,6 +18,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY services/annotation-backend/backend.py .
 COPY services/annotation-backend/annotation_qa.py .
+COPY services/annotation-backend/corpus_webhook.py .
+COPY services/annotation-backend/corpus_sink.py .
+COPY services/annotation-backend/ls_client.py .
+COPY services/annotation-backend/m12_export_line.py .
 COPY services/annotation-backend/prompts/ ./prompts/
 COPY services/annotation-backend/start.sh .
 RUN chmod +x start.sh
