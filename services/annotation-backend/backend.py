@@ -83,7 +83,7 @@ SCHEMA_VERSION = "v3.0.1d"
 FRAMEWORK_VERSION = "annotation-framework-v3.0.1d"
 MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
-MAX_TEXT_CHARS = int(os.environ.get("MAX_TEXT_CHARS", "80000"))
+MAX_TEXT_CHARS = int(os.environ.get("MAX_TEXT_CHARS", "200000"))
 # M-ANNOTATION-CONTAINMENT-01 — aligné couche A (MIN_EXTRACTED_TEXT_CHARS_FOR_ML)
 MIN_LLM_CONTEXT_CHARS = int(os.environ.get("MIN_LLM_CONTEXT_CHARS", "100"))
 MIN_PREDICT_TEXT_CHARS = int(os.environ.get("MIN_PREDICT_TEXT_CHARS", "200"))

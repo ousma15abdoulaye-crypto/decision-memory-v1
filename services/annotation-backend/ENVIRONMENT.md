@@ -25,7 +25,7 @@ Si le root reste `services/annotation-backend` seul, l’erreur `"/src": not fou
 | --- | --- |
 | `MISTRAL_MODEL` | Défaut : `mistral-small-latest` |
 | `CORS_ORIGINS` | URL publique Label Studio (séparateur virgule) ; éviter `*` en prod |
-| `MAX_TEXT_CHARS` | Troncature du texte envoyé au LLM (défaut 80000) |
+| `MAX_TEXT_CHARS` | Troncature du texte envoyé au LLM (défaut 200000) |
 | `MIN_LLM_CONTEXT_CHARS` | Seuil minimum pour appeler Mistral |
 | `MIN_PREDICT_TEXT_CHARS` | Seuil côté `/predict` avant refus « texte trop court » |
 
