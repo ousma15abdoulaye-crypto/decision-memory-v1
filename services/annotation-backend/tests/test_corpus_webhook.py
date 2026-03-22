@@ -43,7 +43,9 @@ def _backend_env_module() -> None:
 
 @pytest.fixture(autouse=True)
 def _backend_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("PSEUDONYM_SALT", os.environ.get("PSEUDONYM_SALT", "test-sel-corpus"))
+    monkeypatch.setenv(
+        "PSEUDONYM_SALT", os.environ.get("PSEUDONYM_SALT", "test-sel-corpus")
+    )
     monkeypatch.setenv(
         "ALLOW_WEAK_PSEUDONYMIZATION",
         os.environ.get("ALLOW_WEAK_PSEUDONYMIZATION", "1"),

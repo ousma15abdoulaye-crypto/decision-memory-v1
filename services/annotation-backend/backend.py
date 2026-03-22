@@ -1329,7 +1329,9 @@ async def webhook_handler(
         return JSONResponse({"status": "error", "reason": "invalid_payload"})
     if not _webhook_corpus_secret_ok(request):
         logger.warning("[WEBHOOK] unauthorized — secret mismatch")
-        return JSONResponse({"status": "error", "reason": "unauthorized"}, status_code=401)
+        return JSONResponse(
+            {"status": "error", "reason": "unauthorized"}, status_code=401
+        )
     if isinstance(payload, dict):
         background_tasks.add_task(_run_corpus_webhook, payload)
     action = (
@@ -1340,7 +1342,11 @@ async def webhook_handler(
         if action in ("ANNOTATION_CREATED", "ANNOTATION_UPDATED"):
             t = payload.get("task") if isinstance(payload.get("task"), dict) else {}
             t = t or {}
-            a = payload.get("annotation") if isinstance(payload.get("annotation"), dict) else {}
+            a = (
+                payload.get("annotation")
+                if isinstance(payload.get("annotation"), dict)
+                else {}
+            )
             a = a or {}
             tid = t.get("id")
             if tid is None and payload.get("task_id") is not None:
