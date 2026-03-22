@@ -3,6 +3,8 @@
 #
 # If Railway "Root Directory" is services/annotation-backend only, COPY ../src is impossible —
 # set Root Directory to "." / empty in Service → Settings.
+#
+# Après ajout de modules Python : redéployer sans cache si besoin (évite un vieux layer sans *.py).
 
 FROM python:3.11-slim
 
@@ -16,10 +18,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY services/annotation-backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY services/annotation-backend/backend.py .
-COPY services/annotation-backend/annotation_qa.py .
-COPY services/annotation-backend/prompts/ ./prompts/
-COPY services/annotation-backend/start.sh .
+# Tout le dossier backend (tests exclus par .dockerignore à la racine du repo).
+# Évite tout ModuleNotFoundError si un *.py ou sous-dossier manque au COPY explicite.
+COPY services/annotation-backend/ .
 RUN chmod +x start.sh
 
 COPY src/__init__.py ./src/__init__.py
