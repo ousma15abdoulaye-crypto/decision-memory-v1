@@ -1055,8 +1055,18 @@ def _webhook_corpus_secret_ok(request: Request) -> bool:
     return hmac.compare_digest(got, secret)
 
 
+def _corpus_webhook_enabled() -> bool:
+    """Aligné sur ``corpus_webhook._env_bool`` — pas d’import du module si désactivé."""
+    v = os.environ.get("CORPUS_WEBHOOK_ENABLED", "").strip().lower()
+    if not v:
+        return False
+    return v in ("1", "true", "yes", "on")
+
+
 def _run_corpus_webhook(payload: dict[str, Any]) -> None:
-    """Import paresseux : évite crash au boot si l’image Docker omet un module (déploiement)."""
+    """Import paresseux uniquement si corpus activé (évite coût / erreurs quand CORPUS_WEBHOOK_ENABLED=0)."""
+    if not _corpus_webhook_enabled():
+        return
     try:
         from corpus_webhook import process_label_studio_webhook_for_corpus
 
