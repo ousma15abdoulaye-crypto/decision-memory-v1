@@ -67,7 +67,7 @@ Après `ANNOTATION_CREATED` / `ANNOTATION_UPDATED`, le backend peut construire u
 | `CORPUS_FILE_PATH` | Chemin JSONL si `CORPUS_SINK=file` (données perdues sans volume persistant). |
 | `S3_BUCKET` | Bucket si `CORPUS_SINK=s3`. |
 | `S3_ENDPOINT` | URL du endpoint S3-compatible (ex. R2) ; vide pour AWS par défaut. |
-| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | Ou `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`. |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | Ou `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`. Les **deux** ou **aucune** : si aucune, boto3 utilise la chaîne par défaut (rôle IAM, `~/.aws`, etc.) — utile sur AWS sans variables explicites. |
 | `S3_REGION` | Région explicite (ex. `eu-west-1` pour **AWS S3**). Si vide et **`S3_ENDPOINT`** est défini (R2, MinIO), le client utilise `auto`. Si endpoint vide (AWS natif), la région n’est pas forcée — utiliser `AWS_DEFAULT_REGION` ou config boto si besoin. |
 | `S3_ADDRESSING_STYLE` | Optionnel : `path` ou `virtual` pour forcer le style d’URL S3 ; laisser vide pour R2 (défaut boto3). |
 | `S3_CORPUS_PREFIX` | Préfixe des clés objet (défaut : `m12-v2`). Idempotence : une clé par `project_id/task_id/annotation_id/content_hash`. |

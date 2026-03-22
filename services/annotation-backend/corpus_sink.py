@@ -13,8 +13,15 @@ from typing import Any, Protocol
 logger = logging.getLogger(__name__)
 
 
-def _s3_env_credentials() -> tuple[str, str]:
-    """Clés depuis l’env, sans espaces / retours ligne (souvent la cause de SignatureDoesNotMatch)."""
+def _s3_env_credentials() -> tuple[str | None, str | None]:
+    """
+    Clés explicites depuis l’env (sans espaces / retours ligne).
+
+    Si les deux sont absents, retourne (None, None) pour **ne pas** passer de chaînes vides
+    à boto3 — sinon la chaîne de résolution par défaut (IAM, ``~/.aws``, etc.) est court-circuitée.
+
+    Si une seule des deux est définie : avertissement ; on ne passe aucune clé (comportement ambigu).
+    """
     key = (
         os.environ.get("S3_ACCESS_KEY_ID") or os.environ.get("AWS_ACCESS_KEY_ID") or ""
     ).strip()
@@ -23,7 +30,15 @@ def _s3_env_credentials() -> tuple[str, str]:
         or os.environ.get("AWS_SECRET_ACCESS_KEY")
         or ""
     ).strip()
-    return key, secret
+    if key and secret:
+        return key, secret
+    if key or secret:
+        logger.warning(
+            "[CORPUS] S3 : une seule des deux clés est définie "
+            "(S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY ou AWS_*) — "
+            "définir les deux ou aucune pour la chaîne de credentials par défaut"
+        )
+    return None, None
 
 
 def _botocore_config_for_s3():
@@ -97,10 +112,11 @@ class S3CorpusSink:
         session = boto3.session.Session()
         client_kw: dict[str, Any] = {
             "endpoint_url": ep,
-            "aws_access_key_id": access_key,
-            "aws_secret_access_key": secret_key,
             "config": _botocore_config_for_s3(),
         }
+        if access_key is not None and secret_key is not None:
+            client_kw["aws_access_key_id"] = access_key
+            client_kw["aws_secret_access_key"] = secret_key
         if region_name is not None:
             client_kw["region_name"] = region_name
         self._client = session.client("s3", **client_kw)
