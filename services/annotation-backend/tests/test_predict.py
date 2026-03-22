@@ -380,6 +380,33 @@ class TestNormalizeGatesJsonReel:
 class TestPredictTextGuards:
     """Garde-fous /predict — texte vide ou trop court (PDF vide côté LS)."""
 
+    def test_empty_http_body_returns_empty_results(self) -> None:
+        """Corps POST vide — pas d’exception ; 200 + results []."""
+        backend = _load_backend_module()
+        from starlette.testclient import TestClient
+
+        client = TestClient(backend.app)
+        r = client.post(
+            "/predict",
+            content=b"",
+            headers={"content-type": "application/json"},
+        )
+        assert r.status_code == 200
+        assert r.json() == {"results": []}
+
+    def test_invalid_json_returns_empty_results(self) -> None:
+        backend = _load_backend_module()
+        from starlette.testclient import TestClient
+
+        client = TestClient(backend.app)
+        r = client.post(
+            "/predict",
+            content=b"{not json",
+            headers={"content-type": "application/json"},
+        )
+        assert r.status_code == 200
+        assert r.json() == {"results": []}
+
     def test_empty_text_no_mistral(self, monkeypatch: pytest.MonkeyPatch) -> None:
         backend = _load_backend_module()
         mistral = AsyncMock(side_effect=RuntimeError("Mistral ne doit pas être appelé"))

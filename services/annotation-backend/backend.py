@@ -1105,9 +1105,43 @@ async def predict(request: Request) -> JSONResponse:
     Données tâche : data.text ou data.content ; distinct du nom de tag LS.
     """
     try:
-        body = await request.json()
+        raw_body = await request.body()
     except Exception as exc:
-        logger.error("[PREDICT] Body non parsable : %s", exc)
+        logger.error(
+            "[PREDICT] Lecture corps impossible : %s — %r",
+            type(exc).__name__,
+            exc,
+        )
+        return JSONResponse({"results": []}, status_code=200)
+
+    if not raw_body.strip():
+        logger.warning(
+            "[PREDICT] Corps HTTP vide — JSON attendu "
+            "(souvent abort client, probe, ou LS). content-type=%r",
+            request.headers.get("content-type", ""),
+        )
+        return JSONResponse({"results": []}, status_code=200)
+
+    try:
+        body = json.loads(raw_body.decode("utf-8-sig"))
+    except json.JSONDecodeError as exc:
+        excerpt = raw_body[:500].decode("utf-8", errors="replace")
+        logger.error(
+            "[PREDICT] JSON invalide : %s (pos=%s) excerpt=%r",
+            exc.msg,
+            exc.pos,
+            excerpt,
+        )
+        return JSONResponse({"results": []}, status_code=200)
+    except UnicodeDecodeError as exc:
+        logger.error("[PREDICT] Corps non UTF-8 : %s", exc)
+        return JSONResponse({"results": []}, status_code=200)
+
+    if not isinstance(body, dict):
+        logger.error(
+            "[PREDICT] JSON racine attendu (objet), reçu %s",
+            type(body).__name__,
+        )
         return JSONResponse({"results": []}, status_code=200)
 
     tasks = body.get("tasks", [])
