@@ -515,12 +515,77 @@ def _strip_couche_2_core_extras(json_output: dict[str, Any]) -> None:
         )
 
 
+# Bloc financier — champs au format FieldValue (Mistral renvoie parfois un nombre seul pour total_price, etc.)
+_FINANCIER_FIELDVALUE_KEYS = frozenset(
+    {
+        "total_price",
+        "currency",
+        "price_basis",
+        "price_date",
+        "delivery_delay_days",
+        "validity_days",
+        "discount_terms_present",
+    }
+)
+
+
+def _snap_fieldvalue_confidence(c: Any) -> float:
+    """Ramène une confidence vers la grille FieldValue 0.6 / 0.8 / 1.0."""
+    if c in (0.6, 0.8, 1.0):
+        return float(c)
+    try:
+        x = float(c)
+    except (TypeError, ValueError):
+        return 0.8
+    if x <= 0.7:
+        return 0.6
+    if x <= 0.9:
+        return 0.8
+    return 1.0
+
+
+def _coerce_financier_field_values(json_output: dict[str, Any]) -> None:
+    """Scalaires ou dicts incomplets → FieldValue avant validation Pydantic."""
+    c4 = json_output.get("couche_4_atomic")
+    if not isinstance(c4, dict):
+        return
+    fin = c4.get("financier")
+    if not isinstance(fin, dict):
+        return
+    for fk in _FINANCIER_FIELDVALUE_KEYS:
+        if fk not in fin:
+            continue
+        val = fin[fk]
+        if isinstance(val, dict) and _looks_like_field_value(val):
+            continue
+        if isinstance(val, dict) and "value" in val:
+            fin[fk] = {
+                "value": val["value"],
+                "confidence": _snap_fieldvalue_confidence(val.get("confidence", 0.8)),
+                "evidence": str(val.get("evidence") or "") or "ABSENT",
+            }
+            continue
+        if not isinstance(val, dict):
+            fin[fk] = {
+                "value": val,
+                "confidence": 0.8,
+                "evidence": "ABSENT",
+            }
+            continue
+        fin[fk] = {
+            "value": val,
+            "confidence": 0.8,
+            "evidence": "ABSENT",
+        }
+
+
 def normalize_annotation_output(json_output: dict[str, Any]) -> dict[str, Any]:
     """
     Point d'entrée unique — après parsing JSON Mistral, avant validation schéma.
     Ordre : nettoyage couche_2_core → sentinelles / FieldValue → line_items → review_required → ambiguïtés.
     """
     _strip_couche_2_core_extras(json_output)
+    _coerce_financier_field_values(json_output)
     _normalize_extraction_fields_recursive(json_output)
 
     c4 = json_output.get("couche_4_atomic")

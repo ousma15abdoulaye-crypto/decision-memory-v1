@@ -207,6 +207,19 @@ def test_normalize_strip_couche_2_core_llm_extra_keys():
     DMSAnnotation.model_validate(norm)
 
 
+def test_normalize_financier_total_price_scalar_to_fieldvalue():
+    """Mistral renvoie parfois total_price comme nombre brut au lieu d'un FieldValue."""
+    d = _minimal_valid()
+    d["couche_4_atomic"]["financier"]["total_price"] = 9_070_000_109.0
+    norm = normalize_annotation_output(copy.deepcopy(d))
+    tp = norm["couche_4_atomic"]["financier"]["total_price"]
+    assert isinstance(tp, dict)
+    assert tp["value"] == 9_070_000_109.0
+    assert tp["confidence"] == 0.8
+    assert tp["evidence"] == "ABSENT"
+    DMSAnnotation.model_validate(norm)
+
+
 def test_dms_annotation_gates_order_rejected():
     """Gates dans le mauvais ordre → ValidationError."""
     d = _minimal_valid()
