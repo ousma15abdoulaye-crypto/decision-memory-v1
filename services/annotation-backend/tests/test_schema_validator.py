@@ -335,6 +335,9 @@ def test_boolean_string_normalized():
     assert normalize_boolean("FALSE", "has_rccm") is False
     assert normalize_boolean(True, "has_rib") is True
     assert normalize_boolean(False, "has_rib") is False
+    assert normalize_boolean("OUI", "has_nif") is True
+    assert normalize_boolean("NON", "has_rccm") is False
+    assert normalize_boolean("requis", "has_rib") is True
 
 
 def test_empty_string_to_sentinel():

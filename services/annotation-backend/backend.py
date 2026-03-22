@@ -62,6 +62,8 @@ from prompts import SYSTEM_PROMPT
 from prompts.schema_validator import (
     DMSAnnotation,
     GateName,
+    coerce_gate_threshold_value,
+    coerce_gate_value_for_applicable,
     normalize_annotation_output,
 )
 from src.annotation.document_classifier import (
@@ -652,11 +654,9 @@ def _normalize_gates(annotation: dict) -> dict:
       1. confidence=0.0 + NOT_APPLICABLE → 1.0
          LOI 4 DMS : NOT_APPLICABLE = certitude maximale
       2. confidence=0.0 + APPLICABLE → 0.6 (minimum autorisé)
-
-    APPLICABLE + gate_value=null : plus d'inférence booléenne (E-65 révisé) —
-    laisser tel quel → ValidationError Pydantic → humain corrige dans LS.
-
-    Ref : plan annotation entreprise — zéro inférence sur gate_value
+      3. APPLICABLE : gate_value null ou chaîne (OUI/NON, etc.) → bool
+         (défaut False si null — évite ValidationError ; revue humaine possible dans LS)
+      4. gate_threshold_value toujours présent ; chaînes numériques parsées ; illisible → null
     """
     gates = annotation.get("couche_5_gates", [])
     ambiguites = list(annotation.get("ambiguites", []))
@@ -675,10 +675,21 @@ def _normalize_gates(annotation: dict) -> dict:
             if gate.get("gate_value") is not None:
                 gate["gate_value"] = None
 
-        # RÈGLE 2 : APPLICABLE + confidence=0.0 → 0.6
+        # RÈGLE 2 : APPLICABLE + confidence hors plage → 0.6 ; gate_value coercé
         elif gate_state == "APPLICABLE":
             if confidence not in _ALLOWED_CONFIDENCE:
                 gate["confidence"] = 0.6
+            gate["gate_value"] = coerce_gate_value_for_applicable(
+                gate.get("gate_value")
+            )
+
+        # Clé toujours présente (évite « Field required » sur gate_threshold_value)
+        if "gate_threshold_value" not in gate:
+            gate["gate_threshold_value"] = None
+        else:
+            gate["gate_threshold_value"] = coerce_gate_threshold_value(
+                gate.get("gate_threshold_value")
+            )
 
     annotation["ambiguites"] = ambiguites
     return annotation
@@ -815,7 +826,7 @@ def _validate_and_correct(annotation: dict, task_id: int = 0) -> tuple[dict, lis
     errors: list[dict] = []
     annotation = copy.deepcopy(annotation)
     _normalize_identifiants_for_schema(annotation)
-    # Normalisation : uniquement via DMSAnnotation.normalize_annotation_before (pas de double passe)
+    annotation = normalize_annotation_output(annotation)
 
     try:
         validated = DMSAnnotation.model_validate(annotation)
@@ -830,8 +841,6 @@ def _validate_and_correct(annotation: dict, task_id: int = 0) -> tuple[dict, lis
             )
         return annotation, []
     except ValidationError as exc:
-        # model_validate normalise sur une copie interne ; le dict local reste brut
-        annotation = normalize_annotation_output(annotation)
         if hasattr(exc, "errors"):
             for err in exc.errors():
                 loc = err.get("loc", ())
@@ -1185,7 +1194,6 @@ async def predict(request: Request) -> JSONResponse:
             annotation = _sync_gate_reasons_with_document_role(annotation)
             annotation, errors = _validate_and_correct(annotation, task_id)
             annotation = _apply_financial_offer_review_rules(annotation)
-            annotation = normalize_annotation_output(annotation)
             if STRICT_PREDICT:
                 if errors:
                     predictions.append(
