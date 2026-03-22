@@ -207,6 +207,30 @@ def test_normalize_strip_couche_2_core_llm_extra_keys():
     DMSAnnotation.model_validate(norm)
 
 
+def test_normalize_financier_total_price_scalar_to_fieldvalue():
+    """Mistral renvoie parfois total_price comme nombre brut au lieu d'un FieldValue."""
+    d = _minimal_valid()
+    d["couche_4_atomic"]["financier"]["total_price"] = 9_070_000_109.0
+    norm = normalize_annotation_output(copy.deepcopy(d))
+    tp = norm["couche_4_atomic"]["financier"]["total_price"]
+    assert isinstance(tp, dict)
+    assert tp["value"] == 9_070_000_109.0
+    assert tp["confidence"] == 0.8
+    assert tp["evidence"] == "ABSENT"
+    DMSAnnotation.model_validate(norm)
+
+
+def test_normalize_identifiants_lot_scope_dicts_to_strings():
+    """Mistral renvoie parfois des objets dans lot_scope / zone_scope — list[str] requis."""
+    d = _minimal_valid()
+    d["identifiants"]["lot_scope"] = [{"lot": "Lot 1"}, {"label": "Lot 2"}]
+    d["identifiants"]["zone_scope"] = [{"zone": "Kayes"}]
+    norm = normalize_annotation_output(copy.deepcopy(d))
+    assert norm["identifiants"]["lot_scope"] == ["Lot 1", "Lot 2"]
+    assert norm["identifiants"]["zone_scope"] == ["Kayes"]
+    DMSAnnotation.model_validate(norm)
+
+
 def test_dms_annotation_gates_order_rejected():
     """Gates dans le mauvais ordre → ValidationError."""
     d = _minimal_valid()
@@ -349,6 +373,8 @@ def test_boolean_string_normalized():
     assert normalize_boolean("OUI", "has_nif") is True
     assert normalize_boolean("NON", "has_rccm") is False
     assert normalize_boolean("requis", "has_rib") is True
+    assert normalize_boolean("required", "has_nif") is True
+    assert normalize_boolean("optional", "ariba_network_required") is False
 
 
 def test_empty_string_to_sentinel():
