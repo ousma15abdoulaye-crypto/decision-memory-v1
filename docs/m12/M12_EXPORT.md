@@ -7,6 +7,12 @@ Scripts :
 
 Réf. : [ADR-M12-EXPORT-V2](../adr/ADR-M12-EXPORT-V2.md)
 
+## Dépôt temps réel (webhook)
+
+Le backend [`services/annotation-backend/backend.py`](../../services/annotation-backend/backend.py) expose `POST /webhook`. Lorsque `CORPUS_WEBHOOK_ENABLED` est activé et que `LABEL_STUDIO_URL` / `LABEL_STUDIO_API_KEY` sont définis, chaque événement autorisé (voir `CORPUS_WEBHOOK_ACTIONS`) déclenche en arrière-plan la construction d’une **ligne m12-v2** (même logique que le script ci-dessous) et une écriture vers le sink configuré (`CORPUS_SINK`, S3 recommandé en prod). Le payload webhook est souvent incomplet : le service **re-fetch** la tâche via l’API LS si besoin. Optionnel : `WEBHOOK_CORPUS_SECRET` + header `X-Webhook-Secret`. Variables : [`services/annotation-backend/ENVIRONMENT.md`](../../services/annotation-backend/ENVIRONMENT.md).
+
+L’export **batch** par script reste utile pour rejouer l’historique, audits et fichiers JSONL figés.
+
 ## Prérequis (export API)
 
 - `LABEL_STUDIO_URL` — URL publique (ex. `https://label-studio-dms.up.railway.app`)
