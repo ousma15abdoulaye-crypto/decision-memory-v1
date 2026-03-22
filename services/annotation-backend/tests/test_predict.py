@@ -603,7 +603,10 @@ class TestJsonFixAnnotValidatePipeline:
         out, errors = backend._validate_and_correct(ann, 1)
         assert errors == []
         assert out["couche_4_atomic"]["financier"]["line_items"][0]["item_line_no"] == 1
-        assert "parent_subtotal_no" not in out["couche_4_atomic"]["financier"]["line_items"][0]
+        assert (
+            "parent_subtotal_no"
+            not in out["couche_4_atomic"]["financier"]["line_items"][0]
+        )
 
 
 def test_normalize_annotation_output_importable():

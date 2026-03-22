@@ -221,6 +221,7 @@ def coerce_gate_threshold_value(v: Any) -> float | None:
             return None
     return None
 
+
 ABSENT_ON_EMPTY = frozenset(
     {
         "procedure_reference",
