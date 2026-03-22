@@ -463,11 +463,52 @@ def clean_ambiguities(json_output: dict[str, Any]) -> dict[str, Any]:
     return json_output
 
 
+# Doit rester aligné sur Couche2Core (extra=forbid) — Mistral ajoute parfois evidence/confidence ici.
+_COUCHE2_CORE_ALLOWED_KEYS = frozenset(
+    {
+        "procedure_reference",
+        "issuing_entity",
+        "project_name",
+        "lot_count",
+        "lot_scope",
+        "zone_scope",
+        "submission_deadline",
+        "submission_mode",
+        "result_type",
+        "technical_threshold",
+        "visit_required",
+        "sample_required",
+        "negotiation_allowed",
+        "regime_dominant",
+        "modalite_paiement",
+        "eligibility_gates",
+        "scoring_structure",
+        "ponderation_coherence",
+    }
+)
+
+
+def _strip_couche_2_core_extras(json_output: dict[str, Any]) -> None:
+    """Retire les clés parasites au niveau couche_2_core (LLM hors schéma)."""
+    c2 = json_output.get("couche_2_core")
+    if not isinstance(c2, dict):
+        return
+    extra = [k for k in c2 if k not in _COUCHE2_CORE_ALLOWED_KEYS]
+    for k in extra:
+        del c2[k]
+    if extra:
+        logger.warning(
+            "couche_2_core : clés non prévues par le schéma retirées : %s",
+            extra,
+        )
+
+
 def normalize_annotation_output(json_output: dict[str, Any]) -> dict[str, Any]:
     """
     Point d'entrée unique — après parsing JSON Mistral, avant validation schéma.
     Ordre : sentinelles / FieldValue → line_items → review_required → ambiguïtés.
     """
+    _strip_couche_2_core_extras(json_output)
     _normalize_extraction_fields_recursive(json_output)
 
     c4 = json_output.get("couche_4_atomic")
