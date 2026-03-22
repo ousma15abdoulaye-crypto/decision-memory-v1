@@ -69,6 +69,7 @@ Après `ANNOTATION_CREATED` / `ANNOTATION_UPDATED`, le backend peut construire u
 | `S3_ENDPOINT` | URL du endpoint S3-compatible (ex. R2) ; vide pour AWS par défaut. |
 | `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | Ou `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`. |
 | `S3_REGION` | Région explicite (ex. `eu-west-1` pour **AWS S3**). Si vide et **`S3_ENDPOINT`** est défini (R2, MinIO), le client utilise `auto`. Si endpoint vide (AWS natif), la région n’est pas forcée — utiliser `AWS_DEFAULT_REGION` ou config boto si besoin. |
+| `S3_ADDRESSING_STYLE` | Optionnel : `path` ou `virtual` pour forcer le style d’URL S3 ; laisser vide pour R2 (défaut boto3). |
 | `S3_CORPUS_PREFIX` | Préfixe des clés objet (défaut : `m12-v2`). Idempotence : une clé par `project_id/task_id/annotation_id/content_hash`. |
 
 **Dépannage R2 / S3** : si les logs montrent `SignatureDoesNotMatch` sur `PutObject` :
@@ -76,6 +77,7 @@ Après `ANNOTATION_CREATED` / `ANNOTATION_UPDATED`, le backend peut construire u
 1. Vérifier que les clés sont des **jetons API R2** (droits objet) ou paires IAM **AWS**, sans espace ni retour ligne en tête/fin (copier-coller Railway).
 2. **`S3_ENDPOINT`** = URL exacte du type `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` (sans slash final).
 3. Ne pas mélanger une **access key** d’un compte et un **secret** d’un autre ; régénérer les clés dans le dashboard si besoin.
+4. Par défaut le client **ne force pas** `path`-style (aligné doc R2). Si besoin (MinIO, etc.) : `S3_ADDRESSING_STYLE=path` ou `virtual`.
 
 ### Sécurité webhook
 

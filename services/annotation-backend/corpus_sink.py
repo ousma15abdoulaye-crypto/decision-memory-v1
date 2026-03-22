@@ -26,14 +26,23 @@ def _s3_env_credentials() -> tuple[str, str]:
     return key, secret
 
 
-def _botocore_config_for_s3(endpoint_url: str | None):
-    """Signature V4 ; style path pour endpoints custom (R2, MinIO) — évite des écarts de signature."""
+def _botocore_config_for_s3():
+    """
+    Signature V4.
+
+    Pour **Cloudflare R2**, l’exemple officiel boto3 **ne force pas** path-style ; le forcer
+    peut provoquer ``SignatureDoesNotMatch`` de façon intermittente. Par défaut : pas de
+    ``addressing_style`` (comportement boto3 / virtual-hosted sur endpoint custom).
+
+    Optionnel : ``S3_ADDRESSING_STYLE=path`` (MinIO, certains proxys) ou ``virtual``.
+    """
     from botocore.config import Config
 
-    if endpoint_url:
+    style = (os.environ.get("S3_ADDRESSING_STYLE") or "").strip().lower()
+    if style in ("path", "virtual"):
         return Config(
             signature_version="s3v4",
-            s3={"addressing_style": "path"},
+            s3={"addressing_style": style},
         )
     return Config(signature_version="s3v4")
 
@@ -90,7 +99,7 @@ class S3CorpusSink:
             "endpoint_url": ep,
             "aws_access_key_id": access_key,
             "aws_secret_access_key": secret_key,
-            "config": _botocore_config_for_s3(ep),
+            "config": _botocore_config_for_s3(),
         }
         if region_name is not None:
             client_kw["region_name"] = region_name
