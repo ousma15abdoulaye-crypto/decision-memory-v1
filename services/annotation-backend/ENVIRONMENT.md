@@ -71,6 +71,12 @@ Après `ANNOTATION_CREATED` / `ANNOTATION_UPDATED`, le backend peut construire u
 | `S3_REGION` | Région explicite (ex. `eu-west-1` pour **AWS S3**). Si vide et **`S3_ENDPOINT`** est défini (R2, MinIO), le client utilise `auto`. Si endpoint vide (AWS natif), la région n’est pas forcée — utiliser `AWS_DEFAULT_REGION` ou config boto si besoin. |
 | `S3_CORPUS_PREFIX` | Préfixe des clés objet (défaut : `m12-v2`). Idempotence : une clé par `project_id/task_id/annotation_id/content_hash`. |
 
+**Dépannage R2 / S3** : si les logs montrent `SignatureDoesNotMatch` sur `PutObject` :
+
+1. Vérifier que les clés sont des **jetons API R2** (droits objet) ou paires IAM **AWS**, sans espace ni retour ligne en tête/fin (copier-coller Railway).
+2. **`S3_ENDPOINT`** = URL exacte du type `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` (sans slash final).
+3. Ne pas mélanger une **access key** d’un compte et un **secret** d’un autre ; régénérer les clés dans le dashboard si besoin.
+
 ### Sécurité webhook
 
 | Variable | Description |

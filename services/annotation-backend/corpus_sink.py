@@ -13,6 +13,31 @@ from typing import Any, Protocol
 logger = logging.getLogger(__name__)
 
 
+def _s3_env_credentials() -> tuple[str, str]:
+    """Clés depuis l’env, sans espaces / retours ligne (souvent la cause de SignatureDoesNotMatch)."""
+    key = (
+        os.environ.get("S3_ACCESS_KEY_ID") or os.environ.get("AWS_ACCESS_KEY_ID") or ""
+    ).strip()
+    secret = (
+        os.environ.get("S3_SECRET_ACCESS_KEY")
+        or os.environ.get("AWS_SECRET_ACCESS_KEY")
+        or ""
+    ).strip()
+    return key, secret
+
+
+def _botocore_config_for_s3(endpoint_url: str | None):
+    """Signature V4 ; style path pour endpoints custom (R2, MinIO) — évite des écarts de signature."""
+    from botocore.config import Config
+
+    if endpoint_url:
+        return Config(
+            signature_version="s3v4",
+            s3={"addressing_style": "path"},
+        )
+    return Config(signature_version="s3v4")
+
+
 class CorpusSink(Protocol):
     def append_line(self, line: dict[str, Any]) -> None: ...
 
@@ -48,7 +73,7 @@ class S3CorpusSink:
     ) -> None:
         import boto3  # lazy
 
-        ep = endpoint_url or None
+        ep = (endpoint_url or "").strip().rstrip("/") or None
         region_raw = os.environ.get("S3_REGION", "").strip()
         if region_raw:
             region_name: str | None = region_raw
@@ -59,13 +84,13 @@ class S3CorpusSink:
             # AWS S3 régional : laisser boto3 (None = chaîne de config / métadonnées)
             region_name = None
 
+        access_key, secret_key = _s3_env_credentials()
         session = boto3.session.Session()
         client_kw: dict[str, Any] = {
             "endpoint_url": ep,
-            "aws_access_key_id": os.environ.get("S3_ACCESS_KEY_ID")
-            or os.environ.get("AWS_ACCESS_KEY_ID"),
-            "aws_secret_access_key": os.environ.get("S3_SECRET_ACCESS_KEY")
-            or os.environ.get("AWS_SECRET_ACCESS_KEY"),
+            "aws_access_key_id": access_key,
+            "aws_secret_access_key": secret_key,
+            "config": _botocore_config_for_s3(ep),
         }
         if region_name is not None:
             client_kw["region_name"] = region_name
