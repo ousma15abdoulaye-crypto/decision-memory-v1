@@ -51,7 +51,7 @@ class LineCheck(StrEnum):
 
 
 class LineItemLevel(StrEnum):
-    """ARCH-03 — hiérarchie budget (récap vs détail) ; item_line_no séquentiel (JSON-FIX-ANNOT-01-v2 D3)."""
+    """ARCH-03 — hiérarchie : detail | subtotal | total ; item_line_no séquentiel (JSON-FIX-ANNOT-01-v2 D3)."""
 
     DETAIL = "detail"
     SUBTOTAL = "subtotal"
@@ -159,7 +159,69 @@ BOOL_MAP = {
     "False": False,
     "TRUE": True,
     "FALSE": False,
+    # Sorties Mistral / formulaires FR (DAO, listes de pièces)
+    "OUI": True,
+    "oui": True,
+    "Oui": True,
+    "NON": False,
+    "non": False,
+    "Non": False,
+    "requis": True,
+    "REQUIS": True,
+    "Requis": True,
 }
+
+
+def _parse_bool_string(s: str) -> bool | None:
+    """Interprète une chaîne comme booléen ; None si non reconnu."""
+    if not isinstance(s, str):
+        return None
+    t = s.strip()
+    if t in BOOL_MAP:
+        return BOOL_MAP[t]
+    low = t.lower()
+    if low in ("oui", "yes"):
+        return True
+    if low in ("non", "no"):
+        return False
+    if low == "requis":
+        return True
+    return None
+
+
+def coerce_gate_value_for_applicable(v: Any) -> bool:
+    """gate_value pour gate_state=APPLICABLE : Mistral peut renvoyer null ou OUI/NON."""
+    if isinstance(v, bool):
+        return v
+    if v is None:
+        return False
+    if isinstance(v, str):
+        pb = _parse_bool_string(v)
+        if pb is not None:
+            return pb
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return bool(v)
+    return False
+
+
+def coerce_gate_threshold_value(v: Any) -> float | None:
+    """Seuil gate : nombre, chaîne numérique, ou null ; illisible → null."""
+    if v is None:
+        return None
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    if isinstance(v, str):
+        s = v.strip().replace("\u202f", "").replace("\u00a0", " ")
+        if not s or s.lower() in ("n/a", "na", "-", "—"):
+            return None
+        try:
+            return float(s.replace(",", ".").replace(" ", ""))
+        except (ValueError, TypeError):
+            return None
+    return None
+
 
 ABSENT_ON_EMPTY = frozenset(
     {
@@ -202,12 +264,13 @@ def normalize_boolean(value: Any, field_name: str) -> Any:
     if isinstance(value, bool):
         return value
     if isinstance(value, str):
-        if value in BOOL_MAP:
-            return BOOL_MAP[value]
         if value in ("ABSENT", "NOT_APPLICABLE"):
             return value
         if value == "":
             return None
+        pb = _parse_bool_string(value)
+        if pb is not None:
+            return pb
         logger.warning(
             "booléen non reconnu pour %s : %r — laissé inchangé",
             field_name,
@@ -269,8 +332,10 @@ def _normalize_extraction_fields_recursive(obj: Any) -> None:
                 continue
             if isinstance(v, dict) and _looks_like_field_value(v):
                 normalize_extraction_field(v, k)
-            elif k in _IDENT_BOOL_KEYS and isinstance(v, str) and v in BOOL_MAP:
-                obj[k] = BOOL_MAP[v]
+            elif k in _IDENT_BOOL_KEYS and isinstance(v, str):
+                pb = _parse_bool_string(v)
+                if pb is not None:
+                    obj[k] = pb
             elif isinstance(v, str) and v == "" and k in ABSENT_ON_EMPTY:
                 obj[k] = normalize_sentinel(v, k)
             elif isinstance(v, (dict, list)):
@@ -283,8 +348,10 @@ def _normalize_extraction_fields_recursive(obj: Any) -> None:
 def _coerce_review_flag(v: Any) -> bool:
     if isinstance(v, bool):
         return v
-    if isinstance(v, str) and v in BOOL_MAP:
-        return BOOL_MAP[v]
+    if isinstance(v, str):
+        pb = _parse_bool_string(v)
+        if pb is not None:
+            return pb
     return False
 
 
@@ -445,7 +512,14 @@ class LineItem(BaseModel):
             return v.value
         s = str(v).strip().lower()
         if s == "total":
-            return LineItemLevel.TOTAL.value
+            # Ne pas re-mapper un « grand total » en sous-total : cela change la
+            # sémantique et peut provoquer du double comptage en aval.
+            # Ces lignes doivent être filtrées/supprimées en amont ou gérées
+            # via un niveau distinct explicite (p. ex. LineItemLevel.TOTAL).
+            raise ValueError(
+                "Niveau de ligne 'total' non supporté dans LineItem.level — "
+                "filtrer ou normaliser ces lignes avant validation."
+            )
         if s in ("detail", "subtotal"):
             return s
         return LineItemLevel.DETAIL.value
@@ -769,7 +843,7 @@ class DMSAnnotation(BaseModel):
         items = fin.line_items
 
         for item in items:
-            if item.level in (LineItemLevel.SUBTOTAL, LineItemLevel.TOTAL):
+            if item.level == LineItemLevel.SUBTOTAL:
                 item.line_total_check = LineCheck.SUBTOTAL_NOT_CHECKED_HERE
                 continue
             if item.quantity and item.unit_price:

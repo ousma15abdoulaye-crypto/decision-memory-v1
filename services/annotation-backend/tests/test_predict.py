@@ -112,8 +112,8 @@ class TestNormalizeGates:
         gate = result["couche_5_gates"][0]
         assert gate["confidence"] == 0.6
 
-    def test_applicable_gate_value_null_not_inferred(self):
-        """Pas d'inférence booléenne — gate_value reste null (Pydantic échouera ensuite)."""
+    def test_applicable_gate_value_null_defaults_to_false(self):
+        """APPLICABLE + gate_value null → False (schéma Pydantic ; revue humaine possible)."""
         fn = self._import()
         annotation = {
             "couche_5_gates": [
@@ -128,7 +128,7 @@ class TestNormalizeGates:
         }
         result = fn(annotation)
         gate = result["couche_5_gates"][0]
-        assert gate["gate_value"] is None
+        assert gate["gate_value"] is False
         assert result["ambiguites"] == []
 
     def test_confidence_correcte_non_touchee(self):
@@ -164,6 +164,56 @@ class TestNormalizeGates:
         result = fn(annotation)
         gate = result["couche_5_gates"][0]
         assert gate["gate_value"] is None
+
+    def test_gate_threshold_value_missing_key_filled_with_none(self):
+        fn = self._import()
+        annotation = {
+            "couche_5_gates": [
+                {
+                    "gate_name": "gate_eligibility_passed",
+                    "gate_state": "APPLICABLE",
+                    "gate_value": True,
+                    "confidence": 0.8,
+                }
+            ],
+            "ambiguites": [],
+        }
+        result = fn(annotation)
+        assert "gate_threshold_value" in result["couche_5_gates"][0]
+        assert result["couche_5_gates"][0]["gate_threshold_value"] is None
+
+    def test_gate_threshold_value_string_parsed_to_float(self):
+        fn = self._import()
+        annotation = {
+            "couche_5_gates": [
+                {
+                    "gate_name": "gate_capacity_passed",
+                    "gate_state": "APPLICABLE",
+                    "gate_value": True,
+                    "gate_threshold_value": "1500000,50",
+                    "confidence": 0.8,
+                }
+            ],
+            "ambiguites": [],
+        }
+        result = fn(annotation)
+        assert result["couche_5_gates"][0]["gate_threshold_value"] == 1500000.5
+
+    def test_applicable_gate_value_oui_string(self):
+        fn = self._import()
+        annotation = {
+            "couche_5_gates": [
+                {
+                    "gate_name": "gate_visit_passed",
+                    "gate_state": "APPLICABLE",
+                    "gate_value": "OUI",
+                    "confidence": 0.8,
+                }
+            ],
+            "ambiguites": [],
+        }
+        result = fn(annotation)
+        assert result["couche_5_gates"][0]["gate_value"] is True
 
 
 class TestBuildLsResult:
@@ -521,6 +571,41 @@ class TestFinancialReviewArch04:
         assert any(
             x.startswith("arithmetic_anomaly_item_")
             for x in out["_meta"]["review_reasons"]
+        )
+
+
+class TestJsonFixAnnotValidatePipeline:
+    """JSON-FIX-ANNOT-01-v2 — _validate_and_correct normalise avant model_validate."""
+
+    def test_hierarchical_item_line_no_passes_schema(self) -> None:
+        backend = _load_backend_module()
+        ann = copy.deepcopy(backend.FALLBACK_RESPONSE)
+        ann["ambiguites"] = []
+        ann["couche_4_atomic"]["financier"]["total_price"] = {
+            "value": 200.0,
+            "confidence": 1.0,
+            "evidence": "p.1",
+        }
+        ann["couche_4_atomic"]["financier"]["line_items"] = [
+            {
+                "item_line_no": 1.1,
+                "item_description_raw": "Ligne",
+                "unit_raw": "u",
+                "quantity": 2.0,
+                "unit_price": 100.0,
+                "line_total": 200.0,
+                "line_total_check": "OK",
+                "confidence": 1.0,
+                "evidence": "p.1",
+                "parent_subtotal_no": 1,
+            }
+        ]
+        out, errors = backend._validate_and_correct(ann, 1)
+        assert errors == []
+        assert out["couche_4_atomic"]["financier"]["line_items"][0]["item_line_no"] == 1
+        assert (
+            "parent_subtotal_no"
+            not in out["couche_4_atomic"]["financier"]["line_items"][0]
         )
 
 
