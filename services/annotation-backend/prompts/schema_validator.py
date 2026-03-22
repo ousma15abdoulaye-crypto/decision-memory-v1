@@ -487,19 +487,31 @@ _COUCHE2_CORE_ALLOWED_KEYS = frozenset(
     }
 )
 
+# Clés explicitement connues comme parasites ajoutées par le LLM au niveau couche_2_core.
+_COUCHE2_CORE_PARASITE_KEYS = frozenset(
+    {
+        "evidence",
+        "confidence",
+    }
+)
+
 
 def _strip_couche_2_core_extras(json_output: dict[str, Any]) -> None:
-    """Retire les clés parasites au niveau couche_2_core (LLM hors schéma)."""
+    """Retire les clés parasites au niveau couche_2_core (LLM hors schéma).
+
+    Ne supprime que les clés explicitement connues comme parasites (evidence/confidence),
+    afin de laisser Pydantic rejeter les autres clés inconnues via extra="forbid".
+    """
     c2 = json_output.get("couche_2_core")
     if not isinstance(c2, dict):
         return
-    extra = [k for k in c2 if k not in _COUCHE2_CORE_ALLOWED_KEYS]
-    for k in extra:
+    parasites = [k for k in c2 if k in _COUCHE2_CORE_PARASITE_KEYS]
+    for k in parasites:
         del c2[k]
-    if extra:
+    if parasites:
         logger.warning(
-            "couche_2_core : clés non prévues par le schéma retirées : %s",
-            extra,
+            "couche_2_core : clés parasites retirées avant validation stricte : %s",
+            parasites,
         )
 
 
