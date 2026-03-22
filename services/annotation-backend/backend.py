@@ -1125,12 +1125,17 @@ async def predict(request: Request) -> JSONResponse:
     try:
         body = json.loads(raw_body.decode("utf-8-sig"))
     except json.JSONDecodeError as exc:
-        excerpt = raw_body[:500].decode("utf-8", errors="replace")
+        body_len = len(raw_body)
+        content_type = request.headers.get("content-type", "")
+        body_sha256 = hashlib.sha256(raw_body).hexdigest()
         logger.error(
-            "[PREDICT] JSON invalide : %s (pos=%s) excerpt=%r",
+            "[PREDICT] JSON invalide : %s (pos=%s) body_len=%s "
+            "content_type=%r body_sha256=%s",
             exc.msg,
             exc.pos,
-            excerpt,
+            body_len,
+            content_type,
+            body_sha256,
         )
         return JSONResponse({"results": []}, status_code=200)
     except UnicodeDecodeError as exc:
