@@ -506,7 +506,7 @@ def _strip_couche_2_core_extras(json_output: dict[str, Any]) -> None:
 def normalize_annotation_output(json_output: dict[str, Any]) -> dict[str, Any]:
     """
     Point d'entrée unique — après parsing JSON Mistral, avant validation schéma.
-    Ordre : sentinelles / FieldValue → line_items → review_required → ambiguïtés.
+    Ordre : nettoyage couche_2_core → sentinelles / FieldValue → line_items → review_required → ambiguïtés.
     """
     _strip_couche_2_core_extras(json_output)
     _normalize_extraction_fields_recursive(json_output)
