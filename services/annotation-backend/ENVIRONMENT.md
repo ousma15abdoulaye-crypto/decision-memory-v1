@@ -43,6 +43,40 @@ Si le root reste `services/annotation-backend` seul, l’erreur `"/src": not fou
 
 **Choix prod** : laisser désactivé tant que les annotateurs ont besoin d’un brouillon Mistral à corriger ; activer pour les dossiers où seule une extraction entièrement valide est acceptée.
 
+## Dépôt corpus m12-v2 (webhook → stockage durable)
+
+Après `ANNOTATION_CREATED` / `ANNOTATION_UPDATED`, le backend peut construire une ligne m12-v2 et l’écrire dans un sink (fichier local, S3-compatible, ou noop). Sur Railway sans volume, privilégier **S3** (ex. R2, bucket S3).
+
+| Variable | Description |
+| --- | --- |
+| `CORPUS_WEBHOOK_ENABLED` | `1` / `true` / `yes` / `on` : activer le traitement asynchrone après `POST /webhook`. |
+| `CORPUS_WEBHOOK_ACTIONS` | Liste séparée par virgules (défaut : `ANNOTATION_CREATED,ANNOTATION_UPDATED`). |
+| `CORPUS_WEBHOOK_STATUS_FILTER` | Si non vide : n’écrire que lorsque le statut LS (`annotation_status`) est égal à cette valeur (ex. `annotated_validated`). |
+| `M12_EXPORT_ENFORCE_VALIDATED_QA` | Aligné sur le script d’export : si `annotated_validated`, marquer erreurs si QA / finances / evidence échouent (défaut : activé). |
+| `M12_EXPORT_REQUIRE_LS_ATTESTATIONS` | Exiger attestations XML quand validé (défaut : désactivé). |
+| `LABEL_STUDIO_URL` | URL de l’instance LS (re-fetch tâche/annotation si le webhook est incomplet). |
+| `LABEL_STUDIO_API_KEY` | Token API LS (`Authorization: Token …`). |
+| `LS_URL` / `LS_API_KEY` | **Repli** accepté si les variables `LABEL_STUDIO_*` ne sont pas définies (même valeur). |
+| `LABEL_STUDIO_PROJECT_ID` | Fallback si le webhook ne fournit pas `project.id` (ni sur la tâche). |
+
+### Sink
+
+| Variable | Description |
+| --- | --- |
+| `CORPUS_SINK` | `noop` (défaut), `file`, ou `s3`. |
+| `CORPUS_FILE_PATH` | Chemin JSONL si `CORPUS_SINK=file` (données perdues sans volume persistant). |
+| `S3_BUCKET` | Bucket si `CORPUS_SINK=s3`. |
+| `S3_ENDPOINT` | URL du endpoint S3-compatible (ex. R2) ; vide pour AWS par défaut. |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | Ou `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`. |
+| `S3_REGION` | Région client boto3 (ex. `auto` pour certains fournisseurs). |
+| `S3_CORPUS_PREFIX` | Préfixe des clés objet (défaut : `m12-v2`). Idempotence : une clé par `project_id/task_id/annotation_id/content_hash`. |
+
+### Sécurité webhook
+
+| Variable | Description |
+| --- | --- |
+| `WEBHOOK_CORPUS_SECRET` | Si défini, le header HTTP `X-Webhook-Secret` doit correspondre exactement ; sinon `401` sur `POST /webhook`. |
+
 ## Développement local
 
 | Variable | Description |

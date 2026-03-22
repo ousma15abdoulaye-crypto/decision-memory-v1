@@ -41,7 +41,7 @@ if _root_src is not None:
     if _rs not in sys.path:
         sys.path.insert(0, _rs)
 
-from fastapi import FastAPI, Request
+from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
@@ -57,6 +57,7 @@ from annotation_qa import (
     financial_coherence_warnings,
     parse_loose_money_float,
 )
+from corpus_webhook import process_label_studio_webhook_for_corpus
 
 from prompts import SYSTEM_PROMPT
 from prompts.schema_validator import (
@@ -1046,6 +1047,27 @@ async def _call_mistral(
 # ENDPOINTS
 
 
+def _webhook_corpus_secret_ok(request: Request) -> bool:
+    """Si ``WEBHOOK_CORPUS_SECRET`` est défini, exiger ``X-Webhook-Secret`` identique."""
+    secret = os.environ.get("WEBHOOK_CORPUS_SECRET", "").strip()
+    if not secret:
+        return True
+    got = request.headers.get("X-Webhook-Secret", "").strip()
+    return hmac.compare_digest(got, secret)
+
+
+def _run_corpus_webhook(payload: dict[str, Any]) -> None:
+    try:
+        process_label_studio_webhook_for_corpus(payload)
+    except Exception as exc:
+        logger.error(
+            "[WEBHOOK][CORPUS] %s — %s",
+            type(exc).__name__,
+            exc,
+            exc_info=True,
+        )
+
+
 def _health_payload() -> dict[str, Any]:
     """Réponse unique pour toutes les URLs de santé (LS 1.23 : GET …/health)."""
     return {
@@ -1296,29 +1318,37 @@ async def train(request: Request) -> JSONResponse:
 
 
 @app.post("/webhook")
-async def webhook_handler(request: Request) -> JSONResponse:
-    """Webhook Label Studio — robuste, zéro exception non catchée. Toujours 200."""
+async def webhook_handler(
+    request: Request, background_tasks: BackgroundTasks
+) -> JSONResponse:
+    """Webhook Label Studio — robuste, zéro exception non catchée. Réponse 200 sauf secret KO."""
     try:
         payload = await request.json()
     except Exception as exc:
         logger.error("[WEBHOOK] Payload non parsable : %s", type(exc).__name__)
         return JSONResponse({"status": "error", "reason": "invalid_payload"})
+    if not _webhook_corpus_secret_ok(request):
+        logger.warning("[WEBHOOK] unauthorized — secret mismatch")
+        return JSONResponse({"status": "error", "reason": "unauthorized"}, status_code=401)
+    if isinstance(payload, dict):
+        background_tasks.add_task(_run_corpus_webhook, payload)
     action = (
         payload.get("action", "UNKNOWN") if isinstance(payload, dict) else "UNKNOWN"
     )
     logger.info("[WEBHOOK] action=%s", action)
     try:
         if action in ("ANNOTATION_CREATED", "ANNOTATION_UPDATED"):
-            t = payload.get("task") or {}
-            a = (
-                (payload.get("annotation") or {})
-                if action == "ANNOTATION_CREATED"
-                else {}
-            )
+            t = payload.get("task") if isinstance(payload.get("task"), dict) else {}
+            t = t or {}
+            a = payload.get("annotation") if isinstance(payload.get("annotation"), dict) else {}
+            a = a or {}
+            tid = t.get("id")
+            if tid is None and payload.get("task_id") is not None:
+                tid = payload.get("task_id")
             logger.info(
                 "[WEBHOOK] %s — task_id=%s ann_id=%s",
                 action,
-                t.get("id", "unknown"),
+                tid if tid is not None else "unknown",
                 a.get("id", "N/A"),
             )
     except Exception as exc:
