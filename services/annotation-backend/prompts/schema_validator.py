@@ -512,7 +512,14 @@ class LineItem(BaseModel):
             return v.value
         s = str(v).strip().lower()
         if s == "total":
-            return LineItemLevel.SUBTOTAL.value
+            # Ne pas re-mapper un « grand total » en sous-total : cela change la
+            # sémantique et peut provoquer du double comptage en aval.
+            # Ces lignes doivent être filtrées/supprimées en amont ou gérées
+            # via un niveau distinct explicite (p. ex. LineItemLevel.TOTAL).
+            raise ValueError(
+                "Niveau de ligne 'total' non supporté dans LineItem.level — "
+                "filtrer ou normaliser ces lignes avant validation."
+            )
         if s in ("detail", "subtotal"):
             return s
         return LineItemLevel.DETAIL.value
