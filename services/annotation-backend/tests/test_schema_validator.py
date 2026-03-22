@@ -196,6 +196,17 @@ def test_dms_annotation_minimal_valid():
     assert len(v.couche_5_gates) == 10
 
 
+def test_normalize_strip_couche_2_core_llm_extra_keys():
+    """Mistral place parfois evidence/confidence sur couche_2_core — retirées avant Pydantic."""
+    d = _minimal_valid()
+    d["couche_2_core"]["evidence"] = "p.1"
+    d["couche_2_core"]["confidence"] = 0.9
+    norm = normalize_annotation_output(copy.deepcopy(d))
+    assert "evidence" not in norm["couche_2_core"]
+    assert "confidence" not in norm["couche_2_core"]
+    DMSAnnotation.model_validate(norm)
+
+
 def test_dms_annotation_gates_order_rejected():
     """Gates dans le mauvais ordre → ValidationError."""
     d = _minimal_valid()
