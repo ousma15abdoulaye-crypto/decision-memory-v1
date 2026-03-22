@@ -51,10 +51,11 @@ class LineCheck(StrEnum):
 
 
 class LineItemLevel(StrEnum):
-    """ARCH-03 — hiérarchie : detail | subtotal uniquement ; item_line_no séquentiel (JSON-FIX-ANNOT-01-v2 D3)."""
+    """ARCH-03 — hiérarchie : detail | subtotal | total ; item_line_no séquentiel (JSON-FIX-ANNOT-01-v2 D3)."""
 
     DETAIL = "detail"
     SUBTOTAL = "subtotal"
+    TOTAL = "total"
 
 
 class AnnotationStatus(StrEnum):
