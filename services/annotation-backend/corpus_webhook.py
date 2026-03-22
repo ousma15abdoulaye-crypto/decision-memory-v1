@@ -101,13 +101,17 @@ def process_label_studio_webhook_for_corpus(
     if not ls_url or not ls_key:
         logger.warning(
             "[CORPUS] Webhook activé mais LABEL_STUDIO_URL ou LS_URL / "
-            "LABEL_STUDIO_API_KEY ou LS_API_KEY manquants"
+            "LABEL_STUDIO_API_KEY ou LS_API_KEY manquants — tentative de résolution à partir du payload uniquement"
         )
-        return
 
     resolved = resolve_task_and_annotation(payload, ls_url, ls_key)
     if resolved is None:
-        logger.warning("[CORPUS] Impossible de résoudre task/annotation — skip")
+        if not ls_url or not ls_key:
+            logger.warning(
+                "[CORPUS] Impossible de résoudre task/annotation sans accès à l’API Label Studio — skip"
+            )
+        else:
+            logger.warning("[CORPUS] Impossible de résoudre task/annotation — skip")
         return
 
     task, ann = resolved
