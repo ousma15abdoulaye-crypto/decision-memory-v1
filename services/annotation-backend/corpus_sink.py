@@ -13,6 +13,55 @@ from typing import Any, Protocol
 logger = logging.getLogger(__name__)
 
 
+def _s3_env_credentials() -> tuple[str | None, str | None]:
+    """
+    Clés explicites depuis l’env (sans espaces / retours ligne).
+
+    Si les deux sont absents, retourne (None, None) pour **ne pas** passer de chaînes vides
+    à boto3 — sinon la chaîne de résolution par défaut (IAM, ``~/.aws``, etc.) est court-circuitée.
+
+    Si une seule des deux est définie : avertissement ; on ne passe aucune clé (comportement ambigu).
+    """
+    key = (
+        os.environ.get("S3_ACCESS_KEY_ID") or os.environ.get("AWS_ACCESS_KEY_ID") or ""
+    ).strip()
+    secret = (
+        os.environ.get("S3_SECRET_ACCESS_KEY")
+        or os.environ.get("AWS_SECRET_ACCESS_KEY")
+        or ""
+    ).strip()
+    if key and secret:
+        return key, secret
+    if key or secret:
+        logger.warning(
+            "[CORPUS] S3 : une seule des deux clés est définie "
+            "(S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY ou AWS_*) — "
+            "définir les deux ou aucune pour la chaîne de credentials par défaut"
+        )
+    return None, None
+
+
+def _botocore_config_for_s3():
+    """
+    Signature V4.
+
+    Pour **Cloudflare R2**, l’exemple officiel boto3 **ne force pas** path-style ; le forcer
+    peut provoquer ``SignatureDoesNotMatch`` de façon intermittente. Par défaut : pas de
+    ``addressing_style`` (comportement boto3 / virtual-hosted sur endpoint custom).
+
+    Optionnel : ``S3_ADDRESSING_STYLE=path`` (MinIO, certains proxys) ou ``virtual``.
+    """
+    from botocore.config import Config
+
+    style = (os.environ.get("S3_ADDRESSING_STYLE") or "").strip().lower()
+    if style in ("path", "virtual"):
+        return Config(
+            signature_version="s3v4",
+            s3={"addressing_style": style},
+        )
+    return Config(signature_version="s3v4")
+
+
 class CorpusSink(Protocol):
     def append_line(self, line: dict[str, Any]) -> None: ...
 
@@ -48,7 +97,7 @@ class S3CorpusSink:
     ) -> None:
         import boto3  # lazy
 
-        ep = endpoint_url or None
+        ep = (endpoint_url or "").strip().rstrip("/") or None
         region_raw = os.environ.get("S3_REGION", "").strip()
         if region_raw:
             region_name: str | None = region_raw
@@ -59,14 +108,15 @@ class S3CorpusSink:
             # AWS S3 régional : laisser boto3 (None = chaîne de config / métadonnées)
             region_name = None
 
+        access_key, secret_key = _s3_env_credentials()
         session = boto3.session.Session()
         client_kw: dict[str, Any] = {
             "endpoint_url": ep,
-            "aws_access_key_id": os.environ.get("S3_ACCESS_KEY_ID")
-            or os.environ.get("AWS_ACCESS_KEY_ID"),
-            "aws_secret_access_key": os.environ.get("S3_SECRET_ACCESS_KEY")
-            or os.environ.get("AWS_SECRET_ACCESS_KEY"),
+            "config": _botocore_config_for_s3(),
         }
+        if access_key is not None and secret_key is not None:
+            client_kw["aws_access_key_id"] = access_key
+            client_kw["aws_secret_access_key"] = secret_key
         if region_name is not None:
             client_kw["region_name"] = region_name
         self._client = session.client("s3", **client_kw)

@@ -44,4 +44,14 @@ Via **Pull Request** uniquement (CI : pas de push direct sur `main`).
 
 - Railway : root directory = racine repo ; rebuild sans cache si besoin.
 - Si corpus activé : variables `CORPUS_*`, `S3_*`, `LS_URL`/`LS_API_KEY` ou `LABEL_STUDIO_*`, `LABEL_STUDIO_PROJECT_ID` si besoin.
+
+## Déploiement Railway — pourquoi merger cette PR (important)
+
+**Un push sur `fix/annotation-couche2-llm-extras-strip` sans merge vers la branche déployée ne met pas à jour la prod** si Railway est configuré pour builder uniquement depuis **`main`** (cas fréquent).
+
+- Tant que les correctifs (Docker, `corpus_sink` / R2, `SignatureDoesNotMatch`, etc.) ne sont **pas** sur la branche que Railway déploie, le conteneur en ligne exécute **l’ancienne image** → les erreurs côté R2 ou l’absence de modules peuvent **persister** alors que le code sur la branche feature est déjà corrigé.
+
+**À faire :** merger cette PR vers `main` (ou aligner le service Railway sur la branche de la PR), puis redéployer / rebuild si besoin.
+
+**À ne pas confondre :** les logs `POST /webhook` **200 OK** et `[WEBHOOK] ANNOTATION_UPDATED` montrent que Label Studio atteint le backend ; une erreur `[CORPUS] Écriture échouée … SignatureDoesNotMatch` vient du **client S3 vers R2** dans l’image déployée — il faut que cette image contienne bien le **dernier** `corpus_sink.py` (merge + déploiement).
 ```
