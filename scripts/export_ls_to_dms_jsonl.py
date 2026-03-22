@@ -33,10 +33,12 @@ def _ensure_annotation_path() -> None:
         sys.path.insert(0, p)
 
 
+_ensure_annotation_path()
+from m12_export_line import ls_annotation_to_m12_v2_line, to_dms_line_legacy
+
+
 def main() -> None:
-    _ensure_annotation_path()
     from ls_client import fetch_annotations
-    from m12_export_line import ls_annotation_to_m12_v2_line, to_dms_line_legacy
 
     parser = argparse.ArgumentParser(
         description="Export Label Studio → DMS JSONL (m12-v2 ou legacy)"
