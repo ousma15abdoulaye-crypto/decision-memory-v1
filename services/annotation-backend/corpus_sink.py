@@ -41,7 +41,24 @@ def _s3_env_credentials() -> tuple[str | None, str | None]:
     return None, None
 
 
-def _botocore_config_for_s3():
+def _payload_signing_for_endpoint(endpoint_url: str | None) -> bool:
+    """
+    Active la signature SHA256 du corps (PutObject) pour certains endpoints S3-compatibles.
+
+    Cloudflare R2 peut renvoyer ``SignatureDoesNotMatch`` si le client envoie
+    ``UNSIGNED-PAYLOAD`` alors que le service attend un hash cohérent avec SigV4.
+    Désactiver : ``S3_PAYLOAD_SIGNING=0`` ; forcer partout : ``S3_PAYLOAD_SIGNING=1``.
+    """
+    raw = (os.environ.get("S3_PAYLOAD_SIGNING") or "").strip().lower()
+    if raw in ("0", "false", "no", "off"):
+        return False
+    if raw in ("1", "true", "yes", "on"):
+        return True
+    ep = (endpoint_url or "").strip().lower()
+    return "r2.cloudflarestorage.com" in ep
+
+
+def _botocore_config_for_s3(*, endpoint_url: str | None = None):
     """
     Signature V4.
 
@@ -50,15 +67,21 @@ def _botocore_config_for_s3():
     ``addressing_style`` (comportement boto3 / virtual-hosted sur endpoint custom).
 
     Optionnel : ``S3_ADDRESSING_STYLE=path`` (MinIO, certains proxys) ou ``virtual``.
+
+    Pour **R2** (détection par host du endpoint), ``payload_signing_enabled`` est activé
+    afin d’aligner la signature sur le corps de ``PutObject`` (voir ``S3_PAYLOAD_SIGNING``).
     """
     from botocore.config import Config
 
     style = (os.environ.get("S3_ADDRESSING_STYLE") or "").strip().lower()
+    s3_opts: dict[str, Any] = {}
     if style in ("path", "virtual"):
-        return Config(
-            signature_version="s3v4",
-            s3={"addressing_style": style},
-        )
+        s3_opts["addressing_style"] = style
+    if _payload_signing_for_endpoint(endpoint_url):
+        s3_opts["payload_signing_enabled"] = True
+
+    if s3_opts:
+        return Config(signature_version="s3v4", s3=s3_opts)
     return Config(signature_version="s3v4")
 
 
@@ -112,7 +135,7 @@ class S3CorpusSink:
         session = boto3.session.Session()
         client_kw: dict[str, Any] = {
             "endpoint_url": ep,
-            "config": _botocore_config_for_s3(),
+            "config": _botocore_config_for_s3(endpoint_url=ep),
         }
         if access_key is not None and secret_key is not None:
             client_kw["aws_access_key_id"] = access_key
