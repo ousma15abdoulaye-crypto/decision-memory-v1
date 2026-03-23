@@ -37,7 +37,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["src", "prompts"]
+known-first-party = ["src", "prompts", "corpus_sink", "ls_client", "m12_export_line"]
 
 [tool.ruff.lint.per-file-ignores]
 "services/annotation-backend/backend.py" = ["E402"]  # sys.path monorepo avant imports prompts / src

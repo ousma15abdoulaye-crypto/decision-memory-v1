@@ -1,6 +1,7 @@
 """Tests configuration S3 / corpus sink."""
 
 import pytest
+
 from corpus_sink import _botocore_config_for_s3
 
 
