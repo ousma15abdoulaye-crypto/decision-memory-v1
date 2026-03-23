@@ -157,9 +157,7 @@ class TestLogS3CorpusBootDiagnostics:
     ) -> None:
         monkeypatch.setenv("CORPUS_SINK", "s3")
         monkeypatch.setenv("S3_BUCKET", "b")
-        monkeypatch.setenv(
-            "S3_ENDPOINT", "https://abc123.r2.cloudflarestorage.com"
-        )
+        monkeypatch.setenv("S3_ENDPOINT", "https://abc123.r2.cloudflarestorage.com")
         monkeypatch.setenv("S3_PAYLOAD_SIGNING", "0")
         monkeypatch.setenv("S3_ACCESS_KEY_ID", "x")
         monkeypatch.setenv("S3_SECRET_ACCESS_KEY", "y")
