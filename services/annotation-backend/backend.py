@@ -350,6 +350,15 @@ async def _annotation_lifespan(_app: FastAPI):
     logger.info(
         "[BOOT] dms-annotation-backend — uvicorn backend:app ; LS healthcheck: GET /health"
     )
+    try:
+        from corpus_sink import log_s3_corpus_boot_diagnostics
+
+        log_s3_corpus_boot_diagnostics()
+    except Exception:
+        logger.warning(
+            "[BOOT][CORPUS] Diagnostic S3 indisponible (voir stacktrace ci-dessous)",
+            exc_info=True,
+        )
     yield
 
 

@@ -9,6 +9,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Any, Protocol
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,88 @@ def _botocore_config_for_s3(*, endpoint_url: str | None = None):
     if s3_opts:
         return Config(signature_version="s3v4", s3=s3_opts)
     return Config(signature_version="s3v4")
+
+
+def _s3_endpoint_safe_for_log(raw: str | None) -> str:
+    """
+    Pour les logs uniquement : schéma + hôte (+ port), sans userinfo ni query/fragment
+    (évite les fuites si S3_ENDPOINT contient des identifiants ou des jetons en query).
+    """
+    if not raw or not str(raw).strip():
+        return "(AWS par défaut, pas d’endpoint custom)"
+    s = str(raw).strip().rstrip("/")
+    if "://" not in s:
+        s = f"https://{s}"
+    try:
+        p = urlparse(s)
+    except Exception:
+        return "[endpoint_url_invalid]"
+    host = p.hostname
+    if not host:
+        return "[endpoint_url_sans_hôte]"
+    scheme = p.scheme or "https"
+    port = p.port
+    if port:
+        return f"{scheme}://{host}:{port}"
+    return f"{scheme}://{host}"
+
+
+def log_s3_corpus_boot_diagnostics() -> None:
+    """
+    À appeler au démarrage (ex. lifespan uvicorn).
+
+    Log la configuration S3/R2 **sans secrets** ni création de client boto3, pour vérifier
+    Railway (endpoint, région, détection R2, signature du corps PutObject).
+    """
+    if (os.environ.get("CORPUS_SINK") or "").strip().lower() != "s3":
+        return
+    bucket = (os.environ.get("S3_BUCKET") or "").strip()
+    if not bucket:
+        logger.warning(
+            "[BOOT][CORPUS] CORPUS_SINK=s3 mais S3_BUCKET vide — sink noop jusqu’à correction"
+        )
+        return
+    ep = (os.environ.get("S3_ENDPOINT") or "").strip().rstrip("/") or None
+    prefix = (os.environ.get("S3_CORPUS_PREFIX") or "m12-v2").strip() or "m12-v2"
+    region_raw = os.environ.get("S3_REGION", "").strip()
+    if region_raw:
+        region_name: str | None = region_raw
+    elif ep:
+        region_name = "auto"
+    else:
+        region_name = None
+    access_key, secret_key = _s3_env_credentials()
+    creds = (
+        "explicit_env"
+        if access_key is not None and secret_key is not None
+        else "default_chain"
+    )
+    style = (os.environ.get("S3_ADDRESSING_STYLE") or "").strip().lower()
+    addressing = style if style in ("path", "virtual") else "default"
+    ep_lower = (ep or "").lower()
+    r2_host = "r2.cloudflarestorage.com" in ep_lower
+    ps = _payload_signing_for_endpoint(ep)
+    ps_env = (os.environ.get("S3_PAYLOAD_SIGNING") or "").strip()
+    ps_env_log = ps_env if ps_env else "unset"
+    ep_safe = _s3_endpoint_safe_for_log(ep)
+    logger.info(
+        "[BOOT][CORPUS] S3/R2 — bucket=%r prefix=%r endpoint=%s region=%r "
+        "credentials=%s r2_host=%s payload_signing=%s addressing=%s S3_PAYLOAD_SIGNING=%s",
+        bucket,
+        prefix.rstrip("/"),
+        ep_safe,
+        region_name,
+        creds,
+        r2_host,
+        ps,
+        addressing,
+        ps_env_log,
+    )
+    if ep and not r2_host:
+        logger.info(
+            "[BOOT][CORPUS] Endpoint sans host r2.cloudflarestorage.com — "
+            "domaine R2 custom : tester S3_PAYLOAD_SIGNING=1 si PutObject échoue (signature)."
+        )
 
 
 class CorpusSink(Protocol):
