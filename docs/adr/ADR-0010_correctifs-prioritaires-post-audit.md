@@ -178,5 +178,22 @@ Couche B est en Phase 5 du plan milestones — après 15+ milestones Couche A. S
 
 ---
 
+## 10. Suivi d'implémentation (repo — 2026-03-23)
+
+Table de **constat technique** : ne remplace pas la validation CTO du statut PROPOSED en tête de document.
+
+| Décision | Statut impl. | Éléments repo |
+|----------|--------------|---------------|
+| **D1** — Scoring append-only + éliminations | **Fait** (à valider métier) | Migration `alembic/versions/026_score_runs_append_only.py` ; tests `tests/scoring/` |
+| **D2** — Devise / poids tracés | **Fait** (partiel selon couverture tests) | Migration `alembic/versions/027_add_cases_currency.py` |
+| **D3** — Canonisation `evaluation/profiles` | **Partiel / gouvernance** | Règles documentées ; tests boundary `tests/boundary/test_no_evaluation_import_in_couche_a.py` |
+| **D4** — Tests boundary ADR-0009 | **Fait** | `tests/boundary/test_couche_a_b_boundary.py`, `test_constitution_compliance.py` ; CI exécute `tests/` |
+| **D5** — Auto-feed `decision_history` | **Partiel / évolutif** | Tables / hooks selon milestones marché ; probes `scripts/probe_m11.py` |
+| **D6** — Séquençage Couche B | **Reporté plan milestones** | Nécessite ADR CTO + mise à jour plan milestones (hors seul PR code) |
+
+**Note** : promouvoir l'ADR en **ACCEPTED** reste une **décision CTO** ; cette section ne fait que refléter l'état du dépôt au moment du scan.
+
+---
+
 *Ce document est PROPOSED. Il n'est pas opposable tant que non validé CTO.*  
 *Une fois validé, il sera promu ACCEPTED et inclus dans le registre freeze.*

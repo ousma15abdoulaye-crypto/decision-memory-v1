@@ -139,7 +139,23 @@ jobs:
         run: black --check src tests
 
       - name: Auth coverage audit (main:app — extractions)
+        env:
+          SECRET_KEY: ci-github-actions-audit-secret-32chars-min!!
         run: python scripts/audit_fastapi_auth_coverage.py --app main:app --fail-prefix /api/extractions
+
+      - name: Auth audit report + artifact (main:app)
+        env:
+          SECRET_KEY: ci-github-actions-audit-secret-32chars-min!!
+        run: |
+          python scripts/audit_fastapi_auth_coverage.py --app main:app \
+            --report-md docs/audits/artifacts/audit_main_app_auth_coverage.md
+
+      - name: Upload FastAPI auth audit (main:app)
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastapi-auth-audit-main-app
+          path: docs/audits/artifacts/audit_main_app_auth_coverage.md
+          if-no-files-found: error
 
       - name: Auth audit (src.api.main:app — informational Markdown)
         continue-on-error: true
