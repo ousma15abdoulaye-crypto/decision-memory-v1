@@ -354,8 +354,11 @@ async def _annotation_lifespan(_app: FastAPI):
         from corpus_sink import log_s3_corpus_boot_diagnostics
 
         log_s3_corpus_boot_diagnostics()
-    except Exception as exc:
-        logger.warning("[BOOT][CORPUS] Diagnostic S3 indisponible : %s", exc)
+    except Exception:
+        logger.warning(
+            "[BOOT][CORPUS] Diagnostic S3 indisponible (voir stacktrace ci-dessous)",
+            exc_info=True,
+        )
     yield
 
 

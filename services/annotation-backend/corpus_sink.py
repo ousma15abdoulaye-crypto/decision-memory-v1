@@ -9,6 +9,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Any, Protocol
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +86,30 @@ def _botocore_config_for_s3(*, endpoint_url: str | None = None):
     return Config(signature_version="s3v4")
 
 
+def _s3_endpoint_safe_for_log(raw: str | None) -> str:
+    """
+    Pour les logs uniquement : schéma + hôte (+ port), sans userinfo ni query/fragment
+    (évite les fuites si S3_ENDPOINT contient des identifiants ou des jetons en query).
+    """
+    if not raw or not str(raw).strip():
+        return "(AWS par défaut, pas d’endpoint custom)"
+    s = str(raw).strip().rstrip("/")
+    if "://" not in s:
+        s = f"https://{s}"
+    try:
+        p = urlparse(s)
+    except Exception:
+        return "[endpoint_url_invalid]"
+    host = p.hostname
+    if not host:
+        return "[endpoint_url_sans_hôte]"
+    scheme = p.scheme or "https"
+    port = p.port
+    if port:
+        return f"{scheme}://{host}:{port}"
+    return f"{scheme}://{host}"
+
+
 def log_s3_corpus_boot_diagnostics() -> None:
     """
     À appeler au démarrage (ex. lifespan uvicorn).
@@ -122,12 +147,13 @@ def log_s3_corpus_boot_diagnostics() -> None:
     ps = _payload_signing_for_endpoint(ep)
     ps_env = (os.environ.get("S3_PAYLOAD_SIGNING") or "").strip()
     ps_env_log = ps_env if ps_env else "unset"
+    ep_safe = _s3_endpoint_safe_for_log(ep)
     logger.info(
         "[BOOT][CORPUS] S3/R2 — bucket=%r prefix=%r endpoint=%s region=%r "
         "credentials=%s r2_host=%s payload_signing=%s addressing=%s S3_PAYLOAD_SIGNING=%s",
         bucket,
         prefix.rstrip("/"),
-        ep if ep else "(AWS par défaut, pas d’endpoint custom)",
+        ep_safe,
         region_name,
         creds,
         r2_host,

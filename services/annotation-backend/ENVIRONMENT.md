@@ -73,7 +73,7 @@ Après `ANNOTATION_CREATED` / `ANNOTATION_UPDATED`, le backend peut construire u
 | `S3_PAYLOAD_SIGNING` | Optionnel : `1` / `true` force la signature SigV4 du corps des `PutObject` ; `0` / `false` la désactive. **Sur endpoint R2** (`*.r2.cloudflarestorage.com`), le backend active cette option par défaut pour limiter les erreurs `SignatureDoesNotMatch`. |
 | `S3_CORPUS_PREFIX` | Préfixe des clés objet (défaut : `m12-v2`). Idempotence : une clé par `project_id/task_id/annotation_id/content_hash`. |
 
-**Dépannage R2 / S3** : au démarrage du conteneur, si `CORPUS_SINK=s3` et `S3_BUCKET` est défini, les logs incluent une ligne **`[BOOT][CORPUS] S3/R2 — …`** (endpoint, région, `r2_host`, `payload_signing`, `credentials=explicit_env|default_chain`, etc.) — **sans secrets** ; utile pour vérifier Railway (variables réellement vues par le process).
+**Dépannage R2 / S3** : au démarrage du conteneur, si `CORPUS_SINK=s3` et `S3_BUCKET` est défini, les logs incluent une ligne **`[BOOT][CORPUS] S3/R2 — …`** (région, `r2_host`, `payload_signing`, `credentials=explicit_env|default_chain`, etc.) — l’endpoint est affiché **sans** userinfo ni query/fragment (seulement schéma + hôte + port), **sans** clés d’accès.
 
 Si les logs montrent `SignatureDoesNotMatch` sur `PutObject` :
 
