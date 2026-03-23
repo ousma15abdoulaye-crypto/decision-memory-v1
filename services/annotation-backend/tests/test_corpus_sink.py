@@ -2,20 +2,7 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
-
-_AB = Path(__file__).resolve().parent.parent
-
-
-@pytest.fixture(autouse=True)
-def _annotation_backend_path() -> None:
-    if str(_AB) not in sys.path:
-        sys.path.insert(0, str(_AB))
-
-
 class TestBotocoreConfigForS3:
     def test_r2_endpoint_enables_payload_signing(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("S3_PAYLOAD_SIGNING", raising=False)
