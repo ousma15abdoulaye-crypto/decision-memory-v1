@@ -10,7 +10,7 @@
 **Prérequis historique :** 15 documents `annotated_validated` minimum (RÈGLE-23).  
 **Statut terrain (2026-03-24) :** **22** documents validés ; corpus sur **Cloudflare R2**. Le verrou corpus M12 est **relevé** pour cette vague — voir [DMS_M12_CORPUS_GATE_EXECUTION.md](../m12/DMS_M12_CORPUS_GATE_EXECUTION.md).
 
-**Non delegable. Non automatisable. AO uniquement** (pour toute nouvelle vague de ground truth).
+**Non délégable. Non automatisable. AO uniquement** (pour toute nouvelle vague de ground truth).
 
   Sources disponibles confirmees :
     3 DAO (Dossiers d'Appel d'Offres)
