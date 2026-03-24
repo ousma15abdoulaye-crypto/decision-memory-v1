@@ -17,10 +17,10 @@ Estimer **en amont** le coût token / USD d’une passe LLM pour :
 
 ## 2. Modèle simplifié (Mistral)
 
-Hypothèses configurables via constantes Python (pas d’appel API) :
+Hypothèses configurables via variables d’environnement (pas d’appel API, valeurs par défaut définies dans le code Python) :
 
-- `USD_PER_1M_INPUT_TOKENS` — défaut conservateur à mettre à jour selon grille Mistral officielle.
-- `USD_PER_1M_OUTPUT_TOKENS` — idem.
+- `MISTRAL_USD_PER_1M_INPUT_TOKENS` — défaut conservateur à mettre à jour selon grille Mistral officielle.
+- `MISTRAL_USD_PER_1M_OUTPUT_TOKENS` — idem.
 - Estimation tokens : **approximation** `chars / 4` (documentée comme borne, pas comme facture).
 
 **Formule** :
