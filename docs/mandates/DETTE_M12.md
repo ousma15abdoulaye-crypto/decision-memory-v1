@@ -7,16 +7,17 @@
 
 ## CHEMIN CRITIQUE HUMAIN — BLOQUANT M12
 
-**15 documents annotated_validated requis avant M12.**
-**Non delegable. Non automatisable. AO uniquement.**
+**Prérequis historique :** 15 documents `annotated_validated` minimum (RÈGLE-23).  
+**Statut terrain (2026-03-24) :** **22** documents validés ; corpus sur **Cloudflare R2**. Le verrou corpus M12 est **relevé** pour cette vague — voir [DMS_M12_CORPUS_GATE_EXECUTION.md](../m12/DMS_M12_CORPUS_GATE_EXECUTION.md).
+
+**Non delegable. Non automatisable. AO uniquement** (pour toute nouvelle vague de ground truth).
 
   Sources disponibles confirmees :
     3 DAO (Dossiers d'Appel d'Offres)
     3 RFQ (Request for Quotation)
     Offres reelles anonymisables
 
-  Sans ces 15 documents : M12 ne demarre pas.
-  Ce n'est pas une dette technique — c'est un prerequis metier.
+  **Atteint :** 22 documents ≥ 15 requis — M12 débloqué côté corpus pour cette vague.
 
 ---
 

@@ -30,6 +30,7 @@
 |--------|-------|---------------|
 | `export_ls_to_dms_jsonl.py` | Export LS → JSONL M12 (m12-v2 ou `--legacy-mandat-fields`) | Local |
 | `validate_annotation.py` | Valide JSONL (schéma DMS + options QA) | Local + CI |
+| `derive_pass_0_5_thresholds.py` | Stats texte export LS → seuils Pass 0.5 (voir `docs/contracts/annotation/PASS_0_5_EMPIRICAL_THRESHOLDS.md`) | Local |
 | `ingest_to_annotation_bridge.py` | PDF → `ls_tasks.json` (+ `data.structured_preview`) | Local |
 | `probe_railway_counts.py` | Vérifier counts tables Railway | Local |
 
