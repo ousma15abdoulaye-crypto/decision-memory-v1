@@ -36,9 +36,12 @@ def estimate_mistral_chat_cost_usd(
 
     Defaults are conservative placeholders — replace via env for accurate budgets.
     """
-    pin = _fenv("MISTRAL_USD_PER_1M_INPUT_TOKENS", 2.0)
-    pout = _fenv("MISTRAL_USD_PER_1M_OUTPUT_TOKENS", 6.0)
-    return (prompt_tokens * pin + completion_tokens * pout) / 1_000_000.0
+    # Clamp environment-derived prices and token counts to avoid negative costs.
+    pin = max(0.0, _fenv("MISTRAL_USD_PER_1M_INPUT_TOKENS", 2.0))
+    pout = max(0.0, _fenv("MISTRAL_USD_PER_1M_OUTPUT_TOKENS", 6.0))
+    safe_prompt_tokens = max(0, prompt_tokens)
+    safe_completion_tokens = max(0, completion_tokens)
+    return (safe_prompt_tokens * pin + safe_completion_tokens * pout) / 1_000_000.0
 
 
 def build_cost_metadata_for_document(
