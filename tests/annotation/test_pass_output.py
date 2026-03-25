@@ -5,6 +5,9 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
+import pytest
+from pydantic import ValidationError
+
 from src.annotation.pass_output import AnnotationPassOutput, PassError, PassRunStatus
 
 
@@ -29,6 +32,49 @@ def test_annotation_pass_output_roundtrip():
     assert restored.pass_name == "pass_0_ingestion"
     assert restored.status == PassRunStatus.SUCCESS
     assert restored.output_data["normalized_text"] == "hello"
+
+
+def test_annotation_pass_output_rejects_invalid_pass_version_suffix():
+    with pytest.raises(ValidationError):
+        AnnotationPassOutput(
+            pass_name="p",
+            pass_version="1.0.0foo",
+            document_id="d",
+            run_id=uuid4(),
+            started_at=datetime.now(UTC),
+            completed_at=datetime.now(UTC),
+            status=PassRunStatus.SUCCESS,
+        )
+
+
+def test_annotation_pass_output_rejects_naive_timestamps():
+    t0 = datetime(2026, 3, 24, 12, 0, 0)
+    t1 = datetime(2026, 3, 24, 12, 0, 1)
+    with pytest.raises(ValidationError):
+        AnnotationPassOutput(
+            pass_name="p",
+            pass_version="1.0.0",
+            document_id="d",
+            run_id=uuid4(),
+            started_at=t0,
+            completed_at=t1,
+            status=PassRunStatus.SUCCESS,
+        )
+
+
+def test_annotation_pass_output_rejects_completed_before_started():
+    t0 = datetime(2026, 3, 24, 12, 0, 1, tzinfo=UTC)
+    t1 = datetime(2026, 3, 24, 12, 0, 0, tzinfo=UTC)
+    with pytest.raises(ValidationError):
+        AnnotationPassOutput(
+            pass_name="p",
+            pass_version="1.0.0",
+            document_id="d",
+            run_id=uuid4(),
+            started_at=t0,
+            completed_at=t1,
+            status=PassRunStatus.SUCCESS,
+        )
 
 
 def test_annotation_pass_output_with_errors():

@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
+import time
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -15,6 +17,19 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 PACK_VERSION = "1.0.0"
+
+# Global Couche B aggregates are identical for every document; cache to avoid per-doc full scans.
+_AGG_CACHE_LOCK = threading.Lock()
+_AGG_CACHE_EXPIRY_MONO: float = 0.0
+_AGG_CACHE_VALUE: tuple[dict[str, Any], dict[str, Any], list[str]] | None = None
+
+
+def _aggregate_cache_ttl_sec() -> float:
+    raw = os.environ.get("ANNOTATION_CONTEXT_PACK_AGG_CACHE_TTL_SEC", "60")
+    try:
+        return max(0.0, float(raw))
+    except ValueError:
+        return 60.0
 
 
 class UpstreamContextPack(BaseModel):
@@ -43,6 +58,68 @@ def _table_exists(cur, table: str, schema: str = "public") -> bool:
         (schema, table),
     )
     return cur.fetchone() is not None
+
+
+def _resolve_vendor_table(cur) -> str | None:
+    """Post-m5 DBs expose `vendors`; older DBs may still use `vendor_identities`."""
+    if _table_exists(cur, "vendors"):
+        return "vendors"
+    if _table_exists(cur, "vendor_identities"):
+        return "vendor_identities"
+    return None
+
+
+def _load_global_aggregates(cur) -> tuple[dict[str, Any], dict[str, Any], list[str]]:
+    """Read-only aggregates shared by all documents; cached with a short TTL."""
+    global _AGG_CACHE_EXPIRY_MONO, _AGG_CACHE_VALUE
+    ttl = _aggregate_cache_ttl_sec()
+    now = time.monotonic()
+    if ttl > 0.0:
+        with _AGG_CACHE_LOCK:
+            if _AGG_CACHE_VALUE is not None and now < _AGG_CACHE_EXPIRY_MONO:
+                return _AGG_CACHE_VALUE
+
+    vendor_catalog_summary: dict[str, Any] = {}
+    mercuriale_summary: dict[str, Any] = {}
+    sources: list[str] = []
+
+    vendor_table = _resolve_vendor_table(cur)
+    if vendor_table:
+        cur.execute(f"SELECT COUNT(*) AS c FROM {vendor_table} WHERE is_active = TRUE")
+        row = cur.fetchone() or {}
+        active_vendors = int(row.get("c") or 0)
+        cur.execute(
+            f"SELECT COUNT(DISTINCT region_code) AS c FROM {vendor_table} "
+            "WHERE is_active = TRUE"
+        )
+        row2 = cur.fetchone() or {}
+        regions = int(row2.get("c") or 0)
+        vendor_catalog_summary = {
+            "active_vendor_count": active_vendors,
+            "distinct_region_codes": regions,
+        }
+        sources.append("vendors")
+
+    if _table_exists(cur, "mercurials"):
+        cur.execute("SELECT COUNT(*) AS c FROM mercurials")
+        row = cur.fetchone() or {}
+        mcount = int(row.get("c") or 0)
+        cur.execute("SELECT MAX(year) AS y FROM mercurials")
+        row2 = cur.fetchone() or {}
+        latest_year = row2.get("y")
+        mercuriale_summary = {
+            "mercurial_row_count": mcount,
+            "latest_year": int(latest_year) if latest_year is not None else None,
+        }
+        sources.append("mercurials")
+
+    used = sources if sources else ["none"]
+    out = (vendor_catalog_summary, mercuriale_summary, used)
+    if ttl > 0.0:
+        with _AGG_CACHE_LOCK:
+            _AGG_CACHE_VALUE = out
+            _AGG_CACHE_EXPIRY_MONO = time.monotonic() + ttl
+    return out
 
 
 def resolve_case_id_for_document(document_id: str) -> str | None:
@@ -87,7 +164,7 @@ def build_upstream_context_pack(
     Assemble UpstreamContextPack.
 
     When load_from_database is True (default: True unless SKIP_DB env), runs
-    aggregate read-only queries on vendor_identities and mercurials.
+    aggregate read-only queries on vendors (or legacy vendor_identities) and mercurials.
     """
     if load_from_database is None:
         load_from_database = os.environ.get(
@@ -116,44 +193,15 @@ def build_upstream_context_pack(
 
     try:
         with get_db_cursor() as cur:
-            sources: list[str] = []
-
-            if _table_exists(cur, "vendor_identities"):
-                cur.execute(
-                    "SELECT COUNT(*) AS c FROM vendor_identities WHERE is_active = TRUE"
-                )
-                row = cur.fetchone() or {}
-                active_vendors = int(row.get("c") or 0)
-                cur.execute(
-                    "SELECT COUNT(DISTINCT region_code) AS c FROM vendor_identities "
-                    "WHERE is_active = TRUE"
-                )
-                row2 = cur.fetchone() or {}
-                regions = int(row2.get("c") or 0)
-                pack.vendor_catalog_summary = {
-                    "active_vendor_count": active_vendors,
-                    "distinct_region_codes": regions,
-                }
-                sources.append("vendor_identities")
-
-            if _table_exists(cur, "mercurials"):
-                cur.execute("SELECT COUNT(*) AS c FROM mercurials")
-                row = cur.fetchone() or {}
-                mcount = int(row.get("c") or 0)
-                cur.execute("SELECT MAX(year) AS y FROM mercurials")
-                row2 = cur.fetchone() or {}
-                latest_year = row2.get("y")
-                pack.mercuriale_summary = {
-                    "mercurial_row_count": mcount,
-                    "latest_year": int(latest_year) if latest_year is not None else None,
-                }
-                sources.append("mercurials")
+            vsum, msum, sources = _load_global_aggregates(cur)
+            pack.vendor_catalog_summary = vsum
+            pack.mercuriale_summary = msum
 
             pack.procurement_hints = [
                 "Couche B context is non-prescriptive — no winner/rank/recommendation.",
             ]
             pack.market_signal_hint = None
-            pack.sources_used = sources if sources else ["none"]
+            pack.sources_used = sources
     except Exception:
         logger.warning("build_upstream_context_pack DB aggregate failed", exc_info=True)
         pack.sources_used = ["none"]
