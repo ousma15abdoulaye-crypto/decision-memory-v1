@@ -1,131 +1,108 @@
 #!/usr/bin/env python3
 """
-Derive Pass 0.5 quality metrics from Label Studio / export JSONL files.
+Dérive des statistiques pour PASS_0_5_EMPIRICAL_THRESHOLDS (§1–3).
 
-Usage:
-  python scripts/derive_pass_0_5_thresholds.py file1.jsonl [file2.jsonl ...]
-
-Each line should be a JSON object containing task text in one of:
-  - {"data": {"text": "..."}}
-  - {"data": {"content": "..."}}
-  - {"text": "..."}
-
-Output: summary stats to stdout (percentiles). Paste into
-docs/contracts/annotation/PASS_0_5_EMPIRICAL_THRESHOLDS.md section 3.
+Lit un ou plusieurs JSONL (export LS m12-v2 ou lignes avec ``source_text``).
 """
 
 from __future__ import annotations
 
+import argparse
 import json
-import re
 import statistics
 import sys
 from pathlib import Path
 
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
 
 def _extract_text(obj: dict) -> str:
-    data = obj.get("data")
-    if isinstance(data, dict):
-        t = data.get("text")
-        if isinstance(t, str) and t.strip():
-            return t
-        c = data.get("content")
-        if isinstance(c, str) and c.strip():
-            return c
-    t = obj.get("text")
-    if isinstance(t, str):
-        return t
-    task = obj.get("task")
-    if isinstance(task, dict):
-        td = task.get("data")
-        if isinstance(td, dict):
-            t2 = td.get("text") or td.get("content")
-            if isinstance(t2, str):
-                return t2
+    if "source_text" in obj and obj["source_text"]:
+        return str(obj["source_text"])
+    st = obj.get("source_task") or {}
+    if isinstance(st, dict) and st.get("text"):
+        return str(st["text"])
+    # fallback : pas de texte dans export standard m12-v2
     return ""
 
 
-def _normalize_light(s: str) -> str:
-    return re.sub(r"\s+", " ", (s or "").strip())
+def _metrics(text: str) -> tuple[int, float, int]:
+    n = len(text)
+    alnum = sum(1 for c in text if c.isalnum())
+    non_alnum_ratio = 1.0 - (alnum / n) if n else 0.0
+    repl = text.count("\ufffd")
+    return n, non_alnum_ratio, repl
 
 
-def _metrics(text: str) -> dict[str, float | int]:
-    norm = _normalize_light(text)
-    chars = len(norm)
-    words = len(norm.split()) if norm else 0
-    alnum = sum(1 for c in norm if c.isalnum())
-    non_alnum_ratio = 1.0 - (alnum / chars) if chars else 0.0
-    repl = norm.count("\ufffd")
-    return {
-        "char_count": chars,
-        "word_count": words,
-        "non_alnum_ratio": round(non_alnum_ratio, 4),
-        "replacement_char_hits": repl,
-    }
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Statistiques char_count / non_alnum / replacement pour seuils Pass 0.5"
+    )
+    parser.add_argument(
+        "jsonl_files",
+        nargs="+",
+        type=Path,
+        help="Fichiers JSONL (une ligne JSON par document)",
+    )
+    args = parser.parse_args()
 
-
-def _percentile(sorted_vals: list[float], p: float) -> float:
-    if not sorted_vals:
-        return 0.0
-    k = (len(sorted_vals) - 1) * p
-    f = int(k)
-    c = min(f + 1, len(sorted_vals) - 1)
-    if f == c:
-        return float(sorted_vals[f])
-    return float(sorted_vals[f] + (sorted_vals[c] - sorted_vals[f]) * (k - f))
-
-
-def main(argv: list[str]) -> int:
-    paths = [Path(p) for p in argv[1:] if not p.startswith("-")]
-    if not paths:
-        print("Usage: derive_pass_0_5_thresholds.py <file.jsonl> [...]", file=sys.stderr)
-        return 2
-
-    all_rows: list[dict[str, float | int]] = []
-    for path in paths:
+    rows: list[tuple[int, float, int]] = []
+    for path in args.jsonl_files:
         if not path.is_file():
-            print(f"skip missing: {path}", file=sys.stderr)
+            print(f"SKIP missing: {path}", file=sys.stderr)
             continue
-        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        for line in path.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if not line:
                 continue
             try:
                 obj = json.loads(line)
-            except json.JSONDecodeError as e:
-                print(f"{path}:{line_no}: JSON error {e}", file=sys.stderr)
-                continue
-            if not isinstance(obj, dict):
+            except json.JSONDecodeError:
                 continue
             text = _extract_text(obj)
             if not text.strip():
                 continue
-            all_rows.append(_metrics(text))
+            rows.append(_metrics(text))
 
-    n = len(all_rows)
-    print(f"documents_with_text={n}")
-    if n == 0:
-        return 0
-
-    chars = sorted(float(r["char_count"]) for r in all_rows)
-    ratios = sorted(float(r["non_alnum_ratio"]) for r in all_rows)
-    repls = sorted(float(r["replacement_char_hits"]) for r in all_rows)
-
-    for name, vals in (
-        ("char_count", chars),
-        ("non_alnum_ratio", ratios),
-        ("replacement_char_hits", repls),
-    ):
+    if not rows:
         print(
-            f"{name}: min={vals[0]:.4g} p25={_percentile(vals, 0.25):.4g} "
-            f"p50={_percentile(vals, 0.5):.4g} p75={_percentile(vals, 0.75):.4g} "
-            f"p90={_percentile(vals, 0.9):.4g} max={vals[-1]:.4g}"
+            "N=0 — aucun texte exploitable. Ajoutez ``source_text`` aux lignes JSONL."
         )
+        return 1
 
-    if n >= 2:
-        print(f"char_count_mean={statistics.mean(chars):.2f}")
+    chars = [r[0] for r in rows]
+    ratios = [r[1] for r in rows]
+    repls = [r[2] for r in rows]
+
+    def pct_nearest(xs: list[int], p: float) -> float:
+        if not xs:
+            return 0.0
+        s = sorted(xs)
+        i = int(round((p / 100.0) * (len(s) - 1)))
+        return float(s[i])
+
+    print(f"N={len(rows)}")
+    print(
+        f"char_count: min={min(chars)} max={max(chars)} "
+        f"mean={statistics.mean(chars):.1f}"
+    )
+    print(
+        f"  percentiles p5={pct_nearest(chars, 5):.0f} p25={pct_nearest(chars, 25):.0f} "
+        f"p50={pct_nearest(chars, 50):.0f} p75={pct_nearest(chars, 75):.0f} "
+        f"p95={pct_nearest(chars, 95):.0f}"
+    )
+    print(
+        f"non_alnum_ratio: min={min(ratios):.4f} max={max(ratios):.4f} "
+        f"mean={statistics.mean(ratios):.4f}"
+    )
+    print(
+        f"replacement_char_hits: min={min(repls)} max={max(repls)} "
+        f"mean={statistics.mean(repls):.1f}"
+    )
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv))
+    raise SystemExit(main())

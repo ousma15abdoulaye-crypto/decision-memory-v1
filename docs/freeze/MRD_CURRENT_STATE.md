@@ -30,14 +30,14 @@ freeze_hashes_doc     : docs/freeze/FREEZE_HASHES.md
 
 ## ETAT COURANT
 
-last_completed        : M11
-last_completed_at     : 2026-03-11
-last_merge_commit     : 87942a3 (Merge PR#215 feat/pre-m12-extraction-reelle — Mandat 4)
-last_tag              : v4.1.0-pre-m12-extraction-reelle-done
-next_milestone        : M12
-next_status           : IN_PROGRESS
+last_completed        : M12
+last_completed_at     : 2026-03-25
+last_merge_commit     : cb9c152 (workspace — à confirmer au merge PR M12)
+last_tag              : v4.1.0-m12-done
+next_milestone        : M13
+next_status           : PENDING
 blocked_on            : aucun
-branch_courante       : main (feat/pre-m12-extraction-reelle mergé)
+branch_courante       : main (M12 procedure recognizer — validation AO)
 
 ---
 
