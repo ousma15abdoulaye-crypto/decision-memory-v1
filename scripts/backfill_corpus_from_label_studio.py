@@ -71,7 +71,7 @@ def main() -> None:
 
     _ensure_annotation_path()
 
-    from corpus_sink import NoopCorpusSink
+    from corpus_sink import CorpusSink, NoopCorpusSink
     from corpus_webhook import process_label_studio_webhook_for_corpus
 
     project_id = args.project_id
@@ -103,10 +103,11 @@ def main() -> None:
         sys.exit("STOP — PSEUDONYM_SALT requis (identique au backend)")
 
     saved_corpus_wh: str | None = None
+    sink: CorpusSink | None
     if args.dry_run:
         saved_corpus_wh = os.environ.get("CORPUS_WEBHOOK_ENABLED")
         os.environ["CORPUS_WEBHOOK_ENABLED"] = "1"
-        sink: object = NoopCorpusSink()
+        sink = NoopCorpusSink()
     else:
         if os.environ.get("CORPUS_WEBHOOK_ENABLED", "").strip().lower() not in (
             "1",
