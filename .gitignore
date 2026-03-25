@@ -80,6 +80,8 @@ data/**/*.xlsx
 data/**/*.xls
 data/**/*.csv
 data/**/*.json
+# Manifest figé OCR bridge (reconstruit depuis le freeze MD — pas de secrets)
+!data/ingest/test_mistral_output/skipped.json
 data/**/*.zip
 # Cache LlamaCloud/extraction — artefacts générés, ne pas versionner
 data/imports/m5/cache/
