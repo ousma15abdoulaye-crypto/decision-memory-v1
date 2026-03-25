@@ -1,0 +1,674 @@
+[
+  {
+    "path": "<SOURCE_ROOT>/CARTOUCHE/Document de Création Administratif - LASS INFORMATIQUE.pdf",
+    "process_name": "CARTOUCHE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 1
+  },
+  {
+    "path": "<SOURCE_ROOT>/CARTOUCHE/Rapport+de+visites_Cartouches_Signed.pdf",
+    "process_name": "CARTOUCHE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 2
+  },
+  {
+    "path": "<SOURCE_ROOT>/CARTOUCHE/RFQ_FWA CARTOUCHES vf MATA-INC.pdf",
+    "process_name": "CARTOUCHE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 3
+  },
+  {
+    "path": "<SOURCE_ROOT>/Construction/OFFRE FINANCIERE EAG.pdf",
+    "process_name": "Construction",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 4
+  },
+  {
+    "path": "<SOURCE_ROOT>/Construction/OFFRE TECHNIQUE EAG.pdf",
+    "process_name": "Construction",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 5
+  },
+  {
+    "path": "<SOURCE_ROOT>/BESSAN OFFRE/BESSAN_ITT Baseline GCF_vf.pdf",
+    "process_name": "BESSAN OFFRE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 6
+  },
+  {
+    "path": "<SOURCE_ROOT>/BESSAN OFFRE/BESSAN_Mandatory Policies - French.pdf",
+    "process_name": "BESSAN OFFRE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 7
+  },
+  {
+    "path": "<SOURCE_ROOT>/BESSAN OFFRE/BESSAN_SC-C-00 Purchase Order Terms & Conditions (FR).pdf",
+    "process_name": "BESSAN OFFRE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 8
+  },
+  {
+    "path": "<SOURCE_ROOT>/BESSAN OFFRE/BESSAN_SCI13_TDR-FR_Politique.pdf",
+    "process_name": "BESSAN OFFRE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 9
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFE AZ/Pieces Administratives.pdf",
+    "process_name": "OFFE AZ",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 10
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE BATE/Pièce d'identité - Gérant BATE Sarl.pdf",
+    "process_name": "OFFRE BATE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 11
+  },
+  {
+    "path": "<SOURCE_ROOT>/Pièces administratives/certificat non faillite.pdf",
+    "process_name": "Pièces administratives",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 12
+  },
+  {
+    "path": "<SOURCE_ROOT>/Pièces administratives/passport gerant CEFRDS.pdf",
+    "process_name": "Pièces administratives",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 13
+  },
+  {
+    "path": "<SOURCE_ROOT>/Pièces administratives/releve d'identité bancaire.pdf",
+    "process_name": "Pièces administratives",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 14
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE DDCONSEIL/DDCONSEILS ATTESTATIONS DE SERVICES FAITS.pdf",
+    "process_name": "OFFRE DDCONSEIL",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 15
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE DDCONSEIL/DDCONSEILS DIPLOMES DES EXPERTS.pdf",
+    "process_name": "OFFRE DDCONSEIL",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 16
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE DDCONSEIL/DDCONSEILS PIECES ADMINISTRATIVES.pdf",
+    "process_name": "OFFRE DDCONSEIL",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 17
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE DDCONSEIL/Document de reponse du soumissionnare _DDCONSEILS.pdf",
+    "process_name": "OFFRE DDCONSEIL",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 18
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE PHM/Document administratif PHCM.pdf",
+    "process_name": "OFFRE PHM",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 19
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE PHM/INFORMATION COMPLÉMENTAIRE PHCM.pdf",
+    "process_name": "OFFRE PHM",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 20
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE PHM/Preuve d' experience 2.pdf",
+    "process_name": "OFFRE PHM",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 21
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE PHM/Preuve d'experience 3.pdf",
+    "process_name": "OFFRE PHM",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 22
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SISSOKO ET ASSOSSIE/0. Carte d'identité à jour du Directeur.pdf",
+    "process_name": "OFFRE SISSOKO ET ASSOSSIE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 23
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SISSOKO ET ASSOSSIE/1 NINA.pdf",
+    "process_name": "OFFRE SISSOKO ET ASSOSSIE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 24
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SISSOKO ET ASSOSSIE/2  REGISTRE 1.pdf",
+    "process_name": "OFFRE SISSOKO ET ASSOSSIE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 25
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SISSOKO ET ASSOSSIE/3  REGISTRE 2.pdf",
+    "process_name": "OFFRE SISSOKO ET ASSOSSIE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 26
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SISSOKO ET ASSOSSIE/4 NIF Certifié.pdf",
+    "process_name": "OFFRE SISSOKO ET ASSOSSIE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 27
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SISSOKO ET ASSOSSIE/6. Patente 2025.pdf",
+    "process_name": "OFFRE SISSOKO ET ASSOSSIE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 28
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SISSOKO ET ASSOSSIE/7.ECOBANK.pdf",
+    "process_name": "OFFRE SISSOKO ET ASSOSSIE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 29
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SOLUTION AND ONE/Attestation avocat sans frontiere.pdf",
+    "process_name": "OFFRE SOLUTION AND ONE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 30
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SOLUTION AND ONE/Attestation de service fait nouley.pdf",
+    "process_name": "OFFRE SOLUTION AND ONE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 31
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SOLUTION AND ONE/Attestation de service fait.pdf",
+    "process_name": "OFFRE SOLUTION AND ONE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 32
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SOLUTION AND ONE/ATTESTATION DE SIMILAIRE.pdf",
+    "process_name": "OFFRE SOLUTION AND ONE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 33
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SOLUTION AND ONE/Attestation service rendu.pdf",
+    "process_name": "OFFRE SOLUTION AND ONE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 34
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SOLUTION AND ONE/Carte professionnelle.pdf",
+    "process_name": "OFFRE SOLUTION AND ONE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 35
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SOLUTION AND ONE/code de conduite signe.pdf",
+    "process_name": "OFFRE SOLUTION AND ONE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 36
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SOLUTION AND ONE/Contrat HELVETAS.pdf",
+    "process_name": "OFFRE SOLUTION AND ONE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 37
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SOLUTION AND ONE/Contrat Save the children.pdf",
+    "process_name": "OFFRE SOLUTION AND ONE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 38
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SOLUTION AND ONE/Contrat swisscontact.pdf",
+    "process_name": "OFFRE SOLUTION AND ONE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 39
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SOLUTION AND ONE/NIF.pdf",
+    "process_name": "OFFRE SOLUTION AND ONE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 40
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SOLUTION AND ONE/NIFCITRACO.pdf",
+    "process_name": "OFFRE SOLUTION AND ONE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 41
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SOLUTION AND ONE/NINA CITRACO.pdf",
+    "process_name": "OFFRE SOLUTION AND ONE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 42
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SOLUTION AND ONE/NON FAILLITE.pdf",
+    "process_name": "OFFRE SOLUTION AND ONE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 43
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SOLUTION AND ONE/PATENTE CABINET CITRACO-SARL 2025.pdf",
+    "process_name": "OFFRE SOLUTION AND ONE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 44
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SOLUTION AND ONE/QUITTUS.pdf",
+    "process_name": "OFFRE SOLUTION AND ONE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 45
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SOLUTION AND ONE/RCCM CITRACO.pdf",
+    "process_name": "OFFRE SOLUTION AND ONE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 46
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SOLUTION AND ONE/RCCM.pdf",
+    "process_name": "OFFRE SOLUTION AND ONE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 47
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE SOLUTION AND ONE/RIB.pdf",
+    "process_name": "OFFRE SOLUTION AND ONE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 48
+  },
+  {
+    "path": "<SOURCE_ROOT>/WEST AFRICA DATA  OFFRE/Appel_d'offres AO-SCI -MLI-2025-007 Pieces administratives 1.pdf",
+    "process_name": "WEST AFRICA DATA  OFFRE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 49
+  },
+  {
+    "path": "<SOURCE_ROOT>/WEST AFRICA DATA  OFFRE/Appel_d'offres AO-SCI -MLI-2025-007 Pieces administratives 2.pdf",
+    "process_name": "WEST AFRICA DATA  OFFRE",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 50
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE FOOD BAMAKO/OFFRE 01.pdf",
+    "process_name": "OFFRE FOOD BAMAKO",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 51
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE FOOD BAMAKO/OFFRE 02.pdf",
+    "process_name": "OFFRE FOOD BAMAKO",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 52
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE FOOD BAMAKO/OFFRE 03.pdf",
+    "process_name": "OFFRE FOOD BAMAKO",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 53
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE FOOD BAMAKO/OFFRE 04.pdf",
+    "process_name": "OFFRE FOOD BAMAKO",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 54
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE FOOD BAMAKO/OFFRE 05.pdf",
+    "process_name": "OFFRE FOOD BAMAKO",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 55
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE FOOD BAMAKO/OFFRE 06_1.pdf",
+    "process_name": "OFFRE FOOD BAMAKO",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 56
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE FOOD BAMAKO/OFFRE 06_2.pdf",
+    "process_name": "OFFRE FOOD BAMAKO",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 57
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE FOOD BAMAKO/OFFRE 07.pdf",
+    "process_name": "OFFRE FOOD BAMAKO",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 58
+  },
+  {
+    "path": "<SOURCE_ROOT>/OFFRE FOOD BAMAKO/OFFRE 08.pdf",
+    "process_name": "OFFRE FOOD BAMAKO",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 59
+  },
+  {
+    "path": "<SOURCE_ROOT>/CRDDD/Attestatio EF_RRI_22.pdf",
+    "process_name": "CRDDD",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 60
+  },
+  {
+    "path": "<SOURCE_ROOT>/CRDDD/Attestation de la CRM_CRN_2020.pdf",
+    "process_name": "CRDDD",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 61
+  },
+  {
+    "path": "<SOURCE_ROOT>/CRDDD/Attestation EF_RRI_22.pdf",
+    "process_name": "CRDDD",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 62
+  },
+  {
+    "path": "<SOURCE_ROOT>/CRDDD/Attestation Recherche formative_RRI_Mali.pdf",
+    "process_name": "CRDDD",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 63
+  },
+  {
+    "path": "<SOURCE_ROOT>/CRDDD/Attestation_AGIP.pdf",
+    "process_name": "CRDDD",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 64
+  },
+  {
+    "path": "<SOURCE_ROOT>/CRDDD/Attestation_EMP_260 HERE.pdf",
+    "process_name": "CRDDD",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 65
+  },
+  {
+    "path": "<SOURCE_ROOT>/CRDDD/Attestation_GEDEFORIII_Communication et mobilisation sociale.pdf",
+    "process_name": "CRDDD",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 66
+  },
+  {
+    "path": "<SOURCE_ROOT>/CRDDD/Attestation_RRI_EMP_Septembre_21.pdf",
+    "process_name": "CRDDD",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 67
+  },
+  {
+    "path": "<SOURCE_ROOT>/CRDDD/Attestation_Voix des femmes .pdf",
+    "process_name": "CRDDD",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 68
+  },
+  {
+    "path": "<SOURCE_ROOT>/CRDDD/Carte d'identitée du premier respponsable .pdf",
+    "process_name": "CRDDD",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 69
+  },
+  {
+    "path": "<SOURCE_ROOT>/CRDDD/Contrat de prestation PACSU.pdf",
+    "process_name": "CRDDD",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 70
+  },
+  {
+    "path": "<SOURCE_ROOT>/CRDDD/Contrat pour Evaluation finale du projet EQUITHE_HI_24.pdf",
+    "process_name": "CRDDD",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 71
+  },
+  {
+    "path": "<SOURCE_ROOT>/Offre Abdoulaye Hasseye/Immatriculation (1).pdf",
+    "process_name": "Offre Abdoulaye Hasseye",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 72
+  },
+  {
+    "path": "<SOURCE_ROOT>/Offre Abdoulaye Hasseye/Registre de Commerce (2).pdf",
+    "process_name": "Offre Abdoulaye Hasseye",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 73
+  },
+  {
+    "path": "<SOURCE_ROOT>/Offre IEF SARL/Proposition financière.pdf",
+    "process_name": "Offre IEF SARL",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 74
+  },
+  {
+    "path": "<SOURCE_ROOT>/Offre IEF SARL/Proposition technique suite 3.pdf",
+    "process_name": "Offre IEF SARL",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 75
+  },
+  {
+    "path": "<SOURCE_ROOT>/offre pHM/Modalités et conditions de l'appel d'offre.pdf",
+    "process_name": "offre pHM",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 76
+  },
+  {
+    "path": "<SOURCE_ROOT>/Offre YS/OFFRE FINANCIERE ETUDE PADEM YS.pdf",
+    "process_name": "Offre YS",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 77
+  },
+  {
+    "path": "<SOURCE_ROOT>/RFQ ACCM/CBA APPROVED.pdf",
+    "process_name": "RFQ ACCM",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 78
+  },
+  {
+    "path": "<SOURCE_ROOT>/RFQ ACCM/OFFRE IMAF.pdf",
+    "process_name": "RFQ ACCM",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 79
+  },
+  {
+    "path": "<SOURCE_ROOT>/RFQ ACCM/OFFRE MPN.pdf",
+    "process_name": "RFQ ACCM",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 80
+  },
+  {
+    "path": "<SOURCE_ROOT>/RFQ ACCM/OFFRE PACT AFRIQUE LOT 1.pdf",
+    "process_name": "RFQ ACCM",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 81
+  },
+  {
+    "path": "<SOURCE_ROOT>/RFQ ACCM/PROCES OUVERTURE DES OFFRES.pdf",
+    "process_name": "RFQ ACCM",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 82
+  },
+  {
+    "path": "<SOURCE_ROOT>/RFQ ACCM/Proces VERBAL D ANALYSE.pdf",
+    "process_name": "RFQ ACCM",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 83
+  },
+  {
+    "path": "<SOURCE_ROOT>/RFQ ACCM/PV D ANALYSES DES OFFRES.pdf",
+    "process_name": "RFQ ACCM",
+    "reason": "no_text_all_extractors",
+    "classification": "scanned_pdf",
+    "engine_route": "blocked",
+    "freeze_row": 84
+  }
+]

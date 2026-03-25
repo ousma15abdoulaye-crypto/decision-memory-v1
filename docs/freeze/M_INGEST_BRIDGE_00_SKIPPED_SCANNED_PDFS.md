@@ -1,6 +1,6 @@
 # M-INGEST-TO-ANNOTATION-BRIDGE-00 — Liste des PDFs scannés non traités (run test-mistral-run)
 
-**Source de vérité machine** : data/ingest/test_mistral_output/skipped.json (regénérer ce fichier avec le bridge).
+**Source de vérité machine** : [data/ingest/test_mistral_output/skipped.json](../../data/ingest/test_mistral_output/skipped.json) — **84** entrées ; régénérer depuis le tableau avec `python scripts/reconcile_skipped_from_freeze_md.py` ou avec `scripts/ingest_to_annotation_bridge.py` quand les PDFs sont disponibles localement (chemins absolus dans ce dernier cas).
 
 | # | process_name | fichier | reason |
 |---|--------------|---------|--------|
