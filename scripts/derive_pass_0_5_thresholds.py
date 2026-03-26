@@ -28,7 +28,7 @@ def _extract_text(obj: dict) -> str:
     st = obj.get("source_task") or {}
     if isinstance(st, dict) and st.get("text"):
         return str(st["text"])
-    # fallback : pas de texte dans export standard m12-v2
+    # fallback : anciennes lignes sans source_text (export avant m12_export_line)
     return ""
 
 

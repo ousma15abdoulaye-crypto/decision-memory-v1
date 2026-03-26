@@ -96,6 +96,7 @@ def test_m12_v2_export_ok_with_valid_json(
     )
     assert line["export_schema_version"] == "m12-v2"
     assert line["export_ok"] is True
+    assert line["source_text"] == "p.1 RFQ-001 Org projet XOF 1000"
     assert line["dms_annotation"] is not None
     assert line["dms_annotation"]["_meta"]["schema_version"] == "v3.0.1d"
 
