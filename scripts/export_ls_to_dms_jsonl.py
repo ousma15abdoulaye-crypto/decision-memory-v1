@@ -2,7 +2,7 @@
 Export Label Studio → DMS JSONL (M12)
 
 Modes :
-  - Défaut (m12-v2) : aligné sur label_studio_config.xml — extracted_json + ls_meta
+  - Défaut (m12-v2) : aligne les annotations LS sur label_studio_config.xml et produit une ligne JSON m12-v2 contenant notamment `dms_annotation` (JSON parsé/validé issu de `extracted_json`), `ls_meta` et les champs QA (`export_ok`, `export_errors`, etc.). Le `extracted_json` brut n'est pas sérialisé tel quel.
   - --legacy-mandat-fields : ancien mapping doc_type / ao_ref / zones (MANDAT-LS-001-v2)
 
 Usage API :

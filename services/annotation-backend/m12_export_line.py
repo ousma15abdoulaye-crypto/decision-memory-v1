@@ -56,6 +56,8 @@ def to_dms_line_legacy(ann: dict, task: dict, project_id: int) -> dict:
     task_id = task.get("id")
     task_data = task.get("data", {})
 
+    source_text = task_source_text(task)
+
     doc_type = get_ls_result_text(results, "doc_type")
     ao_ref = get_ls_result_text(results, "ao_ref")
     evidence_ao = get_ls_result_text(results, "evidence_hint_ao_ref")
@@ -94,6 +96,7 @@ def to_dms_line_legacy(ann: dict, task: dict, project_id: int) -> dict:
         "export_schema_version": "m12-legacy",
         "ground_truth": ground_truth,
         "source_task": {"id": task_id, "data_keys": list(task_data.keys())},
+        "source_text": source_text,
         "content_hash": content_hash,
         "ambig_tracked": [],
     }
@@ -204,6 +207,7 @@ def ls_annotation_to_m12_v2_line(
             list(dms_annotation.get("ambiguites", [])) if dms_annotation else []
         ),
         "financial_warnings": fin_warnings,
+        "source_text": source_text,
         "source_task": {"id": task_id, "data_keys": list(task_data.keys())},
     }
     if ev_violations:

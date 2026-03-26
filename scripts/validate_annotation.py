@@ -50,7 +50,7 @@ def _load_dms_dict(line_obj: dict, wrapped: bool) -> dict | None:
 def _source_for_evidence(line_obj: dict, wrapped: bool) -> str:
     if not wrapped:
         return ""
-    # Export m12-v2 : pas de texte source dans la ligne — skip evidence sauf si fourni
+    # Export m12-v2 : source_text présent quand l’export vient de m12_export_line (LS)
     return str(line_obj.get("source_text") or "")
 
 
