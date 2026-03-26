@@ -226,10 +226,11 @@ def iter_corpus_m12_lines_from_s3(
     prefix: str | None = None,
 ) -> Iterator[dict[str, Any]]:
     """
-    Liste et lit les objets ``*.json`` sous ``prefix/`` (vérité de stockage R2/S3).
+    Liste et lit les objets dont la clé se termine par ``.json`` sous ``prefix/`` (R2/S3).
 
-    Chaque objet correspond à une ligne m12-v2 écrite par :class:`S3CorpusSink`
-    (une clé par annotation, JSON d’un seul objet).
+    Chaque objet est le **corps JSON** écrit par :class:`S3CorpusSink` (un document
+    JSON par clé — pas de JSONL dans le bucket). Côté Python : ``json.loads`` sur le
+    corps brut → une ``dict`` m12-v2 par objet.
 
     Variables d’environnement si les arguments sont omis : ``S3_BUCKET`` (obligatoire),
     ``S3_ENDPOINT``, ``S3_CORPUS_PREFIX`` (défaut ``m12-v2``), clés ``S3_*`` / ``AWS_*``.

@@ -5,6 +5,11 @@ En production, les lignes m12-v2 validées sont stockées dans R2 par le webhook
 annotation-backend (S3CorpusSink). Label Studio sert d’interface de correction ;
 **R2 est la vérité de stockage** pour le corpus calibration (N≥50, derive, F1).
 
+**Format dans R2 :** chaque objet est un **fichier JSON** (clé ``…/*.json``) — un seul
+document JSON UTF-8 par objet, ``Content-Type: application/json``. Ce script les
+lit et produit en local un **JSONL** (une ligne = un objet JSON), format attendu
+par ``derive_pass_0_5_thresholds.py`` et ``m12_calibrate_classifier_metrics.py``.
+
 Prérequis (alignés sur ``services/annotation-backend/ENVIRONMENT.md``) :
   - S3_BUCKET
   - S3_ENDPOINT (ex. https://<ACCOUNT_ID>.r2.cloudflarestorage.com)
