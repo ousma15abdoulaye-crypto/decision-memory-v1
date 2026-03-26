@@ -31,6 +31,10 @@ Usage :
 
   # Limiter (ex. test)
   python scripts/export_r2_corpus_to_jsonl.py --output out.jsonl --limit 50
+
+En cas d’erreur ``RequestTimeTooSkewed`` : par défaut le backend ajuste l’heure de
+signature via HTTP (``S3_CLOCK_SKEW_AUTO``, voir ``ENVIRONMENT.md``). Si ça persiste :
+synchroniser l’horloge Windows ou mettre ``S3_CLOCK_SKEW_AUTO=0`` après correction NTP.
 """
 
 from __future__ import annotations
@@ -40,6 +44,8 @@ import json
 import os
 import sys
 from pathlib import Path
+
+from botocore.exceptions import ClientError
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _SCRIPT_DIR.parent
@@ -111,35 +117,48 @@ def main() -> int:
     missing_source_text = 0
 
     with open(out_path, "w", encoding="utf-8") as f:
-        for line in iter_corpus_m12_lines_from_s3(prefix=args.prefix):
-            ls_meta = (
-                line.get("ls_meta") if isinstance(line.get("ls_meta"), dict) else {}
-            )
-            if not args.no_status_filter:
-                st = (ls_meta.get("annotation_status") or "").strip()
-                if st != args.status:
-                    skipped_status += 1
-                    continue
-            if args.project_id is not None:
-                pid = ls_meta.get("project_id")
-                if pid is None or int(pid) != args.project_id:
-                    skipped_project += 1
-                    continue
+        try:
+            for line in iter_corpus_m12_lines_from_s3(prefix=args.prefix):
+                ls_meta = (
+                    line.get("ls_meta") if isinstance(line.get("ls_meta"), dict) else {}
+                )
+                if not args.no_status_filter:
+                    st = (ls_meta.get("annotation_status") or "").strip()
+                    if st != args.status:
+                        skipped_status += 1
+                        continue
+                if args.project_id is not None:
+                    pid = ls_meta.get("project_id")
+                    if pid is None or int(pid) != args.project_id:
+                        skipped_project += 1
+                        continue
 
-            stxt = line.get("source_text")
-            if not (isinstance(stxt, str) and stxt.strip()):
-                if args.require_source_text:
-                    print(
-                        f"STOP — source_text manquant pour task_id={ls_meta.get('task_id')}",
-                        file=sys.stderr,
-                    )
-                    return 2
-                missing_source_text += 1
+                stxt = line.get("source_text")
+                if not (isinstance(stxt, str) and stxt.strip()):
+                    if args.require_source_text:
+                        print(
+                            f"STOP — source_text manquant pour task_id={ls_meta.get('task_id')}",
+                            file=sys.stderr,
+                        )
+                        return 2
+                    missing_source_text += 1
 
-            f.write(json.dumps(line, ensure_ascii=False) + "\n")
-            written += 1
-            if args.limit is not None and written >= args.limit:
-                break
+                f.write(json.dumps(line, ensure_ascii=False) + "\n")
+                written += 1
+                if args.limit is not None and written >= args.limit:
+                    break
+        except ClientError as e:
+            code = (e.response.get("Error") or {}).get("Code", "")
+            if code == "RequestTimeTooSkewed":
+                print(
+                    "STOP — RequestTimeTooSkewed : l’heure système Windows est trop décalée "
+                    "par rapport aux serveurs R2 (signature AWS).\n"
+                    "  Paramètres → Date et heure → Synchroniser maintenant.\n"
+                    "  Ou PowerShell admin : w32tm /resync",
+                    file=sys.stderr,
+                )
+                return 3
+            raise
 
     print(
         f"Écrit {written} ligne(s) → {out_path} "

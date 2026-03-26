@@ -72,6 +72,7 @@ Après `ANNOTATION_CREATED` / `ANNOTATION_UPDATED`, le backend peut construire u
 | `S3_ADDRESSING_STYLE` | Optionnel : `path` ou `virtual` pour forcer le style d’URL S3 ; laisser vide pour R2 (défaut boto3). |
 | `S3_PAYLOAD_SIGNING` | Optionnel : `1` / `true` force la signature SigV4 du corps des `PutObject` ; `0` / `false` la désactive. **Sur endpoint R2** (`*.r2.cloudflarestorage.com`), le backend active cette option par défaut pour limiter les erreurs `SignatureDoesNotMatch`. |
 | `S3_CORPUS_PREFIX` | Préfixe des clés objet (défaut : `m12-v2`). Idempotence : une clé par `project_id/task_id/annotation_id/content_hash`. |
+| `S3_CLOCK_SKEW_AUTO` | `1` / `true` (défaut) : pour `iter_corpus_m12_lines_from_s3` / export JSONL depuis R2, corrige le décalage d’horloge local vs serveur (en-tête HTTP `Date`, même infra Cloudflare que R2) afin d’éviter `RequestTimeTooSkewed` sur la signature SigV4. `0` / `false` : désactiver (CI, tests, machine avec NTP fiable). |
 
 ### Backfill (annotations avant branchement R2)
 

@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import urlparse
 
+from s3_clock_skew import auto_botocore_clock_skew_from_http
+
 logger = logging.getLogger(__name__)
 
 
@@ -254,27 +256,28 @@ def iter_corpus_m12_lines_from_s3(
         pfx = (os.environ.get("S3_CORPUS_PREFIX") or "m12-v2").strip() or "m12-v2"
     pfx = pfx.rstrip("/")
 
-    client = _make_s3_client(ep)
-    paginator = client.get_paginator("list_objects_v2")
-    list_prefix = f"{pfx}/"
-    for page in paginator.paginate(Bucket=b, Prefix=list_prefix):
-        contents = page.get("Contents") or []
-        for obj in sorted(contents, key=lambda x: str(x.get("Key", ""))):
-            key = obj.get("Key")
-            if not key or not str(key).endswith(".json"):
-                continue
-            resp = client.get_object(Bucket=b, Key=key)
-            with closing(resp["Body"]) as body:
-                raw = body.read().decode("utf-8")
-            try:
-                line = json.loads(raw)
-            except json.JSONDecodeError as e:
-                logger.warning("[CORPUS] JSON invalide pour %s : %s", key, e)
-                continue
-            if not isinstance(line, dict):
-                logger.warning("[CORPUS] Objet non-dict pour %s", key)
-                continue
-            yield line
+    with auto_botocore_clock_skew_from_http():
+        client = _make_s3_client(ep)
+        paginator = client.get_paginator("list_objects_v2")
+        list_prefix = f"{pfx}/"
+        for page in paginator.paginate(Bucket=b, Prefix=list_prefix):
+            contents = page.get("Contents") or []
+            for obj in sorted(contents, key=lambda x: str(x.get("Key", ""))):
+                key = obj.get("Key")
+                if not key or not str(key).endswith(".json"):
+                    continue
+                resp = client.get_object(Bucket=b, Key=key)
+                with closing(resp["Body"]) as body:
+                    raw = body.read().decode("utf-8")
+                try:
+                    line = json.loads(raw)
+                except json.JSONDecodeError as e:
+                    logger.warning("[CORPUS] JSON invalide pour %s : %s", key, e)
+                    continue
+                if not isinstance(line, dict):
+                    logger.warning("[CORPUS] Objet non-dict pour %s", key)
+                    continue
+                yield line
 
 
 class S3CorpusSink:

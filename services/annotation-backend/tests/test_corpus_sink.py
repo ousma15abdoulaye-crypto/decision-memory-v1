@@ -104,6 +104,7 @@ class TestIterCorpusM12LinesFromS3:
         monkeypatch.setenv("S3_ACCESS_KEY_ID", "k")
         monkeypatch.setenv("S3_SECRET_ACCESS_KEY", "s")
         monkeypatch.delenv("S3_CORPUS_PREFIX", raising=False)
+        monkeypatch.setenv("S3_CLOCK_SKEW_AUTO", "0")
 
         payload = {
             "export_schema_version": "m12-v2",
@@ -147,6 +148,7 @@ class TestIterCorpusM12LinesFromS3:
         monkeypatch.setenv("S3_ACCESS_KEY_ID", "k")
         monkeypatch.setenv("S3_SECRET_ACCESS_KEY", "s")
         monkeypatch.delenv("S3_CORPUS_PREFIX", raising=False)
+        monkeypatch.setenv("S3_CLOCK_SKEW_AUTO", "0")
 
         fake = MagicMock()
         paginator = MagicMock()
