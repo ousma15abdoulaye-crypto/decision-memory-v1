@@ -103,6 +103,7 @@ class TestIterCorpusM12LinesFromS3:
         monkeypatch.setenv("S3_ENDPOINT", "https://abc.r2.cloudflarestorage.com")
         monkeypatch.setenv("S3_ACCESS_KEY_ID", "k")
         monkeypatch.setenv("S3_SECRET_ACCESS_KEY", "s")
+        monkeypatch.delenv("S3_CORPUS_PREFIX", raising=False)
 
         payload = {
             "export_schema_version": "m12-v2",
@@ -127,11 +128,13 @@ class TestIterCorpusM12LinesFromS3:
 
         monkeypatch.setattr(cs, "_make_s3_client", lambda ep: fake)
 
-        lines = list(iter_corpus_m12_lines_from_s3())
+        lines = list(iter_corpus_m12_lines_from_s3(prefix="m12-v2"))
         assert len(lines) == 1
         assert lines[0]["source_text"] == "hello"
         fake.get_paginator.assert_called_once_with("list_objects_v2")
-        paginator.paginate.assert_called_once()
+        paginator.paginate.assert_called_once_with(
+            Bucket="bucket-test", Prefix="m12-v2/"
+        )
         fake.get_object.assert_called_once_with(
             Bucket="bucket-test", Key="m12-v2/1/1_2_abcd1234.json"
         )
@@ -143,6 +146,7 @@ class TestIterCorpusM12LinesFromS3:
         monkeypatch.setenv("S3_ENDPOINT", "https://abc.r2.cloudflarestorage.com")
         monkeypatch.setenv("S3_ACCESS_KEY_ID", "k")
         monkeypatch.setenv("S3_SECRET_ACCESS_KEY", "s")
+        monkeypatch.delenv("S3_CORPUS_PREFIX", raising=False)
 
         fake = MagicMock()
         paginator = MagicMock()
@@ -169,8 +173,9 @@ class TestIterCorpusM12LinesFromS3:
 
         monkeypatch.setattr(cs, "_make_s3_client", lambda ep: fake)
         caplog.set_level(logging.WARNING)
-        lines = list(iter_corpus_m12_lines_from_s3())
+        lines = list(iter_corpus_m12_lines_from_s3(prefix="m12-v2"))
         assert lines == [{"ok": True}]
+        paginator.paginate.assert_called_once_with(Bucket="b", Prefix="m12-v2/")
 
     def test_raises_without_bucket(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("S3_BUCKET", raising=False)

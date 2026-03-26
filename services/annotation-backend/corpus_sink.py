@@ -8,6 +8,7 @@ import json
 import logging
 import os
 from collections.abc import Iterator
+from contextlib import closing
 from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import urlparse
@@ -263,7 +264,8 @@ def iter_corpus_m12_lines_from_s3(
             if not key or not str(key).endswith(".json"):
                 continue
             resp = client.get_object(Bucket=b, Key=key)
-            raw = resp["Body"].read().decode("utf-8")
+            with closing(resp["Body"]) as body:
+                raw = body.read().decode("utf-8")
             try:
                 line = json.loads(raw)
             except json.JSONDecodeError as e:
