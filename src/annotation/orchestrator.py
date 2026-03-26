@@ -101,9 +101,7 @@ class AnnotationOrchestrator:
         max_attempts: int = _DEFAULT_MAX_ATTEMPTS,
     ) -> None:
         if max_attempts < 1:
-            raise ValueError(
-                f"max_attempts must be >= 1, got {max_attempts}"
-            )
+            raise ValueError(f"max_attempts must be >= 1, got {max_attempts}")
         self.runs_dir = runs_dir or default_pipeline_runs_dir()
         self.strict_block_llm_on_poor = strict_block_llm_on_poor
         self.llm_router = llm_router
