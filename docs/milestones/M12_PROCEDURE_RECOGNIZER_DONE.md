@@ -22,7 +22,7 @@ Ces critères correspondent au registre MRD (`JALONS`, `last_tag`, `last_merge_c
 
 - [x] Passes 0 / 0.5 / 1 + orchestrateur + tests CI sans appel API réel (REGLE-21).
 - [x] Corpus terrain **N ≥ 50** exploitable pour calibration (export JSONL dédié M12 ; voir `data/annotations/` et scripts ci-dessus).
-- [x] Tag jalonnement **`v4.1.0-m12-done`** associé au commit de clôture (`bde8378` dans le MRD ; création / push Git selon RÈGLE-ORG-10).
+- [x] Tag jalonnement **`v4.1.0-m12-done`** créé et poussé sur `origin` (commit de clôture `bde8378` — RÈGLE-ORG-10).
 
 ## Suivi qualité (non bloquant pour l’enregistrement M12 dans le MRD)
 
