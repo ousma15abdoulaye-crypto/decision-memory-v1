@@ -36,7 +36,8 @@ last_merge_commit     : bde8378 (main — cloture M12 procedure recognizer + cor
 last_tag              : v4.1.0-m12-done
 next_milestone        : M13
 next_status           : PENDING
-blocked_on            : (vide) — pré-requis M13 : ADR LLM (RÈGLE-11), wiring backend gelé, sync Railway si GO CTO — voir docs/milestones/M12_PROCEDURE_RECOGNIZER_DONE.md transition
+blocked_on            : (vide)
+m13_prerequisites     : hors registre STOP — ADR LLM (RÈGLE-11), wiring backend.py si GO CTO, sync Railway si GO CTO — détail transition § dans docs/milestones/M12_PROCEDURE_RECOGNIZER_DONE.md
 branch_courante       : main
 
 ---
