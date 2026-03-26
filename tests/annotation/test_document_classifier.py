@@ -112,7 +112,7 @@ def test_p2_tdr():
 
 def test_p3_dao():
     r = classify_document(F_DAO)
-    assert r.taxonomy_core == TaxonomyCore.DAO_CONSTRUCTION
+    assert r.taxonomy_core == TaxonomyCore.DAO
     assert r.document_role == DocumentRole.SOURCE_RULES
     assert r.confidence == 0.8
 
@@ -132,7 +132,7 @@ def test_fallback_attestation():
     r = classify_document(F_ATTESTATION)
     assert r.taxonomy_core == TaxonomyCore.UNKNOWN
     assert r.document_role == DocumentRole.UNKNOWN
-    assert r.confidence == 0.0
+    assert r.confidence == 0.6
     assert r.deterministic is False
     assert r.matched_rule == "fallback_llm_required"
 
@@ -185,7 +185,7 @@ def test_faux_positif_rfq_dans_corps_dao():
     assert "RFQ" not in F_DAO_AVEC_RFQ_DANS_CORPS[:_HEADER_LEN]
     assert len(F_DAO_AVEC_RFQ_DANS_CORPS[:_HEADER_LEN]) == _HEADER_LEN
     r = classify_document(F_DAO_AVEC_RFQ_DANS_CORPS)
-    assert r.taxonomy_core == TaxonomyCore.DAO_CONSTRUCTION
+    assert r.taxonomy_core == TaxonomyCore.DAO
     assert r.matched_rule == "P3_dao_header"
 
 
