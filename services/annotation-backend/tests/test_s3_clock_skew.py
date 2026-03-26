@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import botocore.compat as bc
+import botocore.auth as auth_mod
 import pytest
 from s3_clock_skew import (
     auto_botocore_clock_skew_from_http,
@@ -12,10 +12,11 @@ from s3_clock_skew import (
 
 class TestBotocoreClockSkewContext:
     def test_adds_skew_seconds_to_get_current_datetime(self) -> None:
-        t_before = bc.get_current_datetime()
+        # SigV4 lit l’heure via botocore.auth (import lié au chargement), pas compat seul.
+        t_before = auth_mod.get_current_datetime()
         with botocore_clock_skew_context(100.0):
-            t_inside = bc.get_current_datetime()
-        t_after = bc.get_current_datetime()
+            t_inside = auth_mod.get_current_datetime()
+        t_after = auth_mod.get_current_datetime()
 
         assert (t_inside - t_before).total_seconds() == pytest.approx(100.0, abs=2.0)
         assert abs((t_after - t_before).total_seconds()) < 2.0

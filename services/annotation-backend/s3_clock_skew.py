@@ -3,8 +3,9 @@ Correction automatique du décalage d’horloge pour les clients S3 (R2 / AWS).
 
 Si l’horloge locale est en retard/avance, boto3 signe avec une date fausse et R2
 renvoie ``RequestTimeTooSkewed``. On mesure le décalage via l’en-tête ``Date``
-d’une réponse HTTPS (Cloudflare), puis on ajuste ``botocore.compat.get_current_datetime``
-pendant les appels S3.
+d’une réponse HTTPS (Cloudflare), puis on ajuste ``botocore.auth.get_current_datetime``
+pendant les appels S3 (c’est ce que SigV4 utilise ; un patch sur ``compat`` seul
+ne suffit pas car ``auth`` lie l’import au chargement).
 
 Désactiver : ``S3_CLOCK_SKEW_AUTO=0`` (tests, ou confiance totale en NTP local).
 """
@@ -54,20 +55,28 @@ def get_http_clock_skew_seconds() -> float:
 
 @contextmanager
 def botocore_clock_skew_context(skew_seconds: float) -> Generator[None, None, None]:
-    """Applique un décalage fixe à ``get_current_datetime`` pour SigV4."""
+    """Applique un décalage fixe à ``botocore.auth.get_current_datetime`` (SigV4)."""
     if abs(skew_seconds) < 0.5:
         yield
         return
 
-    import botocore.compat as bc
+    import botocore.auth as auth_mod
 
-    orig: Callable[..., Any] = bc.get_current_datetime
+    if not hasattr(auth_mod, "get_current_datetime"):
+        logger.warning(
+            "[CORPUS] botocore.auth sans get_current_datetime — "
+            "impossible d’appliquer la correction de skew pour cette version botocore"
+        )
+        yield
+        return
+
+    orig: Callable[..., Any] = auth_mod.get_current_datetime
 
     def patched(remove_tzinfo: bool = True) -> datetime.datetime:
         dt = orig(remove_tzinfo=remove_tzinfo)
         return dt + datetime.timedelta(seconds=skew_seconds)
 
-    bc.get_current_datetime = patched  # type: ignore[assignment]
+    auth_mod.get_current_datetime = patched  # type: ignore[assignment]
     try:
         logger.info(
             "S3/R2 : correction d’horloge appliquée (skew ≈ %.1f s vs HTTP Date)",
@@ -75,7 +84,7 @@ def botocore_clock_skew_context(skew_seconds: float) -> Generator[None, None, No
         )
         yield
     finally:
-        bc.get_current_datetime = orig  # type: ignore[assignment]
+        auth_mod.get_current_datetime = orig  # type: ignore[assignment]
 
 
 @contextmanager
