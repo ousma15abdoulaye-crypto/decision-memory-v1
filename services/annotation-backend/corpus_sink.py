@@ -7,6 +7,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+from collections.abc import Iterator
+from contextlib import closing
 from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import urlparse
@@ -191,6 +193,90 @@ class FileAppendCorpusSink:
             f.write(json.dumps(line, ensure_ascii=False) + "\n")
 
 
+def _make_s3_client(endpoint_url: str | None) -> Any:
+    """Client S3 boto3 — même configuration que le sink corpus (R2 / AWS / MinIO)."""
+    import boto3  # lazy
+
+    ep = (endpoint_url or "").strip().rstrip("/") or None
+    region_raw = os.environ.get("S3_REGION", "").strip()
+    if region_raw:
+        region_name: str | None = region_raw
+    elif ep:
+        region_name = "auto"
+    else:
+        region_name = None
+
+    access_key, secret_key = _s3_env_credentials()
+    session = boto3.session.Session()
+    client_kw: dict[str, Any] = {
+        "endpoint_url": ep,
+        "config": _botocore_config_for_s3(endpoint_url=ep),
+    }
+    if access_key is not None and secret_key is not None:
+        client_kw["aws_access_key_id"] = access_key
+        client_kw["aws_secret_access_key"] = secret_key
+    if region_name is not None:
+        client_kw["region_name"] = region_name
+    return session.client("s3", **client_kw)
+
+
+def iter_corpus_m12_lines_from_s3(
+    *,
+    bucket: str | None = None,
+    endpoint_url: str | None = None,
+    prefix: str | None = None,
+) -> Iterator[dict[str, Any]]:
+    """
+    Liste et lit les objets dont la clé se termine par ``.json`` sous ``prefix/`` (R2/S3).
+
+    Chaque objet est le **corps JSON** écrit par :class:`S3CorpusSink` (un document
+    JSON par clé — pas de JSONL dans le bucket). Côté Python : ``json.loads`` sur le
+    corps brut → une ``dict`` m12-v2 par objet.
+
+    Variables d’environnement si les arguments sont omis : ``S3_BUCKET`` (obligatoire),
+    ``S3_ENDPOINT``, ``S3_CORPUS_PREFIX`` (défaut ``m12-v2``), clés ``S3_*`` / ``AWS_*``.
+
+    :raises ValueError: si ``S3_BUCKET`` absent et ``bucket`` non fourni.
+    """
+    b = bucket or os.environ.get("S3_BUCKET", "").strip()
+    if not b:
+        raise ValueError(
+            "S3_BUCKET requis (variable d'environnement ou argument bucket=)"
+        )
+    ep = (
+        endpoint_url
+        if endpoint_url is not None
+        else (os.environ.get("S3_ENDPOINT", "").strip() or None)
+    )
+    if prefix is not None:
+        pfx = prefix.strip() or "m12-v2"
+    else:
+        pfx = (os.environ.get("S3_CORPUS_PREFIX") or "m12-v2").strip() or "m12-v2"
+    pfx = pfx.rstrip("/")
+
+    client = _make_s3_client(ep)
+    paginator = client.get_paginator("list_objects_v2")
+    list_prefix = f"{pfx}/"
+    for page in paginator.paginate(Bucket=b, Prefix=list_prefix):
+        contents = page.get("Contents") or []
+        for obj in sorted(contents, key=lambda x: str(x.get("Key", ""))):
+            key = obj.get("Key")
+            if not key or not str(key).endswith(".json"):
+                continue
+            resp = client.get_object(Bucket=b, Key=key)
+            with closing(resp["Body"]) as body:
+                raw = body.read().decode("utf-8")
+            try:
+                line = json.loads(raw)
+            except json.JSONDecodeError as e:
+                logger.warning("[CORPUS] JSON invalide pour %s : %s", key, e)
+                continue
+            if not isinstance(line, dict):
+                logger.warning("[CORPUS] Objet non-dict pour %s", key)
+                continue
+            yield line
+
+
 class S3CorpusSink:
     """Stockage objet S3-compatible (R2, AWS, MinIO)."""
 
@@ -201,31 +287,8 @@ class S3CorpusSink:
         endpoint_url: str | None = None,
         prefix: str = "m12-v2",
     ) -> None:
-        import boto3  # lazy
-
         ep = (endpoint_url or "").strip().rstrip("/") or None
-        region_raw = os.environ.get("S3_REGION", "").strip()
-        if region_raw:
-            region_name: str | None = region_raw
-        elif ep:
-            # R2 / MinIO / endpoint custom — « auto » évite une région AWS invalide
-            region_name = "auto"
-        else:
-            # AWS S3 régional : laisser boto3 (None = chaîne de config / métadonnées)
-            region_name = None
-
-        access_key, secret_key = _s3_env_credentials()
-        session = boto3.session.Session()
-        client_kw: dict[str, Any] = {
-            "endpoint_url": ep,
-            "config": _botocore_config_for_s3(endpoint_url=ep),
-        }
-        if access_key is not None and secret_key is not None:
-            client_kw["aws_access_key_id"] = access_key
-            client_kw["aws_secret_access_key"] = secret_key
-        if region_name is not None:
-            client_kw["region_name"] = region_name
-        self._client = session.client("s3", **client_kw)
+        self._client = _make_s3_client(ep)
         self._bucket = bucket
         self._prefix = prefix.rstrip("/")
 

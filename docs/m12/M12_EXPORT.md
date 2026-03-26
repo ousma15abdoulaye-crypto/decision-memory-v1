@@ -2,7 +2,8 @@
 
 Scripts :
 
-- Export : [`scripts/export_ls_to_dms_jsonl.py`](../../scripts/export_ls_to_dms_jsonl.py)
+- Export **depuis le corpus R2/S3** (vérité de stockage en prod : **un objet = un fichier JSON** sous `m12-v2/…/*.json`, pas de JSONL dans le bucket) : [`scripts/export_r2_corpus_to_jsonl.py`](../../scripts/export_r2_corpus_to_jsonl.py) agrège ces JSON en **JSONL** local pour calibration (N≥50) ; Label Studio reste l’interface de correction, pas la source batch.
+- Export **depuis l’API Label Studio** (historique / audits sans R2) : [`scripts/export_ls_to_dms_jsonl.py`](../../scripts/export_ls_to_dms_jsonl.py)
 - Validation : [`scripts/validate_annotation.py`](../../scripts/validate_annotation.py)
 
 Réf. : [ADR-M12-EXPORT-V2](../adr/ADR-M12-EXPORT-V2.md)
