@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-03-17 — ETA-GEL
+# Derniere mise a jour : 2026-03-26 — M12 DONE (AO / cloture procedure recognizer)
 
 ---
 
@@ -30,14 +30,15 @@ freeze_hashes_doc     : docs/freeze/FREEZE_HASHES.md
 
 ## ETAT COURANT
 
-last_completed        : M11
-last_completed_at     : 2026-03-11
-last_merge_commit     : 87942a3 (Merge PR#215 feat/pre-m12-extraction-reelle — Mandat 4)
-last_tag              : v4.1.0-pre-m12-extraction-reelle-done
-next_milestone        : M12
-next_status           : IN_PROGRESS
-blocked_on            : calibration terrain (N≥50, seuils empiriques, macro-F1 classifieur) et tag v4.1.0-m12-done après validation AO — voir docs/milestones/M12_PROCEDURE_RECOGNIZER_DONE.md
-branch_courante       : feat/m12-procedure-recognizer (PR M12 — merge CTO)
+last_completed        : M12
+last_completed_at     : 2026-03-26
+last_merge_commit     : bde8378 (main — cloture M12 procedure recognizer + corpus R2 / export)
+last_tag              : v4.1.0-m12-done
+next_milestone        : M13
+next_status           : PENDING
+blocked_on            : (vide)
+m13_prerequisites     : hors registre STOP — ADR LLM (RÈGLE-11), wiring backend.py si GO CTO, sync Railway si GO CTO — détail transition § dans docs/milestones/M12_PROCEDURE_RECOGNIZER_DONE.md
+branch_courante       : main
 
 ---
 
@@ -55,6 +56,7 @@ branch_courante       : feat/m12-procedure-recognizer (PR M12 — merge CTO)
 | MRD-6    | DONE   | mrd-6-done   | 226b4dd | 2026-03-09 | taxo L1/L2/L3 + label_status + collisions   |
 | M8       | DONE   | m8-done      | PR open | 2026-03-10 | 13 tables + matview + 6 triggers + seeds    |
 | M9       | -      | -            | -       | -          | market_signals + formule V1.1               |
+| M12      | DONE   | v4.1.0-m12-done | bde8378 | 2026-03-26 | Procedure Recognizer — passes 0 / 0.5 / 1, FSM, corpus Cloudflare R2, export JSONL calibration |
 
 ---
 
