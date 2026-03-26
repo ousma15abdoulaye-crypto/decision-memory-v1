@@ -34,6 +34,28 @@ def golden_dms_json() -> str:
     return p.read_text(encoding="utf-8").strip()
 
 
+def _minimal_legacy_ann() -> dict:
+    """Annotation LS minimale pour to_dms_line_legacy (doc_type / ao_ref)."""
+    return {
+        "id": 1,
+        "completed_by": 2,
+        "result": [
+            {
+                "from_name": "doc_type",
+                "to_name": "x",
+                "type": "choices",
+                "value": {"choices": ["RFQ"]},
+            },
+            {
+                "from_name": "ao_ref",
+                "to_name": "x",
+                "type": "textarea",
+                "value": {"text": ["AO-1"]},
+            },
+        ],
+    }
+
+
 def _ls_item(
     extracted_json: str,
     *,
@@ -82,6 +104,34 @@ def _ls_item(
             }
         ],
     }
+
+
+def test_legacy_export_includes_source_text_from_data_text(export_mod) -> None:
+    task = {"id": 10, "data": {"text": "legacy body from text"}}
+    line = export_mod.to_dms_line_legacy(_minimal_legacy_ann(), task, 99)
+    assert line["export_schema_version"] == "m12-legacy"
+    assert line["source_text"] == "legacy body from text"
+
+
+def test_legacy_source_text_prefers_data_text_over_content(export_mod) -> None:
+    task = {
+        "id": 11,
+        "data": {"text": "winner", "content": "loser"},
+    }
+    line = export_mod.to_dms_line_legacy(_minimal_legacy_ann(), task, 1)
+    assert line["source_text"] == "winner"
+
+
+def test_legacy_source_text_falls_back_to_content_when_text_empty(export_mod) -> None:
+    task = {"id": 12, "data": {"text": "", "content": "from content only"}}
+    line = export_mod.to_dms_line_legacy(_minimal_legacy_ann(), task, 1)
+    assert line["source_text"] == "from content only"
+
+
+def test_legacy_source_text_uses_content_when_text_missing(export_mod) -> None:
+    task = {"id": 13, "data": {"content": "html or pdf blob ref"}}
+    line = export_mod.to_dms_line_legacy(_minimal_legacy_ann(), task, 1)
+    assert line["source_text"] == "html or pdf blob ref"
 
 
 def test_m12_v2_export_ok_with_valid_json(
