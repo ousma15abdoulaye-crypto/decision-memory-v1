@@ -96,6 +96,30 @@ def test_pass_1_block_llm_unknown():
     assert out.output_data["routing_source"] == "human"
 
 
+def test_pass_1_llm_invalid_enums_degraded():
+    rid = uuid.uuid4()
+    text = "lorem ipsum " * 20
+
+    def bad_llm(_t: str) -> dict:
+        return {
+            "document_role": "not_a_real_role",
+            "taxonomy_core": "offer_financial",
+            "confidence": 1.0,
+            "validated": True,
+        }
+
+    out = run_pass_1_router(
+        text,
+        document_id="d1",
+        run_id=rid,
+        block_llm=False,
+        llm_router=bad_llm,
+    )
+    assert out.status == PassRunStatus.DEGRADED
+    assert out.output_data["document_role"] == "unknown"
+    assert any(e.code == "LLM_PROPOSAL_INVALID" for e in out.errors)
+
+
 def test_pass_1_llm_router_injected():
     rid = uuid.uuid4()
     text = "lorem ipsum " * 20
@@ -134,6 +158,16 @@ def test_orchestrator_happy_path(tmp_path: Path):
     loaded = orch.load_run(rid)
     assert loaded is not None
     assert "pass_0_ingestion" in loaded.pass_outputs
+
+
+def test_orchestrator_pass0_failed_logs_dead_letter(tmp_path: Path):
+    orch = AnnotationOrchestrator(runs_dir=tmp_path)
+    rid = uuid.uuid4()
+    rec, state = orch.run_passes_0_to_1("   \n\t  ", document_id="d", run_id=rid)
+    assert state == AnnotationPipelineState.DEAD_LETTER
+    assert rec.transition_log
+    assert rec.transition_log[-1]["to_state"] == "dead_letter"
+    assert rec.transition_log[-1]["pass_name"] == "pass_0_ingestion"
 
 
 def test_orchestrator_ocr_failed_review(tmp_path: Path):

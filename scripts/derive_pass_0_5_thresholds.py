@@ -3,6 +3,7 @@
 Dérive des statistiques pour PASS_0_5_EMPIRICAL_THRESHOLDS (§1–3).
 
 Lit un ou plusieurs JSONL (export LS m12-v2 ou lignes avec ``source_text``).
+Les métriques sont calculées sur le **texte normalisé** (Pass 0), comme Pass 0.5.
 """
 
 from __future__ import annotations
@@ -11,11 +12,14 @@ import argparse
 import json
 import statistics
 import sys
+import uuid
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
+
+from src.annotation.passes.pass_0_ingestion import run_pass_0_ingestion  # noqa: E402
 
 
 def _extract_text(obj: dict) -> str:
@@ -64,7 +68,24 @@ def main() -> int:
             text = _extract_text(obj)
             if not text.strip():
                 continue
-            rows.append(_metrics(text))
+            rid = uuid.uuid4()
+            task_id = (
+                (obj.get("ls_meta") or {}).get("task_id")
+                if isinstance(obj.get("ls_meta"), dict)
+                else None
+            )
+            doc_id = f"derive:{task_id}" if task_id is not None else f"derive:{rid}"
+            p0 = run_pass_0_ingestion(
+                text,
+                document_id=doc_id,
+                run_id=rid,
+            )
+            if p0.status.value == "failed":
+                continue
+            normalized = (p0.output_data or {}).get("normalized_text") or ""
+            if not normalized.strip():
+                continue
+            rows.append(_metrics(normalized))
 
     if not rows:
         print(

@@ -183,6 +183,18 @@ class AnnotationOrchestrator:
             file_metadata=file_metadata,
         )
         record.pass_outputs["pass_0_ingestion"] = _serialize_pass_output(p0)
+        if p0.status == PassRunStatus.FAILED:
+            self._log_transition(
+                record,
+                from_state=AnnotationPipelineState.INGESTED.value,
+                to_state=AnnotationPipelineState.DEAD_LETTER.value,
+                pass_name="pass_0_ingestion",
+                out=p0,
+            )
+            record.state = AnnotationPipelineState.DEAD_LETTER.value
+            self.save_run(record)
+            return record, AnnotationPipelineState.DEAD_LETTER
+
         self._log_transition(
             record,
             from_state=AnnotationPipelineState.INGESTED.value,
@@ -190,11 +202,6 @@ class AnnotationOrchestrator:
             pass_name="pass_0_ingestion",
             out=p0,
         )
-
-        if p0.status == PassRunStatus.FAILED:
-            record.state = AnnotationPipelineState.DEAD_LETTER.value
-            self.save_run(record)
-            return record, AnnotationPipelineState.DEAD_LETTER
 
         normalized = (p0.output_data or {}).get("normalized_text") or ""
         record.state = AnnotationPipelineState.PASS_0_DONE.value
@@ -207,6 +214,18 @@ class AnnotationOrchestrator:
             strict_block_llm_on_poor=self.strict_block_llm_on_poor,
         )
         record.pass_outputs["pass_0_5_quality_gate"] = _serialize_pass_output(p05)
+        if p05.status == PassRunStatus.FAILED:
+            self._log_transition(
+                record,
+                from_state=AnnotationPipelineState.PASS_0_DONE.value,
+                to_state=AnnotationPipelineState.DEAD_LETTER.value,
+                pass_name="pass_0_5_quality_gate",
+                out=p05,
+            )
+            record.state = AnnotationPipelineState.DEAD_LETTER.value
+            self.save_run(record)
+            return record, AnnotationPipelineState.DEAD_LETTER
+
         self._log_transition(
             record,
             from_state=AnnotationPipelineState.PASS_0_DONE.value,
@@ -214,11 +233,6 @@ class AnnotationOrchestrator:
             pass_name="pass_0_5_quality_gate",
             out=p05,
         )
-
-        if p05.status == PassRunStatus.FAILED:
-            record.state = AnnotationPipelineState.DEAD_LETTER.value
-            self.save_run(record)
-            return record, AnnotationPipelineState.DEAD_LETTER
 
         record.state = AnnotationPipelineState.QUALITY_ASSESSED.value
         qc = (p05.output_data or {}).get("quality_class")
@@ -239,6 +253,18 @@ class AnnotationOrchestrator:
             llm_router=self.llm_router,
         )
         record.pass_outputs["pass_1_router"] = _serialize_pass_output(p1)
+        if p1.status == PassRunStatus.FAILED:
+            self._log_transition(
+                record,
+                from_state=AnnotationPipelineState.QUALITY_ASSESSED.value,
+                to_state=AnnotationPipelineState.DEAD_LETTER.value,
+                pass_name="pass_1_router",
+                out=p1,
+            )
+            record.state = AnnotationPipelineState.DEAD_LETTER.value
+            self.save_run(record)
+            return record, AnnotationPipelineState.DEAD_LETTER
+
         self._log_transition(
             record,
             from_state=AnnotationPipelineState.QUALITY_ASSESSED.value,
@@ -246,11 +272,6 @@ class AnnotationOrchestrator:
             pass_name="pass_1_router",
             out=p1,
         )
-
-        if p1.status == PassRunStatus.FAILED:
-            record.state = AnnotationPipelineState.DEAD_LETTER.value
-            self.save_run(record)
-            return record, AnnotationPipelineState.DEAD_LETTER
 
         record.state = AnnotationPipelineState.ROUTED.value
 

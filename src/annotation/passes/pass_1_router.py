@@ -66,6 +66,34 @@ _FILENAME_RULES: list[tuple[re.Pattern[str], TaxonomyCore, DocumentRole, str]] =
 ]
 
 
+def _safe_float(v: Any, default: float = 0.0) -> float:
+    try:
+        if v is None:
+            return default
+        return float(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def _parse_llm_enums(proposal: dict) -> tuple[str | None, str | None, str | None]:
+    """
+    Retourne (document_role, taxonomy_core, erreur) — ``erreur`` si hors enums fermées.
+    """
+    raw_dr = proposal.get("document_role")
+    raw_tc = proposal.get("taxonomy_core")
+    dr_s = None if raw_dr is None else str(raw_dr).strip()
+    tc_s = None if raw_tc is None else str(raw_tc).strip()
+    valid_roles = {e.value for e in DocumentRole}
+    valid_tax = {e.value for e in TaxonomyCore}
+    if dr_s not in valid_roles or tc_s not in valid_tax:
+        return (
+            None,
+            None,
+            f"document_role and taxonomy_core must be enum values; got {dr_s!r}, {tc_s!r}",
+        )
+    return dr_s, tc_s, None
+
+
 def _map_confidence(raw: float) -> float:
     if raw >= 0.99:
         return 1.0
@@ -199,14 +227,81 @@ def run_pass_1_router(
                     "duration_ms": int((completed - started).total_seconds() * 1000)
                 },
             )
-        dr = proposal.get("document_role", DocumentRole.UNKNOWN.value)
-        tc = proposal.get("taxonomy_core", TaxonomyCore.UNKNOWN.value)
+        if not isinstance(proposal, dict):
+            completed = AnnotationPassOutput.utc_now()
+            return AnnotationPassOutput(
+                pass_name=PASS_NAME,
+                pass_version=PASS_VERSION,
+                document_id=document_id,
+                run_id=run_id,
+                started_at=started,
+                completed_at=completed,
+                status=PassRunStatus.DEGRADED,
+                output_data={
+                    "document_role": DocumentRole.UNKNOWN.value,
+                    "taxonomy_core": TaxonomyCore.UNKNOWN.value,
+                    "routing_confidence": 0.6,
+                    "routing_source": "llm_proposal_unresolved",
+                    "matched_rule": result.matched_rule,
+                    "deterministic": False,
+                    "routing_evidence": _routing_evidence(result, filename=filename)
+                    + ["llm_proposal_invalid_type"],
+                },
+                errors=[
+                    PassError(
+                        code="LLM_PROPOSAL_INVALID",
+                        message="llm_router must return a dict",
+                    )
+                ],
+                metadata={
+                    "duration_ms": int((completed - started).total_seconds() * 1000)
+                },
+            )
+        dr_parsed, tc_parsed, enum_err = _parse_llm_enums(proposal)
+        if enum_err is not None:
+            completed = AnnotationPassOutput.utc_now()
+            return AnnotationPassOutput(
+                pass_name=PASS_NAME,
+                pass_version=PASS_VERSION,
+                document_id=document_id,
+                run_id=run_id,
+                started_at=started,
+                completed_at=completed,
+                status=PassRunStatus.DEGRADED,
+                output_data={
+                    "document_role": DocumentRole.UNKNOWN.value,
+                    "taxonomy_core": TaxonomyCore.UNKNOWN.value,
+                    "routing_confidence": 0.6,
+                    "routing_source": "llm_proposal_unresolved",
+                    "matched_rule": result.matched_rule,
+                    "deterministic": False,
+                    "routing_evidence": _routing_evidence(result, filename=filename)
+                    + ["llm_proposal_enum_mismatch"],
+                },
+                errors=[
+                    PassError(
+                        code="LLM_PROPOSAL_INVALID",
+                        message=enum_err[:500],
+                    )
+                ],
+                metadata={
+                    "duration_ms": int((completed - started).total_seconds() * 1000)
+                },
+            )
+        dr = dr_parsed
+        tc = tc_parsed
         validated = bool(proposal.get("validated", False))
         routing_source = (
             "llm_proposal_validated" if validated else "llm_proposal_unresolved"
         )
-        routing_confidence = _map_confidence(float(proposal.get("confidence", 0.0)))
+        routing_confidence = _map_confidence(
+            _safe_float(proposal.get("confidence"), 0.0)
+        )
         model_used = proposal.get("model_used")
+        if isinstance(model_used, str):
+            model_used = model_used[:256]
+        else:
+            model_used = None
         pass_status = PassRunStatus.SUCCESS if validated else PassRunStatus.DEGRADED
         output_data = {
             "document_role": dr,
