@@ -30,13 +30,7 @@ logger = logging.getLogger(__name__)
 
 ENV_USE_ORCHESTRATOR = "ANNOTATION_USE_PASS_ORCHESTRATOR"
 
-_PASS_TIMEOUT_MS: dict[str, int] = {
-    "pass_0_ingestion": 60_000,
-    "pass_0_5_quality_gate": 5_000,
-    "pass_1_router": 5_000,
-    "pass_1_router_llm": 120_000,
-}
-_DEFAULT_MAX_RETRIES = 2
+_DEFAULT_MAX_ATTEMPTS = 2
 
 
 def use_pass_orchestrator() -> bool:
@@ -95,7 +89,7 @@ def default_pipeline_runs_dir() -> Path:
 class AnnotationOrchestrator:
     """
     Enchaîne Pass 0 → 0.5 → 1 avec persistance JSON et journalisation des transitions.
-    Retry N=2 + timeout par passe (FSM §3).
+    Each pass is attempted up to ``max_attempts`` times before declaring failure (FSM §3).
     """
 
     def __init__(
@@ -104,12 +98,16 @@ class AnnotationOrchestrator:
         runs_dir: Path | None = None,
         strict_block_llm_on_poor: bool = True,
         llm_router: Callable[[str], dict[str, Any]] | None = None,
-        max_retries: int = _DEFAULT_MAX_RETRIES,
+        max_attempts: int = _DEFAULT_MAX_ATTEMPTS,
     ) -> None:
+        if max_attempts < 1:
+            raise ValueError(
+                f"max_attempts must be >= 1, got {max_attempts}"
+            )
         self.runs_dir = runs_dir or default_pipeline_runs_dir()
         self.strict_block_llm_on_poor = strict_block_llm_on_poor
         self.llm_router = llm_router
-        self.max_retries = max_retries
+        self.max_attempts = max_attempts
 
     def _path(self, run_id: uuid.UUID) -> Path:
         self.runs_dir.mkdir(parents=True, exist_ok=True)
@@ -178,21 +176,21 @@ class AnnotationOrchestrator:
         pass_name: str,
         **kwargs: Any,
     ) -> AnnotationPassOutput:
-        """Execute a pass with up to self.max_retries attempts on failure."""
+        """Execute a pass up to ``self.max_attempts`` times; return on first non-FAILED result."""
         last_output: AnnotationPassOutput | None = None
-        for attempt in range(1, self.max_retries + 1):
+        for attempt in range(1, self.max_attempts + 1):
             try:
                 result = pass_fn(**kwargs)
                 if result.status != PassRunStatus.FAILED:
                     return result
                 last_output = result
-                if attempt < self.max_retries:
+                if attempt < self.max_attempts:
                     logger.warning(
                         "annotation_pass_retry",
                         extra={
                             "pass_name": pass_name,
                             "attempt": attempt,
-                            "max_retries": self.max_retries,
+                            "max_attempts": self.max_attempts,
                             "status": result.status.value,
                         },
                     )
@@ -233,7 +231,9 @@ class AnnotationOrchestrator:
     ) -> tuple[PipelineRunRecord, AnnotationPipelineState]:
         """
         Exécute jusqu'à ``routed`` (ou ``dead_letter`` / ``review_required``).
-        Idempotent: if a run already exists at the same state, returns it.
+
+        If a persisted record already exists for *run_id*, execution is skipped
+        and the existing record is returned unchanged.
         """
         existing = self.load_run(run_id)
         if existing is not None:

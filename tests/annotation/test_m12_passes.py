@@ -294,7 +294,7 @@ def test_orchestrator_retry_on_pass_exception(tmp_path: Path):
     saved = orch_mod.run_pass_0_ingestion
     orch_mod.run_pass_0_ingestion = flaky_p0
     try:
-        orch = AnnotationOrchestrator(runs_dir=tmp_path, max_retries=2)
+        orch = AnnotationOrchestrator(runs_dir=tmp_path, max_attempts=2)
         rid = uuid.uuid4()
         rec, state = orch.run_passes_0_to_1(
             "# OFFRE TECHNIQUE\n" + "detail " * 400,
@@ -305,3 +305,10 @@ def test_orchestrator_retry_on_pass_exception(tmp_path: Path):
         assert call_count == 2
     finally:
         orch_mod.run_pass_0_ingestion = saved
+
+
+def test_orchestrator_max_attempts_validation(tmp_path: Path):
+    with pytest.raises(ValueError, match="max_attempts must be >= 1"):
+        AnnotationOrchestrator(runs_dir=tmp_path, max_attempts=0)
+    with pytest.raises(ValueError, match="max_attempts must be >= 1"):
+        AnnotationOrchestrator(runs_dir=tmp_path, max_attempts=-1)
