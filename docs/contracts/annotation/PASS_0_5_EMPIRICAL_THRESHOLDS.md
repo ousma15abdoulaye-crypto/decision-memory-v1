@@ -40,7 +40,8 @@ Références :
 
 | Date | Fichiers source | N docs | Notes |
 | --- | --- | ---: | --- |
-| _à remplir_ | | | |
+| 2026-03-25 | `tests/fixtures/m12_derive_sample.jsonl` (CI) | 1 | Smoke derive : `python scripts/derive_pass_0_5_thresholds.py tests/fixtures/m12_derive_sample.jsonl` |
+| _terrain_ | Export LS JSONL + `source_text` (merge manuel si besoin) | ≥50 | Remplir percentiles via `scripts/derive_pass_0_5_thresholds.py` ; métriques classifieur via `scripts/m12_calibrate_classifier_metrics.py` |
 
 ---
 

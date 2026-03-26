@@ -36,8 +36,8 @@ last_merge_commit     : 87942a3 (Merge PR#215 feat/pre-m12-extraction-reelle —
 last_tag              : v4.1.0-pre-m12-extraction-reelle-done
 next_milestone        : M12
 next_status           : IN_PROGRESS
-blocked_on            : aucun
-branch_courante       : main (feat/pre-m12-extraction-reelle mergé)
+blocked_on            : calibration terrain (N≥50, seuils empiriques, macro-F1 classifieur) et tag v4.1.0-m12-done après validation AO — voir docs/milestones/M12_PROCEDURE_RECOGNIZER_DONE.md
+branch_courante       : feat/m12-procedure-recognizer (PR M12 — merge CTO)
 
 ---
 

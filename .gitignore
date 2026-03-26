@@ -24,6 +24,9 @@ scripts/_out*.txt
 scripts/_wave*.txt
 scripts/_probe_*.py
 
+# Runs orchestrateur annotation (JSON local)
+data/annotation_pipeline_runs/
+
 # Données de session potentiellement sensibles
 mercurials_mapping_proposals.csv
 *_mapping_proposals.csv
