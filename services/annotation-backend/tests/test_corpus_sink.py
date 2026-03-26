@@ -1,11 +1,15 @@
 """Tests configuration S3 / corpus sink."""
 
+import io
+import json
 import logging
+from unittest.mock import MagicMock
 
 import pytest
 from corpus_sink import (
     _botocore_config_for_s3,
     _s3_endpoint_safe_for_log,
+    iter_corpus_m12_lines_from_s3,
     log_s3_corpus_boot_diagnostics,
 )
 
@@ -89,6 +93,89 @@ class TestS3EndpointSafeForLog:
         assert _s3_endpoint_safe_for_log("http://minio.local:9000") == (
             "http://minio.local:9000"
         )
+
+
+class TestIterCorpusM12LinesFromS3:
+    def test_lists_and_reads_json_objects(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("S3_BUCKET", "bucket-test")
+        monkeypatch.setenv("S3_ENDPOINT", "https://abc.r2.cloudflarestorage.com")
+        monkeypatch.setenv("S3_ACCESS_KEY_ID", "k")
+        monkeypatch.setenv("S3_SECRET_ACCESS_KEY", "s")
+
+        payload = {
+            "export_schema_version": "m12-v2",
+            "source_text": "hello",
+            "ls_meta": {"task_id": 1, "annotation_status": "annotated_validated"},
+        }
+        fake = MagicMock()
+        paginator = MagicMock()
+        fake.get_paginator.return_value = paginator
+        paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "m12-v2/1/1_2_abcd1234.json"},
+                ]
+            }
+        ]
+        fake.get_object.return_value = {
+            "Body": io.BytesIO(json.dumps(payload).encode("utf-8")),
+        }
+
+        import corpus_sink as cs
+
+        monkeypatch.setattr(cs, "_make_s3_client", lambda ep: fake)
+
+        lines = list(iter_corpus_m12_lines_from_s3())
+        assert len(lines) == 1
+        assert lines[0]["source_text"] == "hello"
+        fake.get_paginator.assert_called_once_with("list_objects_v2")
+        paginator.paginate.assert_called_once()
+        fake.get_object.assert_called_once_with(
+            Bucket="bucket-test", Key="m12-v2/1/1_2_abcd1234.json"
+        )
+
+    def test_skips_non_json_keys_and_invalid_json(
+        self, monkeypatch: pytest.MonkeyPatch, caplog
+    ) -> None:
+        monkeypatch.setenv("S3_BUCKET", "b")
+        monkeypatch.setenv("S3_ENDPOINT", "https://abc.r2.cloudflarestorage.com")
+        monkeypatch.setenv("S3_ACCESS_KEY_ID", "k")
+        monkeypatch.setenv("S3_SECRET_ACCESS_KEY", "s")
+
+        fake = MagicMock()
+        paginator = MagicMock()
+        fake.get_paginator.return_value = paginator
+        paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "m12-v2/1/readme.txt"},
+                    {"Key": "m12-v2/1/bad.json"},
+                    {"Key": "m12-v2/1/good.json"},
+                ]
+            }
+        ]
+
+        def _go(**kwargs):
+            key = kwargs.get("Key")
+            if key and str(key).endswith("good.json"):
+                return {"Body": io.BytesIO(b'{"ok": true}')}
+            return {"Body": io.BytesIO(b"not json")}
+
+        fake.get_object.side_effect = _go
+
+        import corpus_sink as cs
+
+        monkeypatch.setattr(cs, "_make_s3_client", lambda ep: fake)
+        caplog.set_level(logging.WARNING)
+        lines = list(iter_corpus_m12_lines_from_s3())
+        assert lines == [{"ok": True}]
+
+    def test_raises_without_bucket(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("S3_BUCKET", raising=False)
+        with pytest.raises(ValueError, match="S3_BUCKET"):
+            list(iter_corpus_m12_lines_from_s3())
 
 
 class TestLogS3CorpusBootDiagnostics:
