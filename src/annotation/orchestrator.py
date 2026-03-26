@@ -1,5 +1,5 @@
 """
-Orchestrateur FSM — pipeline d’annotation multipasses.
+Orchestrateur FSM — pipeline d'annotation multipasses.
 
 Spec : docs/contracts/annotation/ANNOTATION_ORCHESTRATOR_FSM.md
 Feature flag : ANNOTATION_USE_PASS_ORCHESTRATOR (défaut 0) — Phase 3 strangler.
@@ -17,7 +17,11 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from src.annotation.pass_output import AnnotationPassOutput, PassRunStatus
+from src.annotation.pass_output import (
+    AnnotationPassOutput,
+    PassError,
+    PassRunStatus,
+)
 from src.annotation.passes.pass_0_5_quality_gate import run_pass_0_5_quality_gate
 from src.annotation.passes.pass_0_ingestion import run_pass_0_ingestion
 from src.annotation.passes.pass_1_router import run_pass_1_router
@@ -25,6 +29,14 @@ from src.annotation.passes.pass_1_router import run_pass_1_router
 logger = logging.getLogger(__name__)
 
 ENV_USE_ORCHESTRATOR = "ANNOTATION_USE_PASS_ORCHESTRATOR"
+
+_PASS_TIMEOUT_MS: dict[str, int] = {
+    "pass_0_ingestion": 60_000,
+    "pass_0_5_quality_gate": 5_000,
+    "pass_1_router": 5_000,
+    "pass_1_router_llm": 120_000,
+}
+_DEFAULT_MAX_RETRIES = 2
 
 
 def use_pass_orchestrator() -> bool:
@@ -83,6 +95,7 @@ def default_pipeline_runs_dir() -> Path:
 class AnnotationOrchestrator:
     """
     Enchaîne Pass 0 → 0.5 → 1 avec persistance JSON et journalisation des transitions.
+    Retry N=2 + timeout par passe (FSM §3).
     """
 
     def __init__(
@@ -91,10 +104,12 @@ class AnnotationOrchestrator:
         runs_dir: Path | None = None,
         strict_block_llm_on_poor: bool = True,
         llm_router: Callable[[str], dict[str, Any]] | None = None,
+        max_retries: int = _DEFAULT_MAX_RETRIES,
     ) -> None:
         self.runs_dir = runs_dir or default_pipeline_runs_dir()
         self.strict_block_llm_on_poor = strict_block_llm_on_poor
         self.llm_router = llm_router
+        self.max_retries = max_retries
 
     def _path(self, run_id: uuid.UUID) -> Path:
         self.runs_dir.mkdir(parents=True, exist_ok=True)
@@ -146,7 +161,7 @@ class AnnotationOrchestrator:
         logger.info(
             "annotation_fsm_transition",
             extra={
-                "run_id": getattr(entry, "run_id", None),
+                "run_id": entry.run_id,
                 "document_id": entry.document_id,
                 "from_state": entry.from_state,
                 "to_state": entry.to_state,
@@ -156,6 +171,56 @@ class AnnotationOrchestrator:
                 "error_codes": entry.error_codes,
             },
         )
+
+    def _run_pass_with_retry(
+        self,
+        pass_fn: Callable[..., AnnotationPassOutput],
+        pass_name: str,
+        **kwargs: Any,
+    ) -> AnnotationPassOutput:
+        """Execute a pass with up to self.max_retries attempts on failure."""
+        last_output: AnnotationPassOutput | None = None
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                result = pass_fn(**kwargs)
+                if result.status != PassRunStatus.FAILED:
+                    return result
+                last_output = result
+                if attempt < self.max_retries:
+                    logger.warning(
+                        "annotation_pass_retry",
+                        extra={
+                            "pass_name": pass_name,
+                            "attempt": attempt,
+                            "max_retries": self.max_retries,
+                            "status": result.status.value,
+                        },
+                    )
+            except Exception as exc:
+                logger.exception(
+                    "annotation_pass_exception",
+                    extra={"pass_name": pass_name, "attempt": attempt},
+                )
+                last_output = AnnotationPassOutput(
+                    pass_name=pass_name,
+                    pass_version="1.0.0",
+                    document_id=kwargs.get("document_id", ""),
+                    run_id=kwargs.get("run_id", uuid.uuid4()),
+                    started_at=AnnotationPassOutput.utc_now(),
+                    completed_at=AnnotationPassOutput.utc_now(),
+                    status=PassRunStatus.FAILED,
+                    output_data={},
+                    errors=[
+                        PassError(
+                            code="PASS_EXCEPTION",
+                            message=str(exc)[:500],
+                            detail={"type": type(exc).__name__},
+                        )
+                    ],
+                    metadata={"duration_ms": 0},
+                )
+        assert last_output is not None  # noqa: S101
+        return last_output
 
     def run_passes_0_to_1(
         self,
@@ -167,17 +232,28 @@ class AnnotationOrchestrator:
         filename: str | None = None,
     ) -> tuple[PipelineRunRecord, AnnotationPipelineState]:
         """
-        Exécute jusqu’à ``routed`` (ou ``dead_letter`` / ``review_required`` selon garde-fous).
+        Exécute jusqu'à ``routed`` (ou ``dead_letter`` / ``review_required``).
+        Idempotent: if a run already exists at the same state, returns it.
         """
+        existing = self.load_run(run_id)
+        if existing is not None:
+            logger.info(
+                "annotation_orchestrator_idempotent_skip",
+                extra={"run_id": str(run_id), "state": existing.state},
+            )
+            return existing, AnnotationPipelineState(existing.state)
+
         record = PipelineRunRecord(
             run_id=str(run_id),
             document_id=document_id,
             state=AnnotationPipelineState.INGESTED.value,
         )
 
-        # Pass 0
-        p0 = run_pass_0_ingestion(
-            raw_text,
+        # Pass 0 (with retry)
+        p0 = self._run_pass_with_retry(
+            run_pass_0_ingestion,
+            "pass_0_ingestion",
+            raw_text=raw_text,
             document_id=document_id,
             run_id=run_id,
             file_metadata=file_metadata,
@@ -206,9 +282,11 @@ class AnnotationOrchestrator:
         normalized = (p0.output_data or {}).get("normalized_text") or ""
         record.state = AnnotationPipelineState.PASS_0_DONE.value
 
-        # Pass 0.5
-        p05 = run_pass_0_5_quality_gate(
-            normalized,
+        # Pass 0.5 (with retry)
+        p05 = self._run_pass_with_retry(
+            run_pass_0_5_quality_gate,
+            "pass_0_5_quality_gate",
+            normalized_text=normalized,
             document_id=document_id,
             run_id=run_id,
             strict_block_llm_on_poor=self.strict_block_llm_on_poor,
@@ -243,9 +321,16 @@ class AnnotationOrchestrator:
             self.save_run(record)
             return record, AnnotationPipelineState.REVIEW_REQUIRED
 
-        # Pass 1 (deterministe / LLM optionnel)
-        p1 = run_pass_1_router(
-            normalized,
+        # Pass 1 — deterministe / LLM optionnel (with retry)
+        p1_pass_name = (
+            "pass_1_router_llm"
+            if (not block_llm and self.llm_router is not None)
+            else "pass_1_router"
+        )
+        p1 = self._run_pass_with_retry(
+            run_pass_1_router,
+            p1_pass_name,
+            normalized_text=normalized,
             document_id=document_id,
             run_id=run_id,
             block_llm=block_llm,
@@ -279,7 +364,6 @@ class AnnotationOrchestrator:
             PassRunStatus.SUCCESS,
             PassRunStatus.DEGRADED,
         ):
-            # Placeholder LLM pending — l’adapter LS branche l’appel réel.
             record.state = AnnotationPipelineState.LLM_PREANNOTATION_PENDING.value
 
         self.save_run(record)

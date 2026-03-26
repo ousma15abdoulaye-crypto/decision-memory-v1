@@ -6,6 +6,7 @@ Contrat : docs/contracts/annotation/PASS_0_INGESTION_CONTRACT.md
 
 from __future__ import annotations
 
+import logging
 import re
 import unicodedata
 import uuid
@@ -16,6 +17,8 @@ from src.annotation.pass_output import (
     PassError,
     PassRunStatus,
 )
+
+logger = logging.getLogger(__name__)
 
 PASS_NAME = "pass_0_ingestion"
 PASS_VERSION = "1.0.0"
@@ -131,6 +134,17 @@ def run_pass_0_ingestion(
     feats = _features(normalized, str(hint))
     completed = AnnotationPassOutput.utc_now()
     duration_ms = int((completed - started).total_seconds() * 1000)
+
+    logger.info(
+        "pass_0_ingestion_done",
+        extra={
+            "document_id": document_id,
+            "run_id": str(run_id),
+            "char_count": feats["char_count"],
+            "page_count": len(page_map),
+            "duration_ms": duration_ms,
+        },
+    )
 
     return AnnotationPassOutput(
         pass_name=PASS_NAME,

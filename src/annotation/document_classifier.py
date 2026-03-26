@@ -134,7 +134,7 @@ def classify_document(raw_text: str) -> ClassificationResult:
         return ClassificationResult(
             taxonomy_core=TaxonomyCore.UNKNOWN,
             document_role=DocumentRole.UNKNOWN,
-            confidence=0.0,
+            confidence=0.6,
             matched_rule="empty_text",
             deterministic=True,
         )
@@ -184,7 +184,7 @@ def classify_document(raw_text: str) -> ClassificationResult:
         )
     if _P3_DAO.search(header):
         return ClassificationResult(
-            TaxonomyCore.DAO_CONSTRUCTION,
+            TaxonomyCore.DAO,
             DocumentRole.SOURCE_RULES,
             0.8,
             "P3_dao_header",
@@ -202,7 +202,7 @@ def classify_document(raw_text: str) -> ClassificationResult:
     return ClassificationResult(
         TaxonomyCore.UNKNOWN,
         DocumentRole.UNKNOWN,
-        0.0,
+        0.6,
         "fallback_llm_required",
         False,
     )

@@ -6,6 +6,7 @@ Contrat : docs/contracts/annotation/PASS_1_ROUTER_CONTRACT.md
 
 from __future__ import annotations
 
+import logging
 import re
 import uuid
 from collections.abc import Callable
@@ -23,6 +24,8 @@ from src.annotation.pass_output import (
     PassRunStatus,
 )
 
+logger = logging.getLogger(__name__)
+
 PASS_NAME = "pass_1_router"
 PASS_VERSION = "1.0.0"
 
@@ -32,7 +35,7 @@ _ALLOWED_CONF = frozenset({0.6, 0.8, 1.0})
 _FILENAME_RULES: list[tuple[re.Pattern[str], TaxonomyCore, DocumentRole, str]] = [
     (
         re.compile(r"dao|appel[_\s-]*offres?|dossier[_\s-]*appel", re.IGNORECASE),
-        TaxonomyCore.DAO_CONSTRUCTION,
+        TaxonomyCore.DAO,
         DocumentRole.SOURCE_RULES,
         "filename_signal_dao",
     ),
@@ -188,6 +191,7 @@ def run_pass_1_router(
             "matched_rule": result.matched_rule,
             "deterministic": True,
             "routing_evidence": _routing_evidence(result, filename=filename),
+            "routing_failure_reason": None,
         }
     elif block_llm:
         routing_source = "human"
@@ -201,6 +205,7 @@ def run_pass_1_router(
             "deterministic": False,
             "routing_evidence": _routing_evidence(result, filename=filename)
             + ["block_llm_true_no_llm"],
+            "routing_failure_reason": "block_llm=true, deterministic=false, requires human review",
         }
     elif llm_router is not None:
         try:
@@ -246,6 +251,7 @@ def run_pass_1_router(
                     "deterministic": False,
                     "routing_evidence": _routing_evidence(result, filename=filename)
                     + ["llm_proposal_invalid_type"],
+                    "routing_failure_reason": "llm_router returned non-dict",
                 },
                 errors=[
                     PassError(
@@ -277,6 +283,7 @@ def run_pass_1_router(
                     "deterministic": False,
                     "routing_evidence": _routing_evidence(result, filename=filename)
                     + ["llm_proposal_enum_mismatch"],
+                    "routing_failure_reason": enum_err[:500],
                 },
                 errors=[
                     PassError(
@@ -303,6 +310,7 @@ def run_pass_1_router(
         else:
             model_used = None
         pass_status = PassRunStatus.SUCCESS if validated else PassRunStatus.DEGRADED
+        failure_reason = None if validated else "llm_proposal_not_validated"
         output_data = {
             "document_role": dr,
             "taxonomy_core": tc,
@@ -312,6 +320,7 @@ def run_pass_1_router(
             "deterministic": False,
             "routing_evidence": _routing_evidence(result, filename=filename)
             + ["llm_proposal"],
+            "routing_failure_reason": failure_reason,
         }
     else:
         routing_source = "llm_proposal_unresolved"
@@ -325,6 +334,7 @@ def run_pass_1_router(
             "deterministic": False,
             "routing_evidence": _routing_evidence(result, filename=filename)
             + ["no_llm_router_configured"],
+            "routing_failure_reason": "no_llm_router_configured, deterministic=false",
         }
 
     completed = AnnotationPassOutput.utc_now()
@@ -332,6 +342,21 @@ def run_pass_1_router(
     meta: dict[str, Any] = {"duration_ms": duration_ms}
     if model_used:
         meta["model_used"] = model_used
+
+    logger.info(
+        "pass_1_router_done",
+        extra={
+            "document_id": document_id,
+            "run_id": str(run_id),
+            "document_role": output_data.get("document_role"),
+            "taxonomy_core": output_data.get("taxonomy_core"),
+            "routing_source": output_data.get("routing_source"),
+            "routing_confidence": output_data.get("routing_confidence"),
+            "deterministic": output_data.get("deterministic"),
+            "status": pass_status.value,
+            "duration_ms": duration_ms,
+        },
+    )
 
     return AnnotationPassOutput(
         pass_name=PASS_NAME,

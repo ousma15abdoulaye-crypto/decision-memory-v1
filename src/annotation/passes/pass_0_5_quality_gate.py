@@ -8,6 +8,7 @@ Classes finales alignées sur PASS_0_5_EMPIRICAL_THRESHOLDS.md (char_count + rat
 
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Any, Literal
 
@@ -16,6 +17,8 @@ from src.annotation.pass_output import (
     PassError,
     PassRunStatus,
 )
+
+logger = logging.getLogger(__name__)
 
 PASS_NAME = "pass_0_5_quality_gate"
 PASS_VERSION = "1.0.0"
@@ -162,6 +165,18 @@ def run_pass_0_5_quality_gate(
     )
     completed = AnnotationPassOutput.utc_now()
     duration_ms = int((completed - started).total_seconds() * 1000)
+
+    logger.info(
+        "pass_0_5_quality_gate_done",
+        extra={
+            "document_id": document_id,
+            "run_id": str(run_id),
+            "quality_class": qc,
+            "block_llm": block_llm,
+            "char_count": metrics["char_count"],
+            "duration_ms": duration_ms,
+        },
+    )
 
     # Contrat : « success » dès que la classification est posée (§ status Pass 0.5).
     pass_status = PassRunStatus.SUCCESS
