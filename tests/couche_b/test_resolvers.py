@@ -70,7 +70,9 @@ def test_resolve_zone_fuzzy_match(seed_zones, db_cursor):
     """Test fuzzy match with realistic typo (similarity ≥60%)"""
     # pg_trgm similarity("Bamako","Bamko") ≈ 0.44 (souvent sous le seuil) ; "Bamak" ≈ 0.625
     zone_id = resolve_zone("Bamak", cursor=db_cursor)
-    assert zone_id == "zone-bamako-1", "Should resolve 'Bamak' to 'Bamako' (typo tolerance)"
+    assert (
+        zone_id == "zone-bamako-1"
+    ), "Should resolve 'Bamak' to 'Bamako' (typo tolerance)"
 
     # Test avec typo plausible : lettre doublée
     zone_id = resolve_zone("Bamaako", cursor=db_cursor)  # "Bamako" avec double 'a'

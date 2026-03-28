@@ -87,8 +87,10 @@ def test_stable_m12_corpus_ids_from_jsonl_paths_union(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     b.write_text(
-        json.dumps({"content_hash": "x2", "export_schema_version": "m12-v2"}) + "\n"
-        + json.dumps({"content_hash": "x1", "export_schema_version": "m12-v2"}) + "\n",
+        json.dumps({"content_hash": "x2", "export_schema_version": "m12-v2"})
+        + "\n"
+        + json.dumps({"content_hash": "x1", "export_schema_version": "m12-v2"})
+        + "\n",
         encoding="utf-8",
     )
     ids = stable_m12_corpus_ids_from_jsonl_paths([a, b])
