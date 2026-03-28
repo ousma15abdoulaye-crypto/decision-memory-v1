@@ -43,6 +43,7 @@ import json
 import logging
 import os
 import sys
+import tempfile
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -151,8 +152,21 @@ def _run_once(
     if raw_ls_json_path is not None:
         raw_ls_json_path = raw_ls_json_path.resolve()
         raw_ls_json_path.parent.mkdir(parents=True, exist_ok=True)
-        with raw_ls_json_path.open("w", encoding="utf-8") as rf:
-            json.dump(tasks, rf, ensure_ascii=False, separators=(",", ":"))
+        _fd, _tmp = tempfile.mkstemp(
+            dir=raw_ls_json_path.parent,
+            prefix=".tmp_raw_ls_",
+            suffix=".json",
+        )
+        try:
+            with os.fdopen(_fd, "w", encoding="utf-8") as rf:
+                json.dump(tasks, rf, ensure_ascii=False, separators=(",", ":"))
+            Path(_tmp).replace(raw_ls_json_path)
+        except Exception:
+            try:
+                os.unlink(_tmp)
+            except OSError:
+                pass
+            raise
         logger.info(
             "Miroir brut LS (API) → %s | %d tâche(s)",
             raw_ls_json_path,
