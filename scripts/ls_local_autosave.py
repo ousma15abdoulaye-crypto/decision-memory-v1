@@ -173,6 +173,15 @@ def _run_once(
             len(tasks) if isinstance(tasks, list) else -1,
         )
 
+    # Validation explicite du format retourné par fetch_annotations
+    if not isinstance(tasks, list) or not all(isinstance(task, dict) for task in tasks):
+        logger.error(
+            "Réponse inattendue de fetch_annotations pour le projet %d : "
+            "attendu une liste de tâches (dict), reçu %r",
+            project_id,
+            type(tasks).__name__,
+        )
+        return 0
     output_path.parent.mkdir(parents=True, exist_ok=True)
     new_count = 0
 
