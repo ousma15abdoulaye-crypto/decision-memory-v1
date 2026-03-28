@@ -19,11 +19,31 @@ fi
 if [ -n "${MISTRAL_API_KEY:-}" ]; then
   # shellcheck disable=SC2001
   _k=$(printf '%s' "$MISTRAL_API_KEY" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  case $_k in
+    \"*\")
+      _k=${_k#\"}
+      _k=${_k%\"}
+      ;;
+    \'*\')
+      _k=${_k#\'}
+      _k=${_k%\'}
+      ;;
+  esac
   export MISTRAL_API_KEY="$_k"
 fi
 # Alias parfois utilisé par erreur
 if [ -z "${MISTRAL_API_KEY:-}" ] && [ -n "${MISTRAL_KEY:-}" ]; then
   _k=$(printf '%s' "$MISTRAL_KEY" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  case $_k in
+    \"*\")
+      _k=${_k#\"}
+      _k=${_k%\"}
+      ;;
+    \'*\')
+      _k=${_k#\'}
+      _k=${_k%\'}
+      ;;
+  esac
   export MISTRAL_API_KEY="$_k"
 fi
 
