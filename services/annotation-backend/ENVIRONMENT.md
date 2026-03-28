@@ -12,6 +12,16 @@ Le `Dockerfile` copie `services/annotation-backend/*` **et** `src/annotation` de
 
 Si le root reste `services/annotation-backend` seul, l’erreur `"/src": not found` (ou équivalent) est attendue : Docker ne peut pas lire le dossier parent.
 
+### `MISTRAL_API_KEY` vide dans les logs alors qu’elle est « définie » sur Railway
+
+1. **Portée** : la variable doit être sur le **service** qui exécute ce Dockerfile (`annotation-backend`), pas seulement au niveau **Projet** si ce service n’hérite pas des variables partagées — dans Railway : **Service → Variables** pour ce service précis.
+2. **Nom exact** : `MISTRAL_API_KEY` (pas `MISTRAL_KEY` seul ; un repli `MISTRAL_KEY` est pris en charge par `start.sh` si besoin).
+3. **Valeur** : sans guillemets dans l’UI ; pas d’espace avant/après ; pas de retour ligne en trop (le `start.sh` normalise quand même `\r`/`\n`).
+4. **Redeploy** : après toute modification de variable, lancer un **Redeploy** du service (les variables runtime ne s’appliquent pas rétroactivement aux conteneurs déjà construits sans redémarrage).
+5. **Vérification** : `GET /health` sur l’URL du service → champ `mistral_configured` doit être `true` si la clé est bien injectée.
+
+Sans clé, le service **démarre quand même** (plus de boucle `exit 1` dans `start.sh`) ; les prédictions utilisent le fallback tant que la clé manque.
+
 ## Obligatoires (prod)
 
 | Variable | Description |
