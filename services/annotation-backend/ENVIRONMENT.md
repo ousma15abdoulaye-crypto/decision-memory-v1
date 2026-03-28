@@ -57,9 +57,21 @@ python scripts/ls_local_autosave.py --project-id 2 --output data/annotations/ls_
 
 # Daemon — sauvegarde toutes les 5 minutes
 python scripts/ls_local_autosave.py --project-id 2 --output data/annotations/ls_autosave.jsonl --loop --interval 300
+
+# Miroir JSON brut de l’export API (JSON brut Label Studio, hors conversion M12)
+# Note : --write-raw-ls-json est additif — le fichier JSONL d’autosave (--output) est toujours écrit en parallèle
+python scripts/ls_local_autosave.py --project-id 2 --write-raw-ls-json
+
+# Uniquement travail soumis (revue qualité sans tout le backlog de tâches vides)
+python scripts/ls_local_autosave.py --project-id 2 --only-finished --output data/annotations/ls_finished.jsonl
+
+# Seulement les fiches marquées « validées » dans LS
+python scripts/ls_local_autosave.py --project-id 2 --only-finished --only-if-status annotated_validated --output data/annotations/ls_validated.jsonl
 ```
 
 Variables requises : `LABEL_STUDIO_URL`, `LABEL_STUDIO_API_KEY`, `PSEUDONYM_SALT`, `ALLOW_WEAK_PSEUDONYMIZATION=1`.
+
+Sur ce script, la QA stricte sur `annotated_validated` est **désactivée** par défaut (tout est sérialisé). Pour l’ancien comportement : `--enforce-validated-qa`.
 
 ### Débogage « tout ABSENT » / `AMBIG-PARSE_FAILED`
 
