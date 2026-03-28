@@ -8,7 +8,7 @@ Ce script prouve que le pont fonctionne sur données réelles.
 
 Usage :
   ANNOTATION_BACKEND_URL=https://annotation-backend.railway.app \
-  MISTRAL_API_KEY=sk-... \
+  MISTRAL_API_KEY=sk-...REPLACE_ME...   # clé factice illustrative — utiliser une vraie clé via .env / env, jamais dans le dépôt
   python scripts/test_extraction_e2e.py <chemin_doc>
 
 Condition DONE Mandat 4 :

@@ -172,7 +172,9 @@ Documentation à jour des scripts : **`docs/m12/M12_EXPORT.md`**.
   `python scripts\export_r2_corpus_to_jsonl.py --output data\annotations\m12_corpus_r2.jsonl`  
   (options : `--limit`, `--status`, etc. — détail dans l’en-tête du script et `M12_EXPORT.md`).
 
-Pour un inventaire rapide des fichiers JSONL du corpus M12, utilisez le script dédié décrit dans `docs/m12/M12_EXPORT.md` (par ex. `inventory_m12_corpus_jsonl.py`). À défaut, vous pouvez simplement lister les fichiers (`Get-ChildItem data\annotations\*.jsonl`) puis appliquer la validation ci-dessus sur ceux qui vous intéressent.
+Pour un inventaire rapide des fichiers JSONL du corpus M12, utilisez le script dédié décrit dans `docs/m12/M12_EXPORT.md` (par ex. `inventory_m12_corpus_jsonl.py`). À défaut, vous pouvez simplement lister les fichiers (`Get-ChildItem data\annotations\*.jsonl`) puis appliquer la validation ci-dessus sur ceux qui vous intéressent.`n`nInventaire d’un export (lignes, clés stables, `export_ok`, statuts LS) :  
+`.\.venv\Scripts\python.exe scripts\inventory_m12_corpus_jsonl.py data\annotations\m12_corpus_from_ls.jsonl`  
+(ou `python scripts/inventory_m12_corpus_jsonl.py …`). Voir aussi la validation ci-dessus.
 
 ---
 

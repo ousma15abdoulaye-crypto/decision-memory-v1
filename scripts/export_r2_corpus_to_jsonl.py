@@ -21,16 +21,17 @@ Usage :
   set S3_ENDPOINT=...
   set S3_ACCESS_KEY_ID=...
   set S3_SECRET_ACCESS_KEY=...
-  python scripts/export_r2_corpus_to_jsonl.py --output data/annotations/m12_corpus_50.jsonl
+  # Sortie par défaut (sans -o) : data/annotations/m12_corpus_authoritative.jsonl
+  # Surcharge : variable d'environnement M12_R2_EXPORT_JSONL ou R2_EXPORT_JSONL
+  python scripts/export_r2_corpus_to_jsonl.py --no-status-filter
+
+  python scripts/export_r2_corpus_to_jsonl.py -o data/annotations/m12_corpus_50.jsonl
 
   # Filtrer comme le gate webhook (défaut : annotated_validated)
-  python scripts/export_r2_corpus_to_jsonl.py --output out.jsonl --status annotated_validated
-
-  # Toutes les lignes du préfixe (sans filtre statut)
-  python scripts/export_r2_corpus_to_jsonl.py --output out.jsonl --no-status-filter
+  python scripts/export_r2_corpus_to_jsonl.py --status annotated_validated
 
   # Limiter (ex. test)
-  python scripts/export_r2_corpus_to_jsonl.py --output out.jsonl --limit 50
+  python scripts/export_r2_corpus_to_jsonl.py --limit 50
 
 En cas d’erreur ``RequestTimeTooSkewed`` : par défaut le backend ajuste l’heure de
 signature via HTTP (``S3_CLOCK_SKEW_AUTO``, voir ``ENVIRONMENT.md``). Si ça persiste :
@@ -58,6 +59,19 @@ def _ensure_annotation_path() -> None:
         sys.path.insert(0, p)
 
 
+def _default_r2_export_jsonl_path() -> Path:
+    """
+    Chemin JSONL canonique local pour l'export R2 (aligné data/annotations/README.md).
+
+    Priorité : ``M12_R2_EXPORT_JSONL``, puis ``R2_EXPORT_JSONL``, sinon
+    ``data/annotations/m12_corpus_authoritative.jsonl`` sous la racine du dépôt.
+    """
+    env = (os.environ.get("M12_R2_EXPORT_JSONL") or os.environ.get("R2_EXPORT_JSONL") or "").strip()
+    if env:
+        return Path(env)
+    return _PROJECT_ROOT / "data" / "annotations" / "m12_corpus_authoritative.jsonl"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Export corpus m12-v2 depuis R2/S3 → un fichier JSONL (une ligne JSON par objet)"
@@ -66,8 +80,11 @@ def main() -> int:
         "--output",
         "-o",
         type=str,
-        required=True,
-        help="Chemin fichier JSONL de sortie",
+        default=None,
+        help=(
+            "Fichier JSONL de sortie (defaut : data/annotations/m12_corpus_authoritative.jsonl "
+            "ou M12_R2_EXPORT_JSONL / R2_EXPORT_JSONL)"
+        ),
     )
     parser.add_argument(
         "--prefix",
@@ -79,7 +96,16 @@ def main() -> int:
         "--status",
         type=str,
         default="annotated_validated",
-        help="Ne garder que ls_meta.annotation_status == cette valeur (défaut : annotated_validated)",
+        help="Ne garder que ls_meta.annotation_status == cette valeur si --accepted-statuses absent",
+    )
+    parser.add_argument(
+        "--accepted-statuses",
+        type=str,
+        default=None,
+        help=(
+            "Liste CSV de statuts LS acceptés (ex. annotated_validated,annotated). "
+            "Si défini, remplace le filtre --status unique."
+        ),
     )
     parser.add_argument(
         "--no-status-filter",
@@ -105,11 +131,19 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    accepted: set[str] | None = None
+    if args.accepted_statuses is not None and args.accepted_statuses.strip():
+        accepted = {s.strip() for s in args.accepted_statuses.split(",") if s.strip()}
+
     _ensure_annotation_path()
     from corpus_sink import iter_corpus_m12_lines_from_s3
 
-    out_path = args.output
-    os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+    out_path = (
+        args.output
+        if args.output and str(args.output).strip()
+        else str(_default_r2_export_jsonl_path().resolve())
+    )
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
 
     written = 0
     skipped_status = 0
@@ -124,7 +158,11 @@ def main() -> int:
                 )
                 if not args.no_status_filter:
                     st = (ls_meta.get("annotation_status") or "").strip()
-                    if st != args.status:
+                    if accepted is not None:
+                        if st not in accepted:
+                            skipped_status += 1
+                            continue
+                    elif st != args.status:
                         skipped_status += 1
                         continue
                 if args.project_id is not None:
@@ -161,9 +199,9 @@ def main() -> int:
             raise
 
     print(
-        f"Écrit {written} ligne(s) → {out_path} "
-        f"(ignorés statut={skipped_status}, projet={skipped_project}, "
-        f"sans source_text comptés={missing_source_text})"
+        f"Ecrit {written} ligne(s) -> {out_path} "
+        f"(ignores statut={skipped_status}, projet={skipped_project}, "
+        f"sans source_text comptes={missing_source_text})"
     )
     return 0
 

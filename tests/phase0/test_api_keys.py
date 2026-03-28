@@ -125,14 +125,20 @@ class TestGetMistralApiKey:
 
     def test_valid_key_returned_stripped(self, monkeypatch):
         """Variable définie avec espaces → retournée sans espaces."""
-        monkeypatch.setenv("MISTRAL_API_KEY", "  sk-mistral-test  ")
+        # Placeholder volontairement non réaliste — ne jamais committer de vraie clé.
+        monkeypatch.setenv(
+            "MISTRAL_API_KEY",
+            "  sk-mistral-TEST_FAKE_PLACEHOLDER_NOT_A_SECRET  ",
+        )
         result = get_mistral_api_key()
-        assert result == "sk-mistral-test"
+        assert result == "sk-mistral-TEST_FAKE_PLACEHOLDER_NOT_A_SECRET"
 
     def test_valid_key_returned(self, monkeypatch):
         """Variable définie → retournée telle quelle."""
-        monkeypatch.setenv("MISTRAL_API_KEY", "sk-mistral-real")
-        assert get_mistral_api_key() == "sk-mistral-real"
+        # Exemple factice pour pytest — pas une clé Mistral réelle.
+        fake = "sk-mistral-REPLACE_ME_FAKE_KEY_FOR_TESTS_ONLY"
+        monkeypatch.setenv("MISTRAL_API_KEY", fake)
+        assert get_mistral_api_key() == fake
 
     def test_error_message_contains_env_ref(self, monkeypatch):
         """§9 : message d'erreur contient le nom de la variable ET .env."""
