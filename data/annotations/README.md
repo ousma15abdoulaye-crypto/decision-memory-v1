@@ -4,10 +4,7 @@ Sorties **M12** : format ground truth DMS (JSONL).
 
 - Ne pas versionner de fichiers contenant des données procurement réelles sans validation sécurité / CTO.
 - **Backups** : `scripts/m12_corpus_backup.ps1` → `data/annotations/backups/<horodatage>/` (gitignoré). Voir [`docs/m12/M12_PIPELINE_INDUSTRIAL.md`](../../docs/m12/M12_PIPELINE_INDUSTRIAL.md).
-- **Vérité corpus (R2 exportée)** : `m12_corpus_authoritative.jsonl` — écrit par défaut par `scripts/export_r2_corpus_to_jsonl.py` (sans `-o`, ou via `M12_R2_EXPORT_JSONL`) ; inventaire :
-  `python scripts/inventory_m12_corpus_jsonl.py data/annotations/m12_corpus_authoritative.jsonl`
-- **Manifeste** (TSV, une ligne par objet R2) : `m12_corpus_authoritative_manifest.tsv` (gitignoré). Régénérer :
-  `python scripts/inventory_m12_corpus_jsonl.py data/annotations/m12_corpus_authoritative.jsonl --manifest-tsv data/annotations/m12_corpus_authoritative_manifest.tsv`
+- **Vérité corpus (R2 exportée)** : `m12_corpus_authoritative.jsonl` — à générer explicitement via `scripts/export_r2_corpus_to_jsonl.py` (par exemple avec `-o data/annotations/m12_corpus_authoritative.jsonl`, ou en configurant `M12_R2_EXPORT_JSONL` si supporté).
 - Export LS séparé (optionnel, comparaison / delta) : `m12_corpus_from_ls.jsonl` — ne remplace pas `m12_corpus_authoritative.jsonl`.
 - Chaîne LS + delta R2 + consolidation : `scripts/run_m12_corpus_resync.ps1` (voir en-tête du script).
 - Delta / fusion : [`docs/m12/M12_EXPORT.md`](../../docs/m12/M12_EXPORT.md).
