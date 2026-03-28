@@ -30,8 +30,6 @@ Label Studio peut **se deconnecter**, **perdre le contexte projet**, ou imposer 
 | Export LS → JSONL exploitable DMS | `scripts/export_ls_to_dms_jsonl.py` — voir `docs/m12/M12_EXPORT.md` |
 | Export R2 → JSONL | `scripts/export_r2_corpus_to_jsonl.py` (defaut : `data/annotations/m12_corpus_authoritative.jsonl`) |
 | Backup date (R2 + LS + copie authoritative) | `scripts/m12_corpus_backup.ps1` |
-| Lignes cassees sans `dms_annotation` | `scripts/repair_m12_jsonl_golden_backfill.py` (structure seule + `AMBIG-R2_LS_SESSION_LOSS`) |
-| Inventaire | `scripts/inventory_m12_corpus_jsonl.py` |
 
 ## Variables d’environnement (synthese)
 
