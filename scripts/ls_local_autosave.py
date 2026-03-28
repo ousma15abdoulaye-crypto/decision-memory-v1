@@ -264,6 +264,12 @@ def main() -> None:
         ),
     )
     parser.add_argument(
+        "--no-enforce-validated-qa",
+        action="store_true",
+        dest="no_enforce_validated_qa_deprecated",
+        help=argparse.SUPPRESS,  # Alias déprécié — utiliser --enforce-validated-qa
+    )
+    parser.add_argument(
         "--write-raw-ls-json",
         nargs="?",
         const="__auto__",
@@ -299,6 +305,13 @@ def main() -> None:
         ),
     )
     args = parser.parse_args()
+
+    if getattr(args, "no_enforce_validated_qa_deprecated", False):
+        logger.warning(
+            "DÉPRÉCIÉ : --no-enforce-validated-qa est un alias de --enforce-validated-qa ; "
+            "utilisez --enforce-validated-qa à la place."
+        )
+        args.enforce_validated_qa = True
 
     ls_url = _ls_url()
     ls_key = _ls_key()

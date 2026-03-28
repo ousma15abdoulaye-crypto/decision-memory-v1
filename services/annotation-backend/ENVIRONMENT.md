@@ -58,7 +58,8 @@ python scripts/ls_local_autosave.py --project-id 2 --output data/annotations/ls_
 # Daemon — sauvegarde toutes les 5 minutes
 python scripts/ls_local_autosave.py --project-id 2 --output data/annotations/ls_autosave.jsonl --loop --interval 300
 
-# Miroir JSON brut de l’export API (tout ce qui est sur Label Studio, hors conversion M12)
+# Miroir JSON brut de l’export API (JSON brut Label Studio, hors conversion M12)
+# Note : --write-raw-ls-json est additif — le fichier JSONL d’autosave (--output) est toujours écrit en parallèle
 python scripts/ls_local_autosave.py --project-id 2 --write-raw-ls-json
 
 # Uniquement travail soumis (revue qualité sans tout le backlog de tâches vides)
