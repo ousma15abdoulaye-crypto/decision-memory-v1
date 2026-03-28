@@ -19,6 +19,8 @@
 
   -MirrorRaw : écrit aussi data/annotations/ls_raw_project_<id>.json (export API LS brut).
   -EnforceValidatedQa : active la QA stricte sur annotated_validated (export_ok plus sévère).
+  -OnlyFinished : tâches annotées + annotations soumises (pas les brouillons / annulés).
+  -OnlyIfStatus "annotated_validated" : ne garde que ce statut LS (revue qualité ciblée).
 #>
 param(
     [Parameter(Mandatory = $true)]
@@ -28,7 +30,9 @@ param(
     [switch] $Loop,
     [int] $Interval = 300,
     [switch] $MirrorRaw,
-    [switch] $EnforceValidatedQa
+    [switch] $EnforceValidatedQa,
+    [switch] $OnlyFinished,
+    [string] $OnlyIfStatus = ""
 )
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
@@ -55,6 +59,12 @@ if ($MirrorRaw) {
 }
 if ($EnforceValidatedQa) {
     $pyArgs += "--enforce-validated-qa"
+}
+if ($OnlyFinished) {
+    $pyArgs += "--only-finished"
+}
+if ($OnlyIfStatus) {
+    $pyArgs += @("--only-if-status", $OnlyIfStatus)
 }
 
 & $Py @pyArgs

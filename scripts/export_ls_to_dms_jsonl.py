@@ -12,6 +12,10 @@ Usage API :
   LABEL_STUDIO_URL=... LABEL_STUDIO_API_KEY=... \\
   python scripts/export_ls_to_dms_jsonl.py --project-id 1 --output out.jsonl
 
+  Revue qualité (soumis + validés uniquement) :
+  python scripts/export_ls_to_dms_jsonl.py --project-id 1 --output validated.jsonl \\
+    --only-finished --only-if-status annotated_validated
+
 Usage fichier (tests / hors réseau) :
   python scripts/export_ls_to_dms_jsonl.py --from-export-json export.json --output out.jsonl
 """
@@ -37,11 +41,15 @@ def _ensure_annotation_path() -> None:
 
 
 _ensure_annotation_path()
-from m12_export_line import ls_annotation_to_m12_v2_line, to_dms_line_legacy
+from m12_export_line import (  # noqa: E402
+    ls_annotation_to_m12_v2_line,
+    to_dms_line_legacy,
+)
 
 
 def main() -> None:
     from ls_client import fetch_annotations
+    from ls_export_filters import filter_export_tasks
 
     parser = argparse.ArgumentParser(
         description="Export Label Studio -> DMS JSONL (m12-v2 ou legacy)"
@@ -77,6 +85,18 @@ def main() -> None:
             "(scripts/m15_export_gate.py)"
         ),
     )
+    parser.add_argument(
+        "--only-finished",
+        action="store_true",
+        help="Annotations soumises uniquement (non annulées, avec result) ; API sans tâches vides.",
+    )
+    parser.add_argument(
+        "--only-if-status",
+        type=str,
+        default=None,
+        metavar="STATUS",
+        help="Filtrer sur le choix LS annotation_status (ex. annotated_validated).",
+    )
     args = parser.parse_args()
 
     if args.from_export_json:
@@ -94,8 +114,21 @@ def main() -> None:
             )
         if args.project_id is None:
             sys.exit("STOP — --project-id requis pour l'export API")
-        data = fetch_annotations(args.project_id, ls_url, ls_key)
+        narrow = args.only_finished or bool((args.only_if_status or "").strip())
+        data = fetch_annotations(
+            args.project_id,
+            ls_url,
+            ls_key,
+            download_all_tasks=False if narrow else None,
+        )
         project_id = args.project_id
+
+    only_if = (args.only_if_status or "").strip() or None
+    data = filter_export_tasks(
+        data,
+        only_finished=args.only_finished,
+        require_annotation_status=only_if,
+    )
 
     lines: list[dict] = []
     enforce = not args.no_enforce_validated_qa

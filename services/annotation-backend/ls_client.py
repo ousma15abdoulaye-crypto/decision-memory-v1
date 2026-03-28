@@ -21,14 +21,29 @@ def fetch_project_meta(project_id: int, ls_url: str, ls_key: str) -> dict[str, A
     return data
 
 
-def fetch_annotations(project_id: int, ls_url: str, ls_key: str) -> list[dict]:
-    """Export JSON complet d’un projet (même contrat que l’UI Export)."""
+def fetch_annotations(
+    project_id: int,
+    ls_url: str,
+    ls_key: str,
+    *,
+    download_all_tasks: bool | None = None,
+) -> list[dict]:
+    """Export JSON d’un projet (même contrat que l’UI Export).
+
+    ``download_all_tasks`` :
+    - ``False`` : ne demande que les tâches ayant des annotations (souvent le défaut LS).
+    - ``True`` : inclut aussi les tâches sans annotation.
+    - ``None`` : ne passe pas le paramètre (comportement serveur par défaut).
+    """
     headers = {"Authorization": f"Token {ls_key}"}
     url = f"{ls_url.rstrip('/')}/api/projects/{project_id}/export"
+    params: dict[str, str] = {"exportType": "JSON"}
+    if download_all_tasks is not None:
+        params["download_all_tasks"] = "true" if download_all_tasks else "false"
     r = requests.get(
         url,
         headers=headers,
-        params={"exportType": "JSON"},
+        params=params,
         timeout=60,
     )
     r.raise_for_status()

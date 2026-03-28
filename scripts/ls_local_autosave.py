@@ -17,6 +17,12 @@ Usage one-shot :
   Copie miroir 100 % Label Studio (JSON API brut, sans conversion M12) :
   python scripts/ls_local_autosave.py --project-id 2 --write-raw-ls-json
 
+  Uniquement le travail terminé (revue qualité sans tout le backlog) :
+  python scripts/ls_local_autosave.py --project-id 2 --only-finished --output data/annotations/ls_finished.jsonl
+
+  Seulement les annotations marquées « validées » dans LS :
+  python scripts/ls_local_autosave.py --project-id 2 --only-finished --only-if-status annotated_validated ...
+
 Usage daemon (boucle) :
   python scripts/ls_local_autosave.py --project-id 2 --output data/annotations/ls_autosave.jsonl --loop --interval 300
 
@@ -40,6 +46,8 @@ import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
+
+from ls_export_filters import filter_export_tasks
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _SCRIPT_DIR.parent
@@ -96,6 +104,8 @@ def _run_once(
     ls_key: str,
     *,
     raw_ls_json_path: Path | None = None,
+    only_finished: bool = False,
+    only_if_status: str | None = None,
 ) -> int:
     """
     Exporte toutes les annotations du projet, écrit les nouvelles dans output_path.
@@ -110,11 +120,33 @@ def _run_once(
         "Export projet %d — %d annotation(s) déjà sauvegardées", project_id, len(seen)
     )
 
+    narrow_api = only_finished or bool((only_if_status or "").strip())
     try:
-        tasks = fetch_annotations(project_id, ls_url, ls_key)
+        tasks = fetch_annotations(
+            project_id,
+            ls_url,
+            ls_key,
+            download_all_tasks=False if narrow_api else None,
+        )
     except Exception as exc:
         logger.error("Échec export LS projet %d : %s", project_id, exc)
         return 0
+
+    n_before = len(tasks) if isinstance(tasks, list) else 0
+    tasks = filter_export_tasks(
+        tasks,
+        only_finished=only_finished,
+        require_annotation_status=only_if_status,
+    )
+    n_after = len(tasks)
+    if narrow_api or only_finished or (only_if_status or "").strip():
+        logger.info(
+            "Filtre export : %d tâche(s) API → %d après only_finished=%s only_if_status=%r",
+            n_before,
+            n_after,
+            only_finished,
+            only_if_status or "",
+        )
 
     if raw_ls_json_path is not None:
         raw_ls_json_path = raw_ls_json_path.resolve()
@@ -223,6 +255,25 @@ def main() -> None:
         action="store_true",
         help="Appelle seulement GET /api/projects/<id>/ (vérifie URL + token Access Token LS)",
     )
+    parser.add_argument(
+        "--only-finished",
+        action="store_true",
+        help=(
+            "Exclut les annotations annulées et sans ``result`` ; API sans tâches vides "
+            "(download_all_tasks=false). Idéal pour contrôler le travail déjà soumis."
+        ),
+    )
+    parser.add_argument(
+        "--only-if-status",
+        type=str,
+        default=None,
+        metavar="STATUS",
+        help=(
+            "N'exporter que les annotations dont le choix LS ``annotation_status`` "
+            "vaut exactement cette valeur (ex. annotated_validated). "
+            "Peut se combiner avec --only-finished."
+        ),
+    )
     args = parser.parse_args()
 
     ls_url = _ls_url()
@@ -260,15 +311,19 @@ def main() -> None:
     elif args.write_raw_ls_json:
         raw_ls_path = Path(args.write_raw_ls_json)
 
+    only_if_status = (args.only_if_status or "").strip() or None
+
     logger.info(
         "=== ls_local_autosave | projet=%d | output=%s | loop=%s | interval=%ds | "
-        "enforce_validated_qa=%s | raw_ls_json=%s ===",
+        "enforce_validated_qa=%s | raw_ls_json=%s | only_finished=%s | only_if_status=%r ===",
         args.project_id,
         output_path,
         args.loop,
         args.interval,
         enforce_qa,
         raw_ls_path or "off",
+        args.only_finished,
+        only_if_status or "",
     )
 
     if not args.loop:
@@ -279,6 +334,8 @@ def main() -> None:
             ls_url,
             ls_key,
             raw_ls_json_path=raw_ls_path,
+            only_finished=args.only_finished,
+            only_if_status=only_if_status,
         )
         logger.info("Terminé — %d nouvelle(s) annotation(s) sauvegardée(s)", n)
         return
@@ -292,6 +349,8 @@ def main() -> None:
                 ls_url,
                 ls_key,
                 raw_ls_json_path=raw_ls_path,
+                only_finished=args.only_finished,
+                only_if_status=only_if_status,
             )
             logger.info(
                 "[LOOP] %d nouvelle(s) | prochain export dans %ds",

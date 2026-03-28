@@ -60,6 +60,12 @@ python scripts/ls_local_autosave.py --project-id 2 --output data/annotations/ls_
 
 # Miroir JSON brut de l’export API (tout ce qui est sur Label Studio, hors conversion M12)
 python scripts/ls_local_autosave.py --project-id 2 --write-raw-ls-json
+
+# Uniquement travail soumis (revue qualité sans tout le backlog de tâches vides)
+python scripts/ls_local_autosave.py --project-id 2 --only-finished --output data/annotations/ls_finished.jsonl
+
+# Seulement les fiches marquées « validées » dans LS
+python scripts/ls_local_autosave.py --project-id 2 --only-finished --only-if-status annotated_validated --output data/annotations/ls_validated.jsonl
 ```
 
 Variables requises : `LABEL_STUDIO_URL`, `LABEL_STUDIO_API_KEY`, `PSEUDONYM_SALT`, `ALLOW_WEAK_PSEUDONYMIZATION=1`.
