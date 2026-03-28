@@ -248,7 +248,22 @@ def _make_s3_client(endpoint_url: str | None) -> Any:
         client_kw["region_name"] = region_name
     verify_raw = (os.environ.get("S3_VERIFY_SSL") or "").strip().lower()
     if verify_raw in ("0", "false", "no", "off"):
-        client_kw["verify"] = False
+        environment = (os.environ.get("ENVIRONMENT") or "").strip().lower()
+        if environment == "production":
+            logger.warning(
+                "[CORPUS][S3] Variable d'environnement S3_VERIFY_SSL=%r ignorée en "
+                "production : la vérification TLS reste activée pour des raisons de "
+                "sécurité.",
+                os.environ.get("S3_VERIFY_SSL"),
+            )
+        else:
+            logger.warning(
+                "[CORPUS][S3] La vérification TLS des certificats est DÉSACTIVÉE "
+                "(S3_VERIFY_SSL=%r). À n'utiliser qu'en debug ou avec interception TLS. "
+                "NE PAS activer en production.",
+                os.environ.get("S3_VERIFY_SSL"),
+            )
+            client_kw["verify"] = False
     return session.client("s3", **client_kw)
 
 
