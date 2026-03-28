@@ -73,6 +73,8 @@ python scripts/ls_local_autosave.py --project-id 2 --only-finished --only-if-sta
 
 Variables requises : `LABEL_STUDIO_URL`, `LABEL_STUDIO_API_KEY`, `PSEUDONYM_SALT`, `ALLOW_WEAK_PSEUDONYMIZATION=1`.
 
+**Token LS (HTTP)** : si Account affiche un **Personal Access Token** au format JWT (`eyJ…`), le client appelle `POST /api/token/refresh` puis envoie `Authorization: Bearer <access>` (voir [doc LS — Access tokens](https://labelstud.io/guide/access_tokens)). Les **legacy tokens** courts utilisent toujours `Authorization: Token …` ; pour forcer ce mode avec une clé longue : `LABEL_STUDIO_LEGACY_TOKEN=1`.
+
 Sur ce script, la QA stricte sur `annotated_validated` est **désactivée** par défaut (tout est sérialisé). Pour l’ancien comportement : `--enforce-validated-qa`.
 
 ### Débogage « tout ABSENT » / `AMBIG-PARSE_FAILED`
