@@ -226,7 +226,7 @@ Il n’existe pas dans le dépôt de script nommé `inventory_m12_corpus_jsonl.p
 
 ## Rebranchement (nouveau laptop) — raccourci
 
-Ouvrir **`LISEZMOI_NOUVEAU_PC.txt`**, installer les prérequis, supprimer `.venv`, lancer **`premier_demarrage.bat`**, puis **`.\scripts\verify_laptop_setup.ps1`**.
+Ouvrir **`docs/dev/LISEZMOI_NOUVEAU_PC.txt`**, installer les prérequis, supprimer `.venv`, lancer **`premier_demarrage.bat`**, puis **`.\scripts\verify_laptop_setup.ps1`**.
 
 ### Ports (défaut repo)
 

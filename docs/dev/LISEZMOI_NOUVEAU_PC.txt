@@ -2,6 +2,8 @@
   DECISION MEMORY — NOUVEAU PC (OneDrive ou cle USB)
 ================================================================================
 
+(Ce fichier est sous docs/dev/ pour respecter la gate CI INV-03 — memes infos.)
+
 Vous amenez TOUT le dossier du projet : code, data, .env (OneDrive sync OK).
 
 1) AVANT DE CHANGER DE PC

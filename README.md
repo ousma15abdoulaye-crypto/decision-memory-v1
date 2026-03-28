@@ -80,7 +80,7 @@ Exemples de règles “opposables” :
 - ADRs : `docs/adrs/ADR-0001.md`
 
 ### Références techniques
-- **Nouveau PC (OneDrive, clé USB, dossier copié)** : lire `LISEZMOI_NOUVEAU_PC.txt`, puis lancer `premier_demarrage.bat` à la racine (sous Windows, « PREMIER_DEMARRAGE.bat » est le même fichier, casse ignorée) ; procédure détaillée : `docs/dev/LAPTOP_MIGRATION.md` (section « Procédure complète — nouveau PC »).
+- **Nouveau PC (OneDrive, clé USB, dossier copié)** : lire `docs/dev/LISEZMOI_NOUVEAU_PC.txt`, puis lancer `premier_demarrage.bat` à la racine (sous Windows, « PREMIER_DEMARRAGE.bat » est le même fichier, casse ignorée) ; procédure détaillée : `docs/dev/LAPTOP_MIGRATION.md` (section « Procédure complète — nouveau PC »).
 - Architecture : `docs/ARCHITECTURE.md`
 - Schéma DB : `docs/DATABASE_SCHEMA.md`
 - API : `docs/API_REFERENCE.md`
