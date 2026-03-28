@@ -82,7 +82,11 @@ $Summary = Join-Path $BackupDir "BACKUP_SUMMARY.txt"
 $lines = @("M12 backup $stamp", "Root: $Root", "")
 
 if (-not $SkipR2) {
-    $env:S3_VERIFY_SSL = if ($env:S3_VERIFY_SSL) { $env:S3_VERIFY_SSL } else { "0" }
+    if (-not $env:S3_VERIFY_SSL) {
+        # Par défaut, garder la vérification TLS activée pour les appels S3/R2.
+        # Ne définir S3_VERIFY_SSL=0 qu'explcitement (proxy / certificat interne).
+        $env:S3_VERIFY_SSL = "1"
+    }
     $r2Out = Join-Path $BackupDir "r2_corpus.jsonl"
     try {
         Invoke-DmsPython @(
