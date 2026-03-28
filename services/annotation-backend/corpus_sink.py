@@ -403,9 +403,7 @@ def build_sink_from_env() -> CorpusSink:
 
     shadow = _local_backup_sink_from_env()
     if shadow is not None:
-        logger.info(
-            "[CORPUS] DualSink activé — backup local : %s", shadow._path
-        )
+        logger.info("[CORPUS] DualSink activé — backup local : %s", shadow._path)
         return DualCorpusSink(primary=primary, shadow=shadow)
     return primary
 

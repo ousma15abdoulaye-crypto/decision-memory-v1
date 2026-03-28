@@ -148,6 +148,7 @@ def _mistral_message_content_to_str(content: Any) -> str:
         return "".join(parts)
     return str(content)
 
+
 # E-27 : CORS restrictif — CORS_ORIGINS env (comma-separated)
 # Default localhost:8080 pour dev. Prod Railway : définir CORS_ORIGINS=URL_LABEL_STUDIO
 _CORS_RAW = os.environ.get("CORS_ORIGINS", "http://localhost:8080")
@@ -1087,6 +1088,7 @@ async def _call_mistral(
         return copy.deepcopy(FALLBACK_RESPONSE)
 
     try:
+
         def _complete() -> str:
             response = client.chat.complete(
                 model=MISTRAL_MODEL,

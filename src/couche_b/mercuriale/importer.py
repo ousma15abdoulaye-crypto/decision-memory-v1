@@ -167,9 +167,7 @@ async def _llamacloud_extract(file_path: Path, api_key: str) -> str:
             tmp_dir = Path(tmp_str)
             chunks = _split_pdf(file_path, _LLAMACLOUD_PAGE_LIMIT, tmp_dir)
             for i, chunk in enumerate(chunks, 1):
-                logger.info(
-                    "Extraction chunk %d/%d : %s", i, len(chunks), chunk.name
-                )
+                logger.info("Extraction chunk %d/%d : %s", i, len(chunks), chunk.name)
                 md = await _extract_one_chunk(chunk, client)
                 parts.append(md)
 

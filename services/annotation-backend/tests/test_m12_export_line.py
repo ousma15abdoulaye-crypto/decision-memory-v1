@@ -100,7 +100,11 @@ class TestNormalizeIdentifiantsForLsReimport:
 
         ann = {
             "identifiants": {
-                "supplier_email": {"pseudo": "x@y.com", "present": True, "redacted": True}
+                "supplier_email": {
+                    "pseudo": "x@y.com",
+                    "present": True,
+                    "redacted": True,
+                }
             }
         }
         _normalize_identifiants_for_ls_reimport(ann)
@@ -184,9 +188,9 @@ class TestLsAnnotationToM12V2Line:
         task = _build_task()
         line = ls_annotation_to_m12_v2_line(ann, task, project_id=1)
         schema_errors = [e for e in line["export_errors"] if "schema_validation" in e]
-        assert schema_errors == [], (
-            f"schema_validation doit réussir avec normalisation ADR-013. Erreurs: {schema_errors}"
-        )
+        assert (
+            schema_errors == []
+        ), f"schema_validation doit réussir avec normalisation ADR-013. Erreurs: {schema_errors}"
         assert line["dms_annotation"] is not None
         assert line["raw_json_text"] is not None
 

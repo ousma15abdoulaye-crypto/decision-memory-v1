@@ -23,6 +23,8 @@ def _backend_env(monkeypatch: pytest.MonkeyPatch) -> None:
         os.environ.get("ALLOW_WEAK_PSEUDONYMIZATION", "1"),
     )
     monkeypatch.setenv("MISTRAL_API_KEY", os.environ.get("MISTRAL_API_KEY", ""))
+
+
 if str(_backend_dir) not in sys.path:
     sys.path.insert(0, str(_backend_dir))
 
