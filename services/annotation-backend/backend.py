@@ -114,6 +114,40 @@ STRICT_PREDICT = os.environ.get("STRICT_PREDICT", "").lower() in {
     "on",
 }
 
+
+def _env_truthy(name: str, default: bool = True) -> bool:
+    """True par défaut pour name absent ; false si 0/false/no/off."""
+    raw = os.environ.get(name, "").strip().lower()
+    if not raw:
+        return default
+    return raw not in ("0", "false", "no", "off")
+
+
+def _mistral_message_content_to_str(content: Any) -> str:
+    """
+    Mistral SDK 1.5 : ``AssistantMessage.content`` peut être str ou liste de chunks
+    (ex. TextChunk). Sans normalisation, list.strip() lève → fallback AMBIG-PARSE_FAILED.
+    """
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                t = item.get("text")
+                if t is not None:
+                    parts.append(str(t))
+            elif hasattr(item, "text"):
+                tx = getattr(item, "text", None)
+                if tx is not None:
+                    parts.append(str(tx))
+        return "".join(parts)
+    return str(content)
+
 # E-27 : CORS restrictif — CORS_ORIGINS env (comma-separated)
 # Default localhost:8080 pour dev. Prod Railway : définir CORS_ORIGINS=URL_LABEL_STUDIO
 _CORS_RAW = os.environ.get("CORS_ORIGINS", "http://localhost:8080")
@@ -596,11 +630,18 @@ def _build_messages(
 
 
 # PARSER ROBUSTE — 5 tentatives + fallback loggué
-def _parse_mistral_response(raw: str, task_id: int = 0) -> dict:
-    """Parse robuste — JSON brut, markdown, trailing commas, tronqué."""
+def _parse_mistral_response(raw: Any, task_id: int = 0) -> tuple[dict, bool]:
+    """
+    Parse robuste — JSON brut, markdown, trailing commas, tronqué.
+
+    Retourne (annotation_dict, parse_ok). Si parse_ok est False, le dict est une copie
+    du squelette FALLBACK (AMBIG-PARSE_FAILED).
+    """
+    if not isinstance(raw, str):
+        raw = _mistral_message_content_to_str(raw)
     if not raw:
         logger.warning("[PARSE] raw vide — task_id=%s", task_id)
-        return copy.deepcopy(FALLBACK_RESPONSE)
+        return copy.deepcopy(FALLBACK_RESPONSE), False
 
     raw = raw.strip().lstrip("\ufeff")
 
@@ -614,14 +655,14 @@ def _parse_mistral_response(raw: str, task_id: int = 0) -> dict:
                 return None
 
     if (r := _try(raw)) is not None:
-        return r
+        return r, True
     m = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", raw, re.DOTALL)
     if m and (r := _try(m.group(1).strip())) is not None:
-        return r
+        return r, True
     try:
         frag = raw[raw.index("{") : raw.rindex("}") + 1]
         if (r := _try(frag)) is not None:
-            return r
+            return r, True
     except ValueError:
         pass
     try:
@@ -633,7 +674,7 @@ def _parse_mistral_response(raw: str, task_id: int = 0) -> dict:
                 s = (s[:ei] if ei != -1 else s).strip()
                 s = s[s.index("{") : s.rindex("}") + 1]
                 if (r := _try(s)) is not None:
-                    return r
+                    return r, True
     except (ValueError, re.error):
         pass
     try:
@@ -642,14 +683,24 @@ def _parse_mistral_response(raw: str, task_id: int = 0) -> dict:
         if deficit > 0:
             s = re.sub(r",\s*$", "", s.rstrip()) + "}" * deficit
         if (r := _try(s)) is not None:
-            return r
+            return r, True
     except (ValueError, re.error):
         pass
 
     _raw_len = len(raw) if raw else 0
     _raw_hash = hashlib.sha256(raw.encode()).hexdigest()[:12] if raw else "empty"
     logger.error("[PARSE] Fallback — raw_len=%s raw_hash=%s", _raw_len, _raw_hash)
-    return dict(FALLBACK_RESPONSE)
+    if _env_truthy("MISTRAL_PARSE_FAILURE_LOG_PREVIEW", default=False):
+        _prev = int(os.environ.get("MISTRAL_PARSE_FAILURE_PREVIEW_CHARS", "280"))
+        _prev = max(80, min(_prev, 2000))
+        head = raw[:_prev].replace("\n", "\\n")
+        logger.error(
+            "[PARSE] preview_head task_id=%s chars=%s text=%r",
+            task_id,
+            _prev,
+            head,
+        )
+    return copy.deepcopy(FALLBACK_RESPONSE), False
 
 
 _ALLOWED_CONFIDENCE = frozenset({0.6, 0.8, 1.0})
@@ -1036,16 +1087,38 @@ async def _call_mistral(
         return copy.deepcopy(FALLBACK_RESPONSE)
 
     try:
-        response = client.chat.complete(
-            model=MISTRAL_MODEL,
-            messages=messages,
-            temperature=0.0,
-            max_tokens=32000,
-            response_format={"type": "json_object"},
-        )
-        raw = response.choices[0].message.content or ""
+        def _complete() -> str:
+            response = client.chat.complete(
+                model=MISTRAL_MODEL,
+                messages=messages,
+                temperature=0.0,
+                max_tokens=32000,
+                response_format={"type": "json_object"},
+            )
+            msg = response.choices[0].message
+            return _mistral_message_content_to_str(getattr(msg, "content", None))
+
+        raw = _complete()
         logger.info("[MISTRAL] Réponse reçue — %d caractères", len(raw))
-        parsed = _parse_mistral_response(raw, task_id=tid)
+        parsed, parse_ok = _parse_mistral_response(raw, task_id=tid)
+        if (
+            not parse_ok
+            and _env_truthy("MISTRAL_PARSE_RETRY", default=True)
+            and client is not None
+        ):
+            logger.warning(
+                "[MISTRAL] Échec parse JSON — nouvel essai task_id=%s model=%s",
+                tid,
+                MISTRAL_MODEL,
+            )
+            raw2 = _complete()
+            logger.info(
+                "[MISTRAL] Réponse retry — %d caractères",
+                len(raw2),
+            )
+            parsed2, ok2 = _parse_mistral_response(raw2, task_id=tid)
+            if ok2:
+                parsed = parsed2
         return _spot_check_annotation_vs_source(parsed, text, tid)
     except Exception as exc:
         logger.error("[MISTRAL] Erreur appel API : %s — fallback activé", exc)

@@ -3,12 +3,18 @@
 import io
 import json
 import logging
+import tempfile
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 from corpus_sink import (
+    DualCorpusSink,
+    FileAppendCorpusSink,
+    NoopCorpusSink,
     _botocore_config_for_s3,
     _s3_endpoint_safe_for_log,
+    build_sink_from_env,
     iter_corpus_m12_lines_from_s3,
     log_s3_corpus_boot_diagnostics,
 )
@@ -266,3 +272,87 @@ class TestLogS3CorpusBootDiagnostics:
         monkeypatch.setenv("S3_BUCKET", "b")
         monkeypatch.setenv("S3_ENDPOINT", "not-a-valid-url-???")
         log_s3_corpus_boot_diagnostics()
+
+
+class TestDualCorpusSink:
+    """DualCorpusSink — backup local toujours écrit en premier."""
+
+    def test_writes_to_both_primary_and_shadow(self) -> None:
+        written_primary: list[dict] = []
+        written_shadow_path: list[dict] = []
+
+        class _FakePrimary:
+            def append_line(self, line: dict) -> None:
+                written_primary.append(line)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            shadow_path = Path(tmpdir) / "shadow.jsonl"
+            shadow = FileAppendCorpusSink(str(shadow_path))
+            dual = DualCorpusSink(primary=_FakePrimary(), shadow=shadow)
+            line = {"export_ok": True, "ls_meta": {"task_id": 1, "annotation_id": 99}}
+            dual.append_line(line)
+            assert len(written_primary) == 1
+            raw = shadow_path.read_text("utf-8").strip()
+            assert json.loads(raw) == line
+
+    def test_primary_failure_does_not_prevent_shadow(self) -> None:
+        """Si le primaire lève, l'ombre locale a déjà été écrite."""
+
+        class _BrokenPrimary:
+            def append_line(self, line: dict) -> None:
+                raise RuntimeError("S3 down")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            shadow_path = Path(tmpdir) / "shadow.jsonl"
+            shadow = FileAppendCorpusSink(str(shadow_path))
+            dual = DualCorpusSink(primary=_BrokenPrimary(), shadow=shadow)
+            line = {"export_ok": False, "ls_meta": {"task_id": 2}}
+            with pytest.raises(RuntimeError, match="S3 down"):
+                dual.append_line(line)
+            # L'ombre a été écrite avant le crash du primaire
+            assert shadow_path.exists()
+            saved = json.loads(shadow_path.read_text("utf-8").strip())
+            assert saved["ls_meta"]["task_id"] == 2
+
+    def test_shadow_failure_does_not_prevent_primary(self, caplog) -> None:
+        """Si l'ombre locale échoue, le primaire est quand même appelé."""
+        written: list[dict] = []
+
+        class _GoodPrimary:
+            def append_line(self, line: dict) -> None:
+                written.append(line)
+
+        class _BrokenShadow:
+            _path = Path("/nonexistent/shadow.jsonl")
+
+            def append_line(self, line: dict) -> None:
+                raise OSError("disk full")
+
+        dual = DualCorpusSink(primary=_GoodPrimary(), shadow=_BrokenShadow())  # type: ignore[arg-type]
+        caplog.set_level(logging.ERROR)
+        line = {"export_ok": True, "ls_meta": {"task_id": 3}}
+        dual.append_line(line)
+        assert written == [line]
+        assert any("SHADOW" in r.message for r in caplog.records)
+
+    def test_build_sink_from_env_creates_dual_when_backup_path_set(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            backup = str(Path(tmpdir) / "bkp.jsonl")
+            monkeypatch.setenv("CORPUS_SINK", "noop")
+            monkeypatch.setenv("CORPUS_LOCAL_BACKUP_PATH", backup)
+            sink = build_sink_from_env()
+            assert isinstance(sink, DualCorpusSink)
+            line = {"ls_meta": {"task_id": 5, "annotation_id": 10}}
+            sink.append_line(line)
+            saved = json.loads(Path(backup).read_text("utf-8").strip())
+            assert saved["ls_meta"]["task_id"] == 5
+
+    def test_build_sink_from_env_noop_without_backup_path(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("CORPUS_SINK", "noop")
+        monkeypatch.delenv("CORPUS_LOCAL_BACKUP_PATH", raising=False)
+        sink = build_sink_from_env()
+        assert isinstance(sink, NoopCorpusSink)
