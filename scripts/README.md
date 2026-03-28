@@ -29,7 +29,7 @@
 | Script | Usage | Environnement |
 |--------|-------|---------------|
 | `export_ls_to_dms_jsonl.py` | Export LS → JSONL M12 (m12-v2 ou `--legacy-mandat-fields`) | Local |
-| `export_r2_corpus_to_jsonl.py` | Export R2/S3 → JSONL ; défaut sans `-o` : `data/annotations/m12_corpus_authoritative.jsonl` (`M12_R2_EXPORT_JSONL`) | Local (S3_* / R2) |
+| `export_r2_corpus_to_jsonl.py` | Export R2/S3 → JSONL ; nécessite `-o/--output` (pas de sortie par défaut, pas de lecture de `M12_R2_EXPORT_JSONL`) | Local (S3_* / R2) |
 | `m12_corpus_backup.ps1` | Backup horodaté R2 + LS + copie authoritative → `data/annotations/backups/` | Windows |
 | `ls_local_autosave.py` | **Anti-perte** — poll LS et sauvegarde toutes les annotations localement (one-shot ou daemon `--loop`). Prévient la perte en cas de déconnexion LS. | Python |
 | `validate_annotation.py` | Valide JSONL (schéma DMS + options QA) | Local + CI |
