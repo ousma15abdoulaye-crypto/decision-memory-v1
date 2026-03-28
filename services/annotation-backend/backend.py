@@ -82,7 +82,26 @@ LS_TEXTAREA_TO_NAME = "document_text"
 SCHEMA_VERSION = "v3.0.1d"
 FRAMEWORK_VERSION = "annotation-framework-v3.0.1d"
 MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
-MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
+
+
+def _mistral_api_key_from_env() -> str:
+    """
+    Clé Mistral : ``MISTRAL_API_KEY`` (historique) ou ``DMS_API_MISTRAL`` (Railway / DMS).
+    ``MISTRAL_API_KEY`` prime si les deux sont définies.
+    """
+    for name in ("MISTRAL_API_KEY", "DMS_API_MISTRAL"):
+        raw = (os.environ.get(name) or "").strip()
+        if not raw:
+            continue
+        raw = raw.replace("\r", "").replace("\n", "").strip()
+        if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in "'\"":
+            raw = raw[1:-1].strip()
+        if raw:
+            return raw
+    return ""
+
+
+MISTRAL_API_KEY = _mistral_api_key_from_env()
 MAX_TEXT_CHARS = int(os.environ.get("MAX_TEXT_CHARS", "200000"))
 # M-ANNOTATION-CONTAINMENT-01 — aligné couche A (MIN_EXTRACTED_TEXT_CHARS_FOR_ML)
 MIN_LLM_CONTEXT_CHARS = int(os.environ.get("MIN_LLM_CONTEXT_CHARS", "100"))

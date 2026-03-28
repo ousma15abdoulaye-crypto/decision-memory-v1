@@ -15,7 +15,7 @@ Si le root reste `services/annotation-backend` seul, l’erreur `"/src": not fou
 ### `MISTRAL_API_KEY` vide dans les logs alors qu’elle est « définie » sur Railway
 
 1. **Portée** : la variable doit être sur le **service** qui exécute ce Dockerfile (`annotation-backend`), pas seulement au niveau **Projet** si ce service n’hérite pas des variables partagées — dans Railway : **Service → Variables** pour ce service précis.
-2. **Nom exact** : `MISTRAL_API_KEY` (pas `MISTRAL_KEY` seul ; un repli `MISTRAL_KEY` est pris en charge par `start.sh` si besoin).
+2. **Noms acceptés** : `MISTRAL_API_KEY` ou **`DMS_API_MISTRAL`** (Railway DMS). Repli : `MISTRAL_KEY` (`start.sh` le recopie vers `MISTRAL_API_KEY`).
 3. **Valeur** : sans guillemets dans l’UI ; pas d’espace avant/après ; pas de retour ligne en trop (le `start.sh` normalise quand même `\r`/`\n`).
 4. **Redeploy** : après toute modification de variable, lancer un **Redeploy** du service (les variables runtime ne s’appliquent pas rétroactivement aux conteneurs déjà construits sans redémarrage).
 5. **Vérification** : `GET /health` sur l’URL du service → champ `mistral_configured` doit être `true` si la clé est bien injectée.
@@ -26,7 +26,7 @@ Sans clé, le service **démarre quand même** (plus de boucle `exit 1` dans `st
 
 | Variable | Description |
 | --- | --- |
-| `MISTRAL_API_KEY` | Appel API Mistral |
+| `MISTRAL_API_KEY` **ou** `DMS_API_MISTRAL` | Clé API Mistral. Sur Railway DMS, le nom **`DMS_API_MISTRAL`** est supporté ; `MISTRAL_API_KEY` reste accepté et **prime** si les deux sont définies. |
 | `PSEUDONYM_SALT` | Sel HMAC pour pseudonymisation phone/email en sortie LS |
 
 ## Recommandées
