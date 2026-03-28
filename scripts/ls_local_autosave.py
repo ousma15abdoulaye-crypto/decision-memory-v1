@@ -14,8 +14,15 @@ Solution :
 Usage one-shot :
   python scripts/ls_local_autosave.py --project-id 2 --output data/annotations/ls_autosave.jsonl
 
+  Copie miroir 100 % Label Studio (JSON API brut, sans conversion M12) :
+  python scripts/ls_local_autosave.py --project-id 2 --write-raw-ls-json
+
 Usage daemon (boucle) :
   python scripts/ls_local_autosave.py --project-id 2 --output data/annotations/ls_autosave.jsonl --loop --interval 300
+
+Par défaut, la QA stricte sur ``annotated_validated`` est désactivée : tout ce qui est
+sur LS est sérialisé (``export_ok`` peut rester false si JSON/schéma KO ; ``raw_json_text``
+et le fallback brut restent). Activez ``--enforce-validated-qa`` pour l'ancien comportement.
 
 Prérequis :
   LABEL_STUDIO_URL  (ou LS_URL)
@@ -87,6 +94,8 @@ def _run_once(
     enforce_qa: bool,
     ls_url: str,
     ls_key: str,
+    *,
+    raw_ls_json_path: Path | None = None,
 ) -> int:
     """
     Exporte toutes les annotations du projet, écrit les nouvelles dans output_path.
@@ -106,6 +115,17 @@ def _run_once(
     except Exception as exc:
         logger.error("Échec export LS projet %d : %s", project_id, exc)
         return 0
+
+    if raw_ls_json_path is not None:
+        raw_ls_json_path = raw_ls_json_path.resolve()
+        raw_ls_json_path.parent.mkdir(parents=True, exist_ok=True)
+        with raw_ls_json_path.open("w", encoding="utf-8") as rf:
+            json.dump(tasks, rf, ensure_ascii=False, separators=(",", ":"))
+        logger.info(
+            "Miroir brut LS (API) → %s | %d tâche(s)",
+            raw_ls_json_path,
+            len(tasks) if isinstance(tasks, list) else -1,
+        )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     new_count = 0
@@ -180,9 +200,28 @@ def main() -> None:
         help="Intervalle en secondes entre exports (mode --loop, défaut 300 = 5 min)",
     )
     parser.add_argument(
-        "--no-enforce-validated-qa",
+        "--enforce-validated-qa",
         action="store_true",
-        help="Ne pas exiger QA stricte (utile pour sauvegarder même les partiels)",
+        help=(
+            "Si annotated_validated : marquer export_ok=false sur écarts schéma / "
+            "finance / evidence (comportement strict). Par défaut : désactivé pour tout garder depuis LS."
+        ),
+    )
+    parser.add_argument(
+        "--write-raw-ls-json",
+        nargs="?",
+        const="__auto__",
+        default=None,
+        metavar="PATH",
+        help=(
+            "Après l'export API, écrit le JSON brut complet des tâches (miroir Label Studio). "
+            "Sans PATH : data/annotations/ls_raw_project_<id>.json"
+        ),
+    )
+    parser.add_argument(
+        "--verify-only",
+        action="store_true",
+        help="Appelle seulement GET /api/projects/<id>/ (vérifie URL + token Access Token LS)",
     )
     args = parser.parse_args()
 
@@ -193,25 +232,67 @@ def main() -> None:
             "STOP — LABEL_STUDIO_URL (ou LS_URL) et LABEL_STUDIO_API_KEY (ou LS_API_KEY) requis"
         )
 
+    if args.verify_only:
+        from ls_client import fetch_project_meta
+
+        try:
+            meta = fetch_project_meta(args.project_id, ls_url, ls_key)
+        except Exception as exc:
+            sys.exit(f"VERIFY FAIL — {type(exc).__name__}: {exc}")
+        title = meta.get("title", "?")
+        ntasks = meta.get("task_count", meta.get("num_tasks", "?"))
+        print(
+            f"VERIFY OK — project_id={args.project_id} title={title!r} task_count={ntasks}"
+        )
+        return
+
     output_path = Path(args.output)
-    enforce_qa = not args.no_enforce_validated_qa
+    enforce_qa = args.enforce_validated_qa
+
+    raw_ls_path: Path | None = None
+    if args.write_raw_ls_json == "__auto__":
+        raw_ls_path = (
+            _PROJECT_ROOT
+            / "data"
+            / "annotations"
+            / f"ls_raw_project_{args.project_id}.json"
+        )
+    elif args.write_raw_ls_json:
+        raw_ls_path = Path(args.write_raw_ls_json)
 
     logger.info(
-        "=== ls_local_autosave | projet=%d | output=%s | loop=%s | interval=%ds ===",
+        "=== ls_local_autosave | projet=%d | output=%s | loop=%s | interval=%ds | "
+        "enforce_validated_qa=%s | raw_ls_json=%s ===",
         args.project_id,
         output_path,
         args.loop,
         args.interval,
+        enforce_qa,
+        raw_ls_path or "off",
     )
 
     if not args.loop:
-        n = _run_once(args.project_id, output_path, enforce_qa, ls_url, ls_key)
+        n = _run_once(
+            args.project_id,
+            output_path,
+            enforce_qa,
+            ls_url,
+            ls_key,
+            raw_ls_json_path=raw_ls_path,
+        )
         logger.info("Terminé — %d nouvelle(s) annotation(s) sauvegardée(s)", n)
         return
 
     while True:
         try:
-            n = _run_once(args.project_id, output_path, enforce_qa, ls_url, ls_key)
+            n = _run_once(
+                args.project_id,
+                output_path,
+                enforce_qa,
+                ls_url,
+                ls_key,
+                raw_ls_json_path=raw_ls_path,
+            )
             logger.info(
                 "[LOOP] %d nouvelle(s) | prochain export dans %ds",
                 n,
@@ -221,7 +302,9 @@ def main() -> None:
             logger.info("Arrêt demandé (Ctrl+C)")
             break
         except Exception as exc:
-            logger.error("[LOOP] Erreur inattendue : %s — retry dans %ds", exc, args.interval)
+            logger.error(
+                "[LOOP] Erreur inattendue : %s — retry dans %ds", exc, args.interval
+            )
         time.sleep(args.interval)
 
 

@@ -9,6 +9,18 @@ from typing import Any
 import requests
 
 
+def fetch_project_meta(project_id: int, ls_url: str, ls_key: str) -> dict[str, Any]:
+    """Métadonnées projet (léger) — pour vérifier URL + token avant export complet."""
+    headers = {"Authorization": f"Token {ls_key}"}
+    url = f"{ls_url.rstrip('/')}/api/projects/{project_id}/"
+    r = requests.get(url, headers=headers, timeout=30)
+    r.raise_for_status()
+    data = r.json()
+    if not isinstance(data, dict):
+        raise ValueError("réponse projet non-objet")
+    return data
+
+
 def fetch_annotations(project_id: int, ls_url: str, ls_key: str) -> list[dict]:
     """Export JSON complet d’un projet (même contrat que l’UI Export)."""
     headers = {"Authorization": f"Token {ls_key}"}
