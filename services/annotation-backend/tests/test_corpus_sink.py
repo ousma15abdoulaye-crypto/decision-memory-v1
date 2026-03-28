@@ -279,7 +279,6 @@ class TestDualCorpusSink:
 
     def test_writes_to_both_primary_and_shadow(self) -> None:
         written_primary: list[dict] = []
-        written_shadow_path: list[dict] = []
 
         class _FakePrimary:
             def append_line(self, line: dict) -> None:

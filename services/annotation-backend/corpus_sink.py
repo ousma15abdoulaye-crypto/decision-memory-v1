@@ -206,7 +206,7 @@ class DualCorpusSink:
     Usage type : CORPUS_SINK=s3 + CORPUS_LOCAL_BACKUP_PATH=/chemin/backup.jsonl
     """
 
-    def __init__(self, primary: "CorpusSink", shadow: FileAppendCorpusSink) -> None:
+    def __init__(self, primary: CorpusSink, shadow: FileAppendCorpusSink) -> None:
         self._primary = primary
         self._shadow = shadow
 

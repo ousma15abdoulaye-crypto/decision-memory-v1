@@ -40,8 +40,9 @@ def _minimal_ls_textarea_json() -> dict:
     JSON minimal valide après export LS (supplier_phone_raw / email_raw absents —
     supprimés par _build_ls_result selon ADR-013).
     """
-    from backend import FALLBACK_RESPONSE
     import copy
+
+    from backend import FALLBACK_RESPONSE
 
     ann = copy.deepcopy(FALLBACK_RESPONSE)
     # Simuler ce que _build_ls_result fait : supprimer les _raw, ajouter blocs pseudos
