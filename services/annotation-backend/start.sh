@@ -12,49 +12,47 @@ if [ ! -f ./backend.py ]; then
   exit 1
 fi
 
-# Mistral : le backend dégrade déjà sans clé (fallback JSON). Ne plus exit 1 ici :
-# sur Railway, une variable mal branchée sur le service provoquait une boucle de crash.
+# Mistral : le backend dégrade sans clé (fallback). Ne pas exit 1 (évite boucle Railway).
 #
-# Normalisation : retours ligne / espaces (copier-coller Windows, guillemets dans l’UI).
+# Ordre : MISTRAL_API_KEY → DMS_API_MISTRAL (Railway DMS) → MISTRAL_KEY.
+# Trim CR/LF/espaces ; retire guillemets externes si l’UI Railway les a inclus.
+_trim_key() {
+  printf '%s' "$1" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+_strip_outer_quotes() {
+  _v="$1"
+  case $_v in
+    \"*\")
+      _v=${_v#\"}
+      _v=${_v%\"}
+      ;;
+    \'*\')
+      _v=${_v#\'}
+      _v=${_v%\'}
+      ;;
+  esac
+  printf '%s' "$_v"
+}
+_normalize_mistral_value() {
+  _strip_outer_quotes "$(_trim_key "$1")"
+}
+
 if [ -n "${MISTRAL_API_KEY:-}" ]; then
-  # shellcheck disable=SC2001
-  _k=$(printf '%s' "$MISTRAL_API_KEY" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-  case $_k in
-    \"*\")
-      _k=${_k#\"}
-      _k=${_k%\"}
-      ;;
-    \'*\')
-      _k=${_k#\'}
-      _k=${_k%\'}
-      ;;
-  esac
-  export MISTRAL_API_KEY="$_k"
+  export MISTRAL_API_KEY="$(_normalize_mistral_value "$MISTRAL_API_KEY")"
 fi
-# Alias parfois utilisé par erreur
+if [ -z "${MISTRAL_API_KEY:-}" ] && [ -n "${DMS_API_MISTRAL:-}" ]; then
+  export MISTRAL_API_KEY="$(_normalize_mistral_value "$DMS_API_MISTRAL")"
+fi
 if [ -z "${MISTRAL_API_KEY:-}" ] && [ -n "${MISTRAL_KEY:-}" ]; then
-  _k=$(printf '%s' "$MISTRAL_KEY" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-  case $_k in
-    \"*\")
-      _k=${_k#\"}
-      _k=${_k%\"}
-      ;;
-    \'*\')
-      _k=${_k#\'}
-      _k=${_k%\'}
-      ;;
-  esac
-  export MISTRAL_API_KEY="$_k"
+  export MISTRAL_API_KEY="$(_normalize_mistral_value "$MISTRAL_KEY")"
 fi
 
 if [ -z "${MISTRAL_API_KEY:-}" ]; then
-  echo "[start.sh] WARNING: MISTRAL_API_KEY is empty — uvicorn démarre quand même." >&2
-  echo "[start.sh] Railway : ouvrir CE service (annotation-backend) → Variables → nom exact MISTRAL_API_KEY (pas seulement le projet)." >&2
-  echo "[start.sh] Vérifier : pas de guillemets autour de la valeur, Redeploy après sauvegarde. GET /health → mistral_configured." >&2
+  echo "[start.sh] WARNING: aucune clé Mistral (MISTRAL_API_KEY ou DMS_API_MISTRAL) — fallback prédictions." >&2
 else
-  echo "[start.sh] MISTRAL_API_KEY défini (non vide)." >&2
+  echo "[start.sh] Clé Mistral chargée (MISTRAL_API_KEY ou DMS_API_MISTRAL)." >&2
 fi
 
 PORT="${PORT:-8080}"
-echo "[start.sh] DMS annotation-backend — uvicorn backend:app — port=$PORT (Label Studio: GET /health)"
+echo "[start.sh] DMS annotation-backend — uvicorn backend:app — port=$PORT (GET /health)" >&2
 exec uvicorn backend:app --host 0.0.0.0 --port "$PORT" --log-level info 2>&1
