@@ -1,0 +1,251 @@
+{
+  "dms_regulatory_library_version": "1.0.0",
+  "source_file": "data\\regulatory\\raw\\CODE MARCHES PUBLICS 2015.pdf",
+  "source_label_guess": "dgmp",
+  "extracted_at": "2026-03-26T16:34:47.539167+00:00",
+  "extraction_method": "mistral_ocr",
+  "text_char_length": 165391,
+  "text_preview": "Mme DIARRA\nPRIMATURE\nSECRETARIAT GENERAL\nDU GOUVERNEMENT\nREPUBLIQUE DU MALI\nUn Peuple – Un But – Une Foi\n\n# DECRET N°2015-0604 /P-RM DU 25 SEP. 2015\n\n## PORTANT CODE DES MARCHES PUBLICS ET DES DELEGATIONS DE SERVICE PUBLIC\n\n### LE PRESIDENT DE LA REPUBLIQUE,\n\nVu la Constitution ;\nVu l’Acte Uniforme de l’Organisation pour l’Harmonisation en Afrique du Droit des Affaires (OHADA) sur le droit de l’arbitrage ;\nVu la Directive n°04/2005/CM/UEMOA du 09 décembre 2005 portant procédures de passation, d’exécution et de règlement des marchés publics et des délégations de service public dans l’Union Economique et Monétaire Ouest Africaine ;\nVu la Directive n°05/2005/CM/UEMOA du 09 décembre 2005 portant contrôle et régulation des marchés publics et des délégations de service public dans l’Union Economique et Monétaire Ouest Africaine ;\nVu la Loi n°08-022 du 23 juillet 2008, modifiée, portant création de la Direction Générale des Marchés Publics et des Délégations de Service Public ;\nVu la Loi n°08-023 du 23 juillet 2008, modifiée, relative à l’Autorité de Régulation des Marchés Publics et des Délégations de Service Public ;\nVu la Loi n°2013-028 du 11 juillet 2013, modifiée, relative aux lois de finances ;\nVu la Loi n°2014-049 du 19 septembre 2014 portant principes fondamentaux de la création, de l’organisation, et du contrôle des services publics ;\nVu le Décret n°2015-0003/P-RM du 08 janvier 2015 portant nomination du Premier ministre;\nVu le Décret n°2015-0603/P-RM du 24 septembre 2015 portant nomination des membres du Gouvernement ;\n\nSTATUANT EN CONSEIL DES MINISTRES,\n\n**DECRETE :**\n\n**TITRE PREMIER :** DISPOSITIONS GENERALES\n\n**CHAPITRE I :** OBJET ET DEFINITIONS\n\n**Article 1er :** Objet\n\nLe présent décret fixe les règles régissant la passation, l’exécution, le règlement, le contrôle et la régulation des marchés publics et des délégations de service public.\n\n2\n\n# Article 2 : Définitions\n\nPour l'application du présent décret les termes suivants ont la signification qui leur est assignée au présent article :\n\nAccord-cadre : l'accord conclu avec des fournisseurs de biens, de travaux et de services, y compris les prestations intellectuelles, fixant les termes et conditions de la passation de marchés-individuels-subséquents qui peuvent être attribués pendant la durée de l'accord. L'accord-cadre est, en règle générale, basé sur des prix qui ont été préalablement fixés, ou qui sont déterminés lors de la remise en concurrence ou par une procédure permettant leur modification sans remise en concurrence.\n\nAffermage : le contrat par lequel l'autorité contractante charge le fermier, personne publique ou privée, de l'exploitation d'ouvrage qu'elle a acquis préalablement afin que celui-ci assure la fourniture d'un service public, le fermier ne réalisant pas les investissements initiaux.\n\nAttributaire : le soumissionnaire dont l'offre a été retenue avant l'approbation du marché.\n\nAutorité(s) contractante(s) : la ou les personne(s) morale(s) de droit public ou de droit privé visée(s) à l'article 4 du présent décret, signataire(s) d'un marché public, tel que défini dans le présent article.\n\nAutorité(s) délégante(s) : la ou les autorité(s) contractante(s), cocontractante(s) d'une convention de délégation de service public.\n\nAutorité de Régulation des Marchés Publics et des Délégations de Service Public (ARMDS) : l'organe chargé de la régulation des marchés publics et des délégations de service public.\n\nCandidat : la personne physique ou morale qui manifeste un intérêt à participer ou qui est retenue par une autorité contractante pour participer à une procédure de passation de marchés.\n\nCandidature : l'acte par lequel le candidat manifeste un intérêt à participer, sans que cet acte ne l'engage ni ne lui impose d'obligations vis-à-vis de l'autorité contractante.\n\nCellule de passation de marchés : organe créé auprès des autorités contractantes, chargé de l'appui-conseil en matière de marchés publics et des délégations de service public et du contrôle a prio...",
+  "structured": {
+    "document_kind": "dgmp_code",
+    "title_guess": "Décret n°2015-0604/P-RM du 25 septembre 2015 portant Code des Marchés Publics et des Délégations de Service Public",
+    "language": "fr",
+    "sections": [
+      {
+        "heading": "TITRE PREMIER : DISPOSITIONS GENERALES",
+        "summary": "Ce titre définit les principes fondamentaux, le champ d'application et les exclusions des marchés publics et délégations de service public au Mali. Il établit les seuils d'application, les règles de coordination et de groupement de commandes, ainsi que les obligations liées aux financements extérieurs.",
+        "verbatim_citations": [
+          "Le présent décret fixe les règles régissant la passation, l’exécution, le règlement, le contrôle et la régulation des marchés publics et des délégations de service public.",
+          "Les dispositions du présent décret s'appliquent aux marchés publics et délégations de service public conclus par l'Etat, les collectivités locales, les établissements publics, les agences et organismes, bénéficiant du concours financier ou de la garantie de l'Etat, les sociétés d'Etat, les sociétés à participation financière publique majoritaire et les associations formées par une ou plusieurs de ces personnes morales de droit public.",
+          "Le présent décret ne s'applique pas aux marchés de travaux, de fournitures et de services, lorsqu'ils concernent des besoins de défense et de sécurité nationales exigeant le secret ou pour lesquels la protection des intérêts essentiels de l'Etat est incompatible avec des mesures de publicité."
+        ]
+      },
+      {
+        "heading": "CHAPITRE 1 : OBJET ET DEFINITIONS",
+        "summary": "Ce chapitre définit les termes clés utilisés dans le code, tels que marché public, délégation de service public, accord-cadre, concession, affermage, etc. Il précise également les principes fondamentaux applicables aux procédures de passation.",
+        "verbatim_citations": [
+          "Pour l'application du présent décret les termes suivants ont la signification qui leur est assignée au présent article : Accord-cadre, Affermage, Attributaire, Autorité(s) contractante(s), Autorité(s) délégante(s), Autorité de Régulation des Marchés Publics et des Délégations de Service Public (ARMDS), Candidat, Candidature, Cellule de passation de marchés, Comité de Règlement des Différends, Concession de service public, Concours, Convention (ou Accord) de financement, Délais, Délégataire, Délégation de service public, Direction Générale des Marchés Publics et des Délégations de Service Public, Entreprise communautaire, Maître d’œuvre, Maître d’ouvrage, Maître d’ouvrage délégué, Marché public, Marché public de fournitures, Marché public de services, Marché public de travaux, Marché public de type mixte, Moyen électronique, Offre, Offre spontanée, Organisme de droit public, Ouvrage, Personne responsable du marché, Régie intéressée, Soumission, Soumissionnaire, Titulaire, Urgence impérieuse, Urgence simple."
+        ]
+      },
+      {
+        "heading": "CHAPITRE 2 : CHAMP D'APPLICATION",
+        "summary": "Ce chapitre précise les autorités contractantes concernées par le code, les règles applicables aux personnes morales bénéficiant de droits spéciaux ou exclusifs, ainsi que les modalités de coordination, de groupement de commandes et de centrales d'achat.",
+        "verbatim_citations": [
+          "Les dispositions du présent décret s'appliquent aux marchés publics et délégations de service public conclus par l'Etat, les collectivités locales, les établissements publics, les agences et organismes, bénéficiant du concours financier ou de la garantie de l'Etat, les sociétés d'Etat, les sociétés à participation financière publique majoritaire et les associations formées par une ou plusieurs de ces personnes morales de droit public.",
+          "Les dispositions du présent décret s'appliquent également aux marchés et délégations de service public passés par les personnes morales de droit privé agissant pour le compte de l'Etat, d'une collectivité locale, d'une personne morale de droit public, d'une société d'Etat, d'une société à participation financière publique majoritaire, ou d'une association formée par une ou plusieurs de ces personnes morales de droit public."
+        ]
+      },
+      {
+        "heading": "TITRE II : ORGANES DE LA COMMANDE PUBLIQUE",
+        "summary": "Ce titre décrit les différents organes impliqués dans la commande publique, notamment la personne responsable du marché, les maîtres d'ouvrage, les maîtres d'œuvre, les cellules de passation de marchés, et les autorités de conclusion et d'approbation.",
+        "verbatim_citations": [
+          "L'autorité contractante peut mandater une personne responsable du marché chargée de mettre en œuvre les procédures de passation et d'exécution des marchés et délégations de service public.",
+          "Le maître d'ouvrage est le commanditaire de l'ouvrage et en assure le financement. Il est responsable de l'expression fonctionnelle des besoins.",
+          "Le maître d'œuvre peut assister le maître d'ouvrage dans la passation des marchés, assurer la direction et le contrôle de l'exécution des travaux."
+        ]
+      },
+      {
+        "heading": "TITRE III : CANDIDATS ET SOUMISSIONNAIRES",
+        "summary": "Ce titre établit les règles relatives à la participation des candidats et soumissionnaires, notamment les conditions de capacité requises, les justifications des capacités techniques et financières, les règles de conflit d'intérêt, et les modalités de groupement et de sous-traitance.",
+        "verbatim_citations": [
+          "Tout candidat qui remplit les conditions juridiques et qui possède les capacités techniques et les capacités financières nécessaires à l'exécution d'un marché public ou d'une délégation de service public, ainsi que l'expérience de l'exécution de contrats analogues doit pouvoir participer aux procédures de passation de marchés et de délégations de service public.",
+          "Ne sont pas admises à participer aux procédures de passation de marchés et délégations de service public, en raison des règles relatives au conflit d'intérêt : les personnes physiques avec lesquelles ou les personnes morales dans lesquelles, les membres de l'autorité contractante, de l'organe chargé du contrôle des marchés publics et des délégations de service public, la personne responsable du marché ou les membres de la Commission d'ouverture des plis et d'évaluation des offres possèdent des intérêts financiers ou personnels de nature à compromettre la transparence des procédures de passation des marchés publics."
+        ]
+      },
+      {
+        "heading": "TITRE IV : PREPARATION, FORME ET CONTENU DES MARCHES",
+        "summary": "Ce titre détaille les règles de préparation des marchés, notamment les plans prévisionnels, la détermination des besoins, les spécifications techniques, l'allotissement, et les pièces constitutives des marchés. Il aborde également les modalités de prix et les types de marchés (marchés à commandes, marchés de clientèle, accords-cadres).",
+        "verbatim_citations": [
+          "Les autorités contractantes élaborent des plans prévisionnels annuels de passation des marchés publics sur le fondement de leur programme d'activités, suivant un modèle type établi et diffusé par l'organe chargé de la régulation des marchés publics et des délégations de service public.",
+          "Les travaux, fournitures et prestations de services qui font l'objet d'un marché public ou d'une délégation de service public sont définis par référence aux normes, agréments techniques ou spécifications techniques nationaux ou communautaires, ou à défaut par référence à des normes ou agréments techniques ou spécifications techniques internationaux."
+        ]
+      },
+      {
+        "heading": "TITRE V : PASSATION DES MARCHES ET DES DÉLÉGATIONS DE SERVICE PUBLIC",
+        "summary": "Ce titre décrit les différentes procédures de passation des marchés et délégations de service public, notamment les appels d'offres (ouverts, restreints, en deux étapes), les procédures spécifiques aux prestations intellectuelles, les offres spontanées, et les marchés par entente directe. Il précise également les règles de publication, de dématérialisation, et les délais de réception des offres.",
+        "verbatim_citations": [
+          "L'appel d'offres est la procédure par laquelle l'autorité contractante choisit l'offre conforme aux spécifications techniques, évaluée la moins-disante, et dont le soumissionnaire satisfait aux critères de qualification.",
+          "Le marché est passé par entente directe lorsque l'autorité contractante engage, sans formalité, les discussions qui lui paraissent utiles, avec un entrepreneur, un fournisseur ou un prestataire de service.",
+          "Les documents relatifs à la passation d'un marché, notamment, les dossiers d'appel d'offres, documents constitutifs du marché, avis d'appel d'offres ou d'invitation à soumissionner sont rédigés en langue française, seuls les textes rédigés en langue française faisant foi."
+        ]
+      },
+      {
+        "heading": "TITRE VI : EXECUTION ET REGLEMENT DES MARCHES PUBLICS",
+        "summary": "Ce titre traite des garanties exigées pour l'exécution des marchés, notamment les garanties de bonne exécution, les retenues de garantie, et les modalités de constitution des garanties. Il aborde également les règles de modification, de résiliation, et de règlement des litiges.",
+        "verbatim_citations": [
+          "Les titulaires de marché sont tenus de fournir une garantie de bonne exécution lorsque la nature et le délai d'exécution du marché le requièrent, en garantie de la bonne exécution du marché et du recouvrement des sommes dont ils seraient reconnus débiteurs au titre du marché.",
+          "La garantie de bonne exécution est constituée par le cautionnement du montant correspondant selon des modalités fixées par arrêté du Ministre chargé des Finances."
+        ]
+      },
+      {
+        "heading": "TITRE VII : CONTROLE ET REGULATION",
+        "summary": "Ce titre définit les organes de contrôle et de régulation des marchés publics et délégations de service public, notamment l'Autorité de Régulation des Marchés Publics et des Délégations de Service Public (ARMDS), la Direction Générale des Marchés Publics et des Délégations de Service Public, et le Comité de Règlement des Différends. Il précise leurs attributions et leurs modalités de fonctionnement.",
+        "verbatim_citations": [
+          "L'Autorité de Régulation des Marchés Publics et des Délégations de Service Public (ARMDS) : l'organe chargé de la régulation des marchés publics et des délégations de service public.",
+          "Le Comité de Règlement des Différends : le Comité créé auprès de l'organe chargé de la régulation des marchés publics et des délégations de service public pour statuer sur les irrégularités commises par les intervenants aux marchés publics et sur les recours exercés par les candidats et soumissionnaires aux marchés publics et délégations de service public."
+        ]
+      }
+    ],
+    "thresholds": [
+      {
+        "label": "Seuil national pour les marchés de travaux",
+        "currency": "XOF",
+        "min": 100000000,
+        "max": null,
+        "procedure": "Appel d'offres ou procédure adaptée",
+        "notes": "Seuil applicable à l'État, collectivités locales, établissements publics, sociétés d'État, etc."
+      },
+      {
+        "label": "Seuil national pour les marchés de fournitures et services courants",
+        "currency": "XOF",
+        "min": 80000000,
+        "max": null,
+        "procedure": "Appel d'offres ou procédure adaptée",
+        "notes": "Seuil applicable à l'État, collectivités locales, établissements publics, sociétés d'État, etc."
+      },
+      {
+        "label": "Seuil national pour les marchés de prestations intellectuelles",
+        "currency": "XOF",
+        "min": 70000000,
+        "max": null,
+        "procedure": "Procédure spécifique (consultation, négociation)",
+        "notes": "Seuil applicable à l'État, collectivités locales, établissements publics, sociétés d'État, etc."
+      },
+      {
+        "label": "Seuil national pour les marchés des sociétés d'État et établissements publics à caractère industriel et commercial",
+        "currency": "XOF",
+        "min": 150000000,
+        "max": null,
+        "procedure": "Appel d'offres ou procédure adaptée",
+        "notes": "Seuil applicable aux travaux, fournitures et services courants."
+      },
+      {
+        "label": "Seuil national pour les prestations intellectuelles des sociétés d'État et établissements publics à caractère industriel et commercial",
+        "currency": "XOF",
+        "min": 80000000,
+        "max": null,
+        "procedure": "Procédure spécifique (consultation, négociation)",
+        "notes": null
+      },
+      {
+        "label": "Seuil communautaire UEMOA",
+        "currency": "XOF",
+        "min": null,
+        "max": null,
+        "procedure": "Appel d'offres ouvert",
+        "notes": "Seuil déterminé par la Commission de l'UEMOA. Les marchés dont le montant est égal ou supérieur à ce seuil doivent faire l'objet d'une publication communautaire."
+      }
+    ],
+    "procedures": [
+      {
+        "name": "Appel d'offres ouvert",
+        "description": "Procédure par laquelle tout candidat éligible peut soumettre une offre. L'attribution se fait sur la base de critères objectifs d'évaluation préalablement portés à la connaissance des candidats.",
+        "conditions": "Aucune restriction de participation, sauf exclusion pour conflit d'intérêt ou incapacité juridique."
+      },
+      {
+        "name": "Appel d'offres ouvert précédé de pré-qualification",
+        "description": "Procédure ouverte où les candidats doivent d'abord se pré-qualifier sur la base de critères techniques et financiers. Seuls les candidats pré-qualifiés peuvent soumettre une offre.",
+        "conditions": "Réservé aux marchés complexes ou nécessitant une technicité particulière."
+      },
+      {
+        "name": "Appel d'offres en deux étapes",
+        "description": "Procédure où les soumissionnaires remettent d'abord des propositions techniques sans indication de prix, puis des propositions techniques définitives assorties de prix après évaluation.",
+        "conditions": "Réservé aux marchés de grande complexité ou nécessitant des critères de performance plutôt que des spécifications techniques détaillées. Autorisation préalable requise."
+      },
+      {
+        "name": "Appel d'offres restreint",
+        "description": "Procédure où seuls les candidats sélectionnés par l'autorité contractante peuvent soumettre une offre. L'attribution se fait ensuite comme en appel d'offres ouvert.",
+        "conditions": "Réservé aux marchés nécessitant des prestations spécialisées disponibles auprès d'un nombre limité de fournisseurs. Autorisation préalable requise."
+      },
+      {
+        "name": "Appel d'offres avec concours",
+        "description": "Procédure où les candidats soumettent des projets ou plans (ex : architecture, urbanisme) évalués par un jury. Le lauréat est ensuite sélectionné pour la réalisation.",
+        "conditions": "Réservé aux projets nécessitant une approche créative ou technique spécifique."
+      },
+      {
+        "name": "Procédure spécifique aux marchés de prestations intellectuelles",
+        "description": "Procédure incluant une manifestation d'intérêt, une pré-qualification, et une évaluation en deux temps (technique puis financière). Négociations possibles avec le candidat retenu.",
+        "conditions": "Réservé aux prestations intellectuelles, services d'assistance, maîtrise d'ouvrage déléguée, etc."
+      },
+      {
+        "name": "Entente directe",
+        "description": "Procédure où l'autorité contractante engage des discussions directes avec un prestataire unique, sans formalité de concurrence.",
+        "conditions": "Réservé aux cas exceptionnels : brevet exclusif, urgence impérieuse, nécessité technique ou artistique, ou offre spontanée sous conditions strictes. Autorisation préalable requise."
+      },
+      {
+        "name": "Marché à commandes",
+        "description": "Marché permettant de couvrir des besoins courants annuels de fournitures ou services dont l'importance exacte n'est pas prévisible au début de l'année.",
+        "conditions": "Durée maximale : 1 an renouvelable une fois. Attribution sur la base des quantités nécessaires prévues initialement."
+      },
+      {
+        "name": "Marché de clientèle",
+        "description": "Marché par lequel l'autorité contractante s'engage à confier l'exécution d'une catégorie déterminée de travaux, fournitures ou services suivant des commandes successives.",
+        "conditions": "Durée maximale : 1 an renouvelable une fois."
+      },
+      {
+        "name": "Accord-cadre",
+        "description": "Accord conclu avec des fournisseurs pour fixer les termes et conditions de marchés individuels subséquents attribués pendant la durée de l'accord.",
+        "conditions": "Durée maximale : 1 an renouvelable une fois. Doit respecter les procédures et principes de l'appel d'offres."
+      }
+    ],
+    "committee_rules": [
+      {
+        "context": "Commission d'ouverture des plis et d'évaluation des offres",
+        "composition": "Composée de membres désignés par l'autorité contractante, incluant au moins un représentant des services administratifs et financiers. Peut inclure des experts techniques avec voix consultative. Représentant de l'organe de contrôle assiste en observateur.",
+        "quorum": "Non précisé dans le texte, mais les décisions sont prises à huis clos et consignées dans un procès-verbal signé par les membres présents."
+      },
+      {
+        "context": "Comité de Règlement des Différends",
+        "composition": "Créé auprès de l'Autorité de Régulation des Marchés Publics et des Délégations de Service Public (ARMDS). Composition non détaillée dans le texte.",
+        "quorum": "Non précisé dans le texte."
+      },
+      {
+        "context": "Cellule de passation des marchés",
+        "composition": "Organe créé auprès des autorités contractantes, chargé de l'appui-conseil et du contrôle a priori des dépenses en dessous des seuils de revue. Composition fixée par décret du Premier ministre.",
+        "quorum": "Non applicable."
+      }
+    ],
+    "evaluation_criteria": [
+      {
+        "criterion": "Prix",
+        "weight_rule": "Critère principal pour les marchés simples. Peut être combiné avec d'autres critères pour les marchés complexes.",
+        "eliminatory": false
+      },
+      {
+        "criterion": "Qualité technique",
+        "weight_rule": "Critère obligatoire pour les marchés complexes ou nécessitant une expertise technique. Évalué en termes monétaires ou par notation.",
+        "eliminatory": true
+      },
+      {
+        "criterion": "Délai d'exécution",
+        "weight_rule": "Critère quantifiable et exprimé en termes monétaires (coûts de retard, pénalités, etc.).",
+        "eliminatory": false
+      },
+      {
+        "criterion": "Valeur technique",
+        "weight_rule": "Critère incluant la performance, le service après-vente, l'assistance technique, etc. Évalué en termes monétaires.",
+        "eliminatory": false
+      },
+      {
+        "criterion": "Préférence communautaire",
+        "weight_rule": "Marge de préférence de 15% maximum pour les entreprises communautaires. Doit être quantifiée dans le dossier d'appel d'offres.",
+        "eliminatory": false
+      },
+      {
+        "criterion": "Critères spécifiques aux prestations intellectuelles",
+        "weight_rule": "Qualité technique minimum requise, budget prédéterminé, ou meilleure proposition financière parmi les candidats qualifiés techniquement.",
+        "eliminatory": true
+      }
+    ],
+    "unresolved_or_ambiguous": [
+      "Les seuils communautaires exacts de l'UEMOA ne sont pas précisés dans le texte (seulement mentionné comme 'seuil communautaire').",
+      "Les modalités exactes de calcul des seuils pour les marchés mixtes ne sont pas détaillées (seulement mentionné comme 'part relative en volume').",
+      "Les règles précises de composition des commissions d'ouverture des plis et d'évaluation des offres pour les collectivités décentralisées ne sont pas détaillées (référence à un arrêté conjoint non précisé).",
+      "Les modalités exactes de dématérialisation des procédures (outils, plateformes, etc.) ne sont pas précisées (seulement mentionné comme 'arrêté du Ministre chargé des Finances').",
+      "Les règles de sous-traitance pour les marchés de services ne sont pas explicitement détaillées (seulement mentionné pour les travaux).",
+      "Les modalités de contrôle des prix pour les marchés par entente directe ne sont pas précisées (seulement mentionné comme 'contrôle des prix spécifiques').",
+      "Les règles de résiliation des marchés pour non-respect des engagements par l'offrant d'une offre spontanée ne sont pas détaillées."
+    ],
+    "confidence_notes": "Le parsing a été réalisé sur la base du texte intégral du décret. Certaines sections (notamment les titres VI et VII) sont partiellement tronquées dans le texte source fourni, ce qui peut limiter la complétude des informations extraites. Les seuils et procédures sont conformes aux dispositions légales maliennes et communautaires (UEMOA), mais les détails pratiques (ex : formules de révision des prix, modèles de garanties) sont renvoyés à des arrêtés ou décrets ultérieurs non inclus dans le texte source."
+  }
+}

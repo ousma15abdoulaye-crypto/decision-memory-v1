@@ -151,6 +151,22 @@ def test_m12_v2_export_ok_with_valid_json(
     assert line["dms_annotation"]["_meta"]["schema_version"] == "v3.0.1d"
 
 
+def test_m12_v2_export_ok_with_markdown_fenced_json(
+    export_mod, golden_dms_json: str
+) -> None:
+    """extracted_json parfois collé avec ```json ... ``` (LLM / copier-coller)."""
+    fenced = "```json\n" + golden_dms_json + "\n```"
+    item = _ls_item(fenced, annotation_status="review_required")
+    line = export_mod.ls_annotation_to_m12_v2_line(
+        item["annotations"][0],
+        item,
+        1,
+        enforce_validated_qa=True,
+    )
+    assert line["export_ok"] is True
+    assert line["dms_annotation"] is not None
+
+
 def test_m12_v2_export_fails_on_invalid_json(export_mod) -> None:
     item = _ls_item("{not json", annotation_status="review_required")
     line = export_mod.ls_annotation_to_m12_v2_line(

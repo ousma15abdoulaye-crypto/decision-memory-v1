@@ -1,0 +1,458 @@
+{
+  "dms_regulatory_library_version": "1.0.0",
+  "source_file": "data\\regulatory\\raw\\code_general_impots.pdf",
+  "source_label_guess": "unknown",
+  "extracted_at": "2026-03-26T16:36:14.287216+00:00",
+  "extraction_method": "mistral_ocr",
+  "text_char_length": 309122,
+  "text_preview": "PRESIDENCE DE LA REPUBLIQUE DU MALI\nUn Peuple - Un But - Une Foi\n\nLOI N° 06 - 067 / DU 29 DEC. 2006\nPORTANT CODE GENERAL DES IMPOTS\n\nL'Assemblée Nationale a délibéré et adopté en sa séance du 1er décembre 2006 ;\n\nLe Président de la République promulgue la Loi dont la teneur suit :\n\nTitre 1 : Impôts directs\n\nChapitre 1 : Les impôts sur le revenu\n\nSection I : L'impôt sur les traitements et salaires\n\nSous-section I : Revenus soumis à l'impôt\n\nArticle 1\nIl est institué au profit du budget de l'État un Impôt sur les Traitements et Salaires applicable à toutes les sommes payées dans l'année aux salariés par les employeurs publics et privés, directement ou par l'entremise d'un tiers, en contrepartie ou à l'occasion du travail, notamment à titre de traitements, indemnités, émoluments, commissions, participations, primes, gratifications, gages, pourboires et autres rétributions, quelles qu'en soient la dénomination et la forme.\n\nArticle 2\nSont également passibles de cet impôt :\n\n1. les pensions et rentes viagères ;\n2. les rémunérations, quelle que soit leur appellation, à l'exception de celles visées à l'article 25 du présent Code, allouées aux dirigeants des sociétés par actions et rétribuant leur fonction de direction.\n\nArticle 3\nPeuvent affranchies de l'impôt :\n\n1. les allocations familiales et les allocations d'assistance à la famille versées par l'État et les organismes de prévoyance sociale ;\n2. les majorations de soldes, d'indemnités ou de pensions attribuées en considération des charges de famille et à condition que tous les salariés de\n\nl'entreprise, sans distinction, bénéficient d'une allocation d'un montant identique pour une même situation familiale ;\n\n3. les indemnités spéciales destinées à couvrir les frais de mission ou de déplacement, les indemnités de risque ou toute autre indemnité dont l'exonération est prévue par un texte réglementaire ;\n4. la retraite des combattants, les pensions servies aux victimes civiles et militaires de la guerre ou à leurs ayants droit ;\n5. les rentes viagères et indemnités temporaires attribuées aux victimes d'accidents de travail ;\n6. les indemnités de licenciement ou de départ à la retraite, dans la limite des montants fixés par le Code du travail.\n\nLes conditions de déductibilité des sommes visées au présent article sont précisées par arrêté du ministre chargé des finances.\n\n## Sous-section II : Personnes imposables et lieu d'imposition\n\n## Article 4\n\nI. L'impôt est dû au Mali par toutes personnes bénéficiaires des revenus visés aux articles 1er et 2, quels que soient leur statut et leur nationalité, qui résident habituellement au Mali et y exercent une activité rémunérée ou y perçoivent des revenus imposables.\n\nII. Sont également imposables au Mali :\n\n1. les personnes domiciliées ou ayant une résidence habituelle au Mali alors même que l'activité rémunérée s'exercerait hors dudit État ou que l'employeur ou la partie versante serait domicilié ou établi hors de celui-ci.\n\nSont considérées comme ayant une résidence habituelle au Mali :\n\na) les personnes qui y possèdent une habitation à leur disposition à titre de propriétaires, usufruitiers ou locataires lorsque, dans ce dernier cas, la location est conclue soit par convention unique, soit par conventions successives, pour une période continue d'au moins une année.\n\nb) les personnes qui, sans disposer au Mali d'une habitation dans les conditions définies à l'alinéa précédent, ont néanmoins au Mali le lieu de leur séjour principal.\n\n2. les personnes domiciliées ou résidant hors du Mali, à la double condition que l'activité rétribuée s'exerce dans cet État et que l'employeur ou la partie\n\nversante y soit domicilié ou établi. Toutefois, n'est pas imposable au Mali, le contribuable qui ayant son domicile ou sa résidence habituelle dans un État ayant conclu avec le Mali une convention en vue d'éliminer les doubles impositions, justifie y être imposé sur l'ensemble de ses revenus.\n\n3. les personnes se trouvant en congé hors du Mali, et qui sont ...",
+  "structured": {
+    "document_kind": "dgmp_code",
+    "title_guess": "Code Général des Impôts du Mali (Loi N° 06-067/ DU 29 DEC. 2006)",
+    "language": "fr",
+    "sections": [
+      {
+        "heading": "Titre 1 : Impôts directs",
+        "summary": "Ce titre définit les impôts directs au Mali, notamment l'impôt sur les traitements et salaires, les revenus fonciers, les revenus de valeurs mobilières, les bénéfices industriels et commerciaux, et les bénéfices agricoles. Il détaille les revenus imposables, les exonérations, les modalités de calcul et de perception, ainsi que les régimes d'imposition applicables.",
+        "verbatim_citations": [
+          "Article 1 : Impôt sur les Traitements et Salaires applicable à toutes les sommes payées dans l'année aux salariés par les employeurs publics et privés.",
+          "Article 14 : Revenus imposables dans la catégorie des revenus fonciers.",
+          "Article 23 : Revenus imposables dans la catégorie des revenus de valeurs mobilières.",
+          "Article 43 : Bénéfices industriels et commerciaux imposables."
+        ]
+      },
+      {
+        "heading": "Chapitre 1 : Les impôts sur le revenu",
+        "summary": "Ce chapitre traite des impôts sur le revenu, incluant l'impôt sur les traitements et salaires, les revenus fonciers, les revenus de valeurs mobilières, et les bénéfices industriels et commerciaux. Il précise les revenus imposables, les exonérations, et les modalités de calcul et de perception.",
+        "verbatim_citations": [
+          "Section I : L'impôt sur les traitements et salaires",
+          "Section II : L'Impôt sur les Revenues Fonciers",
+          "Section III : L'Impôt sur les revenus de valeurs mobilières",
+          "Section IV : L'Impôt sur les bénéfices industriels et commerciaux"
+        ]
+      },
+      {
+        "heading": "Section I : L'impôt sur les traitements et salaires",
+        "summary": "Cette section définit l'impôt sur les traitements et salaires, applicable aux sommes payées aux salariés par les employeurs publics et privés. Elle détaille les revenus imposables, les exonérations, les personnes imposables, et les modalités de calcul et de perception.",
+        "verbatim_citations": [
+          "Article 1 : Revenus soumis à l'impôt.",
+          "Article 2 : Pensions et rentes viagères également passibles de cet impôt.",
+          "Article 3 : Revenus exonérés de l'impôt.",
+          "Article 4 : Personnes imposables et lieu d'imposition.",
+          "Article 5 : Détermination de la base d'imposition.",
+          "Article 6 : Évaluation des avantages en nature.",
+          "Article 7 : Déduction des retenues et allocations spéciales.",
+          "Article 8 : Indemnité de dépaysement des cadres salariés expatriés.",
+          "Article 9 : Calcul et mode de perception de l'impôt.",
+          "Article 10 : Barème des taux d'imposition.",
+          "Article 11 : Réduction pour charge de famille.",
+          "Article 12 : Enfants à charge.",
+          "Article 13 : Dispositions spéciales aux contribuables en congé hors du Mali."
+        ]
+      },
+      {
+        "heading": "Sous-section I : Revenus soumis à l'impôt",
+        "summary": "Cette sous-section détaille les revenus soumis à l'impôt sur les traitements et salaires, incluant les traitements, indemnités, émoluments, commissions, participations, primes, gratifications, gages, pourboires, et autres rétributions.",
+        "verbatim_citations": [
+          "Article 1 : Revenus soumis à l'impôt."
+        ]
+      },
+      {
+        "heading": "Sous-section II : Personnes imposables et lieu d'imposition",
+        "summary": "Cette sous-section définit les personnes imposables à l'impôt sur les traitements et salaires, incluant les résidents habituels au Mali, les personnes domiciliées ou ayant une résidence habituelle au Mali, et les personnes domiciliées ou résidant hors du Mali sous certaines conditions.",
+        "verbatim_citations": [
+          "Article 4 : Personnes imposables et lieu d'imposition."
+        ]
+      },
+      {
+        "heading": "Sous-section III : Détermination de la base d'imposition",
+        "summary": "Cette sous-section détaille la détermination de la base d'imposition pour l'impôt sur les traitements et salaires, incluant le montant total net des traitements, salaires, indemnités, émoluments, primes, gratifications, et avantages en nature.",
+        "verbatim_citations": [
+          "Article 5 : Détermination de la base d'imposition.",
+          "Article 6 : Évaluation des avantages en nature.",
+          "Article 7 : Déduction des retenues et allocations spéciales.",
+          "Article 8 : Indemnité de dépaysement des cadres salariés expatriés."
+        ]
+      },
+      {
+        "heading": "Sous-section IV : Calcul et mode de perception de l'impôt",
+        "summary": "Cette sous-section détaille le calcul et le mode de perception de l'impôt sur les traitements et salaires, incluant l'application des taux d'imposition et des réductions pour charge de famille.",
+        "verbatim_citations": [
+          "Article 9 : Calcul et mode de perception de l'impôt.",
+          "Article 10 : Barème des taux d'imposition.",
+          "Article 11 : Réduction pour charge de famille."
+        ]
+      },
+      {
+        "heading": "Sous-section V : Dispositions spéciales applicables aux contribuables en congé hors du Mali",
+        "summary": "Cette sous-section détaille les dispositions spéciales applicables aux contribuables en congé hors du Mali, incluant la détermination de leur domicile fiscal.",
+        "verbatim_citations": [
+          "Article 13 : Dispositions spéciales aux contribuables en congé hors du Mali."
+        ]
+      },
+      {
+        "heading": "Section II : L'Impôt sur les Revenues Fonciers",
+        "summary": "Cette section définit l'impôt sur les revenus fonciers, applicable aux revenus des immeubles bâtis et non bâtis. Elle détaille les revenus imposables, les exonérations, et les modalités de calcul et de perception.",
+        "verbatim_citations": [
+          "Article 14 : Revenus imposables dans la catégorie des revenus fonciers.",
+          "Article 15 : Immeubles bâtis et non bâtis imposables.",
+          "Article 16 : Revenus exonérés de l'impôt sur les revenus fonciers.",
+          "Article 17 : Base de calcul de l'impôt.",
+          "Article 18 : Revenu brut.",
+          "Article 19 : Base de calcul sans réfaction.",
+          "Article 20 : Plus-values réalisées lors de la cession d'immeubles.",
+          "Article 21 : Revenus imposables en cas de bail de longue durée.",
+          "Article 22 : Taux de l'impôt sur les revenus fonciers."
+        ]
+      },
+      {
+        "heading": "Sous-section 1 : Revenues imposables et exemptions",
+        "summary": "Cette sous-section détaille les revenus imposables et les exonérations pour l'impôt sur les revenus fonciers, incluant les immeubles bâtis et non bâtis, et les exonérations spécifiques.",
+        "verbatim_citations": [
+          "Article 14 : Revenus imposables dans la catégorie des revenus fonciers.",
+          "Article 15 : Immeubles bâtis et non bâtis imposables.",
+          "Article 16 : Revenus exonérés de l'impôt sur les revenus fonciers."
+        ]
+      },
+      {
+        "heading": "Sous-section II : Détermination de la base d'imposition",
+        "summary": "Cette sous-section détaille la détermination de la base d'imposition pour l'impôt sur les revenus fonciers, incluant le revenu brut, les déductions, et les modalités de calcul.",
+        "verbatim_citations": [
+          "Article 17 : Base de calcul de l'impôt.",
+          "Article 18 : Revenu brut.",
+          "Article 19 : Base de calcul sans réfaction.",
+          "Article 20 : Plus-values réalisées lors de la cession d'immeubles.",
+          "Article 21 : Revenus imposables en cas de bail de longue durée."
+        ]
+      },
+      {
+        "heading": "Sous-section III : Établissement de l'imposition - taux",
+        "summary": "Cette sous-section détaille l'établissement de l'imposition et les taux applicables pour l'impôt sur les revenus fonciers, incluant les taux pour les immeubles en dur, semi-dur, et en banco.",
+        "verbatim_citations": [
+          "Article 22 : Taux de l'impôt sur les revenus fonciers."
+        ]
+      },
+      {
+        "heading": "Section III : L'Impôt sur les revenus de valeurs mobilières",
+        "summary": "Cette section définit l'impôt sur les revenus de valeurs mobilières, applicable aux intérêts, dividendes, arrérages, et autres produits des actions, parts de fondateurs, obligations, et créances. Elle détaille les revenus imposables, les exonérations, et les modalités de calcul et de perception.",
+        "verbatim_citations": [
+          "Article 23 : Revenus imposables dans la catégorie des revenus de valeurs mobilières.",
+          "Article 24 : Revenus des sociétés étrangères.",
+          "Article 25 : Revenus réputés distribués.",
+          "Article 26 : Bénéfices et réserves capitalisés en cas de cession ou de cessation d'activité.",
+          "Article 27 : Résultat fiscal des personnes étrangères.",
+          "Article 28 : Incorporation régulière et directe de bénéfice au capital.",
+          "Article 29 : Exonérations spécifiques.",
+          "Article 30 : Exonérations pour sociétés concessionnaires.",
+          "Article 31 : Exonération des intérêts des livrets d'épargne.",
+          "Article 32 : Exonération des intérêts des comptes courants.",
+          "Article 33 : Autres exonérations.",
+          "Article 34 : Plus-values résultant de l'attribution gratuite d'actions.",
+          "Article 35 : Élément générateur de l'impôt.",
+          "Article 36 : Détermination du revenu.",
+          "Article 37 : Taux d'émission des obligations.",
+          "Article 38 : Liquidation de l'impôt.",
+          "Article 39 : Quote-part des revenus taxables pour les sociétés étrangères.",
+          "Article 40 : Taxe en cas de réunion de toutes les actions ou parts d'une société.",
+          "Article 41 : Taux de l'impôt proportionnel.",
+          "Article 42 : Taux réduits de l'impôt proportionnel."
+        ]
+      },
+      {
+        "heading": "Sous-section I : Revenus imposables",
+        "summary": "Cette sous-section détaille les revenus imposables pour l'impôt sur les revenus de valeurs mobilières, incluant les intérêts, dividendes, arrérages, et autres produits des actions, parts de fondateurs, obligations, et créances.",
+        "verbatim_citations": [
+          "Article 23 : Revenus imposables dans la catégorie des revenus de valeurs mobilières.",
+          "Article 24 : Revenus des sociétés étrangères.",
+          "Article 25 : Revenus réputés distribués.",
+          "Article 26 : Bénéfices et réserves capitalisés en cas de cession ou de cessation d'activité.",
+          "Article 27 : Résultat fiscal des personnes étrangères.",
+          "Article 28 : Incorporation régulière et directe de bénéfice au capital."
+        ]
+      },
+      {
+        "heading": "Sous-section II : Exemptions",
+        "summary": "Cette sous-section détaille les exonérations pour l'impôt sur les revenus de valeurs mobilières, incluant les exonérations spécifiques pour les sociétés concessionnaires, les intérêts des livrets d'épargne, et les intérêts des comptes courants.",
+        "verbatim_citations": [
+          "Article 29 : Exonérations spécifiques.",
+          "Article 30 : Exonérations pour sociétés concessionnaires.",
+          "Article 31 : Exonération des intérêts des livrets d'épargne.",
+          "Article 32 : Exonération des intérêts des comptes courants.",
+          "Article 33 : Autres exonérations.",
+          "Article 34 : Plus-values résultant de l'attribution gratuite d'actions."
+        ]
+      },
+      {
+        "heading": "Sous-section III : Détermination de la base d'imposition",
+        "summary": "Cette sous-section détaille la détermination de la base d'imposition pour l'impôt sur les revenus de valeurs mobilières, incluant l'élément générateur de l'impôt, la détermination du revenu, et les modalités de liquidation.",
+        "verbatim_citations": [
+          "Article 35 : Élément générateur de l'impôt.",
+          "Article 36 : Détermination du revenu.",
+          "Article 37 : Taux d'émission des obligations.",
+          "Article 38 : Liquidation de l'impôt.",
+          "Article 39 : Quote-part des revenus taxables pour les sociétés étrangères.",
+          "Article 40 : Taxe en cas de réunion de toutes les actions ou parts d'une société."
+        ]
+      },
+      {
+        "heading": "Sous-section IV : Taux de l'impôt proportionnel",
+        "summary": "Cette sous-section détaille les taux de l'impôt proportionnel pour les revenus de valeurs mobilières, incluant les taux pour les lots payés aux créanciers, les intérêts des obligations, et les dividendes.",
+        "verbatim_citations": [
+          "Article 41 : Taux de l'impôt proportionnel.",
+          "Article 42 : Taux réduits de l'impôt proportionnel."
+        ]
+      },
+      {
+        "heading": "Section IV : L'Impôt sur les bénéfices industriels et commerciaux",
+        "summary": "Cette section définit l'impôt sur les bénéfices industriels et commerciaux, applicable aux bénéfices des professions commerciales, industrielles, artisanales, libérales, et des titulaires de charges et offices. Elle détaille les activités imposables, les exonérations, et les modalités de calcul et de perception.",
+        "verbatim_citations": [
+          "Article 43 : Bénéfices industriels et commerciaux imposables.",
+          "Article 45 : Entreprises minières et pétrolières.",
+          "Article 46 : Autres activités imposables.",
+          "Article 47 : Exonérations.",
+          "Article 48 : Détermination du bénéfice imposable.",
+          "Article 49 : Bénéfice net.",
+          "Article 50 : Actif net.",
+          "Article 51 : Déduction des charges.",
+          "Article 52 : Dons aux collectivités publiques ou organismes d'intérêt général.",
+          "Article 53 : Provisions devenues sans objet.",
+          "Article 54 : Transactions, amendes, confiscations, pénalités.",
+          "Article 55 : Plus-values provenant de la cession d'éléments de l'actif immobilisé.",
+          "Article 56 : Exonération des plus-values résultant de l'attribution exclusive aux associés.",
+          "Article 57 : Déduction du revenu brut des immeubles et valeurs mobilières.",
+          "Article 58 : Rémunérations des associés gérants majoritaires.",
+          "Article 59 : Déduction des bonis et parts de bénéfices.",
+          "Article 60 : Report des déficits.",
+          "Article 61 : Évaluation des stocks et travaux en cours.",
+          "Article 62 : Réévaluation des bilans.",
+          "Article 63 : Éléments réévaluables.",
+          "Article 64 : Nouvelles annuités d'amortissement.",
+          "Article 65 : Plus-values ou moins-values de cession.",
+          "Article 66 : Contribution des patentes.",
+          "Article 67 : Taxe de réévaluation.",
+          "Article 68 : Affectation de la réserve spéciale de réévaluation.",
+          "Article 69 : Écarts de conversion des devises.",
+          "Article 70 : Régimes d'imposition.",
+          "Article 71 : Impôt synthétique.",
+          "Article 72 : Déclassement en bénéfice réel.",
+          "Article 73 : Paiement de l'impôt synthétique.",
+          "Article 74 : Tarifs de l'impôt synthétique.",
+          "Article 75 : Bénéfice réel.",
+          "Article 76 : Bénéfice réel simplifié.",
+          "Article 77 : Exploitants individuels.",
+          "Article 78 : Option pour le mode du réel simplifié.",
+          "Article 79 : Bénéfice réel normal.",
+          "Article 80 : Quote-part des frais de siège social.",
+          "Article 81 : Bénéfices indirectement transférés.",
+          "Article 82 : Bénéfices réalisés par des personnes physiques.",
+          "Article 83 : Impôt sur les Sociétés (IS).",
+          "Article 84 : Sociétés en nom collectif et sociétés de caution mutuelle.",
+          "Article 85 : Taux de l'impôt sur les sociétés.",
+          "Article 86 : Minimum forfaitaire.",
+          "Article 87 : Produits nets des participations.",
+          "Article 88 : Crédit d'impôt.",
+          "Article 89 : Responsabilité du cessionnaire.",
+          "Article 90 : Exonération des plus-values en cas de fusion.",
+          "Article 91 : Plus-values de cession d'éléments d'actif immobilisé.",
+          "Article 92 : Délais pour les héritiers.",
+          "Article 93 : Exonération des plus-values en cas de cession d'un fonds de commerce.",
+          "Article 94 : Retenue à la source pour les personnes n'ayant pas d'installation permanente.",
+          "Article 95 : Artistes de théâtre, de musique et autres.",
+          "Article 96 : Déduction forfaitaire pour les prestations de services.",
+          "Article 97 : Taux de la retenue à la source.",
+          "Article 98 : Indépendance de la retenue à la source.",
+          "Article 99 : Bénéfices agricoles.",
+          "Article 100 : Agriculture traditionnelle.",
+          "Article 101 : Conditions d'application.",
+          "Article 102 : Vente de produits de l'exploitation.",
+          "Article 103 : Imposition des exploitants.",
+          "Article 104 : Exonérations.",
+          "Article 105 : Exonération temporaire.",
+          "Article 106 : Demande d'exonération temporaire.",
+          "Article 107 : Régimes d'imposition.",
+          "Article 108 : Bénéfice forfaitaire.",
+          "Article 109 : Commission régionale.",
+          "Article 110 : Calcul du bénéfice forfaitaire.",
+          "Article 111 : Réduction en cas de calamités.",
+          "Article 112 : Plus-values de cession.",
+          "Article 113 : Option pour le bénéfice réel.",
+          "Article 114 : Comptabilité pour le bénéfice réel.",
+          "Article 115 : Bénéfice réel de l'exploitation agricole.",
+          "Article 116 : Présentation de la comptabilité.",
+          "Article 117 : Plus-values de cession d'éléments de l'actif immobilisé.",
+          "Article 118 : Réduction de la Contribution Forfaitaire à la charge des Employeurs.",
+          "Article 119 : Recensement des entreprises agricoles.",
+          "Article 120 : Taux de l'impôt sur les bénéfices agricoles.",
+          "Article 121 : Taxe sur les plus-values de cession réalisées par les particuliers.",
+          "Article 122 : Plus-values imposables.",
+          "Article 123 : Exonérations.",
+          "Article 124 : Base d'imposition.",
+          "Article 125 : Plus-value en cas d'expropriation.",
+          "Article 126 : Plus-values immobilières réalisées moins de deux ans après l'acquisition.",
+          "Article 127 : Revalorisation du coût d'acquisition.",
+          "Article 128 : Produits de cession des biens mobiliers.",
+          "Article 129 : Taux de la taxe."
+        ]
+      },
+      {
+        "heading": "Chapitre II : La contribution des patentes et licences",
+        "summary": "Ce chapitre définit la contribution des patentes et licences, applicable aux personnes exerçant un commerce, une industrie, ou une profession au Mali. Il détaille les personnes imposables, les exonérations, la détermination de la base d'imposition, et les taux applicables.",
+        "verbatim_citations": [
+          "Section I : Personnes imposables - exemptions",
+          "Article 130 : Personnes imposables à la contribution des patentes.",
+          "Article 131 : Exonérations.",
+          "Article 132 : Exonération pour les jeunes diplômés et les agents de la Fonction Publique partant à la retraite.",
+          "Article 133 : Assujettissement par analogie.",
+          "Section II : Détermination de la base d'imposition",
+          "Article 134 : Composition de la contribution des patentes.",
+          "Article 135 : Droit fixe.",
+          "Article 136 : Établissements distincts.",
+          "Article 137 : Individus de plus de 60 ans.",
+          "Article 138 : Droit proportionnel.",
+          "Article 139 : Valeur locative des usines et établissements industriels.",
+          "Article 140 : Détermination de la valeur locative.",
+          "Section III : Dispositions spéciales à certaines catégories de professions",
+          "Article 141 : Exonération pour les importateurs et exportateurs.",
+          "Article 142 : Entrepreneurs de travaux publics étrangers.",
+          "Section IV : Formules de patentes",
+          "Article 143 : Récépissé de patente.",
+          "Section V: Taux de l'impôt",
+          "Article 144 : Droits fixes et proportionnels.",
+          "Section VI : Contribution des licences",
+          "Article 145 : Assujettissement à la licence.",
+          "Article 146 : Classes de licence.",
+          "Article 147 : Indépendance de la licence et de la patente.",
+          "Article 148 : Exonération pour les contribuables relevant de l'Impôt Synthétique.",
+          "Article 149 : Dispositions applicables aux licences.",
+          "Article 150 : Tarif des patentes et licences."
+        ]
+      }
+    ],
+    "thresholds": [
+      {
+        "label": "Seuil de chiffre d'affaires pour l'impôt synthétique",
+        "currency": "XOF",
+        "min": 0,
+        "max": 30000000,
+        "procedure": "Impôt synthétique",
+        "notes": "Les entreprises dont le chiffre d'affaires dépasse 30 millions de FCFA sont exclues du régime de l'impôt synthétique."
+      },
+      {
+        "label": "Seuil de chiffre d'affaires pour le bénéfice réel simplifié",
+        "currency": "XOF",
+        "min": 30000000,
+        "max": 100000000,
+        "procedure": "Bénéfice réel simplifié",
+        "notes": "Applicable aux exploitants individuels dont le chiffre d'affaires annuel hors TVA est supérieur à 30 millions mais sans excéder 100 millions de FCFA."
+      },
+      {
+        "label": "Seuil de chiffre d'affaires pour le bénéfice réel normal",
+        "currency": "XOF",
+        "min": 100000000,
+        "max": null,
+        "procedure": "Bénéfice réel normal",
+        "notes": "Applicable aux entreprises dont le chiffre d'affaires annuel hors TVA dépasse 100 millions de FCFA."
+      },
+      {
+        "label": "Seuil de chiffre d'affaires pour l'impôt sur les sociétés",
+        "currency": "XOF",
+        "min": null,
+        "max": null,
+        "procedure": "Impôt sur les sociétés (IS)",
+        "notes": "Applicable à toutes les sociétés par actions ou à responsabilité limitée."
+      },
+      {
+        "label": "Seuil de chiffre d'affaires pour l'impôt sur les bénéfices agricoles (régime forfaitaire)",
+        "currency": "XOF",
+        "min": null,
+        "max": null,
+        "procedure": "Régime forfaitaire",
+        "notes": "Applicable aux exploitations agricoles, quelle que soit l'importance du chiffre d'affaires."
+      },
+      {
+        "label": "Seuil de chiffre d'affaires pour l'impôt sur les bénéfices agricoles (régime réel)",
+        "currency": "XOF",
+        "min": null,
+        "max": null,
+        "procedure": "Régime réel",
+        "notes": "Applicable aux exploitants agricoles tenant une comptabilité régulière et complète."
+      },
+      {
+        "label": "Seuil de chiffre d'affaires pour la taxe sur les plus-values de cession des particuliers",
+        "currency": "XOF",
+        "min": null,
+        "max": null,
+        "procedure": "Taxe sur les plus-values",
+        "notes": "Applicable aux plus-values réalisées par les particuliers lors de la cession à titre onéreux de biens ou de droits."
+      }
+    ],
+    "procedures": [
+      {
+        "name": "Impôt sur les traitements et salaires",
+        "description": "Calcul de l'impôt sur les traitements et salaires en appliquant les taux d'imposition au revenu imposable et en déduisant les réductions pour charge de famille.",
+        "conditions": "Applicable à toutes les sommes payées aux salariés par les employeurs publics et privés."
+      },
+      {
+        "name": "Impôt sur les revenus fonciers",
+        "description": "Calcul de l'impôt sur les revenus fonciers en appliquant les taux d'imposition au revenu brut des immeubles bâtis et non bâtis.",
+        "conditions": "Applicable aux revenus des immeubles bâtis et non bâtis, sauf exonérations spécifiques."
+      },
+      {
+        "name": "Impôt sur les revenus de valeurs mobilières",
+        "description": "Calcul de l'impôt sur les revenus de valeurs mobilières en appliquant les taux d'imposition aux intérêts, dividendes, arrérages, et autres produits des actions, parts de fondateurs, obligations, et créances.",
+        "conditions": "Applicable aux revenus des valeurs mobilières, sauf exonérations spécifiques."
+      },
+      {
+        "name": "Impôt sur les bénéfices industriels et commerciaux",
+        "description": "Calcul de l'impôt sur les bénéfices industriels et commerciaux en appliquant les taux d'imposition aux bénéfices des professions commerciales, industrielles, artisanales, libérales, et des titulaires de charges et offices.",
+        "conditions": "Applicable aux bénéfices des professions commerciales, industrielles, artisanales, libérales, et des titulaires de charges et offices."
+      },
+      {
+        "name": "Impôt synthétique",
+        "description": "Paiement d'un impôt forfaitaire annuel pour les exploitants individuels dont le chiffre d'affaires annuel hors TVA est inférieur ou égal à 30 millions de FCFA.",
+        "conditions": "Applicable aux exploitants individuels dont le chiffre d'affaires annuel hors TVA est inférieur ou égal à 30 millions de FCFA."
+      },
+      {
+        "name": "Bénéfice réel simplifié",
+        "description": "Calcul de l'impôt sur les bénéfices industriels et commerciaux en appliquant les taux d'imposition aux bénéfices réels des exploitants individuels dont le chiffre d'affaires annuel hors TVA est supérieur à 30 millions mais sans excéder 100 millions de FCFA.",
+        "conditions": "Applicable aux exploitants individuels dont le chiffre d'affaires annuel hors TVA est supérieur à 30 millions mais sans excéder 100 millions de FCFA."
+      },
+      {
+        "name": "Bénéfice réel normal",
+        "description": "Calcul de l'impôt sur les bénéfices industriels et commerciaux en appliquant les taux d'imposition aux bénéfices réels des entreprises dont le chiffre d'affaires annuel hors TVA dépasse 100 millions de FCFA.",
+        "conditions": "Applicable aux entreprises dont le chiffre d'affaires annuel hors TVA dépasse 100 millions de FCFA."
+      },
+      {
+        "name": "Impôt sur les sociétés (IS)",
+        "description": "Calcul de l'impôt sur les bénéfices des sociétés par actions ou à responsabilité limitée en appliquant un taux de 35%.",
+        "conditions": "Applicable à toutes les sociétés par actions ou à responsabilité limitée."
+      },
+      {
+        "name": "Retenue à la source pour les personnes n'ayant pas d'installation permanente",
+        "description": "Retenue à la source de 35% sur les sommes ou revenus versés en rémunération d'une activité économique exercée par les personnes n'ayant pas au Mali d'installation professionnelle permanente.",
+        "conditions": "Applicable aux personnes n'ayant pas au Mali d'installation professionnelle permanente."
+      },
+      {
+        "name": "Taxe sur les plus-values de cession des particuliers",
+        "description": "Calcul de la taxe sur les plus-values réalisées par les particuliers lors de la cession à titre onéreux de biens ou de droits.",
+        "conditions": "Applicable aux plus-values réalisées par les particuliers lors de la cession à titre onéreux de biens ou de droits."
+      },
+      {
+        "name": "Contribution des patentes",
+        "description": "Paiement d'un droit fixe et d'un droit proportionnel sur la valeur locative des locaux professionnels pour les personnes exerçant un commerce, une industrie, ou une profession au Mali.",
+        "conditions": "Applicable aux personnes exerçant un commerce, une industrie, ou une profession au Mali."
+      }
+    ],
+    "committee_rules": [],
+    "evaluation_criteria": [],
+    "unresolved_or_ambiguous": [
+      "Les seuils de chiffre d'affaires pour certaines catégories professionnelles spécifiques (ex : artisans, commerçants) nécessitent une validation humaine pour une interprétation précise.",
+      "Les modalités exactes de calcul des réductions pour charge de famille dans l'impôt sur les traitements et salaires nécessitent une clarification.",
+      "Les conditions précises d'application des exonérations pour les sociétés concessionnaires de l'État nécessitent une validation humaine.",
+      "Les modalités de détermination des valeurs locatives pour les locaux professionnels dans le cadre de la contribution des patentes nécessitent une interprétation humaine.",
+      "Les seuils et modalités d'application des tarifs de l'impôt synthétique pour certaines catégories professionnelles spécifiques nécessitent une validation humaine.",
+      "Les conditions d'application des réductions de la Contribution Forfaitaire à la charge des Employeurs pour les exploitations agricoles innovantes nécessitent une interprétation humaine."
+    ],
+    "confidence_notes": "Le document est un extrait du Code Général des Impôts du Mali, couvrant les impôts directs, les contributions des patentes et licences, et les régimes d'imposition. Les seuils et modalités d'application nécessitent une interprétation humaine pour certaines catégories professionnelles spécifiques. Les citations verbatim sont limitées aux titres et articles principaux pour éviter la redondance."
+  }
+}

@@ -1,0 +1,29 @@
+================================================================================
+  DECISION MEMORY — NOUVEAU PC (tres simple)
+================================================================================
+
+1) SUR L'ANCIEN PC
+   Copiez TOUT le dossier "decision-memory-v1" sur votre cle USB ou disque
+   (dossier entier, comme il est — ne vous occupez pas de Git).
+
+2) SUR LE NOUVEAU PC
+   - Collez le dossier ou vous voulez (ex. C:\dev\decision-memory-v1).
+   - Installez Python 3.11 : https://www.python.org/downloads/
+     (cochez "Add Python to PATH" a l'installation.)
+   - Installez Docker Desktop : https://www.docker.com/products/docker-desktop/
+     (pour la base PostgreSQL locale — optionnel si vous avez deja Postgres.)
+
+3) PREMIER LANCEMENT (une fois)
+   Ouvrez le dossier decision-memory-v1 et DOUBLE-CLIQUEZ sur :
+      PREMIER_DEMARRAGE.bat
+   Le script installe l'environnement Python et tente de demarrer la base.
+
+4) SI UN MESSAGE D'ERREUR PARLE DE ".env"
+   Le fichier .env doit etre dans ce meme dossier (il vient de la copie).
+   S'il manque, recopiez-le depuis l'ancien PC.
+
+5) ENSUITE
+   Ouvrez Cursor dans ce dossier et travaillez normalement.
+   Guide detaille : docs\dev\LAPTOP_MIGRATION.md
+
+================================================================================

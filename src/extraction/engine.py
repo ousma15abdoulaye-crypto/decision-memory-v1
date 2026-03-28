@@ -289,22 +289,38 @@ def _ocr_pages_to_text(response: object) -> str:
 def _mistral_client_factory():
     """Retourne la classe constructeur Mistral(api_key=...) selon la version du SDK.
 
-    mistralai récent : ``Mistral`` vit souvent sous ``mistralai.client`` ; un
-    ``ImportError`` sur ``from mistralai import Mistral`` ne signifie pas que le
-    package est absent (sous-import ou API déplacée).
+    mistralai 2.x : ``from mistralai.client import Mistral`` (OCR, fichiers complets).
+    mistralai 1.x : fallback ``from mistralai import Mistral`` (sans OCR sur certaines builds).
     """
     try:
-        from mistralai import Mistral as MistralCls  # type: ignore
-    except ImportError as exc_top:
+        from mistralai.client import Mistral as MistralCls  # type: ignore
+    except ImportError:
         try:
-            from mistralai.client import Mistral as MistralCls  # type: ignore
+            from mistralai import Mistral as MistralCls  # type: ignore
         except ImportError as exc_client:
             raise ImportError(
-                "Impossible d'importer la classe Mistral depuis mistralai "
-                f"(toplevel: {exc_top!r}; mistralai.client: {exc_client!r}). "
-                "Vérifiez mistralai (requirements.txt) et l'installation du package."
+                "Impossible d'importer Mistral (mistralai.client ou mistralai). "
+                "Installez mistralai>=2.1 (pip install -U mistralai)."
             ) from exc_client
     return MistralCls
+
+
+def mistral_httpx_client():
+    """Client HTTP pour le SDK Mistral (bundle certifi Windows / proxy ; opt-out SSL).
+
+    ``MISTRAL_SSL_VERIFY=0`` désactive la vérification (réseau d'entreprise uniquement).
+    """
+    import httpx  # type: ignore
+
+    flag = os.environ.get("MISTRAL_SSL_VERIFY", "1").strip().lower()
+    if flag in ("0", "false", "no", "off"):
+        return httpx.Client(verify=False)
+    try:
+        import certifi  # type: ignore
+
+        return httpx.Client(verify=certifi.where())
+    except ImportError:
+        return httpx.Client()
 
 
 def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
@@ -342,7 +358,7 @@ def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
     from src.couche_a.llm_router import TIER_1_OCR_MODEL
 
     mistral_cls = _mistral_client_factory()
-    client = mistral_cls(api_key=api_key)
+    client = mistral_cls(api_key=api_key, client=mistral_httpx_client())
     file_name = os.path.basename(storage_uri)
     uploaded_id: str | None = None
 
@@ -358,7 +374,7 @@ def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
         # Étape 2 — OCR via file_id (URL signée gérée côté Mistral Cloud)
         response = client.ocr.process(
             model=TIER_1_OCR_MODEL,
-            document={"type": "file_id", "file_id": uploaded_id},
+            document={"type": "file", "file_id": uploaded_id},
         )
         raw_text = _ocr_pages_to_text(response)
 

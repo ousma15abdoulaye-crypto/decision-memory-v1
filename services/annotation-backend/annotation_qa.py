@@ -183,6 +183,13 @@ def _is_fieldvalue_block(d: dict) -> bool:
     )
 
 
+def _fieldvalue_value_is_skip(val: Any) -> bool:
+    """VALUE_SKIP utilise un frozenset : list/dict ne sont pas hashables."""
+    if isinstance(val, (list, dict)):
+        return False
+    return val in VALUE_SKIP
+
+
 def _fieldvalue_evidence_violation(
     fv: dict, source_norm: str, src_digits: str
 ) -> str | None:
@@ -191,10 +198,10 @@ def _fieldvalue_evidence_violation(
 
     if isinstance(val, list) and len(val) == 0:
         return None
-    if val in VALUE_SKIP:
+    if _fieldvalue_value_is_skip(val):
         return None
     if ev in EVIDENCE_SKIP or (isinstance(ev, str) and not str(ev).strip()):
-        if val not in VALUE_SKIP:
+        if not _fieldvalue_value_is_skip(val):
             return "evidence_missing_for_non_absent_value"
         return None
 

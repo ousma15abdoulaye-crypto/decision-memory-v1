@@ -1,0 +1,168 @@
+{
+  "dms_regulatory_library_version": "1.0.0",
+  "source_file": "data\\regulatory\\raw\\code_douanes.pdf",
+  "source_label_guess": "unknown",
+  "extracted_at": "2026-03-26T16:35:18.564618+00:00",
+  "extraction_method": "mistral_ocr",
+  "text_char_length": 176052,
+  "text_preview": "Code des douanes\n\nLoi N° 01-075 du 18 Juillet 2001\n\n( Journal officiel de la République du Mali-Quarante deuxième année-Décembre 2001 )\n\nTITRE PREMIER: PRINCIPES GENERAUX DU REGIME DOUANIER\n\nChapitre I: Définitions\n\nArticle 1\n\nAu sens du présent code, on entend par:\n\na) Lois et règlements: l'ensemble des dispositions législatives et réglementaires dont l'Administration des Douanes est chargée de l'application.\n\nb) Déclaration en détail: l'acte par lequel le déclarant marque sa volonté de placer les marchandises sous un régime douanier dans les formes prescrites par les dispositions du présent code.\n\nc) Déclarant: toute personne physique ou morale habilité à déclarer en douane les marchandises importées ou exportées.\n\nd) Marchandises: tout produit et objet de nature commerciale ou non et d'une manière générale tout bien susceptible de transmission et d'appropriation, soumis aux lois et règlements de douanes.\n\ne) Acquit- à- caution: titre de douane comportant l'engagement, de la part du signateur, d'exécuter une obligation. Cet engagement est en général garantie par une caution personnelle ou réelle (consignation des droits et taxes; Fonds de garantie TRIE).\n\nf) Voyageur: toute personne physique qui, quels que soient sa nationalité, son lieu de résidence et la durée de son voyage, entre sur le territoire douanier ou en sort pour un motif légitime.\n\ng) Moyens de transport: tout animal, engin, véhicule ayant d'une manière quelconque servi ou aidé au transport des marchandises.\n\nh) Importation: l'introduction dans le territoire douanier de marchandises en provenance de l'extérieur.\n\ni) Exportation: l'expédition à partir du territoire douanier de marchandises à destination de l'extérieur.\n\nj) Le tarif des Douanes: ouvrage comprenant:\n\n1. Les positions et les sous positions de la nomenclature du Système Harmonisé de Désignation et de Codification des marchandises, ainsi que les sous positions nationales établies selon les normes fixées par cette nomenclature.\n\n2. Les quotités des droits applicables aux positions et sous - positions précitées.\n\nk) Surtaxes: suppléments d'impôts douaniers auxquels sont assujetties certaines marchandises pour diverses raisons:\n\nOn distingue:\n\n- les surtaxes anti-dumping pour combattre les effets du dumping;\n- les surtaxes de représailles auxquelles peuvent être soumises les marchandises originaires de pays qui appliquent aux produits maliens un régime défavorable;\n- les surtaxes de sauvegarde qui constituent une protection complémentaire à la production nationale.\n\n## Chapitre II: Généralités\n\n### Article 2\n\n1. Le territoire douanier s'étend à l'ensemble du territoire de la République du Mali.\n2. Les lois et règlements douaniers s'appliquent sur l'ensemble du territoire douanier.\n3. des zones soustraites à tout ou partie de législation et de la réglementation douanière appelées zones franches peuvent être constituées par la loi dans le territoire douanier.\n4. Les lois et règlements douaniers peuvent, dans certains cas, s'appliquer en dehors du territoire douanier lorsque les Conventions Internationales le prévoient.\n\n### Article 3\n\n1. Sauf dispositions contraires, les lois et règlements douaniers s'appliquent sans égard à la qualité des personnes.\n2. de même, sauf dispositions contraires, les marchandises importées ou exportées par l'État ou pour son compte ne font l'objet d'aucune immunité ou dérogation.\n\n## Chapitre III: Tarif des Douanes\n\n### Article 4\n\n1. les marchandises qui entrent sur le territoire douanier ou qui en sortent sont passibles selon le cas des droits d'importations ou des droits d'exportation inscrits au tarif des douanes.\n2. Sauf dispositions contraires, les droits d'entrée et les droits de sortie sont assis sur la valeur des marchandises telle que définie aux articles 31 et 32 du présent code.\n\n## SECTION I: Droits d'importation\n\n### Article 5\n\n1. A l'importation, le tarif des douanes comprend les droits protecteurs, les droits fiscaux et les prélèvements divers.\n\n2. les droits pro...",
+  "structured": {
+    "document_kind": "dgmp_code",
+    "title_guess": "Code des douanes de la République du Mali (Loi N° 01-075 du 18 Juillet 2001)",
+    "language": "fr",
+    "sections": [
+      {
+        "heading": "TITRE PREMIER: PRINCIPES GENERAUX DU REGIME DOUANIER",
+        "summary": "Ce titre définit les principes fondamentaux du régime douanier malien, incluant les définitions clés (déclarant, marchandises, tarif des douanes, etc.), le territoire douanier, et les règles générales d'application des lois et règlements douaniers.",
+        "verbatim_citations": [
+          "Loi N° 01-075 du 18 Juillet 2001",
+          "Au sens du présent code, on entend par:",
+          "Le territoire douanier s'étend à l'ensemble du territoire de la République du Mali.",
+          "Sauf dispositions contraires, les lois et règlements douaniers s'appliquent sans égard à la qualité des personnes."
+        ]
+      },
+      {
+        "heading": "Chapitre I: Définitions",
+        "summary": "Ce chapitre établit les définitions des termes clés utilisés dans le code des douanes, tels que 'déclaration en détail', 'déclarant', 'marchandises', 'acquit-à-caution', 'voyageur', 'moyens de transport', 'importation', 'exportation', et 'tarif des douanes'.",
+        "verbatim_citations": [
+          "Déclaration en détail: l'acte par lequel le déclarant marque sa volonté de placer les marchandises sous un régime douanier dans les formes prescrites par les dispositions du présent code.",
+          "Marchandises: tout produit et objet de nature commerciale ou non et d'une manière générale tout bien susceptible de transmission et d'appropriation, soumis aux lois et règlements de douanes.",
+          "Acquit-à-caution: titre de douane comportant l'engagement, de la part du signateur, d'exécuter une obligation."
+        ]
+      },
+      {
+        "heading": "Chapitre II: Généralités",
+        "summary": "Ce chapitre précise l'étendue du territoire douanier, l'application des lois et règlements douaniers, et les exceptions possibles, notamment les zones franches et les cas d'application en dehors du territoire douanier.",
+        "verbatim_citations": [
+          "Le territoire douanier s'étend à l'ensemble du territoire de la République du Mali.",
+          "Les lois et règlements douaniers s'appliquent sur l'ensemble du territoire douanier.",
+          "des zones soustraites à tout ou partie de législation et de la réglementation douanière appelées zones franches peuvent être constituées par la loi dans le territoire douanier."
+        ]
+      },
+      {
+        "heading": "Chapitre III: Tarif des Douanes",
+        "summary": "Ce chapitre détaille la structure du tarif des douanes, incluant les droits d'importation, les droits d'exportation, et les prélèvements divers. Il précise également les conditions d'application des droits et taxes.",
+        "verbatim_citations": [
+          "les marchandises qui entrent sur le territoire douanier ou qui en sortent sont passibles selon le cas des droits d'importations ou des droits d'exportation inscrits au tarif des douanes.",
+          "A l'importation, le tarif des douanes comprend les droits protecteurs, les droits fiscaux et les prélèvements divers."
+        ]
+      },
+      {
+        "heading": "Chapitre IV: Taxation forfaitaire",
+        "summary": "Ce chapitre introduit la notion de taxation forfaitaire pour les petits envois ou les bagages des voyageurs, couvrant tous les droits et taxes applicables.",
+        "verbatim_citations": [
+          "L'Administration des Douanes peut percevoir une forfaitaire couvrant tous les droits et taxes dont sont passibles les marchandises dépourvues de tout caractères commercial faisant l'objet de petits envois adressés à des particuliers ou contenus dans les bagages des voyageurs."
+        ]
+      },
+      {
+        "heading": "Chapitre V: Pouvoir du Gouvernement",
+        "summary": "Ce chapitre décrit les pouvoirs du gouvernement en matière de modification des droits et taxes, de concession de tarifs préférentiels, et de prise de mesures particulières pour protéger les intérêts économiques du Mali.",
+        "verbatim_citations": [
+          "Le gouvernement peut, dans les conditions compatibles avec ses engagements internationaux, par décret pris en conseil des Ministres, modifier le taux des droits et taxes d'importation, suspendre ou rétablir tout ou partie des droits et taxes.",
+          "Le Gouvernement peut également, dans les conditions définies à l'article 10 ci-dessus, modifier, suspendre ou rétablir le taux des droits et taxes d'exportation."
+        ]
+      },
+      {
+        "heading": "Chapitre VI: Concession de tarif préférentiels dans le cadre de l'intégration économique",
+        "summary": "Ce chapitre traite des préférences tarifaires accordées aux produits originaires des États membres d'organisations d'intégration économique auxquelles le Mali a adhéré.",
+        "verbatim_citations": [
+          "Les produits originaires des États membres d'Organisation d'Intégration Economique auxquelles la République du Mali a adhéré bénéficient de préférences tarifaires selon les règles fixées par ces Organisations."
+        ]
+      },
+      {
+        "heading": "Chapitre VII: Conditions d'application des tarifs préférentiels",
+        "summary": "Ce chapitre précise les conditions pour bénéficier des tarifs préférentiels, notamment la justification de l'origine des marchandises et le transport en droiture.",
+        "verbatim_citations": [
+          "Le bénéfice des préférences tarifaires prévues à l'article 21 est subordonné à la justification de l'origine des marchandises et à leur transport en droiture."
+        ]
+      },
+      {
+        "heading": "Chapitre VIII: Conditions d'application de la loi tarifaire",
+        "summary": "Ce chapitre détaille les conditions d'application de la loi tarifaire, incluant la détermination de l'assiette des droits et taxes, et les règles spécifiques pour les marchandises avariées ou détériorées.",
+        "verbatim_citations": [
+          "Les produits importés ou exportés sont soumis à la loi tarifaire dans l'état où ils se trouvent au moment où celle-ci leur devient applicable.",
+          "L'assiette des droits et taxes ainsi que les tarifs applicables sont déterminés: par des éléments qualificatifs: l'espèce; l'origine, la provenance et la destination; par des éléments quantitatifs: la valeur, le poids, la longueur, la surface, le volume et le nombre."
+        ]
+      },
+      {
+        "heading": "Chapitre IX: Prohibitions",
+        "summary": "Ce chapitre définit les marchandises prohibées à l'importation ou à l'exportation pour des raisons d'ordre public, de sécurité, de santé, de moralité, ou de protection des intérêts économiques et culturels du Mali.",
+        "verbatim_citations": [
+          "Pour l'application du présent code, sont considérées comme prohibées toutes marchandises dont l'importation ou l'exportation est interdite à quelque titre que ce soit ou qui sont soumises à des règles de qualité ou à des formalités particulières.",
+          "Sont prohibés à l'entrée et exclus de l'entrepôt, du transit et de circulation, tous produits étrangers naturels ou fabriqués, portant soit sur eux-mêmes, soit sur des emballages, caisses, ballots, enveloppes, bandes, étiquettes ou autres, une marque de fabrique ou de commerce, un nom, un signe ou une indication quelconque de nature à faire croire qu'ils ont été fabriqués au Mali ou qu'ils sont d'origine malienne."
+        ]
+      },
+      {
+        "heading": "Chapitre X: Contrôle du commerce extérieur",
+        "summary": "Ce chapitre souligne l'obligation pour les importateurs et exportateurs de se conformer à la réglementation du contrôle du commerce extérieur.",
+        "verbatim_citations": [
+          "Outre les obligations prévues par le présent code, les importateurs et les exportateurs doivent se conformer à la réglementation du contrôle du commerce extérieur."
+        ]
+      },
+      {
+        "heading": "Chapitre XI: Contrôle des Changes",
+        "summary": "Ce chapitre impose aux importateurs et exportateurs de se conformer à la réglementation des relations financières du Mali avec l'étranger.",
+        "verbatim_citations": [
+          "Outre les obligations prévues par le présent code, les importateurs et les exportateurs doivent se conformer à la réglementation des relations financières du Mali avec l'étranger."
+        ]
+      },
+      {
+        "heading": "TITRE II: ORGANISATION ET FONCTIONNEMENT DE L'ADMINISTRATION DES DOUANES",
+        "summary": "Ce titre décrit l'organisation et le fonctionnement de l'Administration des Douanes, incluant son champ d'action, l'établissement des bureaux de douane, les immunités et obligations des agents des douanes, et leurs pouvoirs.",
+        "verbatim_citations": [
+          "L'action de l'Administration des Douanes s'exerce sur l'ensemble du territoire douanier dans les conditions fixées par le présent code.",
+          "Les agents des douanes sont sous la sauvegarde spéciale de la loi."
+        ]
+      },
+      {
+        "heading": "TITRE III: CONDUITE DES MARCHANDISES EN DOUANES",
+        "summary": "Ce titre détaille les règles relatives à la conduite des marchandises en douane, incluant les formalités d'importation et d'exportation, les déclarations sommaires et en détail, et les obligations des transporteurs.",
+        "verbatim_citations": [
+          "Toute marchandise introduite sur le territoire douanier, même en celle destinée à être réexportée, doit être soumise au contrôle douanier, qu'elle soit passible ou non des droits et taxes. Elle doit être couverte par une déclaration sommaire et être présentée en douane."
+        ]
+      },
+      {
+        "heading": "TITRE IV: OPERATIONS DE DEDOUANEMENT",
+        "summary": "Ce titre décrit les opérations de dédouanement, incluant les déclarations en détail, les vérifications des marchandises, la liquidation et l'acquittement des droits et taxes, et les règles d'enlèvement des marchandises.",
+        "verbatim_citations": [
+          "Toutes les marchandises importées ou exportées doivent faire l'objet d'une déclaration en détail leur assignat un régime douanier.",
+          "Les droits liquidés par l'administration des Douanes sont payables au comptant, en numéraire, par chèque ou tout autre moyen légal de paiement."
+        ]
+      },
+      {
+        "heading": "TITRE V: REGIMES DOUANIERS ECONOMIQUES",
+        "summary": "Ce titre détaille les différents régimes douaniers économiques, incluant l'entrepôt de stockage, l'entrepôt industriel, l'usine exercée, l'admission temporaire, l'exportation temporaire, et les zones franches.",
+        "verbatim_citations": [
+          "Le régime de l'entrepôt de stockage consiste en la faculté de placer les marchandises, pour une durée déterminée, dans des établissements soumis au contrôle de l'Administration des Douanes.",
+          "L'admission temporaire est le régime douanier qui permet l'admission sur le territoire douanier, en suspension total ou partielle des droits et taxes à l'importation, des marchandises destinées à recevoir une transformation ou une réparation."
+        ]
+      },
+      {
+        "heading": "TITRE VI: ZONES FRANCHES",
+        "summary": "Ce titre définit les zones franches et les règles applicables aux marchandises qui y sont placées, incluant les opérations autorisées et les conditions de mise à la consommation.",
+        "verbatim_citations": [
+          "On entend par zone franche, toute enclave territoriale instituée en vue de faire considérer les marchandises qui s'y trouve comme n'étant pas sur le territoire douanier pour l'application des droits de douane et taxe dont elles sont passibles à l'importation."
+        ]
+      },
+      {
+        "heading": "TITRE VII: DEPOT DE DOUANE",
+        "summary": "Ce titre décrit le régime de dépôt de douane, incluant la constitution des marchandises en dépôt et les conditions de leur aliénation par l'administration des douanes en l'absence du déclarant.",
+        "verbatim_citations": [
+          "Le dépôt de douane est le régime douanier suivant lequel les marchandises sont placées dans les locaux désignés par la douane pendant un délai déterminé, l'expiration du quel elles sont aliénées par l'administration des douanes dans les conditions fixées en l'absence du déclarant."
+        ]
+      }
+    ],
+    "thresholds": [],
+    "procedures": [],
+    "committee_rules": [],
+    "evaluation_criteria": [],
+    "unresolved_or_ambiguous": [
+      "Les seuils de valeur pour les procédures de passation de marchés publics ne sont pas mentionnés dans ce document (il s'agit d'un code des douanes, pas d'un code des marchés publics).",
+      "Les procédures spécifiques de passation de marchés publics (appel d'offres, marché de gré à gré, etc.) ne sont pas détaillées dans ce document.",
+      "Les règles de composition et de fonctionnement des comités (comme le Comité Supérieur du Tarif des Douanes) sont partiellement mentionnées mais nécessitent des précisions sur leur composition exacte et leur quorum.",
+      "Les critères d'évaluation des offres dans le cadre des marchés publics ne sont pas abordés dans ce document.",
+      "Les règles spécifiques aux marchés publics (publication des avis, délais de soumission, etc.) ne sont pas incluses dans ce code des douanes."
+    ],
+    "confidence_notes": "Ce document est un code des douanes et non un code des marchés publics. Par conséquent, les informations relatives aux seuils, procédures, comités et critères d'évaluation des marchés publics sont absentes ou non applicables. Les sections pertinentes pour un analyste procurement senior (comme les procédures de passation, les seuils, et les comités de marchés) ne sont pas présentes dans ce texte. Les règles spécifiques aux marchés publics doivent être recherchées dans le Code des Marchés Publics du Mali (DGMP)."
+  }
+}

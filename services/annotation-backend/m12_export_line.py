@@ -14,6 +14,39 @@ from typing import Any
 CONF_MAP = {1: 0.60, 2: 0.80, 3: 1.00}
 
 
+def strip_markdown_json_fence(text: str) -> str:
+    """Retire les balises ``` / ```json si le JSON a été collé depuis un LLM."""
+    s = (text or "").strip()
+    if not s.startswith("```"):
+        return s
+    nl = s.find("\n")
+    if nl == -1:
+        return s.strip("`")
+    body = s[nl + 1 :].strip()
+    if body.endswith("```"):
+        body = body[: -3].rstrip()
+    return body
+
+
+def parse_extracted_json_object(raw: str) -> dict[str, Any] | None:
+    """
+    Parse le premier objet JSON ; gère texte après le JSON (Extra data) et fences ```.
+    Retourne None si échec.
+    """
+    to_parse = strip_markdown_json_fence(str(raw).strip())
+    try:
+        out = json.loads(to_parse)
+        return out if isinstance(out, dict) else None
+    except json.JSONDecodeError:
+        pass
+    try:
+        dec = json.JSONDecoder()
+        obj, _end = dec.raw_decode(to_parse.strip())
+        return obj if isinstance(obj, dict) else None
+    except (json.JSONDecodeError, ValueError, TypeError):
+        return None
+
+
 def get_ls_result_text(results: list[dict], field: str) -> str | None:
     """Extrait texte ou choix unique depuis result[] Label Studio."""
     for r in results:
@@ -40,14 +73,44 @@ def get_ls_result_confidence(results: list[dict], field: str) -> float | None:
     return None
 
 
-def task_source_text(task: dict) -> str:
-    data = task.get("data") or {}
-    raw = data.get("text")
-    if raw in (None, ""):
-        raw = data.get("content")
-    if raw is None:
+def _coerce_task_data_value(val: Any) -> str:
+    if val is None:
         return ""
-    return str(raw)
+    if isinstance(val, str):
+        return val
+    if isinstance(val, dict):
+        for k in ("text", "content", "body", "value"):
+            inner = val.get(k)
+            if isinstance(inner, str) and inner.strip():
+                return inner
+        return ""
+    if isinstance(val, (list, tuple)):
+        parts = [x if isinstance(x, str) else str(x) for x in val if x is not None]
+        return "\n".join(p for p in parts if str(p).strip())
+    return str(val)
+
+
+def task_source_text(task: dict) -> str:
+    """Texte source document — aligné sur /predict (clés `data` hétérogènes LS / imports)."""
+    data = task.get("data") or {}
+    if not isinstance(data, dict):
+        return ""
+    for key in (
+        "text",
+        "content",
+        "body",
+        "source",
+        "transcript",
+        "full_text",
+        "ocr",
+        "raw_text",
+    ):
+        if key not in data:
+            continue
+        s = _coerce_task_data_value(data.get(key))
+        if s.strip():
+            return s
+    return ""
 
 
 def to_dms_line_legacy(ann: dict, task: dict, project_id: int) -> dict:
@@ -147,11 +210,12 @@ def ls_annotation_to_m12_v2_line(
     if not raw_json or not str(raw_json).strip():
         export_errors.append("missing_extracted_json")
     else:
-        try:
-            parsed = json.loads(raw_json)
-        except json.JSONDecodeError as e:
-            export_errors.append(f"json_parse_error:{e}")
-            parsed = None
+        parsed = parse_extracted_json_object(str(raw_json))
+        if parsed is None:
+            try:
+                json.loads(strip_markdown_json_fence(str(raw_json)))
+            except json.JSONDecodeError as e:
+                export_errors.append(f"json_parse_error:{e}")
         if parsed is not None:
             try:
                 validated = DMSAnnotation.model_validate(parsed)

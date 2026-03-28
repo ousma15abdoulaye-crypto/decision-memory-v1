@@ -80,6 +80,7 @@ Exemples de règles “opposables” :
 - ADRs : `docs/adrs/ADR-0001.md`
 
 ### Références techniques
+- Migration vers un autre PC (copie disque, `.env`, Docker) : `docs/dev/LAPTOP_MIGRATION.md`
 - Architecture : `docs/ARCHITECTURE.md`
 - Schéma DB : `docs/DATABASE_SCHEMA.md`
 - API : `docs/API_REFERENCE.md`

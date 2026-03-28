@@ -1,0 +1,99 @@
+{
+  "dms_regulatory_library_version": "1.0.0",
+  "source_file": "data\\regulatory\\raw\\loi_fiscale_04_09_2004.pdf",
+  "source_label_guess": "unknown",
+  "extracted_at": "2026-03-26T16:37:07.049838+00:00",
+  "extraction_method": "mistral_ocr",
+  "text_char_length": 10223,
+  "text_preview": "Loi fiscale 2004\n\n# Mali\n\n## Loi n°04-09 du 14 janvier 2004 modifiant le Code Général des Impôts\n\nLes dispositions des articles 224, 227, 497, 505, 506, 507, 512 et 587 du Code Général des Impôts sont modifiées ainsi qu'il suit :\n\nArt.224 (nouveau).- Tous particuliers et toutes sociétés payant des salaires, pensions et rentes viagères sont tenus de remplir les obligations prévues aux articles 17 à 26.\n\nEn ce qui concerne les rémunérations versées à tout prestataire de services non titulaire d'un numéro d'identification fiscal, en contre partie d'une prestation de services et dont l'imposition est prévue à l'article 140 du présent code, une retenue de 17,5 % doit être opérée sur le montant brut par la partie versante.\n\nCette retenue constitue un minimum de perception au titre de l'impôt sur les bénéfices industriels et commerciaux ou de l'impôt sur les sociétés en ce qui concerne les entreprises ou personnes établies au Mali et soumises à ces impôts.\n\nElle est effectuée dans les mêmes conditions, suivant les mêmes modalités et sous les mêmes sanctions que l'impôt sur les revenus salariaux, telles que définies aux articles 13 et 27.\n\nPar partie versante, il faut entendre les entreprises publiques et privées, les administrations publiques, les collectivités territoriales, les autres organismes publics et les projets.\n\nLes sanctions prévues au présent article sont complétées par l'application des dispositions du dernier alinéa de l'article 240-H.\n\nLes dispositions de l'alinéa 2 du présent article ne font pas obstacle au droit du service des impôts de recherche et d'exploiter, aux fins d'imposition, les renseignements concernant les personnes et entreprises ayant fait l'objet de précompte.\n\nArt.227 (nouveau).- Les contribuables qui, à l'occasion de l'exercice de leur profession versent à des tiers ne faisant pas partie de leur personnel salarié, des commissions, courtages, ristournes commerciales ou autres, vacations, honoraires occasionnels ou non, gratification et autres rémunérations doivent déclarer ces sommes dans les conditions prévues aux articles 224 et suivants, lorsqu'elles dépassent 50.000 FCFA par an pour un même bénéficiaire.\n\nCes contribuables doivent également déclarer dans les mêmes conditions, les loyers versés aux propriétaires des immeubles pris en location pour l'exercice de leur profession ou en vue d'assurer le logement de leur personnel salarié ou de leurs dirigeants.\n\nIls doivent par ailleurs, en application de l'article 98, alinéa 4 du présent Code, retenir et reverser l'impôt sur les revenus fonciers exigible sur les loyers d'un montant mensuel hors TVA supérieur ou égal à 100.000 FCFA.\n\nLa partie versante qui n'a pas déclaré les sommes visées au présent article ou procédé aux retenues requises perd le droit de les porter dans ses frais professionnels exposés, pour l'établissement de ses propres impositions. Cette exclusion concerne également toutes les sommes versées à des bénéficiaires dont le numéro d'identification fiscal n'a pas été porté sur le relevé visé ci-dessous.\n\nL'application de cette sanction ne fait obstacle ni à celle prévue à l'article 226, ni à l'imposition des mêmes sommes au nom de leurs bénéficiaires respectifs.\n\n1/3\n\nLes sommes visées ci-dessus doivent faire l'objet d'un relevé spécial joint à la déclaration annuelle d'impôt de la partie versante. Ce relevé doit indiquer les renseignements suivants en ce qui concerne chaque bénéficiaire :\n\n- noms et prénoms ou raison sociale ;\n- profession ;\n- adresse complète ;\n- numéro d'identification fiscal ;\n- nature des prestations de services ;\n- montant hors TVA (TVA) mis en paiement ;\n- date de paiement ;\n- montant des retenues éventuellement effectuées.\n\nArt.497 (nouveau).- La TVA qui a grevé les éléments du prix d'une opération imposable est déductible de la TVA applicable à cette opération.\n\nA cet effet, le assujettis sont autorisés à déduire du montant de l'impôt exigible sur leur opération, la TVA facturée lors de l'achat ou de l'importa...",
+  "structured": {
+    "document_kind": "other",
+    "title_guess": "Loi n°04-09 du 14 janvier 2004 modifiant le Code Général des Impôts du Mali",
+    "language": "fr",
+    "sections": [
+      {
+        "heading": "Article 224 (nouveau)",
+        "summary": "Obligation pour les particuliers et sociétés versant des salaires, pensions ou rentes viagères de remplir les obligations fiscales des articles 17 à 26. Pour les prestataires de services non titulaires d'un numéro d'identification fiscal, une retenue de 17,5% doit être opérée sur le montant brut des rémunérations, constituant un minimum de perception pour l'impôt sur les bénéfices industriels et commerciaux ou l'impôt sur les sociétés. La partie versante inclut entreprises publiques/privées, administrations, collectivités territoriales et projets.",
+        "verbatim_citations": [
+          "Tous particuliers et toutes sociétés payant des salaires, pensions et rentes viagères sont tenus de remplir les obligations prévues aux articles 17 à 26.",
+          "une retenue de 17,5 % doit être opérée sur le montant brut par la partie versante.",
+          "Par partie versante, il faut entendre les entreprises publiques et privées, les administrations publiques, les collectivités territoriales, les autres organismes publics et les projets."
+        ]
+      },
+      {
+        "heading": "Article 227 (nouveau)",
+        "summary": "Obligation pour les contribuables versant des commissions, loyers ou autres rémunérations à des tiers de déclarer ces sommes si elles dépassent 50.000 FCFA par an pour un même bénéficiaire. Déclaration également requise pour les loyers versés pour l'exercice professionnel ou le logement du personnel. Retenue et reversement de l'impôt sur les revenus fonciers pour les loyers mensuels hors TVA ≥ 100.000 FCFA. Sanction : exclusion des frais professionnels pour les sommes non déclarées ou non retenues. Relevé spécial joint à la déclaration annuelle d'impôt.",
+        "verbatim_citations": [
+          "Les contribuables qui, à l'occasion de l'exercice de leur profession versent à des tiers ne faisant pas partie de leur personnel salarié, des commissions, courtages, ristournes commerciales ou autres, vacations, honoraires occasionnels ou non, gratification et autres rémunérations doivent déclarer ces sommes dans les conditions prévues aux articles 224 et suivants, lorsqu'elles dépassent 50.000 FCFA par an pour un même bénéficiaire.",
+          "Ils doivent par ailleurs, en application de l'article 98, alinéa 4 du présent Code, retenir et reverser l'impôt sur les revenus fonciers exigible sur les loyers d'un montant mensuel hors TVA supérieur ou égal à 100.000 FCFA.",
+          "Les sommes visées ci-dessus doivent faire l'objet d'un relevé spécial joint à la déclaration annuelle d'impôt de la partie versante."
+        ]
+      },
+      {
+        "heading": "Article 497 (nouveau)",
+        "summary": "Droit à déduction de la TVA grevant les éléments du prix d'une opération imposable. Déduction autorisée pour les matières premières, biens destinés à la revente, services entrant dans le prix de revient, biens meubles/immeubles et services pour besoins d'exploitation, ainsi que pour les investissements et frais généraux. Déduction également possible pour les livraisons à soi-même de biens éligibles.",
+        "verbatim_citations": [
+          "La TVA qui a grevé les éléments du prix d'une opération imposable est déductible de la TVA applicable à cette opération.",
+          "Les assujettis sont autorisés à déduire du montant de l'impôt exigible sur leur opération, la TVA facturée lors de l'achat ou de l'importation."
+        ]
+      },
+      {
+        "heading": "Article 505 (nouveau)",
+        "summary": "Règles de déduction de la TVA pour les assujettis réalisant des opérations mixtes (ouvrant et n'ouvrant pas droit à déduction). Déduction intégrale si les biens/services concourent exclusivement à des opérations ouvrant droit à déduction, non déductible s'ils concourent exclusivement à des opérations n'ouvrant pas droit à déduction, et déduction partielle en cas d'utilisation mixte.",
+        "verbatim_citations": [
+          "Les assujettis qui ne réalisent pas exclusivement des opérations ouvrant droit à déduction sont autorisés à déduire la TVA qui a grevé les biens et services qu'ils acquièrent ou qu'ils se livrent à eux-mêmes dans les limites ci-après :",
+          "a) lorsque ces biens et services concourent exclusivement à la réalisation d'opérations ouvrant droit à déduction, la taxe qui les a grevés est déductible intégralement ;",
+          "b) lorsqu'ils concourent exclusivement à la réalisation d'opération n'ouvrant pas droit à déduction, la taxe qui les a grevé n'est pas déductible ;",
+          "c) lorsque leur utilisation aboutit concurremment à la réalisation d'opérations dont les unes ouvrent droit à déduction et les autres n'ouvrent pas droit à déduction, seule une fraction de la taxe qui les a grevés est déductible."
+        ]
+      },
+      {
+        "heading": "Article 506 (nouveau)",
+        "summary": "Calcul du prorata de déduction de la TVA pour les assujettis réalisant des opérations mixtes. Le prorata est égal au rapport entre le montant annuel des recettes afférentes à des opérations ouvrant droit à déduction et le montant annuel des produits de toute nature (hors cessions d'actif, subventions, indemnités d'assurance et débours). Le prorata est arrondi à l'unité supérieure et exclut les livraisons à soi-même.",
+        "verbatim_citations": [
+          "La fraction visée à l'article 505 ci-dessus est égale au montant de la taxe multiplié par le rapport entre : le montant annuel des recettes afférentes à des opérations ouvrant droit à déduction (numérateur) ; et le montant annuel des produits de toute nature à l'exclusion des cessions d'éléments de l'actif immobilisé, des subventions d'équipement, des indemnités d'assurance ne constituant pas la contrepartie d'une opération soumise à la TVA et des débours (dénominateur). Ce rapport, exprimé en pourcentage, est dénommé prorata. Il est arrondi à l'unité supérieure."
+        ]
+      },
+      {
+        "heading": "Article 507 (nouveau)",
+        "summary": "Détermination provisoire du prorata en fonction des recettes et produits de l'année précédente (ou prévisionnels pour les nouveaux assujettis). Le prorata définitif est arrêté au plus tard le 15 mai de l'année suivante, avec régularisation des déductions dans le même délai.",
+        "verbatim_citations": [
+          "Le prorata prévu à l'article 505 (nouveau ci-dessus est déterminé provisoirement en fonction des recettes et produits réalisés l'année précédente ou pour les nouveaux assujettis des recettes et produits prévisionnels de l'année en cours.",
+          "Le prorata définitif est arrêté au plus tard le 15 du mois de mai de l'année suivante. Les déductions sont régularisées en conséquence dans le même délai."
+        ]
+      },
+      {
+        "heading": "Article 512 (nouveau)",
+        "summary": "La déduction de la TVA est opérée par imputation sur la taxe due au titre du mois où le droit à déduction a pris naissance. En cas d'omission, la déduction doit être opérée au plus tard le 15 mai de l'année suivante.",
+        "verbatim_citations": [
+          "La déduction de la taxe est opérée par imputation sur la taxe due par l'entreprise au titre du mois pendant lequel le droit à déduction a pris naissance.",
+          "En cas d'omission, elle doit être opérée au plus tard le 15 mai de l'année suivante."
+        ]
+      },
+      {
+        "heading": "Article 587 (nouveau)",
+        "summary": "Institution d'un Impôt Spécial sur Certains Produits (ISCP) avec des taux variables selon les produits : noix de cola (10-30%), boissons gazeuses (0-20%), boissons alcoolisées (10-45%), tabacs (10-40%), armes et munitions (15-45%), produits miniers (0-3%).",
+        "verbatim_citations": [
+          "Les produits visés ci-dessous sont soumis à un impôt spécial dit « Impôt Spécial sur Certains produits (ISCP) » dont les taux sont fixés ainsi qu'il suit :",
+          "Noix de cola 10 à 30 %",
+          "Boissons gazeuses 0 à 20 %",
+          "Boissons alcoolisées 10 à 45 %",
+          "Tabacs 10 à 40 %",
+          "Armes et munitions : 15 à 45 %",
+          "Produits miniers 0 à 3 %"
+        ]
+      }
+    ],
+    "thresholds": [],
+    "procedures": [],
+    "committee_rules": [],
+    "evaluation_criteria": [],
+    "unresolved_or_ambiguous": [
+      "Les seuils exacts pour l'application de l'ISCP (ex : noix de cola, boissons gazeuses) nécessitent une interprétation des fourchettes de taux.",
+      "Les modalités précises de calcul du prorata pour les nouveaux assujettis (basé sur des prévisions) ne sont pas détaillées.",
+      "Les sanctions spécifiques liées à l'article 224 (dernier alinéa) nécessitent une référence au dernier alinéa de l'article 240-H, non fourni dans le texte.",
+      "Les conditions exactes d'application de la retenue de 17,5% (ex : seuils de montant, exclusions) ne sont pas précisées."
+    ],
+    "confidence_notes": "Le document est une loi fiscale malienne modifiant le Code Général des Impôts. Les sections extraites concernent principalement les obligations de retenue à la source, les règles de déduction de la TVA, et l'institution d'un impôt spécial sur certains produits. Les seuils et procédures fiscales sont partiellement définis, avec des fourchettes de taux pour l'ISCP et des règles de prorata pour la TVA. Les ambiguïtés portent sur les modalités d'application des sanctions et les calculs précis des seuils."
+  }
+}

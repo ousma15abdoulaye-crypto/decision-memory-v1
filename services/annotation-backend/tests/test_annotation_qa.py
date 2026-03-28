@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from annotation_qa import parse_loose_money_float, should_run_financial_reconciliation
+from annotation_qa import (
+    evidence_substring_violations,
+    parse_loose_money_float,
+    should_run_financial_reconciliation,
+)
 
 
 def test_parse_loose_money_float_nested_value_dict():
@@ -31,3 +35,19 @@ def test_should_run_financial_reconciliation_total_value_dict():
         },
     }
     assert should_run_financial_reconciliation(ann) is True
+
+
+def test_evidence_substring_fieldvalue_list_value_no_typeerror():
+    """Valeur FieldValue en liste : pas de ``val in frozenset`` (unhashable)."""
+    ann = {
+        "couche_2_core": {
+            "lot_scope": {
+                "value": ["lot-a"],
+                "confidence": 0.8,
+                "evidence": "lot a dans le texte source",
+            }
+        }
+    }
+    src = "Lot A dans le texte source"
+    v = evidence_substring_violations(ann, src)
+    assert isinstance(v, list)

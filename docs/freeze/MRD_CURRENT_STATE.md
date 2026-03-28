@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-03-26 — M12 DONE (AO / cloture procedure recognizer)
+# Derniere mise a jour : 2026-03-27 — ancre contexte M12 corpus + migration laptop (agent / mandat)
 
 ---
 
@@ -39,6 +39,50 @@ next_status           : PENDING
 blocked_on            : (vide)
 m13_prerequisites     : hors registre STOP — ADR LLM (RÈGLE-11), wiring backend.py si GO CTO, sync Railway si GO CTO — détail transition § dans docs/milestones/M12_PROCEDURE_RECOGNIZER_DONE.md
 branch_courante       : main
+
+---
+
+## CONTEXT ANCHOR — M12 CORPUS & MIGRATION LAPTOP (2026-03-27)
+
+Section d’ancrage pour handover machine : **ne remplace pas** les champs `last_completed` / jalons ci-dessus ; décrit l’état **données locales** et l’outillage export.
+
+### Où sont les « 57 » (corpus M12 côté disque)
+
+- Les **57** correspondent à **57 lignes JSON** dans **un seul fichier** :
+  - `data/annotations/m12_corpus_from_ls.jsonl`
+- Ce n’est **pas** 57 fichiers séparés : **une ligne = une annotation** (tâche Label Studio × annotation) exportée via l’API LS (`scripts/export_ls_to_dms_jsonl.py`).
+- Le fichier est **gitignoré** (`.gitignore` : `data/annotations/m12_corpus*.jsonl`). Pour le nouveau laptop : **copier ce fichier** avec le reste du dossier `data/` (voir `docs/dev/LAPTOP_MIGRATION.md`).
+
+### Vérité R2 vs export LS
+
+- **R2** (Cloudflare, sink S3 du webhook) peut contenir **plus d’objets** que le JSONL LS (révisions multiples par `content_hash`, backfill).
+- Fichier cible **réaligné** (R2 prioritaire + complément LS pour identités absentes du bucket) :
+  - `data/annotations/m12_corpus_realigned.jsonl`
+- **Sans** variables `S3_BUCKET` / `S3_ENDPOINT` / clés API R2, l’export R2 **échoue** ou produit **0 ligne** ; `LABEL_STUDIO_*` ne suffit **pas** pour lire le bucket.
+
+### Dernier inventaire connu (export LS, réf. avant réalignement R2 réussi)
+
+- 57 lignes `m12-v2`, `project_id` 1.
+- `export_ok` : 56 `true`, 1 `false` (tâche ~163).
+- `annotation_status` : 56 `validated`, 1 absent (~196).
+- Commande : `python scripts/inventory_m12_corpus_jsonl.py data/annotations/m12_corpus_from_ls.jsonl`
+
+### Travaux outillage réalisés (mandat agent, mars 2026)
+
+- `scripts/export_r2_corpus_to_jsonl.py` : chargement `.env`, `.env.local`, `data/annotations/.r2_export_env` ; `--exclude-jsonl` ; `--backfill-from-jsonl` (fusion R2 + lignes LS manquantes dans R2) ; déduplication R2 par `LastModified` S3 ; équivalence filtre statut `validated` / `annotated_validated` ; message d’erreur explicite si `S3_BUCKET` absent.
+- `services/annotation-backend/corpus_sink.py` : `iter_corpus_m12_objects_from_s3` (ligne + clé S3 + `LastModified`).
+- `data/annotations/r2_export.env.example` ; `.r2_export_env` ajouté au `.gitignore`.
+- Tests : `services/annotation-backend/tests/test_corpus_sink.py` (itérateur S3 + wrapper).
+
+### TODO — après rebranchement nouveau laptop
+
+1. Recopier `data/annotations/m12_corpus_from_ls.jsonl` (et tout `data/annotations/` utile) depuis l’ancien PC ou la sauvegarde disque.
+2. Renseigner R2 : copier `data/annotations/r2_export.env.example` → `data/annotations/.r2_export_env` **ou** mettre `S3_*` dans `.env.local` (voir `services/annotation-backend/ENVIRONMENT.md`, `docs/m12/M12_EXPORT.md`).
+3. Réaligner :  
+   `python scripts/export_r2_corpus_to_jsonl.py -o data/annotations/m12_corpus_realigned.jsonl --project-id 1 --backfill-from-jsonl data/annotations/m12_corpus_from_ls.jsonl`
+4. Inventaire sur le fichier réaligné :  
+   `python scripts/inventory_m12_corpus_jsonl.py data/annotations/m12_corpus_realigned.jsonl`
+5. Sécurité : régénérer jetons Label Studio / clés R2 si exposés (terminal, captures).
 
 ---
 

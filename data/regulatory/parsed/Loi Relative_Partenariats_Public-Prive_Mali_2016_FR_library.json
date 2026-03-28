@@ -1,0 +1,152 @@
+{
+  "dms_regulatory_library_version": "1.0.0",
+  "source_file": "data\\regulatory\\raw\\Loi Relative_Partenariats_Public-Prive_Mali_2016_FR.pdf",
+  "source_label_guess": "dgmp",
+  "extracted_at": "2026-03-26T16:36:47.207805+00:00",
+  "extraction_method": "mistral_ocr",
+  "text_char_length": 46524,
+  "text_preview": "PRESIDENCE DE LA REPUBLIQUE\nSECRETARIAT GENERAL\nREPUBLIQUE DU MALI\nUn Peuple – Un But – Une Foi\n\nLOI N°2016-061 / DU 30 DEC. 2016\n\nRELATIVE AUX PARTENARIATS PUBLIC-PRIVE AU MALI\n\nL'Assemblée nationale a délibéré et adopté en sa séance du 16 décembre 2016\n\nLe Président de la République promulgue la loi dont la teneur suit :\n\n## CHAPITRE I : DISPOSITIONS GENERALES\n\n**Article 1er : Objet**\n\nLa présente loi établit le cadre juridique et institutionnel des partenariats public-privé.\n\n**Article 2 : Définitions**\n\nAux fins de la présente loi, on entend par :\n\nAutorité contractante, l'Etat, les collectivités territoriales et leurs établissements publics qu'ils soient à caractère administratif ou à caractère industriel et commercial ; les organismes de droit public et de droit privé ; les associations formées par une ou plusieurs autorités contractantes ; les entreprises publiques exerçant une activité d'opérateurs de réseaux ; le mandataire des autorités contractantes agissant en leur nom et pour leur compte.\n\nAutorité porteuse de projet, l'autorité contractante en charge de la fonction opérationnelle visée à l'article 5 : Autorité porteuse de projet :\n\nCandidat, un opérateur économique qui manifeste son intérêt à participer ou qui est retenu par une autorité contractante pour participer à la procédure d'attribution d'un partenariat public-privé.\n\nDroits exclusifs, des droits accordés par une autorité compétente au moyen de toute loi, de tout règlement ou de toute disposition administrative publiée, compatible avec le Traité de l'Union Economique et Monétaire Ouest Africaine, ayant pour effet de réserver l'exercice d'une activité à un seul opérateur économique et d'affecter substantiellement la capacité des autres opérateurs économiques d'exercer cette activité.\n\n2\n\nEntreprise publique exerçant une activité d'opérateurs de réseaux, l'entreprise publique qui exerce une activité d'opérateurs de réseaux fournissant un service au public notamment dans les domaines de la production, du transport ou de la distribution d'électricité, de gaz, de chaleur ou d'eau potable.\n\nEst une entreprise publique, toute entreprise sur laquelle les autorités contractantes peuvent exercer, directement ou indirectement, une influence dominante, du fait de la propriété de cette entreprise, de la participation financière qu'elles détiennent ou des règles qui la régissent.\n\nL'influence dominante est présumée lorsque les autorités contractantes, directement ou indirectement :\n\n1- Détiennent la majorité du capital souscrit de l'entreprise.\n2- Disposent de la majorité des voix attachées aux parts émises par l'entreprise.\n3- Peuvent désigner plus de la moitié des membres de l'organe d'administration, de direction ou de surveillance de l'entreprise.\n\nExécution de travaux, soit l'exécution, soit conjointement la conception et la réalisation, par quelque moyen que ce soit, d'un ouvrage répondant aux exigences définies par l'autorité contractante qui exerce une influence décisive sur le type d'ouvrage ou la conception de l'ouvrage.\n\nOffre spontanée, proposition non sollicitée de réalisation d'un projet en partenariat public-privé n'ayant pas fait l'objet d'une inscription dans un programme d'investissements et pour lequel l'autorité contractante n'a initié aucune procédure de passation.\n\nOpérateur économique, toute personne morale ou groupement de personnes morales, y compris des associations temporaires d'entreprises autres que celles pouvant être qualifiées d'autorités contractantes, qui offre l'exécution de travaux ou d'ouvrages, la fourniture de produits ou la prestation de services sur le marché.\n\nOrganisme de droit public et de droit privé, tout organisme créé pour satisfaire spécifiquement des besoins d'intérêt général ayant un caractère autre qu'industriel ou commercial, doté de la personnalité juridique, et dont soit l'activité est financée majoritairement par l'État, les collectivités territoriales ou d'autres organismes de droit public ou privé, soit la gesti...",
+  "structured": {
+    "document_kind": "dgmp_code",
+    "title_guess": "Loi n°2016-061 du 30 décembre 2016 relative aux partenariats public-privé au Mali",
+    "language": "fr",
+    "sections": [
+      {
+        "heading": "CHAPITRE I : DISPOSITIONS GENERALES",
+        "summary": "La loi établit le cadre juridique et institutionnel des partenariats public-privé (PPP) au Mali, en définissant les acteurs, les types de contrats, et les principes généraux applicables.",
+        "verbatim_citations": [
+          "La présente loi établit le cadre juridique et institutionnel des partenariats public-privé.",
+          "Partenariat public-privé, désigne les contrats de la commande publique énumérés ci-après.",
+          "Les partenariats public-privé relevant de la présente loi passés par des personnes morales de droit public sont des contrats administratifs."
+        ]
+      },
+      {
+        "heading": "CHAPITRE II : CADRE INSTITUTIONNEL",
+        "summary": "Le cadre institutionnel des PPP est structuré autour de la séparation des fonctions (opérationnelle, évaluation, contrôle budgétaire, analyse des offres, contrôle a priori et a posteriori). L'autorité porteuse de projet est responsable de l'identification et de la définition des projets, tandis que l'unité des PPP apporte son expertise.",
+        "verbatim_citations": [
+          "Le cadre institutionnel est caractérisé par la séparation des fonctions suivantes :",
+          "L’autorité porteuse de projet est responsable de l’identification et de la définition des projets susceptibles d’être développés en partenariat public-privé."
+        ]
+      },
+      {
+        "heading": "CHAPITRE III : CONDITIONS PREALABLES A LA PASSATION",
+        "summary": "Les projets PPP doivent être inscrits dans un programme d'investissements et faire l'objet d'une évaluation préalable (utilité économique, sociale, environnementale, soutenabilité budgétaire). Des avis conformes sont requis avant le lancement de la procédure.",
+        "verbatim_citations": [
+          "Les projets identifiés sont inscrits dans le programme d’investissements des autorités contractantes.",
+          "L’évaluation préalable au lancement d’une procédure de passation comprend : Une analyse démontrant que le projet présente une utilité économique et sociale pour la collectivité ainsi qu’un bilan environnemental positif."
+        ]
+      },
+      {
+        "heading": "CHAPITRE IV : DISPOSITIONS PARTICULIERES RELATIVES A LA PASSATION",
+        "summary": "Les PPP sont passés par appel d'offres ouvert (avec ou sans préqualification) ou par des procédures dérogatoires (appel d'offres restreint, procédure négociée directe, offre spontanée). Les principes de liberté d'accès, égalité de traitement et transparence s'appliquent.",
+        "verbatim_citations": [
+          "Un partenariat public-privé est passé par appel d'offres ouvert précédé obligatoirement d'une préqualification des candidats.",
+          "La passation des partenariats public-privé est soumise aux principes de liberté d’accès à la commande publique, d’égalité de traitement des candidats et de transparence des procédures."
+        ]
+      },
+      {
+        "heading": "CHAPITRE V : EXECUTION DU CONTRAT",
+        "summary": "Le contrat PPP doit comporter des clauses minimales (objet, durée, partage des risques, objectifs de performance, rémunération, modalités de contrôle, etc.). Les droits et obligations des parties sont détaillés, ainsi que les mécanismes de modification, cession, et sous-contrats.",
+        "verbatim_citations": [
+          "Le contrat doit comporter des clauses relatives : À l’objet, la description et le périmètre des missions confiées.",
+          "Le contrat ne peut être cédé en totalité ou en partie sans l’accord explicite de l’autorité contractante."
+        ]
+      },
+      {
+        "heading": "CHAPITRE VI : REGLEMENT DES DIFFERENDS",
+        "summary": "Les litiges liés à la passation ou à l'exécution des PPP sont d'abord soumis à une conciliation devant l'organe de régulation, puis peuvent être portés devant les juridictions nationales ou un tribunal arbitral.",
+        "verbatim_citations": [
+          "Avant toute action contentieuse, l'autorité contractante ou le partenaire privé saisit l'organe de régulation et de règlement des litiges des contrats de la commande publique aux fins d'une conciliation."
+        ]
+      },
+      {
+        "heading": "CHAPITRE VII : DISPOSITIONS DIVERSES",
+        "summary": "Les PPP sont soumis aux régimes fiscaux, comptables et douaniers existants. Les autorités contractantes doivent lutter contre la fraude et les conflits d'intérêts. Le droit malien est applicable aux contrats PPP.",
+        "verbatim_citations": [
+          "Sans préjudice des dispositions prévues par la présente loi, les partenariats public-privé sont soumis aux textes existants en matières fiscales, comptables et douanières.",
+          "Le contrat de partenariat public-privé est régi par le droit malien."
+        ]
+      },
+      {
+        "heading": "CHAPITRE VIII : DISPOSITIONS TRANSITOIRES ET FINALES",
+        "summary": "La loi s'applique aux PPP pour lesquels une consultation est engagée ou un avis d'appel public à la concurrence a été publié avant son entrée en vigueur. Elle abroge les dispositions antérieures contraires.",
+        "verbatim_citations": [
+          "La présente loi s’applique aux partenariats public-privé pour lesquels une consultation est engagée ou un avis d’appel public à la concurrence a été envoyé à la publication avant son entrée vigueur."
+        ]
+      }
+    ],
+    "thresholds": [],
+    "procedures": [
+      {
+        "name": "Appel d'offres ouvert avec préqualification",
+        "description": "Procédure de droit commun pour les PPP, précédée d'une préqualification des candidats. Peut être en une ou deux étapes selon la complexité du projet.",
+        "conditions": "Obligatoire pour les PPP, sauf exceptions dérogatoires."
+      },
+      {
+        "name": "Appel d'offres restreint",
+        "description": "Procédure dérogatoire où seuls les candidats sélectionnés par l'autorité contractante peuvent remettre une offre. Minimum de 3 candidats requis.",
+        "conditions": "Fixées par voie réglementaire."
+      },
+      {
+        "name": "Procédure négociée directe",
+        "description": "Procédure dérogatoire sans mise en concurrence préalable, utilisée dans des cas spécifiques (urgence, offre spontanée, etc.).",
+        "conditions": "Hypothèses et modalités fixées par voie réglementaire."
+      },
+      {
+        "name": "Offre spontanée",
+        "description": "Proposition non sollicitée de réalisation d'un projet en PPP, non inscrite dans un programme d'investissements.",
+        "conditions": "Peut être retenue sous conditions réglementaires."
+      }
+    ],
+    "committee_rules": [
+      {
+        "context": "Commission d'appel d'offres pour l'analyse des candidatures et des offres",
+        "composition": "Non précisée dans le texte.",
+        "quorum": null
+      },
+      {
+        "context": "Autorité porteuse de projet",
+        "composition": "Autorité contractante en charge de la fonction opérationnelle.",
+        "quorum": null
+      },
+      {
+        "context": "Unité des partenariats public-privé",
+        "composition": "Organisme expert national des PPP.",
+        "quorum": null
+      },
+      {
+        "context": "Organe en charge du contrôle a priori",
+        "composition": "Direction Générale des Marchés Publics et Délégations de Service Public (DGMP).",
+        "quorum": null
+      },
+      {
+        "context": "Organe de régulation et de règlement des litiges",
+        "composition": "Autorité de Régulation des Marchés Publics et Délégations de Service Public (ARMP).",
+        "quorum": null
+      }
+    ],
+    "evaluation_criteria": [
+      {
+        "criterion": "Offre économiquement la plus avantageuse",
+        "weight_rule": "Critères objectifs liés à l'objet du contrat (potentiel socio-économique, normes environnementales, caractère innovant, etc.).",
+        "eliminatory": false
+      },
+      {
+        "criterion": "Part d'exécution confiée aux PME et artisans",
+        "weight_rule": "Critère obligatoire parmi les critères d'attribution.",
+        "eliminatory": false
+      }
+    ],
+    "unresolved_or_ambiguous": [
+      "Seuils financiers ou montants minimaux/maximaux pour les PPP (non précisés dans le texte).",
+      "Détails des procédures dérogatoires (appel d'offres restreint, procédure négociée directe) non précisés.",
+      "Modalités exactes de la préqualification et des critères de sélection des candidats.",
+      "Délais précis pour les avis conformes (unité PPP, Ministre des Finances, organes de régulation sectorielle).",
+      "Conditions exactes de l'offre spontanée et de la procédure négociée directe.",
+      "Règles détaillées de composition des commissions d'appel d'offres.",
+      "Mécanismes de financement des études et garanties des engagements contractuels (à préciser par voie réglementaire).",
+      "Part minimale des PME et artisans dans les sous-contrats (à préciser par voie réglementaire)."
+    ],
+    "confidence_notes": "Le texte est une loi complète et détaillée, mais certaines dispositions (seuils, procédures dérogatoires, modalités pratiques) sont renvoyées à des textes réglementaires ultérieurs. Les règles institutionnelles et procédurales sont clairement définies, mais leur mise en œuvre dépendra des décrets d'application. Les critères d'évaluation et les seuils financiers ne sont pas explicitement mentionnés, ce qui limite la précision des données extraites."
+  }
+}

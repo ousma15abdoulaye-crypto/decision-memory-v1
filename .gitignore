@@ -80,6 +80,8 @@ ENV/
 # DMS specific
 # Exports corpus M12 (R2 → JSONL local) — données réelles, ne pas versionner
 data/annotations/m12_corpus*.jsonl
+data/annotations/.ls_export_env
+data/annotations/.r2_export_env
 # data/ ignoré sélectivement — .gitkeep et README.md restent trackés
 data/**/*.xlsx
 data/**/*.xls
@@ -87,6 +89,12 @@ data/**/*.csv
 data/**/*.json
 # Manifest figé OCR bridge (reconstruit depuis le freeze MD — pas de secrets)
 !data/ingest/test_mistral_output/skipped.json
+# Bibliothèque réglementaire parsée (SCI / DGMP) — JSON validé AO
+!data/regulatory/parsed/**/*.json
+# Originaux réglementaires — dépôt local uniquement
+data/regulatory/raw/**/*.pdf
+data/regulatory/raw/**/*.docx
+data/regulatory/MISTRAL_KEY.txt
 data/**/*.zip
 # Cache LlamaCloud/extraction — artefacts générés, ne pas versionner
 data/imports/m5/cache/

@@ -9,15 +9,34 @@ from typing import Any
 import requests
 
 
+def _ls_auth_headers(ls_url: str, ls_key: str) -> dict[str, str]:
+    """PAT : ``Token …`` ; jeton JWT refresh (3 segments) : ``POST /api/token/refresh/`` → ``Bearer``."""
+    base = ls_url.rstrip("/")
+    if ls_key.count(".") == 2 and ls_key.startswith("eyJ"):
+        try:
+            r = requests.post(
+                f"{base}/api/token/refresh/",
+                json={"refresh": ls_key},
+                timeout=30,
+            )
+            if r.ok:
+                access = r.json().get("access")
+                if isinstance(access, str) and access.strip():
+                    return {"Authorization": f"Bearer {access.strip()}"}
+        except requests.RequestException:
+            pass
+    return {"Authorization": f"Token {ls_key}"}
+
+
 def fetch_annotations(project_id: int, ls_url: str, ls_key: str) -> list[dict]:
     """Export JSON complet d’un projet (même contrat que l’UI Export)."""
-    headers = {"Authorization": f"Token {ls_key}"}
+    headers = _ls_auth_headers(ls_url, ls_key)
     url = f"{ls_url.rstrip('/')}/api/projects/{project_id}/export"
     r = requests.get(
         url,
         headers=headers,
         params={"exportType": "JSON"},
-        timeout=60,
+        timeout=300,
     )
     r.raise_for_status()
     return r.json()
@@ -25,9 +44,9 @@ def fetch_annotations(project_id: int, ls_url: str, ls_key: str) -> list[dict]:
 
 def fetch_task(ls_url: str, ls_key: str, task_id: int) -> dict[str, Any]:
     """Détail d’une tâche (inclut souvent ``annotations``)."""
-    headers = {"Authorization": f"Token {ls_key}"}
+    headers = _ls_auth_headers(ls_url, ls_key)
     url = f"{ls_url.rstrip('/')}/api/tasks/{task_id}/"
-    r = requests.get(url, headers=headers, timeout=60)
+    r = requests.get(url, headers=headers, timeout=120)
     r.raise_for_status()
     return r.json()
 

@@ -16,9 +16,9 @@ import logging
 import os
 
 try:
-    from mistralai import Mistral
+    from mistralai.client import Mistral
 except ImportError:
-    from mistralai.client import Mistral  # mistralai v2.x
+    from mistralai import Mistral  # mistralai v1.x
 
 from src.couche_a.extraction_models import Tier
 

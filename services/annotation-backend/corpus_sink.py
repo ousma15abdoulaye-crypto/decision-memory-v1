@@ -222,12 +222,12 @@ def _make_s3_client(endpoint_url: str | None) -> Any:
     return session.client("s3", **client_kw)
 
 
-def iter_corpus_m12_lines_from_s3(
+def iter_corpus_m12_objects_from_s3(
     *,
     bucket: str | None = None,
     endpoint_url: str | None = None,
     prefix: str | None = None,
-) -> Iterator[dict[str, Any]]:
+) -> Iterator[tuple[dict[str, Any], str, Any]]:
     """
     Liste et lit les objets dont la clé se termine par ``.json`` sous ``prefix/`` (R2/S3).
 
@@ -239,6 +239,9 @@ def iter_corpus_m12_lines_from_s3(
     ``S3_ENDPOINT``, ``S3_CORPUS_PREFIX`` (défaut ``m12-v2``), clés ``S3_*`` / ``AWS_*``.
 
     :raises ValueError: si ``S3_BUCKET`` absent et ``bucket`` non fourni.
+
+    Chaque itération renvoie ``(ligne_m12, clé_s3, last_modified)`` ; ``last_modified``
+    provient du listing S3 (utile pour garder la dernière révision par tâche/annotation).
     """
     b = bucket or os.environ.get("S3_BUCKET", "").strip()
     if not b:
@@ -266,6 +269,7 @@ def iter_corpus_m12_lines_from_s3(
                 key = obj.get("Key")
                 if not key or not str(key).endswith(".json"):
                     continue
+                lm = obj.get("LastModified")
                 resp = client.get_object(Bucket=b, Key=key)
                 with closing(resp["Body"]) as body:
                     raw = body.read().decode("utf-8")
@@ -277,7 +281,33 @@ def iter_corpus_m12_lines_from_s3(
                 if not isinstance(line, dict):
                     logger.warning("[CORPUS] Objet non-dict pour %s", key)
                     continue
-                yield line
+                yield line, str(key), lm
+
+
+def iter_corpus_m12_lines_from_s3(
+    *,
+    bucket: str | None = None,
+    endpoint_url: str | None = None,
+    prefix: str | None = None,
+) -> Iterator[dict[str, Any]]:
+    """
+    Liste et lit les objets dont la clé se termine par ``.json`` sous ``prefix/`` (R2/S3).
+
+    Chaque objet est le **corps JSON** écrit par :class:`S3CorpusSink` (un document
+    JSON par clé — pas de JSONL dans le bucket). Côté Python : ``json.loads`` sur le
+    corps brut → une ``dict`` m12-v2 par objet.
+
+    Variables d'environnement si les arguments sont omis : ``S3_BUCKET`` (obligatoire),
+    ``S3_ENDPOINT``, ``S3_CORPUS_PREFIX`` (défaut ``m12-v2``), clés ``S3_*`` / ``AWS_*``.
+
+    :raises ValueError: si ``S3_BUCKET`` absent et ``bucket`` non fourni.
+    """
+    for line, _key, _lm in iter_corpus_m12_objects_from_s3(
+        bucket=bucket,
+        endpoint_url=endpoint_url,
+        prefix=prefix,
+    ):
+        yield line
 
 
 class S3CorpusSink:

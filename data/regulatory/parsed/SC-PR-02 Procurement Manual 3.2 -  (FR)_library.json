@@ -1,0 +1,233 @@
+{
+  "dms_regulatory_library_version": "1.0.0",
+  "source_file": "data\\regulatory\\raw\\SC-PR-02 Procurement Manual 3.2 -  (FR).pdf",
+  "source_label_guess": "unknown",
+  "extracted_at": "2026-03-26T16:37:50.035374+00:00",
+  "extraction_method": "mistral_ocr",
+  "text_char_length": 139798,
+  "text_preview": "# SAVE THE CHILDREN MANUEL D'APPROVISIONNEMENT\n\n|  Document : | Save the Children Manuel d'approvisionnement  |\n| --- | --- |\n|  Auteur: | 3.2 - Lewis Jay (Responsable des fournisseurs et de l'approvisionnement)  |\n|  Approuvé par : | Jim Ridgwick, Directeur de l'approvisionnement et de la durabilité des fournisseurs  |\n|  Date d'approbation | 27 février 2025  |\n|  Version : | 3.2  |\n|  Date de la prochaine révision : | février 2027  |\n|  Langues : | Français, espagnol, arabe  |\n|  Applicable à : | Tous les bureaux du SCI, les sites, le personnel et les Bureaux nationaux* (NO)  |\n\n*Les responsabilités du personnel décrites dans le présent document s'appliquent au personnel équivalent de bureaux nationaux (par exemple, directeur national de CO = directeur exécutif de NO). De même, dans tous les cas où le SOD requiert l'approbation globale pour un CO, le NO doit suivre la même procédure, mais la soumission concerne un examen technique/une validation, et non une approbation. Pour plus d'informations, consultez le guide des rôles/responsabilités et des méthodes de travail pour les NO.\n\nCE DOCUMENT EST UN DOCUMENT INTERNE DE SCI : AUCUNE GARANTIE OU REPRÉSENTATION N'EST FAITE QUANT À SON EXACTITUDE ET TOUTE UTILISATION EXTERNE SE FAIT AUX RISQUES ET PÉRILS DES UTILISATEURS.\n\nSC-PR-02\n\n# MANUEL D'APPROVISIONNEMENT - CONTENU ET NAVIGATION\n\n![img-0.jpeg](img-0.jpeg)\n\nPARTIE 1\nPROCÉDURES DU MANUEL D'APPROVISIONNEMENT\n\nLes principaux processus et procédures d'approvisionnement à suivre\n\n1. Introduction\n2. Normes en matière d'approvisionnement\n3. Planification\n4. Approvisionnement/sourcing\n5. Évaluation des prestataires\n6. Négociation\n7. Vérification des antécédents\n8. Résultats du sourcing\n9. Exceptions et dérogations\n10. Passation de contrats\n11. Dossiers d'approvisionnement\n12. Commande\n13. Avantages de la chaîne d'approvisionnement\n14. Gestion des prestataires\n15. Action humanitaire\nProcédures d'approvisionnement\n\n![img-1.jpeg](img-1.jpeg)\n\nPARTIE 2\nORIENTATION SPÉCIFIQUE AUX CATÉGORIES\n\nCatégories à haut risque/complexes qui nécessitent des étapes supplémentaires/des déviations par rapport aux processus standard d'approvisionnement détaillés dans la partie 1.\n\n1. Voyages et hôtels\n2. Crédit-bail immobilier\n3. Construction\n4. Produits de santé\n5. Informatique/Technologie\n6. Services de main-d'œuvre externe\n7. Aide sous forme d'espèces et de bons\n8. Flotte\n9. Assurance\n\n![img-2.jpeg](img-2.jpeg)\n\nPARTIE 3\nOUTILS ET MODÈLES\n\nUn répertoire des outils et modèles en matière d'approvisionnement est mis à la disposition du personnel\n\nDes liens vers des modèles d'approvisionnement, des formations et des conseils sont également proposés dans chaque section.\n\nVeuillez toujours suivre les liens figurant dans le Manuel d'approvisionnement pour être sûr d'accéder à la version la plus récente du modèle dont vous avez besoin. N'utilisez pas les versions stockées sur votre ordinateur portable\n\nContenu dynamique qui sera mis à jour de temps à autre.\n\n![img-3.jpeg](img-3.jpeg)\n\nPour des conseils et une assistance supplémentaire :\n\n1) Contactez votre partenaire régional de la chaîne d'approvisionnement (Business Partner) pour obtenir des conseils généraux en matière de l'approvisionnement\n2) Pour les questions relatives aux procédures, envoyez un email à procurement@savethechildren.org\n3) Visitez la plateforme d'assistance ProSave pour obtenir des conseils sur ProSave\n4) Pour une assistance technique sur ProSave, envoyez un email à prosave@savethechildren.org\n\nSC-PR-02\n\nSC-PR-02\n\n# 1. INTRODUCTION AU MANUEL D'APPROVISIONNEMENT\n\nOrientation et formation supplémentaires - Module 2 Les bases de l'approvisionnement - Les normes en matière d'approvisionnement\n\n![img-4.jpeg](img-4.jpeg)\nDe quoi s'agit-il ?\n\nDes procédures obligatoires qui doivent être suivies lors de toutes les activités d'approvisionnement. Des conseils sur la manière de les appliquer de manière efficace et conforme.\n\n![img-5.jpeg](img-5.jpeg)\nÀ qui s'appliquent-t-elles ?\n\nAu personnel char...",
+  "structured": {
+    "document_kind": "sci_manual",
+    "title_guess": "Save the Children Manuel d'Approvisionnement",
+    "language": "fr",
+    "sections": [
+      {
+        "heading": "Introduction au manuel",
+        "summary": "Document interne de Save the Children définissant les procédures obligatoires d'approvisionnement pour tous les bureaux, sites et personnel. Approuvé par Jim Ridgwick (Directeur de l'approvisionnement et de la durabilité des fournisseurs) le 27 février 2025. Version 3.2. Applicable à tous les bureaux nationaux (NO) avec des adaptations pour les processus locaux. Contient des principes d'approvisionnement, des seuils, des procédures, des règles de comité, des critères d'évaluation et des orientations spécifiques par catégorie.",
+        "verbatim_citations": [
+          "CE DOCUMENT EST UN DOCUMENT INTERNE DE SCI : AUCUNE GARANTIE OU REPRÉSENTATION N'EST FAITE QUANT À SON EXACTITUDE ET TOUTE UTILISATION EXTERNE SE FAIT AUX RISQUES ET PÉRILS DES UTILISATEURS.",
+          "TOUT LE PERSONNEL EFFECTUANT DES ACTIVITÉS D'APPROVISIONNEMENT DOIT SUIVRE LE COURS DE FORMATION SUR LES BASES DE L'APPROVISIONNEMENT.",
+          "LE PERSONNEL DOIT SUIVRE LE COURS DE FORMATION PROSAVE OR AFIN D'OBTENIR UNE LICENCE POUR LES MODULES DE PROSAVE RELATIFS À L'APPROVISIONNEMENT ET LA PASSATION DE CONTRATS"
+        ]
+      },
+      {
+        "heading": "Politique d'approvisionnement : principes",
+        "summary": "Liste des 13 principes obligatoires en matière d'approvisionnement, incluant la conformité, l'optimisation des ressources, la durabilité, l'utilisation de ProSave, la gestion des fournisseurs et la conservation des dossiers. Détaille également les principes d'optimisation des ressources, d'innovation, et les obligations légales (esclavage moderne, sauvegarde, fraude, sanctions, contrôle des exportations, sécurité informatique).",
+        "verbatim_citations": [
+          "Approvisionnement conforme : Tous les employés sont tenus de respecter la présente politique globale d'approvisionnement de SCI, le manuel d'approvisionnement, les politiques des donateurs et les lois applicables dans le cadre de l'approvisionnement des biens et services.",
+          "Durabilité : La durabilité doit être intégrée au sein même de SCI, dans nos méthodes de travail et de prise de décision en matière d'approvisionnement.",
+          "SCI applique une politique de tolérance zéro en matière de fraude."
+        ]
+      },
+      {
+        "heading": "Planification",
+        "summary": "Détaille l'importance de la planification des achats, des programmes d'approvisionnement (obligatoires pour les projets >50 000 $), et des sourcing pipelines (plans sur 12-24 mois). Inclut des principes clés comme la collaboration avec les équipes programmes et la consolidation des besoins au niveau national.",
+        "verbatim_citations": [
+          "Un programme d'approvisionnement détaille les biens / services qui doivent être achetés (la demande) et il est obligatoire dans le cadre d'un projet / programme spécifique d'une valeur supérieure à 50 000 dollars.",
+          "Un sourcing pipeline est un plan de toutes les procédures d'approvisionnement à entreprendre dans les 12-24 prochains mois, pour tous les biens / services nécessaires aux programmes des CO / FO, aux interventions humanitaires et aux services de soutien."
+        ]
+      },
+      {
+        "heading": "Approvisionnement et seuils",
+        "summary": "Décrit les procédures d'approvisionnement (devis unique, simple, formel, appel d'offres ouvert) et les seuils associés (en USD). Les seuils peuvent être adaptés localement avec approbation. Interdit la fragmentation des demandes pour éviter les seuils. Détaille les concepts clés comme la sélection des fournisseurs, les offres sous pli cacheté, et le nombre minimum d'offres conformes.",
+        "verbatim_citations": [
+          "Les seuils d'approvisionnement sont fixés au niveau mondial et, si le contexte local l'exige, les CO peuvent demander des seuils adaptés.",
+          "Les exigences en matière d'approvisionnement ne doivent pas être divisées / fragmentées afin d'éviter des seuils d'approvisionnement plus élevés, ce qui relèverait d'un comportement frauduleux."
+        ]
+      },
+      {
+        "heading": "Évaluation des fournisseurs",
+        "summary": "Présente les critères d'évaluation obligatoires (critères essentiels, commerciaux, capacités, durabilité) et les exigences de pondération. Détaille le processus d'analyse comparative des offres (ACO) et la composition des comités d'évaluation (3 membres, décisions par consensus).",
+        "verbatim_citations": [
+          "Toutes les procédures de sélection des fournisseurs doivent inclure au minimum les critères essentiels suivants :",
+          "Critères contraignants - la pondération minimale est de 40 % pour les critères commerciaux et de 10 % pour les critères de durabilité."
+        ]
+      },
+      {
+        "heading": "Négociation et vérification",
+        "summary": "Décrit les principes de négociation (objectifs, méthodes, documentation) et le processus de vérification des fournisseurs (enregistrement, qualification, approbation). Inclut les délais de réponse pour les vérifications et les responsabilités en cas de changement d'informations.",
+        "verbatim_citations": [
+          "SCI ne doit pas signer de bon de commande ou d'AC avec un fournisseur tant que celui-ci et son personnel clé (le cas échéant) n'ont pas fait l'objet d'une vérification et d'une approbation.",
+          "Le personnel clé est constitué des personnes qui possèdent, contrôlent, exercent un rôle décisionnel (y compris sur les finances) dans une organisation ou ont l'autorité de signer un BC / Contrat / AC au nom du fournisseur."
+        ]
+      },
+      {
+        "heading": "Résultats du sourcing et contrats",
+        "summary": "Liste les résultats préférés du sourcing (AC à prix fixe, AC à prix non fixe, fournisseur présélectionné, bon de commande autonome) et les modèles de contrats associés. Détaille les approbations requises (SOD), les durées de validité, et les procédures de prolongation/modification.",
+        "verbatim_citations": [
+          "Un accord entre SCI et un fournisseur établissant les conditions (par exemple, les conditions juridiques, les spécifications, les délais de mise en œuvre, etc.) selon lesquelles SCI peut choisir d'acheter un volume non spécifié de biens / services.",
+          "Tous les accords-cadres doivent avoir une date de fin et une limite de dépenses."
+        ]
+      },
+      {
+        "heading": "Exceptions et dérogations",
+        "summary": "Décrit les cas où les procédures standard ne peuvent être suivies (dérogations) et les approbations requises (SOD, donateurs). Inclut un tableau des approbateurs par seuil de valeur et les exceptions acceptables (ex : devis formel pour services publics).",
+        "verbatim_citations": [
+          "Lorsque les règles de ce manuel ne peuvent pas être suivies, cela doit être approuvé par une dérogation à la procédure d'approvisionnement.",
+          "Les dérogations à la procédure d'approvisionnement ne doivent être utilisées que dans des circonstances exceptionnelles et non en raison d'une mauvaise planification."
+        ]
+      },
+      {
+        "heading": "Gestion des fournisseurs et procédures humanitaires",
+        "summary": "Détaille la gestion des fournisseurs (enregistrement, suspension, gestion stratégique) et les procédures spécifiques pour les interventions humanitaires (catégories 1-4). Inclut les approbations requises, les assouplissements de procédures, et les exigences de formation.",
+        "verbatim_citations": [
+          "Pendant les interventions humanitaires, les procédures d'approvisionnement peuvent être assouplies, sous réserve d'approbation grâce au formulaire d'activation des procédures d'achats humanitaires.",
+          "Les changements ne s'appliquent qu'aux réponses catégorisées et aux financements/subventions spécifiquement liés à la réponse."
+        ]
+      },
+      {
+        "heading": "Orientations spécifiques par catégorie",
+        "summary": "Fournit des recommandations pour des catégories spécifiques (voyages, immobilier, construction, produits de santé, TI, main-d'œuvre externe, CVA, flotte, assurance). Inclut des résultats de sourcing préférés et des procédures adaptées.",
+        "verbatim_citations": [
+          "Catégorie | Résultat souhaité",
+          "Voyages et hôtels | AC à Prix fixe",
+          "Construction | AC à Prix fixe / Contrat de construction / Fournisseur préqualifié"
+        ]
+      }
+    ],
+    "thresholds": [
+      {
+        "label": "Devis unique",
+        "currency": "USD",
+        "min": null,
+        "max": 10000,
+        "procedure": "Devis unique (offre d'un seul fournisseur)",
+        "notes": "Utilisé pour les achats ponctuels à faible risque. Peut être remplacé par un bon de commande autonome pour les valeurs <10 000 $."
+      },
+      {
+        "label": "Devis simple",
+        "currency": "USD",
+        "min": null,
+        "max": 50000,
+        "procedure": "Devis simple (2-3 offres)",
+        "notes": "Procédure minimale requise pour les valeurs >10 000 $. Peut être utilisé pour les services publics, hôtels, etc."
+      },
+      {
+        "label": "Devis formel",
+        "currency": "USD",
+        "min": 50001,
+        "max": 100000,
+        "procedure": "Devis formel (4+ offres, offres sous pli cacheté)",
+        "notes": "Procédure obligatoire pour les valeurs >50 000 $. Inclut des exigences strictes (période de réponse, ouverture des offres)."
+      },
+      {
+        "label": "Appel d'offres ouvert",
+        "currency": "USD",
+        "min": 100001,
+        "max": null,
+        "procedure": "Appel d'offres ouvert (publicité large, 4+ offres)",
+        "notes": "Procédure pour les valeurs >100 000 $. Peut être remplacé par un devis formel pour certaines catégories (ex : services publics)."
+      },
+      {
+        "label": "Exceptions humanitaires",
+        "currency": "USD",
+        "min": null,
+        "max": null,
+        "procedure": "Procédures assouplies (selon catégorie d'urgence)",
+        "notes": "Applicable aux interventions humanitaires (catégories 1-2 pour les 90 premiers jours). Seuils et procédures adaptés avec approbation."
+      }
+    ],
+    "procedures": [
+      {
+        "name": "Devis unique",
+        "description": "Procédure d'approvisionnement où une seule offre est demandée à un fournisseur. Utilisée pour les achats ponctuels ou les fournisseurs uniques.",
+        "conditions": "Valable pour les valeurs ≤10 000 $. Peut être utilisé pour les services publics, hôtels, etc. sans seuil de valeur."
+      },
+      {
+        "name": "Devis simple",
+        "description": "Procédure où 2-3 offres sont demandées à des fournisseurs. Procédure minimale pour les valeurs >10 000 $.",
+        "conditions": "Obligatoire pour les valeurs >10 000 $. Peut être utilisé pour les services publics, hôtels, etc."
+      },
+      {
+        "name": "Devis formel",
+        "description": "Procédure structurée avec 4+ offres, offres sous pli cacheté, et période de réponse minimale. Inclut une analyse comparative des offres (ACO).",
+        "conditions": "Obligatoire pour les valeurs >50 000 $. Peut être utilisé pour les valeurs inférieures si nécessaire."
+      },
+      {
+        "name": "Appel d'offres ouvert",
+        "description": "Procédure publique avec publicité large, 4+ offres, et ouverture publique des offres. Inclut une ACO et un comité d'évaluation.",
+        "conditions": "Obligatoire pour les valeurs >100 000 $. Peut être remplacé par un devis formel pour certaines catégories."
+      },
+      {
+        "name": "Fournisseur présélectionné",
+        "description": "Utilisation d'un fournisseur déjà qualifié ou préapprouvé pour des catégories spécifiques (ex : construction, conseil).",
+        "conditions": "Réservé aux catégories à haut risque/complexes. Doit suivre une procédure de qualification préalable."
+      },
+      {
+        "name": "Bon de commande autonome",
+        "description": "Bon de commande direct sans accord-cadre préalable. Utilisé pour les achats ponctuels à faible risque.",
+        "conditions": "Valable pour les valeurs ≤10 000 $. Doit être approuvé selon le SOD."
+      },
+      {
+        "name": "Dérogation (eWaiver)",
+        "description": "Procédure exceptionnelle pour déroger aux procédures standard d'approvisionnement. Nécessite une approbation écrite.",
+        "conditions": "Utilisable uniquement dans des circonstances exceptionnelles (ex : urgence humanitaire, fournisseur innovant)."
+      },
+      {
+        "name": "Procédures humanitaires",
+        "description": "Assouplissement des procédures standard pour les interventions humanitaires (catégories 1-4).",
+        "conditions": "Applicable uniquement aux réponses humanitaires avec approbation du formulaire d'activation."
+      }
+    ],
+    "committee_rules": [
+      {
+        "context": "Comité d'évaluation pour les devis formels et appels d'offres ouverts",
+        "composition": "3 membres (propriétaire commercial, responsable technique, responsable approvisionnement). Le comité doit être d'accord sur toutes les décisions. En cas de désaccord, la décision revient au responsable budgétaire.",
+        "quorum": "Présence obligatoire des 3 membres pour l'ouverture des offres et l'ACO. Décisions par consensus."
+      },
+      {
+        "context": "Sous-comité d'évaluation (facultatif)",
+        "composition": "Membres supplémentaires sans droit de vote. Peut inclure des experts techniques ou juridiques.",
+        "quorum": null
+      },
+      {
+        "context": "Comité d'évaluation pour les dérogations (eWaiver)",
+        "composition": "Responsable budgétaire, responsable de la chaîne d'approvisionnement, et approbateurs SOD selon le seuil de valeur.",
+        "quorum": "Décisions par approbation écrite des membres compétents."
+      }
+    ],
+    "evaluation_criteria": [
+      {
+        "criterion": "Critères essentiels",
+        "weight_rule": "Élimination automatique si non satisfait. Pondération non applicable (critère éliminatoire).",
+        "eliminatory": true
+      },
+      {
+        "criterion": "Critères commerciaux",
+        "weight_rule": "Pondération minimale de 40 % pour les devis formels et appels d'offres ouverts. Peut être réduit à 20 % pour les devis simples/uniques avec approbation.",
+        "eliminatory": false
+      },
+      {
+        "criterion": "Critères de capacité",
+        "weight_rule": "Pondération non minimale. Utilisation de sous-critères pondérés (ex : qualité, délais, expérience).",
+        "eliminatory": false
+      },
+      {
+        "criterion": "Critères de durabilité",
+        "weight_rule": "Pondération minimale de 10 % pour les devis formels et appels d'offres ouverts. Peut être augmentée pour favoriser la localisation.",
+        "eliminatory": false
+      }
+    ],
+    "unresolved_or_ambiguous": [
+      "Valeurs exactes des seuils pour les dérogations humanitaires (catégories 3-4).",
+      "Procédures détaillées pour les catégories spécifiques (ex : produits de santé, construction) nécessitant une validation humaine.",
+      "Critères précis pour la pondération des sous-critères dans les critères de capacité et commerciaux.",
+      "Processus exact de validation des fournisseurs pour les catégories à haut risque (ex : produits de santé).",
+      "Méthodologie détaillée pour le calcul des avantages financiers et de durabilité (mentionnée mais non détaillée dans le texte).",
+      "Procédures de gestion des litiges avec les fournisseurs (non explicitement détaillées).",
+      "Règles spécifiques pour les achats en devises étrangères (non précisées).",
+      "Processus de révision des seuils d'approvisionnement locaux (mentionné mais non détaillé)."
+    ],
+    "confidence_notes": "Le parsing automatique a identifié les seuils et procédures principales, mais certains détails (ex : valeurs exactes pour les exceptions humanitaires, pondérations précises des sous-critères) nécessitent une validation humaine. Les citations verbatim sont limitées aux phrases clés du document. Les seuils sont exprimés en USD, mais le manuel mentionne une possible adaptation en XOF/FCFA pour les contextes locaux (non précisé)."
+  }
+}

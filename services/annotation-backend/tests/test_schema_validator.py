@@ -196,6 +196,40 @@ def test_dms_annotation_minimal_valid():
     assert len(v.couche_5_gates) == 10
 
 
+def test_identifiants_fieldvalue_and_applicable_flattened():
+    """identifiants.has_* en FieldValue + valeur APPLICABLE (gates) → str|bool schéma."""
+    d = _minimal_valid()
+    d["identifiants"]["has_nif"] = _fv("APPLICABLE")
+    d["identifiants"]["has_rccm"] = _fv("APPLICABLE")
+    d["identifiants"]["has_rib"] = _fv("")
+    norm = normalize_annotation_output(copy.deepcopy(d))
+    assert norm["identifiants"]["has_nif"] is True
+    assert norm["identifiants"]["has_rccm"] is True
+    assert norm["identifiants"]["has_rib"] == ""
+    DMSAnnotation.model_validate(norm)
+
+
+def test_identifiants_missing_raw_filled_from_redacted_blocks():
+    """Champs *_raw requis : absents si seuls supplier_phone / supplier_email (blocs)."""
+    d = _minimal_valid()
+    del d["identifiants"]["supplier_phone_raw"]
+    del d["identifiants"]["supplier_email_raw"]
+    d["identifiants"]["supplier_phone"] = {
+        "pseudo": None,
+        "present": False,
+        "redacted": False,
+    }
+    d["identifiants"]["supplier_email"] = {
+        "pseudo": None,
+        "present": False,
+        "redacted": False,
+    }
+    norm = normalize_annotation_output(copy.deepcopy(d))
+    assert norm["identifiants"]["supplier_phone_raw"] == "ABSENT"
+    assert norm["identifiants"]["supplier_email_raw"] == "ABSENT"
+    DMSAnnotation.model_validate(norm)
+
+
 def test_normalize_strip_couche_2_core_llm_extra_keys():
     """Mistral place parfois evidence/confidence sur couche_2_core — retirées avant Pydantic."""
     d = _minimal_valid()
@@ -617,16 +651,17 @@ def test_dms_annotation_line_total_check_non_verifiable_zero_quantity():
     )
 
 
-def test_dms_annotation_gate_confidence_rejected():
-    """Gate confidence 0.9 → ValidationError (E-17)."""
+def test_dms_annotation_gate_confidence_snapped_by_normalize():
+    """Gate confidence 0.9 : normalisation export → grille 0.6|0.8|1.0 puis validation OK."""
     d = _minimal_valid()
     d["couche_5_gates"][0]["confidence"] = 0.9
-    with pytest.raises(ValueError, match="confidence=0.9 interdit"):
-        DMSAnnotation.model_validate(d)
+    norm = normalize_annotation_output(copy.deepcopy(d))
+    v = DMSAnnotation.model_validate(norm)
+    assert v.couche_5_gates[0].confidence == 0.8
 
 
-def test_dms_annotation_unit_raw_empty_rejected():
-    """LineItem unit_raw vide → ValidationError (ADR-015)."""
+def test_dms_annotation_unit_raw_empty_normalized():
+    """LineItem unit_raw vide : normalisation export → non_precise puis validation OK."""
     d = _minimal_valid()
     d["couche_4_atomic"]["financier"]["line_items"] = [
         {
@@ -641,8 +676,8 @@ def test_dms_annotation_unit_raw_empty_rejected():
             "evidence": "p.1",
         }
     ]
-    with pytest.raises(ValueError, match="unit_raw vide"):
-        DMSAnnotation.model_validate(d)
+    v = DMSAnnotation.model_validate(d)
+    assert v.couche_4_atomic.financier.line_items[0].unit_raw == "non_precise"
 
 
 def test_arch03_detail_level_arithmetic_ok():

@@ -278,6 +278,9 @@ def normalize_boolean(value: Any, field_name: str) -> Any:
     if isinstance(value, str):
         if value in ("ABSENT", "NOT_APPLICABLE"):
             return value
+        # GateState.APPLICABLE souvent recopié par erreur dans des champs booléens / pièces.
+        if value == "APPLICABLE":
+            return True
         if value == "":
             return None
         pb = _parse_bool_string(value)
@@ -337,6 +340,319 @@ def _looks_like_field_value(d: dict[str, Any]) -> bool:
     )
 
 
+def _flatten_identifiants_boolean_fields(json_output: dict[str, Any]) -> None:
+    """identifiants.has_{nif,rccm,rib} sont str|bool au schéma — pas des FieldValue."""
+    ident = json_output.get("identifiants")
+    if not isinstance(ident, dict):
+        return
+    for k in _IDENT_BOOL_KEYS:
+        v = ident.get(k)
+        if isinstance(v, dict) and _looks_like_field_value(v):
+            raw = v.get("value")
+            coerced = normalize_boolean(raw, k) if raw is not None else None
+            if coerced is None:
+                ident[k] = ""
+            else:
+                ident[k] = coerced
+
+
+_IDENT_REQUIRED_STR = frozenset(
+    {
+        "supplier_name_raw",
+        "supplier_name_normalized",
+        "supplier_legal_form",
+        "supplier_identifier_raw",
+        "supplier_address_raw",
+        "supplier_phone_raw",
+        "supplier_email_raw",
+        "quitus_fiscal_date",
+        "cert_non_faillite_date",
+        "case_id",
+        "supplier_id",
+    }
+)
+
+
+def _ensure_couche_1_routing_no_null_strings(json_output: dict[str, Any]) -> None:
+    """couche_1_routing : pas de null sur champs texte (LLM)."""
+    r = json_output.get("couche_1_routing")
+    if not isinstance(r, dict):
+        return
+    for k, v in list(r.items()):
+        if v is None:
+            r[k] = ""
+
+
+def _coerce_ambiguites_str_list(json_output: dict[str, Any]) -> None:
+    """ambiguites : liste de str uniquement."""
+    amb = json_output.get("ambiguites")
+    if not isinstance(amb, list):
+        return
+    out: list[str] = []
+    for a in amb:
+        if isinstance(a, str):
+            out.append(a)
+        elif a is None:
+            continue
+        else:
+            out.append(json.dumps(a, ensure_ascii=False)[:500])
+    json_output["ambiguites"] = out
+
+
+def _ensure_meta_string_defaults(json_output: dict[str, Any]) -> None:
+    """_meta : champs str requis parfois null en sortie LLM."""
+    meta = json_output.get("_meta")
+    if not isinstance(meta, dict):
+        return
+    for k in ("parent_document_id", "parent_document_role"):
+        if meta.get(k) is None:
+            meta[k] = ""
+
+
+def _ensure_identifiants_defaults(json_output: dict[str, Any]) -> None:
+    """Champs identifiants requis : *_raw manquants, null → '' / ABSENT."""
+    ident = json_output.get("identifiants")
+    if not isinstance(ident, dict):
+        return
+    if "supplier_phone_raw" not in ident:
+        ident["supplier_phone_raw"] = (
+            "ABSENT" if isinstance(ident.get("supplier_phone"), dict) else ""
+        )
+    if "supplier_email_raw" not in ident:
+        ident["supplier_email_raw"] = (
+            "ABSENT" if isinstance(ident.get("supplier_email"), dict) else ""
+        )
+    for k in _IDENT_REQUIRED_STR:
+        if ident.get(k) is None:
+            ident[k] = ""
+    for k in _IDENT_BOOL_KEYS:
+        v = ident.get(k)
+        if v is None:
+            ident[k] = ""
+        elif isinstance(v, (int, float)) and not isinstance(v, bool):
+            ident[k] = bool(v)
+
+
+def _coerce_couche_2_ponderation_string(json_output: dict[str, Any]) -> None:
+    """ponderation_coherence doit etre str (LLM envoie parfois null ou nombre)."""
+    c2 = json_output.get("couche_2_core")
+    if not isinstance(c2, dict):
+        return
+    p = c2.get("ponderation_coherence")
+    if p is None:
+        c2["ponderation_coherence"] = ""
+    elif isinstance(p, str):
+        pass
+    else:
+        c2["ponderation_coherence"] = str(p)
+
+
+def _sanitize_conformite_admin_evidence(json_output: dict[str, Any]) -> None:
+    """Retire ':' apres NIF/RCCM/IBAN/RIB dans evidence (interdit par FieldValue)."""
+    c4 = json_output.get("couche_4_atomic")
+    if not isinstance(c4, dict):
+        return
+    ca = c4.get("conformite_admin")
+    if not isinstance(ca, dict):
+        return
+    for _k, fv in ca.items():
+        if not isinstance(fv, dict) or "evidence" not in fv:
+            continue
+        ev = fv.get("evidence")
+        if not isinstance(ev, str):
+            continue
+        s = ev
+        for bad in ("NIF:", "RCCM:", "IBAN:", "RIB:"):
+            if bad in s:
+                s = s.replace(bad, bad[:-1] + " ")
+        fv["evidence"] = s
+
+
+_LTC_CANON = frozenset(
+    {"OK", "ANOMALY", "NON_VERIFIABLE", "SUBTOTAL_NOT_CHECKED_HERE"}
+)
+
+
+def _normalize_line_total_check_value(raw: Any) -> str:
+    if raw is None or raw == "":
+        return "OK"
+    if isinstance(raw, str):
+        u = raw.strip().upper().replace("-", "_").replace(" ", "_")
+        if u in _LTC_CANON:
+            return u
+        if u in ("PASSED", "PASS", "VALIDE", "VALID", "TRUE", "OUI", "CORRECT"):
+            return "OK"
+        if u in ("FAILED", "FAIL", "ANOMALIE", "ECHEC"):
+            return "ANOMALY"
+        if "NON" in u and "VERIF" in u:
+            return "NON_VERIFIABLE"
+        if "SUBTOTAL" in u and "CHECK" in u:
+            return "SUBTOTAL_NOT_CHECKED_HERE"
+        return "NON_VERIFIABLE"
+    return "NON_VERIFIABLE"
+
+
+def _snap_fieldvalues_confidence_recursive(obj: Any) -> None:
+    """Ramène toute confidence FieldValue (et gates) sur la grille 0.6 / 0.8 / 1.0."""
+    if isinstance(obj, dict):
+        if _looks_like_field_value(obj):
+            obj["confidence"] = _snap_fieldvalue_confidence(obj.get("confidence"))
+        else:
+            for v in obj.values():
+                _snap_fieldvalues_confidence_recursive(v)
+    elif isinstance(obj, list):
+        for el in obj:
+            _snap_fieldvalues_confidence_recursive(el)
+
+
+def _normalize_gate_state(v: Any) -> str:
+    """Renvoie APPLICABLE | NOT_APPLICABLE ; valeurs LLM hors enum → défaut sûr."""
+    if not isinstance(v, str):
+        return "NOT_APPLICABLE"
+    s = v.strip().upper().replace(" ", "_").replace("-", "_")
+    if s in ("APPLICABLE", "NOT_APPLICABLE"):
+        return s
+    if "NOT" in s and "APPLIC" in s:
+        return "NOT_APPLICABLE"
+    if "APPLIC" in s or s in ("YES", "OUI", "REQUIRED", "REQUIS"):
+        return "APPLICABLE"
+    return "NOT_APPLICABLE"
+
+
+def _coerce_gates_relaxed(json_output: dict[str, Any]) -> None:
+    """Gates : enum gate_state, seuils texte, confidence grille, APPLICABLE sans valeur."""
+    gates = json_output.get("couche_5_gates")
+    if not isinstance(gates, list):
+        return
+    for g in gates:
+        if not isinstance(g, dict):
+            continue
+        gs = _normalize_gate_state(g.get("gate_state"))
+        g["gate_state"] = gs
+        if gs == "NOT_APPLICABLE":
+            g["gate_value"] = None
+        elif gs == "APPLICABLE" and g.get("gate_value") is None:
+            g["gate_value"] = False
+        if "confidence" in g:
+            g["confidence"] = _snap_fieldvalue_confidence(g.get("confidence"))
+        if "gate_threshold_value" in g:
+            g["gate_threshold_value"] = coerce_gate_threshold_value(
+                g.get("gate_threshold_value")
+            )
+
+
+_LINE_ITEM_ALLOWED_KEYS = frozenset(
+    {
+        "item_line_no",
+        "item_description_raw",
+        "unit_raw",
+        "quantity",
+        "unit_price",
+        "line_total",
+        "line_total_check",
+        "confidence",
+        "evidence",
+        "level",
+        "parent_subtotal_no",
+    }
+)
+
+_IDENT_PARASITE_KEYS = frozenset(
+    {
+        "supplier_representative_raw",
+        "supplier_representative_title",
+        "supplier_bank_account_raw",
+    }
+)
+
+
+def _strip_line_items_unknown_keys(line_items: list[Any]) -> None:
+    for el in line_items:
+        if not isinstance(el, dict):
+            continue
+        for k in list(el.keys()):
+            if k not in _LINE_ITEM_ALLOWED_KEYS:
+                del el[k]
+
+
+def _strip_identifiants_parasites(json_output: dict[str, Any]) -> None:
+    ident = json_output.get("identifiants")
+    if not isinstance(ident, dict):
+        return
+    for k in list(ident.keys()):
+        if k in _IDENT_PARASITE_KEYS:
+            del ident[k]
+
+
+def _prepatch_line_items_null_item_line_no(line_items: list[Any]) -> None:
+    """item_line_no null avant resequence — évite crash ensure_item_line_no_parseable."""
+    for idx, el in enumerate(line_items):
+        if isinstance(el, dict) and el.get("item_line_no") is None:
+            el["item_line_no"] = idx + 1
+
+
+def _snap_line_items_confidence(line_items: list[Any]) -> None:
+    for el in line_items:
+        if not isinstance(el, dict):
+            continue
+        if "confidence" not in el or el.get("confidence") is None:
+            el["confidence"] = 0.8
+        else:
+            el["confidence"] = _snap_fieldvalue_confidence(el.get("confidence"))
+
+
+def _repair_line_items_null_scalars(line_items: list[Any]) -> None:
+    """Nulls illégaux sur LineItem → défauts admis par le schéma."""
+    for el in line_items:
+        if not isinstance(el, dict):
+            continue
+        desc = el.get("item_description_raw")
+        if desc is None:
+            el["item_description_raw"] = ""
+        elif not isinstance(desc, str):
+            el["item_description_raw"] = str(desc)
+        ur = el.get("unit_raw")
+        if ur is None or (isinstance(ur, str) and not ur.strip()):
+            el["unit_raw"] = "non_precise"
+        elif not isinstance(ur, str):
+            el["unit_raw"] = str(ur) or "non_precise"
+        ev = el.get("evidence")
+        if ev is None:
+            el["evidence"] = "ABSENT"
+        elif not isinstance(ev, str):
+            el["evidence"] = str(ev)
+        for fk, default in (("quantity", 0.0), ("unit_price", 0.0), ("line_total", 0.0)):
+            v = el.get(fk)
+            if v is None:
+                el[fk] = default
+            elif isinstance(v, bool):
+                el[fk] = default
+            elif isinstance(v, str):
+                s = v.strip().replace("\u202f", "").replace("\u00a0", " ").replace(" ", "")
+                if not s:
+                    el[fk] = default
+                else:
+                    try:
+                        el[fk] = float(s.replace(",", "."))
+                    except (ValueError, TypeError):
+                        el[fk] = default
+            elif isinstance(v, (int, float)):
+                el[fk] = float(v)
+            else:
+                el[fk] = default
+        el["line_total_check"] = _normalize_line_total_check_value(el.get("line_total_check"))
+
+
+def _coerce_line_item_level_total_to_subtotal(line_items: list[Any]) -> None:
+    """Schéma LineItem : niveau 'total' rejeté — traiter comme sous-total agrégé."""
+    for el in line_items:
+        if not isinstance(el, dict):
+            continue
+        lvl = el.get("level")
+        if isinstance(lvl, str) and lvl.strip().lower() == "total":
+            el["level"] = "subtotal"
+
+
 def _normalize_extraction_fields_recursive(obj: Any) -> None:
     if isinstance(obj, dict):
         for k, v in list(obj.items()):
@@ -345,9 +661,8 @@ def _normalize_extraction_fields_recursive(obj: Any) -> None:
             if isinstance(v, dict) and _looks_like_field_value(v):
                 normalize_extraction_field(v, k)
             elif k in _IDENT_BOOL_KEYS and isinstance(v, str):
-                pb = _parse_bool_string(v)
-                if pb is not None:
-                    obj[k] = pb
+                coerced = normalize_boolean(v, k)
+                obj[k] = "" if coerced is None else coerced
             elif isinstance(v, str) and v == "" and k in ABSENT_ON_EMPTY:
                 obj[k] = normalize_sentinel(v, k)
             elif isinstance(v, (dict, list)):
@@ -627,9 +942,19 @@ def normalize_annotation_output(json_output: dict[str, Any]) -> dict[str, Any]:
     Ordre : nettoyage couche_2_core → sentinelles / FieldValue → line_items → review_required → ambiguïtés.
     """
     _strip_couche_2_core_extras(json_output)
+    _coerce_couche_2_ponderation_string(json_output)
     _coerce_financier_field_values(json_output)
     _coerce_identifiants_scope_lists(json_output)
     _normalize_extraction_fields_recursive(json_output)
+    _sanitize_conformite_admin_evidence(json_output)
+    _snap_fieldvalues_confidence_recursive(json_output)
+    _ensure_couche_1_routing_no_null_strings(json_output)
+    _coerce_ambiguites_str_list(json_output)
+    _flatten_identifiants_boolean_fields(json_output)
+    _ensure_identifiants_defaults(json_output)
+    _strip_identifiants_parasites(json_output)
+    _ensure_meta_string_defaults(json_output)
+    _coerce_gates_relaxed(json_output)
 
     c4 = json_output.get("couche_4_atomic")
     if isinstance(c4, dict):
@@ -637,7 +962,13 @@ def normalize_annotation_output(json_output: dict[str, Any]) -> dict[str, Any]:
         if isinstance(financier, dict) and isinstance(
             financier.get("line_items"), list
         ):
-            financier["line_items"] = resequence_line_items(financier["line_items"])
+            li = financier["line_items"]
+            _prepatch_line_items_null_item_line_no(li)
+            _repair_line_items_null_scalars(li)
+            _strip_line_items_unknown_keys(li)
+            _coerce_line_item_level_total_to_subtotal(li)
+            _snap_line_items_confidence(li)
+            financier["line_items"] = resequence_line_items(li)
 
     align_review_required(json_output)
     clean_ambiguities(json_output)

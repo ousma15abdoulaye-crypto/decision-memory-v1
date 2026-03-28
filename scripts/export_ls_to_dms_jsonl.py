@@ -12,6 +12,10 @@ Usage API :
   LABEL_STUDIO_URL=... LABEL_STUDIO_API_KEY=... \\
   python scripts/export_ls_to_dms_jsonl.py --project-id 1 --output out.jsonl
 
+  Fichier local (gitignore) — sans variables globales :
+  copier ``data/annotations/ls_export.env.example`` → ``data/annotations/.ls_export_env``,
+  remplir URL + clé + projet, puis lancer la même commande.
+
 Usage fichier (tests / hors réseau) :
   python scripts/export_ls_to_dms_jsonl.py --from-export-json export.json --output out.jsonl
 """
@@ -22,6 +26,7 @@ import argparse
 import importlib.util
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -40,7 +45,39 @@ _ensure_annotation_path()
 from m12_export_line import ls_annotation_to_m12_v2_line, to_dms_line_legacy
 
 
+def _load_dotenv_repo() -> None:
+    """Charge .env, .env.local, puis data/annotations/.ls_export_env (override)."""
+    try:
+        from dotenv import load_dotenv
+
+        root = _PROJECT_ROOT
+        env_f = root / ".env"
+        local_f = root / ".env.local"
+        ls_export = root / "data" / "annotations" / ".ls_export_env"
+        if env_f.is_file():
+            load_dotenv(env_f)
+        if local_f.is_file():
+            load_dotenv(local_f, override=True)
+        if ls_export.is_file():
+            load_dotenv(ls_export, override=True)
+    except ImportError:
+        pass
+
+
+def _ls_credentials() -> tuple[str, str]:
+    """URL + token API (alias alignés sur annotation-backend / ENVIRONMENT.md)."""
+    url = (
+        os.environ.get("LABEL_STUDIO_URL", "").strip()
+        or os.environ.get("LS_URL", "").strip()
+    ).rstrip("/")
+    key = os.environ.get("LABEL_STUDIO_API_KEY", "").strip() or os.environ.get(
+        "LS_API_KEY", ""
+    ).strip()
+    return url, key
+
+
 def main() -> None:
+    _load_dotenv_repo()
     from ls_client import fetch_annotations
 
     parser = argparse.ArgumentParser(
@@ -77,6 +114,11 @@ def main() -> None:
             "(scripts/m15_export_gate.py)"
         ),
     )
+    parser.add_argument(
+        "--post-inventory",
+        action="store_true",
+        help="Après export : imprimer l’inventaire (scripts/inventory_m12_corpus_jsonl.py).",
+    )
     args = parser.parse_args()
 
     if args.from_export_json:
@@ -86,16 +128,26 @@ def main() -> None:
             data = [data]
         project_id = args.project_id or 0
     else:
-        ls_url = os.environ.get("LABEL_STUDIO_URL", "").rstrip("/")
-        ls_key = os.environ.get("LABEL_STUDIO_API_KEY", "")
+        ls_url, ls_key = _ls_credentials()
         if not ls_url or not ls_key:
             sys.exit(
-                "STOP — LABEL_STUDIO_URL et LABEL_STUDIO_API_KEY requis (ou --from-export-json)"
+                "STOP — LABEL_STUDIO_URL (ou LS_URL) et LABEL_STUDIO_API_KEY "
+                "(ou LS_API_KEY) requis — ou utiliser --from-export-json"
             )
-        if args.project_id is None:
-            sys.exit("STOP — --project-id requis pour l'export API")
-        data = fetch_annotations(args.project_id, ls_url, ls_key)
         project_id = args.project_id
+        if project_id is None:
+            raw = (
+                os.environ.get("LABEL_STUDIO_PROJECT_ID", "").strip()
+                or os.environ.get("LS_PROJECT_ID", "").strip()
+            )
+            if raw.isdigit():
+                project_id = int(raw)
+        if project_id is None:
+            sys.exit(
+                "STOP — --project-id requis pour l'export API "
+                "(ou LABEL_STUDIO_PROJECT_ID / LS_PROJECT_ID dans .env.local)"
+            )
+        data = fetch_annotations(project_id, ls_url, ls_key)
 
     lines: list[dict] = []
     enforce = not args.no_enforce_validated_qa
@@ -147,7 +199,15 @@ def main() -> None:
         for line in lines:
             f.write(json.dumps(line, ensure_ascii=False) + "\n")
 
-    print(f"Exporté {len(lines)} lignes → {out}")
+    print(f"Exporté {len(lines)} lignes -> {out}")
+
+    if args.post_inventory:
+        inv = subprocess.run(
+            [sys.executable, str(_SCRIPT_DIR / "inventory_m12_corpus_jsonl.py"), out],
+            check=False,
+        )
+        if inv.returncode != 0:
+            sys.exit(inv.returncode)
 
 
 if __name__ == "__main__":

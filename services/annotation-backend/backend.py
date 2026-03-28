@@ -43,13 +43,13 @@ if _root_src is not None:
 
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import ValidationError
 
 try:
-    from mistralai import Mistral
+    from mistralai.client import Mistral
 except ImportError:
-    from mistralai.client import Mistral  # mistralai v2.x
+    from mistralai import Mistral  # mistralai v1.x
 
 from annotation_qa import (
     apply_financial_warnings_to_annotation,
@@ -81,6 +81,8 @@ LS_TEXTAREA_TO_NAME = "document_text"
 
 SCHEMA_VERSION = "v3.0.1d"
 FRAMEWORK_VERSION = "annotation-framework-v3.0.1d"
+# LS affiche parfois le score / version du modèle si présents sur chaque prédiction
+ML_BACKEND_MODEL_VERSION = f"dms-{SCHEMA_VERSION}"
 MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
 MAX_TEXT_CHARS = int(os.environ.get("MAX_TEXT_CHARS", "200000"))
@@ -541,6 +543,65 @@ def _normalize_input_text(text: str) -> str:
     return re.sub(r"\s+", " ", text.strip())
 
 
+def _coerce_ls_data_value_to_str(val: Any) -> str:
+    """Valeur `task.data.*` → string exploitable pour le LLM (imports LS hétérogènes)."""
+    if val is None:
+        return ""
+    if isinstance(val, str):
+        return val
+    if isinstance(val, dict):
+        for k in ("text", "content", "body", "value"):
+            inner = val.get(k)
+            if isinstance(inner, str) and inner.strip():
+                return inner
+        return ""
+    if isinstance(val, (list, tuple)):
+        parts: list[str] = []
+        for x in val:
+            if x is None:
+                continue
+            parts.append(x if isinstance(x, str) else str(x))
+        return "\n".join(p for p in parts if p.strip())
+    return str(val)
+
+
+def _extract_raw_text_from_task_data(
+    task_data: dict[str, Any],
+) -> tuple[str, str]:
+    """
+    Texte document pour /predict — même ordre de clés que m12_export_line.task_source_text.
+    Retourne (brut, nom_champ) pour les logs.
+    """
+    keys = (
+        "text",
+        "content",
+        "body",
+        "source",
+        "transcript",
+        "full_text",
+        "ocr",
+        "raw_text",
+    )
+    for key in keys:
+        if key not in task_data:
+            continue
+        raw = _coerce_ls_data_value_to_str(task_data.get(key))
+        if raw.strip():
+            return raw, key
+    return "", "none"
+
+
+def _normalize_predict_tasks(body: dict[str, Any]) -> list[dict[str, Any]]:
+    """LS envoie `tasks` ; certains proxies / tests passent une seule `task`."""
+    t = body.get("tasks")
+    if isinstance(t, list):
+        return t
+    single = body.get("task")
+    if isinstance(single, dict):
+        return [single]
+    return []
+
+
 def _truncate_text(text: str, task_id: int) -> str:
     """Tronque le texte à MAX_TEXT_CHARS. Log si troncature appliquée."""
     if len(text) <= MAX_TEXT_CHARS:
@@ -922,6 +983,7 @@ def _build_empty_result(task_id: int, reason: str, score: float = 0.1) -> dict:
     return {
         "id": task_id,
         "score": score,
+        "model_version": ML_BACKEND_MODEL_VERSION,
         "result": [
             {
                 "from_name": "extracted_json",
@@ -980,6 +1042,7 @@ def _build_ls_result(
     return {
         "id": task_id,
         "score": score,
+        "model_version": ML_BACKEND_MODEL_VERSION,
         "result": [
             {
                 "from_name": "extracted_json",
@@ -1110,7 +1173,20 @@ def root() -> dict[str, str]:
         "health": "/health",
         "setup": "/setup",
         "predict": "/predict",
+        "label_studio_config_xml": "/label-studio-config.xml",
     }
+
+
+@app.get("/label-studio-config.xml")
+def label_studio_config_xml() -> Response:
+    """Config LS commitée — à coller dans Settings → Labeling Interface si le XML a été vidé."""
+    path = _backend_dir / "label_studio_config.xml"
+    if not path.is_file():
+        return Response(status_code=404, content="label_studio_config.xml introuvable")
+    return Response(
+        content=path.read_text(encoding="utf-8"),
+        media_type="application/xml",
+    )
 
 
 @app.get("/health")
@@ -1125,7 +1201,7 @@ async def setup(request: Request) -> JSONResponse:
     """Label Studio appelle /setup — retourner model_version."""
     return JSONResponse(
         {
-            "model_version": f"dms-{SCHEMA_VERSION}",
+            "model_version": ML_BACKEND_MODEL_VERSION,
             "status": "ready",
             "framework": FRAMEWORK_VERSION,
         }
@@ -1192,7 +1268,7 @@ async def predict(request: Request) -> JSONResponse:
         )
         return JSONResponse({"results": []}, status_code=200)
 
-    tasks = body.get("tasks", [])
+    tasks = _normalize_predict_tasks(body)
     if not tasks:
         return JSONResponse({"results": []})
 
@@ -1201,20 +1277,10 @@ async def predict(request: Request) -> JSONResponse:
 
     for task in tasks:
         task_id = task.get("id", 0)
-        task_data = task.get("data", {})
-        raw_td = task_data.get("text")
-        raw_cd = task_data.get("content")
-        raw_text = raw_td if raw_td not in (None, "") else raw_cd
-        if raw_text is None:
-            raw_text = ""
-        if not isinstance(raw_text, str):
-            raw_text = str(raw_text)
-
-        field_used = (
-            "text"
-            if raw_td not in (None, "")
-            else ("content" if raw_cd not in (None, "") else "none")
-        )
+        task_data = task.get("data") or {}
+        if not isinstance(task_data, dict):
+            task_data = {}
+        raw_text, field_used = _extract_raw_text_from_task_data(task_data)
         text = _normalize_input_text(raw_text)
         document_role = task_data.get("document_role", "") or body_document_role
         raw_fn = task_data.get("filename")

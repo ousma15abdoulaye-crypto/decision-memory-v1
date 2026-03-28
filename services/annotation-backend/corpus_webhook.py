@@ -158,13 +158,25 @@ def process_label_studio_webhook_for_corpus(
     sink = sink or build_sink_from_env()
     try:
         sink.append_line(line)
+        tid = line.get("ls_meta", {}).get("task_id")
+        aid = line.get("ls_meta", {}).get("annotation_id")
+        ok = line.get("export_ok")
+        h = line.get("content_hash")
         logger.info(
             "[CORPUS] Écrit task_id=%s ann_id=%s export_ok=%s hash=%s",
-            line.get("ls_meta", {}).get("task_id"),
-            line.get("ls_meta", {}).get("annotation_id"),
-            line.get("export_ok"),
-            line.get("content_hash"),
+            tid,
+            aid,
+            ok,
+            h,
         )
+        if not ok:
+            errs = line.get("export_errors") or []
+            logger.warning(
+                "[CORPUS] export_ok=false task_id=%s ann_id=%s export_errors=%s",
+                tid,
+                aid,
+                errs,
+            )
     except Exception as exc:
         logger.error(
             "[CORPUS] Écriture échouée : %s — %s",

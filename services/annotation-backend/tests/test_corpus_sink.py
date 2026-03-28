@@ -3,6 +3,7 @@
 import io
 import json
 import logging
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,8 +11,24 @@ from corpus_sink import (
     _botocore_config_for_s3,
     _s3_endpoint_safe_for_log,
     iter_corpus_m12_lines_from_s3,
+    iter_corpus_m12_objects_from_s3,
     log_s3_corpus_boot_diagnostics,
 )
+
+
+def test_iter_corpus_m12_lines_from_s3_wraps_objects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import corpus_sink as cs
+
+    payload = {"export_schema_version": "m12-v2", "source_text": "x"}
+
+    def _fake_objects(**_kwargs):
+        yield payload, "m12-v2/1/1_2_h.json", None
+
+    monkeypatch.setattr(cs, "iter_corpus_m12_objects_from_s3", _fake_objects)
+    lines = list(cs.iter_corpus_m12_lines_from_s3(prefix="m12-v2"))
+    assert lines == [payload]
 
 
 class TestBotocoreConfigForS3:
@@ -114,24 +131,31 @@ class TestIterCorpusM12LinesFromS3:
         fake = MagicMock()
         paginator = MagicMock()
         fake.get_paginator.return_value = paginator
+        lm = datetime(2024, 6, 1, 12, 0, tzinfo=timezone.utc)
         paginator.paginate.return_value = [
             {
                 "Contents": [
-                    {"Key": "m12-v2/1/1_2_abcd1234.json"},
+                    {"Key": "m12-v2/1/1_2_abcd1234.json", "LastModified": lm},
                 ]
             }
         ]
-        fake.get_object.return_value = {
-            "Body": io.BytesIO(json.dumps(payload).encode("utf-8")),
-        }
+        def _fresh_body(**_kwargs):
+            return {
+                "Body": io.BytesIO(json.dumps(payload).encode("utf-8")),
+            }
+
+        fake.get_object.side_effect = _fresh_body
 
         import corpus_sink as cs
 
         monkeypatch.setattr(cs, "_make_s3_client", lambda ep: fake)
 
-        lines = list(iter_corpus_m12_lines_from_s3(prefix="m12-v2"))
-        assert len(lines) == 1
-        assert lines[0]["source_text"] == "hello"
+        objs = list(iter_corpus_m12_objects_from_s3(prefix="m12-v2"))
+        assert len(objs) == 1
+        line, key, got_lm = objs[0]
+        assert line["source_text"] == "hello"
+        assert key == "m12-v2/1/1_2_abcd1234.json"
+        assert got_lm == lm
         fake.get_paginator.assert_called_once_with("list_objects_v2")
         paginator.paginate.assert_called_once_with(
             Bucket="bucket-test", Prefix="m12-v2/"
