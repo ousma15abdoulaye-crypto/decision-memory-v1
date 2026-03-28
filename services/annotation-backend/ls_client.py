@@ -4,16 +4,23 @@ Client HTTP minimal Label Studio — export projet et tâche unitaire.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import requests
+
+
+def _tls_verify() -> bool:
+    """TLS strict par défaut ; ``LABEL_STUDIO_SSL_VERIFY=0`` si chaîne de certificats locale / proxy casse la vérif."""
+    v = (os.environ.get("LABEL_STUDIO_SSL_VERIFY") or "1").strip().lower()
+    return v not in ("0", "false", "no", "off")
 
 
 def fetch_project_meta(project_id: int, ls_url: str, ls_key: str) -> dict[str, Any]:
     """Métadonnées projet (léger) — pour vérifier URL + token avant export complet."""
     headers = {"Authorization": f"Token {ls_key}"}
     url = f"{ls_url.rstrip('/')}/api/projects/{project_id}/"
-    r = requests.get(url, headers=headers, timeout=30)
+    r = requests.get(url, headers=headers, timeout=30, verify=_tls_verify())
     r.raise_for_status()
     data = r.json()
     if not isinstance(data, dict):
@@ -45,6 +52,7 @@ def fetch_annotations(
         headers=headers,
         params=params,
         timeout=60,
+        verify=_tls_verify(),
     )
     r.raise_for_status()
     return r.json()
@@ -54,7 +62,7 @@ def fetch_task(ls_url: str, ls_key: str, task_id: int) -> dict[str, Any]:
     """Détail d’une tâche (inclut souvent ``annotations``)."""
     headers = {"Authorization": f"Token {ls_key}"}
     url = f"{ls_url.rstrip('/')}/api/tasks/{task_id}/"
-    r = requests.get(url, headers=headers, timeout=60)
+    r = requests.get(url, headers=headers, timeout=60, verify=_tls_verify())
     r.raise_for_status()
     return r.json()
 

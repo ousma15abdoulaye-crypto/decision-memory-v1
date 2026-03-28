@@ -108,6 +108,7 @@ def _run_once(
     raw_ls_json_path: Path | None = None,
     only_finished: bool = False,
     only_if_status: str | None = None,
+    overwrite_output: bool = False,
 ) -> int:
     """
     Exporte toutes les annotations du projet, écrit les nouvelles dans output_path.
@@ -116,6 +117,10 @@ def _run_once(
     """
     from ls_client import fetch_annotations
     from m12_export_line import ls_annotation_to_m12_v2_line
+
+    if overwrite_output and output_path.exists():
+        output_path.unlink()
+        logger.info("Sortie écrasée (--overwrite) : %s", output_path)
 
     seen = _load_seen_ids(output_path)
     logger.info(
@@ -304,14 +309,18 @@ def main() -> None:
             "Peut se combiner avec --only-finished."
         ),
     )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Supprime le fichier --output avant export (export propre pour smoke test).",
+    )
     args = parser.parse_args()
 
     if getattr(args, "no_enforce_validated_qa_deprecated", False):
         logger.warning(
-            "DÉPRÉCIÉ : --no-enforce-validated-qa est un alias de --enforce-validated-qa ; "
-            "utilisez --enforce-validated-qa à la place."
+            "DÉPRÉCIÉ : --no-enforce-validated-qa est sans effet (QA stricte désactivée par défaut). "
+            "Utilisez --enforce-validated-qa pour activer la QA stricte."
         )
-        args.enforce_validated_qa = True
 
     ls_url = _ls_url()
     ls_key = _ls_key()
@@ -333,6 +342,9 @@ def main() -> None:
             f"VERIFY OK — project_id={args.project_id} title={title!r} task_count={ntasks}"
         )
         return
+
+    if args.loop and args.overwrite:
+        sys.exit("STOP — ne pas combiner --overwrite avec --loop")
 
     output_path = Path(args.output)
     enforce_qa = args.enforce_validated_qa
@@ -373,6 +385,7 @@ def main() -> None:
             raw_ls_json_path=raw_ls_path,
             only_finished=args.only_finished,
             only_if_status=only_if_status,
+            overwrite_output=args.overwrite,
         )
         logger.info("Terminé — %d nouvelle(s) annotation(s) sauvegardée(s)", n)
         return
@@ -388,6 +401,7 @@ def main() -> None:
                 raw_ls_json_path=raw_ls_path,
                 only_finished=args.only_finished,
                 only_if_status=only_if_status,
+                overwrite_output=args.overwrite,
             )
             logger.info(
                 "[LOOP] %d nouvelle(s) | prochain export dans %ds",

@@ -51,6 +51,8 @@ Sans clé, le service **démarre quand même** (plus de boucle `exit 1` dans `st
 
 `scripts/ls_local_autosave.py` — à lancer en tâche de fond sur la machine locale.
 
+**Windows — PowerShell bloque les `.ps1`** (`PSSecurityException`) : utiliser `scripts\run_ls_autosave.cmd` (contourne la politique) ou `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` une fois. **Smoke export + inventaire + verdict sans aucun `.ps1`** : `scripts\export_ls_smoke.cmd 2` (remplacer `2` par l’ID projet). En cas d’erreur TLS locale : `LABEL_STUDIO_SSL_VERIFY=0` (dernier recours).
+
 ```powershell
 # Sauvegarde one-shot
 python scripts/ls_local_autosave.py --project-id 2 --output data/annotations/ls_autosave.jsonl
