@@ -80,6 +80,18 @@ ENV/
 # DMS specific
 # Exports corpus M12 (R2 → JSONL local) — données réelles, ne pas versionner
 data/annotations/m12_corpus*.jsonl
+data/annotations/**/m12_corpus*.jsonl
+# Manifeste local des lignes (peut contenir task_id / métadonnées)
+data/annotations/m12_authoritative*_manifest.tsv
+data/annotations/m12_corpus_authoritative_manifest.tsv
+# Sauvegardes M12 (script m12_corpus_backup.ps1)
+data/annotations/backups/
+# Fichiers autosave locaux (ls_local_autosave.py + DualCorpusSink backup)
+data/annotations/ls_autosave*.jsonl
+data/annotations/ls_backup*.jsonl
+# Identifiants API R2 / S3 (fichiers locaux — jamais committer)
+data/annotations/**/.r2_export_env
+data/annotations/**/r2_export.env
 # data/ ignoré sélectivement — .gitkeep et README.md restent trackés
 data/**/*.xlsx
 data/**/*.xls

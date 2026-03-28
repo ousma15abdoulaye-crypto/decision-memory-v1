@@ -9,10 +9,37 @@ Formats supportés :
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
+
+
+def stable_m12_corpus_line_id(line: dict[str, Any]) -> str:
+    """
+    Cle de deduplication pour fusionner exports locaux et corpus R2 (meme logique que les cles S3).
+
+    Ordre : ``content_hash`` utilisable, puis ``(project_id, task_id, annotation_id)`` dans ``ls_meta``,
+    sinon empreinte SHA-256 du JSON canonique de la ligne.
+    """
+    ch = line.get("content_hash")
+    if isinstance(ch, str):
+        s = ch.strip()
+        if s and s != "unknown":
+            return f"h:{s}"
+
+    lm = line.get("ls_meta")
+    if isinstance(lm, dict):
+        tid = lm.get("task_id")
+        aid = lm.get("annotation_id")
+        pid = lm.get("project_id")
+        if tid is not None and aid is not None:
+            return f"t:{pid}:{tid}:{aid}"
+
+    raw = json.dumps(line, sort_keys=True, ensure_ascii=False, default=str)
+    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    return f"j:{digest}"
 
 
 def iter_m12_jsonl_lines(path: Path | str) -> Iterator[dict[str, Any]]:
@@ -23,6 +50,21 @@ def iter_m12_jsonl_lines(path: Path | str) -> Iterator[dict[str, Any]]:
             if not line:
                 continue
             yield json.loads(line)
+
+
+def stable_m12_corpus_ids_from_jsonl_paths(paths: list[Path]) -> set[str]:
+    """
+    Ensemble des ``stable_m12_corpus_line_id`` pour toutes les lignes objet JSON
+    d'un ou plusieurs fichiers JSONL (dédup multi-fichiers).
+
+    Utilisé pour repérer ce qui manque localement par rapport au corpus R2.
+    """
+    keys: set[str] = set()
+    for path in paths:
+        for line in iter_m12_jsonl_lines(path):
+            if isinstance(line, dict):
+                keys.add(stable_m12_corpus_line_id(line))
+    return keys
 
 
 def export_line_kind(line: dict[str, Any]) -> str:

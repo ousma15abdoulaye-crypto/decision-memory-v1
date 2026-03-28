@@ -40,6 +40,20 @@ def _get_api_key() -> str:
     )
 
 
+def _llamacloud_httpx_verify_tls() -> bool:
+    """
+    Vérification TLS du client httpx vers LlamaCloud (LlamaIndex), pas Mistral.
+
+    Défaut : ``True`` (certificats vérifiés). Pour un proxy d'entreprise / inspection SSL
+    qui casse la chaîne de confiance, désactiver **explicitement** avec
+    ``LLAMACLOUD_HTTPX_VERIFY_SSL=0`` (ou ``false`` / ``no`` / ``off``).
+    """
+    raw = (os.environ.get("LLAMACLOUD_HTTPX_VERIFY_SSL") or "").strip().lower()
+    if raw in ("0", "false", "no", "off"):
+        return False
+    return True
+
+
 _LLAMACLOUD_PAGE_LIMIT = 1000
 
 
@@ -112,50 +126,66 @@ async def _llamacloud_extract(file_path: Path, api_key: str) -> str:
             f"Dépendance manquante : {e}. pip install llama-cloud pypdf"
         ) from e
 
-    # Proxy SSL d'entreprise (SSL inspection SCI Mali) : verify=False requis.
-    http_client = httpx.AsyncClient(verify=False)
-    client = AsyncLlamaCloud(api_key=api_key, http_client=http_client)
+    verify_tls = _llamacloud_httpx_verify_tls()
+    if not verify_tls:
+        logger.critical(
+            "SECURITY: LLAMACLOUD_HTTPX_VERIFY_SSL désactive la vérification TLS du client "
+            "httpx vers LlamaCloud. Risque MITM : la clé LLAMADMS / LLAMA_CLOUD_API_KEY et le "
+            "contenu des PDF envoyés peuvent être interceptés. N'activer qu'avec accord explicite "
+            "(ex. proxy d’entreprise / inspection SSL documentée)."
+        )
 
-    # Vérifier le nombre de pages
-    reader = PdfReader(str(file_path))
-    total_pages = len(reader.pages)
-    logger.info("PDF %s · %d pages", file_path.name, total_pages)
+    http_client = httpx.AsyncClient(verify=verify_tls)
+    try:
+        client = AsyncLlamaCloud(api_key=api_key, http_client=http_client)
 
-    if total_pages <= _LLAMACLOUD_PAGE_LIMIT:
-        # Cas standard : upload direct
-        markdown = await _extract_one_chunk(file_path, client)
+        # Vérifier le nombre de pages
+        reader = PdfReader(str(file_path))
+        total_pages = len(reader.pages)
+        logger.info("PDF %s · %d pages", file_path.name, total_pages)
+
+        if total_pages <= _LLAMACLOUD_PAGE_LIMIT:
+            # Cas standard : upload direct
+            markdown = await _extract_one_chunk(file_path, client)
+            if not markdown:
+                raise ValueError(
+                    f"LlamaCloud : markdown_full vide pour {file_path.name}"
+                )
+            logger.info("LlamaCloud · %s · %d chars", file_path.name, len(markdown))
+            return markdown
+
+        # Cas grand PDF : partition côté client
+        logger.info(
+            "PDF %s trop grand (%d pages > %d) · partition en chunks",
+            file_path.name,
+            total_pages,
+            _LLAMACLOUD_PAGE_LIMIT,
+        )
+        parts: list[str] = []
+        chunks: list[Path] = []
+        with tempfile.TemporaryDirectory() as tmp_str:
+            tmp_dir = Path(tmp_str)
+            chunks = _split_pdf(file_path, _LLAMACLOUD_PAGE_LIMIT, tmp_dir)
+            for i, chunk in enumerate(chunks, 1):
+                logger.info("Extraction chunk %d/%d : %s", i, len(chunks), chunk.name)
+                md = await _extract_one_chunk(chunk, client)
+                parts.append(md)
+
+        markdown = "\n\n".join(p for p in parts if p)
         if not markdown:
-            raise ValueError(f"LlamaCloud : markdown_full vide pour {file_path.name}")
-        logger.info("LlamaCloud · %s · %d chars", file_path.name, len(markdown))
+            raise ValueError(
+                f"LlamaCloud : tous les chunks vides pour {file_path.name}"
+            )
+
+        logger.info(
+            "LlamaCloud · %s · %d chunks · %d chars total",
+            file_path.name,
+            len(chunks),
+            len(markdown),
+        )
         return markdown
-
-    # Cas grand PDF : partition côté client
-    logger.info(
-        "PDF %s trop grand (%d pages > %d) · partition en chunks",
-        file_path.name,
-        total_pages,
-        _LLAMACLOUD_PAGE_LIMIT,
-    )
-    parts: list[str] = []
-    with tempfile.TemporaryDirectory() as tmp_str:
-        tmp_dir = Path(tmp_str)
-        chunks = _split_pdf(file_path, _LLAMACLOUD_PAGE_LIMIT, tmp_dir)
-        for i, chunk in enumerate(chunks, 1):
-            logger.info("Extraction chunk %d/%d : %s", i, len(chunks), chunk.name)
-            md = await _extract_one_chunk(chunk, client)
-            parts.append(md)
-
-    markdown = "\n\n".join(p for p in parts if p)
-    if not markdown:
-        raise ValueError(f"LlamaCloud : tous les chunks vides pour {file_path.name}")
-
-    logger.info(
-        "LlamaCloud · %s · %d chunks · %d chars total",
-        file_path.name,
-        len(chunks),
-        len(markdown),
-    )
-    return markdown
+    finally:
+        await http_client.aclose()
 
 
 _CACHE_DIR = Path("data/imports/m5/cache")

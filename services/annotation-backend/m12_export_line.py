@@ -1,5 +1,5 @@
 """
-Ligne d’export M12 v2 — partagée entre le script export_ls_to_dms_jsonl et le webhook backend.
+Ligne d'export M12 v2 — partagée entre le script export_ls_to_dms_jsonl et le webhook backend.
 
 Voir docs/adr/ADR-M12-EXPORT-V2.md
 """
@@ -12,6 +12,35 @@ from datetime import UTC, datetime
 from typing import Any
 
 CONF_MAP = {1: 0.60, 2: 0.80, 3: 1.00}
+
+# Valeurs sentinelles partagées (identiques à backend.py)
+_ABSENT = "ABSENT"
+_NOT_APPLICABLE = "NOT_APPLICABLE"
+
+
+def _normalize_identifiants_for_ls_reimport(annotation: dict) -> None:
+    """
+    Ajoute supplier_phone_raw / supplier_email_raw si absents.
+
+    ADR-013 : _build_ls_result dans backend.py supprime ces champs du JSON stocké
+    dans le textarea LS pour éviter toute fuite de données sensibles. Lors du
+    re-import (export LS → corpus JSONL), ils doivent être reconstruits pour que
+    DMSAnnotation.model_validate réussisse (champs obligatoires dans Identifiants).
+
+    Sans cette normalisation : schema_validation N errors sur CHAQUE annotation
+    exportée depuis LS — cause racine des 30 lignes inexploitables (corpus M12).
+    """
+    ident = annotation.get("identifiants")
+    if not isinstance(ident, dict):
+        return
+    if "supplier_phone_raw" not in ident:
+        ident["supplier_phone_raw"] = (
+            "" if isinstance(ident.get("supplier_phone"), dict) else _ABSENT
+        )
+    if "supplier_email_raw" not in ident:
+        ident["supplier_email_raw"] = (
+            "" if isinstance(ident.get("supplier_email"), dict) else _ABSENT
+        )
 
 
 def get_ls_result_text(results: list[dict], field: str) -> str | None:
@@ -114,6 +143,12 @@ def ls_annotation_to_m12_v2_line(
     Transforme une annotation LS (résultat + tâche) en ligne JSONL m12-v2.
 
     Requiert ``annotation-backend`` sur sys.path (imports annotation_qa, prompts).
+
+    Changements enterprise (fix causes racines corpus inexploitable) :
+    - raw_json_text : conserve le JSON brut extrait de LS (récupérable même si schéma KO)
+    - _normalize_identifiants_for_ls_reimport : ajoute supplier_phone_raw /
+      supplier_email_raw absents du textarea LS (ADR-013) → évite schema_validation
+      systématique sur toutes les annotations annotated_validated.
     """
     from annotation_qa import (
         evidence_substring_violations,
@@ -144,15 +179,21 @@ def ls_annotation_to_m12_v2_line(
     export_errors: list[str] = []
     dms_annotation: dict[str, Any] | None = None
 
+    # Conserver le JSON brut même si la validation échoue (récupérabilité enterprise)
+    raw_json_text: str | None = None
+
     if not raw_json or not str(raw_json).strip():
         export_errors.append("missing_extracted_json")
     else:
+        raw_json_text = str(raw_json).strip()
         try:
-            parsed = json.loads(raw_json)
+            parsed = json.loads(raw_json_text)
         except json.JSONDecodeError as e:
             export_errors.append(f"json_parse_error:{e}")
             parsed = None
         if parsed is not None:
+            # Normalisation ADR-013 : supplier_phone_raw/email_raw supprimés du textarea LS
+            _normalize_identifiants_for_ls_reimport(parsed)
             try:
                 validated = DMSAnnotation.model_validate(parsed)
                 dms_annotation = validated.model_dump(by_alias=True)
@@ -203,6 +244,9 @@ def ls_annotation_to_m12_v2_line(
         "export_errors": sorted(set(export_errors)),
         "ls_meta": ls_meta,
         "dms_annotation": dms_annotation,
+        # raw_json_text : JSON brut du textarea LS, préservé même si schéma KO
+        # Permet récupération sans re-annotation en cas d'erreur pipeline
+        "raw_json_text": raw_json_text,
         "ambig_tracked": (
             list(dms_annotation.get("ambiguites", [])) if dms_annotation else []
         ),

@@ -184,7 +184,7 @@ class NoopCorpusSink:
 
 
 class FileAppendCorpusSink:
-    """Append JSONL local — réservé dev ; données perdues si pas de volume."""
+    """Append JSONL local — append atomique, crée les répertoires parents."""
 
     def __init__(self, path: str) -> None:
         self._path = Path(path)
@@ -193,6 +193,33 @@ class FileAppendCorpusSink:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         with self._path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(line, ensure_ascii=False) + "\n")
+
+
+class DualCorpusSink:
+    """
+    Écrit vers deux sinks simultanément : primaire (S3/R2) + ombre locale.
+
+    Garantie enterprise : si le primaire échoue (réseau, S3, etc.), l'ombre locale
+    est toujours écrite en premier. Si l'ombre échoue, l'erreur est loguée mais
+    n'empêche pas l'écriture primaire.
+
+    Usage type : CORPUS_SINK=s3 + CORPUS_LOCAL_BACKUP_PATH=/chemin/backup.jsonl
+    """
+
+    def __init__(self, primary: CorpusSink, shadow: FileAppendCorpusSink) -> None:
+        self._primary = primary
+        self._shadow = shadow
+
+    def append_line(self, line: dict[str, Any]) -> None:
+        # L'ombre locale est écrite EN PREMIER — survie si le primaire tombe
+        try:
+            self._shadow.append_line(line)
+        except Exception as exc:
+            logger.error(
+                "[CORPUS][SHADOW] Écriture locale échouée (primaire tenté quand même) : %s",
+                exc,
+            )
+        self._primary.append_line(line)
 
 
 def _make_s3_client(endpoint_url: str | None) -> Any:
@@ -219,6 +246,24 @@ def _make_s3_client(endpoint_url: str | None) -> Any:
         client_kw["aws_secret_access_key"] = secret_key
     if region_name is not None:
         client_kw["region_name"] = region_name
+    verify_raw = (os.environ.get("S3_VERIFY_SSL") or "").strip().lower()
+    if verify_raw in ("0", "false", "no", "off"):
+        environment = (os.environ.get("ENVIRONMENT") or "").strip().lower()
+        if environment == "production":
+            logger.warning(
+                "[CORPUS][S3] Variable d'environnement S3_VERIFY_SSL=%r ignorée en "
+                "production : la vérification TLS reste activée pour des raisons de "
+                "sécurité.",
+                os.environ.get("S3_VERIFY_SSL"),
+            )
+        else:
+            logger.warning(
+                "[CORPUS][S3] La vérification TLS des certificats est DÉSACTIVÉE "
+                "(S3_VERIFY_SSL=%r). À n'utiliser qu'en debug ou avec interception TLS. "
+                "NE PAS activer en production.",
+                os.environ.get("S3_VERIFY_SSL"),
+            )
+            client_kw["verify"] = False
     return session.client("s3", **client_kw)
 
 
@@ -311,27 +356,56 @@ class S3CorpusSink:
         )
 
 
+def _local_backup_sink_from_env() -> FileAppendCorpusSink | None:
+    """
+    Construit un sink fichier local si ``CORPUS_LOCAL_BACKUP_PATH`` est défini.
+
+    Permet d'ajouter un backup local automatique à n'importe quel sink principal
+    (y compris S3/R2). Les données sont écrites localement EN PREMIER (voir DualCorpusSink).
+    """
+    path = (os.environ.get("CORPUS_LOCAL_BACKUP_PATH") or "").strip()
+    if not path:
+        return None
+    return FileAppendCorpusSink(path)
+
+
 def build_sink_from_env() -> CorpusSink:
-    """Construit le sink selon CORPUS_SINK / variables associées."""
+    """
+    Construit le sink selon CORPUS_SINK / variables associées.
+
+    Si ``CORPUS_LOCAL_BACKUP_PATH`` est défini, un ``DualCorpusSink`` enveloppe le
+    sink principal avec un backup local automatique — garantit la survie des données
+    en cas de déconnexion réseau / perte de session Label Studio.
+    """
     mode = (os.environ.get("CORPUS_SINK") or "noop").strip().lower()
+    primary: CorpusSink
     if mode in ("", "noop", "none", "disabled"):
-        return NoopCorpusSink()
-    if mode == "file":
+        primary = NoopCorpusSink()
+    elif mode == "file":
         path = os.environ.get("CORPUS_FILE_PATH", "").strip()
         if not path:
             logger.warning("CORPUS_SINK=file mais CORPUS_FILE_PATH vide — noop")
-            return NoopCorpusSink()
-        return FileAppendCorpusSink(path)
-    if mode == "s3":
+            primary = NoopCorpusSink()
+        else:
+            primary = FileAppendCorpusSink(path)
+    elif mode == "s3":
         bucket = os.environ.get("S3_BUCKET", "").strip()
         if not bucket:
             logger.warning("CORPUS_SINK=s3 mais S3_BUCKET vide — noop")
-            return NoopCorpusSink()
-        endpoint = os.environ.get("S3_ENDPOINT", "").strip() or None
-        prefix = os.environ.get("S3_CORPUS_PREFIX", "m12-v2").strip() or "m12-v2"
-        return S3CorpusSink(bucket, endpoint_url=endpoint, prefix=prefix)
-    logger.warning("CORPUS_SINK inconnu %r — noop", mode)
-    return NoopCorpusSink()
+            primary = NoopCorpusSink()
+        else:
+            endpoint = os.environ.get("S3_ENDPOINT", "").strip() or None
+            prefix = os.environ.get("S3_CORPUS_PREFIX", "m12-v2").strip() or "m12-v2"
+            primary = S3CorpusSink(bucket, endpoint_url=endpoint, prefix=prefix)
+    else:
+        logger.warning("CORPUS_SINK inconnu %r — noop", mode)
+        primary = NoopCorpusSink()
+
+    shadow = _local_backup_sink_from_env()
+    if shadow is not None:
+        logger.info("[CORPUS] DualSink activé — backup local : %s", shadow._path)
+        return DualCorpusSink(primary=primary, shadow=shadow)
+    return primary
 
 
 def object_key_for_line(line: dict[str, Any], prefix: str = "m12-v2") -> str:

@@ -1,0 +1,52 @@
+================================================================================
+  DECISION MEMORY — NOUVEAU PC (OneDrive ou cle USB)
+================================================================================
+
+(Ce fichier est sous docs/dev/ pour respecter la gate CI INV-03 — memes infos.)
+
+Vous amenez TOUT le dossier du projet : code, data, .env (OneDrive sync OK).
+
+1) AVANT DE CHANGER DE PC
+   - Laisser OneDrive finir la synchro (plus de fichiers en attente).
+   - Fermer Cursor. Optionnel : docker compose down dans le dossier du projet.
+   - Optionnel : dans PowerShell a la racine du repo :
+        .\scripts\verify_migration_bundle.ps1
+
+2) SUR LE NOUVEAU PC — INSTALLER (une fois)
+   - Python 3.11.x : https://www.python.org/downloads/  (cocher "Add Python to PATH")
+   - Git : https://git-scm.com/download/win
+   - Docker Desktop : https://www.docker.com/products/docker-desktop/
+   Redemarrer le terminal PowerShell apres installation.
+
+3) OUVRIR LE DOSSIER DU PROJET (ex. ...\OneDrive\...\decision-memory-v1)
+
+4) STOP si .env manque a la racine — recopiez-le depuis sauvegarde / OneDrive.
+
+5) STOP si data\annotations manque alors que vous avez besoin des exports M12 locaux.
+
+6) OBLIGATOIRE : supprimer l ancien environnement Python copie
+      Remove-Item -Recurse -Force .venv -ErrorAction SilentlyContinue
+   (Si .venv n existe pas, ce n est pas grave.)
+
+7) Ouvrir Docker Desktop et attendre que le moteur soit pret. STOP si vous lancez
+   premier_demarrage.bat avant (echecs docker compose).
+
+8) PREMIER LANCEMENT
+   Double-cliquez sur :   premier_demarrage.bat   (a la racine du repo)
+   Note Windows : PREMIER_DEMARRAGE.bat designe le meme fichier (casse ignoree).
+
+9) VERIFICATIONS — STOP si un script echoue
+      .\scripts\verify_laptop_setup.ps1
+      .\scripts\verify_migration_bundle.ps1
+   Optionnel : branche attendue -> avant verify_laptop_setup :
+      $env:DMS_EXPECT_GIT_BRANCH = "votre/branche"
+
+10) Optionnel : pytest -q apres activation du venv.
+
+11) Git : git status ; git fetch origin ; git pull
+
+12) GUIDE COMPLET (ordre des etapes, depannage, R2, garde-fous)
+       docs\dev\LAPTOP_MIGRATION.md
+    Section : "Procedure complete — nouveau PC (OneDrive ou dossier copie)"
+
+================================================================================

@@ -44,7 +44,7 @@ def main() -> None:
     from ls_client import fetch_annotations
 
     parser = argparse.ArgumentParser(
-        description="Export Label Studio → DMS JSONL (m12-v2 ou legacy)"
+        description="Export Label Studio -> DMS JSONL (m12-v2 ou legacy)"
     )
     parser.add_argument("--project-id", type=int, default=None)
     parser.add_argument("--output", type=str, default="m12_export.jsonl")
@@ -73,7 +73,7 @@ def main() -> None:
         "--m15-gate",
         action="store_true",
         help=(
-            "DATA-M15 : exit≠0 si une ligne annotated_validated a export_ok=false "
+            "DATA-M15 : exit!=0 si une ligne annotated_validated a export_ok=false "
             "(scripts/m15_export_gate.py)"
         ),
     )
@@ -147,7 +147,7 @@ def main() -> None:
         for line in lines:
             f.write(json.dumps(line, ensure_ascii=False) + "\n")
 
-    print(f"Exporté {len(lines)} lignes → {out}")
+    print(f"Exporté {len(lines)} lignes -> {out}")
 
 
 if __name__ == "__main__":

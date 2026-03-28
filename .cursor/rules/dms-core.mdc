@@ -27,6 +27,15 @@ Fichier hors liste → STOP + signaler CTO.
 alembic/versions/ : JAMAIS sans mandat dédié.
 Jamais autogenerate (RÈGLE-12).
 
+## Avant commit — Black & Ruff (obligatoire si `.py` touché)
+Avant **tout** `git commit` qui inclut au moins un `.py` sous **`src/`**, **`tests/`** ou **`services/`** :
+
+1. Exécuter **dans le repo** (aligné `.github/workflows/ci-main.yml` + `ci-milestones-gates.yml`) :
+   - `ruff check src tests services`
+   - `black --check src tests services`
+2. **Si une commande échoue** : corriger (ex. `black src tests services` ; `ruff check src tests services` et `ruff check --fix …` seulement dans le périmètre du mandat), **re-lancer** les deux commandes jusqu’à succès — **ne pas committer** avec Black ou Ruff en échec.
+3. Commit **100 % hors** ces dossiers Python (ex. uniquement `docs/**`, `.cursor/rules`, `scripts/**` seul) : pas d’obligation ; dès qu’un `.py` sous `src/`, `tests/` ou `services/` est dans le commit, appliquer §1–2. Si le mandat modifie **`scripts/**/*.py`** : lancer aussi `ruff check` / `black --check` sur les fichiers concernés (même si hors périmètre CI par défaut).
+
 ## Git
 1 branche par mandat — jamais main.
 **Format des commits :** `docs/CONTRIBUTING.md` — convention **`<type>(<milestone>): <description>`** (ADR-0003 §3.2). Ne pas utiliser un autre format sans ADR / validation CTO.

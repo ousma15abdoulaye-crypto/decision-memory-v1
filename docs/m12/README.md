@@ -8,6 +8,7 @@
 | [M12_INFRA_SMOKE.md](M12_INFRA_SMOKE.md) | A — infra LS + backend + smoke |
 | [M12_AO_WORKFLOW.md](M12_AO_WORKFLOW.md) | B — 15 docs, import, BP-12 |
 | [M12_EXPORT.md](M12_EXPORT.md) | C — JSONL ground truth |
+| [M12_PIPELINE_INDUSTRIAL.md](M12_PIPELINE_INDUSTRIAL.md) | **Pipeline industrialise** — anti-perte LS, nouveau projet, backups |
 | [M12_CORPUS_R2_RAILWAY.md](M12_CORPUS_R2_RAILWAY.md) | Clés R2 + variables Railway (corpus webhook) |
 | [Contrats annotation](../contracts/annotation/README.md) | Pass 0 / 0.5 / 1 + FSM + migration |
 

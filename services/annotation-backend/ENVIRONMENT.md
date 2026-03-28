@@ -29,6 +29,40 @@ Si le root reste `services/annotation-backend` seul, l’erreur `"/src": not fou
 | `MIN_LLM_CONTEXT_CHARS` | Seuil minimum pour appeler Mistral |
 | `MIN_PREDICT_TEXT_CHARS` | Seuil côté `/predict` avant refus « texte trop court » |
 
+### Backup local automatique (enterprise anti-perte)
+
+| Variable | Description |
+| --- | --- |
+| `CORPUS_LOCAL_BACKUP_PATH` | Si défini, active un **`DualCorpusSink`** : le backup local est écrit **en premier** avant S3/R2. Valeur : chemin JSONL absolu ou relatif (ex. `/data/backup/ls_backup.jsonl`). **Recommandé sur Railway** : pointer vers un volume persistant. Si aucun volume : pointer vers un chemin `/tmp` (données perdues au restart mais protège pendant la session). |
+
+> **Pourquoi ?** En cas de déconnexion LS, ou si le webhook S3 échoue, les annotations ne sont pas perdues. 2 semaines de corpus inexploitable = `CORPUS_LOCAL_BACKUP_PATH` non défini.
+
+### Script de sauvegarde locale active (polling)
+
+`scripts/ls_local_autosave.py` — à lancer en tâche de fond sur la machine locale.
+
+```powershell
+# Sauvegarde one-shot
+python scripts/ls_local_autosave.py --project-id 2 --output data/annotations/ls_autosave.jsonl
+
+# Daemon — sauvegarde toutes les 5 minutes
+python scripts/ls_local_autosave.py --project-id 2 --output data/annotations/ls_autosave.jsonl --loop --interval 300
+```
+
+Variables requises : `LABEL_STUDIO_URL`, `LABEL_STUDIO_API_KEY`, `PSEUDONYM_SALT`, `ALLOW_WEAK_PSEUDONYMIZATION=1`.
+
+### Débogage « tout ABSENT » / `AMBIG-PARSE_FAILED`
+
+Si les prédictions ressemblent au squelette vide avec `ambiguites: ["AMBIG-PARSE_FAILED"]` et `_meta.routing_source: llm_fallback_unresolved`, le JSON renvoyé par Mistral **n’a pas été parsé** (ou l’appel API a échoué) — ce n’est en général **pas** le modèle qui a « tout rempli à ABSENT ».
+
+| Variable | Description |
+| --- | --- |
+| `MISTRAL_PARSE_RETRY` | `1` / `true` (défaut) : en cas d’échec de parse, **un second** appel `chat.complete` identique est tenté. `0` / `false` / `no` / `off` : désactiver. |
+| `MISTRAL_PARSE_FAILURE_LOG_PREVIEW` | `1` / `true` / `yes` / `on` : en échec de parse, loguer un extrait du début de la réponse brute (**attention PII** — activer seulement pour diagnostiquer). |
+| `MISTRAL_PARSE_FAILURE_PREVIEW_CHARS` | Longueur max de l’extrait (défaut 280, plafonné côté code). |
+
+Les logs Railway cherchent `[PARSE] Fallback` (hash + longueur) ou `[MISTRAL] Erreur appel API`.
+
 ## Review financier (ARCH-04)
 
 | Variable | Description |
