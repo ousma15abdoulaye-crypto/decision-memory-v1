@@ -14,7 +14,8 @@ Solution :
 Usage one-shot :
   python scripts/ls_local_autosave.py --project-id 2 --output data/annotations/ls_autosave.jsonl
 
-  Copie miroir 100 % Label Studio (JSON API brut, sans conversion M12) :
+  Copie miroir 100 % Label Studio (JSON API brut, sans conversion M12), en PLUS du JSONL d'autosave
+  (toujours écrit vers ``--output`` ou sa valeur par défaut, sauf avec ``--verify-only``) :
   python scripts/ls_local_autosave.py --project-id 2 --write-raw-ls-json
 
   Uniquement le travail terminé (revue qualité sans tout le backlog) :
