@@ -80,7 +80,7 @@ Exemples de règles “opposables” :
 - ADRs : `docs/adrs/ADR-0001.md`
 
 ### Références techniques
-- Migration vers un autre PC (copie disque, `.env`, Docker) : `docs/dev/LAPTOP_MIGRATION.md`
+- **Nouveau PC (OneDrive, clé USB)** : lire `LISEZMOI_NOUVEAU_PC.txt`, puis `PREMIER_DEMARRAGE.bat` ; procédure détaillée et toutes les commandes : `docs/dev/LAPTOP_MIGRATION.md` (section procédure complète)
 - Architecture : `docs/ARCHITECTURE.md`
 - Schéma DB : `docs/DATABASE_SCHEMA.md`
 - API : `docs/API_REFERENCE.md`

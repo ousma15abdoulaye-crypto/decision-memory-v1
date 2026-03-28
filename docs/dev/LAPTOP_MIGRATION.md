@@ -6,6 +6,145 @@ Guide pour passer d’un PC à un autre (ex. copie sur disque externe) **sans pe
 
 ---
 
+## Procédure complète — nouveau PC (OneDrive ou dossier copié)
+
+Objectif : le successeur ouvre ce fichier, exécute les commandes **dans l’ordre**, sans improviser. Le code, `data/`, `.env` arrivent via **OneDrive** (ou clé USB) : la même arborescence doit être **100 % synchronisée** avant de travailler sur le nouveau PC.
+
+### A. Avant de basculer sur le nouveau PC (ancien PC ou OneDrive)
+
+1. Fermer Cursor, arrêter Docker utile au projet :  
+   `docker compose down` (depuis la racine du repo, si tu utilisais Docker).
+2. Laisser **OneDrive terminer la synchronisation** (icône sans fichier en attente). Éviter d’éditer le repo sur les deux PC en même temps le jour J.
+3. Sur l’ancien PC, optionnel mais utile : à la racine du repo, lancer  
+   `.\scripts\verify_migration_bundle.ps1`  
+   et noter ce qui manque (`.env`, exports JSONL, `.r2_export_env`, etc.).
+
+### B. Sur le nouveau PC — prérequis logiciels (une fois)
+
+Installer dans cet ordre (liens officiels) :
+
+1. **Python 3.11.x** — https://www.python.org/downloads/ — cocher **Add python.exe to PATH**.
+2. **Git** — https://git-scm.com/download/win
+3. **Docker Desktop** — https://www.docker.com/products/docker-desktop/ — redémarrage Windows si demandé ; au premier lancement, accepter l’intégration WSL2 si proposée.
+
+Fermer et rouvrir le terminal PowerShell après installation pour que le `PATH` soit à jour.
+
+### C. Où est le dossier du projet ?
+
+Exemples : `C:\Users\<toi>\OneDrive\...\decision-memory-v1` ou `C:\dev\decision-memory-v1`.  
+Toutes les commandes ci-dessous supposent que tu **remplaces** le chemin par le tien.
+
+Ouvrir **PowerShell** (pas besoin d’admin pour cette procédure), puis :
+
+```powershell
+cd C:\chemin\vers\decision-memory-v1
+```
+
+Vérifier que les fichiers sensibles ont bien voyagé avec OneDrive :
+
+```powershell
+Test-Path .env
+Test-Path .env.local
+Test-Path data\annotations\m12_corpus_from_ls.jsonl
+```
+
+Si `.env` est absent, la copie OneDrive est incomplète ou le fichier était hors du dossier synchronisé : le recoller depuis une sauvegarde.
+
+### D. Supprimer l’ancien `.venv` si le dossier a été synchronisé avec l’ancien PC
+
+Le dossier `.venv` contient des binaires liés à la machine source. **Ne pas** réutiliser un `.venv` copié tel quel : erreurs bizarres possibles.
+
+```powershell
+cd C:\chemin\vers\decision-memory-v1
+Remove-Item -Recurse -Force .venv -ErrorAction SilentlyContinue
+```
+
+Si `.venv` n’existe pas, cette commande ne fait rien (c’est normal).
+
+### E. Premier lancement automatisé (recommandé)
+
+À la racine du repo, **double-cliquer** sur :
+
+`PREMIER_DEMARRAGE.bat`
+
+Ou en ligne de commande :
+
+```powershell
+cd C:\chemin\vers\decision-memory-v1
+.\PREMIER_DEMARRAGE.bat
+```
+
+Ce batch appelle `scripts\premier_demarrage.ps1`, qui enchaîne : création `.venv`, `pip install` des deux `requirements.txt`, `docker compose up -d postgres` si Docker est là, puis `alembic upgrade head`.
+
+Si une étape échoue, lire le message ; corriger (Docker démarré ? `.env` avec un `DATABASE_URL` local cohérent ? port 5432 libre ?) puis relancer le `.bat`.
+
+### F. Équivalent manuel (si tu ne veux pas du `.bat`)
+
+Même résultat que le script, à la main :
+
+```powershell
+cd C:\chemin\vers\decision-memory-v1
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+pip install -r services\annotation-backend\requirements.txt
+docker compose up -d postgres
+Start-Sleep -Seconds 8
+.\.venv\Scripts\alembic.exe upgrade head
+```
+
+### G. Vérifications après installation
+
+Toujours à la racine :
+
+```powershell
+cd C:\chemin\vers\decision-memory-v1
+.\scripts\verify_laptop_setup.ps1
+.\scripts\verify_migration_bundle.ps1
+```
+
+Tests optionnels mais conseillés :
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+pytest -q
+```
+
+### H. Git sur le nouveau PC (branche courante)
+
+Si le dossier vient de OneDrive **avec** l’historique `.git` :
+
+```powershell
+cd C:\chemin\vers\decision-memory-v1
+git status
+git fetch origin
+git pull
+```
+
+Si le dossier **n’a pas** `.git` (copie fichier seule), cloner à côté puis fusionner les `data/` et `.env` à la main, ou recloner puis recopier `.env` et `data/` depuis OneDrive.
+
+### I. Corpus M12 et export R2 (après coup)
+
+Si `data\annotations\m12_corpus_from_ls.jsonl` est présent :
+
+```powershell
+.\.venv\Scripts\python.exe scripts\inventory_m12_corpus_jsonl.py data\annotations\m12_corpus_from_ls.jsonl
+```
+
+Réalignement avec Cloudflare R2 (nécessite `S3_*` dans `.env.local` ou `data\annotations\.r2_export_env`, pas seulement Label Studio) :
+
+```powershell
+.\.venv\Scripts\python.exe scripts\export_r2_corpus_to_jsonl.py -o data\annotations\m12_corpus_realigned.jsonl --project-id 1 --backfill-from-jsonl data\annotations\m12_corpus_from_ls.jsonl
+```
+
+### J. Rappels OneDrive
+
+- Marquer le dossier du projet comme **Toujours garder sur cet appareil** sur le nouveau PC si tu travailles hors ligne.
+- Ne pas committer de secrets : `.env`, `.r2_export_env`, `.ls_export_env`, `MISTRAL_KEY.txt` restent hors Git ; OneDrive les transporte, pas `git clone` seul.
+
+---
+
 ## Faut-il copier tout le repo sur un disque ?
 
 **Oui, si** tu veux éviter de re-télécharger des données et de reconfigurer à la main :

@@ -1,29 +1,44 @@
 ================================================================================
-  DECISION MEMORY — NOUVEAU PC (tres simple)
+  DECISION MEMORY — NOUVEAU PC (OneDrive ou cle USB)
 ================================================================================
 
-1) SUR L'ANCIEN PC
-   Copiez TOUT le dossier "decision-memory-v1" sur votre cle USB ou disque
-   (dossier entier, comme il est — ne vous occupez pas de Git).
+Vous amenez TOUT le dossier du projet : code, data, .env (OneDrive sync OK).
 
-2) SUR LE NOUVEAU PC
-   - Collez le dossier ou vous voulez (ex. C:\dev\decision-memory-v1).
-   - Installez Python 3.11 : https://www.python.org/downloads/
-     (cochez "Add Python to PATH" a l'installation.)
-   - Installez Docker Desktop : https://www.docker.com/products/docker-desktop/
-     (pour la base PostgreSQL locale — optionnel si vous avez deja Postgres.)
+1) AVANT DE CHANGER DE PC
+   - Laisser OneDrive finir la synchro (plus de fichiers en attente).
+   - Fermer Cursor. Optionnel : docker compose down dans le dossier du projet.
 
-3) PREMIER LANCEMENT (une fois)
-   Ouvrez le dossier decision-memory-v1 et DOUBLE-CLIQUEZ sur :
-      PREMIER_DEMARRAGE.bat
-   Le script installe l'environnement Python et tente de demarrer la base.
+2) SUR LE NOUVEAU PC — INSTALLER (une fois)
+   - Python 3.11 : https://www.python.org/downloads/  (cocher "Add Python to PATH")
+   - Git : https://git-scm.com/download/win
+   - Docker Desktop : https://www.docker.com/products/docker-desktop/
+   Redemarrer le terminal PowerShell apres installation.
 
-4) SI UN MESSAGE D'ERREUR PARLE DE ".env"
-   Le fichier .env doit etre dans ce meme dossier (il vient de la copie).
-   S'il manque, recopiez-le depuis l'ancien PC.
+3) OUVRIR LE DOSSIER DU PROJET (ex. ...\OneDrive\...\decision-memory-v1)
 
-5) ENSUITE
-   Ouvrez Cursor dans ce dossier et travaillez normalement.
-   Guide detaille : docs\dev\LAPTOP_MIGRATION.md
+4) OBLIGATOIRE : supprimer l ancien environnement Python copie
+   Ouvrez PowerShell dans ce dossier et lancez :
+
+      Remove-Item -Recurse -Force .venv -ErrorAction SilentlyContinue
+
+   (Si .venv n existe pas, ce n est pas grave.)
+
+5) PREMIER LANCEMENT
+   Double-cliquez sur :   PREMIER_DEMARRAGE.bat
+   Attendez la fin (pip + Docker postgres + migrations).
+
+6) VERIFICATIONS
+   Dans PowerShell, toujours a la racine du projet :
+
+      .\scripts\verify_laptop_setup.ps1
+      .\scripts\verify_migration_bundle.ps1
+
+7) SI .env MANQUE
+   Le fichier .env doit etre dans la racine du projet (copie OneDrive).
+   Sans lui, la base ne se connecte pas.
+
+8) GUIDE COMPLET (commandes dans l ordre, depannage, R2, corpus M12)
+      docs\dev\LAPTOP_MIGRATION.md
+   Section : "Procedure complete — nouveau PC (OneDrive ou dossier copie)"
 
 ================================================================================
