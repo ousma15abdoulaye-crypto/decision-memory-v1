@@ -335,8 +335,8 @@ def ls_annotation_to_m12_v2_line(
             export_errors.append("validated_but_export_errors")
         if fin_warnings:
             export_errors.append(f"validated_but_financial:{fin_warnings[0][:80]}")
-        if ev_violations:
-            export_errors.append(f"validated_but_evidence:{ev_violations[0][:80]}")
+        # evidence_substring_violations : ne bloque plus export_ok (signal optionnel,
+        # uniquement renseigné dans evidence_violations sur la ligne — évite faux négatifs OCR / formulation).
 
     export_ok = not export_errors
 

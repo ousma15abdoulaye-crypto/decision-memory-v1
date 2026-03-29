@@ -13,6 +13,8 @@ Scripts :
 
 Réf. : [ADR-M12-EXPORT-V2](../adr/ADR-M12-EXPORT-V2.md)
 
+**Doctrine opérationnelle (agents & annotateurs)** — JSON LS, gates, confiances, evidence, ADR-013 : [`DOCTRINE_ANNOTATION_QUASI_INFAILLIBLE.md`](./DOCTRINE_ANNOTATION_QUASI_INFAILLIBLE.md).
+
 ## Dépôt temps réel (webhook)
 
 Le backend [`services/annotation-backend/backend.py`](../../services/annotation-backend/backend.py) expose `POST /webhook`. Lorsque `CORPUS_WEBHOOK_ENABLED` est activé et que `LABEL_STUDIO_URL` / `LABEL_STUDIO_API_KEY` sont définis, chaque événement autorisé (voir `CORPUS_WEBHOOK_ACTIONS`) déclenche en arrière-plan la construction d’une **ligne m12-v2** (même logique que le script ci-dessous) et une écriture vers le sink configuré (`CORPUS_SINK`, S3 recommandé en prod). Le payload webhook est souvent incomplet : le service **re-fetch** la tâche via l’API LS si besoin. Optionnel : `WEBHOOK_CORPUS_SECRET` + header `X-Webhook-Secret`. Variables : [`services/annotation-backend/ENVIRONMENT.md`](../../services/annotation-backend/ENVIRONMENT.md).
@@ -35,7 +37,7 @@ $env:LABEL_STUDIO_API_KEY="<token>"
 python scripts/export_ls_to_dms_jsonl.py --project-id 1 --output data/annotations/m12_batch_001.jsonl
 ```
 
-Si les annotations sont **validées dans LS** mais l’export remonte `validated_but_evidence` (preuve non retrouvable dans le texte source / OCR), le JSON DMS peut quand même être valide : pour un corpus intermédiaire (calibration, inventaire), ajouter **`--no-enforce-validated-qa`** évite de mettre `export_ok=false` uniquement à cause de ce contrôle spot — le schéma Pydantic reste appliqué.
+Le contrôle **« preuve retrouvable dans le texte source »** ne met plus **`export_ok=false`** sur la ligne d’export : les écarts éventuels restent dans le champ optionnel **`evidence_violations`** sur la ligne JSONL. **`--no-enforce-validated-qa`** désactive encore les autres garde-fous « validated » (ex. **cohérence financière** `validated_but_financial:*`) tout en gardant la validation **Pydantic** du schéma. Pour un audit manuel des preuves, voir **`scripts/validate_annotation.py`** et **`--require-evidence-substring`**.
 
 ## Export hors API (fichier JSON Label Studio)
 
