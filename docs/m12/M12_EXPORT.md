@@ -25,6 +25,8 @@ L’export **batch** par script reste utile pour rejouer l’historique, audits 
 - `LABEL_STUDIO_API_KEY` — token API LS
 - Projet aligné sur [`services/annotation-backend/label_studio_config.xml`](../../services/annotation-backend/label_studio_config.xml) (`extracted_json`, `document_text`)
 
+**Secrets en local (sans les coller dans le chat ni les committer)** : placez ces variables dans **`.env.local`** à la racine du dépôt (gitignoré ; modèles `.env.local.example` / `.env.example`). Les scripts `export_ls_to_dms_jsonl.py`, `ls_local_autosave.py`, `backfill_corpus_from_label_studio.py` chargent **`.env`** puis **`.env.local`** au démarrage. Le script PowerShell [`scripts/run_m12_corpus_resync.ps1`](../../scripts/run_m12_corpus_resync.ps1) importe les mêmes fichiers avant d’appeler Python. Repli optionnel non versionné : `data/annotations/.ls_export_env` (voir l’en-tête du script).
+
 ## Commande type (format m12-v2, défaut)
 
 ```powershell
@@ -32,6 +34,8 @@ $env:LABEL_STUDIO_URL="https://<votre-instance>.up.railway.app"
 $env:LABEL_STUDIO_API_KEY="<token>"
 python scripts/export_ls_to_dms_jsonl.py --project-id 1 --output data/annotations/m12_batch_001.jsonl
 ```
+
+Si les annotations sont **validées dans LS** mais l’export remonte `validated_but_evidence` (preuve non retrouvable dans le texte source / OCR), le JSON DMS peut quand même être valide : pour un corpus intermédiaire (calibration, inventaire), ajouter **`--no-enforce-validated-qa`** évite de mettre `export_ok=false` uniquement à cause de ce contrôle spot — le schéma Pydantic reste appliqué.
 
 ## Export hors API (fichier JSON Label Studio)
 

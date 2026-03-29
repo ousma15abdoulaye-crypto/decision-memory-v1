@@ -47,6 +47,7 @@ import sys
 from pathlib import Path
 
 from botocore.exceptions import ClientError
+from dotenv import load_dotenv
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _SCRIPT_DIR.parent
@@ -66,13 +67,18 @@ def _default_r2_export_jsonl_path() -> Path:
     Priorité : ``M12_R2_EXPORT_JSONL``, puis ``R2_EXPORT_JSONL``, sinon
     ``data/annotations/m12_corpus_authoritative.jsonl`` sous la racine du dépôt.
     """
-    env = (os.environ.get("M12_R2_EXPORT_JSONL") or os.environ.get("R2_EXPORT_JSONL") or "").strip()
+    env = (
+        os.environ.get("M12_R2_EXPORT_JSONL") or os.environ.get("R2_EXPORT_JSONL") or ""
+    ).strip()
     if env:
         return Path(env)
     return _PROJECT_ROOT / "data" / "annotations" / "m12_corpus_authoritative.jsonl"
 
 
 def main() -> int:
+    load_dotenv(_PROJECT_ROOT / ".env")
+    load_dotenv(_PROJECT_ROOT / ".env.local")
+
     parser = argparse.ArgumentParser(
         description="Export corpus m12-v2 depuis R2/S3 → un fichier JSONL (une ligne JSON par objet)"
     )

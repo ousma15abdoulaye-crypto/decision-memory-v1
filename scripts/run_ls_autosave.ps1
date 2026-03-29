@@ -3,6 +3,15 @@
 .SYNOPSIS
   Lance ls_local_autosave.py sans se tromper de guillemets PowerShell.
 
+.EXECUTION POLICY
+  Si PowerShell affiche « l'exécution de scripts est désactivée » (PSSecurityException) :
+    Option A — sans changer la politique système :
+      .\scripts\run_ls_autosave.cmd -ProjectId 1
+    Option B — une fois pour votre utilisateur :
+      Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+  Smoke export + inventaire + verdict (sans .ps1 du tout) :
+      scripts\export_ls_smoke.cmd 2
+
 .DESCRIPTION
   Définir AVANT dans la MÊME fenêtre PowerShell (une ligne = une variable, SANS copier ce bloc avec >>) :
 

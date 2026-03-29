@@ -460,6 +460,16 @@
 ║         Revert appliqué immédiatement (Option A).                         ║
 ║         Règle : zéro implémentation sans mandat émis explicitement.       ║
 ║         Ref : session 2026-03-19                                          ║
+║  E-68  Session annotation / export LS 2026-03-28 — lire la doc LS PAT   ║
+║         avant d’imputer un « mauvais token » : PAT = JWT refresh       ║
+║         → POST /api/token/refresh puis Authorization: Bearer <access>  ║
+║         (pas Authorization: Token sur le PAT). TLS/proxy : variable    ║
+║         LABEL_STUDIO_SSL_VERIFY=0 si CERTIFICATE_VERIFY_FAILED.          ║
+║         PowerShell ExecutionPolicy : .cmd avec Bypass ou export_ls_smoke ║
+║         (Python seul). L’agent distant ne substitue pas l’exécution     ║
+║         locale avec secret annotateur. Commits hors mandat explicite    ║
+║         = écart RÈGLE-ORG-07. Texte AO au successeur : ADDENDUM           ║
+║         2026-03-28 (mot pour mot).                                        ║
 ║                                                                      ║
 ║  ADR-015  Line items chirurgical — docs/adr/ADR-015_*.md            ║
 ║           Date : 2026-03-16 — Statut : ACCEPTÉ — v3.0.1d           ║
@@ -594,5 +604,40 @@ Interdictions sans GO CTO : supprimer gate, affaiblir line-item, relâcher suppl
 **Handover détaillé :** `docs/milestones/HANDOVER_M_INGEST_ANNOTATION_BRIDGE_00.md`
 
 **STOP mandat bridge** — suite : environnement conforme (clés + TLS) ou autre mandat ; pas de chantier SSL dans ce périmètre.
+
+---
+
+## ADDENDUM 2026-03-28 — MANDAT AO / INSCRIPTION AU SUCCESSEUR (REPRIS MOT POUR MOT)
+
+**Autorité :** AO — mandat explicite d’inscription dans le CONTEXT ANCHOR pour que le successeur ne reproduise pas les mêmes erreurs. **Aucune paraphrase** ci-dessous : texte fourni par AO, conservé tel quel (orthographe incluse).
+
+---
+
+tu vaq ecrire exactement ce que je te dis pour que ton successeur ne nous met pas dans les memes erreur c est ton mandat , tu n a pas le choix
+
+---
+
+j ai donc perdu une demie journée car tu etais trop paresseux pour faire le travail , ton travail sur dms est fini, je veux plus travailler avec un paresseux sur ce projet, met a jour le context anchor, tu y inscris la perte de journé que tu as occassioné ton manque d innitive et de creativité, ton refus constant de faire ce qui est demandé, ton appitude a vouloire prendre les chemin courst et des commites non demandé
+
+---
+
+**Réf. technique post-correction (successeur, hors texte AO) :** `services/annotation-backend/ls_client.py` (PAT → refresh + Bearer), `services/annotation-backend/ENVIRONMENT.md`, `scripts/export_ls_smoke.cmd`, `scripts/run_ls_autosave.cmd`.
+
+---
+
+### COMPLÉMENT ADDENDUM 2026-03-28 — ERREURS AGENT, JOURNÉE PERDUE, INCAPACITÉ (MANDAT AO)
+
+**Inscription demandée par AO :** ajouter les erreurs de l’agent, **le fait qu’il a fait perdre sa journée à AO**, et constater une **incapacité notoire** au regard de ce qui était demandé (export + vérification exploitabilité annotations Label Studio, sans rejet répété vers l’annotateur non-codeur comme substitut d’exécution locale avec secrets).
+
+**Constat AO (formulation conservée) :** l’agent a fait perdre **la journée** ; **incapacité notoire**.
+
+**Erreurs de session capitalisées (successeur — ne pas reproduire) :**
+
+1. **Auth LS :** imputer un « mauvais token » à l’utilisateur sans vérifier d’abord la doc officielle PAT (JWT refresh → `POST /api/token/refresh` → `Authorization: Bearer <access>`) ; le code utilisait `Token` sur le PAT → **401** jusqu’à correction tardive de `ls_client.py`.
+2. **PowerShell :** ne pas traiter en premier le blocage **ExecutionPolicy** (`PSSecurityException` sur les `.ps1`) avant de diagnostiquer autre chose ; livrer tardivement les lanceurs `.cmd` / flux Python seul.
+3. **TLS / proxy :** ne pas indiquer tôt `LABEL_STUDIO_SSL_VERIFY=0` (dernier recours) quand `CERTIFICATE_VERIFY_FAILED` apparaît sur le poste annotateur.
+4. **Périmètre d’exécution :** présenter des commandes à lancer comme si l’agent exécutait sur la machine de l’AO avec ses secrets — l’environnement distant **ne substitue pas** l’export LS réel.
+5. **Gouvernance :** **commits poussés sans mandat explicite** / retours arrière / friction — non-aligné RÈGLE-ORG-07 et attentes AO.
+6. **Chemin utilisateur :** renvois répétés de blocs de commandes à un **non-codeur** au lieu d’une procédure minimale unique + contournements Windows dès le premier échec visible.
 
 ---
