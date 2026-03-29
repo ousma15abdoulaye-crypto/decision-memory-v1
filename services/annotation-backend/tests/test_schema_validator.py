@@ -821,3 +821,51 @@ def test_arch03_subtotals_sum_mismatch_vs_total_price_anomaly():
     ]
     v = DMSAnnotation.model_validate(d)
     assert any("ANOMALY_subtotals_sum_" in a for a in v.ambiguites)
+
+
+def test_arch03_mixed_subtotals_and_details_ok_when_details_match_total():
+    """Sous-totaux non disjoints du total doc, mais sum(détail)==total_price → pas d'anomalie."""
+    d = _minimal_valid()
+    total = 1000.0
+    d["couche_4_atomic"]["financier"]["total_price"] = _fv(total)
+    d["couche_4_atomic"]["financier"]["line_items"] = [
+        {
+            "item_line_no": 1,
+            "item_description_raw": "L1",
+            "unit_raw": "u",
+            "quantity": 1.0,
+            "unit_price": 400.0,
+            "line_total": 400.0,
+            "line_total_check": "OK",
+            "level": "detail",
+            "confidence": 1.0,
+            "evidence": "p.1",
+        },
+        {
+            "item_line_no": 2,
+            "item_description_raw": "L2",
+            "unit_raw": "u",
+            "quantity": 1.0,
+            "unit_price": 600.0,
+            "line_total": 600.0,
+            "line_total_check": "OK",
+            "level": "detail",
+            "confidence": 1.0,
+            "evidence": "p.1",
+        },
+        {
+            "item_line_no": 3,
+            "item_description_raw": "Récap section (≠ total général)",
+            "unit_raw": "forfait",
+            "quantity": 1.0,
+            "unit_price": 900.0,
+            "line_total": 900.0,
+            "line_total_check": "OK",
+            "level": "subtotal",
+            "confidence": 1.0,
+            "evidence": "p.1",
+        },
+    ]
+    v = DMSAnnotation.model_validate(d)
+    assert not any("ANOMALY_subtotals_sum_" in a for a in v.ambiguites)
+    assert not any("ANOMALY_details_sum_" in a for a in v.ambiguites)
