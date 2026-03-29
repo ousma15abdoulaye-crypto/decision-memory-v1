@@ -545,12 +545,16 @@ def _coerce_ponderation_coherence_to_str(json_output: dict[str, Any]) -> None:
             else:
                 c2["ponderation_coherence"] = str(val)
         else:
-            # Dict sans clé "value" : on garde le fallback historique.
-            c2["ponderation_coherence"] = str(raw)
+            # Dict sans clé "value" : sérialiser proprement avec limite de taille.
+            c2["ponderation_coherence"] = json.dumps(raw, ensure_ascii=False)[:500]
     elif raw is None:
         c2["ponderation_coherence"] = "ABSENT"
     elif not isinstance(raw, str):
-        c2["ponderation_coherence"] = str(raw)
+        # list ou autre type non-scalaire : sérialiser proprement avec limite de taille.
+        if isinstance(raw, (list, dict)):
+            c2["ponderation_coherence"] = json.dumps(raw, ensure_ascii=False)[:500]
+        else:
+            c2["ponderation_coherence"] = str(raw)
 
 
 # Bloc financier — champs au format FieldValue (Mistral renvoie parfois un nombre seul pour total_price, etc.)

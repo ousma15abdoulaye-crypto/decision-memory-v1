@@ -6,6 +6,7 @@ Vérifie : extra=forbid, gates ordre, line_total_check recalculé, confidence 0.
 from __future__ import annotations
 
 import copy
+import json
 
 import pytest
 
@@ -236,6 +237,21 @@ def test_normalize_ponderation_coherence_incomplete_dict_to_str():
     norm = normalize_annotation_output(copy.deepcopy(d))
     assert norm["couche_2_core"]["ponderation_coherence"] == "OK"
     DMSAnnotation.model_validate(norm)
+
+
+def test_normalize_ponderation_coherence_dict_no_value_key_to_json_str():
+    """Dict sans clé 'value' doit être sérialisé en JSON (pas en repr Python)."""
+    d = _minimal_valid()
+    d["couche_2_core"]["ponderation_coherence"] = {"unknown_key": "some data"}
+    norm = normalize_annotation_output(copy.deepcopy(d))
+    result = norm["couche_2_core"]["ponderation_coherence"]
+    assert isinstance(result, str)
+    # La valeur doit être du JSON valide (pas repr Python)
+    parsed = json.loads(result)
+    assert parsed == {"unknown_key": "some data"}
+    DMSAnnotation.model_validate(norm)
+
+
 def test_normalize_financier_total_price_scalar_to_fieldvalue():
     """Mistral renvoie parfois total_price comme nombre brut au lieu d'un FieldValue."""
     d = _minimal_valid()
