@@ -207,6 +207,19 @@ def test_normalize_strip_couche_2_core_llm_extra_keys():
     DMSAnnotation.model_validate(norm)
 
 
+def test_normalize_ponderation_coherence_fieldvalue_to_str():
+    """Schéma : ponderation_coherence est str ; Mistral/LS envoie souvent un FieldValue."""
+    d = _minimal_valid()
+    d["couche_2_core"]["ponderation_coherence"] = {
+        "value": "OK",
+        "confidence": 1.0,
+        "evidence": "p.3 — critères",
+    }
+    norm = normalize_annotation_output(copy.deepcopy(d))
+    assert norm["couche_2_core"]["ponderation_coherence"] == "OK"
+    DMSAnnotation.model_validate(norm)
+
+
 def test_normalize_financier_total_price_scalar_to_fieldvalue():
     """Mistral renvoie parfois total_price comme nombre brut au lieu d'un FieldValue."""
     d = _minimal_valid()

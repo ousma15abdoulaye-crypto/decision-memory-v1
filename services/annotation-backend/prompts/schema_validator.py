@@ -527,6 +527,26 @@ def _strip_couche_2_core_extras(json_output: dict[str, Any]) -> None:
         )
 
 
+def _coerce_ponderation_coherence_to_str(json_output: dict[str, Any]) -> None:
+    """Couche2Core.ponderation_coherence est un str schéma ; le LLM renvoie souvent un FieldValue."""
+    c2 = json_output.get("couche_2_core")
+    if not isinstance(c2, dict):
+        return
+    raw = c2.get("ponderation_coherence")
+    if isinstance(raw, dict) and _looks_like_field_value(raw):
+        val = raw.get("value")
+        if val in (None, ""):
+            c2["ponderation_coherence"] = "ABSENT"
+        elif isinstance(val, str):
+            c2["ponderation_coherence"] = val
+        else:
+            c2["ponderation_coherence"] = str(val)
+    elif raw is None:
+        c2["ponderation_coherence"] = "ABSENT"
+    elif not isinstance(raw, str):
+        c2["ponderation_coherence"] = str(raw)
+
+
 # Bloc financier — champs au format FieldValue (Mistral renvoie parfois un nombre seul pour total_price, etc.)
 _FINANCIER_FIELDVALUE_KEYS = frozenset(
     {
@@ -630,6 +650,7 @@ def normalize_annotation_output(json_output: dict[str, Any]) -> dict[str, Any]:
     _coerce_financier_field_values(json_output)
     _coerce_identifiants_scope_lists(json_output)
     _normalize_extraction_fields_recursive(json_output)
+    _coerce_ponderation_coherence_to_str(json_output)
 
     c4 = json_output.get("couche_4_atomic")
     if isinstance(c4, dict):
