@@ -220,6 +220,22 @@ def test_normalize_ponderation_coherence_fieldvalue_to_str():
     DMSAnnotation.model_validate(norm)
 
 
+def test_normalize_ponderation_coherence_none_to_absent():
+    """None pour ponderation_coherence doit être normalisé en 'ABSENT'."""
+    d = _minimal_valid()
+    d["couche_2_core"]["ponderation_coherence"] = None
+    norm = normalize_annotation_output(copy.deepcopy(d))
+    assert norm["couche_2_core"]["ponderation_coherence"] == "ABSENT"
+    DMSAnnotation.model_validate(norm)
+
+
+def test_normalize_ponderation_coherence_incomplete_dict_to_str():
+    """Dict incomplet avec seulement 'value' doit être aplati en str."""
+    d = _minimal_valid()
+    d["couche_2_core"]["ponderation_coherence"] = {"value": "OK"}
+    norm = normalize_annotation_output(copy.deepcopy(d))
+    assert norm["couche_2_core"]["ponderation_coherence"] == "OK"
+    DMSAnnotation.model_validate(norm)
 def test_normalize_financier_total_price_scalar_to_fieldvalue():
     """Mistral renvoie parfois total_price comme nombre brut au lieu d'un FieldValue."""
     d = _minimal_valid()
