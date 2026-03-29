@@ -101,7 +101,7 @@ Pour tout champ « extrait » au format objet :
 ## 11. Ce que les agents **ne** doivent **pas** faire
 
 1. **Ne pas** proposer de modifier **`schema_validator.py`** ou le gel **`DMS_V4.1.0_FREEZE.md`** sans **mandat CTO** explicite.
-2. **Ne pas** suggérer **`to_name": "text"`** dans la config LS — la valeur canonique est **`document_text`** (E-66).
+2. **Ne pas** suggérer **`"to_name": "text"`** dans la config LS — la valeur canonique est **`document_text`** (E-66).
 3. **Ne pas** introduire de **`confidence`** hors **{0.6, 0.8, 1.0}**.
 4. **Ne pas** stocker de **secrets** (tokens, mots de passe) dans le JSON d’annotation ou dans des fichiers versionnés — utiliser **`.env.local`** (gitignoré).
 
