@@ -407,6 +407,29 @@ def test_item_line_no_int_and_string_normalized():
     assert all(isinstance(r["item_line_no"], int) for r in result)
 
 
+def test_resequence_preserves_total_level_and_coerces_foreign_line_total_check():
+    """LS : line_total_check hors enum → NON_VERIFIABLE ; level=total conservé (schéma)."""
+    items = [
+        {
+            "item_line_no": 1,
+            "item_description_raw": "L",
+            "level": "detail",
+            "line_total_check": "SUBTOTAL_INTERMEDIATE",
+        },
+        {
+            "item_line_no": 2,
+            "item_description_raw": "Grand total",
+            "level": "total",
+            "line_total_check": "TOTAL_DOCUMENT_OK",
+        },
+    ]
+    result = resequence_line_items(items)
+    assert result[0]["level"] == "detail"
+    assert result[0]["line_total_check"] == "NON_VERIFIABLE"
+    assert result[1]["level"] == "total"
+    assert result[1]["line_total_check"] == "NON_VERIFIABLE"
+
+
 def test_boolean_string_normalized():
     """'true'/'false' strings → True/False natifs."""
     assert normalize_boolean("true", "has_rib") is True

@@ -143,6 +143,7 @@ def financial_coherence_warnings(annotation: dict, task_id: int = 0) -> list[str
             return "detail"
         return str(raw).strip().lower()
 
+    # level=total : ligne « grand total » document — exclue des sommes (évite double comptage).
     sum_details = sum(
         float(li.get("line_total", 0) or 0)
         for li in dict_items
