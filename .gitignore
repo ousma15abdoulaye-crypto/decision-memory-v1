@@ -84,6 +84,12 @@ data/annotations/**/m12_corpus*.jsonl
 # Manifeste local des lignes (peut contenir task_id / métadonnées)
 data/annotations/m12_authoritative*_manifest.tsv
 data/annotations/m12_corpus_authoritative_manifest.tsv
+# Tout inventaire / manifeste TSV sous annotations (ex. m12_corpus_from_ls_manifest.tsv)
+data/annotations/**/*manifest*.tsv
+# Espace de travail local (env d’export, splits, copies — ne pas versionner)
+data/annotations/annotations/
+# Corpus réglementaire / PDF / extractions — travail local uniquement
+data/regulatory/
 # Sauvegardes M12 (script m12_corpus_backup.ps1)
 data/annotations/backups/
 # Fichiers autosave locaux (ls_local_autosave.py + DualCorpusSink backup)
