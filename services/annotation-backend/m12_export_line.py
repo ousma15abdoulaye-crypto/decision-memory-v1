@@ -17,6 +17,107 @@ CONF_MAP = {1: 0.60, 2: 0.80, 3: 1.00}
 _ABSENT = "ABSENT"
 _NOT_APPLICABLE = "NOT_APPLICABLE"
 
+_ALLOWED_GATE_CONFIDENCE = frozenset({0.6, 0.8, 1.0})
+
+
+def _unwrap_ls_extracted_json_text(raw: str) -> str:
+    """
+    Retire les balises Markdown ```json souvent collées depuis le LLM (copier-coller dans LS).
+
+    Aligné sur la logique d'extraction JSON dans ``backend.py`` : sans cela,
+    ``json.loads`` échoue sur ``Expecting value: line 1 column 1`` alors que le
+    JSON est valide après la balise.
+    """
+    s = (raw or "").strip()
+    if not s:
+        return s
+    for mk in ("```json\n", "```json", "```\n", "```"):
+        idx = s.find(mk)
+        if idx != -1:
+            frag = s[idx + len(mk) :]
+            ei = frag.find("```")
+            tail = (frag[:ei] if ei != -1 else frag).strip()
+            if tail:
+                return tail
+            break
+    return s
+
+
+def _normalize_couche_5_gates_for_export(annotation: dict[str, Any]) -> None:
+    """
+    Même règles que ``backend._normalize_gates`` avant validation Pydantic.
+
+    Les annotateurs peuvent laisser ``gate_value=null`` avec ``gate_state=APPLICABLE`` ;
+    le schéma exige un bool — on applique ``coerce_gate_value_for_applicable`` (défaut false).
+    """
+    from prompts.schema_validator import (
+        coerce_gate_threshold_value,
+        coerce_gate_value_for_applicable,
+    )
+
+    gates = annotation.get("couche_5_gates", [])
+    if not isinstance(gates, list):
+        return
+    for gate in gates:
+        if not isinstance(gate, dict):
+            continue
+        # Le schéma Gate n'admet que APPLICABLE | NOT_APPLICABLE (pas ABSENT / AMBIGUOUS).
+        gs_raw = gate.get("gate_state")
+        if gs_raw in ("ABSENT", _ABSENT, "AMBIGUOUS"):
+            gate["gate_state"] = "NOT_APPLICABLE"
+        gate_state = gate.get("gate_state", "")
+        confidence = gate.get("confidence", 0.0)
+        if gate_state == "NOT_APPLICABLE":
+            if confidence != 1.0:
+                gate["confidence"] = 1.0
+            if gate.get("gate_value") is not None:
+                gate["gate_value"] = None
+        elif gate_state == "APPLICABLE":
+            if confidence not in _ALLOWED_GATE_CONFIDENCE:
+                gate["confidence"] = 0.6
+            gate["gate_value"] = coerce_gate_value_for_applicable(
+                gate.get("gate_value")
+            )
+        if "gate_threshold_value" not in gate:
+            gate["gate_threshold_value"] = None
+        else:
+            gate["gate_threshold_value"] = coerce_gate_threshold_value(
+                gate.get("gate_threshold_value")
+            )
+
+
+def _snap_fieldvalue_confidences_recursive(obj: Any) -> None:
+    """Ramène toute confiance FieldValue vers {0.6, 0.8, 1.0} (ex. 0.9 → 0.8)."""
+    from prompts.schema_validator import _snap_fieldvalue_confidence
+
+    if isinstance(obj, dict):
+        if (
+            "value" in obj
+            and "confidence" in obj
+            and "evidence" in obj
+            and isinstance(obj.get("confidence"), (int, float))
+        ):
+            obj["confidence"] = _snap_fieldvalue_confidence(obj.get("confidence"))
+        for v in obj.values():
+            _snap_fieldvalue_confidences_recursive(v)
+    elif isinstance(obj, list):
+        for el in obj:
+            _snap_fieldvalue_confidences_recursive(el)
+
+
+def _coerce_ident_meta_null_strings_for_export(annotation: dict[str, Any]) -> None:
+    """JSON null sur champs ``str`` obligatoires → NOT_APPLICABLE (schéma DMS)."""
+    ident = annotation.get("identifiants")
+    if isinstance(ident, dict):
+        for key in ("case_id", "supplier_id"):
+            if ident.get(key) is None:
+                ident[key] = _NOT_APPLICABLE
+    meta = annotation.get("_meta")
+    if isinstance(meta, dict):
+        for key in ("parent_document_id", "parent_document_role"):
+            if meta.get(key) is None:
+                meta[key] = _NOT_APPLICABLE
+
 
 def _normalize_identifiants_for_ls_reimport(annotation: dict) -> None:
     """
@@ -149,6 +250,8 @@ def ls_annotation_to_m12_v2_line(
     - _normalize_identifiants_for_ls_reimport : ajoute supplier_phone_raw /
       supplier_email_raw absents du textarea LS (ADR-013) → évite schema_validation
       systématique sur toutes les annotations annotated_validated.
+    - _unwrap_ls_extracted_json_text : balises ```json (copier-coller LLM).
+    - normalize_annotation_output + gates + confidences : alignement chemin predict backend.
     """
     from annotation_qa import (
         evidence_substring_violations,
@@ -156,7 +259,7 @@ def ls_annotation_to_m12_v2_line(
     )
     from pydantic import ValidationError
 
-    from prompts.schema_validator import DMSAnnotation
+    from prompts.schema_validator import DMSAnnotation, normalize_annotation_output
 
     results = ann.get("result", [])
     task_id = task.get("id")
@@ -186,12 +289,21 @@ def ls_annotation_to_m12_v2_line(
         export_errors.append("missing_extracted_json")
     else:
         raw_json_text = str(raw_json).strip()
+        to_parse = _unwrap_ls_extracted_json_text(raw_json_text)
         try:
-            parsed = json.loads(raw_json_text)
+            parsed = json.loads(to_parse)
         except json.JSONDecodeError as e:
             export_errors.append(f"json_parse_error:{e}")
             parsed = None
         if parsed is not None:
+            if not isinstance(parsed, dict):
+                export_errors.append("json_root_not_object")
+                parsed = None
+        if parsed is not None:
+            normalize_annotation_output(parsed)
+            _normalize_couche_5_gates_for_export(parsed)
+            _snap_fieldvalue_confidences_recursive(parsed)
+            _coerce_ident_meta_null_strings_for_export(parsed)
             # Normalisation ADR-013 : supplier_phone_raw/email_raw supprimés du textarea LS
             _normalize_identifiants_for_ls_reimport(parsed)
             try:

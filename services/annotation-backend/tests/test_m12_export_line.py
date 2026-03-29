@@ -194,6 +194,37 @@ class TestLsAnnotationToM12V2Line:
         assert line["dms_annotation"] is not None
         assert line["raw_json_text"] is not None
 
+    def test_markdown_json_fence_wrapped_extracted_json_parses(self) -> None:
+        """Copier-coller LLM avec préfixe ```json (sans fermeture) — cas corpus réel."""
+        from m12_export_line import ls_annotation_to_m12_v2_line
+
+        payload = _minimal_ls_textarea_json()
+        inner = json.dumps(payload, ensure_ascii=False)
+        wrapped = "```json " + inner
+        ann = {
+            "id": 7,
+            "result": [
+                {
+                    "from_name": "extracted_json",
+                    "to_name": "document_text",
+                    "type": "textarea",
+                    "value": {"text": [wrapped]},
+                },
+                {
+                    "from_name": "annotation_status",
+                    "to_name": "annotation_status_choice",
+                    "type": "choices",
+                    "value": {"choices": ["review_required"]},
+                },
+            ],
+        }
+        task = _build_task()
+        line = ls_annotation_to_m12_v2_line(ann, task, project_id=1)
+        assert line["raw_json_text"] == wrapped
+        assert line["dms_annotation"] is not None
+        assert line["export_ok"] is True
+        assert not any("json_parse_error" in e for e in line["export_errors"])
+
     def test_raw_json_text_stored_even_on_schema_error(self) -> None:
         """Si schema échoue, raw_json_text doit quand même être disponible."""
         from m12_export_line import ls_annotation_to_m12_v2_line

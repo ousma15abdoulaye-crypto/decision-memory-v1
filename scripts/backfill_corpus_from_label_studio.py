@@ -26,6 +26,7 @@ Usage :
   # Sans appel API : fichier export JSON Label Studio
   python scripts/backfill_corpus_from_label_studio.py --from-export-json export.json --project-id 1 --dry-run
 """
+
 from __future__ import annotations
 
 import argparse
@@ -33,6 +34,8 @@ import json
 import os
 import sys
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _SCRIPT_DIR.parent
@@ -46,6 +49,9 @@ def _ensure_annotation_path() -> None:
 
 
 def main() -> None:
+    load_dotenv(_PROJECT_ROOT / ".env")
+    load_dotenv(_PROJECT_ROOT / ".env.local")
+
     parser = argparse.ArgumentParser(
         description="Backfill corpus m12-v2 depuis Label Studio (annotations historiques)"
     )
@@ -84,13 +90,13 @@ def main() -> None:
     else:
         from ls_client import fetch_annotations
 
-        ls_url = (
-            os.environ.get("LABEL_STUDIO_URL", "").strip().rstrip("/")
-            or os.environ.get("LS_URL", "").strip().rstrip("/")
+        ls_url = os.environ.get("LABEL_STUDIO_URL", "").strip().rstrip(
+            "/"
+        ) or os.environ.get("LS_URL", "").strip().rstrip("/")
+        ls_key = (
+            os.environ.get("LABEL_STUDIO_API_KEY", "").strip()
+            or os.environ.get("LS_API_KEY", "").strip()
         )
-        ls_key = os.environ.get("LABEL_STUDIO_API_KEY", "").strip() or os.environ.get(
-            "LS_API_KEY", ""
-        ).strip()
         if not ls_url or not ls_key:
             sys.exit(
                 "STOP — LABEL_STUDIO_URL + LABEL_STUDIO_API_KEY "

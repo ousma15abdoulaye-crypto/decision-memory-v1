@@ -29,6 +29,8 @@ import os
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 _SCRIPT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _SCRIPT_DIR.parent
 _ANNOTATION_BACKEND = _PROJECT_ROOT / "services" / "annotation-backend"
@@ -48,6 +50,9 @@ from m12_export_line import (  # noqa: E402
 
 
 def main() -> None:
+    load_dotenv(_PROJECT_ROOT / ".env")
+    load_dotenv(_PROJECT_ROOT / ".env.local")
+
     from ls_client import fetch_annotations
     from ls_export_filters import filter_export_tasks
 
@@ -106,11 +111,17 @@ def main() -> None:
             data = [data]
         project_id = args.project_id or 0
     else:
-        ls_url = os.environ.get("LABEL_STUDIO_URL", "").rstrip("/")
-        ls_key = os.environ.get("LABEL_STUDIO_API_KEY", "")
+        ls_url = os.environ.get("LABEL_STUDIO_URL", "").strip().rstrip(
+            "/"
+        ) or os.environ.get("LS_URL", "").strip().rstrip("/")
+        ls_key = (
+            os.environ.get("LABEL_STUDIO_API_KEY", "").strip()
+            or os.environ.get("LS_API_KEY", "").strip()
+        )
         if not ls_url or not ls_key:
             sys.exit(
-                "STOP — LABEL_STUDIO_URL et LABEL_STUDIO_API_KEY requis (ou --from-export-json)"
+                "STOP — LABEL_STUDIO_URL + LABEL_STUDIO_API_KEY "
+                "(ou LS_URL + LS_API_KEY) requis (ou --from-export-json)"
             )
         if args.project_id is None:
             sys.exit("STOP — --project-id requis pour l'export API")

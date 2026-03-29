@@ -49,6 +49,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
+from dotenv import load_dotenv
 from ls_export_filters import filter_export_tasks
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
@@ -58,6 +59,9 @@ _ANNOTATION_BACKEND = _PROJECT_ROOT / "services" / "annotation-backend"
 for _p in (str(_ANNOTATION_BACKEND), str(_PROJECT_ROOT)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
+
+load_dotenv(_PROJECT_ROOT / ".env")
+load_dotenv(_PROJECT_ROOT / ".env.local")
 
 logging.basicConfig(
     level=logging.INFO,

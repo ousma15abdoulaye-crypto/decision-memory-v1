@@ -189,7 +189,8 @@ def _fieldvalue_evidence_violation(
     val = fv.get("value")
     ev = fv.get("evidence")
 
-    if isinstance(val, list) and len(val) == 0:
+    # FieldValue.value peut être une liste (ex. choix multiples) — inutile / illégal dans VALUE_SKIP
+    if isinstance(val, list):
         return None
     if val in VALUE_SKIP:
         return None
