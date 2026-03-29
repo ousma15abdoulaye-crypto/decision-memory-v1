@@ -160,10 +160,10 @@ def test_m12_v2_export_fails_on_invalid_json(export_mod) -> None:
     assert any("json_parse" in e for e in line["export_errors"])
 
 
-def test_m12_v2_enforce_validated_blocks_bad_evidence(
+def test_m12_v2_bad_evidence_reported_without_blocking_export_ok(
     export_mod, golden_dms_json: str
 ) -> None:
-    """annotated_validated + texte sans preuves → export_ok false."""
+    """annotated_validated + texte sans preuves : export_ok si schéma OK ; violations en option."""
     item = _ls_item(
         golden_dms_json,
         text="totally unrelated text without markers",
@@ -175,8 +175,9 @@ def test_m12_v2_enforce_validated_blocks_bad_evidence(
         1,
         enforce_validated_qa=True,
     )
-    assert line["export_ok"] is False
-    assert any("validated_but_evidence" in e for e in line["export_errors"])
+    assert line["export_ok"] is True
+    assert not any("validated_but_evidence" in e for e in line["export_errors"])
+    assert line.get("evidence_violations")
 
 
 def test_require_ls_attestations_blocks_validated_without_choices(
