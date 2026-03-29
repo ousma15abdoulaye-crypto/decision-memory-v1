@@ -41,6 +41,7 @@ def test_should_run_financial_reconciliation_total_value_dict():
 # financial_coherence_warnings — logique OR ARCH-03
 # ---------------------------------------------------------------------------
 
+
 def _make_ann(total: float, line_items: list[dict]) -> dict:
     """Construit une annotation minimale valide pour financial_coherence_warnings."""
     return {
@@ -93,8 +94,8 @@ def test_financial_coherence_warnings_neither_matches_emits_anomaly():
         total=1000.0,
         line_items=[
             {"level": "detail", "line_total": 300.0},
-            {"level": "detail", "line_total": 400.0},   # sum_details=700
-            {"level": "subtotal", "line_total": 800.0}, # sum_subtotals=800
+            {"level": "detail", "line_total": 400.0},  # sum_details=700
+            {"level": "subtotal", "line_total": 800.0},  # sum_subtotals=800
         ],
     )
     result = financial_coherence_warnings(ann)
