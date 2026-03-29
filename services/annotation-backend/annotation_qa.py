@@ -143,33 +143,41 @@ def financial_coherence_warnings(annotation: dict, task_id: int = 0) -> list[str
             return "detail"
         return str(raw).strip().lower()
 
-    levels = {_line_item_level(li) for li in dict_items}
-    has_subtotal = "subtotal" in levels
+    sum_details = sum(
+        float(li.get("line_total", 0) or 0)
+        for li in dict_items
+        if _line_item_level(li) == "detail"
+    )
+    sum_subtotals = sum(
+        float(li.get("line_total", 0) or 0)
+        for li in dict_items
+        if _line_item_level(li) == "subtotal"
+    )
 
-    # ARCH-03 : récap (subtotal) + détail → ne pas sommer tout (double comptage)
-    if has_subtotal:
-        total_computed = sum(
-            float(li.get("line_total", 0) or 0)
-            for li in dict_items
-            if _line_item_level(li) == "subtotal"
-        )
-    else:
-        total_computed = sum(
-            float(li.get("line_total", 0) or 0)
-            for li in dict_items
-            if _line_item_level(li) not in ("subtotal", "total")
-        )
-
-    if total_computed == 0:
+    # Aucune masse monétaire exploitable sur les lignes typées detail/subtotal.
+    if sum_details <= 0 and sum_subtotals <= 0:
         return warnings
 
-    ecart = abs(total_declared - total_computed) / max(total_computed, 1)
-    if ecart > 0.01:
-        msg = (
-            f"ANOMALY_total_price_{int(total_declared)}"
-            f"_vs_sum_items_{int(total_computed)}"
-        )
-        warnings.append(msg)
+    # ARCH-03 : tableaux avec sous-totaux de section + lignes détail complètes.
+    # La somme de *tous* les subtotal peut sur-comptabiliser (rollups imbriqués /
+    # récapitulatifs non disjoints) alors que sum(detail) == total_price. Inversement,
+    # un tableau peut n'avoir que des lignes « subtotal » sans détail. On accepte
+    # total_price si l'un des deux agrégats réconcilie (tolérance 1 %).
+    candidates: list[float] = []
+    if sum_details > 0:
+        candidates.append(sum_details)
+    if sum_subtotals > 0:
+        candidates.append(sum_subtotals)
+
+    ecarts = [abs(total_declared - c) / max(c, 1) for c in candidates]
+    if min(ecarts) <= 0.01:
+        return warnings
+
+    msg = (
+        f"ANOMALY_total_price_{int(total_declared)}"
+        f"_vs_sum_details_{int(sum_details)}_sum_subtotals_{int(sum_subtotals)}"
+    )
+    warnings.append(msg)
     return warnings
 
 

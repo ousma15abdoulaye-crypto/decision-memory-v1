@@ -1034,18 +1034,22 @@ class DMSAnnotation(BaseModel):
         details = [i for i in items if i.level == LineItemLevel.DETAIL]
         tol = max(1.0, abs(total_val) * 0.01)
 
-        if subtotals:
-            sum_sub = sum(i.line_total for i in subtotals)
-            if abs(sum_sub - total_val) > tol:
+        sum_sub = sum(i.line_total for i in subtotals) if subtotals else 0.0
+        sum_det = sum(i.line_total for i in details) if details else 0.0
+
+        ok_sub = bool(subtotals) and abs(sum_sub - total_val) <= tol
+        ok_det = bool(details) and abs(sum_det - total_val) <= tol
+        reconciled = ok_sub or ok_det
+
+        if not reconciled:
+            if subtotals and abs(sum_sub - total_val) > tol:
                 code = (
                     f"ANOMALY_subtotals_sum_{_anomaly_money_token(sum_sub)}"
                     f"_vs_total_price_{_anomaly_money_token(total_val)}"
                 )
                 if code not in self.ambiguites:
                     self.ambiguites.append(code)
-        else:
-            sum_det = sum(i.line_total for i in details)
-            if abs(sum_det - total_val) > tol:
+            if details and abs(sum_det - total_val) > tol:
                 code = (
                     f"ANOMALY_details_sum_{_anomaly_money_token(sum_det)}"
                     f"_vs_total_price_{_anomaly_money_token(total_val)}"
