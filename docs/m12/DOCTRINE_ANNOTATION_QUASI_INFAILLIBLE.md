@@ -79,14 +79,24 @@ Pour tout champ « extrait » au format objet :
 
 ---
 
-## 9. Statut dans LS vs statut dans `_meta`
+## 9. Financier — `line_items`, `level` et sous-totaux imbriqués
+
+1. L’export applique une **QA financière** (`validated_but_financial:*`) lorsque le document est une **offre financière** : elle compare **`financier.total_price.value`** à une somme dérivée des lignes.
+2. **Si au moins une ligne a `"level": "subtotal"`**, la somme utilisée est **uniquement** la somme des **`line_total`** des lignes **`subtotal`** (les lignes **`detail`** ne sont pas additionnées — évite double comptage détail + récap).
+3. **Sous-totaux imbriqués (cas fréquent).** Quand le tableau a des **sous-totaux intermédiaires** déjà **inclus** dans un **sous-total parent** (ex. « S/total 3.a » + « S/total 3.b » **=** « S/total 3.c »), **ne pas** marquer **les intermédiaires** en **`"subtotal"`** : les passer en **`"level": "detail"`** (même si le PDF dit « S/total »). Ne garder en **`subtotal`** que les **récaps de plus haut niveau** qui, **additionnés**, égaleront le **total HT** déclaré (souvent 4 blocs : ex. phases 1, 2, 3.c, 4).
+4. **Si aucune ligne `subtotal`**, la somme porte sur les **`detail`** (hors `total`).
+5. **Réf.** logique : `financial_coherence_warnings` dans `services/annotation-backend/annotation_qa.py` (ARCH-03).
+
+---
+
+## 10. Statut dans LS vs statut dans `_meta`
 
 1. Le choix **`annotation_status`** dans Label Studio (ex. **`annotated_validated`**) est **indépendant** de **`_meta.annotation_status`** dans le JSON.
 2. **Doctrine.** Lorsque tu valides dans LS, le JSON peut encore contenir `"annotation_status": "pending"` dans `_meta` : ce n’est pas bloquant pour le schéma si les autres champs sont valides ; l’outil de synchro / export peut aligner plus tard. **Ne pas** se contredire sciemment entre LS et JSON sans raison documentée.
 
 ---
 
-## 10. Checklist immédiate avant « Soumettre / Valider » dans LS
+## 11. Checklist immédiate avant « Soumettre / Valider » dans LS
 
 - [ ] `extracted_json` : JSON pur, **`{` … `}`**, pas de **` ```json `**.
 - [ ] Aucune **`confidence`** hors **0.6 / 0.8 / 1.0**.
@@ -95,10 +105,11 @@ Pour tout champ « extrait » au format objet :
 - [ ] **`supplier_phone_raw` / `supplier_email_raw`** présents si blocs phone/email (§5).
 - [ ] **10 gates** présents, noms conformes au schéma.
 - [ ] **Evidences** : ancrées dans le texte source quand la QA stricte est requise (§7).
+- [ ] **Offre avec bordereau** : **`total_price`** = somme des seuls **`subtotal`** « maîtres » ; pas de double comptage de sous-totaux enfants (§9).
 
 ---
 
-## 11. Ce que les agents **ne** doivent **pas** faire
+## 12. Ce que les agents **ne** doivent **pas** faire
 
 1. **Ne pas** proposer de modifier **`schema_validator.py`** ou le gel **`DMS_V4.1.0_FREEZE.md`** sans **mandat CTO** explicite.
 2. **Ne pas** suggérer **`"to_name": "text"`** dans la config LS — la valeur canonique est **`document_text`** (E-66).
@@ -107,7 +118,7 @@ Pour tout champ « extrait » au format objet :
 
 ---
 
-## 12. Références rapides
+## 13. Références rapides
 
 | Sujet | Référence |
 |--------|-----------|
@@ -118,4 +129,4 @@ Pour tout champ « extrait » au format objet :
 
 ---
 
-**Version.** Rédigé pour être transmis tel quel aux agents (Cursor, humains, orchestrateurs). Dernière mise à jour : alignée sur les incidents réels corpus 12 lignes (fences Markdown, gates, nulls, confidences, QA evidence, ADR-013).
+**Version.** Rédigé pour être transmis tel quel aux agents (Cursor, humains, orchestrateurs). Dernière mise à jour : incidents corpus + **§9 sous-totaux imbriqués** / QA financière (`annotation_qa.py`).
