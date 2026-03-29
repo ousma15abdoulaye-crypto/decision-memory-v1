@@ -533,14 +533,20 @@ def _coerce_ponderation_coherence_to_str(json_output: dict[str, Any]) -> None:
     if not isinstance(c2, dict):
         return
     raw = c2.get("ponderation_coherence")
-    if isinstance(raw, dict) and _looks_like_field_value(raw):
-        val = raw.get("value")
-        if val in (None, ""):
-            c2["ponderation_coherence"] = "ABSENT"
-        elif isinstance(val, str):
-            c2["ponderation_coherence"] = val
+    if isinstance(raw, dict):
+        # Traiter également les dicts partiels qui contiennent au moins une clé "value",
+        # afin de ne pas convertir tout le dict en str et masquer l'intention du LLM.
+        if "value" in raw:
+            val = raw.get("value")
+            if val in (None, ""):
+                c2["ponderation_coherence"] = "ABSENT"
+            elif isinstance(val, str):
+                c2["ponderation_coherence"] = val
+            else:
+                c2["ponderation_coherence"] = str(val)
         else:
-            c2["ponderation_coherence"] = str(val)
+            # Dict sans clé "value" : on garde le fallback historique.
+            c2["ponderation_coherence"] = str(raw)
     elif raw is None:
         c2["ponderation_coherence"] = "ABSENT"
     elif not isinstance(raw, str):
