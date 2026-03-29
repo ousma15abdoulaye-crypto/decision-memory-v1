@@ -6,6 +6,7 @@ Vérifie : extra=forbid, gates ordre, line_total_check recalculé, confidence 0.
 from __future__ import annotations
 
 import copy
+import json
 
 import pytest
 
@@ -207,6 +208,50 @@ def test_normalize_strip_couche_2_core_llm_extra_keys():
     DMSAnnotation.model_validate(norm)
 
 
+def test_normalize_ponderation_coherence_fieldvalue_to_str():
+    """Schéma : ponderation_coherence est str ; Mistral/LS envoie souvent un FieldValue."""
+    d = _minimal_valid()
+    d["couche_2_core"]["ponderation_coherence"] = {
+        "value": "OK",
+        "confidence": 1.0,
+        "evidence": "p.3 — critères",
+    }
+    norm = normalize_annotation_output(copy.deepcopy(d))
+    assert norm["couche_2_core"]["ponderation_coherence"] == "OK"
+    DMSAnnotation.model_validate(norm)
+
+
+def test_normalize_ponderation_coherence_none_to_absent():
+    """None pour ponderation_coherence doit être normalisé en 'ABSENT'."""
+    d = _minimal_valid()
+    d["couche_2_core"]["ponderation_coherence"] = None
+    norm = normalize_annotation_output(copy.deepcopy(d))
+    assert norm["couche_2_core"]["ponderation_coherence"] == "ABSENT"
+    DMSAnnotation.model_validate(norm)
+
+
+def test_normalize_ponderation_coherence_incomplete_dict_to_str():
+    """Dict incomplet avec seulement 'value' doit être aplati en str."""
+    d = _minimal_valid()
+    d["couche_2_core"]["ponderation_coherence"] = {"value": "OK"}
+    norm = normalize_annotation_output(copy.deepcopy(d))
+    assert norm["couche_2_core"]["ponderation_coherence"] == "OK"
+    DMSAnnotation.model_validate(norm)
+
+
+def test_normalize_ponderation_coherence_dict_no_value_key_to_json_str():
+    """Dict sans clé 'value' doit être sérialisé en JSON (pas en repr Python)."""
+    d = _minimal_valid()
+    d["couche_2_core"]["ponderation_coherence"] = {"unknown_key": "some data"}
+    norm = normalize_annotation_output(copy.deepcopy(d))
+    result = norm["couche_2_core"]["ponderation_coherence"]
+    assert isinstance(result, str)
+    # La valeur doit être du JSON valide (pas repr Python)
+    parsed = json.loads(result)
+    assert parsed == {"unknown_key": "some data"}
+    DMSAnnotation.model_validate(norm)
+
+
 def test_normalize_financier_total_price_scalar_to_fieldvalue():
     """Mistral renvoie parfois total_price comme nombre brut au lieu d'un FieldValue."""
     d = _minimal_valid()
@@ -360,6 +405,29 @@ def test_item_line_no_int_and_string_normalized():
     result = resequence_line_items(items)
     assert [r["item_line_no"] for r in result] == [1, 2, 3, 4]
     assert all(isinstance(r["item_line_no"], int) for r in result)
+
+
+def test_resequence_preserves_total_level_and_coerces_foreign_line_total_check():
+    """LS : line_total_check hors enum → NON_VERIFIABLE ; level=total conservé (schéma)."""
+    items = [
+        {
+            "item_line_no": 1,
+            "item_description_raw": "L",
+            "level": "detail",
+            "line_total_check": "SUBTOTAL_INTERMEDIATE",
+        },
+        {
+            "item_line_no": 2,
+            "item_description_raw": "Grand total",
+            "level": "total",
+            "line_total_check": "TOTAL_DOCUMENT_OK",
+        },
+    ]
+    result = resequence_line_items(items)
+    assert result[0]["level"] == "detail"
+    assert result[0]["line_total_check"] == "NON_VERIFIABLE"
+    assert result[1]["level"] == "total"
+    assert result[1]["line_total_check"] == "NON_VERIFIABLE"
 
 
 def test_boolean_string_normalized():

@@ -419,6 +419,25 @@ def normalize_item_line_no_value(v: Any) -> int:
     return int(round(fv))
 
 
+_ALLOWED_LINE_CHECK_VALUES = frozenset(m.value for m in LineCheck)
+
+
+def _coerce_line_total_check_in_line_item(item: dict[str, Any]) -> None:
+    """LS / Mistral : libellés hors enum (ex. SUBTOTAL_INTERMEDIATE) → valeur schéma ; recalcul ensuite."""
+    raw = item.get("line_total_check")
+    if raw in _ALLOWED_LINE_CHECK_VALUES:
+        return
+    if isinstance(raw, LineCheck):
+        item["line_total_check"] = raw.value
+        return
+    if isinstance(raw, str):
+        s = raw.strip().upper()
+        if s in _ALLOWED_LINE_CHECK_VALUES:
+            item["line_total_check"] = s
+            return
+    item["line_total_check"] = LineCheck.NON_VERIFIABLE.value
+
+
 def resequence_line_items(line_items: list[Any]) -> list[dict[str, Any]]:
     """
     Réattribue item_line_no 1..n, supprime parent_subtotal_no (D2), défaut level (D3).
@@ -443,6 +462,7 @@ def resequence_line_items(line_items: list[Any]) -> list[dict[str, Any]]:
                 item["level"] = "detail"
         else:
             item["level"] = "detail"
+        _coerce_line_total_check_in_line_item(item)
     return out
 
 
@@ -525,6 +545,36 @@ def _strip_couche_2_core_extras(json_output: dict[str, Any]) -> None:
             "couche_2_core : clés parasites retirées avant validation stricte : %s",
             parasites,
         )
+
+
+def _coerce_ponderation_coherence_to_str(json_output: dict[str, Any]) -> None:
+    """Couche2Core.ponderation_coherence est un str schéma ; le LLM renvoie souvent un FieldValue."""
+    c2 = json_output.get("couche_2_core")
+    if not isinstance(c2, dict):
+        return
+    raw = c2.get("ponderation_coherence")
+    if isinstance(raw, dict):
+        # Traiter également les dicts partiels qui contiennent au moins une clé "value",
+        # afin de ne pas convertir tout le dict en str et masquer l'intention du LLM.
+        if "value" in raw:
+            val = raw.get("value")
+            if val in (None, ""):
+                c2["ponderation_coherence"] = "ABSENT"
+            elif isinstance(val, str):
+                c2["ponderation_coherence"] = val
+            else:
+                c2["ponderation_coherence"] = str(val)
+        else:
+            # Dict sans clé "value" : sérialiser proprement avec limite de taille.
+            c2["ponderation_coherence"] = json.dumps(raw, ensure_ascii=False)[:500]
+    elif raw is None:
+        c2["ponderation_coherence"] = "ABSENT"
+    elif not isinstance(raw, str):
+        # list ou autre type non-scalaire : sérialiser proprement avec limite de taille.
+        if isinstance(raw, (list, dict)):
+            c2["ponderation_coherence"] = json.dumps(raw, ensure_ascii=False)[:500]
+        else:
+            c2["ponderation_coherence"] = str(raw)
 
 
 # Bloc financier — champs au format FieldValue (Mistral renvoie parfois un nombre seul pour total_price, etc.)
@@ -630,6 +680,7 @@ def normalize_annotation_output(json_output: dict[str, Any]) -> dict[str, Any]:
     _coerce_financier_field_values(json_output)
     _coerce_identifiants_scope_lists(json_output)
     _normalize_extraction_fields_recursive(json_output)
+    _coerce_ponderation_coherence_to_str(json_output)
 
     c4 = json_output.get("couche_4_atomic")
     if isinstance(c4, dict):
@@ -672,16 +723,7 @@ class LineItem(BaseModel):
         if isinstance(v, LineItemLevel):
             return v.value
         s = str(v).strip().lower()
-        if s == "total":
-            # Ne pas re-mapper un « grand total » en sous-total : cela change la
-            # sémantique et peut provoquer du double comptage en aval.
-            # Ces lignes doivent être filtrées/supprimées en amont ou gérées
-            # via un niveau distinct explicite (p. ex. LineItemLevel.TOTAL).
-            raise ValueError(
-                "Niveau de ligne 'total' non supporté dans LineItem.level — "
-                "filtrer ou normaliser ces lignes avant validation."
-            )
-        if s in ("detail", "subtotal"):
+        if s in ("detail", "subtotal", "total"):
             return s
         return LineItemLevel.DETAIL.value
 
@@ -1004,7 +1046,7 @@ class DMSAnnotation(BaseModel):
         items = fin.line_items
 
         for item in items:
-            if item.level == LineItemLevel.SUBTOTAL:
+            if item.level in (LineItemLevel.SUBTOTAL, LineItemLevel.TOTAL):
                 item.line_total_check = LineCheck.SUBTOTAL_NOT_CHECKED_HERE
                 continue
             if item.quantity and item.unit_price:
