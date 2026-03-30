@@ -1,0 +1,796 @@
+{
+  "benchmark": "bootstrap_75",
+  "timestamp": "2026-03-30T19:37:56Z",
+  "corpus_size": 75,
+  "thresholds": {
+    "document_kind_parent_accuracy_n5": 0.8,
+    "evaluation_doc_non_offer_recall": 1.0,
+    "framework_detection_accuracy": 0.85
+  },
+  "threshold_results": {
+    "document_kind_parent_accuracy_n5": {
+      "target": 0.8,
+      "actual": 0.8209,
+      "pass": true
+    },
+    "evaluation_doc_non_offer_recall": {
+      "target": 1.0,
+      "actual": 1.0,
+      "pass": true
+    },
+    "framework_detection_accuracy": {
+      "target": 0.85,
+      "actual": 0.8649,
+      "pass": true
+    }
+  },
+  "metrics": {
+    "accuracy_global": 0.7733,
+    "accuracy_n5_types": 0.8209,
+    "macro_precision": 0.405,
+    "macro_recall": 0.3656,
+    "macro_f1": 0.3813,
+    "per_class": {
+      "contract": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 0
+      },
+      "dao": {
+        "precision": 0.8571,
+        "recall": 1.0,
+        "f1": 0.9231,
+        "support": 12
+      },
+      "evaluation_doc": {
+        "precision": 0.3333,
+        "recall": 0.3333,
+        "f1": 0.3333,
+        "support": 3
+      },
+      "itt": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      },
+      "offer_combined": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 1
+      },
+      "offer_financial": {
+        "precision": 0.9231,
+        "recall": 0.8,
+        "f1": 0.8571,
+        "support": 15
+      },
+      "offer_technical": {
+        "precision": 0.9286,
+        "recall": 0.8667,
+        "f1": 0.8966,
+        "support": 15
+      },
+      "po": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 0
+      },
+      "rfq": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 0
+      },
+      "supporting_doc": {
+        "precision": 0.8182,
+        "recall": 0.72,
+        "f1": 0.766,
+        "support": 25
+      },
+      "tdr": {
+        "precision": 1.0,
+        "recall": 0.6667,
+        "f1": 0.8,
+        "support": 3
+      },
+      "unknown": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 0
+      }
+    },
+    "types_n5": [
+      "dao",
+      "offer_financial",
+      "offer_technical",
+      "supporting_doc"
+    ],
+    "types_below_n5": [
+      "contract",
+      "evaluation_doc",
+      "itt",
+      "offer_combined",
+      "po",
+      "rfq",
+      "tdr",
+      "unknown"
+    ]
+  },
+  "confusion_matrix": {
+    "labels": [
+      "contract",
+      "dao",
+      "evaluation_doc",
+      "itt",
+      "offer_combined",
+      "offer_financial",
+      "offer_technical",
+      "po",
+      "rfq",
+      "supporting_doc",
+      "tdr",
+      "unknown"
+    ],
+    "matrix": {
+      "supporting_doc": {
+        "supporting_doc": 18,
+        "unknown": 3,
+        "contract": 1,
+        "evaluation_doc": 2,
+        "po": 1
+      },
+      "offer_financial": {
+        "supporting_doc": 1,
+        "offer_combined": 1,
+        "offer_financial": 12,
+        "offer_technical": 1
+      },
+      "evaluation_doc": {
+        "supporting_doc": 2,
+        "evaluation_doc": 1
+      },
+      "dao": {
+        "dao": 12
+      },
+      "offer_combined": {
+        "rfq": 1
+      },
+      "tdr": {
+        "tdr": 2,
+        "dao": 1
+      },
+      "itt": {
+        "dao": 1
+      },
+      "offer_technical": {
+        "offer_technical": 13,
+        "supporting_doc": 1,
+        "offer_financial": 1
+      }
+    }
+  },
+  "fatal_check_eval_doc": {
+    "total_evaluation_doc": 3,
+    "violations_as_offer": [],
+    "recall_non_offer": 1.0,
+    "fatal_pass": true
+  },
+  "framework_check": {
+    "framework_accuracy": 0.8649,
+    "total_assessable": 74,
+    "distribution": {
+      "sci": 52,
+      "mixed": 10,
+      "unknown": 10,
+      "world_bank": 2,
+      "bad": 1
+    }
+  },
+  "details": [
+    {
+      "index": 0,
+      "ground_truth": "supporting_doc",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R14_supporting_policy_body",
+      "match": "OK"
+    },
+    {
+      "index": 1,
+      "ground_truth": "offer_financial",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R16_supporting_certificate_body",
+      "match": "MISS"
+    },
+    {
+      "index": 2,
+      "ground_truth": "supporting_doc",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R14_supporting_policy_body",
+      "match": "OK"
+    },
+    {
+      "index": 3,
+      "ground_truth": "evaluation_doc",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R15_supporting_admin_body",
+      "match": "MISS"
+    },
+    {
+      "index": 4,
+      "ground_truth": "dao",
+      "predicted": "dao",
+      "confidence": 0.8,
+      "rule": "R07_dao_header",
+      "match": "OK"
+    },
+    {
+      "index": 5,
+      "ground_truth": "offer_combined",
+      "predicted": "rfq",
+      "confidence": 0.8,
+      "rule": "R09_rfq_header",
+      "match": "MISS"
+    },
+    {
+      "index": 6,
+      "ground_truth": "dao",
+      "predicted": "dao",
+      "confidence": 0.8,
+      "rule": "R07_dao_header",
+      "match": "OK"
+    },
+    {
+      "index": 7,
+      "ground_truth": "evaluation_doc",
+      "predicted": "evaluation_doc",
+      "confidence": 1.0,
+      "rule": "R04_evaluation_doc_header",
+      "match": "OK"
+    },
+    {
+      "index": 8,
+      "ground_truth": "tdr",
+      "predicted": "tdr",
+      "confidence": 1.0,
+      "rule": "R05_tdr_header",
+      "match": "OK"
+    },
+    {
+      "index": 9,
+      "ground_truth": "itt",
+      "predicted": "dao",
+      "confidence": 0.8,
+      "rule": "R07_dao_header",
+      "match": "MISS"
+    },
+    {
+      "index": 10,
+      "ground_truth": "offer_financial",
+      "predicted": "offer_combined",
+      "confidence": 1.0,
+      "rule": "R01_financial_title_header",
+      "match": "MISS"
+    },
+    {
+      "index": 11,
+      "ground_truth": "offer_technical",
+      "predicted": "offer_technical",
+      "confidence": 1.0,
+      "rule": "R03_technical_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 12,
+      "ground_truth": "dao",
+      "predicted": "dao",
+      "confidence": 0.8,
+      "rule": "R07_dao_header",
+      "match": "OK"
+    },
+    {
+      "index": 13,
+      "ground_truth": "offer_financial",
+      "predicted": "offer_financial",
+      "confidence": 1.0,
+      "rule": "R01_financial_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 14,
+      "ground_truth": "offer_technical",
+      "predicted": "offer_technical",
+      "confidence": 1.0,
+      "rule": "R03_technical_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 15,
+      "ground_truth": "offer_financial",
+      "predicted": "offer_financial",
+      "confidence": 1.0,
+      "rule": "R01_financial_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 16,
+      "ground_truth": "dao",
+      "predicted": "dao",
+      "confidence": 0.8,
+      "rule": "R07_dao_header",
+      "match": "OK"
+    },
+    {
+      "index": 17,
+      "ground_truth": "supporting_doc",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R15_supporting_admin_body",
+      "match": "OK"
+    },
+    {
+      "index": 18,
+      "ground_truth": "supporting_doc",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R14_supporting_policy_body",
+      "match": "OK"
+    },
+    {
+      "index": 19,
+      "ground_truth": "offer_financial",
+      "predicted": "offer_financial",
+      "confidence": 1.0,
+      "rule": "R01_financial_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 20,
+      "ground_truth": "offer_technical",
+      "predicted": "offer_technical",
+      "confidence": 1.0,
+      "rule": "R03_technical_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 21,
+      "ground_truth": "dao",
+      "predicted": "dao",
+      "confidence": 0.8,
+      "rule": "R07_dao_header",
+      "match": "OK"
+    },
+    {
+      "index": 22,
+      "ground_truth": "offer_financial",
+      "predicted": "offer_financial",
+      "confidence": 0.8,
+      "rule": "R17_financial_body_prix",
+      "match": "OK"
+    },
+    {
+      "index": 23,
+      "ground_truth": "supporting_doc",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R16_supporting_certificate_body",
+      "match": "OK"
+    },
+    {
+      "index": 24,
+      "ground_truth": "supporting_doc",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R16_supporting_certificate_body",
+      "match": "OK"
+    },
+    {
+      "index": 25,
+      "ground_truth": "dao",
+      "predicted": "dao",
+      "confidence": 0.8,
+      "rule": "R07_dao_header",
+      "match": "OK"
+    },
+    {
+      "index": 26,
+      "ground_truth": "dao",
+      "predicted": "dao",
+      "confidence": 0.8,
+      "rule": "R07_dao_header",
+      "match": "OK"
+    },
+    {
+      "index": 27,
+      "ground_truth": "supporting_doc",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R15_supporting_admin_body",
+      "match": "OK"
+    },
+    {
+      "index": 28,
+      "ground_truth": "offer_technical",
+      "predicted": "offer_technical",
+      "confidence": 1.0,
+      "rule": "R03_technical_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 29,
+      "ground_truth": "supporting_doc",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R18_supporting_cv_body",
+      "match": "OK"
+    },
+    {
+      "index": 30,
+      "ground_truth": "supporting_doc",
+      "predicted": "unknown",
+      "confidence": 0.6,
+      "rule": "fallback_unknown",
+      "match": "MISS"
+    },
+    {
+      "index": 31,
+      "ground_truth": "supporting_doc",
+      "predicted": "unknown",
+      "confidence": 0.6,
+      "rule": "fallback_unknown",
+      "match": "MISS"
+    },
+    {
+      "index": 32,
+      "ground_truth": "supporting_doc",
+      "predicted": "unknown",
+      "confidence": 0.6,
+      "rule": "fallback_unknown",
+      "match": "MISS"
+    },
+    {
+      "index": 33,
+      "ground_truth": "supporting_doc",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R18_supporting_cv_body",
+      "match": "OK"
+    },
+    {
+      "index": 34,
+      "ground_truth": "offer_financial",
+      "predicted": "offer_financial",
+      "confidence": 0.8,
+      "rule": "R17_financial_body_prix",
+      "match": "OK"
+    },
+    {
+      "index": 35,
+      "ground_truth": "offer_technical",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R18_supporting_cv_body",
+      "match": "MISS"
+    },
+    {
+      "index": 36,
+      "ground_truth": "supporting_doc",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R15_supporting_admin_body",
+      "match": "OK"
+    },
+    {
+      "index": 37,
+      "ground_truth": "offer_financial",
+      "predicted": "offer_financial",
+      "confidence": 1.0,
+      "rule": "R01_financial_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 38,
+      "ground_truth": "offer_financial",
+      "predicted": "offer_financial",
+      "confidence": 1.0,
+      "rule": "R01_financial_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 39,
+      "ground_truth": "offer_technical",
+      "predicted": "offer_technical",
+      "confidence": 1.0,
+      "rule": "R03_technical_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 40,
+      "ground_truth": "supporting_doc",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R18_supporting_cv_body",
+      "match": "OK"
+    },
+    {
+      "index": 41,
+      "ground_truth": "supporting_doc",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R18_supporting_cv_body",
+      "match": "OK"
+    },
+    {
+      "index": 42,
+      "ground_truth": "offer_technical",
+      "predicted": "offer_technical",
+      "confidence": 1.0,
+      "rule": "R03_technical_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 43,
+      "ground_truth": "offer_financial",
+      "predicted": "offer_financial",
+      "confidence": 1.0,
+      "rule": "R01_financial_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 44,
+      "ground_truth": "offer_technical",
+      "predicted": "offer_technical",
+      "confidence": 1.0,
+      "rule": "R03_technical_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 45,
+      "ground_truth": "supporting_doc",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R16_supporting_certificate_body",
+      "match": "OK"
+    },
+    {
+      "index": 46,
+      "ground_truth": "supporting_doc",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R16_supporting_certificate_body",
+      "match": "OK"
+    },
+    {
+      "index": 47,
+      "ground_truth": "supporting_doc",
+      "predicted": "contract",
+      "confidence": 0.8,
+      "rule": "R06_contract_header",
+      "match": "MISS"
+    },
+    {
+      "index": 48,
+      "ground_truth": "offer_financial",
+      "predicted": "offer_financial",
+      "confidence": 0.8,
+      "rule": "R17_financial_body_prix",
+      "match": "OK"
+    },
+    {
+      "index": 49,
+      "ground_truth": "offer_technical",
+      "predicted": "offer_technical",
+      "confidence": 1.0,
+      "rule": "R03_technical_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 50,
+      "ground_truth": "evaluation_doc",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R15_supporting_admin_body",
+      "match": "MISS"
+    },
+    {
+      "index": 51,
+      "ground_truth": "offer_financial",
+      "predicted": "offer_financial",
+      "confidence": 1.0,
+      "rule": "R01_financial_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 52,
+      "ground_truth": "offer_technical",
+      "predicted": "offer_technical",
+      "confidence": 1.0,
+      "rule": "R03_technical_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 53,
+      "ground_truth": "dao",
+      "predicted": "dao",
+      "confidence": 0.8,
+      "rule": "R07_dao_header",
+      "match": "OK"
+    },
+    {
+      "index": 54,
+      "ground_truth": "dao",
+      "predicted": "dao",
+      "confidence": 0.8,
+      "rule": "R07_dao_header",
+      "match": "OK"
+    },
+    {
+      "index": 55,
+      "ground_truth": "dao",
+      "predicted": "dao",
+      "confidence": 0.8,
+      "rule": "R07_dao_header",
+      "match": "OK"
+    },
+    {
+      "index": 56,
+      "ground_truth": "dao",
+      "predicted": "dao",
+      "confidence": 0.8,
+      "rule": "R07_dao_header",
+      "match": "OK"
+    },
+    {
+      "index": 57,
+      "ground_truth": "supporting_doc",
+      "predicted": "evaluation_doc",
+      "confidence": 1.0,
+      "rule": "R04_evaluation_doc_header",
+      "match": "MISS"
+    },
+    {
+      "index": 58,
+      "ground_truth": "supporting_doc",
+      "predicted": "evaluation_doc",
+      "confidence": 1.0,
+      "rule": "R04_evaluation_doc_header",
+      "match": "MISS"
+    },
+    {
+      "index": 59,
+      "ground_truth": "offer_technical",
+      "predicted": "offer_financial",
+      "confidence": 1.0,
+      "rule": "R01_financial_title_header",
+      "match": "MISS"
+    },
+    {
+      "index": 60,
+      "ground_truth": "offer_technical",
+      "predicted": "offer_technical",
+      "confidence": 1.0,
+      "rule": "R03_technical_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 61,
+      "ground_truth": "offer_financial",
+      "predicted": "offer_financial",
+      "confidence": 1.0,
+      "rule": "R01_financial_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 62,
+      "ground_truth": "offer_technical",
+      "predicted": "offer_technical",
+      "confidence": 1.0,
+      "rule": "R03_technical_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 63,
+      "ground_truth": "tdr",
+      "predicted": "tdr",
+      "confidence": 1.0,
+      "rule": "R05_tdr_header",
+      "match": "OK"
+    },
+    {
+      "index": 64,
+      "ground_truth": "supporting_doc",
+      "predicted": "po",
+      "confidence": 0.8,
+      "rule": "R10_po_header",
+      "match": "MISS"
+    },
+    {
+      "index": 65,
+      "ground_truth": "supporting_doc",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R19_supporting_digital_body",
+      "match": "OK"
+    },
+    {
+      "index": 66,
+      "ground_truth": "supporting_doc",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R14_supporting_policy_body",
+      "match": "OK"
+    },
+    {
+      "index": 67,
+      "ground_truth": "offer_financial",
+      "predicted": "offer_financial",
+      "confidence": 1.0,
+      "rule": "R01_financial_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 68,
+      "ground_truth": "offer_technical",
+      "predicted": "offer_technical",
+      "confidence": 1.0,
+      "rule": "R03_technical_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 69,
+      "ground_truth": "dao",
+      "predicted": "dao",
+      "confidence": 0.8,
+      "rule": "R07_dao_header",
+      "match": "OK"
+    },
+    {
+      "index": 70,
+      "ground_truth": "offer_financial",
+      "predicted": "offer_technical",
+      "confidence": 1.0,
+      "rule": "R03_technical_title_header",
+      "match": "MISS"
+    },
+    {
+      "index": 71,
+      "ground_truth": "offer_technical",
+      "predicted": "offer_technical",
+      "confidence": 1.0,
+      "rule": "R03_technical_title_header",
+      "match": "OK"
+    },
+    {
+      "index": 72,
+      "ground_truth": "supporting_doc",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R18_supporting_cv_body",
+      "match": "OK"
+    },
+    {
+      "index": 73,
+      "ground_truth": "supporting_doc",
+      "predicted": "supporting_doc",
+      "confidence": 0.8,
+      "rule": "R18_supporting_cv_body",
+      "match": "OK"
+    },
+    {
+      "index": 74,
+      "ground_truth": "tdr",
+      "predicted": "dao",
+      "confidence": 0.8,
+      "rule": "R07_dao_header",
+      "match": "MISS"
+    }
+  ]
+}

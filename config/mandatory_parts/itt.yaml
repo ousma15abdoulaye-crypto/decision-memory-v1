@@ -1,0 +1,79 @@
+# M12 V6 — Mandatory parts: ITT (Invitation to Tender / Appel d'offres)
+document_kind: itt
+description: "Invitation to Tender / Appel d'offres"
+
+mandatory_parts:
+  instructions:
+    level_1:
+      patterns:
+        - "instructions"
+        - "instructions aux soumissionnaires"
+        - "instructions to bidders"
+        - "ITB"
+        - "APPEL D'OFFRES POUR"
+    level_2:
+      keywords: ["le soumissionnaire doit", "bidders shall"]
+      min_hits: 1
+      window: 5
+    threshold: 0.75
+
+  specifications_exigences:
+    level_1:
+      patterns:
+        - "spécifications"
+        - "exigences techniques"
+        - "technical specifications"
+        - "cahier des charges"
+    level_2:
+      keywords: ["conforme à", "norme", "standard"]
+      min_hits: 1
+      window: 5
+    threshold: 0.75
+
+  regles_soumission:
+    level_1:
+      patterns:
+        - "règles de soumission"
+        - "submission rules"
+        - "conditions de soumission"
+        - "date limite"
+        - "deadline"
+    level_2:
+      keywords: ["pli fermé", "sealed", "copies", "exemplaires"]
+      min_hits: 1
+      window: 5
+    threshold: 0.75
+
+  pieces_exigees:
+    level_1:
+      patterns:
+        - "pièces"
+        - "documents requis"
+        - "annexes obligatoires"
+        - "required documents"
+    level_2:
+      keywords: ["fournir", "joindre", "provide", "must submit"]
+      min_hits: 1
+      window: 5
+    threshold: 0.75
+
+  criteres_evaluation:
+    level_1:
+      patterns:
+        - "critères"
+        - "évaluation"
+        - "notation"
+        - "pondération"
+    level_2:
+      keywords: ["points", "score", "poids", "weight"]
+      min_hits: 2
+      window: 5
+    threshold: 0.80
+
+optional_parts:
+  visite_site:
+    patterns: ["visite", "site", "lieux"]
+  garanties:
+    patterns: ["garantie", "caution", "bid bond"]
+  clauses_contractuelles:
+    patterns: ["clauses", "conditions"]

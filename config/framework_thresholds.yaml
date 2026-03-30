@@ -1,0 +1,27 @@
+# M12 V6 — Framework Detection Thresholds
+# Referenced by framework_signal_bank.py
+
+min_confident_score: 5
+min_delta_for_decision: 3
+
+# Weight tiers applied to signal matches
+weights:
+  strong: 5
+  medium: 2
+  weak: 1
+
+# Confidence mapping: min(0.95, 0.50 + winner_score / 20)
+confidence_floor: 0.50
+confidence_divisor: 20
+confidence_cap: 0.95
+
+# Unknown / mixed thresholds
+unknown_confidence: 0.30
+mixed_confidence: 0.50
+
+recalibration_log: "docs/calibration/M12_framework_calibration.md"
+recalibration_paliers:
+  - 60
+  - 80
+  - 120
+  - 200

@@ -1,0 +1,116 @@
+# M12 V6 — Mandatory parts: TDR (Termes de référence)
+document_kind: tdr
+description: "Termes de référence"
+
+mandatory_parts:
+  objet_mission:
+    level_1:
+      patterns:
+        - "objectif"
+        - "objet"
+        - "but de la mission"
+        - "purpose"
+        - "object of consultancy"
+        - "contexte et justification"
+      dictionary_keys: ["tdr_objective_terms"]
+    level_2:
+      keywords:
+        - "vise à"
+        - "a pour objectif"
+        - "la mission consiste"
+        - "aims to"
+      min_hits: 2
+      window: 5
+    threshold: 0.75
+
+  objectifs_perimetre:
+    level_1:
+      patterns:
+        - "objectifs"
+        - "périmètre"
+        - "scope"
+        - "étendue"
+        - "objectifs spécifiques"
+        - "résultats attendus"
+      dictionary_keys: ["tdr_scope_terms"]
+    level_2:
+      keywords:
+        - "objectif spécifique"
+        - "objectif général"
+        - "résultat attendu"
+      min_hits: 2
+      window: 5
+    threshold: 0.75
+
+  livrables:
+    level_1:
+      patterns:
+        - "livrable"
+        - "produit attendu"
+        - "deliverable"
+        - "output"
+        - "résultat"
+        - "rapports attendus"
+      dictionary_keys: ["tdr_deliverable_terms"]
+    level_2:
+      keywords:
+        - "le consultant devra produire"
+        - "rapport final"
+        - "will deliver"
+      min_hits: 2
+      window: 5
+    threshold: 0.75
+
+  modalites_soumission:
+    level_1:
+      patterns:
+        - "modalités de soumission"
+        - "comment soumissionner"
+        - "submission"
+        - "how to apply"
+        - "dossier de candidature"
+        - "instructions aux soumissionnaires"
+      dictionary_keys: ["submission_terms"]
+    level_2:
+      keywords:
+        - "envoyer"
+        - "soumettre"
+        - "date limite"
+        - "deadline"
+      min_hits: 2
+      window: 5
+    threshold: 0.75
+
+  profil_consultant:
+    level_1:
+      patterns:
+        - "profil"
+        - "qualifications"
+        - "compétences requises"
+        - "expérience"
+        - "personnel clé"
+        - "composition de l'équipe"
+    level_2:
+      keywords:
+        - "années d'expérience"
+        - "diplôme"
+        - "CV"
+        - "minimum"
+      min_hits: 2
+      window: 5
+    threshold: 0.75
+
+optional_parts:
+  budget_indicatif:
+    patterns: ["budget", "enveloppe", "estimated budget"]
+  criteres_evaluation:
+    patterns: ["critères", "évaluation", "notation", "scoring"]
+  planning:
+    patterns: ["calendrier", "planning", "chronogramme", "timeline"]
+  conditions_paiement:
+    patterns: ["paiement", "payment", "modalités financières"]
+
+not_applicable:
+  - "prix fournisseur détaillé"
+  - "ligne de devis fournisseur"
+  - "note d'évaluation fournisseur"

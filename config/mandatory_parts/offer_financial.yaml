@@ -1,0 +1,76 @@
+# M12 V6 — Mandatory parts: Offer Financial
+document_kind: offer_financial
+description: "Offre financière / proposition financière / devis"
+
+mandatory_parts:
+  identite_rattachement:
+    level_1:
+      patterns:
+        - "soumissionnaire"
+        - "bidder"
+        - "pour le compte de"
+        - "cabinet"
+        - "proposition financière de"
+    level_2:
+      keywords: []
+      custom_rule: "detect_entity_name"
+    threshold: 0.80
+
+  structure_prix:
+    level_1:
+      patterns:
+        - "prix"
+        - "price"
+        - "montant"
+        - "amount"
+        - "coût"
+        - "bordereau"
+        - "détail quantitatif"
+    level_2:
+      keywords: ["total", "sous-total", "unitaire", "unit price"]
+      custom_rule: "detect_numeric_table"
+    threshold: 0.80
+
+  devise_total_lignes:
+    level_1:
+      patterns:
+        - "FCFA"
+        - "XOF"
+        - "USD"
+        - "EUR"
+        - "total"
+        - "montant global"
+    level_2:
+      keywords: []
+      custom_rule: "detect_currency_and_amount"
+    threshold: 0.80
+
+  base_prix:
+    level_1:
+      patterns:
+        - "hors taxes"
+        - "HT"
+        - "TTC"
+        - "TVA"
+        - "toutes taxes"
+    level_2:
+      keywords: ["exonéré", "franchise", "tax"]
+      min_hits: 1
+      window: 3
+    threshold: 0.75
+
+optional_parts:
+  validite_offre:
+    patterns: ["validité", "validity", "jours"]
+  delais_livraison:
+    patterns: ["délai", "livraison", "delivery"]
+  conditions_paiement:
+    patterns: ["paiement", "payment", "facturation"]
+
+not_applicable:
+  - "méthodologie détaillée"
+  - "CV du personnel"
+  - "approche technique"
+
+rules:
+  - "L'absence de méthodologie n'est PAS un fail sur une offre financière"

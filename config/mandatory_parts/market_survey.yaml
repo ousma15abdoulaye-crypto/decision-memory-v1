@@ -1,0 +1,38 @@
+# M12 V6 — Mandatory parts: Market Survey
+document_kind: market_survey
+description: "Étude de marché / prospection"
+
+mandatory_parts:
+  objet_prospection:
+    level_1:
+      patterns:
+        - "étude de marché"
+        - "market survey"
+        - "prospection"
+        - "analyse du marché"
+    level_2:
+      keywords: ["fournisseurs potentiels", "offre disponible", "marché local"]
+      min_hits: 1
+      window: 5
+    threshold: 0.75
+
+  fournisseurs_identifies:
+    level_1:
+      patterns: []
+    level_2:
+      keywords: []
+      custom_rule: "count_distinct_supplier_names_gte_2"
+    threshold: 0.75
+
+  produits_services_cibles:
+    level_1:
+      patterns:
+        - "produits"
+        - "services"
+        - "prestations"
+        - "articles"
+    level_2:
+      keywords: ["disponibilité", "prix", "qualité"]
+      min_hits: 2
+      window: 5
+    threshold: 0.75

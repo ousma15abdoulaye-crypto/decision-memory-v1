@@ -312,3 +312,34 @@ def test_orchestrator_max_attempts_validation(tmp_path: Path):
         AnnotationOrchestrator(runs_dir=tmp_path, max_attempts=0)
     with pytest.raises(ValueError, match="max_attempts must be >= 1"):
         AnnotationOrchestrator(runs_dir=tmp_path, max_attempts=-1)
+
+
+def test_m12_feature_flag_routes_to_subpasses(tmp_path: Path, monkeypatch):
+    """When ANNOTATION_USE_M12_SUBPASSES=1, orchestrator chains 1A-1D."""
+    monkeypatch.setenv("ANNOTATION_USE_M12_SUBPASSES", "1")
+    orch = AnnotationOrchestrator(runs_dir=tmp_path)
+    rid = uuid.uuid4()
+    rec, state = orch.run_passes_0_to_1(
+        "TERMES DE RÉFÉRENCE\nObjectif de la mission\n" + "detail " * 200,
+        document_id="doc-m12-flag",
+        run_id=rid,
+    )
+    assert state == AnnotationPipelineState.PASS_1D_DONE
+    assert "pass_1a_core_recognition" in rec.pass_outputs
+
+
+def test_m12_feature_flag_off_uses_legacy(tmp_path: Path, monkeypatch):
+    """When flag is off (default), orchestrator uses legacy pass_1_router."""
+    monkeypatch.setenv("ANNOTATION_USE_M12_SUBPASSES", "0")
+    orch = AnnotationOrchestrator(runs_dir=tmp_path)
+    rid = uuid.uuid4()
+    rec, state = orch.run_passes_0_to_1(
+        "TERMES DE RÉFÉRENCE\nObjectif de la mission\n" + "detail " * 200,
+        document_id="doc-legacy",
+        run_id=rid,
+    )
+    assert state in (
+        AnnotationPipelineState.ROUTED,
+        AnnotationPipelineState.LLM_PREANNOTATION_PENDING,
+    )
+    assert "pass_1_router" in rec.pass_outputs

@@ -1,0 +1,78 @@
+# M12 V6 — Mandatory parts: Evaluation Doc (PV / ACO)
+document_kind: evaluation_doc
+description: "PV / ACO / rapport d'évaluation"
+
+mandatory_parts:
+  identification_evaluation:
+    level_1:
+      patterns:
+        - "ACO"
+        - "PV"
+        - "procès-verbal"
+        - "rapport d'évaluation"
+        - "evaluation report"
+        - "analysis and comparison"
+        - "analyse comparative"
+        - "tableau comparatif"
+    level_2:
+      keywords: ["analyse des offres", "comparaison", "évaluation"]
+      min_hits: 2
+      window: 5
+    threshold: 0.85
+
+  logique_multi_offres:
+    level_1:
+      patterns:
+        - "fournisseur 1"
+        - "fournisseur 2"
+        - "soumissionnaire"
+        - "bidder"
+    level_2:
+      keywords: []
+      custom_rule: "count_distinct_supplier_names_gte_2"
+    threshold: 0.80
+
+  structure_analyse:
+    level_1:
+      patterns:
+        - "note"
+        - "score"
+        - "critère"
+        - "résultat"
+        - "recommandation"
+        - "classement"
+    level_2:
+      keywords: ["tableau", "grille", "justification", "décision"]
+      min_hits: 2
+      window: 5
+    threshold: 0.80
+
+  decision_ou_recommandation:
+    level_1:
+      patterns:
+        - "recommandation"
+        - "décision"
+        - "attributaire"
+        - "retenu"
+        - "recommandé"
+        - "classement final"
+    level_2:
+      keywords: ["premier", "retenu", "meilleur", "adjuger"]
+      min_hits: 1
+      window: 5
+    threshold: 0.80
+
+optional_parts:
+  composition_comite:
+    patterns: ["comité", "commission", "membres", "jury"]
+  reserves_observations:
+    patterns: ["réserve", "observation", "commentaire"]
+
+not_applicable:
+  - "prix du soumissionnaire évaluateur"
+  - "offre technique du comité"
+
+critical_rules:
+  - "Un evaluation_doc n'est JAMAIS une offre"
+  - "Un evaluation_doc est TOUJOURS multi-soumissionnaires ou comité"
+  - "Si M12 classe un PV/ACO comme offer_* -> STOP SIGNAL"

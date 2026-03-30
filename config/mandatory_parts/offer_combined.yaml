@@ -1,0 +1,24 @@
+# M12 V6 — Mandatory parts: Offer Combined
+document_kind: offer_combined
+description: "Offre combinée technique + financière"
+
+mandatory_parts:
+  bloc_technique_detecte:
+    level_1:
+      patterns: []
+    level_2:
+      keywords: []
+      custom_rule: "offer_technical_corps_detected"
+    threshold: 0.75
+
+  bloc_financier_detecte:
+    level_1:
+      patterns: []
+    level_2:
+      keywords: []
+      custom_rule: "offer_financial_structure_detected"
+    threshold: 0.75
+
+rules:
+  - "Classification: si bloc tech + bloc fin dans même document -> offer_combined"
+  - "Héritage: toutes les mandatory_parts de offer_technical ET offer_financial s'appliquent"

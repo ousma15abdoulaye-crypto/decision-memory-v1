@@ -1,0 +1,89 @@
+# M12 V6 — Mandatory parts: Contract
+document_kind: contract
+description: "Contrat / Convention / Accord-cadre"
+
+mandatory_parts:
+  parties_contractantes:
+    level_1:
+      patterns:
+        - "entre"
+        - "between"
+        - "parties"
+        - "contractant"
+        - "d'une part"
+        - "d'autre part"
+        - "ci-après"
+    level_2:
+      keywords: []
+      custom_rule: "detect_two_distinct_named_entities"
+    threshold: 0.85
+
+  objet_contractualise:
+    level_1:
+      patterns:
+        - "objet du contrat"
+        - "objet du marché"
+        - "subject"
+        - "prestation"
+    level_2:
+      keywords: ["porte sur", "consiste en", "a pour objet"]
+      min_hits: 1
+      window: 5
+    threshold: 0.80
+
+  nature_contractuelle:
+    level_1:
+      patterns:
+        - "contrat"
+        - "contract"
+        - "convention"
+        - "accord-cadre"
+        - "marché"
+        - "framework agreement"
+    level_2:
+      keywords: []
+      custom_rule: "detect_signature_blocks"
+    threshold: 0.85
+
+  montant_contractuel:
+    level_1:
+      patterns:
+        - "montant"
+        - "prix du marché"
+        - "valeur"
+        - "contract value"
+    level_2:
+      keywords: ["FCFA", "XOF", "USD", "EUR"]
+      custom_rule: "detect_currency_and_amount"
+    threshold: 0.80
+
+  duree_validite:
+    level_1:
+      patterns:
+        - "durée"
+        - "période"
+        - "validité"
+        - "duration"
+        - "prend effet"
+    level_2:
+      keywords: ["mois", "jours", "ans", "months", "years"]
+      min_hits: 1
+      window: 3
+    threshold: 0.75
+
+optional_parts:
+  clauses_resiliation:
+    patterns: ["résiliation", "termination"]
+  penalites:
+    patterns: ["pénalité", "penalty", "retard"]
+  assurances_garanties:
+    patterns: ["assurance", "garantie", "caution"]
+  conditions_paiement:
+    patterns: ["paiement", "payment", "facture"]
+
+not_applicable:
+  - "scoring des offres"
+  - "analyse comparative"
+
+process_effect:
+  procedure_end_marker: true

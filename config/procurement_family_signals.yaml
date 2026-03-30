@@ -1,0 +1,127 @@
+# M12 V6 — Procurement Family Signal Bank
+# Extensible: add a family = add a top-level section
+# Weight tiers: strong=5, medium=2, weak=1
+
+goods:
+  strong:
+    - "fourniture"
+    - "supply"
+    - "goods"
+    - "matériel"
+    - "équipement"
+    - "achat de biens"
+  medium:
+    - "livraison"
+    - "delivery"
+    - "produit"
+    - "article"
+  weak:
+    - "quantité"
+    - "unité"
+
+services:
+  strong:
+    - "prestation de service"
+    - "service"
+    - "maintenance"
+    - "nettoyage"
+    - "gardiennage"
+    - "transport"
+  medium:
+    - "prestataire"
+    - "fournisseur de services"
+  weak:
+    - "intervention"
+
+works:
+  strong:
+    - "travaux"
+    - "works"
+    - "construction"
+    - "réhabilitation"
+    - "réfection"
+    - "aménagement"
+    - "bâtiment"
+  medium:
+    - "chantier"
+    - "ouvrage"
+    - "génie civil"
+    - "BTP"
+  weak:
+    - "ciment"
+    - "fer à béton"
+    - "gravier"
+    - "sable"
+
+consultancy:
+  strong:
+    - "consultance"
+    - "consultancy"
+    - "consultant"
+    - "bureau d'études"
+    - "étude de base"
+    - "baseline"
+    - "évaluation finale"
+    - "audit"
+    - "enquête"
+  medium:
+    - "termes de référence"
+    - "TDR"
+    - "expertise"
+    - "mission"
+  weak:
+    - "rapport"
+    - "livrable"
+
+# Sub-family detection signals
+sub_families:
+  construction:
+    - "construction"
+    - "bâtiment"
+    - "édifice"
+  rehabilitation:
+    - "réhabilitation"
+    - "réfection"
+    - "rénovation"
+  fourniture_bureau:
+    - "cartouche"
+    - "toner"
+    - "ramette"
+    - "bureau"
+    - "papeterie"
+  fourniture_medical:
+    - "médicament"
+    - "médical"
+    - "sanitaire"
+    - "pharmaceutique"
+  fourniture_it:
+    - "ordinateur"
+    - "laptop"
+    - "serveur"
+    - "réseau"
+    - "informatique"
+  consultancy_baseline_study:
+    - "baseline"
+    - "étude de base"
+    - "enquête de référence"
+  consultancy_evaluation:
+    - "évaluation finale"
+    - "évaluation à mi-parcours"
+    - "endline"
+  consultancy_audit:
+    - "audit"
+    - "vérification"
+    - "contrôle"
+  consultancy_formation:
+    - "formation"
+    - "training"
+    - "renforcement de capacités"
+  external_labor:
+    - "main-d'œuvre"
+    - "journalier"
+    - "manœuvre"
+    - "personnel temporaire"
+
+# Thresholds
+min_confident_score: 3
+min_delta_for_decision: 2

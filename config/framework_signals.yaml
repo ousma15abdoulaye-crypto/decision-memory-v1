@@ -1,0 +1,112 @@
+# M12 V6 — Framework Signal Bank
+# Extensible: add a new framework = add a new top-level section
+# Weight tiers: strong=5, medium=2, weak=1
+
+sci:
+  strong:
+    - "Save the Children"
+    - "SCI"
+    - "procurement manual SCI"
+    - "Analysis and Comparison of Offers"
+    - "ACO"
+    - "ProSave"
+    - "Conditions générales d'achat de Save the Children"
+  medium:
+    - "RFQ"
+    - "devis formel"
+    - "TDR"
+    - "DDP"
+  weak:
+    - "comité d'évaluation"
+    - "FCFA"
+
+dgmp_mali:
+  strong:
+    - "code des marchés"
+    - "autorité contractante"
+    - "DGMP"
+    - "Direction Générale des Marchés Publics"
+    - "ARMDS"
+    - "personne responsable des marchés publics"
+  medium:
+    - "dépouillement"
+    - "commission d'ouverture"
+    - "dossier d'appel à concurrence"
+  weak:
+    - "appel d'offres"
+    - "marché public"
+
+world_bank:
+  strong:
+    - "World Bank"
+    - "IBRD"
+    - "IDA"
+    - "Standard Procurement Document"
+    - "Bank's Procurement Regulations"
+  medium:
+    - "prior review"
+    - "post review"
+    - "procurement plan"
+  weak:
+    - "international competitive bidding"
+    - "ICB"
+
+afd:
+  strong:
+    - "Agence Française de Développement"
+    - "AFD"
+    - "procédures AFD"
+  medium:
+    - "financement AFD"
+    - "accord de financement"
+  weak:
+    - "bailleur de fonds"
+
+bad:
+  strong:
+    - "Banque Africaine de Développement"
+    - "BAD"
+    - "AfDB"
+    - "African Development Bank"
+  medium:
+    - "financement BAD"
+    - "procurement guidelines BAD"
+  weak:
+    - "banque de développement"
+
+eu:
+  strong:
+    - "European Union"
+    - "Union Européenne"
+    - "EU procurement"
+    - "EuropeAid"
+    - "PRAG"
+  medium:
+    - "Practical Guide"
+    - "EU financing"
+  weak:
+    - "cooperation européenne"
+
+mining_local:
+  strong:
+    - "code minier"
+    - "contenu local"
+    - "local content"
+    - "mining code"
+  medium:
+    - "permis d'exploitation"
+    - "convention minière"
+  weak:
+    - "mine"
+    - "extraction minière"
+
+ohada:
+  strong:
+    - "OHADA"
+    - "Acte uniforme"
+    - "droit des affaires OHADA"
+  medium:
+    - "AUDCG"
+    - "tribunal de commerce"
+  weak:
+    - "droit commercial"
