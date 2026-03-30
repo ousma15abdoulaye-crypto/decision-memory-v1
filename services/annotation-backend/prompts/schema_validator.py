@@ -204,7 +204,12 @@ def _parse_bool_string(s: str, *, gate_mode: bool = False) -> bool | None:
     t = s.strip()
     # BOOL_MAP peut contenir des tokens applicabilité — les sauter en gate_mode
     low = t.lower()
-    if gate_mode and low in ("applicable", "non applicable", "non_applicable", "inapplicable"):
+    if gate_mode and low in (
+        "applicable",
+        "non applicable",
+        "non_applicable",
+        "inapplicable",
+    ):
         return None
     if t in BOOL_MAP:
         return BOOL_MAP[t]
