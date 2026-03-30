@@ -1,0 +1,48 @@
+# M12 V6 — Mandatory parts: Submission Letter
+document_kind: submission_letter
+description: "Lettre de soumission"
+
+mandatory_parts:
+  identite:
+    level_1:
+      patterns:
+        - "soumissionnaire"
+        - "je soussigné"
+        - "I the undersigned"
+        - "société"
+    level_2:
+      keywords: []
+      custom_rule: "detect_entity_with_address"
+    threshold: 0.80
+
+  objet_soumission:
+    level_1:
+      patterns:
+        - "objet"
+        - "référence"
+        - "en réponse à"
+        - "in response to"
+    level_2:
+      keywords: ["référence de procédure", "appel d'offres"]
+      min_hits: 1
+      window: 3
+    threshold: 0.75
+
+  engagement:
+    level_1:
+      patterns:
+        - "nous nous engageons"
+        - "we hereby"
+        - "par la présente"
+        - "nous soumissionnons"
+    level_2:
+      keywords: ["engagement", "obligation", "acceptons"]
+      min_hits: 1
+      window: 5
+    threshold: 0.75
+
+optional_parts:
+  signature:
+    patterns: ["signature", "signé", "fait à"]
+  date:
+    patterns: ["date", "fait le"]

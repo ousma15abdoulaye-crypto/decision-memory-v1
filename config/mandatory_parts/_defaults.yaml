@@ -1,0 +1,19 @@
+# M12 V6 — Default mandatory parts detection settings
+# Applied to all document types unless overridden
+
+detection_defaults:
+  level_1_heading_match:
+    confidence_if_matched: 0.90
+  level_2_keyword_density:
+    min_hits: 2
+    window_size_sentences: 5
+    confidence_if_matched: 0.75
+  level_3_llm_fallback:
+    max_confidence: 0.70
+    requires_human_review: true
+
+dictionary_boost: true
+
+threshold_defaults:
+  mandatory_part: 0.75
+  optional_part: 0.50

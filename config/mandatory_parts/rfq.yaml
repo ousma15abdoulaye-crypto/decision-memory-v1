@@ -1,0 +1,65 @@
+# M12 V6 — Mandatory parts: RFQ (Request for Quotation)
+document_kind: rfq
+description: "Request for Quotation / Demande de devis"
+
+mandatory_parts:
+  objet:
+    level_1:
+      patterns:
+        - "objet"
+        - "object"
+        - "subject"
+        - "demande de devis"
+        - "request for quotation"
+    level_2:
+      keywords: ["concerne", "pour", "relatif à"]
+      min_hits: 1
+      window: 3
+    threshold: 0.75
+
+  quantites_description:
+    level_1:
+      patterns:
+        - "quantité"
+        - "quantity"
+        - "désignation"
+        - "description des articles"
+        - "item"
+    level_2:
+      keywords: ["unité", "lot", "pièce", "nombre"]
+      min_hits: 2
+      window: 5
+    threshold: 0.75
+
+  date_limite:
+    level_1:
+      patterns:
+        - "date limite"
+        - "deadline"
+        - "date de clôture"
+        - "closing date"
+    level_2:
+      keywords: ["au plus tard", "avant le", "not later than"]
+      min_hits: 1
+      window: 3
+    threshold: 0.80
+
+  format_reponse:
+    level_1:
+      patterns:
+        - "format"
+        - "modalités de réponse"
+        - "comment répondre"
+    level_2:
+      keywords: ["le devis doit", "quotation should", "veuillez"]
+      min_hits: 1
+      window: 5
+    threshold: 0.75
+
+optional_parts:
+  modele_devis:
+    patterns: ["modèle", "template", "formulaire de devis"]
+  criteres:
+    patterns: ["critères", "criteria"]
+  exigences_admin:
+    patterns: ["documents requis", "pièces à fournir"]

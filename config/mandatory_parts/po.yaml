@@ -1,0 +1,44 @@
+# M12 V6 — Mandatory parts: PO (Purchase Order)
+document_kind: po
+description: "Purchase Order / Bon de commande"
+
+mandatory_parts:
+  numero_commande:
+    level_1:
+      patterns: ["PO", "BC", "bon de commande", "purchase order", "n°"]
+    level_2:
+      keywords: []
+      custom_rule: "detect_reference_number"
+    threshold: 0.85
+
+  fournisseur_identifie:
+    level_1:
+      patterns: []
+    level_2:
+      keywords: []
+      custom_rule: "detect_entity_name"
+    threshold: 0.80
+
+  lignes_commande:
+    level_1:
+      patterns: []
+    level_2:
+      keywords: []
+      custom_rule: "detect_table_min3_numeric"
+    threshold: 0.80
+
+  montant_total:
+    level_1:
+      patterns: []
+    level_2:
+      keywords: []
+      custom_rule: "detect_currency_and_amount"
+    threshold: 0.80
+
+  autorisation:
+    level_1:
+      patterns: ["approuvé", "approved", "autorisé", "signature"]
+    level_2:
+      keywords: []
+      custom_rule: "detect_signature_blocks"
+    threshold: 0.75

@@ -1,0 +1,34 @@
+# M12 V6 — Mandatory parts: Price Schedule
+document_kind: price_schedule
+description: "Bordereau de prix / cadre de devis"
+
+mandatory_parts:
+  structure_tabulaire:
+    level_1:
+      patterns: []
+    level_2:
+      keywords: []
+      custom_rule: "detect_table_min3_numeric"
+    threshold: 0.80
+
+  headers_reconnaissables:
+    level_1:
+      patterns:
+        - "désignation"
+        - "item"
+        - "quantité"
+        - "prix unitaire"
+        - "total"
+        - "unit price"
+    level_2:
+      keywords: []
+      custom_rule: "detect_table_headers_price"
+    threshold: 0.80
+
+  au_moins_une_ligne:
+    level_1:
+      patterns: []
+    level_2:
+      keywords: []
+      custom_rule: "table_row_count_gte_1"
+    threshold: 0.80

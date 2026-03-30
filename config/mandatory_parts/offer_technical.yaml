@@ -1,0 +1,59 @@
+# M12 V6 — Mandatory parts: Offer Technical
+document_kind: offer_technical
+description: "Offre technique d'un fournisseur"
+
+mandatory_parts:
+  identite_soumissionnaire:
+    level_1:
+      patterns:
+        - "soumissionnaire"
+        - "bidder"
+        - "société"
+        - "company"
+        - "raison sociale"
+        - "cabinet"
+        - "bureau d'études"
+    level_2:
+      keywords: []
+      custom_rule: "detect_legal_form"
+    threshold: 0.80
+
+  reponse_technique:
+    level_1:
+      patterns:
+        - "méthodologie"
+        - "approche technique"
+        - "compréhension"
+        - "notre approche"
+        - "proposition technique"
+    level_2:
+      keywords: ["nous proposons", "notre compréhension", "notre approche"]
+      min_hits: 1
+      window: 10
+    threshold: 0.75
+
+  corps_exploitable:
+    level_1:
+      patterns: []
+    level_2:
+      keywords: []
+      custom_rule: "word_count_gte_500"
+    threshold: 0.70
+
+optional_parts:
+  cv_equipe:
+    patterns: ["CV", "curriculum", "expérience professionnelle"]
+  references:
+    patterns: ["référence", "projet similaire", "expérience"]
+  planning_execution:
+    patterns: ["planning", "calendrier", "chronogramme"]
+  certifications:
+    patterns: ["certification", "agrément", "accréditation"]
+
+not_applicable:
+  - "ligne de prix détaillée"
+  - "bordereau de prix unitaires"
+  - "montant total HT"
+
+rules:
+  - "L'absence de prix n'est PAS un fail sur une offre technique"

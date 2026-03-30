@@ -1,0 +1,62 @@
+# M12 V6 — Mandatory parts: Admin Doc
+document_kind: admin_doc
+description: "Document administratif fournisseur"
+
+subtypes_recognized:
+  - nif
+  - rccm
+  - rib
+  - quitus_fiscal
+  - certificat_non_faillite
+  - attestation
+  - licence
+  - piece_identite
+  - pouvoir
+  - declaration_sanctions
+  - sci_conditions_signed
+  - iapg_signed
+
+mandatory_parts:
+  nature_identifiable:
+    level_1:
+      patterns:
+        - "NIF"
+        - "numéro d'identification fiscale"
+        - "RCCM"
+        - "registre du commerce"
+        - "RIB"
+        - "relevé d'identité bancaire"
+        - "quitus"
+        - "certificat de non-faillite"
+        - "attestation"
+    level_2:
+      keywords: []
+      custom_rule: "match_any_admin_subtype"
+    threshold: 0.80
+
+  elements_preuve:
+    level_1:
+      patterns: []
+    level_2:
+      keywords: ["numéro", "date", "délivré", "émis", "signé"]
+      custom_rule: "detect_institutional_markers"
+    threshold: 0.75
+
+  rattachement_fournisseur:
+    level_1:
+      patterns: []
+    level_2:
+      keywords: []
+      custom_rule: "detect_entity_name"
+    threshold: 0.75
+
+optional_parts:
+  date_expiration:
+    patterns: ["expire", "valable jusqu'au", "valid until"]
+
+verdict_values:
+  - valid_admin_doc
+  - invalid_admin_doc
+  - partial_admin_doc
+  - not_assessable_admin_doc
+  - expired_admin_doc

@@ -36,3 +36,7 @@ mistralai>=1.5.0
 # === RESILIENCE (M4D) ===
 tenacity==9.0.0
 pybreaker==1.2.0
+
+# === M12 — Procurement Document & Process Recognizer ===
+rapidfuzz>=3.6.0
+pyyaml>=6.0

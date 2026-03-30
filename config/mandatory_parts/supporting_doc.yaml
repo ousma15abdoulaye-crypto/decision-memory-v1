@@ -1,0 +1,40 @@
+# M12 V6 — Mandatory parts: Supporting Doc
+document_kind: supporting_doc
+description: "Document de support / politique / annexe"
+
+mandatory_parts:
+  nature_identifiable:
+    level_1:
+      patterns:
+        - "politique"
+        - "policy"
+        - "procédure"
+        - "guide"
+        - "manuel"
+        - "annexe"
+        - "note"
+    level_2:
+      keywords: ["applicable", "en vigueur", "version"]
+      min_hits: 1
+      window: 5
+    threshold: 0.70
+
+  contenu_exploitable:
+    level_1:
+      patterns: []
+    level_2:
+      keywords: []
+      custom_rule: "word_count_gte_200"
+    threshold: 0.60
+
+optional_parts:
+  emetteur:
+    patterns: ["émis par", "issued by", "auteur"]
+  date_version:
+    patterns: ["version", "date", "révision"]
+  scope_application:
+    patterns: ["s'applique à", "applicable to", "champ d'application"]
+
+rules:
+  - "Un supporting_doc a beaucoup de champs NOT_APPLICABLE par design"
+  - "La confidence globale est souvent plus basse — c'est normal"

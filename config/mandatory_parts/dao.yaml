@@ -1,0 +1,73 @@
+# M12 V6 — Mandatory parts: DAO (Dossier d'appel d'offres)
+document_kind: dao
+description: "Dossier d'appel d'offres"
+
+mandatory_parts:
+  instructions:
+    level_1:
+      patterns:
+        - "instructions"
+        - "règlement"
+        - "dispositions générales"
+        - "instructions aux soumissionnaires"
+        - "section 1"
+    level_2:
+      keywords: ["le soumissionnaire", "les candidats", "bidders"]
+      min_hits: 2
+      window: 5
+    threshold: 0.75
+
+  specifications_cahier_charges:
+    level_1:
+      patterns:
+        - "spécifications techniques"
+        - "cahier des charges"
+        - "termes de référence"
+        - "section technique"
+        - "données techniques"
+    level_2:
+      keywords: ["conforme", "norme", "exigence technique"]
+      min_hits: 2
+      window: 5
+    threshold: 0.75
+
+  criteres_evaluation:
+    level_1:
+      patterns:
+        - "critères d'évaluation"
+        - "évaluation des offres"
+        - "notation"
+        - "grille d'évaluation"
+        - "pondération"
+    level_2:
+      keywords: ["note", "score", "poids", "points", "coefficient"]
+      min_hits: 2
+      window: 5
+    threshold: 0.80
+
+  formulaires_annexes:
+    level_1:
+      patterns:
+        - "formulaire"
+        - "annexe"
+        - "bordereau"
+        - "modèle"
+        - "template"
+    level_2:
+      keywords: ["à remplir", "modèle de", "formulaire de"]
+      min_hits: 2
+      window: 5
+    threshold: 0.75
+
+optional_parts:
+  clauses_contractuelles:
+    patterns: ["clauses", "conditions particulières", "CCAP", "CCTP"]
+  visite_site:
+    patterns: ["visite", "site", "lieux"]
+  garanties:
+    patterns: ["garantie", "caution", "cautionnement"]
+
+not_applicable:
+  - "prix fournisseur final"
+  - "décision comité"
+  - "note d'évaluation attribuée"

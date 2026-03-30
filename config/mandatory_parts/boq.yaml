@@ -1,0 +1,45 @@
+# M12 V6 — Mandatory parts: BOQ (Bill of Quantities)
+document_kind: boq
+description: "Bill of Quantities — devis quantitatif et estimatif"
+
+mandatory_parts:
+  structure_tabulaire:
+    level_1:
+      patterns: []
+    level_2:
+      keywords: []
+      custom_rule: "detect_table_min4_numeric"
+    threshold: 0.80
+
+  postes_identifies:
+    level_1:
+      patterns:
+        - "poste"
+        - "item"
+        - "désignation"
+        - "description"
+        - "lot"
+    level_2:
+      keywords: []
+      custom_rule: "detect_hierarchical_numbering"
+    threshold: 0.80
+
+  quantites_et_unites:
+    level_1:
+      patterns: []
+    level_2:
+      keywords: []
+      custom_rule: "detect_unit_column"
+    threshold: 0.80
+
+  prix_unitaires:
+    level_1:
+      patterns: []
+    level_2:
+      keywords: []
+      custom_rule: "detect_numeric_column_pu"
+    threshold: 0.80
+
+rules:
+  - "Un BOQ est typique des marchés de travaux"
+  - "Un BOQ sans quantités n'est pas un BOQ — c'est un bordereau vide"
