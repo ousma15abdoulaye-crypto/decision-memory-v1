@@ -310,7 +310,7 @@ def _check_composite(
 ) -> tuple[list[DocumentKindParent], Literal["yes", "no", "unknown"], float]:
     """Check if document contains title-level signals for multiple types.
 
-    Only checks the first ~2000 chars (header area) to avoid false positives
+    Only checks the first ~800 chars (header area) to avoid false positives
     from incidental mentions of financial/technical terms deep in body text.
     """
     secondary: list[DocumentKindParent] = []

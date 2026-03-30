@@ -100,6 +100,7 @@ class EligibilityGateExtracted(BaseModel):
             "cert_non_faillite",
             "id_representative",
             "sci_conditions",
+            "sci_conditions_signed",
             "sanctions_cert",
             "sustainability_policy",
             "ariba_id",

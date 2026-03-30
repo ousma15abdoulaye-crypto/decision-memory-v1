@@ -22,11 +22,6 @@ _CRITERIA_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-_WEIGHT_PATTERN = re.compile(
-    r"(\d{1,3})\s*(?:%|points?)\s*(?:.*?)(technique|financ|prix|qualit)",
-    re.IGNORECASE,
-)
-
 _THRESHOLD_PATTERN = re.compile(
     r"seuil\s+(?:technique\s+)?(?:minimum|[eé]liminatoire)?\s*(?:de\s+)?(\d{1,3})\s*(?:/\s*(\d{1,3}))?",
     re.IGNORECASE,

@@ -41,12 +41,22 @@ from src.annotation.passes.pass_1d_process_linking import (
 logger = logging.getLogger(__name__)
 
 ENV_USE_ORCHESTRATOR = "ANNOTATION_USE_PASS_ORCHESTRATOR"
+ENV_USE_M12_SUBPASSES = "ANNOTATION_USE_M12_SUBPASSES"
 
 _DEFAULT_MAX_ATTEMPTS = 2
 
 
 def use_pass_orchestrator() -> bool:
     return os.environ.get(ENV_USE_ORCHESTRATOR, "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+
+
+def use_m12_subpasses() -> bool:
+    """Feature flag: when enabled, run_passes_0_to_1 chains 1A-1D instead of pass_1_router."""
+    return os.environ.get(ENV_USE_M12_SUBPASSES, "0").strip().lower() in (
         "1",
         "true",
         "yes",
@@ -336,7 +346,18 @@ class AnnotationOrchestrator:
             self.save_run(record)
             return record, AnnotationPipelineState.REVIEW_REQUIRED
 
-        # Pass 1 — deterministe / LLM optionnel (with retry)
+        # Feature flag: M12 sub-passes (1A->1D) vs legacy pass_1_router
+        if use_m12_subpasses():
+            self.save_run(record)
+            return self.run_passes_1a_to_1d(
+                normalized,
+                document_id=document_id,
+                run_id=run_id,
+                quality_class=qc or "good",
+                block_llm=block_llm,
+            )
+
+        # Legacy path: Pass 1 — deterministe / LLM optionnel (with retry)
         p1_pass_name = (
             "pass_1_router_llm"
             if (not block_llm and self.llm_router is not None)

@@ -5,10 +5,12 @@ from __future__ import annotations
 from src.procurement.document_ontology import (
     DocumentKindParent,
     DocumentKindSubtype,
+    DocumentLayer,
 )
 from src.procurement.taxonomy_mapping import (
     all_corpus_keys,
     corpus_to_parent_subtype,
+    legacy_role_to_layer,
     legacy_taxonomy_to_m12,
     parent_subtype_to_corpus,
 )
@@ -58,6 +60,20 @@ class TestLegacyBridge:
 
     def test_legacy_unknown_returns_unknown(self) -> None:
         assert legacy_taxonomy_to_m12("no_such_thing") == DocumentKindParent.UNKNOWN
+
+
+class TestLegacyRoleToLayer:
+    def test_source_rules(self) -> None:
+        assert legacy_role_to_layer("source_rules") == DocumentLayer.SOURCE_RULES
+
+    def test_financial_offer(self) -> None:
+        assert legacy_role_to_layer("financial_offer") == DocumentLayer.BID_RESPONSE
+
+    def test_evaluation_report(self) -> None:
+        assert legacy_role_to_layer("evaluation_report") == DocumentLayer.EVALUATION
+
+    def test_unknown_role(self) -> None:
+        assert legacy_role_to_layer("nonexistent") == DocumentLayer.UNKNOWN
 
 
 class TestAllCorpusKeys:

@@ -197,15 +197,20 @@ class MandatoryPartsEngine:
                     evidence=[f"pattern_match={pat.pattern}"],
                 )
 
-        # Level 2: keyword density
+        # Level 2: keyword density in sliding window
         if rule.level_2_keywords:
-            hits = sum(1 for kw in rule.level_2_keywords if kw.lower() in text_lower)
-            if hits >= rule.level_2_min_hits:
+            best_hits = self._sliding_window_keyword_hits(
+                text_lower, rule.level_2_keywords, rule.level_2_window
+            )
+            if best_hits >= rule.level_2_min_hits:
                 return PartDetectionResult(
                     part_name=rule.part_name,
                     detection_level="level_2_keyword",
                     confidence=rule.level_2_confidence,
-                    evidence=[f"keyword_hits={hits}/{rule.level_2_min_hits}"],
+                    evidence=[
+                        f"keyword_hits={best_hits}/{rule.level_2_min_hits}",
+                        f"window={rule.level_2_window}_sentences",
+                    ],
                 )
 
         # Level 2 custom rules (simple heuristics, no LLM)
@@ -226,6 +231,33 @@ class MandatoryPartsEngine:
             confidence=0.0,
             evidence=["no_match_at_any_level"],
         )
+
+    @staticmethod
+    def _sliding_window_keyword_hits(
+        text_lower: str, keywords: list[str], window_size: int
+    ) -> int:
+        """Count max keyword hits in any window of *window_size* sentences.
+
+        Splits text on sentence-like boundaries (period / newline) and slides
+        a window of *window_size* consecutive sentences, returning the highest
+        keyword-hit count observed in any single window.
+        """
+        sentences = re.split(r"[.\n]+", text_lower)
+        sentences = [s.strip() for s in sentences if s.strip()]
+        if not sentences:
+            return 0
+        if window_size <= 0 or window_size >= len(sentences):
+            chunk = " ".join(sentences)
+            return sum(1 for kw in keywords if kw.lower() in chunk)
+        best = 0
+        for start in range(len(sentences) - window_size + 1):
+            chunk = " ".join(sentences[start : start + window_size])
+            hits = sum(1 for kw in keywords if kw.lower() in chunk)
+            if hits > best:
+                best = hits
+                if best >= len(keywords):
+                    break
+        return best
 
     @staticmethod
     def _run_custom_rule(text_lower: str, rule_name: str) -> bool:
@@ -258,8 +290,6 @@ class MandatoryPartsEngine:
             )
         if rule_name == "detect_reference_number":
             return bool(re.search(r"n[°o]\s*\w+[-/]\w+", text_lower, re.IGNORECASE))
-        if rule_name.startswith("detect_table"):
-            return bool(re.search(r"\t.*\t.*\t", text_lower))
         if rule_name == "count_distinct_supplier_names_gte_2":
             suppliers = re.findall(
                 r"(?:fournisseur|soumissionnaire|bidder)\s*(?:n[°o])?\s*(\d+|[A-Z])",
@@ -296,13 +326,59 @@ class MandatoryPartsEngine:
             )
         if rule_name == "table_row_count_gte_1":
             return "\t" in text_lower or "|" in text_lower
-        if rule_name in (
-            "offer_technical_corps_detected",
-            "offer_financial_structure_detected",
-            "detect_entity_with_address",
-            "detect_two_distinct_named_entities",
-            "detect_numeric_table",
-            "detect_table_headers_price",
-        ):
-            return False
+        if rule_name == "offer_technical_corps_detected":
+            return bool(
+                re.search(
+                    r"(m[eé]thodologie|approche\s+technique|organigramme|planning"
+                    r"|chronogramme|moyens?\s+(?:humains?|mat[eé]riels?))",
+                    text_lower,
+                    re.IGNORECASE,
+                )
+            )
+        if rule_name == "offer_financial_structure_detected":
+            return bool(
+                re.search(
+                    r"(bordereau|d[eé]composition|sous[- ]?d[eé]tail|prix\s+unitaire"
+                    r"|montant\s+(?:total|global|ht|ttc))",
+                    text_lower,
+                    re.IGNORECASE,
+                )
+            )
+        if rule_name == "detect_entity_with_address":
+            has_entity = bool(
+                re.search(
+                    r"\b(soci[eé]t[eé]|cabinet|bureau|entreprise|company|sarl|sa)\b",
+                    text_lower,
+                    re.IGNORECASE,
+                )
+            )
+            has_address = bool(
+                re.search(
+                    r"(adresse|bp\s*\d|rue\s+|avenue\s+|boulevard\s+|quartier\s+)",
+                    text_lower,
+                    re.IGNORECASE,
+                )
+            )
+            return has_entity and has_address
+        if rule_name == "detect_two_distinct_named_entities":
+            entities = re.findall(
+                r"(?:soci[eé]t[eé]|cabinet|entreprise|ets|company)"
+                r"\s+([a-z\u00e0-\u00ff][a-z\u00e0-\u00ff&-]{1,30})",
+                text_lower,
+            )
+            return len(set(e.strip() for e in entities)) >= 2
+        if rule_name == "detect_numeric_table":
+            rows_with_numbers = re.findall(
+                r"[\t|].*\d{1,3}(?:[.\s,]\d{3})*.*[\t|]", text_lower
+            )
+            return len(rows_with_numbers) >= 3
+        if rule_name == "detect_table_headers_price":
+            return bool(
+                re.search(
+                    r"(d[eé]signation|libell[eé]|description)"
+                    r".*?(quantit[eé]|qt[eé]|unit[eé]|prix|montant|total)",
+                    text_lower,
+                    re.IGNORECASE,
+                )
+            )
         return False

@@ -38,9 +38,9 @@ def upgrade() -> None:
     COMMENT ON TABLE m12_correction_log
         IS 'Append-only M12 human corrections — feedback loop for signal enrichment';
 
-    CREATE INDEX idx_m12_corr_doc_id ON m12_correction_log (document_id);
-    CREATE INDEX idx_m12_corr_type   ON m12_correction_log (correction_type);
-    CREATE INDEX idx_m12_corr_date   ON m12_correction_log (created_at);
+    CREATE INDEX IF NOT EXISTS idx_m12_corr_doc_id ON m12_correction_log (document_id);
+    CREATE INDEX IF NOT EXISTS idx_m12_corr_type   ON m12_correction_log (correction_type);
+    CREATE INDEX IF NOT EXISTS idx_m12_corr_date   ON m12_correction_log (created_at);
 
     -- Append-only: trigger prevents UPDATE and DELETE
     CREATE OR REPLACE FUNCTION m12_correction_log_no_modify()
@@ -50,10 +50,12 @@ def upgrade() -> None:
     END;
     $$ LANGUAGE plpgsql;
 
+    DROP TRIGGER IF EXISTS trg_m12_correction_log_no_update ON m12_correction_log;
     CREATE TRIGGER trg_m12_correction_log_no_update
         BEFORE UPDATE ON m12_correction_log
         FOR EACH ROW EXECUTE FUNCTION m12_correction_log_no_modify();
 
+    DROP TRIGGER IF EXISTS trg_m12_correction_log_no_delete ON m12_correction_log;
     CREATE TRIGGER trg_m12_correction_log_no_delete
         BEFORE DELETE ON m12_correction_log
         FOR EACH ROW EXECUTE FUNCTION m12_correction_log_no_modify();

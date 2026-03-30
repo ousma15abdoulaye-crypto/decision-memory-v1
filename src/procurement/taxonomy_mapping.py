@@ -167,6 +167,11 @@ def legacy_taxonomy_to_m12(taxonomy_core: str) -> DocumentKindParent:
     return LEGACY_TAXONOMY_TO_M12.get(taxonomy_core, DocumentKindParent.UNKNOWN)
 
 
+def legacy_role_to_layer(document_role: str) -> DocumentLayer:
+    """Bridge from legacy DocumentRole string to M12 DocumentLayer."""
+    return LEGACY_ROLE_TO_LAYER.get(document_role, DocumentLayer.UNKNOWN)
+
+
 def all_corpus_keys() -> frozenset[str]:
     """All known corpus taxonomy_core values."""
     return frozenset(_CORPUS_KEY_TO_MAPPING.keys())

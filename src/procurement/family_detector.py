@@ -42,14 +42,6 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
-def _score_patterns(text_lower: str, patterns: list[str]) -> float:
-    hits = 0
-    for p in patterns:
-        if re.search(re.escape(p.lower()), text_lower):
-            hits += 1
-    return float(hits)
-
-
 class FamilyDetector:
     """Detects procurement family from document text and optional dictionary."""
 

@@ -49,7 +49,7 @@ _GATE_PATTERNS: list[tuple[str, str, str | None, bool, re.Pattern[str]]] = [
     (
         "sci_conditions_signed",
         "eligibility",
-        "sci_conditions",
+        "sci_conditions_signed",
         True,
         re.compile(
             r"conditions\s+g[eé]n[eé]rales\s+d.achat|general\s+conditions",

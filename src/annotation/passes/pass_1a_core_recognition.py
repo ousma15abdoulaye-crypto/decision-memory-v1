@@ -120,6 +120,38 @@ def run_pass_1a_core_recognition(
     errors: list[PassError] = []
 
     try:
+        # Quality gate: if poor quality and LLM blocked, cap everything
+        if quality_class == "poor" and block_llm:
+            return AnnotationPassOutput(
+                pass_name=_PASS_NAME,
+                pass_version=_PASS_VERSION,
+                document_id=document_id,
+                run_id=run_id,
+                started_at=started,
+                completed_at=datetime.now(UTC),
+                status=PassRunStatus.DEGRADED,
+                output_data={
+                    "m12_recognition": {},
+                    "document_role": "unknown",
+                    "taxonomy_core": "unknown",
+                    "routing_confidence": 0.6,
+                    "routing_source": "deterministic_blocked",
+                    "matched_rule": "quality_gate_block",
+                    "deterministic": True,
+                    "routing_evidence": [
+                        f"quality={quality_class}",
+                        "block_llm=true",
+                    ],
+                    "routing_failure_reason": "poor_quality_llm_blocked",
+                },
+                errors=[],
+                metadata={
+                    "duration_ms": 0,
+                    "quality_class": quality_class,
+                    "filename": filename,
+                },
+            )
+
         # L1 — Framework detection
         fw_decision = _get_fw_bank().detect_framework(normalized_text)
 
@@ -362,5 +394,6 @@ def run_pass_1a_core_recognition(
         metadata={
             "duration_ms": int((completed - started).total_seconds() * 1000),
             "quality_class": quality_class,
+            "filename": filename,
         },
     )

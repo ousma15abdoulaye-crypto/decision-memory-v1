@@ -73,3 +73,28 @@ class TestPass1A:
         )
         conf = out.output_data.get("routing_confidence")
         assert conf in (0.6, 0.8, 1.0)
+
+    def test_poor_quality_block_llm_early_return(self) -> None:
+        text = "TERMES DE RÉFÉRENCE\nObjectif de la mission"
+        out = run_pass_1a_core_recognition(
+            normalized_text=text,
+            document_id="test-doc-007",
+            run_id=uuid.uuid4(),
+            quality_class="poor",
+            block_llm=True,
+        )
+        assert out.status == PassRunStatus.DEGRADED
+        assert (
+            out.output_data.get("routing_failure_reason") == "poor_quality_llm_blocked"
+        )
+        assert out.output_data.get("taxonomy_core") == "unknown"
+
+    def test_filename_in_metadata(self) -> None:
+        text = "DEMANDE DE COTATION articles"
+        out = run_pass_1a_core_recognition(
+            normalized_text=text,
+            document_id="test-doc-008",
+            run_id=uuid.uuid4(),
+            filename="test_document.pdf",
+        )
+        assert out.metadata.get("filename") == "test_document.pdf"
