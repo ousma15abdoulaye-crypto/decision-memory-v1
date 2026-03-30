@@ -15,6 +15,7 @@ from prompts.schema_validator import (
     GateName,
     LineCheck,
     LineItemLevel,
+    coerce_gate_value_for_applicable,
     normalize_annotation_output,
     normalize_boolean,
     normalize_item_line_no_strict,
@@ -448,6 +449,29 @@ def test_boolean_string_normalized():
     assert normalize_boolean("APPLICABLE", "has_sci_conditions_signed") is True
     assert normalize_boolean("facultatif", "has_quitus_fiscal") is False
     assert normalize_boolean("non applicable", "has_certificat_non_faillite") is False
+
+
+def test_coerce_gate_value_applicable_tokens_safe_default():
+    """gate_value="APPLICABLE"/"applicable" doit retourner False (safe default).
+
+    APPLICABLE est un vocabulaire gate_state, pas gate_value. Lorsqu'il arrive
+    en gate_value (erreur Mistral), il ne doit PAS être interprété comme True.
+    Régression : s'assure que _parse_bool_string(gate_mode=True) bloque bien
+    ces tokens dans coerce_gate_value_for_applicable.
+    """
+    # tokens applicabilité malformés en gate_value → safe default False
+    assert coerce_gate_value_for_applicable("APPLICABLE") is False
+    assert coerce_gate_value_for_applicable("Applicable") is False
+    assert coerce_gate_value_for_applicable("applicable") is False
+    assert coerce_gate_value_for_applicable("non applicable") is False
+    assert coerce_gate_value_for_applicable("non_applicable") is False
+    assert coerce_gate_value_for_applicable("inapplicable") is False
+    # tokens OUI/NON doivent toujours fonctionner correctement en gate_value
+    assert coerce_gate_value_for_applicable("OUI") is True
+    assert coerce_gate_value_for_applicable("NON") is False
+    assert coerce_gate_value_for_applicable(None) is False
+    assert coerce_gate_value_for_applicable(True) is True
+    assert coerce_gate_value_for_applicable(False) is False
 
 
 def test_empty_string_to_sentinel():
