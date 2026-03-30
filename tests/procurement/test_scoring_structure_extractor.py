@@ -25,10 +25,10 @@ class TestScoringStructureExtractor:
         result = extract_scoring_structure(text)
         assert result.evaluation_method == "lowest_price"
 
-    def test_detects_method_best_value(self) -> None:
+    def test_detects_method_mieux_disant(self) -> None:
         text = "Le marché sera attribué au mieux-disant."
         result = extract_scoring_structure(text)
-        assert result.evaluation_method == "best_value"
+        assert result.evaluation_method == "mieux_disant"
 
     def test_detects_technical_threshold(self) -> None:
         text = "Seuil technique minimum de 70/100 requis."

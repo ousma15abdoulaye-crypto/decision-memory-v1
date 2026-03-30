@@ -139,7 +139,7 @@ class ScoringStructureDetected(BaseModel):
     evaluation_method: (
         Literal[
             "lowest_price",
-            "best_value",
+            "mieux_disant",
             "quality_cost_based",
             "fixed_budget",
             "consultant_qualification",

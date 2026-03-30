@@ -29,7 +29,12 @@ _THRESHOLD_PATTERN = re.compile(
 
 _METHOD_SIGNALS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"moins[- ]disant|lowest\s+price", re.IGNORECASE), "lowest_price"),
-    (re.compile(r"mieux[- ]disant|best\s+value", re.IGNORECASE), "best_value"),
+    (
+        re.compile(
+            r"mieux[- ]disant|offre\s+[eé]conomiquement\s+avantageuse", re.IGNORECASE
+        ),
+        "mieux_disant",
+    ),
     (
         re.compile(r"qualit[eé]\s*[-/]\s*co[uû]t|quality[- ]cost", re.IGNORECASE),
         "quality_cost_based",

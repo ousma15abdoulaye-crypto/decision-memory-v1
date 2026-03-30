@@ -82,6 +82,7 @@ VALID_ALEMBIC_HEADS = (
     "051_cases_tenant_user_tenants_rls",
     "052_dm_app_rls_role",
     "053_dm_app_enforce_security_attrs",
+    "054_m12_correction_log",
     "m7_4_dict_vivant",  # branche parallèle
 )
 
