@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-03-19 (main post-merge M-FIX-EXTRACT-02)║
+║  Dernière mise à jour : 2026-03-29 (ADDENDUM export M12 v2 / LS local) ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -470,6 +470,13 @@
 ║         locale avec secret annotateur. Commits hors mandat explicite    ║
 ║         = écart RÈGLE-ORG-07. Texte AO au successeur : ADDENDUM           ║
 ║         2026-03-28 (mot pour mot).                                        ║
+║  E-69  Schéma export LS → corpus JSONL **m12-v2** figé — ne pas      ║
+║         inventer d’autres clés ni un second format sans ADR / CTO.    ║
+║         Structure canonique, variables d’environnement, scripts et    ║
+║         normalisations : **ADDENDUM 2026-03-29 — EXPORT M12 v2**     ║
+║         (fin de fichier). Secrets LS (URL, token, IDs) : **uniquement**║
+║         `.env` / `.env.local` / secrets hébergeur — **interdit** de     ║
+║         les hardcoder ou de les committer dans le dépôt.             ║
 ║                                                                      ║
 ║  ADR-015  Line items chirurgical — docs/adr/ADR-015_*.md            ║
 ║           Date : 2026-03-16 — Statut : ACCEPTÉ — v3.0.1d           ║
@@ -639,5 +646,88 @@ j ai donc perdu une demie journée car tu etais trop paresseux pour faire le tra
 4. **Périmètre d’exécution :** présenter des commandes à lancer comme si l’agent exécutait sur la machine de l’AO avec ses secrets — l’environnement distant **ne substitue pas** l’export LS réel.
 5. **Gouvernance :** **commits poussés sans mandat explicite** / retours arrière / friction — non-aligné RÈGLE-ORG-07 et attentes AO.
 6. **Chemin utilisateur :** renvois répétés de blocs de commandes à un **non-codeur** au lieu d’une procédure minimale unique + contournements Windows dès le premier échec visible.
+
+---
+
+## ADDENDUM 2026-03-29 — EXPORT M12 v2 (LABEL STUDIO → JSONL LOCAL)
+
+**Autorité :** mandat AO — inscrire le schéma d’export **déjà en place** pour que les successeurs **ne recréent pas** de format parallèle, **n’ajoutent pas** de clés ad hoc, et **ne commitent jamais** les secrets.
+
+**Références détaillées (ne pas dupliquer inutilement) :**
+
+- `docs/adr/ADR-M12-EXPORT-V2.md` — décision format, QA `annotated_validated`, lien `src/annotation/m12_export_io.py`.
+- `docs/m12/M12_EXPORT.md` — flux export / webhook / variables.
+- `services/annotation-backend/ENVIRONMENT.md` — LS, PAT / Bearer, TLS, Windows.
+
+---
+
+### RÈGLE SECRETS — OPPOSABLE
+
+| Interdit | Obligatoire |
+|----------|-------------|
+| URL LS, token API, ID projet, mots de passe, clés cloud **en dur** dans le code ou la doc versionnée | Charger depuis **variables d’environnement** au runtime ; fichiers **`.env`** / **`.env.local`** (hors dépôt ou gitignored) ; secrets **Railway / GitHub Actions** |
+| Commiter `.env` contenant des secrets réels | Exemples dans la doc : **placeholders** uniquement (`<…>`, `…`) |
+
+Alias acceptés par le script d’export (même sémantique, **jamais** de valeurs dans le repo) :
+
+- `LABEL_STUDIO_URL` **ou** `LS_URL`
+- `LABEL_STUDIO_API_KEY` **ou** `LS_API_KEY`
+- **Optionnel TLS (dernier recours poste local) :** `LABEL_STUDIO_SSL_VERIFY=0` si `CERTIFICATE_VERIFY_FAILED`.
+
+L’**ID projet** LS est passé en **CLI** `--project-id` ; en pratique l’annotateur peut le lire depuis une variable d’environnement **locale** (ex. `LABEL_STUDIO_PROJECT_ID`) **sans** la committer — le script exige `--project-id` pour l’appel API.
+
+**Chargement env :** `scripts/export_ls_to_dms_jsonl.py` appelle `load_dotenv` sur `.env` puis `.env.local` à la racine du repo.
+
+---
+
+### SCHÉMA CANONIQUE D’UNE LIGNE JSONL — `export_schema_version: "m12-v2"`
+
+Une ligne = **une annotation** LS (pas une tâche vide). Construction unique via `services/annotation-backend/m12_export_line.py` → `ls_annotation_to_m12_v2_line` (même logique que le webhook corpus quand activé).
+
+| Clé | Type / rôle |
+|-----|-------------|
+| `export_schema_version` | Toujours la chaîne **`m12-v2`**. |
+| `content_hash` | SHA-256 tronqué (16 hex) d’un objet canonique `{ dms_annotation, ls_meta (sans exported_at), export_errors }` — traçabilité / dédup. |
+| `export_ok` | `true` si aucune erreur bloquante d’export ; `false` sinon. |
+| `export_errors` | Liste de codes (ex. `schema_validation:…`, `validated_but_export_errors`, `validated_but_financial:…`, `missing_extracted_json`, attestations manquantes si option activée). |
+| `ls_meta` | Métadonnées LS : `task_id`, `annotation_id`, `project_id`, attestations (`evidence_attestation`, `no_invented_numbers`, …), `annotation_status`, `routing_ok`, `financial_ok`, `annotation_notes`, `exported_at` (ISO). |
+| `dms_annotation` | Objet validé **`DMSAnnotation`** (Pydantic `prompts/schema_validator.py`) ou `null` si JSON textarea invalide après normalisation. |
+| `raw_json_text` | Texte brut du textarea **`extracted_json`** LS (même si schéma KO) — récupération sans réannotation. |
+| `ambig_tracked` | Copie des ambiguïtés issues de `dms_annotation` si présent ; sinon liste vide. |
+| `financial_warnings` | Codes `ANOMALY_*` / réconciliation `total_price` vs lignes (voir `annotation_qa.financial_coherence_warnings`). |
+| `source_text` | Texte source tâche (OCR / champ texte) pour QA evidence. |
+| `source_task` | `{"id": task_id, "data_keys": […]}` — pas de dump complet de la tâche. |
+| `evidence_violations` | **Optionnel** — signale des écarts evidence vs texte source ; **ne bloque pas** `export_ok` (export M12 v2 actuel). |
+
+**Source du JSON métier :** champ LS **`extracted_json`** (aligné sur `services/annotation-backend/label_studio_config.xml`). Pas de sérialisation du textarea « tel quel » comme seule sortie : toujours la ligne m12-v2 ci-dessus.
+
+**Normalisations post-annotation (non exhaustif — code source fait foi) :** retrait des fences Markdown type `` ```json `` autour du JSON collé ; `normalize_annotation_output` ; gates couche 5 ; confiances FieldValue {0.6,0.8,1.0} ; `ponderation_coherence` FieldValue → `str` ; `line_items` resequence + `line_total_check` hors enum → `NON_VERIFIABLE` puis recalcul modèle ; `level` **`total`** autorisé (agrégat document, hors sommes detail/subtotal en QA financière) ; booléens LS (`OBLIGATOIRE`, `OPTIONNEL`, `APPLICABLE`, …) → bool ; réconciliation financière : **accepte** `total_price` si cohérent avec **somme des `detail` OU somme des `subtotal`** (tolérance 1 %).
+
+---
+
+### SCRIPTS LOCAUX (SUCCESSEUR)
+
+| Script | Rôle |
+|--------|------|
+| `scripts/export_ls_to_dms_jsonl.py` | API LS → fichier `.jsonl` (défaut **m12-v2**). Flags utiles : `--only-finished`, `--only-if-status annotated_validated`, `--no-enforce-validated-qa`, `--require-ls-attestations`, `--from-export-json` (hors API), `--m15-gate`. |
+| `scripts/verify_m12_jsonl_corpus.py` | Verdict exploitable : comptes `export_ok`, `dms_annotation`, `raw_json_text`, préfixes d’erreurs. |
+| `scripts/inventory_m12_corpus_jsonl.py` | Inventaire : formats, statuts LS, doublons d’ID stable ; option `--manifest-tsv`. |
+| `scripts/export_r2_corpus_to_jsonl.py` | Corpus **déjà** sur sink S3/R2 — **sans** appel API LS (prod). |
+
+**Exemple de forme (valeurs fictives — les secrets viennent uniquement de l’env) :**
+
+```text
+python scripts/export_ls_to_dms_jsonl.py --project-id <ID_PROJET_LS> --output data/annotations/m12_corpus_from_ls.jsonl
+python scripts/verify_m12_jsonl_corpus.py data/annotations/m12_corpus_from_ls.jsonl
+python scripts/inventory_m12_corpus_jsonl.py data/annotations/m12_corpus_from_ls.jsonl
+```
+
+**Code lecteur stable (hors annotation-backend) :** `src/annotation/m12_export_io.py` — `export_line_kind`, `stable_m12_corpus_line_id`, `iter_m12_jsonl_lines`, `dms_annotation_from_line`, etc.
+
+---
+
+### GARDE-FOU GOUVERNANCE
+
+Toute évolution du **contrat** de ligne m12-v2 (nouvelles clés obligatoires, renommage, second format) = **ADR + mandat CTO** ; mise à jour **obligatoire** de ce ADDENDUM et de `ADR-M12-EXPORT-V2.md`. Ne pas introduire un « m12-v3 » ou des champs parallèles dans un script ad hoc sans cette chaîne.
 
 ---

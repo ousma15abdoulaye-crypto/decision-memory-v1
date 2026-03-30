@@ -177,17 +177,42 @@ BOOL_MAP = {
     "optional": False,
     "Optional": False,
     "OPTIONAL": False,
+    # Grilles Label Studio / DAO (pièces administratives, clauses)
+    "OBLIGATOIRE": True,
+    "Obligatoire": True,
+    "obligatoire": True,
+    "OPTIONNEL": False,
+    "Optionnel": False,
+    "optionnel": False,
+    # Vocabulaire gate_state parfois recopié dans FieldValue.value
+    "APPLICABLE": True,
+    "Applicable": True,
+    "applicable": True,
 }
 
 
-def _parse_bool_string(s: str) -> bool | None:
-    """Interprète une chaîne comme booléen ; None si non reconnu."""
+def _parse_bool_string(s: str, *, gate_mode: bool = False) -> bool | None:
+    """Interprète une chaîne comme booléen ; None si non reconnu.
+
+    gate_mode=True : exclut les tokens d'applicabilité («applicable»,
+    «non applicable», …) qui sont du vocabulaire gate_state et non gate_value.
+    Cela évite qu'un gate_value="APPLICABLE" malformé soit silencieusement
+    converti en True par coerce_gate_value_for_applicable().
+    """
     if not isinstance(s, str):
         return None
     t = s.strip()
+    # BOOL_MAP peut contenir des tokens applicabilité — les sauter en gate_mode
+    low = t.lower()
+    if gate_mode and low in (
+        "applicable",
+        "non applicable",
+        "non_applicable",
+        "inapplicable",
+    ):
+        return None
     if t in BOOL_MAP:
         return BOOL_MAP[t]
-    low = t.lower()
     if low in ("oui", "yes"):
         return True
     if low in ("non", "no"):
@@ -197,6 +222,22 @@ def _parse_bool_string(s: str) -> bool | None:
     if low == "required":
         return True
     if low == "optional":
+        return False
+    # FR — exigences documentaires / grilles (normalisation sans warning)
+    if low in (
+        "obligatoire",
+        "mandatory",
+        "mandatoire",
+        "exige",
+        "exigé",
+        "exigee",
+    ):
+        return True
+    if low in ("optionnel", "facultatif", "facultative"):
+        return False
+    if low == "applicable":
+        return True
+    if low in ("non applicable", "non_applicable", "inapplicable"):
         return False
     return None
 
@@ -208,7 +249,7 @@ def coerce_gate_value_for_applicable(v: Any) -> bool:
     if v is None:
         return False
     if isinstance(v, str):
-        pb = _parse_bool_string(v)
+        pb = _parse_bool_string(v, gate_mode=True)
         if pb is not None:
             return pb
     if isinstance(v, (int, float)) and not isinstance(v, bool):
