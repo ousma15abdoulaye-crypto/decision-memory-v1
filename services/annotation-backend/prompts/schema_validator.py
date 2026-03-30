@@ -177,6 +177,17 @@ BOOL_MAP = {
     "optional": False,
     "Optional": False,
     "OPTIONAL": False,
+    # Grilles Label Studio / DAO (pièces administratives, clauses)
+    "OBLIGATOIRE": True,
+    "Obligatoire": True,
+    "obligatoire": True,
+    "OPTIONNEL": False,
+    "Optionnel": False,
+    "optionnel": False,
+    # Vocabulaire gate_state parfois recopié dans FieldValue.value
+    "APPLICABLE": True,
+    "Applicable": True,
+    "applicable": True,
 }
 
 
@@ -197,6 +208,22 @@ def _parse_bool_string(s: str) -> bool | None:
     if low == "required":
         return True
     if low == "optional":
+        return False
+    # FR — exigences documentaires / grilles (normalisation sans warning)
+    if low in (
+        "obligatoire",
+        "mandatory",
+        "mandatoire",
+        "exige",
+        "exigé",
+        "exigee",
+    ):
+        return True
+    if low in ("optionnel", "facultatif", "facultative"):
+        return False
+    if low == "applicable":
+        return True
+    if low in ("non applicable", "non_applicable", "inapplicable"):
         return False
     return None
 

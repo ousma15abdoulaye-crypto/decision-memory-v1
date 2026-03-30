@@ -443,6 +443,11 @@ def test_boolean_string_normalized():
     assert normalize_boolean("requis", "has_rib") is True
     assert normalize_boolean("required", "has_nif") is True
     assert normalize_boolean("optional", "ariba_network_required") is False
+    assert normalize_boolean("OBLIGATOIRE", "has_nif") is True
+    assert normalize_boolean("OPTIONNEL", "ariba_network_required") is False
+    assert normalize_boolean("APPLICABLE", "has_sci_conditions_signed") is True
+    assert normalize_boolean("facultatif", "has_quitus_fiscal") is False
+    assert normalize_boolean("non applicable", "has_certificat_non_faillite") is False
 
 
 def test_empty_string_to_sentinel():
