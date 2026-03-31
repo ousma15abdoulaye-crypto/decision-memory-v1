@@ -29,13 +29,14 @@ from __future__ import annotations
 import json
 import logging
 import os
+from pathlib import Path
 from typing import Any
 
 from src.procurement.procedure_models import TracedField
 
 logger = logging.getLogger(__name__)
 
-# ── Configuration ─────────────────────────────────────────────────────────
+# ── Configuration (constantes fallback) ───────────────────────────────────
 
 _DEFAULT_MODEL = "mistral-large-latest"
 _DEFAULT_TIMEOUT = 10
@@ -46,6 +47,34 @@ _DEFAULT_TEMPERATURE = 0.0
 _MAX_CONF_TYPE_DISAMBIGUATION = 0.85
 _MAX_CONF_MANDATORY_PART = 0.70
 _MAX_CONF_PROCESS_LINK = 0.80
+
+_CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "llm_arbitration.yaml"
+
+
+def _load_yaml_config() -> dict:
+    """Charge config/llm_arbitration.yaml. Retourne {} si absent ou invalide."""
+    if not _CONFIG_PATH.is_file():
+        logger.debug(
+            "[ARBITRATOR] config/llm_arbitration.yaml absent — constantes par defaut"
+        )
+        return {}
+    try:
+        import yaml  # yaml est une dep DMS (mandatory_parts_engine l'utilise deja)
+
+        with _CONFIG_PATH.open(encoding="utf-8") as fh:
+            data = yaml.safe_load(fh)
+        if not isinstance(data, dict):
+            logger.warning(
+                "[ARBITRATOR] llm_arbitration.yaml mal forme — constantes par defaut"
+            )
+            return {}
+        logger.debug("[ARBITRATOR] llm_arbitration.yaml charge depuis %s", _CONFIG_PATH)
+        return data
+    except Exception as exc:
+        logger.warning(
+            "[ARBITRATOR] Impossible de charger llm_arbitration.yaml : %s", exc
+        )
+        return {}
 
 
 # ── Singleton ─────────────────────────────────────────────────────────────
@@ -83,7 +112,12 @@ def _safe_json(raw: str) -> dict:
         raw = "\n".join(inner).strip()
     try:
         return json.loads(raw)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
+        logger.warning(
+            "[ARBITRATOR] _safe_json : echec parse JSON (%s) — raw[:120]=%r",
+            exc,
+            raw[:120],
+        )
         return {}
 
 
@@ -113,16 +147,57 @@ class LLMArbitrator:
         timeout: int | None = None,
         max_retries: int | None = None,
     ) -> None:
-        self._model = model or os.environ.get("LLM_ARBITRATOR_MODEL", _DEFAULT_MODEL)
+        cfg = _load_yaml_config()
+        arb_cfg = cfg.get("arbitration", {})
+        thresh_cfg = cfg.get("thresholds", {})
+
+        # Priorite : argument explicite > env var > YAML > constante
+        self._model = (
+            model
+            or os.environ.get("LLM_ARBITRATOR_MODEL")
+            or arb_cfg.get("model")
+            or _DEFAULT_MODEL
+        )
         self._timeout = timeout or int(
-            os.environ.get("LLM_ARBITRATOR_TIMEOUT", str(_DEFAULT_TIMEOUT))
+            os.environ.get("LLM_ARBITRATOR_TIMEOUT")
+            or arb_cfg.get("timeout_seconds")
+            or _DEFAULT_TIMEOUT
         )
         self._max_retries = max_retries or int(
-            os.environ.get("LLM_ARBITRATOR_MAX_RETRIES", str(_DEFAULT_MAX_RETRIES))
+            os.environ.get("LLM_ARBITRATOR_MAX_RETRIES")
+            or arb_cfg.get("max_retries")
+            or _DEFAULT_MAX_RETRIES
+        )
+        self._enabled = arb_cfg.get("enabled", True)
+
+        # Plafonds par tache — depuis YAML si present, sinon constantes module
+        td = thresh_cfg.get("type_disambiguation", {})
+        mp = thresh_cfg.get("mandatory_parts_l3", {})
+        pl = thresh_cfg.get("process_linking", {})
+        self._max_conf_type = float(
+            td.get("max_llm_confidence", _MAX_CONF_TYPE_DISAMBIGUATION)
+        )
+        self._max_conf_parts = float(
+            mp.get("max_llm_confidence", _MAX_CONF_MANDATORY_PART)
+        )
+        self._max_conf_link = float(
+            pl.get("max_llm_confidence", _MAX_CONF_PROCESS_LINK)
+        )
+        self._trigger_type_below = float(td.get("trigger_below_confidence", 0.80))
+
+        logger.debug(
+            "[ARBITRATOR] init model=%s timeout=%ds retries=%d enabled=%s",
+            self._model,
+            self._timeout,
+            self._max_retries,
+            self._enabled,
         )
 
     def is_available(self) -> bool:
-        """True si MISTRAL_API_KEY presente (online-first)."""
+        """True si enabled=true (YAML) ET MISTRAL_API_KEY presente (online-first)."""
+        if not self._enabled:
+            logger.debug("[ARBITRATOR] desactive par config (enabled=false)")
+            return False
         return bool(os.environ.get("MISTRAL_API_KEY", "").strip())
 
     def _get_client(self):
@@ -239,7 +314,7 @@ class LLMArbitrator:
                 f"llm_returned_out_of_taxonomy:{doc_type}",
             )
 
-        capped = _cap(confidence, _MAX_CONF_TYPE_DISAMBIGUATION)
+        capped = _cap(confidence, self._max_conf_type)
         logger.info(
             "[ARBITRATOR] type_disambiguation : %s conf=%.2f->%.2f evidence=%s",
             doc_type,
@@ -310,7 +385,7 @@ class LLMArbitrator:
         confidence = float(parsed.get("confidence", 0.0))
         evidence_str = str(parsed.get("evidence", ""))
 
-        capped = _cap(confidence, _MAX_CONF_MANDATORY_PART)
+        capped = _cap(confidence, self._max_conf_parts)
         logger.info(
             "[ARBITRATOR] detect_mandatory_part '%s' : detected=%s conf=%.2f->%.2f",
             part_name,
@@ -394,7 +469,7 @@ class LLMArbitrator:
         confidence = float(parsed.get("confidence", 0.0))
         evidence_str = str(parsed.get("evidence", ""))
 
-        capped = _cap(confidence, _MAX_CONF_PROCESS_LINK)
+        capped = _cap(confidence, self._max_conf_link)
         logger.info(
             "[ARBITRATOR] semantic_link : linked=%s nature=%s conf=%.2f->%.2f",
             linked,

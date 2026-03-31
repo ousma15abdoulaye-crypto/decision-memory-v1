@@ -912,3 +912,44 @@ Détails : `docs/calibration/M12_calibration_log.md`, `docs/calibration/benchmar
 - `tests/procurement/test_llm_arbitrator.py` : 16 tests LLM arbitrator
 
 ---
+
+## ADDENDUM 2026-03-31 — Correction failles LLM plomberie M12 (feat/llm-arbitrator-ocr-railway-fix)
+
+**Branche :** `feat/llm-arbitrator-ocr-railway-fix`
+**Contexte :** Après révision de l'intégration LLM commitée précédemment, 7 failles identifiées et corrigées : 1 bombe Pydantic (crash runtime garanti), 2 passes mortes (LLM câblé mais jamais appelé), 1 config non chargée, 1 erreur silencieuse, 2 contrats manquants.
+
+### FICHIERS MODIFIÉS
+
+- `src/procurement/procedure_models.py` — `LinkHint.link_level` Literal enrichi avec `"SEMANTIC_LLM"` (F-1 — bombe désamorcée).
+- `src/annotation/passes/pass_1d_process_linking.py` — injection `get_arbitrator()` dans appel `build_process_linking` → Level 5 SEMANTIC_LLM actif en production (F-2).
+- `src/annotation/passes/pass_1b_document_validity.py` — injection `get_arbitrator()` dans `MandatoryPartsEngine(llm_arbitrator=...)` → Level 3 LLM actif en production (F-3).
+- `src/procurement/llm_arbitrator.py` — chargement `config/llm_arbitration.yaml` dans `__init__` (priorité : arg > env > YAML > constante), `_enabled` flag, plafonds par tâche depuis YAML. `_safe_json` log `WARNING` au lieu d'avaler silencieusement les erreurs JSON (F-4, F-5).
+- `docs/contracts/annotation/PASS_1D_CONTRACT.md` — Level 5 SEMANTIC_LLM documenté (condition déclenchement, confiance, fallback) (F-6).
+- `docs/contracts/annotation/M12_M13_HANDOFF_CONTRACT.md` — CRÉÉ : contrat interface H1 `RegulatoryProfileSkeleton` M12→M13 (F-7).
+- `docs/contracts/annotation/M12_M14_HANDOFF_CONTRACT.md` — CRÉÉ : contrat interface H2 `AtomicCapabilitySkeleton` + H3 `MarketContextSignal` M12→M14 (F-7).
+- `tests/procurement/test_llm_arbitrator.py` — 6 tests ajoutés (T17 à T22) : YAML loading, fallback constantes, `enabled=false`, `_safe_json` warning, injection pass_1B, injection pass_1D.
+
+### ERREURS CAPITALISÉES — E-76 à E-80
+
+**E-76** (2026-03-31) : `LinkHint.link_level` Literal ne contenait pas `"SEMANTIC_LLM"`. `process_linker.py` L257 construisait un `LinkHint(link_level="SEMANTIC_LLM")` → `ValidationError` Pydantic v2 avec `extra="forbid"` — crash runtime garanti dès qu'une paire contextuelle atteint le Level 5. **Fix :** ajouter `"SEMANTIC_LLM"` au Literal dans `procedure_models.py`.
+
+**E-77** (2026-03-31) : `pass_1d_process_linking.py` appelait `build_process_linking(source, candidates, normalized_text)` sans le 4e argument `llm_arbitrator`. Le Level 5 SEMANTIC_LLM dans `process_linker.py` était mort en production — jamais atteint. **Fix :** injecter `get_arbitrator()` si `is_available()`.
+
+**E-78** (2026-03-31) : `pass_1b_document_validity.py` instanciait `MandatoryPartsEngine()` sans `llm_arbitrator`. Le Level 3 LLM dans `mandatory_parts_engine.py` ne se déclenchait jamais en production — parties manquantes non détectées sur documents atypiques. **Fix :** `MandatoryPartsEngine(llm_arbitrator=get_arbitrator())`.
+
+**E-79** (2026-03-31) : `config/llm_arbitration.yaml` existait (seuils configurables : timeout, modèle, plafonds confiance) mais `LLMArbitrator.__init__` ne le chargeait pas — le fichier était documentation morte. Constantes Python hardcodées sans possibilité d'ajustement opérationnel sans toucher au code. **Fix :** `_load_yaml_config()` dans `__init__` avec fallback constantes module si fichier absent.
+
+**E-80** (2026-03-31) : `_safe_json` dans `llm_arbitrator.py` retournait `{}` silencieusement sur `JSONDecodeError`. Les 3 méthodes lisaient `doc_type=""`, `confidence=0.0` — identique à "pas de réponse LLM" sans aucune trace observable. Impossibilité de diagnostiquer les réponses malformées du LLM en production. **Fix :** `logger.warning("[ARBITRATOR] _safe_json : echec parse JSON...")` dans le `except`.
+
+### CONTRATS M13/M14 ÉTABLIS
+
+Les sorties M12 vers les milestones futurs sont désormais contractualisées :
+- `M12_M13_HANDOFF_CONTRACT.md` : H1 `RegulatoryProfileSkeleton` — signaux framework, clauses SCI/DGMP, instructions M13
+- `M12_M14_HANDOFF_CONTRACT.md` : H2 `AtomicCapabilitySkeleton` + H3 `MarketContextSignal` — squelette évaluation offres, contexte marché, instructions M14
+- Invariant M14 rappelé : `winner / rank / recommendation / best_offer` = INTERDITS (RÈGLE-09)
+
+### TESTS ADDITIONNELS (batch 2)
+
+- `tests/procurement/test_llm_arbitrator.py` : +6 tests (T17–T22) — total 22 tests
+
+---

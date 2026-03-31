@@ -464,3 +464,181 @@ def test_reset_arbitrator_clears_singleton(monkeypatch):
     reset_arbitrator()
     arb3 = get_arbitrator()
     assert arb3 is not arb1  # nouveau singleton apres reset
+
+
+# ── T17 : YAML config charge — valeurs overrident constantes ──────────────
+
+
+def test_yaml_config_loaded_overrides_defaults(tmp_path, monkeypatch):
+    """LLMArbitrator charge llm_arbitration.yaml et overide les constantes par defaut."""
+    import yaml
+
+    from src.procurement import llm_arbitrator as arb_mod
+    from src.procurement.llm_arbitrator import LLMArbitrator, reset_arbitrator
+
+    yaml_content = {
+        "arbitration": {
+            "enabled": True,
+            "model": "mistral-small-latest",
+            "timeout_seconds": 5,
+            "max_retries": 2,
+        },
+        "thresholds": {
+            "type_disambiguation": {"max_llm_confidence": 0.75},
+            "mandatory_parts_l3": {"max_llm_confidence": 0.60},
+            "process_linking": {"max_llm_confidence": 0.70},
+        },
+    }
+    yaml_file = tmp_path / "llm_arbitration.yaml"
+    yaml_file.write_text(yaml.dump(yaml_content), encoding="utf-8")
+
+    reset_arbitrator()
+    monkeypatch.setattr(arb_mod, "_CONFIG_PATH", yaml_file)
+
+    arb = LLMArbitrator()
+
+    assert arb._model == "mistral-small-latest"
+    assert arb._timeout == 5
+    assert arb._max_retries == 2
+    assert arb._max_conf_type == 0.75
+    assert arb._max_conf_parts == 0.60
+    assert arb._max_conf_link == 0.70
+
+
+# ── T18 : YAML absent — fallback sur constantes ───────────────────────────
+
+
+def test_yaml_absent_fallback_to_defaults(tmp_path, monkeypatch):
+    """Si llm_arbitration.yaml absent, constantes par defaut utilisees."""
+    from src.procurement import llm_arbitrator as arb_mod
+    from src.procurement.llm_arbitrator import LLMArbitrator, reset_arbitrator
+
+    missing_path = tmp_path / "nonexistent.yaml"
+    reset_arbitrator()
+    monkeypatch.setattr(arb_mod, "_CONFIG_PATH", missing_path)
+
+    arb = LLMArbitrator()
+
+    assert arb._model == "mistral-large-latest"
+    assert arb._timeout == 10
+    assert arb._max_conf_type == 0.85
+    assert arb._max_conf_parts == 0.70
+    assert arb._max_conf_link == 0.80
+
+
+# ── T19 : enabled=false desactive is_available meme avec API key ──────────
+
+
+def test_yaml_enabled_false_disables_arbitrator(tmp_path, monkeypatch):
+    """Si enabled=false dans YAML, is_available() retourne False meme avec API key."""
+    import yaml
+
+    from src.procurement import llm_arbitrator as arb_mod
+    from src.procurement.llm_arbitrator import LLMArbitrator, reset_arbitrator
+
+    yaml_content = {"arbitration": {"enabled": False}}
+    yaml_file = tmp_path / "llm_arbitration.yaml"
+    yaml_file.write_text(yaml.dump(yaml_content), encoding="utf-8")
+
+    reset_arbitrator()
+    monkeypatch.setattr(arb_mod, "_CONFIG_PATH", yaml_file)
+    monkeypatch.setenv("MISTRAL_API_KEY", "sk-test")
+
+    arb = LLMArbitrator()
+    assert arb.is_available() is False
+
+
+# ── T20 : _safe_json log warning si JSON invalide ─────────────────────────
+
+
+def test_safe_json_logs_warning_on_invalid_json(caplog):
+    """_safe_json log un WARNING si le JSON est invalide."""
+    import logging
+
+    from src.procurement.llm_arbitrator import _safe_json
+
+    with caplog.at_level(logging.WARNING, logger="src.procurement.llm_arbitrator"):
+        result = _safe_json("ceci n'est pas du JSON valide {{{")
+
+    assert result == {}
+    assert any(
+        "_safe_json" in r.message and "echec parse JSON" in r.message
+        for r in caplog.records
+    )
+
+
+# ── T21 : pass_1b injecte arbitrateur dans MandatoryPartsEngine ───────────
+
+
+def test_pass_1b_injects_arbitrator_when_available(monkeypatch):
+    """pass_1b instancie MandatoryPartsEngine avec llm_arbitrator quand API disponible."""
+    from unittest.mock import MagicMock
+
+    import src.annotation.passes.pass_1b_document_validity as p1b_mod
+    from src.procurement.llm_arbitrator import reset_arbitrator
+
+    reset_arbitrator()
+    p1b_mod._mp_engine = None  # force reinit
+
+    mock_arb = MagicMock()
+    mock_arb.is_available.return_value = True
+
+    with patch(
+        "src.annotation.passes.pass_1b_document_validity.get_arbitrator",
+        return_value=mock_arb,
+    ):
+        engine = p1b_mod._get_engine()
+
+    assert engine._llm_arbitrator is mock_arb
+    p1b_mod._mp_engine = None  # nettoyage
+
+
+# ── T22 : pass_1d passe arbitrateur a build_process_linking ───────────────
+
+
+def test_pass_1d_passes_arbitrator_to_process_linking(monkeypatch):
+    """pass_1d passe l'arbitrateur a build_process_linking quand API disponible."""
+    import uuid
+    from unittest.mock import MagicMock, patch
+
+    from src.procurement.llm_arbitrator import reset_arbitrator
+
+    reset_arbitrator()
+
+    mock_arb = MagicMock()
+    mock_arb.is_available.return_value = True
+
+    captured_kwargs: dict = {}
+
+    def _mock_build(source, candidates, text, llm_arbitrator=None):
+        captured_kwargs["llm_arbitrator"] = llm_arbitrator
+        from src.procurement.document_ontology import ProcessRole
+        from src.procurement.procedure_models import ProcessLinking, TracedField
+
+        return ProcessLinking(
+            process_role=TracedField(
+                value=ProcessRole.UNKNOWN, confidence=0.5, evidence=[]
+            ),
+            procedure_end_marker=TracedField(value="no", confidence=0.5, evidence=[]),
+        )
+
+    with patch(
+        "src.annotation.passes.pass_1d_process_linking.get_arbitrator",
+        return_value=mock_arb,
+    ):
+        with patch(
+            "src.annotation.passes.pass_1d_process_linking.build_process_linking",
+            side_effect=_mock_build,
+        ):
+            from src.annotation.passes.pass_1d_process_linking import (
+                run_pass_1d_process_linking,
+            )
+
+            run_pass_1d_process_linking(
+                normalized_text="texte test",
+                document_id="doc-001",
+                run_id=uuid.uuid4(),
+                pass_1a_output_data={},
+            )
+
+    assert captured_kwargs.get("llm_arbitrator") is mock_arb
