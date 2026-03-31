@@ -7,6 +7,7 @@ Detects mandatory parts and computes document validity.
 from __future__ import annotations
 
 import logging
+import time
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -26,14 +27,21 @@ _PASS_NAME = "pass_1b_document_validity"
 _PASS_VERSION = "1.0.0"
 
 _mp_engine: MandatoryPartsEngine | None = None
+_mp_engine_created_at: float = 0.0
+_ENGINE_TTL_S = 300.0
 
 
 def _get_engine() -> MandatoryPartsEngine:
-    global _mp_engine
+    global _mp_engine, _mp_engine_created_at
+    now = time.monotonic()
+    if _mp_engine is not None and (now - _mp_engine_created_at) > _ENGINE_TTL_S:
+        logger.debug("[PASS_1B] Singleton MandatoryPartsEngine TTL expire — recreation")
+        _mp_engine = None
     if _mp_engine is None:
         arb = get_arbitrator()
         arbitrator = arb if arb.is_available() else None
         _mp_engine = MandatoryPartsEngine(llm_arbitrator=arbitrator)
+        _mp_engine_created_at = now
     return _mp_engine
 
 

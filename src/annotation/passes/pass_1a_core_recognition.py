@@ -34,6 +34,7 @@ from src.procurement.procedure_models import (
     TracedField,
     discretize_confidence,
 )
+from src.procurement.procedure_rules_dgmp_mali import determine_dgmp_procedure_tier
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,32 @@ def _get_fam_detector() -> FamilyDetector:
     if _fam_detector is None:
         _fam_detector = FamilyDetector()
     return _fam_detector
+
+
+def _resolve_procedure_type(
+    framework: str,
+    estimated_value: float | None,
+    currency: str | None,
+    cap_fn,
+) -> TracedField:
+    """Determine procedure_type via DGMP thresholds si applicable."""
+    if framework and "dgmp" in framework.lower():
+        dgmp = determine_dgmp_procedure_tier(estimated_value, currency)
+        if dgmp.procedure_tier != "unknown":
+            return TracedField(
+                value=dgmp.procedure_tier,
+                confidence=cap_fn(dgmp.confidence),
+                evidence=[
+                    f"dgmp_tier={dgmp.procedure_tier}",
+                    f"value={dgmp.estimated_value}",
+                    dgmp.procedure_description,
+                ],
+            )
+    return TracedField(
+        value=ProcedureType.UNKNOWN,
+        confidence=cap_fn(0.6),
+        evidence=["needs_further_analysis"],
+    )
 
 
 def _extract_simple(pattern: re.Pattern[str], text: str) -> str | None:
@@ -267,7 +294,7 @@ def run_pass_1a_core_recognition(
         if quality_class == "degraded":
             confidence_ceiling = 0.60
         elif quality_class == "poor":
-            confidence_ceiling = 0.40
+            confidence_ceiling = 0.60
 
         def _cap(c: float) -> float:
             return min(c, confidence_ceiling)
@@ -331,54 +358,52 @@ def run_pass_1a_core_recognition(
                 confidence=_cap(0.85),
                 evidence=[f"derived_from={type_result.primary_kind.value}"],
             ),
-            procedure_type=TracedField(
-                value=ProcedureType.UNKNOWN,
-                confidence=_cap(0.50),
-                evidence=["needs_further_analysis"],
+            procedure_type=_resolve_procedure_type(
+                fw_decision.framework, est_val, currency, _cap
             ),
             procedure_reference_detected=TracedField(
                 value=proc_ref,
-                confidence=_cap(0.80) if proc_ref else 0.0,
+                confidence=_cap(0.80) if proc_ref else _cap(0.6),
                 evidence=[f"ref={proc_ref}"] if proc_ref else ["not_found"],
             ),
             issuing_entity_detected=TracedField(
                 value=entity,
-                confidence=_cap(0.70) if entity else 0.0,
+                confidence=_cap(0.70) if entity else _cap(0.6),
                 evidence=[f"entity={entity}"] if entity else ["not_found"],
             ),
             project_name_detected=TracedField(
                 value=project,
-                confidence=_cap(0.70) if project else 0.0,
+                confidence=_cap(0.70) if project else _cap(0.6),
                 evidence=[f"project={project}"] if project else ["not_found"],
             ),
             zone_scope_detected=TracedField(
                 value=zones,
-                confidence=_cap(0.75) if zones else 0.0,
+                confidence=_cap(0.75) if zones else _cap(0.6),
                 evidence=[f"zones={zones}"] if zones else ["not_found"],
             ),
             submission_deadline_detected=TracedField(
                 value=deadline,
-                confidence=_cap(0.75) if deadline else 0.0,
+                confidence=_cap(0.75) if deadline else _cap(0.6),
                 evidence=[f"deadline={deadline}"] if deadline else ["not_found"],
             ),
             submission_mode_detected=TracedField(
                 value=submission_modes,
-                confidence=_cap(0.70) if submission_modes else 0.0,
+                confidence=_cap(0.70) if submission_modes else _cap(0.6),
                 evidence=submission_modes or ["not_found"],
             ),
             result_type_detected=TracedField(
                 value="unknown",
-                confidence=_cap(0.40),
+                confidence=_cap(0.6),
                 evidence=["needs_further_analysis"],
             ),
             estimated_value_detected=TracedField(
                 value=est_val,
-                confidence=_cap(0.70) if est_val else 0.0,
+                confidence=_cap(0.70) if est_val else _cap(0.6),
                 evidence=[f"value={est_val}"] if est_val else ["not_found"],
             ),
             currency_detected=TracedField(
                 value=currency,
-                confidence=_cap(0.80) if currency else 0.0,
+                confidence=_cap(0.80) if currency else _cap(0.6),
                 evidence=[f"currency={currency}"] if currency else ["not_found"],
             ),
             visit_required=TracedField(
