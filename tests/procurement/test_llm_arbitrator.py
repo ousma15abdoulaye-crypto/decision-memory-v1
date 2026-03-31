@@ -395,10 +395,8 @@ def test_mandatory_parts_level3_not_called_if_l1_detected(monkeypatch):
     text = f"{first_rule.part_name} : contenu de la section"
 
     engine.detect_parts(text, doc_kind)
-    # Si L1 detecte pour la premiere regle, Level 3 ne doit pas etre appele
-    # (car on retourne des que L1 match)
-    # On verifie juste que l'engine ne crash pas
-    assert True
+    # Si L1 detecte pour la premiere regle, Level 3 ne doit jamais etre appele
+    assert mock_arb.detect_mandatory_part.call_count == 0
 
 
 # ── T15 : integration process_linker Level 5 ─────────────────────────────
@@ -439,14 +437,13 @@ def test_process_linker_semantic_level5(monkeypatch):
 
     hints = link_documents(source, [target], llm_arbitrator=mock_arb)
 
-    # Au moins un hint genere (SEMANTIC_LLM ou CONTEXTUAL)
-    assert len(hints) >= 1
-    # LLM doit avoir ete appele (pair OFFRE/DAO sans reference = contextual)
-    assert mock_arb.semantic_link_documents.call_count >= 1
+    # LLM doit avoir ete appele exactement une fois (paire OFFRE/DAO contextuelle)
+    assert mock_arb.semantic_link_documents.call_count == 1
 
-    # Le hint SEMANTIC_LLM doit etre present
+    # Le hint SEMANTIC_LLM doit etre present — le mock retourne value=True conf=0.72
+    assert len(hints) >= 1
     levels = [h.link_level for h in hints]
-    assert "SEMANTIC_LLM" in levels or "CONTEXTUAL" in levels
+    assert "SEMANTIC_LLM" in levels, f"SEMANTIC_LLM attendu, obtenus : {levels}"
 
 
 # ── T16 : reset_arbitrator ────────────────────────────────────────────────

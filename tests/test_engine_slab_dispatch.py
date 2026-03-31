@@ -104,15 +104,13 @@ def test_detect_mime_pdf_magic_bytes_overrides_octet_stream(tmp_path, monkeypatc
 
     import unittest.mock as um
 
+    # filetype est importe lazily (import inside function) — patch sys.modules suffit,
+    # pas besoin de importlib.reload (qui mute l'etat global du module).
     with um.patch.dict(
         "sys.modules", {"filetype": um.MagicMock(guess=fake_filetype_guess)}
     ):
-        # On recharge la fonction pour qu'elle utilise le mock
-        import importlib
-
         import src.extraction.engine as eng2
 
-        importlib.reload(eng2)
         mime = eng2._detect_mime_from_header(str(fake))
         assert mime == "application/pdf", f"Attendu application/pdf, recu {mime}"
 

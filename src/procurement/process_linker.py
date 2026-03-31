@@ -43,6 +43,10 @@ except ImportError:
 
 FUZZY_THRESHOLD = 0.85
 
+# Budget LLM par document : limite le nombre d'appels semantiques Level 5
+# pour eviter l'explosion sur les dossiers avec N candidats sans references.
+_MAX_LLM_CALLS_PER_DOC = 3
+
 _REF_PATTERN = re.compile(
     r"(?:r[eé]f[eé]rence|n[°o]|ref)\s*[:\.]?\s*([A-Z0-9][-A-Z0-9/_.]{3,})",
     re.IGNORECASE,
@@ -142,6 +146,9 @@ def link_documents(
     Returns list of LinkHints sorted by confidence (highest first).
     """
     hints: list[LinkHint] = []
+    llm_calls_made = (
+        0  # budget guard — evite N appels LLM si N candidats sans reference
+    )
 
     for target in candidates:
         if target.document_id == source.document_id:
@@ -228,8 +235,10 @@ def link_documents(
             and target.document_kind in OFFER_KINDS
         )
         if contextual_pair:
-            # Level 5: LLM semantic link — quand fuzzy insuffisant mais lien possible
-            if llm_arbitrator is not None:
+            # Level 5: LLM semantic link — quand fuzzy insuffisant mais lien possible.
+            # Budget guard : au max _MAX_LLM_CALLS_PER_DOC appels LLM par document
+            # pour eviter l'explosion sur les dossiers a N candidats sans reference.
+            if llm_arbitrator is not None and llm_calls_made < _MAX_LLM_CALLS_PER_DOC:
                 doc_a_summary = (
                     f"Type: {source.document_kind.value}, "
                     f"Ref: {source.procedure_reference}, "
@@ -249,6 +258,7 @@ def link_documents(
                         doc_a_summary=doc_a_summary,
                         doc_b_summary=doc_b_summary,
                     )
+                    llm_calls_made += 1
                     if llm_field.value is True and llm_field.confidence >= 0.50:
                         hints.append(
                             LinkHint(
@@ -267,6 +277,14 @@ def link_documents(
                         target.document_id,
                         llm_exc,
                     )
+            elif (
+                llm_arbitrator is not None and llm_calls_made >= _MAX_LLM_CALLS_PER_DOC
+            ):
+                logger.debug(
+                    "[LINKER] Budget LLM atteint (%d appels) — fallback CONTEXTUAL pour %s",
+                    _MAX_LLM_CALLS_PER_DOC,
+                    target.document_id,
+                )
 
             hints.append(
                 LinkHint(

@@ -182,7 +182,7 @@ class MandatoryPartsEngine:
 
         for part in rules.mandatory:
             result = self._detect_single_part(
-                text_lower, part, document_kind=document_kind
+                text_lower, part, document_kind=document_kind, text_original=text
             )
             results.append(result)
 
@@ -200,6 +200,7 @@ class MandatoryPartsEngine:
         text_lower: str,
         rule: MandatoryPartRule,
         document_kind: str = "",
+        text_original: str = "",
     ) -> PartDetectionResult:
         # Level 1: heading match
         for pat in rule.level_1_patterns:
@@ -246,16 +247,28 @@ class MandatoryPartsEngine:
                     if document_kind
                     else rule.part_name
                 )
+                # Preferer le texte original (non minusculise) pour la qualite du prompt LLM
+                excerpt = (text_original or text_lower)[:2000]
                 llm_result = self._llm_arbitrator.detect_mandatory_part(
-                    text_excerpt=text_lower[:2000],
+                    text_excerpt=excerpt,
                     part_name=rule.part_name,
                     part_description=part_desc,
                 )
-                if llm_result.value is True and llm_result.confidence >= rule.threshold:
+                # Seuil coherent avec le plafond LLM : min(rule.threshold, cap LLM)
+                # evite que la condition soit inatteignable quand rule.threshold > cap
+                l3_threshold = min(
+                    rule.threshold,
+                    (
+                        self._llm_arbitrator._max_conf_parts
+                        if hasattr(self._llm_arbitrator, "_max_conf_parts")
+                        else 0.70
+                    ),
+                )
+                if llm_result.value is True and llm_result.confidence >= l3_threshold:
                     return PartDetectionResult(
                         part_name=rule.part_name,
                         detection_level="level_3_llm",
-                        confidence=min(llm_result.confidence, 0.70),
+                        confidence=llm_result.confidence,
                         evidence=llm_result.evidence,
                     )
             except Exception as llm_exc:

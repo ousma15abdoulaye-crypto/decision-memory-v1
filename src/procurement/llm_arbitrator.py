@@ -121,6 +121,23 @@ def _safe_json(raw: str) -> dict:
         return {}
 
 
+def _parse_bool_strict(value: Any) -> bool | None:
+    """Parse un booleen de facon stricte depuis une reponse LLM.
+
+    Accepte : bool natif, ou str 'true'/'false' (insensible a la casse).
+    Rejette tout le reste en retournant None.
+    Evite que bool('false') -> True (bug classique avec JSON imparfait du LLM).
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        if value.lower() == "true":
+            return True
+        if value.lower() == "false":
+            return False
+    return None
+
+
 def _not_resolved(task: str, reason: str) -> TracedField:
     """TracedField standard pour un arbitrage non resolu."""
     return TracedField(
@@ -194,9 +211,21 @@ class LLMArbitrator:
         )
 
     def is_available(self) -> bool:
-        """True si enabled=true (YAML) ET MISTRAL_API_KEY presente (online-first)."""
+        """True si arbitrateur actif ET MISTRAL_API_KEY presente.
+
+        Ordre de priorite :
+        1. Env var LLM_ARBITRATOR_ENABLED=false -> desactive (killswitch Railway)
+        2. YAML arbitration.enabled=false -> desactive
+        3. MISTRAL_API_KEY absente -> indisponible
+        """
+        env_enabled = os.environ.get("LLM_ARBITRATOR_ENABLED", "").strip().lower()
+        if env_enabled == "false":
+            logger.debug(
+                "[ARBITRATOR] desactive par LLM_ARBITRATOR_ENABLED=false (env)"
+            )
+            return False
         if not self._enabled:
-            logger.debug("[ARBITRATOR] desactive par config (enabled=false)")
+            logger.debug("[ARBITRATOR] desactive par config YAML (enabled=false)")
             return False
         return bool(os.environ.get("MISTRAL_API_KEY", "").strip())
 
@@ -381,7 +410,15 @@ class LLMArbitrator:
             return _not_resolved("detect_mandatory_part", "api_unavailable")
 
         parsed = _safe_json(raw)
-        detected = bool(parsed.get("detected", False))
+        detected_raw = parsed.get("detected")
+        detected = _parse_bool_strict(detected_raw)
+        if detected is None:
+            logger.warning(
+                "[ARBITRATOR] detect_mandatory_part '%s' : valeur 'detected' non parseable: %r",
+                part_name,
+                detected_raw,
+            )
+            return _not_resolved("detect_mandatory_part", "unparseable_bool_detected")
         confidence = float(parsed.get("confidence", 0.0))
         evidence_str = str(parsed.get("evidence", ""))
 
@@ -464,7 +501,14 @@ class LLMArbitrator:
             return _not_resolved("semantic_link_documents", "api_unavailable")
 
         parsed = _safe_json(raw)
-        linked = bool(parsed.get("linked", False))
+        linked_raw = parsed.get("linked")
+        linked = _parse_bool_strict(linked_raw)
+        if linked is None:
+            logger.warning(
+                "[ARBITRATOR] semantic_link_documents : valeur 'linked' non parseable: %r",
+                linked_raw,
+            )
+            return _not_resolved("semantic_link_documents", "unparseable_bool_linked")
         link_nature = str(parsed.get("link_nature", "unrelated"))
         confidence = float(parsed.get("confidence", 0.0))
         evidence_str = str(parsed.get("evidence", ""))
