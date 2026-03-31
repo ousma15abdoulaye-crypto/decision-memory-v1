@@ -353,14 +353,12 @@ def test_mandatory_parts_engine_calls_level3_when_l1_l2_fail(tmp_path, monkeypat
     if not rules or not rules.mandatory:
         pytest.skip(f"Aucune regle mandatory pour {doc_kind}")
 
-    # Texte delibrement vide pour forcer L1+L2 a echouer
+    # Texte delibrement vide pour forcer L1+L2 a echouer sur toutes les regles
     text = "texte sans aucune section ni mot-cle reconnu"
     results, _, _ = engine.detect_parts(text, doc_kind)
 
-    # Level 3 doit avoir ete tente
-    assert (
-        mock_arb.detect_mandatory_part.call_count >= 0
-    )  # au moins tente si rule.threshold <= 0.65
+    # Level 3 doit avoir ete appele au moins une fois (une fois par regle ou L1+L2 echouent)
+    assert mock_arb.detect_mandatory_part.call_count >= 1
 
 
 # ── T14 : Level 3 non appele si L1 detecte ────────────────────────────────
@@ -391,14 +389,14 @@ def test_mandatory_parts_level3_not_called_if_l1_detected(monkeypatch):
         pytest.skip("Pas de L1 pattern")
 
     # Utiliser le pattern regex directement pour construire un texte matchant
-    # Texte simple avec le nom de la partie
     text = f"{first_rule.part_name} : contenu de la section"
+    text_lower = text.lower()
 
-    engine.detect_parts(text, doc_kind)
-    # Si L1 detecte pour la premiere regle, Level 3 ne doit pas etre appele
-    # (car on retourne des que L1 match)
-    # On verifie juste que l'engine ne crash pas
-    assert True
+    # Tester _detect_single_part directement sur la regle ou L1 match :
+    # Level 3 ne doit PAS etre appele pour cette regle specifique.
+    result = engine._detect_single_part(text_lower, text, first_rule)
+    assert result.detection_level == "level_1_heading"
+    assert mock_arb.detect_mandatory_part.call_count == 0
 
 
 # ── T15 : integration process_linker Level 5 ─────────────────────────────
@@ -431,7 +429,7 @@ def test_process_linker_semantic_level5(monkeypatch):
         document_id="dao-001",
         document_kind=DocumentKindParent.DAO,
         procedure_reference=None,
-        issuing_entity="SCI",
+        issuing_entity="Cabinet XYZ",
         project_name=None,
         zones=[],
         submission_deadline=None,
@@ -439,14 +437,14 @@ def test_process_linker_semantic_level5(monkeypatch):
 
     hints = link_documents(source, [target], llm_arbitrator=mock_arb)
 
-    # Au moins un hint genere (SEMANTIC_LLM ou CONTEXTUAL)
+    # Au moins un hint genere
     assert len(hints) >= 1
-    # LLM doit avoir ete appele (pair OFFRE/DAO sans reference = contextual)
+    # LLM doit avoir ete appele (signal partage = meme entite emettrice)
     assert mock_arb.semantic_link_documents.call_count >= 1
 
-    # Le hint SEMANTIC_LLM doit etre present
+    # Le hint SEMANTIC_LLM (niveau 5) doit etre present
     levels = [h.link_level for h in hints]
-    assert "SEMANTIC_LLM" in levels or "CONTEXTUAL" in levels
+    assert "SEMANTIC_LLM" in levels
 
 
 # ── T16 : reset_arbitrator ────────────────────────────────────────────────

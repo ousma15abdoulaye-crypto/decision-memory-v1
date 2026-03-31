@@ -182,7 +182,7 @@ class MandatoryPartsEngine:
 
         for part in rules.mandatory:
             result = self._detect_single_part(
-                text_lower, part, document_kind=document_kind
+                text_lower, text, part, document_kind=document_kind
             )
             results.append(result)
 
@@ -198,6 +198,7 @@ class MandatoryPartsEngine:
     def _detect_single_part(
         self,
         text_lower: str,
+        text_original: str,
         rule: MandatoryPartRule,
         document_kind: str = "",
     ) -> PartDetectionResult:
@@ -247,11 +248,14 @@ class MandatoryPartsEngine:
                     else rule.part_name
                 )
                 llm_result = self._llm_arbitrator.detect_mandatory_part(
-                    text_excerpt=text_lower[:2000],
+                    text_excerpt=text_original[:2000],
                     part_name=rule.part_name,
                     part_description=part_desc,
                 )
-                if llm_result.value is True and llm_result.confidence >= rule.threshold:
+                # Compare against the effective L3 cap so the threshold is
+                # consistent with the confidence ceiling returned by the LLM.
+                l3_threshold = min(rule.threshold, 0.70)
+                if llm_result.value is True and llm_result.confidence >= l3_threshold:
                     return PartDetectionResult(
                         part_name=rule.part_name,
                         detection_level="level_3_llm",

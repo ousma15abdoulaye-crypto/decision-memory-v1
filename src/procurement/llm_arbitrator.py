@@ -121,6 +121,25 @@ def _safe_json(raw: str) -> dict:
         return {}
 
 
+def _parse_bool(value: object) -> bool | None:
+    """Strict boolean parser for LLM JSON responses.
+
+    Accepts real booleans directly.  Normalises the common string variants
+    "true" / "false" (case-insensitive).  Returns None for anything else so
+    callers can treat unexpected values as *not_resolved* rather than silently
+    treating a non-empty string like "false" as True.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lower = value.strip().lower()
+        if lower == "true":
+            return True
+        if lower == "false":
+            return False
+    return None
+
+
 def _not_resolved(task: str, reason: str) -> TracedField:
     """TracedField standard pour un arbitrage non resolu."""
     return TracedField(
@@ -194,7 +213,15 @@ class LLMArbitrator:
         )
 
     def is_available(self) -> bool:
-        """True si enabled=true (YAML) ET MISTRAL_API_KEY presente (online-first)."""
+        """True si enabled=true (YAML/env) ET MISTRAL_API_KEY presente (online-first).
+
+        Rollback rapide : poser LLM_ARBITRATOR_ENABLED=false (ou 0/no/off) dans
+        Railway Variables suffit a desactiver tout appel LLM sans redeploiement.
+        """
+        env_flag = os.environ.get("LLM_ARBITRATOR_ENABLED", "").strip().lower()
+        if env_flag in ("false", "0", "no", "off"):
+            logger.debug("[ARBITRATOR] desactive par LLM_ARBITRATOR_ENABLED=false")
+            return False
         if not self._enabled:
             logger.debug("[ARBITRATOR] desactive par config (enabled=false)")
             return False
@@ -381,7 +408,10 @@ class LLMArbitrator:
             return _not_resolved("detect_mandatory_part", "api_unavailable")
 
         parsed = _safe_json(raw)
-        detected = bool(parsed.get("detected", False))
+        raw_detected = _parse_bool(parsed.get("detected"))
+        if raw_detected is None:
+            return _not_resolved("detect_mandatory_part", "unparseable_detected_field")
+        detected = raw_detected
         confidence = float(parsed.get("confidence", 0.0))
         evidence_str = str(parsed.get("evidence", ""))
 
@@ -464,7 +494,10 @@ class LLMArbitrator:
             return _not_resolved("semantic_link_documents", "api_unavailable")
 
         parsed = _safe_json(raw)
-        linked = bool(parsed.get("linked", False))
+        raw_linked = _parse_bool(parsed.get("linked"))
+        if raw_linked is None:
+            return _not_resolved("semantic_link_documents", "unparseable_linked_field")
+        linked = raw_linked
         link_nature = str(parsed.get("link_nature", "unrelated"))
         confidence = float(parsed.get("confidence", 0.0))
         evidence_str = str(parsed.get("evidence", ""))

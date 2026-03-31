@@ -75,4 +75,4 @@ Le `MandatoryPartsEngine` et `build_process_linking` acceptent un parametre `llm
 
 ## Rollback
 
-Desactiver via `LLM_ARBITRATOR_ENABLED=false` dans Railway Variables. Le moteur deterministe reprend la main integrale sans redeploiement.
+Désactiver via `LLM_ARBITRATOR_ENABLED=false` dans Railway Variables (priorité maximale — inspecté avant tout appel LLM). Le moteur deterministe reprend la main integrale sans redeploiement. Alternativement, passer `arbitration.enabled: false` dans `config/llm_arbitration.yaml` (nécessite redéploiement).
