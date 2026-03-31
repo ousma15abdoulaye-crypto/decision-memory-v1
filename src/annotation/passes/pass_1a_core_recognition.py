@@ -419,7 +419,7 @@ def run_pass_1a_core_recognition(
             "routing_confidence": discretize_confidence(_cap(type_result.confidence)),
             "routing_source": recognition_source,
             "matched_rule": type_result.matched_rule,
-            "deterministic": True,
+            "deterministic": recognition_source == "deterministic",
             "routing_evidence": type_result.evidence,
             "routing_failure_reason": (
                 None if review != "unresolved" else "no_rule_matched"

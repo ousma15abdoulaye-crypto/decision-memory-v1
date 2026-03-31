@@ -246,17 +246,29 @@ def link_documents(
                     f"Entite: {source.issuing_entity}, "
                     f"Zones: {source.zones}"
                 )
-                doc_b_summary = (
-                    f"Type: {target.document_kind.value}, "
-                    f"Ref: {target.procedure_reference}, "
-                    f"Projet: {target.project_name}, "
-                    f"Entite: {target.issuing_entity}, "
-                    f"Zones: {target.zones}"
+                same_entity = bool(
+                    getattr(source, "issuing_entity", None)
+                    and getattr(target, "issuing_entity", None)
+                    and source.issuing_entity == target.issuing_entity
                 )
+                overlapping_zones = False
                 try:
-                    llm_field = llm_arbitrator.semantic_link_documents(
-                        doc_a_summary=doc_a_summary,
-                        doc_b_summary=doc_b_summary,
+                    source_zones = getattr(source, "zones", None)
+                    target_zones = getattr(target, "zones", None)
+                    if source_zones and target_zones:
+                        source_zone_set = {str(z).strip().lower() for z in source_zones}
+                        target_zone_set = {str(z).strip().lower() for z in target_zones}
+                        overlapping_zones = bool(source_zone_set & target_zone_set)
+                except TypeError:
+                    overlapping_zones = False
+
+                if same_project or same_entity or overlapping_zones:
+                    doc_a_summary = (
+                        f"Type: {source.document_kind.value}, "
+                        f"Ref: {source.procedure_reference}, "
+                        f"Projet: {source.project_name}, "
+                        f"Entite: {source.issuing_entity}, "
+                        f"Zones: {source.zones}"
                     )
                     llm_calls_made += 1
                     if llm_field.value is True and llm_field.confidence >= 0.50:

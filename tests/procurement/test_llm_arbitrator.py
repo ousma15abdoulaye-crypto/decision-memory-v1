@@ -353,14 +353,12 @@ def test_mandatory_parts_engine_calls_level3_when_l1_l2_fail(tmp_path, monkeypat
     if not rules or not rules.mandatory:
         pytest.skip(f"Aucune regle mandatory pour {doc_kind}")
 
-    # Texte delibrement vide pour forcer L1+L2 a echouer
+    # Texte delibrement vide pour forcer L1+L2 a echouer sur toutes les regles
     text = "texte sans aucune section ni mot-cle reconnu"
     results, _, _ = engine.detect_parts(text, doc_kind)
 
-    # Level 3 doit avoir ete tente
-    assert (
-        mock_arb.detect_mandatory_part.call_count >= 0
-    )  # au moins tente si rule.threshold <= 0.65
+    # Level 3 doit avoir ete appele au moins une fois (une fois par regle ou L1+L2 echouent)
+    assert mock_arb.detect_mandatory_part.call_count >= 1
 
 
 # ── T14 : Level 3 non appele si L1 detecte ────────────────────────────────
@@ -391,8 +389,8 @@ def test_mandatory_parts_level3_not_called_if_l1_detected(monkeypatch):
         pytest.skip("Pas de L1 pattern")
 
     # Utiliser le pattern regex directement pour construire un texte matchant
-    # Texte simple avec le nom de la partie
     text = f"{first_rule.part_name} : contenu de la section"
+    text_lower = text.lower()
 
     engine.detect_parts(text, doc_kind)
     # Si L1 detecte pour la premiere regle, Level 3 ne doit jamais etre appele
@@ -429,7 +427,7 @@ def test_process_linker_semantic_level5(monkeypatch):
         document_id="dao-001",
         document_kind=DocumentKindParent.DAO,
         procedure_reference=None,
-        issuing_entity="SCI",
+        issuing_entity="Cabinet XYZ",
         project_name=None,
         zones=[],
         submission_deadline=None,
