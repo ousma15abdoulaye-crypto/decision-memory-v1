@@ -388,12 +388,26 @@ def test_mandatory_parts_level3_not_called_if_l1_detected(monkeypatch):
     if not first_rule.level_1_patterns:
         pytest.skip("Pas de L1 pattern")
 
-    # Utiliser le pattern regex directement pour construire un texte matchant
-    text = f"{first_rule.part_name} : contenu de la section"
+    # Construire un texte a partir du pattern regex reel (pas du part_name).
+    # first_rule.part_name peut etre "numero_commande" alors que le L1 pattern
+    # est "PO" ou "bon de commande" — seul le pattern garantit la detection.
+    first_l1 = first_rule.level_1_patterns[0]
+    text = f"{first_l1.pattern} : contenu de la section"
+    if not first_l1.search(text):
+        pytest.skip("Pattern L1 trop complexe pour construire text synthetique")
 
     engine.detect_parts(text, doc_kind)
-    # Si L1 detecte pour la premiere regle, Level 3 ne doit jamais etre appele
-    assert mock_arb.detect_mandatory_part.call_count == 0
+
+    # Ce que le test garantit : Level 3 n'est PAS appele pour la regle
+    # dont L1 a deja reussi. Les autres regles sans signal peuvent l'etre.
+    called_parts = [
+        c.kwargs.get("part_name") or (c.args[1] if len(c.args) > 1 else None)
+        for c in mock_arb.detect_mandatory_part.call_args_list
+    ]
+    assert first_rule.part_name not in called_parts, (
+        f"Level 3 LLM ne doit pas etre appele pour '{first_rule.part_name}' "
+        f"(detecte au L1) — appels observes : {called_parts}"
+    )
 
 
 # ── T15 : integration process_linker Level 5 ─────────────────────────────
