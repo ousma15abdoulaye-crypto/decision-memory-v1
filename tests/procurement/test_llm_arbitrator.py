@@ -390,7 +390,6 @@ def test_mandatory_parts_level3_not_called_if_l1_detected(monkeypatch):
 
     # Utiliser le pattern regex directement pour construire un texte matchant
     text = f"{first_rule.part_name} : contenu de la section"
-    text_lower = text.lower()
 
     engine.detect_parts(text, doc_kind)
     # Si L1 detecte pour la premiere regle, Level 3 ne doit jamais etre appele

@@ -198,7 +198,6 @@ class MandatoryPartsEngine:
     def _detect_single_part(
         self,
         text_lower: str,
-        text_original: str,
         rule: MandatoryPartRule,
         document_kind: str = "",
         text_original: str = "",

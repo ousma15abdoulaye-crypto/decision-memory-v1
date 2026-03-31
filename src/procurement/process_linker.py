@@ -238,31 +238,25 @@ def link_documents(
             # Level 5: LLM semantic link — quand fuzzy insuffisant mais lien possible.
             # Budget guard : au max _MAX_LLM_CALLS_PER_DOC appels LLM par document
             # pour eviter l'explosion sur les dossiers a N candidats sans reference.
+            # Signal guard : au moins un signal minimal partage (entity/projet/zone)
+            # pour ne pas appeler le LLM sur des paires sans aucun contexte commun.
             if llm_arbitrator is not None and llm_calls_made < _MAX_LLM_CALLS_PER_DOC:
-                doc_a_summary = (
-                    f"Type: {source.document_kind.value}, "
-                    f"Ref: {source.procedure_reference}, "
-                    f"Projet: {source.project_name}, "
-                    f"Entite: {source.issuing_entity}, "
-                    f"Zones: {source.zones}"
-                )
                 same_entity = bool(
-                    getattr(source, "issuing_entity", None)
-                    and getattr(target, "issuing_entity", None)
+                    source.issuing_entity
+                    and target.issuing_entity
                     and source.issuing_entity == target.issuing_entity
                 )
-                overlapping_zones = False
-                try:
-                    source_zones = getattr(source, "zones", None)
-                    target_zones = getattr(target, "zones", None)
-                    if source_zones and target_zones:
-                        source_zone_set = {str(z).strip().lower() for z in source_zones}
-                        target_zone_set = {str(z).strip().lower() for z in target_zones}
-                        overlapping_zones = bool(source_zone_set & target_zone_set)
-                except TypeError:
-                    overlapping_zones = False
+                same_project = bool(
+                    source.project_name
+                    and target.project_name
+                    and _fuzzy_ratio(
+                        source.project_name.lower(), target.project_name.lower()
+                    )
+                    >= 0.60
+                )
+                zone_signal = bool(set(source.zones) & set(target.zones))
 
-                if same_project or same_entity or overlapping_zones:
+                if same_entity or same_project or zone_signal:
                     doc_a_summary = (
                         f"Type: {source.document_kind.value}, "
                         f"Ref: {source.procedure_reference}, "
@@ -270,25 +264,37 @@ def link_documents(
                         f"Entite: {source.issuing_entity}, "
                         f"Zones: {source.zones}"
                     )
-                    llm_calls_made += 1
-                    if llm_field.value is True and llm_field.confidence >= 0.50:
-                        hints.append(
-                            LinkHint(
-                                target_document_id=target.document_id,
-                                link_nature=link_nature,
-                                link_level="SEMANTIC_LLM",
-                                confidence=min(llm_field.confidence, 0.80),
-                                evidence=llm_field.evidence,
-                            )
-                        )
-                        continue
-                except Exception as llm_exc:
-                    logger.warning(
-                        "[LINKER] Level 5 LLM echec pour %s<->%s : %s",
-                        source.document_id,
-                        target.document_id,
-                        llm_exc,
+                    doc_b_summary = (
+                        f"Type: {target.document_kind.value}, "
+                        f"Ref: {target.procedure_reference}, "
+                        f"Projet: {target.project_name}, "
+                        f"Entite: {target.issuing_entity}, "
+                        f"Zones: {target.zones}"
                     )
+                    try:
+                        llm_field = llm_arbitrator.semantic_link_documents(
+                            doc_a_summary=doc_a_summary,
+                            doc_b_summary=doc_b_summary,
+                        )
+                        llm_calls_made += 1
+                        if llm_field.value is True and llm_field.confidence >= 0.50:
+                            hints.append(
+                                LinkHint(
+                                    target_document_id=target.document_id,
+                                    link_nature=link_nature,
+                                    link_level="SEMANTIC_LLM",
+                                    confidence=min(llm_field.confidence, 0.80),
+                                    evidence=llm_field.evidence,
+                                )
+                            )
+                            continue
+                    except Exception as llm_exc:
+                        logger.warning(
+                            "[LINKER] Level 5 LLM echec pour %s<->%s : %s",
+                            source.document_id,
+                            target.document_id,
+                            llm_exc,
+                        )
             elif (
                 llm_arbitrator is not None and llm_calls_made >= _MAX_LLM_CALLS_PER_DOC
             ):
