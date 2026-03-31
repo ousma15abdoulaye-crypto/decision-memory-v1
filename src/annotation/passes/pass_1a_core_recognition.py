@@ -158,8 +158,66 @@ def run_pass_1a_core_recognition(
         # L2 — Family detection
         fam_decision = _get_fam_detector().detect_family(normalized_text)
 
-        # L3 — Type recognition
+        # L3 — Type recognition (deterministe)
         type_result = recognize_document_type(normalized_text)
+
+        # LLM ARBITRATION — seulement si le deterministe doute et LLM non bloque
+        # Principe : le deterministe propose, le LLM arbitre parmi les candidats.
+        # Le LLM ne peut pas inventer un type hors taxonomie.
+        recognition_source = "deterministic"
+        if not block_llm and (
+            type_result.confidence < 0.80
+            or type_result.primary_kind == DocumentKindParent.UNKNOWN
+        ):
+            try:
+                from src.procurement.llm_arbitrator import get_arbitrator
+
+                arb = get_arbitrator()
+                if arb.is_available():
+                    candidates = list(
+                        dict.fromkeys(
+                            [type_result.primary_kind]
+                            + (type_result.secondary_kinds or [])
+                        )
+                    )
+                    llm_field = arb.disambiguate_document_type(
+                        text=normalized_text[:3000],
+                        candidates=candidates,
+                        deterministic_confidence=type_result.confidence,
+                    )
+                    if (
+                        llm_field.value is not None
+                        and llm_field.confidence > type_result.confidence
+                    ):
+                        # Recuperer le DocumentKindParent correspondant
+                        for c in candidates:
+                            c_val = c.value if hasattr(c, "value") else str(c)
+                            if c_val == llm_field.value:
+                                from src.procurement.document_type_recognizer import (
+                                    TypeRecognitionResult,
+                                )
+
+                                type_result = TypeRecognitionResult(
+                                    primary_kind=c,
+                                    primary_subtype=type_result.primary_subtype,
+                                    secondary_kinds=type_result.secondary_kinds,
+                                    is_composite=type_result.is_composite,
+                                    composite_confidence=type_result.composite_confidence,
+                                    confidence=llm_field.confidence,
+                                    evidence=llm_field.evidence,
+                                    matched_rule="llm_arbitration",
+                                )
+                                recognition_source = "hybrid_deterministic_llm"
+                                logger.info(
+                                    "[PASS_1A] LLM arbitration -> %s conf=%.2f",
+                                    c_val,
+                                    llm_field.confidence,
+                                )
+                                break
+            except Exception as arb_exc:
+                logger.warning(
+                    "[PASS_1A] LLM arbitration echec (non bloquant) : %s", arb_exc
+                )
 
         # Enrich from text
         deadline = _extract_simple(_DEADLINE_PATTERN, normalized_text)
@@ -339,9 +397,9 @@ def run_pass_1a_core_recognition(
                 evidence=[f"humanitarian={humanitarian}"],
             ),
             recognition_source=TracedField(
-                value="deterministic",
+                value=recognition_source,
                 confidence=1.0,
-                evidence=["pass_1a_deterministic"],
+                evidence=[f"pass_1a_{recognition_source}"],
             ),
             review_status=TracedField(
                 value=review,
@@ -359,9 +417,9 @@ def run_pass_1a_core_recognition(
             "document_role": type_result.primary_kind.value,
             "taxonomy_core": type_result.primary_kind.value,
             "routing_confidence": discretize_confidence(_cap(type_result.confidence)),
-            "routing_source": "deterministic",
+            "routing_source": recognition_source,
             "matched_rule": type_result.matched_rule,
-            "deterministic": True,
+            "deterministic": recognition_source == "deterministic",
             "routing_evidence": type_result.evidence,
             "routing_failure_reason": (
                 None if review != "unresolved" else "no_rule_matched"

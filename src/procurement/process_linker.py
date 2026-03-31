@@ -43,6 +43,10 @@ except ImportError:
 
 FUZZY_THRESHOLD = 0.85
 
+# Budget LLM par document : limite le nombre d'appels semantiques Level 5
+# pour eviter l'explosion sur les dossiers avec N candidats sans references.
+_MAX_LLM_CALLS_PER_DOC = 3
+
 _REF_PATTERN = re.compile(
     r"(?:r[eé]f[eé]rence|n[°o]|ref)\s*[:\.]?\s*([A-Z0-9][-A-Z0-9/_.]{3,})",
     re.IGNORECASE,
@@ -134,12 +138,17 @@ def _infer_link_nature(
 def link_documents(
     source: DocumentSummary,
     candidates: list[DocumentSummary],
+    llm_arbitrator=None,
 ) -> list[LinkHint]:
     """
     Link a source document to candidates using 5-level matching.
+    Level 5 : LLM semantic link (online-first) quand fuzzy et contextuel insuffisants.
     Returns list of LinkHints sorted by confidence (highest first).
     """
     hints: list[LinkHint] = []
+    llm_calls_made = (
+        0  # budget guard — evite N appels LLM si N candidats sans reference
+    )
 
     for target in candidates:
         if target.document_id == source.document_id:
@@ -217,14 +226,84 @@ def link_documents(
             )
             continue
 
-        # Level 4/5: Contextual / Unresolved — only if same source_rules → offer relationship
-        if (
+        # Level 4: Contextual — only if same source_rules → offer relationship
+        contextual_pair = (
             source.document_kind in OFFER_KINDS
             and target.document_kind in SOURCE_RULES_KINDS
         ) or (
             source.document_kind == DocumentKindParent.EVALUATION_DOC
             and target.document_kind in OFFER_KINDS
-        ):
+        )
+        if contextual_pair:
+            # Level 5: LLM semantic link — quand fuzzy insuffisant mais lien possible.
+            # Budget guard : au max _MAX_LLM_CALLS_PER_DOC appels LLM par document
+            # pour eviter l'explosion sur les dossiers a N candidats sans reference.
+            # Signal guard : au moins un signal minimal partage (entity/projet/zone)
+            # pour ne pas appeler le LLM sur des paires sans aucun contexte commun.
+            if llm_arbitrator is not None and llm_calls_made < _MAX_LLM_CALLS_PER_DOC:
+                same_entity = bool(
+                    source.issuing_entity
+                    and target.issuing_entity
+                    and source.issuing_entity == target.issuing_entity
+                )
+                same_project = bool(
+                    source.project_name
+                    and target.project_name
+                    and _fuzzy_ratio(
+                        source.project_name.lower(), target.project_name.lower()
+                    )
+                    >= 0.60
+                )
+                zone_signal = bool(set(source.zones) & set(target.zones))
+
+                if same_entity or same_project or zone_signal:
+                    doc_a_summary = (
+                        f"Type: {source.document_kind.value}, "
+                        f"Ref: {source.procedure_reference}, "
+                        f"Projet: {source.project_name}, "
+                        f"Entite: {source.issuing_entity}, "
+                        f"Zones: {source.zones}"
+                    )
+                    doc_b_summary = (
+                        f"Type: {target.document_kind.value}, "
+                        f"Ref: {target.procedure_reference}, "
+                        f"Projet: {target.project_name}, "
+                        f"Entite: {target.issuing_entity}, "
+                        f"Zones: {target.zones}"
+                    )
+                    try:
+                        llm_field = llm_arbitrator.semantic_link_documents(
+                            doc_a_summary=doc_a_summary,
+                            doc_b_summary=doc_b_summary,
+                        )
+                        llm_calls_made += 1
+                        if llm_field.value is True and llm_field.confidence >= 0.50:
+                            hints.append(
+                                LinkHint(
+                                    target_document_id=target.document_id,
+                                    link_nature=link_nature,
+                                    link_level="SEMANTIC_LLM",
+                                    confidence=min(llm_field.confidence, 0.80),
+                                    evidence=llm_field.evidence,
+                                )
+                            )
+                            continue
+                    except Exception as llm_exc:
+                        logger.warning(
+                            "[LINKER] Level 5 LLM echec pour %s<->%s : %s",
+                            source.document_id,
+                            target.document_id,
+                            llm_exc,
+                        )
+            elif (
+                llm_arbitrator is not None and llm_calls_made >= _MAX_LLM_CALLS_PER_DOC
+            ):
+                logger.debug(
+                    "[LINKER] Budget LLM atteint (%d appels) — fallback CONTEXTUAL pour %s",
+                    _MAX_LLM_CALLS_PER_DOC,
+                    target.document_id,
+                )
+
             hints.append(
                 LinkHint(
                     target_document_id=target.document_id,
@@ -243,11 +322,15 @@ def build_process_linking(
     source: DocumentSummary,
     candidates: list[DocumentSummary],
     text: str,
+    llm_arbitrator=None,
 ) -> ProcessLinking:
-    """Build full ProcessLinking for a document."""
+    """Build full ProcessLinking for a document.
+
+    llm_arbitrator : LLMArbitrator optionnel pour le Level 5 semantic link.
+    """
     role = DOCUMENT_KIND_TO_PROCESS_ROLE.get(source.document_kind, ProcessRole.UNKNOWN)
 
-    parent_hints = link_documents(source, candidates)
+    parent_hints = link_documents(source, candidates, llm_arbitrator=llm_arbitrator)
 
     end_marker = "no"
     if source.document_kind == DocumentKindParent.CONTRACT:

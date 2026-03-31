@@ -162,6 +162,7 @@ class LinkHint(BaseModel):
         "FUZZY_REFERENCE",
         "SUBJECT_TEMPORAL",
         "CONTEXTUAL",
+        "SEMANTIC_LLM",
         "UNRESOLVED",
     ]
     confidence: float = Field(ge=0.0, le=1.0)

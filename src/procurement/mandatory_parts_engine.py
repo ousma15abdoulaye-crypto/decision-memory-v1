@@ -130,11 +130,20 @@ def _load_type_rules(path: Path) -> DocumentTypeRules | None:
 
 
 class MandatoryPartsEngine:
-    """Loads all config/mandatory_parts/*.yaml and detects parts per document type."""
+    """Loads all config/mandatory_parts/*.yaml and detects parts per document type.
 
-    def __init__(self, config_dir: Path | None = None) -> None:
+    llm_arbitrator (optionnel) : instance de LLMArbitrator pour le Level 3.
+    Si absent, Level 3 retourne not_detected (comportement offline inchange).
+    """
+
+    def __init__(
+        self,
+        config_dir: Path | None = None,
+        llm_arbitrator=None,
+    ) -> None:
         self._config_dir = config_dir or _CONFIG_DIR
         self._rules: dict[str, DocumentTypeRules] = {}
+        self._llm_arbitrator = llm_arbitrator
         self._load_all()
 
     def _load_all(self) -> None:
@@ -172,7 +181,9 @@ class MandatoryPartsEngine:
         results: list[PartDetectionResult] = []
 
         for part in rules.mandatory:
-            result = self._detect_single_part(text_lower, part)
+            result = self._detect_single_part(
+                text_lower, part, document_kind=document_kind, text_original=text
+            )
             results.append(result)
 
         optional_present: list[str] = []
@@ -185,7 +196,11 @@ class MandatoryPartsEngine:
         return results, optional_present, rules.not_applicable
 
     def _detect_single_part(
-        self, text_lower: str, rule: MandatoryPartRule
+        self,
+        text_lower: str,
+        rule: MandatoryPartRule,
+        document_kind: str = "",
+        text_original: str = "",
     ) -> PartDetectionResult:
         # Level 1: heading match
         for pat in rule.level_1_patterns:
@@ -224,7 +239,45 @@ class MandatoryPartsEngine:
                     evidence=[f"custom_rule={rule.level_2_custom_rule}"],
                 )
 
-        # Level 3 placeholder (LLM fallback — not called here, requires external inject)
+        # Level 3 : LLM arbitration (online-first, appele uniquement si L1+L2 echouent)
+        if self._llm_arbitrator is not None:
+            try:
+                part_desc = (
+                    f"Section obligatoire d'un document {document_kind}"
+                    if document_kind
+                    else rule.part_name
+                )
+                # Preferer le texte original (non minusculise) pour la qualite du prompt LLM
+                excerpt = (text_original or text_lower)[:2000]
+                llm_result = self._llm_arbitrator.detect_mandatory_part(
+                    text_excerpt=excerpt,
+                    part_name=rule.part_name,
+                    part_description=part_desc,
+                )
+                # Seuil coherent avec le plafond LLM : min(rule.threshold, cap LLM)
+                # evite que la condition soit inatteignable quand rule.threshold > cap
+                l3_threshold = min(
+                    rule.threshold,
+                    (
+                        self._llm_arbitrator._max_conf_parts
+                        if hasattr(self._llm_arbitrator, "_max_conf_parts")
+                        else 0.70
+                    ),
+                )
+                if llm_result.value is True and llm_result.confidence >= l3_threshold:
+                    return PartDetectionResult(
+                        part_name=rule.part_name,
+                        detection_level="level_3_llm",
+                        confidence=llm_result.confidence,
+                        evidence=llm_result.evidence,
+                    )
+            except Exception as llm_exc:
+                logger.warning(
+                    "[PARTS] Level 3 LLM echec pour '%s' (non bloquant) : %s",
+                    rule.part_name,
+                    llm_exc,
+                )
+
         return PartDetectionResult(
             part_name=rule.part_name,
             detection_level="not_detected",

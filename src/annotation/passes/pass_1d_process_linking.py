@@ -18,6 +18,7 @@ from src.annotation.pass_output import (
     PassRunStatus,
 )
 from src.procurement.document_ontology import DocumentKindParent
+from src.procurement.llm_arbitrator import get_arbitrator
 from src.procurement.process_linker import (
     DocumentSummary,
     build_process_linking,
@@ -82,7 +83,11 @@ def run_pass_1d_process_linking(
                 if s.document_id != document_id:
                     candidates.append(s)
 
-        linking = build_process_linking(source, candidates, normalized_text)
+        arb = get_arbitrator()
+        arbitrator = arb if arb.is_available() else None
+        linking = build_process_linking(
+            source, candidates, normalized_text, llm_arbitrator=arbitrator
+        )
 
         output_data: dict[str, Any] = {
             "m12_linking": linking.model_dump(mode="json"),

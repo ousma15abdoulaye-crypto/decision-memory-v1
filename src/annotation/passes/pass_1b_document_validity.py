@@ -17,6 +17,7 @@ from src.annotation.pass_output import (
     PassRunStatus,
 )
 from src.procurement.document_validity_rules import compute_validity
+from src.procurement.llm_arbitrator import get_arbitrator
 from src.procurement.mandatory_parts_engine import MandatoryPartsEngine
 
 logger = logging.getLogger(__name__)
@@ -30,7 +31,9 @@ _mp_engine: MandatoryPartsEngine | None = None
 def _get_engine() -> MandatoryPartsEngine:
     global _mp_engine
     if _mp_engine is None:
-        _mp_engine = MandatoryPartsEngine()
+        arb = get_arbitrator()
+        arbitrator = arb if arb.is_available() else None
+        _mp_engine = MandatoryPartsEngine(llm_arbitrator=arbitrator)
     return _mp_engine
 
 

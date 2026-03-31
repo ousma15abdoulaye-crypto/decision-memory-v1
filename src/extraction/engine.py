@@ -307,6 +307,26 @@ def _mistral_client_factory():
     return MistralCls
 
 
+def _ensure_ssl_env() -> None:
+    """Configure SSL_CERT_FILE / REQUESTS_CA_BUNDLE si absents.
+
+    Sur les postes avec proxy d'entreprise, le CA store système peut bloquer les
+    appels HTTPS vers api.mistral.ai. Certifi fournit un bundle Mozilla connu.
+    Positionne les variables d'environnement uniquement si elles ne sont pas déjà
+    définies — respecte toute configuration manuelle du système.
+    """
+    if os.environ.get("SSL_CERT_FILE") and os.environ.get("REQUESTS_CA_BUNDLE"):
+        return
+    try:
+        import certifi  # type: ignore
+
+        bundle = certifi.where()
+        os.environ.setdefault("SSL_CERT_FILE", bundle)
+        os.environ.setdefault("REQUESTS_CA_BUNDLE", bundle)
+    except ImportError:
+        pass  # certifi optionnel — pas de crash si absent
+
+
 def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
     """OCR via Mistral Files API (SLA-B) — Mandat 2 / ADR-M11-002.
 
@@ -314,9 +334,13 @@ def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
     RAM consommée : ~2 MB (chunk réseau) au lieu de 117 MB (base64 full-load).
     Fallback Azure actif si AZURE_FORM_RECOGNIZER_ENDPOINT défini.
     Lève APIKeyMissingError si MISTRAL_API_KEY absent.
+    SSL/TLS : certifi utilisé si SSL_CERT_FILE absent (proxy d'entreprise).
     """
     _validate_storage_uri(storage_uri)
     api_key = get_mistral_api_key()
+
+    # Resilience SSL/TLS pour les postes avec proxy d'entreprise
+    _ensure_ssl_env()
 
     # Guard taille avant ouverture
     file_size = os.path.getsize(storage_uri)
@@ -380,15 +404,30 @@ def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
 
 
 def _detect_mime_from_header(storage_uri: str) -> str:
-    """Détecte le MIME en lisant seulement les 512 premiers octets (magic bytes)."""
+    """Détecte le MIME en lisant seulement les 512 premiers octets (magic bytes).
+
+    Si filetype retourne application/octet-stream mais que les magic bytes sont
+    %PDF, force application/pdf — évite le rejet silencieux par Mistral OCR.
+    """
     try:
         import filetype as _ft  # type: ignore
 
         with open(storage_uri, "rb") as fh:
             header = fh.read(512)
         detected = _ft.guess(header)
-        return detected.mime if detected else "application/octet-stream"
+        mime = detected.mime if detected else "application/octet-stream"
+        # PDF magic bytes (%PDF) non reconnu par filetype → forcer application/pdf
+        if mime == "application/octet-stream" and header[:4] == b"%PDF":
+            return "application/pdf"
+        return mime
     except Exception:
+        # Dernier recours : lire les magic bytes directement
+        try:
+            with open(storage_uri, "rb") as fh:
+                if fh.read(4) == b"%PDF":
+                    return "application/pdf"
+        except Exception:
+            pass
         return "application/octet-stream"
 
 
@@ -426,15 +465,28 @@ def _dispatch_extraction(
     doc: dict,
     method: str,
 ) -> tuple[str, dict]:
-    """Routing vers le parseur selon la méthode."""
+    """Routing vers le parseur selon la méthode.
+
+    SLA-A (sync) : native_pdf, excel_parser, docx_parser.
+    SLA-B (async, cloud-first) : mistral_ocr, llamaparse, azure.
+    Online-first — pas de tesseract local (hors scope cloud-first).
+    """
     if method == "native_pdf":
         return _extract_native_pdf(doc["storage_uri"])
     if method == "excel_parser":
         return _extract_excel(doc["storage_uri"])
     if method == "docx_parser":
         return _extract_docx(doc["storage_uri"])
+    # SLA-B : cloud OCR (online-first)
+    if method == "mistral_ocr":
+        return _extract_mistral_ocr(doc["storage_uri"])
+    if method == "llamaparse":
+        return _extract_llamaparse(doc["storage_uri"])
+    if method == "azure":
+        return _extract_azure_ocr_fallback(doc["storage_uri"], "application/pdf")
     raise ValueError(
-        f"Méthode inconnue pour dispatch : '{method}'. SLA-A : {SLA_A_METHODS}"
+        f"Méthode inconnue pour dispatch : '{method}'. "
+        f"SLA-A : {SLA_A_METHODS} | SLA-B : {SLA_B_METHODS}"
     )
 
 
