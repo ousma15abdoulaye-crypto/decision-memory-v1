@@ -1,0 +1,53 @@
+# M12 LLM Arbitration Configuration
+# Voir : docs/adr/ADR-M12-LLM-ARBITRATOR.md
+# Modifier sans toucher au code — chaque seuil est ajustable ici.
+
+arbitration:
+  # Master switch — false = offline (deterministe seul)
+  enabled: true
+
+  # Modele Mistral (Tier 1 online-first)
+  model: "mistral-large-latest"
+
+  # Deterministe : zero creativite
+  temperature: 0.0
+
+  # Timeout par appel LLM (secondes)
+  timeout_seconds: 10
+
+  # Retries apres timeout ou erreur transitoire
+  max_retries: 1
+
+# Seuils par tache
+# trigger_below_confidence : LLM appele si deterministe < cette valeur
+# max_llm_confidence : plafond absolu sur la confiance retournee par le LLM
+# requires_human_review : si true, force review_status=review_required
+
+thresholds:
+  type_disambiguation:
+    # Appele quand le recognizer de type retourne confidence < 0.80 ou UNKNOWN
+    trigger_below_confidence: 0.80
+    max_llm_confidence: 0.85
+    requires_human_review: false
+
+  mandatory_parts_l3:
+    # Appele quand L1 (heading) + L2 (keyword density) ont echoue
+    trigger_on_not_detected: true
+    max_llm_confidence: 0.70
+    # Les detectons L3 doivent toujours passer par l'annotateur
+    requires_human_review: true
+
+  process_linking:
+    # Appele quand fuzzy matching < seuil ET paire de types compatible
+    trigger_below_fuzzy: 0.85
+    max_llm_confidence: 0.80
+    requires_human_review: false
+
+# Budget guardrails (documentation — non enforce en code pour l'instant)
+budget:
+  # Cout estime par appel (mistral-large-latest, USD)
+  estimated_cost_per_call_usd: 0.003
+  # Max appels LLM par document (tous types confondus)
+  max_calls_per_document: 3
+  # Alerte si budget par document depasse cette valeur
+  alert_threshold_usd: 0.01

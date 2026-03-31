@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 validate_mrd_state.py  v2
 -------------------------
@@ -29,18 +28,33 @@ DOCS_FREEZE_DIR = Path("docs/freeze")
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
-RED    = "\033[91m"
-GREEN  = "\033[92m"
+RED = "\033[91m"
+GREEN = "\033[92m"
 YELLOW = "\033[93m"
-BLUE   = "\033[94m"
-RESET  = "\033[0m"
-BOLD   = "\033[1m"
+BLUE = "\033[94m"
+RESET = "\033[0m"
+BOLD = "\033[1m"
 
-def ok(msg):   print(f"{GREEN}[OK]  {RESET} {msg}")
-def warn(msg): print(f"{YELLOW}[WARN]{RESET} {msg}")
-def err(msg):  print(f"{RED}[ERR] {RESET} {msg}")
-def info(msg): print(f"{BLUE}[->]  {RESET} {msg}")
-def head(msg): print(f"\n{BOLD}-- {msg} --{RESET}")
+
+def ok(msg):
+    print(f"{GREEN}[OK]  {RESET} {msg}")
+
+
+def warn(msg):
+    print(f"{YELLOW}[WARN]{RESET} {msg}")
+
+
+def err(msg):
+    print(f"{RED}[ERR] {RESET} {msg}")
+
+
+def info(msg):
+    print(f"{BLUE}[->]  {RESET} {msg}")
+
+
+def head(msg):
+    print(f"\n{BOLD}-- {msg} --{RESET}")
+
 
 STOPS_DETECTED = []
 
@@ -119,9 +133,7 @@ def check_freeze_hashes() -> bool:
         for e in errors:
             print(f"  {e}")
 
-    print(
-        f"\nFREEZE HASHES : {checked} OK / " f"{checked + len(errors)} total"
-    )
+    print(f"\nFREEZE HASHES : {checked} OK / " f"{checked + len(errors)} total")
     return ok
 
 
@@ -141,8 +153,7 @@ def check_system_contract() -> bool:
     if not contract_path.exists():
         stop(
             "SC00",
-            "SYSTEM_CONTRACT.md absent -- "
-            "fondation manquante -- ne pas continuer"
+            "SYSTEM_CONTRACT.md absent -- " "fondation manquante -- ne pas continuer",
         )
         return False
     ok("SYSTEM_CONTRACT.md : present")
@@ -153,7 +164,7 @@ def check_system_contract() -> bool:
         stop(
             "SC01",
             "MRD_CURRENT_STATE.md absent -- "
-            "etat courant inconnu -- ne pas continuer"
+            "etat courant inconnu -- ne pas continuer",
         )
         return False
     ok("MRD_CURRENT_STATE.md : present")
@@ -161,10 +172,7 @@ def check_system_contract() -> bool:
     # BASELINE (warning seulement -- absente avant MRD-1)
     baseline_path = Path("docs/freeze/BASELINE_MRD_PRE_REBUILD.md")
     if not baseline_path.exists():
-        warn(
-            "BASELINE_MRD_PRE_REBUILD.md absente -- "
-            "MRD-1 non complete (attendu)"
-        )
+        warn("BASELINE_MRD_PRE_REBUILD.md absente -- " "MRD-1 non complete (attendu)")
     else:
         ok("BASELINE_MRD_PRE_REBUILD.md : presente")
 
@@ -175,7 +183,7 @@ def check_system_contract() -> bool:
         stop(
             "SC02",
             "CONTRACT-02 VIOLE -- "
-            "DATABASE_URL contient 'railway' -- interdit en local"
+            "DATABASE_URL contient 'railway' -- interdit en local",
         )
         return False
     if db_url:
@@ -194,10 +202,7 @@ def check_system_contract() -> bool:
                 break
     if next_ms:
         ok(f"CONTRACT-04 : next_milestone = {next_ms}")
-        info(
-            f"Si ton mandat != {next_ms} "
-            "-> STOP avant toute action"
-        )
+        info(f"Si ton mandat != {next_ms} " "-> STOP avant toute action")
     else:
         warn("next_milestone non lisible dans MRD_CURRENT_STATE.md")
 
@@ -212,8 +217,7 @@ def check_system_contract() -> bool:
 
     if last_completed and last_completed not in ("NONE", "N/A", ""):
         tag_check = subprocess.run(
-            ["git", "tag", "--list", "mrd-*-done"],
-            capture_output=True, text=True
+            ["git", "tag", "--list", "mrd-*-done"], capture_output=True, text=True
         )
         tags = tag_check.stdout.strip().splitlines()
         raw = last_completed.lower().replace("mrd-", "").split()[0]
@@ -233,10 +237,10 @@ def check_env() -> tuple[str, str, str, bool]:
     head("ENVIRONNEMENT")
     _load_dotenv()
 
-    db_url         = os.environ.get("DATABASE_URL", "")
+    db_url = os.environ.get("DATABASE_URL", "")
     railway_db_url = os.environ.get("RAILWAY_DATABASE_URL", "")
-    env            = os.environ.get("ENV", "unknown")
-    redis          = os.environ.get("REDIS_URL", "")
+    env = os.environ.get("ENV", "unknown")
+    redis = os.environ.get("REDIS_URL", "")
 
     if not db_url:
         stop("ENV", "DATABASE_URL absente (ni shell ni .env)")
@@ -266,20 +270,17 @@ def check_env() -> tuple[str, str, str, bool]:
 def check_git() -> str:
     head("GIT")
     branch = subprocess.run(
-        ["git", "branch", "--show-current"],
-        capture_output=True, text=True
+        ["git", "branch", "--show-current"], capture_output=True, text=True
     ).stdout.strip()
     info(f"Branch : {branch}")
 
     log = subprocess.run(
-        ["git", "log", "--oneline", "-3"],
-        capture_output=True, text=True
+        ["git", "log", "--oneline", "-3"], capture_output=True, text=True
     ).stdout.strip()
     info(f"Log :\n  {log.replace(chr(10), chr(10)+'  ')}")
 
     stash = subprocess.run(
-        ["git", "stash", "list"],
-        capture_output=True, text=True
+        ["git", "stash", "list"], capture_output=True, text=True
     ).stdout.strip()
     if stash:
         count = len(stash.splitlines())
@@ -288,8 +289,7 @@ def check_git() -> str:
         ok("Stash : vide")
 
     dirty = subprocess.run(
-        ["git", "diff", "--name-only"],
-        capture_output=True, text=True
+        ["git", "diff", "--name-only"], capture_output=True, text=True
     ).stdout.strip()
     if dirty:
         warn(f"Fichiers modifies non commites :\n  {dirty}")
@@ -302,13 +302,9 @@ def check_git() -> str:
 # ── S2 : Alembic ──────────────────────────────────────────────────────────
 def check_alembic() -> tuple[list, str]:
     head("ALEMBIC")
-    heads_result = subprocess.run(
-        ["alembic", "heads"],
-        capture_output=True, text=True
-    )
+    heads_result = subprocess.run(["alembic", "heads"], capture_output=True, text=True)
     current_result = subprocess.run(
-        ["alembic", "current"],
-        capture_output=True, text=True
+        ["alembic", "current"], capture_output=True, text=True
     )
 
     head_lines = [
@@ -317,9 +313,12 @@ def check_alembic() -> tuple[list, str]:
         if line.strip() and not line.startswith("INFO")
     ]
     current_line = next(
-        (line.strip() for line in current_result.stdout.splitlines()
-         if line.strip() and not line.startswith("INFO")),
-        "INACCESSIBLE"
+        (
+            line.strip()
+            for line in current_result.stdout.splitlines()
+            if line.strip() and not line.startswith("INFO")
+        ),
+        "INACCESSIBLE",
     )
 
     if len(head_lines) == 1:
@@ -360,7 +359,7 @@ def check_db(db_url: str) -> dict:
 
     try:
         conn = psycopg.connect(conn_url, connect_timeout=5)
-        cur  = conn.cursor()
+        cur = conn.cursor()
         result["accessible"] = True
         ok("Connexion DB : OK")
 
@@ -388,15 +387,22 @@ def check_db(db_url: str) -> dict:
 
         if "couche_b" in result["schemas"]:
             for label, q in [
-                ("dict_items_actifs",
-                 "SELECT COUNT(*) FROM couche_b.procurement_dict_items WHERE active=TRUE"),
-                ("dict_items_total",
-                 "SELECT COUNT(*) FROM couche_b.procurement_dict_items"),
-                ("aliases",
-                 "SELECT COUNT(*) FROM couche_b.procurement_dict_aliases"),
-                ("seeds_human_validated",
-                 ("SELECT COUNT(*) FROM couche_b.procurement_dict_items "
-                  "WHERE human_validated=TRUE AND active=TRUE")),
+                (
+                    "dict_items_actifs",
+                    "SELECT COUNT(*) FROM couche_b.procurement_dict_items WHERE active=TRUE",
+                ),
+                (
+                    "dict_items_total",
+                    "SELECT COUNT(*) FROM couche_b.procurement_dict_items",
+                ),
+                ("aliases", "SELECT COUNT(*) FROM couche_b.procurement_dict_aliases"),
+                (
+                    "seeds_human_validated",
+                    (
+                        "SELECT COUNT(*) FROM couche_b.procurement_dict_items "
+                        "WHERE human_validated=TRUE AND active=TRUE"
+                    ),
+                ),
             ]:
                 try:
                     cur.execute(q)
@@ -420,7 +426,7 @@ def check_db(db_url: str) -> dict:
                 "trg_protect_item_identity",
                 "trg_protect_item_with_aliases",
             }
-            found   = set(result["triggers"])
+            found = set(result["triggers"])
             missing = expected - found
             if missing:
                 stop("TRG", f"Triggers manquants : {missing}")
@@ -449,7 +455,7 @@ def check_db(db_url: str) -> dict:
 
         if "public" in result["schemas"]:
             for label, q in [
-                ("vendors",    "SELECT COUNT(*) FROM public.vendors"),
+                ("vendors", "SELECT COUNT(*) FROM public.vendors"),
                 ("mercurials", "SELECT COUNT(*) FROM public.mercurials"),
             ]:
                 try:
@@ -481,8 +487,9 @@ def check_railway_db(railway_db_url: str) -> dict:
 
     try:
         import psycopg
+
         conn = psycopg.connect(railway_db_url, connect_timeout=15)
-        cur  = conn.cursor()
+        cur = conn.cursor()
         result["accessible"] = True
         ok("Railway DB : ACCESSIBLE")
 
@@ -508,13 +515,21 @@ def check_railway_db(railway_db_url: str) -> dict:
 
         if "couche_b" in schemas:
             for label, q in [
-                ("railway_dict_items_actifs",
-                 "SELECT COUNT(*) FROM couche_b.procurement_dict_items WHERE active=TRUE"),
-                ("railway_aliases",
-                 "SELECT COUNT(*) FROM couche_b.procurement_dict_aliases"),
-                ("railway_seeds_human_validated",
-                 ("SELECT COUNT(*) FROM couche_b.procurement_dict_items "
-                  "WHERE human_validated=TRUE AND active=TRUE")),
+                (
+                    "railway_dict_items_actifs",
+                    "SELECT COUNT(*) FROM couche_b.procurement_dict_items WHERE active=TRUE",
+                ),
+                (
+                    "railway_aliases",
+                    "SELECT COUNT(*) FROM couche_b.procurement_dict_aliases",
+                ),
+                (
+                    "railway_seeds_human_validated",
+                    (
+                        "SELECT COUNT(*) FROM couche_b.procurement_dict_items "
+                        "WHERE human_validated=TRUE AND active=TRUE"
+                    ),
+                ),
             ]:
                 try:
                     cur.execute(q)
@@ -526,7 +541,7 @@ def check_railway_db(railway_db_url: str) -> dict:
 
         if "public" in schemas:
             for label, q in [
-                ("railway_vendors",    "SELECT COUNT(*) FROM public.vendors"),
+                ("railway_vendors", "SELECT COUNT(*) FROM public.vendors"),
                 ("railway_mercurials", "SELECT COUNT(*) FROM public.mercurials"),
             ]:
                 try:
@@ -567,17 +582,54 @@ def check_mrd_state() -> dict:
 
 
 # ── S6 : Alignement repo vs DB ────────────────────────────────────────────
+# Chaine ordonnee connue — synchronisee manuellement avec alembic/versions/
+_KNOWN_MIGRATION_CHAIN: list[str] = [
+    "044_decision_history",
+    "045_agent_native_foundation",
+    "046_imc_category_item_map",
+    "046b_imc_map_fix_restrict_indexes",
+    "047_couche_a_service_columns",
+    "048_vendors_sensitive_data",
+    "049_validate_pipeline_runs_fk",
+    "050_documents_sha256_not_null",
+    "051_cases_tenant_user_tenants_rls",
+    "052_dm_app_rls_role",
+    "053_dm_app_enforce_security_attrs",
+    "054_m12_correction_log",
+]
+
+
+def _compute_migration_delta(db_versions: list[str]) -> list[str]:
+    """Retourne la liste ordonnee des migrations manquantes entre db_versions et le head."""
+    if not db_versions:
+        return _KNOWN_MIGRATION_CHAIN[:]
+    current_idx = None
+    for v in db_versions:
+        if v in _KNOWN_MIGRATION_CHAIN:
+            idx = _KNOWN_MIGRATION_CHAIN.index(v)
+            if current_idx is None or idx > current_idx:
+                current_idx = idx
+    if current_idx is None:
+        return _KNOWN_MIGRATION_CHAIN[:]
+    return _KNOWN_MIGRATION_CHAIN[current_idx + 1 :]
+
+
 def check_alignment(head_lines: list, db_result: dict, railway_result: dict):
     head("ALIGNEMENT REPO <-> LOCAL <-> RAILWAY")
     repo_head = head_lines[0] if head_lines else None
     local_ver = db_result.get("alembic_version", [])
-    rail_ver  = railway_result.get("alembic_version", [])
+    rail_ver = railway_result.get("alembic_version", [])
 
     if repo_head and local_ver:
         if repo_head in local_ver:
             ok(f"REPO <-> LOCAL  : ALIGNE   ({repo_head})")
         else:
+            delta = _compute_migration_delta(local_ver)
             stop("ALN-LOCAL", f"DESALIGNE repo={repo_head} local={local_ver}")
+            if delta:
+                info(f"  Migrations pending LOCAL ({len(delta)}) :")
+                for m in delta:
+                    info(f"    -> {m}")
     else:
         warn("REPO <-> LOCAL  : non verifiable")
 
@@ -585,7 +637,14 @@ def check_alignment(head_lines: list, db_result: dict, railway_result: dict):
         if repo_head in rail_ver:
             ok(f"REPO <-> RAILWAY: ALIGNE   ({repo_head})")
         else:
+            delta = _compute_migration_delta(rail_ver)
             stop("ALN-RAIL", f"DESALIGNE repo={repo_head} railway={rail_ver}")
+            if delta:
+                info(f"  Migrations pending RAILWAY ({len(delta)}) :")
+                for m in delta:
+                    info(f"    -> {m}")
+                info("  Runbook : docs/operations/RAILWAY_MIGRATION_RUNBOOK.md")
+                info("  Flag requis : DMS_ALLOW_RAILWAY_MIGRATE=1 (GO CTO obligatoire)")
     elif not rail_ver:
         warn(
             "REPO <-> RAILWAY: non verifiable "
@@ -610,8 +669,8 @@ def main():
     db_url, railway_db_url, env, is_railway = check_env()
     check_git()
     head_lines, current = check_alembic()
-    db_result           = check_db(db_url)
-    mrd_state           = check_mrd_state()
+    db_result = check_db(db_url)
+    check_mrd_state()
 
     railway_result: dict = {}
     if "--railway" in sys.argv or railway_db_url:

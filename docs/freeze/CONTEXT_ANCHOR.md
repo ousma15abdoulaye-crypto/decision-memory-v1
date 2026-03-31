@@ -837,3 +837,78 @@ Détails : `docs/calibration/M12_calibration_log.md`, `docs/calibration/benchmar
 - `docs/contracts/annotation/PASS_1A_CONTRACT.md` → `PASS_1D_CONTRACT.md` : contrats I/O par pass
 
 ---
+
+## ADDENDUM 2026-03-31 — INFRASTRUCTURE CRITIQUE + INTELLIGENCE LLM STRATEGIQUE (feat/llm-arbitrator-ocr-railway-fix)
+
+**Autorité :** mandat CTO / AO — branche `feat/llm-arbitrator-ocr-railway-fix`
+
+### GIT
+
+- Branche active : `feat/llm-arbitrator-ocr-railway-fix` (base `main` / `a6a4d7b`)
+- Repo head Alembic : `054_m12_correction_log` (inchangé — pas de nouvelle migration dans ce mandat)
+- Railway head : `044_decision_history` (DÉSYNCHRONISÉ — 11 migrations pending, voir runbook)
+
+### PHASE 1 — OCR CLOUD-FIRST (84 PDFs débloqués)
+
+**Failles corrigées :**
+
+- `src/extraction/engine.py` — `_dispatch_extraction` câblé pour SLA-B : `mistral_ocr`, `llamaparse`, `azure`. Plus de `ValueError` silencieux sur les méthodes cloud (E-72).
+- `src/extraction/engine.py` — `_detect_mime_from_header` force `application/pdf` si magic bytes `%PDF` même si `filetype` retourne `application/octet-stream` (E-73). Élimine les rejets Mistral OCR silencieux.
+- `src/extraction/engine.py` — `_ensure_ssl_env()` injectée avant chaque appel Mistral OCR : `certifi` positionne `SSL_CERT_FILE` + `REQUESTS_CA_BUNDLE` si absents (proxy d'entreprise).
+- `scripts/ingest_to_annotation_bridge.py` — cascade cloud-first avec retry SSL exponentiel : Mistral OCR (2 essais) → LlamaParse (2 essais) → texte local → `blocked`. Log structuré pour chaque tentative.
+- `requirements.txt` — `certifi>=2024.2.2` ajouté.
+
+**Tests :** `tests/test_engine_slab_dispatch.py` — 12 tests (dispatch 6 méthodes, MIME fix, cascade mock, retry SSL).
+
+### PHASE 2 — RAILWAY MIGRATION SYNC
+
+**Failles corrigées :**
+
+- `start.sh` — garde-fou `DMS_ALLOW_RAILWAY_MIGRATE` : migrations skippées par défaut. Appliquer uniquement avec `DMS_ALLOW_RAILWAY_MIGRATE=1` dans Railway Variables (E-74).
+- `scripts/probe_alembic_head.py` — probe Alembic local ou Railway (`--railway`), affiche delta ordonné.
+- `scripts/probe_railway_counts.py` — COUNT tables critiques Railway (read-only), vérifie triggers couche_b.
+- `scripts/validate_mrd_state.py` — enrichi : affiche la liste exacte des migrations pending entre local et Railway (plus juste "DÉSALIGNÉ").
+- `docs/operations/RAILWAY_MIGRATION_RUNBOOK.md` — runbook 3 lots sécurisés avec probe pre/post et rollback documenté.
+
+### PHASE 3 — INTELLIGENCE LLM STRATEGIQUE (M12 Double Cerveau)
+
+**Architecture cible :** Deterministe (< 50ms, gratuit) → LLM arbitre si confiance basse. Voir `docs/adr/ADR-M12-LLM-ARBITRATOR.md`.
+
+**Fichiers créés/modifiés :**
+
+- `src/procurement/llm_arbitrator.py` — module central LLM M12. 3 méthodes cibles : `disambiguate_document_type`, `detect_mandatory_part`, `semantic_link_documents`. Chaque réponse = `TracedField`. Guard API key, timeout 10s, 1 retry, fallback `not_resolved`. (E-75 corrigé)
+- `config/llm_arbitration.yaml` — seuils et configuration LLM arbitration (ajustables sans code).
+- `docs/adr/ADR-M12-LLM-ARBITRATOR.md` — ADR obligatoire (REGLE-11).
+- `src/annotation/passes/pass_1a_core_recognition.py` — intègre LLM arbitration après L3 si `confidence < 0.80` ou `UNKNOWN`. `recognition_source` = `"hybrid_deterministic_llm"` si LLM appelé. Non-bloquant (exception catchée).
+- `src/procurement/mandatory_parts_engine.py` — Level 3 LLM câblé : `MandatoryPartsEngine(llm_arbitrator=...)`, appel conditionnel après L1+L2 échec. Confiance plafonnée à 0.70.
+- `src/procurement/process_linker.py` — Level 5 `SEMANTIC_LLM` dans `link_documents` et `build_process_linking(llm_arbitrator=...)` : appel LLM quand paire contextuelle sans référence commune. Confiance plafonnée à 0.80.
+- `tests/procurement/test_llm_arbitrator.py` — 16 tests (offline guard, parse, taxonomie guard, plafonds, intégration engine + linker, singleton).
+
+**Plafonds de confiance LLM :**
+
+| Tâche | Trigger | Plafond |
+|-------|---------|---------|
+| Type disambiguation | confidence_det < 0.80 ou UNKNOWN | 0.85 |
+| Mandatory parts L3 | L1 + L2 échouent | 0.70 |
+| Process linking L5 | fuzzy < 0.85, paire contextuelle | 0.80 |
+
+### ERREURS CAPITALISÉES — E-72 à E-75
+
+**E-72** (2026-03-31) : `_dispatch_extraction` ne routait que SLA-A (native_pdf, excel, docx). Les méthodes SLA-B cloud (mistral_ocr, llamaparse, azure) levaient un `ValueError` silencieux — 84 PDFs bloqués dans le bridge. **Fix :** câbler les 3 méthodes cloud dans le dispatcher.
+
+**E-73** (2026-03-31) : `_detect_mime_from_header` retournait `application/octet-stream` pour des PDFs valides si `filetype` échouait à détecter. Mistral OCR rejetait silencieusement ces fichiers. **Fix :** forcer `application/pdf` si magic bytes `%PDF` détectés, même en cas d'échec `filetype`.
+
+**E-74** (2026-03-31) : `start.sh` exécutait `alembic upgrade head` systématiquement au démarrage Railway — violation REGLE-ANCHOR-06 (migrations Railway = GO CTO obligatoire). **Fix :** garde-fou `DMS_ALLOW_RAILWAY_MIGRATE=1` requis pour activer les migrations.
+
+**E-75** (2026-03-31) : M12 Level 3 LLM stub non implémenté dans `mandatory_parts_engine.py` (commentaire placeholder L227) — intelligence bridée sur les parties difficiles. Process linker sans Level 5 sémantique — lien financier/DAO raté si pas de référence commune. Pass 1A sans arbitrage LLM — documents atypiques classés UNKNOWN. **Fix :** `llm_arbitrator.py` + intégration chirurgicale dans les 3 modules.
+
+### DEPENDENCIES AJOUTÉES
+
+- `certifi>=2024.2.2` : bundle CA Mozilla pour SSL proxy d'entreprise (Mistral OCR cloud)
+
+### TESTS ADDITIONNELS
+
+- `tests/test_engine_slab_dispatch.py` : 12 tests OCR dispatch + MIME + cascade
+- `tests/procurement/test_llm_arbitrator.py` : 16 tests LLM arbitrator
+
+---

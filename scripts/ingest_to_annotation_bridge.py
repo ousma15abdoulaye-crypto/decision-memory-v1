@@ -105,6 +105,78 @@ def classify_pdf(path: Path, text_probe: str) -> str:
     return "mixed_pdf"
 
 
+_SSL_ERROR_TAGS = (
+    "CERTIFICATE_VERIFY_FAILED",
+    "SSLError",
+    "ssl.SSLError",
+    "SSL",
+)
+_CLOUD_OCR_CATCH = (
+    APIKeyMissingError,
+    ImportError,
+    ValueError,
+    OSError,
+    RuntimeError,
+    ConnectionError,
+    TimeoutError,
+)
+
+
+def _is_ssl_error(exc: Exception) -> bool:
+    """Heuristique : exception liee au SSL/TLS ?"""
+    return any(tag in type(exc).__name__ or tag in str(exc) for tag in _SSL_ERROR_TAGS)
+
+
+def _cloud_ocr_with_retry(
+    fn,
+    real_path: str,
+    engine_name: str,
+    max_attempts: int = 2,
+) -> tuple[str, str] | None:
+    """
+    Tente fn(real_path) avec 1 retry sur erreur SSL/reseau transitoire.
+    Retourne (texte, engine_name) ou None si echec definitif.
+    Online-first.
+    """
+    import time as _t
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            raw, _ = fn(real_path)
+            if raw and raw.strip():
+                return raw, engine_name
+            logger.info(
+                "[BRIDGE] %s texte vide (tentative %d/%d)",
+                engine_name,
+                attempt,
+                max_attempts,
+            )
+            return None
+        except _CLOUD_OCR_CATCH as e:
+            is_ssl = _is_ssl_error(e)
+            if attempt < max_attempts and is_ssl:
+                wait = 2**attempt
+                logger.warning(
+                    "[BRIDGE] %s erreur SSL transitoire (tentative %d/%d) retry %ds : %s",
+                    engine_name,
+                    attempt,
+                    max_attempts,
+                    wait,
+                    e,
+                )
+                _t.sleep(wait)
+            else:
+                logger.info(
+                    "[BRIDGE] %s echec definitif (tentative %d/%d) : %s",
+                    engine_name,
+                    attempt,
+                    max_attempts,
+                    e,
+                )
+                return None
+    return None
+
+
 def extract_with_route(
     path: str,
     classification: str,
@@ -112,8 +184,13 @@ def extract_with_route(
 ) -> tuple[str, str, str | None]:
     """
     Retourne (texte, engine_route, skip_reason).
-    Ne fabrique jamais de texte : chaîne vide si aucun extracteur ne produit de contenu.
-    ``text_after_local_extract`` : texte pypdf/pdfminer (même source que la classification).
+    Ne fabrique jamais de texte.
+
+    Cascade cloud-first (online-first):
+      1. Mistral OCR  (mistral-ocr-latest) avec retry SSL
+      2. LlamaParse   si Mistral echoue
+      3. Texte local  si texte natif disponible
+      4. blocked      si tout echoue
     """
     p = Path(path)
     real = str(p.resolve())
@@ -123,45 +200,39 @@ def extract_with_route(
 
     stripped = text_after_local_extract.strip()
 
-    # PDF majoritairement lisible en local
+    # PDF lisible en local — retour direct sans cloud
     if classification == "native_pdf" and len(stripped) >= _MIN_NATIVE_CHARS:
         return text_after_local_extract, "local", None
 
     if classification == "mixed_pdf" and len(stripped) >= _MIN_NATIVE_CHARS:
         return text_after_local_extract, "local", None
 
-    # STORAGE_BASE_PATH : positionné dans run_ingest() (FIX-01, voir _storage_base_for_bridge).
+    # STORAGE_BASE_PATH : positionne dans run_ingest() (FIX-01).
 
-    # Besoin d’un moteur cloud
+    # Cascade cloud OCR
     if (
         classification in ("scanned_pdf", "mixed_pdf")
         or len(stripped) < _MIN_NATIVE_CHARS
     ):
-        try:
-            raw, _ = _extract_mistral_ocr(real)
-            if raw and raw.strip():
-                return raw, "mistral_ocr", None
-        except (
-            APIKeyMissingError,
-            ImportError,
-            ValueError,
-            OSError,
-            RuntimeError,
-        ) as e:
-            logger.info("[BRIDGE] mistral_ocr indisponible ou échec — %s", e)
+        logger.info(
+            "[BRIDGE] %s -> cascade cloud (Mistral -> LlamaParse) : %s",
+            classification,
+            Path(path).name,
+        )
 
-        try:
-            raw, _ = _extract_llamaparse(real)
-            if raw and raw.strip():
-                return raw, "llamaparse", None
-        except (
-            APIKeyMissingError,
-            ImportError,
-            ValueError,
-            OSError,
-            RuntimeError,
-        ) as e:
-            logger.info("[BRIDGE] llamaparse indisponible ou échec — %s", e)
+        result = _cloud_ocr_with_retry(_extract_mistral_ocr, real, "mistral_ocr")
+        if result:
+            logger.info("[BRIDGE] OK mistral_ocr : %s", Path(path).name)
+            return result[0], result[1], None
+
+        result = _cloud_ocr_with_retry(_extract_llamaparse, real, "llamaparse")
+        if result:
+            logger.info("[BRIDGE] OK llamaparse : %s", Path(path).name)
+            return result[0], result[1], None
+
+        logger.warning(
+            "[BRIDGE] Tous les moteurs cloud ont echoue : %s", Path(path).name
+        )
 
     if stripped:
         return text_after_local_extract, "local", None
