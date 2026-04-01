@@ -165,10 +165,12 @@ try:
     from src.couche_a.auth.middleware import (
         RedisRateLimitMiddleware,
         SecurityHeadersMiddleware,
+        TenantContextMiddleware,
     )
 
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RedisRateLimitMiddleware)
+    app.add_middleware(TenantContextMiddleware)
 except ImportError as _e:
     logger.warning("[main] middlewares sécurité M1 non chargés : %s", _e)
 
