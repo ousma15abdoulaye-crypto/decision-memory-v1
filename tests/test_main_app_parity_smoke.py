@@ -1,28 +1,20 @@
-"""Smoke minimal sur main:app — préfixes critiques montés en prod (évite régression d'oubli de router)."""
+"""Smoke minimal sur main:app — criteria obligatoire ; /geo si le paquet geo est importable.
+
+``DATABASE_URL`` doit être défini avant la collection (voir ``tests/conftest.py``).
+"""
 
 from __future__ import annotations
 
-import os
+import importlib.util
 
-import pytest
-
-pytestmark = pytest.mark.usefixtures("_env_main_parity")
+from fastapi.testclient import TestClient
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _env_main_parity() -> None:
-    os.environ.setdefault(
-        "DATABASE_URL",
-        "postgresql+psycopg://dms_user:dms_local@localhost:5432/dms_dev",
-    )
-    os.environ.setdefault("JWT_SECRET", "test-smoke-main-parity-local")
-    os.environ.setdefault("ENV", "dev")
-    os.environ.setdefault("TESTING", "true")
+def _geo_package_available() -> bool:
+    return importlib.util.find_spec("src.geo.router") is not None
 
 
-def test_main_openapi_includes_criteria_and_geo() -> None:
-    from fastapi.testclient import TestClient
-
+def test_main_openapi_includes_criteria_and_geo_when_geo_available() -> None:
     from main import app
 
     with TestClient(app) as client:
@@ -33,6 +25,8 @@ def test_main_openapi_includes_criteria_and_geo() -> None:
     assert any(
         "criteria" in p for p in path_keys
     ), "OpenAPI doit exposer au moins un chemin criteria (router Couche A)"
-    assert any(
-        "/geo" in p for p in path_keys
-    ), "OpenAPI doit exposer le préfixe /geo si le module geo est importable"
+    if _geo_package_available():
+        assert any("/geo" in p for p in path_keys), (
+            "Module src.geo présent mais aucun chemin /geo dans OpenAPI — "
+            "oubli de montage dans main.py ?"
+        )

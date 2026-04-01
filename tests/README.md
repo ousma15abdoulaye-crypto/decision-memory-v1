@@ -1,6 +1,6 @@
 # Tests — matrice des applications FastAPI
 
-La production expose **`main:app`** (`main.py` à la racine). Une partie des tests importe **`src.api.main:app`** (harness ADR-M5-PRE-001, routes optionnelles). Voir [`docs/adr/ADR-DUAL-FASTAPI-ENTRYPOINTS.md`](../docs/adr/ADR-DUAL-FASTAPI-ENTRYPOINTS.md).
+La production expose **`main:app`** (`main.py` à la racine). Une partie des tests importe **`src.api.main:app`** (harness ADR-M5-PRE-001, routes optionnelles). Voir le fichier racine du dépôt `docs/adr/ADR-DUAL-FASTAPI-ENTRYPOINTS.md`.
 
 | Fichier / zone | Application importée |
 |----------------|----------------------|
