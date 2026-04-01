@@ -13,6 +13,9 @@ _db_tenant_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
 _db_is_admin: contextvars.ContextVar[bool] = contextvars.ContextVar(
     "rls_is_admin", default=False
 )
+_db_user_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "rls_user_id", default=None
+)
 
 
 def set_db_tenant_id(tenant_id: str | None) -> None:
@@ -31,6 +34,14 @@ def get_rls_is_admin() -> bool:
     return _db_is_admin.get()
 
 
+def set_rls_user_id(user_id: str | None) -> None:
+    _db_user_id.set(user_id)
+
+
+def get_rls_user_id() -> str | None:
+    return _db_user_id.get()
+
+
 def get_rls_tenant_id() -> str | None:
     return _db_tenant_id.get()
 
@@ -39,3 +50,4 @@ def reset_rls_request_context() -> None:
     """Réinitialise le contexte (tests / workers)."""
     _db_tenant_id.set(None)
     _db_is_admin.set(False)
+    _db_user_id.set(None)

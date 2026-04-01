@@ -120,14 +120,18 @@ def health_probe() -> dict[str, str]:
 # Initialize rate limiting
 init_rate_limit(app)
 
-# Middleware sécurité — SecurityHeaders (identique à src/api/main.py)
+# Middlewares sécurité (SecurityHeaders + TenantContext RLS)
 try:
-    from src.couche_a.auth.middleware import SecurityHeadersMiddleware
+    from src.couche_a.auth.middleware import (
+        SecurityHeadersMiddleware,
+        TenantContextMiddleware,
+    )
 
     app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(TenantContextMiddleware)
 except ImportError as _mw_err:
     logging.getLogger(__name__).warning(
-        "[main] SecurityHeadersMiddleware non chargé : %s", _mw_err
+        "[main] middlewares sécurité non chargés : %s", _mw_err
     )
 
 # Include routers

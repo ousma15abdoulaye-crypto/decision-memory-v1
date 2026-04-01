@@ -82,6 +82,41 @@ class AnnotationPipelineState(StrEnum):
     DEAD_LETTER = "dead_letter"
 
 
+# States from which the pipeline cannot be resumed — idempotent skip is safe.
+_TERMINAL_STATES: frozenset[AnnotationPipelineState] = frozenset(
+    {
+        AnnotationPipelineState.PASS_1D_DONE,
+        AnnotationPipelineState.DEAD_LETTER,
+        AnnotationPipelineState.REVIEW_REQUIRED,
+        AnnotationPipelineState.REJECTED,
+        AnnotationPipelineState.ROUTED,
+        AnnotationPipelineState.LLM_PREANNOTATION_PENDING,
+        AnnotationPipelineState.LLM_PREANNOTATION_DONE,
+        AnnotationPipelineState.VALIDATED,
+        AnnotationPipelineState.ANNOTATED_VALIDATED,
+    }
+)
+
+# States that represent a partial M12 run that can be safely resumed.
+_M12_RESUMABLE_STATES: frozenset[AnnotationPipelineState] = frozenset(
+    {
+        AnnotationPipelineState.QUALITY_ASSESSED,
+        AnnotationPipelineState.PASS_1A_DONE,
+        AnnotationPipelineState.PASS_1B_DONE,
+        AnnotationPipelineState.PASS_1C_DONE,
+    }
+)
+
+# Ordered M12 progression for checkpoint comparisons.
+_M12_STATE_ORDER: list[AnnotationPipelineState] = [
+    AnnotationPipelineState.QUALITY_ASSESSED,
+    AnnotationPipelineState.PASS_1A_DONE,
+    AnnotationPipelineState.PASS_1B_DONE,
+    AnnotationPipelineState.PASS_1C_DONE,
+    AnnotationPipelineState.PASS_1D_DONE,
+]
+
+
 @dataclass
 class TransitionLogEntry:
     run_id: str
@@ -153,10 +188,31 @@ class AnnotationOrchestrator:
 
     def save_run(self, record: PipelineRunRecord) -> None:
         p = self._path(uuid.UUID(record.run_id))
-        p.write_text(
+        tmp = p.with_suffix(".tmp")
+        tmp.write_text(
             json.dumps(asdict(record), indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
+        os.replace(tmp, p)  # atomic on POSIX and Windows NTFS
+
+    def _reconstruct_pass_output(
+        self, record: PipelineRunRecord, pass_key: str
+    ) -> AnnotationPassOutput | None:
+        """Deserialize a stored pass output dict back to an AnnotationPassOutput.
+
+        Returns None if the key is missing or the stored data is corrupt.
+        """
+        stored = record.pass_outputs.get(pass_key)
+        if not stored:
+            return None
+        try:
+            return AnnotationPassOutput.model_validate(stored)
+        except Exception:
+            logger.warning(
+                "annotation_orchestrator_checkpoint_corrupt",
+                extra={"run_id": record.run_id, "pass_key": pass_key},
+            )
+            return None
 
     def _log_transition(
         self,
@@ -263,11 +319,63 @@ class AnnotationOrchestrator:
         """
         existing = self.load_run(run_id)
         if existing is not None:
-            logger.info(
-                "annotation_orchestrator_idempotent_skip",
+            existing_state = AnnotationPipelineState(existing.state)
+            if existing_state in _TERMINAL_STATES:
+                logger.info(
+                    "annotation_orchestrator_idempotent_skip",
+                    extra={"run_id": str(run_id), "state": existing.state},
+                )
+                return existing, existing_state
+            if use_m12_subpasses() and existing_state in _M12_RESUMABLE_STATES:
+                # Non-terminal M12 run — recover from last checkpoint.
+                logger.warning(
+                    "annotation_orchestrator_recovery",
+                    extra={
+                        "run_id": str(run_id),
+                        "state": existing.state,
+                        "action": "resuming_from_checkpoint",
+                    },
+                )
+                p0_out = (existing.pass_outputs.get("pass_0_ingestion") or {}).get(
+                    "output_data"
+                ) or {}
+                p05_out = (
+                    existing.pass_outputs.get("pass_0_5_quality_gate") or {}
+                ).get("output_data") or {}
+                normalized = p0_out.get("normalized_text") or raw_text
+                qc = p05_out.get("quality_class") or "good"
+                block_llm = bool(p05_out.get("block_llm"))
+                return self.run_passes_1a_to_1d(
+                    normalized,
+                    document_id=document_id,
+                    run_id=run_id,
+                    quality_class=qc,
+                    block_llm=block_llm,
+                    case_documents_1a=case_documents_1a,
+                )
+            # Run is in an M12 resumable state but use_m12_subpasses() is OFF.
+            # Silently skipping would leave the run permanently stuck.
+            # Fail loudly so the operator can investigate.
+            if existing_state in _M12_RESUMABLE_STATES:
+                logger.error(
+                    "annotation_orchestrator_stuck_run_subpasses_disabled",
+                    extra={
+                        "run_id": str(run_id),
+                        "state": existing.state,
+                        "action": "manual_requeue_or_enable_m12_subpasses_required",
+                    },
+                )
+                raise RuntimeError(
+                    f"Run {run_id} est bloqué en état {existing.state!r} "
+                    "mais use_m12_subpasses() est désactivé. "
+                    "Réactivez M12_SUBPASSES ou requeuez manuellement."
+                )
+            # Unknown non-terminal state — skip with warning.
+            logger.warning(
+                "annotation_orchestrator_unknown_state_skip",
                 extra={"run_id": str(run_id), "state": existing.state},
             )
-            return existing, AnnotationPipelineState(existing.state)
+            return existing, existing_state
 
         record = PipelineRunRecord(
             run_id=str(run_id),
@@ -421,6 +529,9 @@ class AnnotationOrchestrator:
         Execute M12 sub-passes (1A -> 1B -> 1C -> 1D) after Pass 0.5 is done.
 
         Expects a pre-existing PipelineRunRecord at state >= QUALITY_ASSESSED.
+        Supports checkpoint recovery: passes already completed in a previous
+        (crashed) run are skipped and their outputs are restored from JSON.
+        Each pass saves a checkpoint immediately upon successful completion.
         """
         existing = self.load_run(run_id)
         if existing is None:
@@ -432,72 +543,148 @@ class AnnotationOrchestrator:
         else:
             record = existing
 
+        current_state = AnnotationPipelineState(record.state)
+
+        # Short-circuit if already terminal (e.g. called twice on a finished run).
+        if current_state in _TERMINAL_STATES:
+            return record, current_state
+
+        def _state_rank(s: AnnotationPipelineState) -> int:
+            try:
+                return _M12_STATE_ORDER.index(s)
+            except ValueError:
+                return -1
+
+        def _is_done(target: AnnotationPipelineState) -> bool:
+            return _state_rank(current_state) >= _state_rank(target)
+
+        # Helper: reset state + downstream outputs when a checkpoint is corrupt.
+        # Ensures no pass uses a freshly-rerun upstream with stale downstream data.
+        def _reset_from(pass_name: str, new_state: AnnotationPipelineState) -> None:
+            """Reset record state to new_state and clear all downstream pass outputs."""
+            logger.warning(
+                "annotation_orchestrator_checkpoint_corrupt_reset",
+                extra={
+                    "run_id": str(run_id),
+                    "corrupt_pass": pass_name,
+                    "reset_to_state": new_state.value,
+                },
+            )
+            record.state = new_state.value
+            downstream = {
+                "pass_1a_core_recognition": [
+                    "pass_1b_document_validity",
+                    "pass_1c_process_linking",
+                    "pass_1d_handoff_builder",
+                ],
+                "pass_1b_document_validity": [
+                    "pass_1c_process_linking",
+                    "pass_1d_handoff_builder",
+                ],
+                "pass_1c_process_linking": ["pass_1d_handoff_builder"],
+                "pass_1d_handoff_builder": [],
+            }
+            for key in downstream.get(pass_name, []):
+                record.pass_outputs.pop(key, None)
+
         # ── Pass 1A: Core Recognition ──
-        p1a = self._run_pass_with_retry(
-            run_pass_1a_core_recognition,
-            "pass_1a_core_recognition",
-            normalized_text=normalized_text,
-            document_id=document_id,
-            run_id=run_id,
-            quality_class=quality_class,
-            block_llm=block_llm,
-        )
-        record.pass_outputs["pass_1a_core_recognition"] = _serialize_pass_output(p1a)
-        if p1a.status == PassRunStatus.FAILED:
+        p1a: AnnotationPassOutput | None = None
+        if _is_done(AnnotationPipelineState.PASS_1A_DONE):
+            p1a = self._reconstruct_pass_output(record, "pass_1a_core_recognition")
+            if p1a is not None:
+                logger.info(
+                    "annotation_orchestrator_checkpoint_hit",
+                    extra={"run_id": str(run_id), "pass": "1a"},
+                )
+            else:
+                _reset_from(
+                    "pass_1a_core_recognition",
+                    AnnotationPipelineState.PASS_0_5_DONE,
+                )
+        if p1a is None:
+            p1a = self._run_pass_with_retry(
+                run_pass_1a_core_recognition,
+                "pass_1a_core_recognition",
+                normalized_text=normalized_text,
+                document_id=document_id,
+                run_id=run_id,
+                quality_class=quality_class,
+                block_llm=block_llm,
+            )
+            record.pass_outputs["pass_1a_core_recognition"] = _serialize_pass_output(
+                p1a
+            )
+            if p1a.status == PassRunStatus.FAILED:
+                self._log_transition(
+                    record,
+                    from_state=record.state,
+                    to_state=AnnotationPipelineState.DEAD_LETTER.value,
+                    pass_name="pass_1a_core_recognition",
+                    out=p1a,
+                )
+                record.state = AnnotationPipelineState.DEAD_LETTER.value
+                self.save_run(record)
+                return record, AnnotationPipelineState.DEAD_LETTER
             self._log_transition(
                 record,
                 from_state=record.state,
-                to_state=AnnotationPipelineState.DEAD_LETTER.value,
+                to_state=AnnotationPipelineState.PASS_1A_DONE.value,
                 pass_name="pass_1a_core_recognition",
                 out=p1a,
             )
-            record.state = AnnotationPipelineState.DEAD_LETTER.value
-            self.save_run(record)
-            return record, AnnotationPipelineState.DEAD_LETTER
-
-        self._log_transition(
-            record,
-            from_state=record.state,
-            to_state=AnnotationPipelineState.PASS_1A_DONE.value,
-            pass_name="pass_1a_core_recognition",
-            out=p1a,
-        )
-        record.state = AnnotationPipelineState.PASS_1A_DONE.value
+            record.state = AnnotationPipelineState.PASS_1A_DONE.value
+            self.save_run(record)  # checkpoint
 
         m12_rec = (p1a.output_data or {}).get("m12_recognition", {})
         doc_kind = m12_rec.get("document_kind", {}).get("value", "unknown")
 
         # ── Pass 1B: Document Validity ──
-        p1b = self._run_pass_with_retry(
-            run_pass_1b_document_validity,
-            "pass_1b_document_validity",
-            normalized_text=normalized_text,
-            document_id=document_id,
-            run_id=run_id,
-            document_kind=doc_kind,
-            quality_class=quality_class,
-        )
-        record.pass_outputs["pass_1b_document_validity"] = _serialize_pass_output(p1b)
-        if p1b.status == PassRunStatus.FAILED:
+        p1b: AnnotationPassOutput | None = None
+        if _is_done(AnnotationPipelineState.PASS_1B_DONE):
+            p1b = self._reconstruct_pass_output(record, "pass_1b_document_validity")
+            if p1b is not None:
+                logger.info(
+                    "annotation_orchestrator_checkpoint_hit",
+                    extra={"run_id": str(run_id), "pass": "1b"},
+                )
+            else:
+                _reset_from(
+                    "pass_1b_document_validity",
+                    AnnotationPipelineState.PASS_1A_DONE,
+                )
+        if p1b is None:
+            p1b = self._run_pass_with_retry(
+                run_pass_1b_document_validity,
+                "pass_1b_document_validity",
+                normalized_text=normalized_text,
+                document_id=document_id,
+                run_id=run_id,
+                document_kind=doc_kind,
+                quality_class=quality_class,
+            )
+            record.pass_outputs["pass_1b_document_validity"] = _serialize_pass_output(
+                p1b
+            )
+            if p1b.status == PassRunStatus.FAILED:
+                self._log_transition(
+                    record,
+                    from_state=record.state,
+                    to_state=AnnotationPipelineState.DEAD_LETTER.value,
+                    pass_name="pass_1b_document_validity",
+                    out=p1b,
+                )
+                record.state = AnnotationPipelineState.DEAD_LETTER.value
+                self.save_run(record)
+                return record, AnnotationPipelineState.DEAD_LETTER
             self._log_transition(
                 record,
                 from_state=record.state,
-                to_state=AnnotationPipelineState.DEAD_LETTER.value,
+                to_state=AnnotationPipelineState.PASS_1B_DONE.value,
                 pass_name="pass_1b_document_validity",
                 out=p1b,
             )
-            record.state = AnnotationPipelineState.DEAD_LETTER.value
-            self.save_run(record)
-            return record, AnnotationPipelineState.DEAD_LETTER
-
-        self._log_transition(
-            record,
-            from_state=record.state,
-            to_state=AnnotationPipelineState.PASS_1B_DONE.value,
-            pass_name="pass_1b_document_validity",
-            out=p1b,
-        )
-        record.state = AnnotationPipelineState.PASS_1B_DONE.value
+            record.state = AnnotationPipelineState.PASS_1B_DONE.value
+            self.save_run(record)  # checkpoint
 
         # ── Pass 1C: Conformity + Handoffs ──
         validity_dict = (p1b.output_data or {}).get("m12_validity", {})
@@ -507,43 +694,59 @@ class AnnotationOrchestrator:
         fam_str = m12_rec.get("procurement_family", {}).get("value", "unknown")
         fam_sub_str = m12_rec.get("procurement_family_sub", {}).get("value", "generic")
 
-        p1c = self._run_pass_with_retry(
-            run_pass_1c_conformity_and_handoffs,
-            "pass_1c_conformity_and_handoffs",
-            normalized_text=normalized_text,
-            document_id=document_id,
-            run_id=run_id,
-            document_kind_str=doc_kind,
-            is_composite=is_composite,
-            validity_dict=validity_dict,
-            framework_str=fw_str,
-            framework_confidence=fw_conf,
-            family_str=fam_str,
-            family_sub_str=fam_sub_str,
-        )
-        record.pass_outputs["pass_1c_conformity_and_handoffs"] = _serialize_pass_output(
-            p1c
-        )
-        if p1c.status == PassRunStatus.FAILED:
+        p1c: AnnotationPassOutput | None = None
+        if _is_done(AnnotationPipelineState.PASS_1C_DONE):
+            p1c = self._reconstruct_pass_output(
+                record, "pass_1c_conformity_and_handoffs"
+            )
+            if p1c is not None:
+                logger.info(
+                    "annotation_orchestrator_checkpoint_hit",
+                    extra={"run_id": str(run_id), "pass": "1c"},
+                )
+            else:
+                _reset_from(
+                    "pass_1c_process_linking",
+                    AnnotationPipelineState.PASS_1B_DONE,
+                )
+        if p1c is None:
+            p1c = self._run_pass_with_retry(
+                run_pass_1c_conformity_and_handoffs,
+                "pass_1c_conformity_and_handoffs",
+                normalized_text=normalized_text,
+                document_id=document_id,
+                run_id=run_id,
+                document_kind_str=doc_kind,
+                is_composite=is_composite,
+                validity_dict=validity_dict,
+                framework_str=fw_str,
+                framework_confidence=fw_conf,
+                family_str=fam_str,
+                family_sub_str=fam_sub_str,
+            )
+            record.pass_outputs["pass_1c_conformity_and_handoffs"] = (
+                _serialize_pass_output(p1c)
+            )
+            if p1c.status == PassRunStatus.FAILED:
+                self._log_transition(
+                    record,
+                    from_state=record.state,
+                    to_state=AnnotationPipelineState.DEAD_LETTER.value,
+                    pass_name="pass_1c_conformity_and_handoffs",
+                    out=p1c,
+                )
+                record.state = AnnotationPipelineState.DEAD_LETTER.value
+                self.save_run(record)
+                return record, AnnotationPipelineState.DEAD_LETTER
             self._log_transition(
                 record,
                 from_state=record.state,
-                to_state=AnnotationPipelineState.DEAD_LETTER.value,
+                to_state=AnnotationPipelineState.PASS_1C_DONE.value,
                 pass_name="pass_1c_conformity_and_handoffs",
                 out=p1c,
             )
-            record.state = AnnotationPipelineState.DEAD_LETTER.value
-            self.save_run(record)
-            return record, AnnotationPipelineState.DEAD_LETTER
-
-        self._log_transition(
-            record,
-            from_state=record.state,
-            to_state=AnnotationPipelineState.PASS_1C_DONE.value,
-            pass_name="pass_1c_conformity_and_handoffs",
-            out=p1c,
-        )
-        record.state = AnnotationPipelineState.PASS_1C_DONE.value
+            record.state = AnnotationPipelineState.PASS_1C_DONE.value
+            self.save_run(record)  # checkpoint
 
         # ── Pass 1D: Process Linking ──
         p1d = self._run_pass_with_retry(
