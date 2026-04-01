@@ -353,7 +353,24 @@ class AnnotationOrchestrator:
                     block_llm=block_llm,
                     case_documents_1a=case_documents_1a,
                 )
-            # Unknown or unhandled non-terminal state — skip with warning.
+            # Run is in an M12 resumable state but use_m12_subpasses() is OFF.
+            # Silently skipping would leave the run permanently stuck.
+            # Fail loudly so the operator can investigate.
+            if existing_state in _M12_RESUMABLE_STATES:
+                logger.error(
+                    "annotation_orchestrator_stuck_run_subpasses_disabled",
+                    extra={
+                        "run_id": str(run_id),
+                        "state": existing.state,
+                        "action": "manual_requeue_or_enable_m12_subpasses_required",
+                    },
+                )
+                raise RuntimeError(
+                    f"Run {run_id} est bloqué en état {existing.state!r} "
+                    "mais use_m12_subpasses() est désactivé. "
+                    "Réactivez M12_SUBPASSES ou requeuez manuellement."
+                )
+            # Unknown non-terminal state — skip with warning.
             logger.warning(
                 "annotation_orchestrator_unknown_state_skip",
                 extra={"run_id": str(run_id), "state": existing.state},
@@ -541,6 +558,35 @@ class AnnotationOrchestrator:
         def _is_done(target: AnnotationPipelineState) -> bool:
             return _state_rank(current_state) >= _state_rank(target)
 
+        # Helper: reset state + downstream outputs when a checkpoint is corrupt.
+        # Ensures no pass uses a freshly-rerun upstream with stale downstream data.
+        def _reset_from(pass_name: str, new_state: AnnotationPipelineState) -> None:
+            """Reset record state to new_state and clear all downstream pass outputs."""
+            logger.warning(
+                "annotation_orchestrator_checkpoint_corrupt_reset",
+                extra={
+                    "run_id": str(run_id),
+                    "corrupt_pass": pass_name,
+                    "reset_to_state": new_state.value,
+                },
+            )
+            record.state = new_state.value
+            downstream = {
+                "pass_1a_core_recognition": [
+                    "pass_1b_document_validity",
+                    "pass_1c_process_linking",
+                    "pass_1d_handoff_builder",
+                ],
+                "pass_1b_document_validity": [
+                    "pass_1c_process_linking",
+                    "pass_1d_handoff_builder",
+                ],
+                "pass_1c_process_linking": ["pass_1d_handoff_builder"],
+                "pass_1d_handoff_builder": [],
+            }
+            for key in downstream.get(pass_name, []):
+                record.pass_outputs.pop(key, None)
+
         # ── Pass 1A: Core Recognition ──
         p1a: AnnotationPassOutput | None = None
         if _is_done(AnnotationPipelineState.PASS_1A_DONE):
@@ -549,6 +595,11 @@ class AnnotationOrchestrator:
                 logger.info(
                     "annotation_orchestrator_checkpoint_hit",
                     extra={"run_id": str(run_id), "pass": "1a"},
+                )
+            else:
+                _reset_from(
+                    "pass_1a_core_recognition",
+                    AnnotationPipelineState.PASS_0_5_DONE,
                 )
         if p1a is None:
             p1a = self._run_pass_with_retry(
@@ -595,6 +646,11 @@ class AnnotationOrchestrator:
                 logger.info(
                     "annotation_orchestrator_checkpoint_hit",
                     extra={"run_id": str(run_id), "pass": "1b"},
+                )
+            else:
+                _reset_from(
+                    "pass_1b_document_validity",
+                    AnnotationPipelineState.PASS_1A_DONE,
                 )
         if p1b is None:
             p1b = self._run_pass_with_retry(
@@ -647,6 +703,11 @@ class AnnotationOrchestrator:
                 logger.info(
                     "annotation_orchestrator_checkpoint_hit",
                     extra={"run_id": str(run_id), "pass": "1c"},
+                )
+            else:
+                _reset_from(
+                    "pass_1c_process_linking",
+                    AnnotationPipelineState.PASS_1B_DONE,
                 )
         if p1c is None:
             p1c = self._run_pass_with_retry(
