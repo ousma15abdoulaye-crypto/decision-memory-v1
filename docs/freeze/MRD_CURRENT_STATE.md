@@ -60,9 +60,9 @@ branch_courante       : main
 
 ---
 
-## ÉTAT ALEMBIC — MIS À JOUR 2026-03-17
+## ÉTAT ALEMBIC — MIS À JOUR 2026-04-01
 
-local_alembic_head       : 050_documents_sha256_not_null
+local_alembic_head       : 056_evaluation_documents
 railway_alembic_head     : 044_decision_history
 migrations_pending_railway:
   - 045_agent_native_foundation
@@ -72,9 +72,15 @@ migrations_pending_railway:
   - 048_vendors_sensitive_data
   - 049_validate_pipeline_runs_fk
   - 050_documents_sha256_not_null
+  - 051_cases_tenant_user_tenants_rls
+  - 052_dm_app_rls_role
+  - 053_dm_app_enforce_security_attrs
+  - 054_m12_correction_log
+  - 055_extend_rls_documents_extraction_jobs
+  - 056_evaluation_documents
 last_sync_railway        : DÉSYNCHRONISÉ — GO CTO requis avant sync
-last_updated             : 2026-03-17
-updated_by               : AO — post audit CTO senior 2026-03-17 (Mandat 2)
+last_updated             : 2026-04-01
+updated_by               : agent — audit pré-M13 / fix/pre-m13-blockers (E-51 / E-82)
 audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
 
 ## MANDAT 4 — EXTRACTION RÉELLE (2026-03-17)

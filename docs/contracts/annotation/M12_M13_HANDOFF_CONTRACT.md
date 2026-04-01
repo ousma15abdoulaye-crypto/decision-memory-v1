@@ -51,7 +51,44 @@ H1 est produit **uniquement** si `document_kind in SOURCE_RULES_KINDS` (DAO, RFQ
 2. **Appliquer les seuils procédure SCI §4.2** : croiser `framework_detected` + `dgmp_procedure_type_detected` avec les seuils du Plan Directeur V4.1 (100$, 1k$, 10k$, 100k$)
 3. **Checker les critères éliminatoires SCI §5.2** : NIF, RCCM, conditions SCI, sanctions, RIB — croisement avec `eligibility_gates_extracted` de Pass 1C
 4. **Valider la pondération durabilité** : SCI impose ≥ 10% — croiser `sci_sustainability_pct_detected` avec `scoring_structure_extracted`
-5. **Produire un `RegulatoryComplianceReport`** (M13 output — non spécifié ici)
+5. **Produire un `RegulatoryComplianceReport`** — modèle Pydantic défini dans `src/procurement/compliance_models.py`
+
+---
+
+## Payload de sortie M13 — RegulatoryComplianceReport
+
+**Modèle Pydantic :** `RegulatoryComplianceReport` (`src/procurement/compliance_models.py`)
+
+### Champs
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `document_id` | `str` | ID du document analysé |
+| `framework_applied` | `ProcurementFramework` | Framework utilisé pour l'évaluation |
+| `verdict` | `ComplianceVerdict` | Verdict final (voir valeurs ci-dessous) |
+| `eliminatory_checks` | `list[EliminatoryGateCheck]` | Critères éliminatoires vérifiés (SCI §5.2, DGMP…) |
+| `threshold_tier` | `str \| None` | Palier seuil procédure (ex. `below_100k`, `above_100k`) |
+| `sustainability_check` | `bool \| None` | Pondération durabilité ≥ 10% (SCI §4.2) — None si N/A |
+| `review_reasons` | `list[str]` | Raisons du verdict `review_required` ou `non_compliant` |
+| `produced_by` | `str` | `"M13"` |
+
+### Valeurs autorisées de `verdict` (`ComplianceVerdict`)
+
+| Valeur | Condition de déclenchement |
+|--------|---------------------------|
+| `compliant` | Tous les `EliminatoryGateCheck.status` = `"present"` ou `"not_applicable"` ET `threshold_tier` cohérent |
+| `non_compliant` | ≥ 1 check `status = "absent"` |
+| `review_required` | `framework_confidence < 0.60` OU ambiguïté multi-framework |
+| `not_assessable` | `framework_detected = UNKNOWN` — règles inapplicables |
+| `pipeline_error` | H1 `None` sur document `kind in SOURCE_RULES_KINDS`, ou exception inattendue |
+
+### `EliminatoryGateCheck` — champs
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `gate_name` | `str` | Nom du critère (ex. `nif`, `rccm`, `sci_conditions`, `sanctions_clause`) |
+| `status` | `"present" \| "absent" \| "not_applicable"` | Résultat du check |
+| `evidence` | `str` | Fragment textuel ou motif regex (vide si non applicable) |
 
 ---
 
@@ -74,8 +111,9 @@ H1 est produit **uniquement** si `document_kind in SOURCE_RULES_KINDS` (DAO, RFQ
 ## Dépendances
 
 - `src/procurement/procedure_models.py` : `RegulatoryProfileSkeleton`, `M12Handoffs`
+- `src/procurement/compliance_models.py` : `RegulatoryComplianceReport`, `EliminatoryGateCheck`, `ComplianceVerdict`
 - `src/procurement/handoff_builder.py` : `build_handoffs()`, `_build_h1_regulatory()`
-- `src/annotation/passes/pass_1c_conformity_and_handoffs.py` : producteur
+- `src/annotation/passes/pass_1c_conformity_and_handoffs.py` : producteur M12
 - `docs/freeze/DMS_V4.1.0_FREEZE.md` : seuils SCI §4.2 et §5.2 (autorité)
 
 ---

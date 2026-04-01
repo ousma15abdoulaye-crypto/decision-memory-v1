@@ -596,6 +596,8 @@ _KNOWN_MIGRATION_CHAIN: list[str] = [
     "052_dm_app_rls_role",
     "053_dm_app_enforce_security_attrs",
     "054_m12_correction_log",
+    "055_extend_rls_documents_extraction_jobs",
+    "056_evaluation_documents",
 ]
 
 

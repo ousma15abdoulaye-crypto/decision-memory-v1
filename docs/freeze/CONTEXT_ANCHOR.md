@@ -94,9 +94,9 @@
 ║  feat/fix-extract-02 : MERGÉ dans main (M-FIX-EXTRACT-02)            ║
 ║  feat/pre-m12-extraction-reelle : MERGÉ dans main (Mandat 4)        ║
 ║  feat/fix-backend-production : backend v3.0.1d (en attente merge)   ║
-║  alembic head local : 054_m12_correction_log                         ║
+║  alembic head local : 056_evaluation_documents                        ║
 ║  alembic head Railway : 044_decision_history (DÉSYNCHRONISÉ)         ║
-║  migrations pending Railway : 045 046 046b 047 048 049 050 051 052 053 054 ║
+║  migrations pending Railway : 045 046 046b 047 048 049 050 051 052 053 054 055 056 ║
 ║  tags posés :                                                         ║
 ║    v4.1.0-ocr-files-api-done                                         ║
 ║    v4.1.0-m12-dette7-done                                             ║
@@ -107,9 +107,9 @@
 ║                                                                      ║
 ║  ALEMBIC — FREEZE ABSOLU                                            ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  head actuel     : 054_m12_correction_log                            ║
+║  head actuel     : 056_evaluation_documents                          ║
 ║  historique      : 001 → 045 — FREEZE TOTAL 001-045                ║
-║  chaîne          : 044→045→046→046b→047→048→049→050→051→052→053→054  ║
+║  chaîne          : 044→045→046→046b→047→048→049→050→051→052→053→054→055→056 ║
 ║  FREEZE          : 001 → 045 FREEZE TOTAL                          ║
 ║                    046 + 046b = DETTE-7 DONE                        ║
 ║                    047 = PHASE 1B DONE (ORM→psycopg Couche A)       ║
@@ -120,9 +120,11 @@
 ║                    052 = dm_app_rls_role                             ║
 ║                    053 = dm_app_enforce_security_attrs               ║
 ║                    054 = m12_correction_log (M12 feedback loop)      ║
+║                    055 = extend_rls_documents_extraction_jobs (RLS)  ║
+║                    056 = evaluation_documents (M13 ACO + RLS)        ║
 ║  RÈGLE           : zéro autogenerate — SQL brut uniquement         ║
-║  RÈGLE           : zéro modification fichiers existants 001-053    ║
-║  RÈGLE           : toute nouvelle migration = 055+ séquentiel       ║
+║  RÈGLE           : zéro modification fichiers existants 001-055    ║
+║  RÈGLE           : toute nouvelle migration = 057+ séquentiel       ║
 ║  VIOLATION       : faute disciplinaire grave immédiate             ║
 ║                                                                      ║
 ║  SCHÉMAS PostgreSQL — DÉFINITIF                                     ║
@@ -268,7 +270,7 @@
 ║            auth_router.py, logging_config.py, ratelimit.py          ║
 ║  config/ : framework_signals.yaml, procurement_family_signals.yaml  ║
 ║            mandatory_parts/*.yaml (20 doc-type rule files)          ║
-║  alembic/: versions/ 001–054, env.py                                ║
+║  alembic/: versions/ 001–056, env.py                                ║
 ║  services/: annotation-backend/ (ML Backend Label Studio)            ║
 ║  docs/   : adr/, freeze/, mandates/, milestones/, calibration/     ║
 ║            contracts/annotation/ (PASS_1A→1D contracts)             ║
@@ -509,6 +511,14 @@
 ║         le CHECK selon schéma. Ne pas retirer "tesseract" de          ║
 ║         SLA_B_METHODS sans migration alignée. Alias runtime :         ║
 ║         tesseract → chemin cloud mistral_ocr (PR #276 — 2026-04-01).  ║
+║  E-82  Sources de vérité Alembic non mises à jour après merge de     ║
+║         migration. Après chaque PR qui merge une migration, mettre   ║
+║         à jour IMMÉDIATEMENT : MRD_CURRENT_STATE.md (head +          ║
+║         migrations_pending_railway), CONTEXT_ANCHOR.md (head actuel  ║
+║         + chaîne + structure projet), validate_mrd_state.py          ║
+║         (_KNOWN_MIGRATION_CHAIN). Oubli = divergence accumulative    ║
+║         qui bloque les audits et les mandats suivants.               ║
+║         Ref : audit pré-M13 2026-04-01 — 3 sources désalignées.     ║
 ║  E-69  Schéma export LS → corpus JSONL **m12-v2** figé — ne pas      ║
 ║         inventer d’autres clés ni un second format sans ADR / CTO.    ║
 ║         Structure canonique, variables d’environnement, scripts et    ║
@@ -853,8 +863,8 @@ Détails : `docs/calibration/M12_calibration_log.md`, `docs/calibration/benchmar
 ### GIT
 
 - Branche active : `feat/llm-arbitrator-ocr-railway-fix` (base `main` / `a6a4d7b`)
-- Repo head Alembic : `054_m12_correction_log` (inchangé — pas de nouvelle migration dans ce mandat)
-- Railway head : `044_decision_history` (DÉSYNCHRONISÉ — 11 migrations pending, voir runbook)
+- Repo head Alembic : `056_evaluation_documents` (fix/pre-m13-blockers — mis à jour 2026-04-01)
+- Railway head : `044_decision_history` (DÉSYNCHRONISÉ — 13 migrations pending, voir runbook)
 
 ### PHASE 1 — OCR CLOUD-FIRST (84 PDFs débloqués)
 
