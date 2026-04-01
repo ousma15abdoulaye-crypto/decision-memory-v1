@@ -1,8 +1,8 @@
 """
 Tests Phase 1 — SLA-B dispatch + MIME fix + OCR cascade bridge.
 
-T1 : _dispatch_extraction route les 6 methodes (SLA-A + SLA-B cloud)
-T2 : _dispatch_extraction leve ValueError pour methode inconnue
+T1 : _dispatch_extraction route SLA-A + SLA-B cloud (incl. alias DB tesseract -> mistral_ocr)
+T2 : _dispatch_extraction leve ValueError pour methode inconnue (pas tesseract : alias valide)
 T3 : _detect_mime_from_header retourne application/pdf sur magic bytes %PDF
      meme si filetype retourne application/octet-stream
 T4 : _detect_mime_from_header fonctionne sans filetype installe
@@ -15,6 +15,8 @@ T8 : cascade bridge — retry sur erreur SSL (1 retry puis succes)
 from __future__ import annotations
 
 from pathlib import Path
+
+import pytest
 
 # ── T1 : _dispatch_extraction route les 6 methodes ────────────────────────
 
@@ -42,6 +44,19 @@ def test_dispatch_sla_b_mistral_ocr(tmp_path, monkeypatch):
     monkeypatch.setattr(eng, "_extract_mistral_ocr", lambda uri: ("ocr mistral", {}))
 
     text, _ = eng._dispatch_extraction({"storage_uri": str(fake)}, "mistral_ocr")
+    assert text == "ocr mistral"
+
+
+def test_dispatch_sla_b_tesseract_aliases_mistral_ocr(tmp_path, monkeypatch):
+    """Compat DB/API : tesseract -> meme chemin que mistral_ocr (CHECK extraction_jobs.method)."""
+    import src.extraction.engine as eng
+
+    fake = tmp_path / "legacy_scan.pdf"
+    fake.write_bytes(b"%PDF-1.4 legacy")
+    monkeypatch.setenv("STORAGE_BASE_PATH", str(tmp_path))
+    monkeypatch.setattr(eng, "_extract_mistral_ocr", lambda uri: ("ocr mistral", {}))
+
+    text, _ = eng._dispatch_extraction({"storage_uri": str(fake)}, "tesseract")
     assert text == "ocr mistral"
 
 
@@ -79,11 +94,11 @@ def test_dispatch_sla_b_azure(tmp_path, monkeypatch):
 def test_dispatch_unknown_method_raises(tmp_path):
     import src.extraction.engine as eng
 
-    try:
-        eng._dispatch_extraction({"storage_uri": str(tmp_path / "x.pdf")}, "tesseract")
-        assert False, "ValueError attendue"
-    except ValueError as exc:
-        assert "inconnue" in str(exc).lower() or "tesseract" in str(exc)
+    with pytest.raises(ValueError) as excinfo:
+        eng._dispatch_extraction(
+            {"storage_uri": str(tmp_path / "x.pdf")}, "methode_inexistante_xyz"
+        )
+    assert "inconnue" in str(excinfo.value).lower()
 
 
 # ── T3 : MIME fix — %PDF magic bytes -> application/pdf ───────────────────
