@@ -314,14 +314,16 @@ def _retry_cloud_ocr(func, storage_uri: str, method_name: str) -> tuple[str, dic
                 _OCR_MAX_RETRIES,
             )
             return result
-        except _NON_RETRYABLE_EXCEPTIONS as exc:
-            _logger.error(
-                "[OCR] %s erreur fatale (non-retryable) : %s",
-                method_name,
-                exc,
-            )
-            raise
         except Exception as exc:
+            # isinstance(tuple) — fiable sur tous les runtimes (évite les edge cases
+            # de « except _tuple_variable » avec certains loaders / coverage).
+            if isinstance(exc, _NON_RETRYABLE_EXCEPTIONS):
+                _logger.error(
+                    "[OCR] %s erreur fatale (non-retryable) : %s",
+                    method_name,
+                    exc,
+                )
+                raise
             last_exc = exc
             duration_ms = (time.monotonic() - t0) * 1000
             if attempt < _OCR_MAX_RETRIES - 1:
