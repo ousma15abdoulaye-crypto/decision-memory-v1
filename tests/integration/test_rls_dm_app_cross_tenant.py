@@ -238,12 +238,36 @@ def test_dm_app_cannot_select_other_tenant_extraction_job(db_conn):
             )
 
 
-def _insert_user_tenant(cur, user_id: str, tenant_id: str) -> None:
+def _insert_test_user(cur) -> int:
+    """Crée un utilisateur minimal ; user_tenants.user_id est INTEGER → FK users(id)."""
+    cur.execute(
+        """
+        INSERT INTO public.users
+            (email, username, hashed_password, full_name, is_active, is_superuser, role_id, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING id
+        """,
+        (
+            f"rls_ut_{uuid.uuid4().hex[:10]}@test.local",
+            f"rls_ut_{uuid.uuid4().hex[:10]}",
+            "$2b$12$dummyhashfortestsxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "RLS test user",
+            True,
+            False,
+            1,
+            datetime.now(UTC).isoformat(),
+        ),
+    )
+    row = cur.fetchone()
+    return int(row["id"])
+
+
+def _insert_user_tenant(cur, user_id: int, tenant_id: str) -> None:
     cur.execute(
         """
         INSERT INTO public.user_tenants (user_id, tenant_id)
         VALUES (%s, %s)
-        ON CONFLICT DO NOTHING
+        ON CONFLICT (user_id) DO NOTHING
         """,
         (user_id, tenant_id),
     )
@@ -251,11 +275,11 @@ def _insert_user_tenant(cur, user_id: str, tenant_id: str) -> None:
 
 def test_dm_app_user_tenants_self_isolation(db_conn):
     """Sous app.user_id=U1, SELECT user_tenants ne retourne que les lignes de U1."""
-    uid_a = str(uuid.uuid4())
-    uid_b = str(uuid.uuid4())
     tid = f"rls-ut-{uuid.uuid4().hex[:8]}"
 
     with db_conn.cursor() as cur:
+        uid_a = _insert_test_user(cur)
+        uid_b = _insert_test_user(cur)
         _insert_user_tenant(cur, uid_a, tid)
         _insert_user_tenant(cur, uid_b, tid)
     db_conn.commit()
@@ -263,7 +287,11 @@ def test_dm_app_user_tenants_self_isolation(db_conn):
     try:
         with _rls_conn() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT set_config('app.user_id', %s, true)", (uid_a,))
+                # Policy compare user_id::text à current_setting('app.user_id')
+                cur.execute(
+                    "SELECT set_config('app.user_id', %s, true)",
+                    (str(uid_a),),
+                )
                 cur.execute("SELECT set_config('app.tenant_id', %s, true)", (tid,))
                 cur.execute(
                     "SELECT user_id FROM public.user_tenants WHERE user_id = %s",
@@ -277,18 +305,18 @@ def test_dm_app_user_tenants_self_isolation(db_conn):
     finally:
         with db_conn.cursor() as cur:
             cur.execute(
-                "DELETE FROM public.user_tenants WHERE user_id = ANY(%s)",
+                "DELETE FROM public.users WHERE id = ANY(%s)",
                 ([uid_a, uid_b],),
             )
 
 
 def test_dm_app_admin_bypass_sees_all_user_tenants(db_conn):
     """Sous app.is_admin=true, SELECT user_tenants retourne toutes les lignes."""
-    uid_a = str(uuid.uuid4())
-    uid_b = str(uuid.uuid4())
     tid = f"rls-ut-adm-{uuid.uuid4().hex[:8]}"
 
     with db_conn.cursor() as cur:
+        uid_a = _insert_test_user(cur)
+        uid_b = _insert_test_user(cur)
         _insert_user_tenant(cur, uid_a, tid)
         _insert_user_tenant(cur, uid_b, tid)
     db_conn.commit()
@@ -311,6 +339,6 @@ def test_dm_app_admin_bypass_sees_all_user_tenants(db_conn):
     finally:
         with db_conn.cursor() as cur:
             cur.execute(
-                "DELETE FROM public.user_tenants WHERE user_id = ANY(%s)",
+                "DELETE FROM public.users WHERE id = ANY(%s)",
                 ([uid_a, uid_b],),
             )
