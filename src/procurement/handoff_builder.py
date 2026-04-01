@@ -16,6 +16,10 @@ from src.procurement.document_ontology import (
     ProcurementFamilySub,
     ProcurementFramework,
 )
+from src.procurement.monetary_normalizer import (
+    classify_dgmp_tier,
+    normalize_monetary_value,
+)
 from src.procurement.procedure_models import (
     AtomicCapabilitySkeleton,
     EligibilityGateExtracted,
@@ -63,6 +67,7 @@ def _build_h1_regulatory(
     framework: ProcurementFramework,
     framework_confidence: float,
     text: str,
+    family: ProcurementFamily | None = None,
 ) -> RegulatoryProfileSkeleton:
     """Build H1: Regulatory Profile Skeleton."""
     sci_signals: list[str] = []
@@ -89,6 +94,19 @@ def _build_h1_regulatory(
     if pct_match:
         sustainability_pct = float(pct_match.group(1))
 
+    # Détection tier DGMP via normalisation monétaire.
+    # La famille influe sur les seuils DGMP Art. 45-46 (travaux ≠ biens/services).
+    dgmp_threshold_tier: str | None = None
+    if framework == ProcurementFramework.DGMP_MALI:
+        monetary_values = normalize_monetary_value(text)
+        if monetary_values:
+            largest = monetary_values[0]
+            dgmp_family = (
+                "works" if family == ProcurementFamily.WORKS else "goods_services"
+            )
+            dgmp_threshold_tier = classify_dgmp_tier(largest.amount_fcfa, dgmp_family)
+            dgmp_signals.append(f"tier_{dgmp_threshold_tier}_detected")
+
     return RegulatoryProfileSkeleton(
         framework_detected=framework,
         framework_confidence=framework_confidence,
@@ -99,6 +117,7 @@ def _build_h1_regulatory(
         sci_sanctions_clause_present=bool(_SCI_SANCTIONS.search(text)),
         dgmp_signals_detected=dgmp_signals,
         dgmp_procedure_type_detected=dgmp_proc_type,
+        dgmp_threshold_tier_detected=dgmp_threshold_tier,
     )
 
 
@@ -205,7 +224,7 @@ def build_handoffs(
     h3: MarketContextSignal | None = None
 
     if document_kind in SOURCE_RULES_KINDS:
-        h1 = _build_h1_regulatory(framework, framework_confidence, text)
+        h1 = _build_h1_regulatory(framework, framework_confidence, text, family=family)
         h2 = _build_h2_capability(family, family_sub, gates, scoring)
 
     h3 = _build_h3_market(text)
