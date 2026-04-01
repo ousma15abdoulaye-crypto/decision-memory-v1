@@ -204,7 +204,7 @@ class TestExtractionSLABe2e:
 
         assert job is not None, "Le job doit être en DB"
         assert job["status"] == "pending"
-        assert job["method"] == "mistral_ocr"
+        assert job["method"] == "tesseract"
         assert job["sla_class"] == "B"
 
     def test_get_job_status_apres_creation(self, integration_client, test_doc_scan):

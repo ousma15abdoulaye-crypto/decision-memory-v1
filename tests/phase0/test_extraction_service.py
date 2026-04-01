@@ -79,7 +79,7 @@ class TestSLAValidation:
                 "mime_type": "image/tiff",
                 "storage_uri": "/tmp/test.tif",
                 "extraction_status": "pending",
-                "extraction_method": "mistral_ocr",
+                "extraction_method": "tesseract",
             }
 
         import src.extraction.engine as eng
@@ -105,9 +105,9 @@ class TestSLAValidation:
         """SLA_A_METHODS = exactement 3 méthodes."""
         assert SLA_A_METHODS == {"native_pdf", "excel_parser", "docx_parser"}
 
-    def test_sla_b_methods_contient_trois_methodes(self):
-        """SLA_B_METHODS = exactement 3 méthodes cloud-first."""
-        assert SLA_B_METHODS == {"azure", "llamaparse", "mistral_ocr"}
+    def test_sla_b_methods_contient_quatre_methodes(self):
+        """SLA_B_METHODS = 3 méthodes cloud + alias legacy tesseract."""
+        assert SLA_B_METHODS == {"azure", "llamaparse", "mistral_ocr", "tesseract"}
 
 
 # ── Classe 3 — _compute_confidence ──────────────────────────────
@@ -401,7 +401,7 @@ class TestProcessExtractionJob:
                         return {
                             "id": "job-1",
                             "document_id": "doc-1",
-                            "method": "mistral_ocr",
+                            "method": "tesseract",
                             "status": "done",
                             "storage_uri": "/tmp/test.pdf",
                             "case_id": None,

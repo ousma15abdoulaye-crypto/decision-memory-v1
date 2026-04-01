@@ -66,7 +66,7 @@ FAKE_DOC_SCAN = {
     "mime_type": "image/tiff",
     "storage_uri": "/tmp/test.tif",
     "extraction_status": "pending",
-    "extraction_method": "mistral_ocr",
+    "extraction_method": "tesseract",
 }
 
 FAKE_DOC_DONE = {
@@ -93,7 +93,7 @@ FAKE_EXTRACT_RESULT_SLA_B = {
     "job_id": "job-test-001",
     "status": "pending",
     "sla_class": "B",
-    "method": "mistral_ocr",
+    "method": "tesseract",
     "message": "Extraction OCR mise en queue.",
 }
 
@@ -101,7 +101,7 @@ FAKE_JOB = {
     "id": "job-test-001",
     "document_id": "doc-test-scan-001",
     "status": "pending",
-    "method": "mistral_ocr",
+    "method": "tesseract",
     "sla_class": "B",
     "queued_at": "2024-01-01T10:00:00+00:00",
     "started_at": None,

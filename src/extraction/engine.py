@@ -36,7 +36,7 @@ _BACKOFF_WAITER = Event()
 # ── Constantes ───────────────────────────────────────────────────
 
 SLA_A_METHODS = {"native_pdf", "excel_parser", "docx_parser"}
-SLA_B_METHODS = {"azure", "llamaparse", "mistral_ocr"}
+SLA_B_METHODS = {"azure", "llamaparse", "mistral_ocr", "tesseract"}
 SLA_A_TIMEOUT_S = 60.0
 INSUFFICIENT_TEXT_THRESHOLD = 100
 
@@ -537,6 +537,9 @@ def _dispatch_extraction(
     if method == "docx_parser":
         return _extract_docx(doc["storage_uri"])
     # SLA-B : cloud OCR (online-first) avec retry backoff exponentiel
+    # Compat legacy: "tesseract" est maintenu comme alias DB/API vers mistral_ocr.
+    if method == "tesseract":
+        return _retry_cloud_ocr(_extract_mistral_ocr, doc["storage_uri"], "mistral_ocr")
     if method == "mistral_ocr":
         return _retry_cloud_ocr(_extract_mistral_ocr, doc["storage_uri"], "mistral_ocr")
     if method == "llamaparse":
