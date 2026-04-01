@@ -10,6 +10,8 @@ from pathlib import Path
 
 import pytest
 
+_MILESTONE_SCORING = Path(".milestones/M-SCORING-ENGINE.done").exists()
+
 # Modules Couche B — interdits dans Couche A
 COUCHE_B_MODULES = [
     "market_signal",
@@ -33,11 +35,11 @@ COUCHE_A_PATHS = [
 ]
 
 
-@pytest.mark.skip(
+@pytest.mark.skipif(
+    not _MILESTONE_SCORING,
     reason="Actif dès M-SCORING-ENGINE.done (ADR-0002 §2.4). "
-    "Retirer le skip quand M-SCORING-ENGINE est implémenté. "
     "Ce test analyse les imports Python statiquement (AST) "
-    "et bloque CI si un module Couche B est importé dans Couche A."
+    "et bloque CI si un module Couche B est importé dans Couche A.",
 )
 def test_no_couche_b_import_in_couche_a():
     """
