@@ -18,6 +18,15 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 
+def _script_directory():
+    """Script Alembic du dépôt — même source de vérité que `alembic heads`."""
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+
+    cfg = Config(str(REPO_ROOT / "alembic.ini"))
+    return ScriptDirectory.from_config(cfg)
+
+
 def _get_db_url(cli_url: str | None = None) -> str:
     url = (
         cli_url
@@ -39,102 +48,32 @@ def _get_db_url(cli_url: str | None = None) -> str:
 
 
 def _get_local_head() -> str:
-    """Lit le head Alembic local via la chain de fichiers."""
-    versions_dir = REPO_ROOT / "alembic" / "versions"
-    if not versions_dir.is_dir():
-        return "INCONNU (dossier alembic/versions/ absent)"
+    """Head local = `alembic heads` (ScriptDirectory), pas un parse naïf des fichiers.
 
-    all_revisions: set[str] = set()
-    all_down_revisions: set[str] = set()
-
-    for py_file in versions_dir.glob("*.py"):
-        if py_file.name == "__pycache__":
-            continue
-        revision = None
-        down_revision = None
-        try:
-            content = py_file.read_text(encoding="utf-8", errors="replace")
-            for line in content.splitlines():
-                stripped = line.strip()
-                if stripped.startswith("revision =") or stripped.startswith(
-                    "revision="
-                ):
-                    revision = stripped.split("=", 1)[1].strip().strip("\"'")
-                if stripped.startswith("down_revision =") or stripped.startswith(
-                    "down_revision="
-                ):
-                    val = stripped.split("=", 1)[1].strip().strip("\"'")
-                    if val and val != "None":
-                        if "(" in val:
-                            parts = val.strip("()").split(",")
-                            for p in parts:
-                                p = p.strip().strip("\"'")
-                                if p:
-                                    all_down_revisions.add(p)
-                        else:
-                            down_revision = val
-        except Exception:
-            continue
-        if revision:
-            all_revisions.add(revision)
-        if down_revision:
-            all_down_revisions.add(down_revision)
-
-    heads = all_revisions - all_down_revisions
-    if len(heads) == 1:
-        return heads.pop()
-    if len(heads) > 1:
-        return f"MULTIPLE HEADS : {sorted(heads)}"
-    return "INCONNU (aucun head detecte)"
+    L'ancienne heuristique (révisions − parents) échouait dès qu'une ligne
+    `down_revision = ...` contenait un commentaire `#` inline (ex. 004_users_rbac.py),
+    ce qui faisait apparaître à tort `003_add_procurement_extensions` comme second head.
+    """
+    try:
+        script = _script_directory()
+        heads = script.get_heads()
+        if len(heads) == 1:
+            return heads[0]
+        if len(heads) > 1:
+            return f"MULTIPLE HEADS (alembic) : {sorted(heads)}"
+        return "INCONNU (aucun head)"
+    except Exception as exc:
+        return f"INCONNU ({exc})"
 
 
-def _build_chain() -> list[str]:
-    """Construit la chain ordonnee des revisions depuis le head."""
-    versions_dir = REPO_ROOT / "alembic" / "versions"
-    rev_to_down: dict[str, str | None] = {}
-
-    for py_file in versions_dir.glob("*.py"):
-        revision = None
-        down_revision = None
-        try:
-            content = py_file.read_text(encoding="utf-8", errors="replace")
-            for line in content.splitlines():
-                stripped = line.strip()
-                if stripped.startswith("revision ="):
-                    revision = stripped.split("=", 1)[1].strip().strip("\"'")
-                if stripped.startswith("down_revision ="):
-                    val = stripped.split("=", 1)[1].strip().strip("\"'")
-                    if val and val != "None" and "(" not in val:
-                        down_revision = val
-        except Exception:
-            continue
-        if revision:
-            rev_to_down[revision] = down_revision
-
-    down_to_rev: dict[str | None, list[str]] = {}
-    for rev, down in rev_to_down.items():
-        down_to_rev.setdefault(down, []).append(rev)
-
-    all_downs = set(rev_to_down.values()) - {None}
-    all_revs = set(rev_to_down.keys())
-    heads = all_revs - all_downs
-
-    if not heads:
+def _build_chain(head_revision: str) -> list[str]:
+    """Chaîne ordonnée base → head (même graphe qu'Alembic, merge inclus)."""
+    try:
+        script = _script_directory()
+        revs = list(script.walk_revisions("base", head_revision))
+        return [r.revision for r in reversed(revs)]
+    except Exception:
         return []
-
-    head = sorted(heads)[0]
-    chain = [head]
-    visited = {head}
-    current = head
-    while current in rev_to_down and rev_to_down[current]:
-        current = rev_to_down[current]
-        if current in visited:
-            break
-        visited.add(current)
-        chain.append(current)
-
-    chain.reverse()
-    return chain
 
 
 def main():
@@ -165,7 +104,9 @@ def main():
                     db_revision = "(table vide — aucune migration appliquee)"
             except ProgrammingError as exc:
                 if "alembic_version" in str(exc).lower():
-                    db_revision = "(table alembic_version absente — aucune migration appliquee)"
+                    db_revision = (
+                        "(table alembic_version absente — aucune migration appliquee)"
+                    )
                 else:
                     raise
     except Exception as exc:
@@ -179,13 +120,17 @@ def main():
 
     print(f":: Revision DB actuelle : {db_revision}")
 
+    if local_head.startswith("INCONNU") or local_head.startswith("MULTIPLE"):
+        print(f"\n[ATTENTION] Head local non utilisable : {local_head}")
+        return
+
     if db_revision == local_head:
         print("\n[OK] La DB est synchronisee avec le head local.")
         return
 
     print(f"\n[ECART] DB={db_revision} vs Local={local_head}")
 
-    chain = _build_chain()
+    chain = _build_chain(local_head)
     if not chain:
         print("  Impossible de construire la chain — verifier manuellement.")
         return
