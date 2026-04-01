@@ -13,17 +13,20 @@ python scripts/diagnose_railway_migrations.py
 ```
 
 Sortie attendue :
-- Head local : `054_m12_correction_log` (ou le dernier head)
+- Head local : `056_evaluation_documents` (ou le dernier head)
 - Revision DB : la revision actuelle de Railway
 - Liste des migrations manquantes si ecart
 
-## Etape 2 — Dry-run
+## Etape 2 — Dry-run (simulation)
 
 ```bash
-python scripts/apply_railway_migrations_safe.py --dry-run
+python scripts/apply_railway_migrations_safe.py
 ```
 
+Le mode dry-run est le comportement par defaut (sans `--apply`).
 Verifie le nombre de migrations en attente sans rien appliquer.
+
+Note : le flag `--dry-run` n'existe pas dans ce script. Omettre `--apply` suffit.
 
 ## Etape 3 — Application
 
