@@ -42,25 +42,31 @@ except ImportError:
         return 1.0 if a == b else 0.0
 
 
-def _load_fuzzy_threshold(fallback: float = 0.85) -> float:
+def _load_fuzzy_threshold(
+    fallback: float = 0.85,
+    *,
+    _config_path: Path | None = None,
+) -> float:
     """Charge le seuil fuzzy depuis config/llm_arbitration.yaml.
 
     Retourne ``fallback`` si le fichier est absent ou le chemin introuvable.
+
+    ``_config_path`` (tests uniquement) : surcharge du chemin YAML.
     """
     try:
         import yaml  # type: ignore[import-untyped]
 
-        _config_path = (
+        cfg_path = _config_path or (
             Path(__file__).resolve().parents[2] / "config" / "llm_arbitration.yaml"
         )
-        if not _config_path.exists():
+        if not cfg_path.exists():
             logger.warning(
                 "process_linker: llm_arbitration.yaml absent — "
                 "FUZZY_THRESHOLD=%s (fallback)",
                 fallback,
             )
             return fallback
-        with _config_path.open(encoding="utf-8") as _f:
+        with cfg_path.open(encoding="utf-8") as _f:
             _cfg = yaml.safe_load(_f)
         if not isinstance(_cfg, dict):
             logger.warning(
