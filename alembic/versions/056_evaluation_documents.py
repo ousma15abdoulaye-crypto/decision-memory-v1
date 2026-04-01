@@ -9,6 +9,11 @@ Périmètre :
   - index unique (case_id, version) pour éviter les doublons de version
   - ENABLE ROW LEVEL SECURITY + policy tenant_scoped via cases.tenant_id
 
+Types réels de la DB DMS (§4.3 règle universelle types) :
+  cases.id          : TEXT  (pas UUID — migration 002 + règle §4.3)
+  committees.committee_id : UUID
+  users.id          : INTEGER (migration 042)
+
 Revision ID: 056_evaluation_documents
 Revises    : 055_extend_rls_documents_extraction_jobs
 """
@@ -26,7 +31,7 @@ def upgrade() -> None:
     op.execute("""
         CREATE TABLE IF NOT EXISTS public.evaluation_documents (
           id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          case_id                 UUID NOT NULL REFERENCES public.cases(id),
+          case_id                 TEXT NOT NULL REFERENCES public.cases(id),
           committee_id            UUID NOT NULL REFERENCES public.committees(committee_id),
           version                 INTEGER NOT NULL DEFAULT 1,
           scores_matrix           JSONB NOT NULL DEFAULT '{}',
@@ -42,7 +47,7 @@ def upgrade() -> None:
           aco_excel_path          TEXT,
           pv_word_path            TEXT,
           sealed_at               TIMESTAMPTZ,
-          sealed_by               UUID REFERENCES public.users(id),
+          sealed_by               INTEGER REFERENCES public.users(id),
           seal_hash               TEXT,
           created_at              TIMESTAMPTZ NOT NULL DEFAULT now()
         );
