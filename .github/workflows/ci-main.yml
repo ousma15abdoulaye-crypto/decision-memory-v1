@@ -181,9 +181,9 @@ jobs:
         id: cov_gate
         run: |
           if [ -f .milestones/M-TESTS.done ]; then
-            echo "fail_under=40" >> $GITHUB_OUTPUT
+            echo "fail_under=65" >> "$GITHUB_OUTPUT"
           else
-            echo "fail_under=0" >> $GITHUB_OUTPUT
+            echo "fail_under=0" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run tests
@@ -193,6 +193,7 @@ jobs:
           pytest tests/ \
             --cov=src \
             --cov-report=xml \
+            --cov-report=term-missing \
             --cov-fail-under=${{ steps.cov_gate.outputs.fail_under }} \
             -v --tb=short
 
