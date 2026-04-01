@@ -280,3 +280,53 @@ def test_cascade_ssl_retry_then_success(tmp_path, monkeypatch):
     assert text == "Texte apres retry"
     assert route == "mistral_ocr"
     assert len(attempts) == 2
+
+
+# ── _retry_cloud_ocr unit tests ───────────────────────────────────────────
+
+
+def test_retry_cloud_ocr_three_strikes_raises(monkeypatch):
+    """Après 3 échecs réseau, _retry_cloud_ocr relève la dernière exception."""
+    import src.extraction.engine as eng
+
+    calls = []
+
+    def flaky_func(_uri):
+        calls.append(1)
+        raise ConnectionError("network failure")
+
+    monkeypatch.setattr(eng._BACKOFF_WAITER, "wait", lambda _t: None)
+    with pytest.raises(ConnectionError, match="network failure"):
+        eng._retry_cloud_ocr(flaky_func, "/fake/path.pdf", "test_ocr")
+    assert len(calls) == eng._OCR_MAX_RETRIES
+
+
+def test_retry_cloud_ocr_non_retryable_raises_immediately(monkeypatch):
+    """ValueError (non-retryable) est propagée sans retry."""
+    import src.extraction.engine as eng
+
+    calls = []
+
+    def fatal_func(_uri):
+        calls.append(1)
+        raise ValueError("bad params — non retryable")
+
+    monkeypatch.setattr(eng._BACKOFF_WAITER, "wait", lambda _t: None)
+    with pytest.raises(ValueError, match="non retryable"):
+        eng._retry_cloud_ocr(fatal_func, "/fake/path.pdf", "test_ocr")
+    assert len(calls) == 1, "Non-retryable doit échouer au 1er essai sans retry"
+
+
+def test_retry_cloud_ocr_success_first_attempt(monkeypatch):
+    """Succès au premier essai — aucun retry, résultat retourné."""
+    import src.extraction.engine as eng
+
+    wait_calls = []
+    monkeypatch.setattr(eng._BACKOFF_WAITER, "wait", lambda _t: wait_calls.append(1))
+
+    def ok_func(_uri):
+        return ("extracted text", {})
+
+    text, _ = eng._retry_cloud_ocr(ok_func, "/fake/path.pdf", "test_ocr")
+    assert text == "extracted text"
+    assert not wait_calls, "Aucun wait si succès immédiat"

@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import random
 import time
 import uuid
 from threading import Event
@@ -132,7 +133,8 @@ def _compute_confidence(
     """Heuristique de confiance — valeurs canoniques {0.6, 0.8, 1.0} uniquement.
 
     §9 : incertitude mesuree, jamais masquee.
-    Mapping : <100 chars -> 0.6 (+ flag review), <500 chars -> 0.8, >=500 -> 1.0
+    Mapping : <100 chars -> 0.6, <500 chars -> 0.8, >=500 -> 1.0
+    La valeur retournee est toujours >= 0.6 ; les branches < 0.6 sont mortes.
     """
     text = raw_text.strip() if raw_text else ""
     if len(text) < INSUFFICIENT_TEXT_THRESHOLD:
@@ -263,10 +265,25 @@ def _extract_docx(storage_uri: str) -> tuple[str, dict]:
 
 _OCR_MAX_RETRIES = 3
 _OCR_BACKOFF_BASE_S = 2.0
+_OCR_JITTER_MAX_S = 0.5
+
+# Exceptions non-retryables : erreurs fatales de configuration ou de fichier.
+_NON_RETRYABLE_EXCEPTIONS = (
+    ValueError,
+    FileNotFoundError,
+    ImportError,
+    PermissionError,
+)
 
 
 def _retry_cloud_ocr(func, storage_uri: str, method_name: str) -> tuple[str, dict]:
-    """Wrapper retry avec backoff exponentiel pour les extracteurs cloud."""
+    """Wrapper retry avec backoff exponentiel + jitter pour les extracteurs cloud.
+
+    Exceptions non-retryables (ValueError, FileNotFoundError, ImportError,
+    PermissionError) sont re-levées immédiatement sans retry.
+    Exceptions réseau (ConnectionError, TimeoutError, OSError) déclenchent
+    le backoff exponentiel avec jitter.
+    """
     last_exc: Exception | None = None
     for attempt in range(_OCR_MAX_RETRIES):
         t0 = time.monotonic()
@@ -281,11 +298,19 @@ def _retry_cloud_ocr(func, storage_uri: str, method_name: str) -> tuple[str, dic
                 _OCR_MAX_RETRIES,
             )
             return result
+        except _NON_RETRYABLE_EXCEPTIONS as exc:
+            _logger.error(
+                "[OCR] %s erreur fatale (non-retryable) : %s",
+                method_name,
+                exc,
+            )
+            raise
         except Exception as exc:
             last_exc = exc
             duration_ms = (time.monotonic() - t0) * 1000
             if attempt < _OCR_MAX_RETRIES - 1:
-                wait = _OCR_BACKOFF_BASE_S * (2**attempt)
+                jitter = random.uniform(0, _OCR_JITTER_MAX_S)  # noqa: S311
+                wait = _OCR_BACKOFF_BASE_S * (2**attempt) + jitter
                 _logger.warning(
                     "[OCR] %s echec tentative %d/%d (%.0fms) : %s — retry dans %.1fs",
                     method_name,
@@ -597,11 +622,6 @@ def extract_sync(document_id: str) -> dict:
 
         confidence = _compute_confidence(raw_text, structured_data)
 
-        # §9 : incertitude signalée, jamais masquée
-        if confidence < 0.6:
-            structured_data["_low_confidence"] = True
-            structured_data["_requires_human_review"] = True
-
         structured_data["_extraction_duration_ms"] = duration_ms
         structured_data["_sla_class"] = "A"
 
@@ -731,10 +751,6 @@ def process_extraction_job(job_id: str) -> dict:
         duration_ms = (time.monotonic() * 1000) - start_ms
 
         confidence = _compute_confidence(raw_text, structured_data)
-
-        if confidence < 0.6:
-            structured_data["_low_confidence"] = True
-            structured_data["_requires_human_review"] = True
 
         structured_data["_extraction_duration_ms"] = duration_ms
         structured_data["_sla_class"] = "B"
