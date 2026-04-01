@@ -1,13 +1,15 @@
-# DMS — dev local : Postgres + Redis + API (optionnel)
+# DMS — dev local complet : Postgres + Redis + API + Annotation Backend + Label Studio
 #
 # Stack minimale (DB seule) :
 #   docker compose up postgres
 #
-# Parité ops (rate limit Redis + RLS : DB toujours via DATABASE_URL) :
-#   docker compose --profile full up
+# Stack complete (tous les services) :
+#   docker compose --profile full up -d
 #
-# Après premier démarrage : alembic upgrade head (dans le conteneur api ou depuis l'hôte
-# avec DATABASE_URL=postgresql+psycopg://dms:dms@localhost:5432/dms).
+# Migrations (one-shot) :
+#   docker compose run --rm migrate
+#
+# Voir Makefile pour les raccourcis : make up, make down, make test, make lint
 
 services:
   postgres:
@@ -18,6 +20,8 @@ services:
       POSTGRES_DB: dms
     ports:
       - "5432:5432"
+    volumes:
+      - dms_pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U dms"]
       interval: 5s
@@ -36,6 +40,21 @@ services:
     profiles:
       - full
 
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://dms:dms@postgres:5432/dms
+      DMS_ALLOW_RAILWAY_MIGRATE: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["bash", "-c", "alembic upgrade head"]
+    restart: "no"
+    profiles:
+      - tools
+
   api:
     build:
       context: .
@@ -45,12 +64,64 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql+psycopg://dms:dms@postgres:5432/dms
-      REDIS_URL: redis://redis:6379/0
-      PORT: "8000"
-      SECRET_KEY: dev-docker-compose-change-me
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://dms:dms@postgres:5432/dms}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      PORT: ${PORT:-8000}
+      SECRET_KEY: ${SECRET_KEY:-dev-docker-compose-change-me}
+    env_file:
+      - path: .env.docker
+        required: false
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  annotation-backend:
+    build:
+      context: .
+      dockerfile: services/annotation-backend/Dockerfile
+    profiles:
+      - full
+    ports:
+      - "9090:9090"
+    environment:
+      PORT: "9090"
+    env_file:
+      - path: .env.docker
+        required: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  label-studio:
+    image: heartexlabs/label-studio:1.14.3
+    profiles:
+      - full
+    ports:
+      - "8080:8080"
+    environment:
+      LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED: "true"
+      LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT: /label-studio/files
+    volumes:
+      - ls_data:/label-studio/data
+      - ./data/uploads:/label-studio/files/uploads:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  dms_pgdata:
+  ls_data:

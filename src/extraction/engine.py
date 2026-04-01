@@ -6,7 +6,7 @@ ADR-0003 §2.2 (ordre exécution).
 
 SLA-A : native_pdf / excel_parser / docx_parser
         → synchrone < 60s
-SLA-B : tesseract / azure / llamaparse / mistral_ocr
+SLA-B : azure / llamaparse / mistral_ocr (cloud-first, retry backoff)
         → asynchrone via extraction_jobs
 """
 
@@ -14,9 +14,11 @@ from __future__ import annotations
 
 # stdlib
 import json
+import logging
 import os
 import time
 import uuid
+from threading import Event
 
 # third-party
 import openpyxl  # type: ignore
@@ -28,10 +30,13 @@ from src.core.api_keys import get_llama_cloud_api_key, get_mistral_api_key
 # local
 from src.db.connection import get_db_cursor
 
+_logger = logging.getLogger(__name__)
+_BACKOFF_WAITER = Event()
+
 # ── Constantes ───────────────────────────────────────────────────
 
 SLA_A_METHODS = {"native_pdf", "excel_parser", "docx_parser"}
-SLA_B_METHODS = {"tesseract", "azure", "llamaparse", "mistral_ocr"}
+SLA_B_METHODS = {"azure", "llamaparse", "mistral_ocr", "tesseract"}
 SLA_A_TIMEOUT_S = 60.0
 INSUFFICIENT_TEXT_THRESHOLD = 100
 
@@ -56,27 +61,26 @@ STRUCTURED_DATA_EMPTY: dict = {
 
 
 def detect_method(mime_type: str, file_content: bytes) -> str:
-    """
-    Détecte la méthode d'extraction selon magic bytes réels.
-    Jamais selon Content-Type déclaré (ADR-0002).
-    """
-    # PDF natif
-    if file_content[:4] == b"%PDF":
-        # Heuristique : présence de marqueur texte BT
-        if b"BT" in file_content[:4096]:
-            return "native_pdf"
-        return "tesseract"
+    """Detecte la methode d'extraction selon magic bytes reels.
 
-    # XLSX (ZIP Office)
+    Jamais selon Content-Type declare (ADR-0002).
+    Cloud-first : scanned PDFs → mistral_ocr (pas tesseract).
+    """
+    if file_content[:4] == b"%PDF":
+        text_markers = (b"/Type /Page", b"BT", b"/Font")
+        marker_hits = sum(1 for m in text_markers if m in file_content[:8192])
+        if marker_hits >= 2:
+            return "native_pdf"
+        return "mistral_ocr"
+
     if file_content[:4] == b"PK\x03\x04":
         if b"xl/" in file_content[:512]:
             return "excel_parser"
         if b"word/" in file_content[:512]:
             return "docx_parser"
-        return "tesseract"
+        return "mistral_ocr"
 
-    # Fallback OCR
-    return "tesseract"
+    return "mistral_ocr"
 
 
 # ── Helpers privés ───────────────────────────────────────────────
@@ -125,27 +129,36 @@ def _compute_confidence(
     raw_text: str,
     structured: dict,  # noqa: ARG001
 ) -> float:
-    """
-    Heuristique de confiance.
-    §9 : incertitude mesurée, jamais masquée.
+    """Heuristique de confiance — valeurs canoniques {0.6, 0.8, 1.0} uniquement.
+
+    §9 : incertitude mesuree, jamais masquee.
+    Mapping : <100 chars -> 0.6 (+ flag review), <500 chars -> 0.8, >=500 -> 1.0
     """
     text = raw_text.strip() if raw_text else ""
     if len(text) < INSUFFICIENT_TEXT_THRESHOLD:
-        return 0.3
-    if len(text) < 500:
         return 0.6
-    return 0.85
+    if len(text) < 500:
+        return 0.8
+    return 1.0
 
 
 def _validate_storage_uri(storage_uri: str) -> str:
-    """Vérifie existence et chemin dans zone autorisée."""
+    """Verifie existence et chemin dans zone autorisee."""
     if not os.path.exists(storage_uri):
         raise FileNotFoundError(f"Document introuvable : {storage_uri}")
     real_uri = os.path.realpath(storage_uri)
-    allowed_base = os.environ.get("STORAGE_BASE_PATH", "/tmp")
+    allowed_base = os.environ.get("STORAGE_BASE_PATH", "")
+    if not allowed_base:
+        import logging as _log
+
+        _log.getLogger(__name__).warning(
+            "[OCR] STORAGE_BASE_PATH non defini — utilisation du repertoire courant. "
+            "Definir STORAGE_BASE_PATH pour securiser les acces fichier."
+        )
+        allowed_base = os.getcwd()
     real_base = os.path.realpath(allowed_base)
     if not real_uri.startswith(real_base):
-        raise PermissionError(f"Chemin hors zone autorisée : {storage_uri}")
+        raise PermissionError(f"Chemin hors zone autorisee : {storage_uri}")
     return real_uri
 
 
@@ -246,6 +259,52 @@ def _extract_docx(storage_uri: str) -> tuple[str, dict]:
     doc = Document(storage_uri)
     raw_text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
     return raw_text, dict(STRUCTURED_DATA_EMPTY)
+
+
+_OCR_MAX_RETRIES = 3
+_OCR_BACKOFF_BASE_S = 2.0
+
+
+def _retry_cloud_ocr(func, storage_uri: str, method_name: str) -> tuple[str, dict]:
+    """Wrapper retry avec backoff exponentiel pour les extracteurs cloud."""
+    last_exc: Exception | None = None
+    for attempt in range(_OCR_MAX_RETRIES):
+        t0 = time.monotonic()
+        try:
+            result = func(storage_uri)
+            duration_ms = (time.monotonic() - t0) * 1000
+            _logger.info(
+                "[OCR] %s OK en %.0fms (tentative %d/%d)",
+                method_name,
+                duration_ms,
+                attempt + 1,
+                _OCR_MAX_RETRIES,
+            )
+            return result
+        except Exception as exc:
+            last_exc = exc
+            duration_ms = (time.monotonic() - t0) * 1000
+            if attempt < _OCR_MAX_RETRIES - 1:
+                wait = _OCR_BACKOFF_BASE_S * (2**attempt)
+                _logger.warning(
+                    "[OCR] %s echec tentative %d/%d (%.0fms) : %s — retry dans %.1fs",
+                    method_name,
+                    attempt + 1,
+                    _OCR_MAX_RETRIES,
+                    duration_ms,
+                    exc,
+                    wait,
+                )
+                _BACKOFF_WAITER.wait(wait)
+            else:
+                _logger.error(
+                    "[OCR] %s echec definitif apres %d tentatives (%.0fms) : %s",
+                    method_name,
+                    _OCR_MAX_RETRIES,
+                    duration_ms,
+                    exc,
+                )
+    raise last_exc  # type: ignore[misc]
 
 
 def _extract_llamaparse(storage_uri: str) -> tuple[str, dict]:
@@ -477,13 +536,20 @@ def _dispatch_extraction(
         return _extract_excel(doc["storage_uri"])
     if method == "docx_parser":
         return _extract_docx(doc["storage_uri"])
-    # SLA-B : cloud OCR (online-first)
+    # SLA-B : cloud OCR (online-first) avec retry backoff exponentiel
+    # Compat legacy: "tesseract" est maintenu comme alias DB/API vers mistral_ocr.
+    if method == "tesseract":
+        return _retry_cloud_ocr(_extract_mistral_ocr, doc["storage_uri"], "mistral_ocr")
     if method == "mistral_ocr":
-        return _extract_mistral_ocr(doc["storage_uri"])
+        return _retry_cloud_ocr(_extract_mistral_ocr, doc["storage_uri"], "mistral_ocr")
     if method == "llamaparse":
-        return _extract_llamaparse(doc["storage_uri"])
+        return _retry_cloud_ocr(_extract_llamaparse, doc["storage_uri"], "llamaparse")
     if method == "azure":
-        return _extract_azure_ocr_fallback(doc["storage_uri"], "application/pdf")
+        return _retry_cloud_ocr(
+            lambda uri: _extract_azure_ocr_fallback(uri, "application/pdf"),
+            doc["storage_uri"],
+            "azure",
+        )
     raise ValueError(
         f"Méthode inconnue pour dispatch : '{method}'. "
         f"SLA-A : {SLA_A_METHODS} | SLA-B : {SLA_B_METHODS}"

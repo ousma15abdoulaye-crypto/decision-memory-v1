@@ -1,0 +1,232 @@
+# DMS — Mapping declaratif : sections reglementaires -> regles DMS
+# Extensible sans toucher au code Python.
+# Utilise par src/procurement/regulatory_index.py
+
+# Chaque regle a :
+#   rule_id : identifiant unique DMS
+#   source  : code source (sci, dgmp, douanes, impots, fiscal, ppp)
+#   section : reference section dans le document source
+#   type    : eliminatory | threshold | procedural | informational
+#   description : description courte de la regle
+#   dms_gate : gate DMS correspondante (si applicable)
+#   conditions : conditions d'application (optionnel)
+
+rules:
+  # ── SCI Procurement Manual v3.2 ──────────────────────────────────
+  - rule_id: SCI_5.2_ELIMINATORY_NIF
+    source: sci
+    section: "5.2"
+    type: eliminatory
+    description: "NIF (Numero d'Identification Fiscale) obligatoire pour tout fournisseur"
+    dms_gate: eligibility_nif
+    conditions:
+      framework: SCI
+      applies_to: all
+
+  - rule_id: SCI_5.2_ELIMINATORY_RCCM
+    source: sci
+    section: "5.2"
+    type: eliminatory
+    description: "RCCM (Registre du Commerce) obligatoire"
+    dms_gate: eligibility_rccm
+    conditions:
+      framework: SCI
+      applies_to: all
+
+  - rule_id: SCI_5.2_ELIMINATORY_QUITUS
+    source: sci
+    section: "5.2"
+    type: eliminatory
+    description: "Quitus fiscal obligatoire"
+    dms_gate: eligibility_quitus_fiscal
+    conditions:
+      framework: SCI
+      applies_to: all
+
+  - rule_id: SCI_5.2_ELIMINATORY_CNSS
+    source: sci
+    section: "5.2"
+    type: eliminatory
+    description: "Attestation CNSS obligatoire"
+    dms_gate: eligibility_cnss
+    conditions:
+      framework: SCI
+      applies_to: all
+
+  - rule_id: SCI_5.2_ELIMINATORY_CASIER
+    source: sci
+    section: "5.2"
+    type: eliminatory
+    description: "Casier judiciaire vierge du gerant"
+    dms_gate: eligibility_casier_judiciaire
+    conditions:
+      framework: SCI
+      applies_to: all
+
+  - rule_id: SCI_THRESHOLD_RFQ
+    source: sci
+    section: "4.1"
+    type: threshold
+    description: "RFQ : montant <= 5000 USD"
+    dms_gate: procedure_type_rfq
+    conditions:
+      framework: SCI
+      max_value_usd: 5000
+      family: [GOODS, SERVICES]
+
+  - rule_id: SCI_THRESHOLD_ITB
+    source: sci
+    section: "4.1"
+    type: threshold
+    description: "ITB : montant 5001-50000 USD"
+    dms_gate: procedure_type_itb
+    conditions:
+      framework: SCI
+      min_value_usd: 5001
+      max_value_usd: 50000
+      family: [GOODS, SERVICES]
+
+  - rule_id: SCI_THRESHOLD_FORMAL_TENDER
+    source: sci
+    section: "4.1"
+    type: threshold
+    description: "Appel d'offres formel : montant > 50000 USD"
+    dms_gate: procedure_type_formal_tender
+    conditions:
+      framework: SCI
+      min_value_usd: 50001
+      family: [GOODS, SERVICES, WORKS]
+
+  - rule_id: SCI_MIN_QUOTES_RFQ
+    source: sci
+    section: "4.2"
+    type: procedural
+    description: "Minimum 3 cotations pour RFQ"
+    dms_gate: min_quotes_3
+    conditions:
+      framework: SCI
+      procedure_type: rfq
+
+  - rule_id: SCI_MIN_QUOTES_ITB
+    source: sci
+    section: "4.2"
+    type: procedural
+    description: "Minimum 3 offres pour ITB"
+    dms_gate: min_quotes_3
+    conditions:
+      framework: SCI
+      procedure_type: itb
+
+  # ── DGMP Code des Marches Publics 2015 ──────────────────────────
+  - rule_id: DGMP_ART45_SEUIL_GOODS_SERVICES
+    source: dgmp
+    section: "Art. 45"
+    type: threshold
+    description: "Seuil appel d'offres national : 25M FCFA (biens/services)"
+    dms_gate: procedure_type_aon
+    conditions:
+      framework: DGMP
+      min_value_fcfa: 25000000
+      family: [GOODS, SERVICES]
+
+  - rule_id: DGMP_ART45_SEUIL_WORKS
+    source: dgmp
+    section: "Art. 45"
+    type: threshold
+    description: "Seuil appel d'offres national : 100M FCFA (travaux)"
+    dms_gate: procedure_type_aon
+    conditions:
+      framework: DGMP
+      min_value_fcfa: 100000000
+      family: [WORKS]
+
+  - rule_id: DGMP_ART46_SEUIL_INTERNATIONAL
+    source: dgmp
+    section: "Art. 46"
+    type: threshold
+    description: "Seuil appel d'offres international : 500M FCFA"
+    dms_gate: procedure_type_aoi
+    conditions:
+      framework: DGMP
+      min_value_fcfa: 500000000
+      family: [GOODS, SERVICES, WORKS]
+
+  - rule_id: DGMP_ART7_PRINCIPES
+    source: dgmp
+    section: "Art. 7"
+    type: procedural
+    description: "Principes fondamentaux : libre acces, egalite, transparence, efficacite"
+    dms_gate: compliance_principles
+    conditions:
+      framework: DGMP
+      applies_to: all
+
+  - rule_id: DGMP_ART12_PUBLICITE
+    source: dgmp
+    section: "Art. 12"
+    type: procedural
+    description: "Publication obligatoire des avis de marche"
+    dms_gate: publication_required
+    conditions:
+      framework: DGMP
+      applies_to: all
+
+  # ── Code des Douanes ─────────────────────────────────────────────
+  - rule_id: DOUANES_IMPORT_REGIME
+    source: douanes
+    section: "Titre IV"
+    type: informational
+    description: "Regimes douaniers applicables aux importations"
+    dms_gate: null
+    conditions:
+      applies_to: imports
+
+  - rule_id: DOUANES_EXONERATION
+    source: douanes
+    section: "Art. 165"
+    type: informational
+    description: "Exonerations douanieres pour ONG et organisations internationales"
+    dms_gate: customs_exemption_check
+    conditions:
+      framework: [SCI, DGMP]
+      applies_to: imports
+
+  # ── Code General des Impots ──────────────────────────────────────
+  - rule_id: IMPOTS_TVA_RATE
+    source: impots
+    section: "Art. 238"
+    type: informational
+    description: "Taux TVA standard : 18%"
+    dms_gate: tax_rate_check
+    conditions:
+      applies_to: all
+
+  - rule_id: IMPOTS_RETENUE_SOURCE
+    source: impots
+    section: "Art. 180"
+    type: procedural
+    description: "Retenue a la source sur prestations de services"
+    dms_gate: withholding_tax_check
+    conditions:
+      applies_to: services
+
+  # ── Loi Fiscale 2004 ─────────────────────────────────────────────
+  - rule_id: FISCAL_PATENTE
+    source: fiscal
+    section: "Art. 15"
+    type: eliminatory
+    description: "Patente obligatoire pour exercice d'activite commerciale"
+    dms_gate: eligibility_patente
+    conditions:
+      applies_to: all
+
+  # ── Loi PPP 2016 ─────────────────────────────────────────────────
+  - rule_id: PPP_ELIGIBILITY
+    source: ppp
+    section: "Art. 3"
+    type: procedural
+    description: "Criteres d'eligibilite des projets PPP"
+    dms_gate: ppp_eligibility
+    conditions:
+      framework: DGMP
+      applies_to: ppp_projects

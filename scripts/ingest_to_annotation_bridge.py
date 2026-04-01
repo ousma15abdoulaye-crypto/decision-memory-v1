@@ -557,6 +557,59 @@ def run_ingest(
     return report
 
 
+def _run_watch_mode(
+    *,
+    source_roots: list[str],
+    output_root: str,
+    default_document_role: str,
+    structured_preview_pages: int = 5,
+    interval_s: int = 10,
+) -> None:
+    """Mode surveillance : scan periodique des dossiers source pour nouveaux PDFs."""
+    import time as _time
+
+    processed: set[str] = set()
+    logger.info(
+        "[WATCH] Mode surveillance active — scan toutes les %ds. Ctrl+C pour arreter.",
+        interval_s,
+    )
+
+    try:
+        while True:
+            all_pdfs = discover_pdfs(source_roots)
+            new_pdfs = [p for p in all_pdfs if str(p.resolve()) not in processed]
+
+            if new_pdfs:
+                logger.info("[WATCH] %d nouveau(x) PDF(s) detecte(s)", len(new_pdfs))
+                run_id = f"watch-{uuid.uuid4().hex[:8]}"
+                new_roots = list({str(p.resolve().parent) for p in new_pdfs})
+                try:
+                    report = run_ingest(
+                        source_roots=new_roots,
+                        output_root=output_root,
+                        default_document_role=default_document_role,
+                        run_id=run_id,
+                        structured_preview_pages=structured_preview_pages,
+                    )
+                    logger.info(
+                        "[WATCH] Run %s : %d tasks, %d skipped",
+                        run_id,
+                        report.get("tasks_emitted", 0),
+                        report.get("tasks_skipped", 0),
+                    )
+                except Exception as exc:
+                    logger.error("[WATCH] Erreur run %s : %s", run_id, exc)
+
+                for p in new_pdfs:
+                    processed.add(str(p.resolve()))
+            else:
+                logger.debug("[WATCH] Aucun nouveau PDF.")
+
+            _time.sleep(interval_s)
+    except KeyboardInterrupt:
+        logger.info("[WATCH] Arret demande. %d PDFs traites au total.", len(processed))
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     parser = argparse.ArgumentParser(
@@ -598,21 +651,48 @@ def main() -> None:
         type=int,
         default=5,
         metavar="N",
-        help="Nombre max de pages PDF pour structured_preview (pdfplumber). 0 = désactivé.",
+        help="Nombre max de pages PDF pour structured_preview (pdfplumber). 0 = desactive.",
+    )
+    parser.add_argument(
+        "--cloud-first",
+        action="store_true",
+        help="Force cloud OCR meme pour les PDFs natifs (utile pour les scans mal classes).",
+    )
+    parser.add_argument(
+        "--watch",
+        action="store_true",
+        help="Mode surveillance : detecte les nouveaux PDFs et les traite automatiquement.",
+    )
+    parser.add_argument(
+        "--watch-interval",
+        type=int,
+        default=10,
+        metavar="SECONDS",
+        help="Intervalle de scan en mode --watch (defaut : 10s).",
     )
     args = parser.parse_args()
 
     roots = args.source_roots if args.source_roots else DEFAULT_SOURCE_ROOTS
-    report = run_ingest(
-        source_roots=roots,
-        output_root=args.output_root,
-        default_document_role=args.default_document_role,
-        run_id=args.run_id,
-        ingest_limit=args.limit,
-        include_manifest_tasks=args.manifest_tasks,
-        structured_preview_pages=args.structured_preview_pages,
-    )
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+
+    if args.watch:
+        _run_watch_mode(
+            source_roots=roots,
+            output_root=args.output_root,
+            default_document_role=args.default_document_role,
+            structured_preview_pages=args.structured_preview_pages,
+            interval_s=args.watch_interval,
+        )
+    else:
+        report = run_ingest(
+            source_roots=roots,
+            output_root=args.output_root,
+            default_document_role=args.default_document_role,
+            run_id=args.run_id,
+            ingest_limit=args.limit,
+            include_manifest_tasks=args.manifest_tasks,
+            structured_preview_pages=args.structured_preview_pages,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

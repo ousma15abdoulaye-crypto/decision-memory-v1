@@ -202,6 +202,8 @@ class LLMArbitrator:
         )
         self._trigger_type_below = float(td.get("trigger_below_confidence", 0.80))
 
+        self._last_cost: dict = {}
+
         logger.debug(
             "[ARBITRATOR] init model=%s timeout=%ds retries=%d enabled=%s",
             self._model,
@@ -235,11 +237,28 @@ class LLMArbitrator:
 
         return get_llm_client()
 
+    _COST_PER_1K_INPUT = 0.002
+    _COST_PER_1K_OUTPUT = 0.006
+
+    def _estimate_cost(self, messages: list[dict[str, str]], output: str) -> dict:
+        """Estime le cout d'un appel LLM (tokens ~ chars/4)."""
+        input_chars = sum(len(m.get("content", "")) for m in messages)
+        output_chars = len(output) if output else 0
+        input_tokens_est = input_chars / 4
+        output_tokens_est = output_chars / 4
+        cost_usd = (
+            input_tokens_est / 1000 * self._COST_PER_1K_INPUT
+            + output_tokens_est / 1000 * self._COST_PER_1K_OUTPUT
+        )
+        return {
+            "input_tokens_est": int(input_tokens_est),
+            "output_tokens_est": int(output_tokens_est),
+            "cost_estimate_usd": round(cost_usd, 6),
+            "model": self._model,
+        }
+
     def _call(self, messages: list[dict[str, str]]) -> str | None:
-        """
-        Appel LLM avec timeout + retry.
-        Retourne le texte brut de la reponse ou None si echec.
-        """
+        """Appel LLM avec timeout + retry. Retourne le texte brut ou None."""
         if not self.is_available():
             logger.debug("[ARBITRATOR] MISTRAL_API_KEY absente — skip")
             return None
@@ -256,7 +275,15 @@ class LLMArbitrator:
                     response_format={"type": "json_object"},
                     timeout=self._timeout,
                 )
-                return resp.choices[0].message.content
+                output = resp.choices[0].message.content
+                cost = self._estimate_cost(messages, output or "")
+                logger.info(
+                    "[ARBITRATOR] appel OK — %s — cout ~$%.6f",
+                    self._model,
+                    cost["cost_estimate_usd"],
+                )
+                self._last_cost = cost
+                return output
             except Exception as exc:
                 last_exc = exc
                 logger.warning(

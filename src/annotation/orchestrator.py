@@ -253,6 +253,7 @@ class AnnotationOrchestrator:
         run_id: uuid.UUID,
         file_metadata: dict[str, Any] | None = None,
         filename: str | None = None,
+        case_documents_1a: list[dict[str, Any]] | None = None,
     ) -> tuple[PipelineRunRecord, AnnotationPipelineState]:
         """
         Exécute jusqu'à ``routed`` (ou ``dead_letter`` / ``review_required``).
@@ -355,6 +356,7 @@ class AnnotationOrchestrator:
                 run_id=run_id,
                 quality_class=qc or "good",
                 block_llm=block_llm,
+                case_documents_1a=case_documents_1a,
             )
 
         # Legacy path: Pass 1 — deterministe / LLM optionnel (with retry)

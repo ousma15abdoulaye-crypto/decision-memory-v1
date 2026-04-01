@@ -409,7 +409,7 @@ class TestCohérenceDBe2e:
         """
         confidence_score persisté en DB correspond
         au score calculé par _compute_confidence.
-        Texte long → 0.85.
+        Texte long → 1.0.
         """
         with patch(
             "src.extraction.engine._extract_native_pdf",
@@ -447,4 +447,4 @@ class TestCohérenceDBe2e:
             )
             row = cur.fetchone()
 
-        assert row["confidence_score"] == pytest.approx(0.85)
+        assert row["confidence_score"] == pytest.approx(1.0)

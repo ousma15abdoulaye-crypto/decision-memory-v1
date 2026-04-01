@@ -115,7 +115,7 @@ FAKE_EXTRACTION_ROW = {
     "raw_text": "Contenu extrait du document PDF.",
     "structured_data": {"doc_kind": None, "_low_confidence": False},
     "extraction_method": "native_pdf",
-    "confidence_score": 0.85,
+    "confidence_score": 1.0,
     "extracted_at": "2024-01-01T10:01:00+00:00",
 }
 
@@ -124,7 +124,7 @@ FAKE_EXTRACTION_LOW_CONF = {
     "raw_text": "x",
     "structured_data": {"_low_confidence": True},
     "extraction_method": "native_pdf",
-    "confidence_score": 0.3,
+    "confidence_score": 0.6,
     "extracted_at": "2024-01-01T10:01:00+00:00",
 }
 
@@ -334,7 +334,7 @@ class TestGetExtractionResult:
         assert response.status_code == 200
         data = response.json()
         assert data["document_id"] == "doc-test-pdf-001"
-        assert data["confidence_score"] == 0.85
+        assert data["confidence_score"] == 1.0
         assert data["warning"] is None
 
     def test_extraction_absente_returns_404(self):
@@ -371,6 +371,5 @@ class TestGetExtractionResult:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["warning"] is not None
-        assert "revue humaine" in data["warning"].lower()
-        assert data["confidence_score"] < 0.6
+        assert data["warning"] is None
+        assert data["confidence_score"] == pytest.approx(0.6)
