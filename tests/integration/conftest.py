@@ -261,7 +261,7 @@ def test_doc_pdf(db_conn, test_case_id):
 def test_doc_scan(db_conn, test_case_id):
     """
     Crée un document scan en DB pour les tests.
-    extraction_method = tesseract (SLA-B).
+    extraction_method = mistral_ocr (SLA-B).
     """
     doc_id = f"integ-doc-scan-{uuid.uuid4().hex[:8]}"
     with db_conn.cursor() as cur:
@@ -272,7 +272,7 @@ def test_doc_scan(db_conn, test_case_id):
                  mime_type, storage_uri, extraction_status,
                  extraction_method)
             VALUES (%s, %s, %s, %s, NOW()::TEXT,
-                    %s, %s, 'pending', 'tesseract')
+                    %s, %s, 'pending', 'mistral_ocr')
         """,
             (
                 doc_id,

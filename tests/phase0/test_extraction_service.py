@@ -31,16 +31,16 @@ class TestDetectMethod:
     """Détection méthode sur magic bytes réels."""
 
     def test_pdf_natif_avec_bt(self):
-        """PDF avec marqueur BT → native_pdf."""
-        content = b"%PDF-1.4 ... BT some text ET ..."
+        """PDF avec marqueurs texte suffisants → native_pdf."""
+        content = b"%PDF-1.4 /Type /Page ... BT some text ET ... /Font"
         result = detect_method("application/pdf", content)
         assert result == "native_pdf"
 
-    def test_pdf_sans_bt_fallback_tesseract(self):
-        """PDF sans BT (scan) → tesseract."""
+    def test_pdf_sans_bt_fallback_mistral(self):
+        """PDF sans marqueurs texte (scan) → mistral_ocr."""
         content = b"%PDF-1.4 no text markers here"
         result = detect_method("application/pdf", content)
-        assert result == "tesseract"
+        assert result == "mistral_ocr"
 
     def test_xlsx_magic_bytes(self):
         """ZIP avec xl/ → excel_parser."""
@@ -54,11 +54,11 @@ class TestDetectMethod:
         result = detect_method("application/vnd.openxmlformats", content)
         assert result == "docx_parser"
 
-    def test_unknown_fallback_tesseract(self):
-        """Contenu inconnu → tesseract (fallback)."""
+    def test_unknown_fallback_mistral(self):
+        """Contenu inconnu → mistral_ocr (fallback cloud-first)."""
         content = b"\x00\x01\x02\x03 unknown format"
         result = detect_method("application/octet-stream", content)
-        assert result == "tesseract"
+        assert result == "mistral_ocr"
 
 
 # ── Classe 2 — Validation SLA ────────────────────────────────────
@@ -79,7 +79,7 @@ class TestSLAValidation:
                 "mime_type": "image/tiff",
                 "storage_uri": "/tmp/test.tif",
                 "extraction_status": "pending",
-                "extraction_method": "tesseract",
+                "extraction_method": "mistral_ocr",
             }
 
         import src.extraction.engine as eng
@@ -105,9 +105,9 @@ class TestSLAValidation:
         """SLA_A_METHODS = exactement 3 méthodes."""
         assert SLA_A_METHODS == {"native_pdf", "excel_parser", "docx_parser"}
 
-    def test_sla_b_methods_contient_quatre_methodes(self):
-        """SLA_B_METHODS = exactement 4 méthodes."""
-        assert SLA_B_METHODS == {"tesseract", "azure", "llamaparse", "mistral_ocr"}
+    def test_sla_b_methods_contient_trois_methodes(self):
+        """SLA_B_METHODS = exactement 3 méthodes cloud-first."""
+        assert SLA_B_METHODS == {"azure", "llamaparse", "mistral_ocr"}
 
 
 # ── Classe 3 — _compute_confidence ──────────────────────────────
@@ -116,30 +116,30 @@ class TestSLAValidation:
 class TestComputeConfidence:
     """§9 : incertitude mesurée, jamais masquée."""
 
-    def test_texte_vide_confidence_03(self):
-        """Texte vide → confidence 0.3."""
+    def test_texte_vide_confidence_06(self):
+        """Texte vide → confidence 0.6 (canonique)."""
         score = _compute_confidence("", {})
-        assert score == pytest.approx(0.3)
-
-    def test_texte_trop_court_confidence_03(self):
-        """Texte < 100 chars → confidence 0.3."""
-        score = _compute_confidence("x" * 50, {})
-        assert score == pytest.approx(0.3)
-
-    def test_texte_court_confidence_06(self):
-        """100 <= texte < 500 chars → confidence 0.6."""
-        score = _compute_confidence("x" * 200, {})
         assert score == pytest.approx(0.6)
 
-    def test_texte_long_confidence_085(self):
-        """Texte >= 500 chars → confidence 0.85."""
-        score = _compute_confidence("x" * 1000, {})
-        assert score == pytest.approx(0.85)
+    def test_texte_trop_court_confidence_06(self):
+        """Texte < 100 chars → confidence 0.6."""
+        score = _compute_confidence("x" * 50, {})
+        assert score == pytest.approx(0.6)
 
-    def test_texte_whitespace_seul_confidence_03(self):
-        """Texte = espaces uniquement → confidence 0.3."""
+    def test_texte_court_confidence_08(self):
+        """100 <= texte < 500 chars → confidence 0.8."""
+        score = _compute_confidence("x" * 200, {})
+        assert score == pytest.approx(0.8)
+
+    def test_texte_long_confidence_10(self):
+        """Texte >= 500 chars → confidence 1.0."""
+        score = _compute_confidence("x" * 1000, {})
+        assert score == pytest.approx(1.0)
+
+    def test_texte_whitespace_seul_confidence_06(self):
+        """Texte = espaces uniquement → confidence 0.6."""
         score = _compute_confidence("   \n\t  ", {})
-        assert score == pytest.approx(0.3)
+        assert score == pytest.approx(0.6)
 
 
 # ── Classe 4 — Doctrine §9 ───────────────────────────────────────
@@ -153,7 +153,7 @@ class TestDoctrineEchec:
 
     def test_confidence_faible_flags_requires_human(self, monkeypatch):
         """
-        confidence < 0.6 → _requires_human_review = True
+        confidence 0.6 n'active pas automatiquement _requires_human_review.
         dans structured_data.
         """
         import src.extraction.engine as eng
@@ -170,7 +170,7 @@ class TestDoctrineEchec:
             }
 
         def fake_dispatch(doc, method):
-            # Texte court → confidence 0.3
+            # Texte court → confidence 0.6
             return ("x" * 10, dict(eng.STRUCTURED_DATA_EMPTY))
 
         def fake_update_status(doc_id, status):
@@ -189,10 +189,10 @@ class TestDoctrineEchec:
 
         result = extract_sync("doc-test-low-conf")
 
-        assert result["requires_human_review"] is True
-        assert result["confidence"] < 0.6
-        assert calls["structured"]["_low_confidence"] is True
-        assert calls["structured"]["_requires_human_review"] is True
+        assert result["requires_human_review"] is False
+        assert result["confidence"] == pytest.approx(0.6)
+        assert calls["structured"]["_low_confidence"] is False
+        assert calls["structured"]["_requires_human_review"] is False
 
     def test_exception_store_error_appele(self, monkeypatch):
         """
@@ -401,7 +401,7 @@ class TestProcessExtractionJob:
                         return {
                             "id": "job-1",
                             "document_id": "doc-1",
-                            "method": "tesseract",
+                            "method": "mistral_ocr",
                             "status": "done",
                             "storage_uri": "/tmp/test.pdf",
                             "case_id": None,

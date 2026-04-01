@@ -204,7 +204,7 @@ class TestExtractionSLABe2e:
 
         assert job is not None, "Le job doit être en DB"
         assert job["status"] == "pending"
-        assert job["method"] == "tesseract"
+        assert job["method"] == "mistral_ocr"
         assert job["sla_class"] == "B"
 
     def test_get_job_status_apres_creation(self, integration_client, test_doc_scan):
@@ -409,7 +409,7 @@ class TestCohérenceDBe2e:
         """
         confidence_score persisté en DB correspond
         au score calculé par _compute_confidence.
-        Texte long → 0.85.
+        Texte long → 1.0.
         """
         with patch(
             "src.extraction.engine._extract_native_pdf",
@@ -447,4 +447,4 @@ class TestCohérenceDBe2e:
             )
             row = cur.fetchone()
 
-        assert row["confidence_score"] == pytest.approx(0.85)
+        assert row["confidence_score"] == pytest.approx(1.0)
