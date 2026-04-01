@@ -10,6 +10,7 @@ import pytest
 from src.annotation.orchestrator import (
     AnnotationOrchestrator,
     AnnotationPipelineState,
+    PipelineRunRecord,
     use_pass_orchestrator,
 )
 from src.annotation.pass_output import PassRunStatus
@@ -343,3 +344,94 @@ def test_m12_feature_flag_off_uses_legacy(tmp_path: Path, monkeypatch):
         AnnotationPipelineState.LLM_PREANNOTATION_PENDING,
     )
     assert "pass_1_router" in rec.pass_outputs
+
+
+# ── FSM recovery & checkpoint tests ─────────────────────────────────────────
+
+
+def test_save_run_atomic_no_leftover_tmp(tmp_path: Path) -> None:
+    """save_run must not leave .tmp files behind."""
+    orch = AnnotationOrchestrator(runs_dir=tmp_path)
+    rid = uuid.uuid4()
+    rec = PipelineRunRecord(run_id=str(rid), document_id="doc", state="ingested")
+    orch.save_run(rec)
+    assert not list(
+        tmp_path.glob("*.tmp")
+    ), ".tmp must be cleaned up after atomic write"
+    assert len(list(tmp_path.glob("*.json"))) == 1
+
+
+def test_orchestrator_idempotent_terminal_m12(tmp_path: Path, monkeypatch) -> None:
+    """Second call on PASS_1D_DONE returns immediately — no pass is re-executed."""
+    monkeypatch.setenv("ANNOTATION_USE_M12_SUBPASSES", "1")
+    orch = AnnotationOrchestrator(runs_dir=tmp_path)
+    rid = uuid.uuid4()
+    text = "TERMES DE RÉFÉRENCE\nObjectif de la mission\n" + "detail " * 200
+
+    rec1, state1 = orch.run_passes_0_to_1(text, document_id="doc-idem", run_id=rid)
+    assert state1 == AnnotationPipelineState.PASS_1D_DONE
+
+    import src.annotation.orchestrator as orch_mod
+
+    calls: list[str] = []
+    orig_1a = orch_mod.run_pass_1a_core_recognition
+
+    def spy_1a(*args, **kwargs):
+        calls.append("1a")
+        return orig_1a(*args, **kwargs)
+
+    orch_mod.run_pass_1a_core_recognition = spy_1a
+    try:
+        rec2, state2 = orch.run_passes_0_to_1(text, document_id="doc-idem", run_id=rid)
+        assert state2 == AnnotationPipelineState.PASS_1D_DONE
+        assert rec2.run_id == rec1.run_id
+        assert not calls, "Pass 1A must not be re-executed on a terminal run"
+    finally:
+        orch_mod.run_pass_1a_core_recognition = orig_1a
+
+
+def test_fsm_crash_recovery_resumes_from_pass_1a_done(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Crash at PASS_1A_DONE: recovery skips 1A (checkpoint hit) and re-runs 1B-1D."""
+    monkeypatch.setenv("ANNOTATION_USE_M12_SUBPASSES", "1")
+    orch = AnnotationOrchestrator(runs_dir=tmp_path)
+    rid = uuid.uuid4()
+    text = "TERMES DE RÉFÉRENCE\nObjectif de la mission\n" + "detail " * 200
+
+    # Complete run once to get a valid 1A output stored in the run file.
+    rec_full, state_full = orch.run_passes_0_to_1(
+        text, document_id="doc-crash", run_id=rid
+    )
+    assert state_full == AnnotationPipelineState.PASS_1D_DONE
+
+    # Simulate crash: roll back state to PASS_1A_DONE, remove 1B-1D outputs.
+    loaded = orch.load_run(rid)
+    assert loaded is not None
+    loaded.state = AnnotationPipelineState.PASS_1A_DONE.value
+    loaded.pass_outputs.pop("pass_1b_document_validity", None)
+    loaded.pass_outputs.pop("pass_1c_conformity_and_handoffs", None)
+    loaded.pass_outputs.pop("pass_1d_process_linking", None)
+    orch.save_run(loaded)
+
+    import src.annotation.orchestrator as orch_mod
+
+    p1a_calls: list[str] = []
+    orig_1a = orch_mod.run_pass_1a_core_recognition
+
+    def spy_1a(*args, **kwargs):
+        p1a_calls.append("called")
+        return orig_1a(*args, **kwargs)
+
+    orch_mod.run_pass_1a_core_recognition = spy_1a
+    try:
+        rec2, state2 = orch.run_passes_0_to_1(text, document_id="doc-crash", run_id=rid)
+        assert (
+            state2 == AnnotationPipelineState.PASS_1D_DONE
+        ), f"Expected PASS_1D_DONE after recovery, got {state2}"
+        assert not p1a_calls, "Pass 1A must be skipped via checkpoint on recovery"
+        assert "pass_1b_document_validity" in rec2.pass_outputs
+        assert "pass_1c_conformity_and_handoffs" in rec2.pass_outputs
+        assert "pass_1d_process_linking" in rec2.pass_outputs
+    finally:
+        orch_mod.run_pass_1a_core_recognition = orig_1a
