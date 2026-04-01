@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import random
 import time
 import uuid
 from threading import Event
@@ -25,7 +26,11 @@ import openpyxl  # type: ignore
 import pdfplumber  # type: ignore
 from docx import Document  # type: ignore
 
-from src.core.api_keys import get_llama_cloud_api_key, get_mistral_api_key
+from src.core.api_keys import (
+    APIKeyMissingError,
+    get_llama_cloud_api_key,
+    get_mistral_api_key,
+)
 
 # local
 from src.db.connection import get_db_cursor
@@ -132,7 +137,8 @@ def _compute_confidence(
     """Heuristique de confiance — valeurs canoniques {0.6, 0.8, 1.0} uniquement.
 
     §9 : incertitude mesuree, jamais masquee.
-    Mapping : <100 chars -> 0.6 (+ flag review), <500 chars -> 0.8, >=500 -> 1.0
+    Mapping : <100 chars -> 0.6, <500 chars -> 0.8, >=500 -> 1.0
+    La valeur retournee est toujours >= 0.6 ; les branches < 0.6 sont mortes.
     """
     text = raw_text.strip() if raw_text else ""
     if len(text) < INSUFFICIENT_TEXT_THRESHOLD:
@@ -263,10 +269,37 @@ def _extract_docx(storage_uri: str) -> tuple[str, dict]:
 
 _OCR_MAX_RETRIES = 3
 _OCR_BACKOFF_BASE_S = 2.0
+_OCR_JITTER_MAX_S = 0.5
+
+
+class _OcrConfigError(RuntimeError):
+    """Erreur de configuration OCR fatale (clé/endpoint manquant) — non-retryable."""
+
+
+# Exceptions non-retryables : erreurs fatales de configuration ou de fichier.
+# Ces erreurs ne peuvent pas être résolues en réessayant la même opération.
+_NON_RETRYABLE_EXCEPTIONS = (
+    APIKeyMissingError,
+    _OcrConfigError,
+    ValueError,
+    FileNotFoundError,
+    ImportError,
+    PermissionError,
+)
 
 
 def _retry_cloud_ocr(func, storage_uri: str, method_name: str) -> tuple[str, dict]:
-    """Wrapper retry avec backoff exponentiel pour les extracteurs cloud."""
+    """Wrapper retry avec backoff exponentiel + jitter pour les extracteurs cloud.
+
+    Exceptions non-retryables (_NON_RETRYABLE_EXCEPTIONS : APIKeyMissingError,
+    _OcrConfigError, ValueError, FileNotFoundError, ImportError, PermissionError)
+    sont re-levées immédiatement sans retry — ce sont des erreurs de configuration
+    ou de fichier pour lesquelles un second essai ne changera rien.
+
+    Toute autre exception (ConnectionError, TimeoutError, OSError, et tout RuntimeError
+    non sous-classé par _OcrConfigError) déclenche le backoff exponentiel + jitter
+    jusqu'à _OCR_MAX_RETRIES tentatives, puis re-lève la dernière exception.
+    """
     last_exc: Exception | None = None
     for attempt in range(_OCR_MAX_RETRIES):
         t0 = time.monotonic()
@@ -282,10 +315,27 @@ def _retry_cloud_ocr(func, storage_uri: str, method_name: str) -> tuple[str, dic
             )
             return result
         except Exception as exc:
+            # Union explicite (Ruff UP038) — même logique que _NON_RETRYABLE_EXCEPTIONS.
+            if isinstance(
+                exc,
+                APIKeyMissingError
+                | _OcrConfigError
+                | ValueError
+                | FileNotFoundError
+                | ImportError
+                | PermissionError,
+            ):
+                _logger.error(
+                    "[OCR] %s erreur fatale (non-retryable) : %s",
+                    method_name,
+                    exc,
+                )
+                raise
             last_exc = exc
             duration_ms = (time.monotonic() - t0) * 1000
             if attempt < _OCR_MAX_RETRIES - 1:
-                wait = _OCR_BACKOFF_BASE_S * (2**attempt)
+                jitter = random.uniform(0, _OCR_JITTER_MAX_S)  # noqa: S311
+                wait = _OCR_BACKOFF_BASE_S * (2**attempt) + jitter
                 _logger.warning(
                     "[OCR] %s echec tentative %d/%d (%.0fms) : %s — retry dans %.1fs",
                     method_name,
@@ -495,7 +545,7 @@ def _extract_azure_ocr_fallback(storage_uri: str, mime: str) -> tuple[str, dict]
     endpoint = os.environ.get("AZURE_FORM_RECOGNIZER_ENDPOINT", "")
     key = os.environ.get("AZURE_FORM_RECOGNIZER_KEY", "")
     if not endpoint or not key:
-        raise RuntimeError(
+        raise _OcrConfigError(
             "[OCR] Azure fallback non configuré "
             "(AZURE_FORM_RECOGNIZER_ENDPOINT ou AZURE_FORM_RECOGNIZER_KEY manquant)."
         )
@@ -596,11 +646,6 @@ def extract_sync(document_id: str) -> dict:
             )
 
         confidence = _compute_confidence(raw_text, structured_data)
-
-        # §9 : incertitude signalée, jamais masquée
-        if confidence < 0.6:
-            structured_data["_low_confidence"] = True
-            structured_data["_requires_human_review"] = True
 
         structured_data["_extraction_duration_ms"] = duration_ms
         structured_data["_sla_class"] = "A"
@@ -731,10 +776,6 @@ def process_extraction_job(job_id: str) -> dict:
         duration_ms = (time.monotonic() * 1000) - start_ms
 
         confidence = _compute_confidence(raw_text, structured_data)
-
-        if confidence < 0.6:
-            structured_data["_low_confidence"] = True
-            structured_data["_requires_human_review"] = True
 
         structured_data["_extraction_duration_ms"] = duration_ms
         structured_data["_sla_class"] = "B"

@@ -280,3 +280,88 @@ def test_cascade_ssl_retry_then_success(tmp_path, monkeypatch):
     assert text == "Texte apres retry"
     assert route == "mistral_ocr"
     assert len(attempts) == 2
+
+
+# ── _retry_cloud_ocr unit tests ───────────────────────────────────────────
+
+
+def test_retry_cloud_ocr_three_strikes_raises(monkeypatch):
+    """Après 3 échecs réseau, _retry_cloud_ocr relève la dernière exception."""
+    import src.extraction.engine as eng
+
+    calls = []
+
+    def flaky_func(_uri):
+        calls.append(1)
+        raise ConnectionError("network failure")
+
+    monkeypatch.setattr(eng._BACKOFF_WAITER, "wait", lambda _t: None)
+    with pytest.raises(ConnectionError, match="network failure"):
+        eng._retry_cloud_ocr(flaky_func, "/fake/path.pdf", "test_ocr")
+    assert len(calls) == eng._OCR_MAX_RETRIES
+
+
+def test_retry_cloud_ocr_non_retryable_raises_immediately(monkeypatch):
+    """ValueError (non-retryable) est propagée sans retry."""
+    import src.extraction.engine as eng
+
+    calls = []
+
+    def fatal_func(_uri):
+        calls.append(1)
+        raise ValueError("bad params — non retryable")
+
+    monkeypatch.setattr(eng._BACKOFF_WAITER, "wait", lambda _t: None)
+    with pytest.raises(ValueError, match="non retryable"):
+        eng._retry_cloud_ocr(fatal_func, "/fake/path.pdf", "test_ocr")
+    assert len(calls) == 1, "Non-retryable doit échouer au 1er essai sans retry"
+
+
+def test_retry_cloud_ocr_success_first_attempt(monkeypatch):
+    """Succès au premier essai — aucun retry, résultat retourné."""
+    import src.extraction.engine as eng
+
+    wait_calls = []
+    monkeypatch.setattr(eng._BACKOFF_WAITER, "wait", lambda _t: wait_calls.append(1))
+
+    def ok_func(_uri):
+        return ("extracted text", {})
+
+    text, _ = eng._retry_cloud_ocr(ok_func, "/fake/path.pdf", "test_ocr")
+    assert text == "extracted text"
+    assert not wait_calls, "Aucun wait si succès immédiat"
+
+
+def test_retry_cloud_ocr_api_key_missing_raises_immediately(monkeypatch):
+    """APIKeyMissingError (non-retryable) est propagée sans retry."""
+    import src.extraction.engine as eng
+
+    # Même objet classe que _retry_cloud_ocr (évite doublons d'import sous pytest-cov).
+    api_key_missing_cls = eng._NON_RETRYABLE_EXCEPTIONS[0]
+
+    calls = []
+
+    def missing_key_func(_uri):
+        calls.append(1)
+        raise api_key_missing_cls("MISTRAL_API_KEY absent")
+
+    monkeypatch.setattr(eng._BACKOFF_WAITER, "wait", lambda _t: None)
+    with pytest.raises(api_key_missing_cls, match="MISTRAL_API_KEY"):
+        eng._retry_cloud_ocr(missing_key_func, "/fake/path.pdf", "test_ocr")
+    assert len(calls) == 1, "APIKeyMissingError doit échouer immédiatement sans retry"
+
+
+def test_retry_cloud_ocr_azure_config_error_raises_immediately(monkeypatch):
+    """_OcrConfigError (Azure non configuré) est non-retryable."""
+    import src.extraction.engine as eng
+
+    calls = []
+
+    def azure_config_missing(_uri):
+        calls.append(1)
+        raise eng._OcrConfigError("Azure endpoint manquant")
+
+    monkeypatch.setattr(eng._BACKOFF_WAITER, "wait", lambda _t: None)
+    with pytest.raises(eng._OcrConfigError, match="Azure endpoint manquant"):
+        eng._retry_cloud_ocr(azure_config_missing, "/fake/path.pdf", "azure")
+    assert len(calls) == 1, "_OcrConfigError doit échouer immédiatement sans retry"
