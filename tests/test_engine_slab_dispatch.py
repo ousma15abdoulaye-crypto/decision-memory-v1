@@ -337,16 +337,16 @@ def test_retry_cloud_ocr_api_key_missing_raises_immediately(monkeypatch):
     import src.extraction.engine as eng
 
     # Même objet classe que _retry_cloud_ocr (évite doublons d'import sous pytest-cov).
-    KeyErr = eng._NON_RETRYABLE_EXCEPTIONS[0]
+    api_key_missing_cls = eng._NON_RETRYABLE_EXCEPTIONS[0]
 
     calls = []
 
     def missing_key_func(_uri):
         calls.append(1)
-        raise KeyErr("MISTRAL_API_KEY absent")
+        raise api_key_missing_cls("MISTRAL_API_KEY absent")
 
     monkeypatch.setattr(eng._BACKOFF_WAITER, "wait", lambda _t: None)
-    with pytest.raises(KeyErr, match="MISTRAL_API_KEY"):
+    with pytest.raises(api_key_missing_cls, match="MISTRAL_API_KEY"):
         eng._retry_cloud_ocr(missing_key_func, "/fake/path.pdf", "test_ocr")
     assert len(calls) == 1, "APIKeyMissingError doit échouer immédiatement sans retry"
 
