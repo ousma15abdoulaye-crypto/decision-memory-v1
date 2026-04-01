@@ -1,5 +1,7 @@
 # Runbook — Migrations Railway DMS
 
+**Gouvernance** : preuve live, GO CTO et checklist post-sync sont décrites dans [docs/adr/ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE.md](../adr/ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE.md) (ne pas mettre à jour le MRD sans mesure `diagnose_railway_migrations.py`).
+
 ## Pre-requis
 
 - `RAILWAY_DATABASE_URL` disponible (Railway Variables ou `.env.local`)

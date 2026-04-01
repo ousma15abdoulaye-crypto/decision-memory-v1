@@ -82,6 +82,8 @@ last_sync_railway        : DÉSYNCHRONISÉ — GO CTO requis avant sync
 last_updated             : 2026-04-01
 updated_by               : agent — audit pré-M13 / fix/pre-m13-blockers (E-51 / E-82)
 audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
+railway_sync_governance  : docs/adr/ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE.md — preuve live (diagnose_railway) + checklist post-sync obligatoires avant de certifier railway_alembic_head
+evaluation_documents     : schéma + RLS livrés par migration 056 — aucune écriture applicative sous src/ avant mandat M13 (moteur conformité / API dédiée).
 
 ## MANDAT 4 — EXTRACTION RÉELLE (2026-03-17)
   merge_commit            : 87942a3 (PR#215)
