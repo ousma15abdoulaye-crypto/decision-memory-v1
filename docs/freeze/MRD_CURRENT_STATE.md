@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-03-26 — M12 DONE (AO / cloture procedure recognizer)
+# Derniere mise a jour : 2026-04-01 — merge main PR #286 + #287 (pre-M13 diagnostic Alembic + gouvernance)
 
 ---
 
@@ -32,7 +32,7 @@ freeze_hashes_doc     : docs/freeze/FREEZE_HASHES.md
 
 last_completed        : M12
 last_completed_at     : 2026-03-26
-last_merge_commit     : bde8378 (main — cloture M12 procedure recognizer + corpus R2 / export)
+last_merge_commit     : 6a8988c6 (main — PR #287 docs/pre-m13-enterprise-governance ; inclut PR #286 diagnose Alembic)
 last_tag              : v4.1.0-m12-done
 next_milestone        : M13
 next_status           : PENDING
@@ -80,7 +80,7 @@ migrations_pending_railway:
   - 056_evaluation_documents
 last_sync_railway        : DÉSYNCHRONISÉ — GO CTO requis avant sync
 last_updated             : 2026-04-01
-updated_by               : agent — audit pré-M13 / fix/pre-m13-blockers (E-51 / E-82)
+updated_by               : merge 2026-04-01 — PR #286 + #287 sur main (E-82 / gouvernance pré-M13)
 audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
 railway_sync_governance  : docs/adr/ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE.md — preuve live (diagnose_railway) + checklist post-sync obligatoires avant de certifier railway_alembic_head
 evaluation_documents     : schéma + RLS livrés par migration 056 — aucune écriture applicative sous src/ avant mandat M13 (moteur conformité / API dédiée).
@@ -97,7 +97,7 @@ evaluation_documents     : schéma + RLS livrés par migration 056 — aucune é
   - 050_documents_sha256_not_null     (ASAP-06 — backfill pgcrypto/md5)
 
 ## DIVERGENCE RAILWAY — CRITIQUE
-  7 migrations non appliquées en production.
+  12 migrations non appliquées en production (045→056 ; voir liste migrations_pending_railway).
   Toute fonctionnalité basée sur 045-048 (incl. 046b) est silencieusement
   cassée en production jusqu'à synchronisation.
   GO CTO obligatoire avant alembic upgrade sur Railway.

@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-01 (MERGE Phase 0 Docker Infra — PR #276) ║
+║  Dernière mise à jour : 2026-04-01 (MERGE pré-M13 — PR #286 + PR #287) ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -88,7 +88,11 @@
 ║                                                                      ║
 ║  GIT — 2026-04-01                                                    ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  main              : 6775b65 (Merge PR #276 feat/phase-0-docker-infra) ║
+║  main              : 6a8988c6 (Merge PR #287 docs/pre-m13-enterprise-governance) ║
+║  PR #286 fix/alembic-diagnose-chain-truth : MERGÉ (diagnostic Alembic ScriptDirectory) ║
+║  PR #287 docs/pre-m13-enterprise-governance : MERGÉ (ADR, runbook unique, smoke main:app) ║
+║  Branches distantes PR #286 / #287 : supprimées après merge                       ║
+║  (historique) main 6775b65 : Merge PR #276 feat/phase-0-docker-infra            ║
 ║  feat/phase-0-docker-infra : MERGÉ dans main (Phase 0 — PR #276)     ║
 ║  feat/m12-engine-v6 : MERGÉ dans main (M12 Engine V6 — PR #274)     ║
 ║  feat/fix-extract-02 : MERGÉ dans main (M-FIX-EXTRACT-02)            ║
