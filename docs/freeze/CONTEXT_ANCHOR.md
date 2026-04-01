@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-03-30 (MERGE M12 Engine V6 — PR #274)  ║
+║  Dernière mise à jour : 2026-04-01 (MERGE Phase 0 Docker Infra — PR #276) ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -86,9 +86,10 @@
 ║                                                                      ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║                                                                      ║
-║  GIT — 2026-03-30                                                    ║
+║  GIT — 2026-04-01                                                    ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  main              : a6a4d7b (Merge PR #274 feat/m12-engine-v6)     ║
+║  main              : 6775b65 (Merge PR #276 feat/phase-0-docker-infra) ║
+║  feat/phase-0-docker-infra : MERGÉ dans main (Phase 0 — PR #276)     ║
 ║  feat/m12-engine-v6 : MERGÉ dans main (M12 Engine V6 — PR #274)     ║
 ║  feat/fix-extract-02 : MERGÉ dans main (M-FIX-EXTRACT-02)            ║
 ║  feat/pre-m12-extraction-reelle : MERGÉ dans main (Mandat 4)        ║
@@ -206,12 +207,14 @@
 ║                        Fix en attente : POSTGRE_PORT=5432 fixe      ║
 ║                        + diagnostic complet Plan Directeur requis   ║
 ║                                                                      ║
-║  EXTRACTION — ÉTAT RÉEL POST-MERGE M-FIX-EXTRACT-02                   ║
+║  EXTRACTION — ÉTAT RÉEL POST-MERGE M-FIX-EXTRACT-02 + PR #276          ║
 ║  ──────────────────────────────────────────────────────────────     ║
 ║  extract_text_any :                                                    ║
 ║    pypdf principal                                                      ║
 ║    pdfminer.six fallback si text_len < 100                              ║
 ║    log WARNING text_len=0 → PDF_SCAN_SANS_OCR ou PDF_CORROMPU          ║
+║    SLA-B engine : cloud-first (mistral_ocr / llamaparse / azure) ;     ║
+║    alias DB "tesseract" → même chemin mistral_ocr (E-81, PR #276).     ║
 ║    OCR (Mistral / Tesseract) = M10A — hors scope beta                   ║
 ║  Cas non résolus (M10A) :                                               ║
 ║    PDF scan sans OCR → text_len=0 → review_required                     ║
@@ -501,6 +504,11 @@
 ║         Oubli → CI FAIL "Head inattendu". Fichier :                   ║
 ║         tests/test_046b_imc_map_fix.py ligne ~76.                     ║
 ║         Ref : PR #274 CI — 2026-03-30                                  ║
+║  E-81  extraction_jobs.method (CHECK DB) : valeur stockée "tesseract" ║
+║         est le contrat legacy SLA-B ; "mistral_ocr" seul peut violer   ║
+║         le CHECK selon schéma. Ne pas retirer "tesseract" de          ║
+║         SLA_B_METHODS sans migration alignée. Alias runtime :         ║
+║         tesseract → chemin cloud mistral_ocr (PR #276 — 2026-04-01).  ║
 ║  E-69  Schéma export LS → corpus JSONL **m12-v2** figé — ne pas      ║
 ║         inventer d’autres clés ni un second format sans ADR / CTO.    ║
 ║         Structure canonique, variables d’environnement, scripts et    ║
@@ -951,5 +959,39 @@ Les sorties M12 vers les milestones futurs sont désormais contractualisées :
 ### TESTS ADDITIONNELS (batch 2)
 
 - `tests/procurement/test_llm_arbitrator.py` : +6 tests (T17–T22) — total 22 tests
+
+---
+
+## ADDENDUM 2026-04-01 — PHASE 0 DOCKER INFRASTRUCTURE & STACK ANNOTATION (PR #276 MERGED)
+
+**Autorité :** merge `feat/phase-0-docker-infra` → `main` — commit merge **`6775b65`** — **PR #276** — **2026-04-01T06:41:26Z**.
+
+**Branche :** `feat/phase-0-docker-infra` — **MERGÉE** (ne plus cibler pour travail actif ; nouvelles évolutions = nouvelle branche / mandat).
+
+### PÉRIMÈTRE GLOBAL (LIVRABLES PR #276)
+
+| Lot | Contenu opposable |
+|-----|-------------------|
+| **Infra locale** | `docker-compose.yml` — stack **postgres**, **redis**, **api**, **annotation-backend**, **label-studio**, service **migrate** ; volumes persistants ; healthchecks ; évolutions Makefile (cibles `up` / `down` / `test` / `lint` / `migrate` / `logs` / `health` / `ocr-batch` / `db-shell` / `clean`). Template **`.env.docker.example`** (variables Mistral, LS, R2, sel, etc.). |
+| **Railway / Alembic** | `scripts/diagnose_railway_migrations.py` — écart révision DB vs head local. `scripts/apply_railway_migrations_safe.py` — application contrôlée (dry-run, vérif, arrêt sur échec). `docs/ops/RAILWAY_MIGRATION_RUNBOOK.md` — procédure opérationnelle (aligné gouvernance migrations : pas d’exécution sauvage sur Railway sans runbook + flag). |
+| **Extraction engine** | `src/extraction/engine.py` — **cloud-first** SLA-B : `mistral_ocr`, `llamaparse`, `azure` ; retry backoff + journalisation structurée ; **INV-04** : pas de `time.sleep` productif dans le chemin OCR (attente via `threading.Event.wait`) ; confidences canoniques **{0.6, 0.8, 1.0}** ; **compatibilité DB** : méthode **`tesseract`** conservée dans `SLA_B_METHODS` et **alias runtime** vers le chemin **`mistral_ocr`** (contrainte `extraction_jobs.method` / CHECK — **E-81**). MIME : magic bytes `%PDF` même si `filetype` renvoie `octet-stream`. |
+| **Pipeline annotation** | `scripts/ingest_to_annotation_bridge.py` — modes `--watch`, `--cloud-first`. `scripts/batch_ingest.ps1`, `scripts/pipeline_status.py` — industrialisation lot / visibilité. `src/annotation/orchestrator.py` — threading `case_documents_1a` dans `run_passes_0_to_1`. |
+| **Observabilité** | `src/api/health.py` — enrichi (alembic head, migrations, disponibilité OCR, statut LLM arbitrator). `src/procurement/llm_arbitrator.py` — estimation coût (tokens / USD) par appel. Passes **1A / 1B** : confiances plancher, TTL moteur parties obligatoires, fil DGMP `procedure_type` où applicable. |
+| **M13-ready** | `src/procurement/regulatory_index.py` + `config/regulatory_mappings.yaml` — moteur de règles déclaratives (frameworks SCI, DGMP, douanes, fiscal, PPP, etc.). `tests/procurement/test_regulatory_index.py` — couverture dédiée. |
+| **Corpus M12 / R2** | `scripts/consolidate_m12_corpus.py`, `scripts/m12_r2_delta_vs_local.py`, `scripts/repair_m12_jsonl_golden_backfill.py`, `scripts/run_m12_corpus_resync.ps1` — consolidation, delta R2 vs local, golden backfill, resync ; `tests/test_consolidate_m12_corpus.py`. |
+| **Qualité / CI** | Alignement tests **phase0**, **intégration**, **`test_engine_slab_dispatch`** : comportement cloud-first + alias **`tesseract`** ; `tests/test_healthcheck.py` ; `health_check_env.ps1` — probe toolchain Windows + smoke API. |
+
+### ERREUR CAPITALISÉE — E-81 (RAPPEL MARKDOWN)
+
+**E-81** (2026-04-01) : La colonne `extraction_jobs.method` est contrainte côté base aux valeurs historiques ; **`mistral_ocr` seul** peut provoquer un **CHECK violation** selon l’état du schéma déployé. **`tesseract`** reste une valeur **API/DB légitime** pour SLA-B ; le moteur la traite comme **alias** vers l’implémentation **Mistral OCR** (pas Tesseract local). Toute évolution qui retirerait `tesseract` de `SLA_B_METHODS` **sans** migration alignée = risque de régression insert. **Ref :** PR #276, commits finaux `fix(phase0): restore tesseract compatibility…` et `test(phase0): align slab dispatch tests…`.
+
+### TESTS & GATE CI POST-MERGE
+
+- Suite **`pytest tests/`** alignée : dispatch inconnu testé avec une méthode **réellement invalide** ; cas **`tesseract`** couvert par test d’alias explicite.
+- Gates **lint-and-test** et **Gate · Coverage** (seuil couverture inchangé dans ce périmètre) : vert au merge.
+
+### RÉFÉRENCE RAPIDE FICHIERS CLÉS (NE PAS DUPLIQUER LA PR)
+
+Voir diff GitHub PR #276 pour liste exhaustive ; points d’ancrage code : `src/extraction/engine.py`, `docker-compose.yml`, `Makefile`, `scripts/apply_railway_migrations_safe.py`, `scripts/diagnose_railway_migrations.py`, `docs/ops/RAILWAY_MIGRATION_RUNBOOK.md`, `src/procurement/regulatory_index.py`, `tests/test_engine_slab_dispatch.py`.
 
 ---
