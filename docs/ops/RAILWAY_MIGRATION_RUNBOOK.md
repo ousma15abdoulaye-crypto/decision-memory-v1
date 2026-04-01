@@ -4,6 +4,7 @@
 
 ## Pre-requis
 
+- CLI Railway relié au dépôt local : [RAILWAY_CLI_LOCAL_LINK.md](RAILWAY_CLI_LOCAL_LINK.md)
 - `RAILWAY_DATABASE_URL` disponible (Railway Variables ou `.env.local`)
 - Branche locale a jour avec `main` (ou branche de deploiement)
 - Python 3.11+ avec `sqlalchemy`, `psycopg`, `alembic` installes
