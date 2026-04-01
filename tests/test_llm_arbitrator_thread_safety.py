@@ -2,7 +2,8 @@
 Tests thread-safety LLMArbitrator.
 
 T1 : get_arbitrator() retourne la même instance depuis plusieurs threads
-     (singleton, double-checked locking).
+     (singleton, double-checked locking). Comparaison par identité (is),
+     pas par id() pour éviter les faux négatifs si l'instance est libérée.
 T2 : _tls.last_cost est isolé par thread — un thread ne voit pas le coût
      du thread voisin.
 T3 : reset_arbitrator() réinitialise proprement le singleton.
@@ -12,26 +13,40 @@ from __future__ import annotations
 
 import threading
 
+_BARRIER_TIMEOUT_S = 5.0
+_JOIN_TIMEOUT_S = 5.0
+
 
 def test_get_arbitrator_singleton_same_instance():
-    """Plusieurs threads obtiennent la même instance."""
+    """Plusieurs threads obtiennent la même instance (comparaison par is, pas id)."""
     from src.procurement.llm_arbitrator import get_arbitrator, reset_arbitrator
 
     reset_arbitrator()
     results: list = []
+    errors: list[str] = []
     barrier = threading.Barrier(10)
 
     def worker():
-        barrier.wait()
-        results.append(id(get_arbitrator()))
+        try:
+            barrier.wait(timeout=_BARRIER_TIMEOUT_S)
+        except threading.BrokenBarrierError:
+            errors.append("barrier broken in singleton test")
+            return
+        results.append(get_arbitrator())
 
     threads = [threading.Thread(target=worker) for _ in range(10)]
     for t in threads:
         t.start()
     for t in threads:
-        t.join()
+        t.join(timeout=_JOIN_TIMEOUT_S)
+        assert not t.is_alive(), "Thread singleton toujours vivant après timeout"
 
-    assert len(set(results)) == 1, "Tous les threads doivent obtenir le même singleton"
+    assert not errors, f"Erreurs barrière : {errors}"
+    assert len(results) == 10
+    first = results[0]
+    assert all(
+        r is first for r in results
+    ), "Tous les threads doivent obtenir la même instance (is)"
 
 
 def test_last_cost_thread_local_isolation():
@@ -42,12 +57,22 @@ def test_last_cost_thread_local_isolation():
     arb = get_arbitrator()
 
     thread_costs: dict[str, dict] = {}
-    barrier = threading.Barrier(3)
+    errors: list[str] = []
+    barrier_start = threading.Barrier(3)
+    barrier_write = threading.Barrier(3)
 
     def worker(name: str, cost_value: float):
-        barrier.wait()
+        try:
+            barrier_start.wait(timeout=_BARRIER_TIMEOUT_S)
+        except threading.BrokenBarrierError:
+            errors.append(f"barrier_start broken in {name}")
+            return
         arb._tls.last_cost = {"cost_estimate_usd": cost_value}
-        barrier.wait()
+        try:
+            barrier_write.wait(timeout=_BARRIER_TIMEOUT_S)
+        except threading.BrokenBarrierError:
+            errors.append(f"barrier_write broken in {name}")
+            return
         thread_costs[name] = arb.last_cost
 
     t1 = threading.Thread(target=worker, args=("t1", 0.001))
@@ -57,8 +82,10 @@ def test_last_cost_thread_local_isolation():
     for t in (t1, t2, t3):
         t.start()
     for t in (t1, t2, t3):
-        t.join()
+        t.join(timeout=_JOIN_TIMEOUT_S)
+        assert not t.is_alive(), "Thread last_cost toujours vivant après timeout"
 
+    assert not errors, f"Erreurs barrière : {errors}"
     assert thread_costs["t1"]["cost_estimate_usd"] == 0.001
     assert thread_costs["t2"]["cost_estimate_usd"] == 0.999
     assert thread_costs["t3"]["cost_estimate_usd"] == 0.500
@@ -78,7 +105,8 @@ def test_last_cost_default_empty_dict():
 
     t = threading.Thread(target=worker)
     t.start()
-    t.join()
+    t.join(timeout=_JOIN_TIMEOUT_S)
+    assert not t.is_alive(), "Thread default cost toujours vivant après timeout"
 
     assert result == [{}], "Nouveau thread sans appel doit voir {}"
 
