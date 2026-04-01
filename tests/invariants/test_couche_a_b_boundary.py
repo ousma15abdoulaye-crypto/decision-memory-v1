@@ -50,6 +50,17 @@ def test_no_couche_b_import_in_couche_a():
     """
     violations = []
 
+    # Garantit que l'invariant ne passe pas silencieusement si TOUS les répertoires
+    # Couche A sont absents (évite un faux vert si les paths sont obsolètes).
+    existing_paths = [p for p in COUCHE_A_PATHS if Path(p).exists()]
+    if not existing_paths:
+        pytest.fail(
+            "COUCHE_A_PATHS : aucun répertoire trouvé parmi "
+            + str(COUCHE_A_PATHS)
+            + ". Mettre à jour COUCHE_A_PATHS pour pointer vers les modules existants "
+            "(ex. src/couche_a, src/extraction, ...) avant d'activer ce gate CI."
+        )
+
     for couche_a_path in COUCHE_A_PATHS:
         path = Path(couche_a_path)
         if not path.exists():

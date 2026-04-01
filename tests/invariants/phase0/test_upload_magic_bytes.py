@@ -24,28 +24,31 @@ def test_upload_rejects_executable_by_magic_bytes():
     par analyse des magic bytes réels (python-magic).
     🔴 BLOQUE CI quand actif.
     """
-    pass
+    pytest.fail(
+        "NOT IMPLEMENTED — gate de sécurité magic bytes ne peut pas être vide. "
+        "Implémenter avant d'activer M-DOCS-CORE.done."
+    )
 
 
 @_skip_if_no_docs
 def test_upload_accepts_valid_pdf():
     """Vérifier qu'un PDF valide est accepté."""
-    pass
+    pytest.fail("NOT IMPLEMENTED — implémenter la vérification magic bytes PDF.")
 
 
 @_skip_if_no_docs
 def test_upload_accepts_valid_xlsx():
     """Vérifier qu'un XLSX valide est accepté."""
-    pass
+    pytest.fail("NOT IMPLEMENTED — implémenter la vérification magic bytes XLSX.")
 
 
 @_skip_if_no_docs
 def test_upload_accepts_valid_docx():
     """Vérifier qu'un DOCX valide est accepté."""
-    pass
+    pytest.fail("NOT IMPLEMENTED — implémenter la vérification magic bytes DOCX.")
 
 
 @_skip_if_no_docs
 def test_upload_rejects_blocked_extension():
     """Vérifier que .sh, .py, .exe, .bat sont rejetés."""
-    pass
+    pytest.fail("NOT IMPLEMENTED — implémenter le rejet des extensions dangereuses.")

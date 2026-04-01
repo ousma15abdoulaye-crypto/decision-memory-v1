@@ -181,9 +181,9 @@ jobs:
         id: cov_gate
         run: |
           if [ -f .milestones/M-TESTS.done ]; then
-            echo "fail_under=65" >> $GITHUB_OUTPUT
+            echo "fail_under=65" >> "$GITHUB_OUTPUT"
           else
-            echo "fail_under=0" >> $GITHUB_OUTPUT
+            echo "fail_under=0" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run tests
