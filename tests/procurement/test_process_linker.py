@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import logging
+from pathlib import Path
+from unittest.mock import patch
+
 from src.procurement.document_ontology import (
     DocumentKindParent,
     ProcessRole,
 )
 from src.procurement.process_linker import (
     DocumentSummary,
+    _load_fuzzy_threshold,
     build_process_linking,
     extract_procedure_references,
     extract_suppliers,
@@ -91,3 +96,109 @@ class TestBuildProcessLinking:
         source = _make_summary("doc1", DocumentKindParent.TDR)
         linking = build_process_linking(source, [], "TDR text")
         assert linking.process_role.value == ProcessRole.DEFINES_NEED
+
+
+class TestLoadFuzzyThreshold:
+    """Tests pour _load_fuzzy_threshold — chargement YAML + fallback."""
+
+    def test_file_absent_returns_fallback_and_logs_warning(
+        self, tmp_path, caplog
+    ) -> None:
+        missing = tmp_path / "absent.yaml"
+        with patch(
+            "src.procurement.process_linker.Path",
+            side_effect=lambda *a: missing if "llm_arbitration" in str(a) else Path(*a),
+        ):
+            with caplog.at_level(
+                logging.WARNING, logger="src.procurement.process_linker"
+            ):
+                result = _load_fuzzy_threshold(fallback=0.85)
+        assert result == 0.85
+        assert any(
+            "absent" in r.message or "llm_arbitration" in r.message
+            for r in caplog.records
+        )
+
+    def test_valid_yaml_returns_configured_value(self, tmp_path) -> None:
+        yaml_file = tmp_path / "llm_arbitration.yaml"
+        yaml_file.write_text(
+            "thresholds:\n  process_linking:\n    trigger_below_fuzzy: 0.72\n",
+            encoding="utf-8",
+        )
+        with patch(
+            "src.procurement.process_linker._load_fuzzy_threshold",
+            side_effect=lambda fallback=0.85: _load_fuzzy_threshold_with_path(
+                yaml_file, fallback
+            ),
+        ):
+            pass
+        # Appel direct avec path patchée via monkeypatch interne
+        import src.procurement.process_linker as pl_mod
+
+        original = pl_mod.Path
+        try:
+            pl_mod.Path = lambda *a: yaml_file if "llm_arbitration" in str(a) else original(*a)  # type: ignore[assignment]
+            result = _load_fuzzy_threshold(fallback=0.85)
+        finally:
+            pl_mod.Path = original
+        assert result == 0.72
+
+    def test_invalid_yaml_type_returns_fallback_and_logs_warning(
+        self, tmp_path, caplog
+    ) -> None:
+        yaml_file = tmp_path / "llm_arbitration.yaml"
+        yaml_file.write_text("- item1\n- item2\n", encoding="utf-8")
+
+        import src.procurement.process_linker as pl_mod
+
+        original = pl_mod.Path
+        try:
+            pl_mod.Path = lambda *a: yaml_file if "llm_arbitration" in str(a) else original(*a)  # type: ignore[assignment]
+            with caplog.at_level(
+                logging.WARNING, logger="src.procurement.process_linker"
+            ):
+                result = _load_fuzzy_threshold(fallback=0.85)
+        finally:
+            pl_mod.Path = original
+        assert result == 0.85
+        assert any(
+            "invalide" in r.message or "list" in r.message for r in caplog.records
+        )
+
+    def test_exception_in_load_returns_fallback_and_logs_warning(self, caplog) -> None:
+        import src.procurement.process_linker as pl_mod
+
+        original = pl_mod.Path
+        try:
+            pl_mod.Path = lambda *a: (_ for _ in ()).throw(OSError("permission denied"))  # type: ignore[assignment]
+            with caplog.at_level(
+                logging.WARNING, logger="src.procurement.process_linker"
+            ):
+                result = _load_fuzzy_threshold(fallback=0.85)
+        finally:
+            pl_mod.Path = original
+        assert result == 0.85
+        assert any(
+            "permission" in r.message.lower() or "impossible" in r.message
+            for r in caplog.records
+        )
+
+
+def _load_fuzzy_threshold_with_path(yaml_path: Path, fallback: float = 0.85) -> float:
+    """Helper pour tester _load_fuzzy_threshold avec un chemin custom."""
+    try:
+        import yaml  # type: ignore[import-untyped]
+
+        if not yaml_path.exists():
+            return fallback
+        with yaml_path.open(encoding="utf-8") as f:
+            cfg = yaml.safe_load(f)
+        if not isinstance(cfg, dict):
+            return fallback
+        return float(
+            cfg.get("thresholds", {})
+            .get("process_linking", {})
+            .get("trigger_below_fuzzy", fallback)
+        )
+    except Exception:
+        return fallback

@@ -54,19 +54,33 @@ def _load_fuzzy_threshold(fallback: float = 0.85) -> float:
             Path(__file__).resolve().parents[2] / "config" / "llm_arbitration.yaml"
         )
         if not _config_path.exists():
+            logger.warning(
+                "process_linker: llm_arbitration.yaml absent — "
+                "FUZZY_THRESHOLD=%s (fallback)",
+                fallback,
+            )
             return fallback
         with _config_path.open(encoding="utf-8") as _f:
             _cfg = yaml.safe_load(_f)
+        if not isinstance(_cfg, dict):
+            logger.warning(
+                "process_linker: llm_arbitration.yaml invalide (type=%s) — "
+                "FUZZY_THRESHOLD=%s (fallback)",
+                type(_cfg).__name__,
+                fallback,
+            )
+            return fallback
         return float(
             _cfg.get("thresholds", {})
             .get("process_linking", {})
             .get("trigger_below_fuzzy", fallback)
         )
-    except Exception:
+    except Exception as exc:
         logger.warning(
             "process_linker: impossible de charger llm_arbitration.yaml — "
-            "FUZZY_THRESHOLD=%s (fallback)",
+            "FUZZY_THRESHOLD=%s (fallback) — %s",
             fallback,
+            exc,
         )
         return fallback
 

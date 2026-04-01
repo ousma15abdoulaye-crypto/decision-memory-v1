@@ -28,4 +28,4 @@
 
 1. **Level 1 — Heading Match:** Regex against section headings. Confidence ~0.90.
 2. **Level 2 — Keyword Density:** Keyword count in sliding window. Confidence ~0.75.
-3. **Level 3 — LLM Fallback:** Implemented via `llm_arbitrator` (threshold: `thresholds.mandatory_parts_l3` in `config/llm_arbitration.yaml`). Confidence ≤0.70 (capped by `max_llm_confidence`). Always triggers `requires_human_review: true`.
+3. **Level 3 — LLM Fallback:** Implemented via `llm_arbitrator`. Decision threshold comes from each rule's `rule.threshold` + `max_llm_confidence` cap (defined in `config/mandatory_parts/*.yaml`), **not** from `thresholds.mandatory_parts_l3` in `llm_arbitration.yaml`. Confidence ≤ `max_llm_confidence` (typically 0.70). Pass 1B does **not** emit a `requires_human_review` field nor force `review_required` status automatically; that decision is made downstream by the validator based on confidence and coverage thresholds.
