@@ -11,13 +11,17 @@ import psycopg
 from dotenv import load_dotenv
 from psycopg.rows import dict_row
 
-from src.db.tenant_context import get_rls_is_admin, get_rls_tenant_id
+from src.db.tenant_context import (
+    get_rls_is_admin,
+    get_rls_tenant_id,
+    get_rls_user_id,
+)
 
 load_dotenv()
 
 
 def _apply_rls_session_settings(cur) -> None:
-    """Pose app.tenant_id / app.is_admin pour les policies RLS (transaction-local)."""
+    """Pose app.tenant_id / app.is_admin / app.user_id pour les policies RLS."""
     tid = get_rls_tenant_id()
     if tid:
         cur.execute(
@@ -27,6 +31,12 @@ def _apply_rls_session_settings(cur) -> None:
     if get_rls_is_admin():
         cur.execute(
             "SELECT set_config('app.is_admin', 'true', true)",
+        )
+    uid = get_rls_user_id()
+    if uid:
+        cur.execute(
+            "SELECT set_config('app.user_id', %s, true)",
+            (uid,),
         )
 
 

@@ -1,8 +1,11 @@
-"""Middleware sécurité V4.1.0 — headers + rate limiting Redis.
+"""Middleware sécurité V4.1.0 — headers + rate limiting Redis + tenant context.
 
-Deux middlewares indépendants :
+Trois middlewares indépendants :
   - SecurityHeadersMiddleware  : headers de sécurité sur toutes les réponses
   - RedisRateLimitMiddleware   : rate limiting Redis avec fallback no-op
+  - TenantContextMiddleware    : pose app.tenant_id / app.is_admin pour RLS
+                                 sur TOUTE requête authentifiée (JWT sans
+                                 vérification complète — lecture claims seule)
 
 RÈGLE-04 : Redis = cache reconstructible. Jamais source de vérité.
 Terrain Mali : Redis peut être down → fallback no-op obligatoire.
@@ -24,6 +27,53 @@ logger = logging.getLogger(__name__)
 _RATE_IP_LIMIT = 100
 _RATE_USER_LIMIT = 200
 _RATE_WINDOW_SECONDS = 60
+
+
+class TenantContextMiddleware(BaseHTTPMiddleware):
+    """Pose app.tenant_id et app.is_admin dans le contexte de la requête.
+
+    Lit les claims JWT sans vérification cryptographique (pas de secret requis
+    ici — la validation complète est déléguée à get_current_user). Ce middleware
+    sert uniquement à exposer le tenant_id pour le RLS sur TOUTE requête
+    authentifiée, y compris celles qui n'appellent pas get_current_user.
+
+    Comportement :
+    - Pas de Bearer → no-op (requête anonyme ou health check).
+    - Bearer présent + claims lisibles → pose tenant_id / is_admin.
+    - Lecture échoue → no-op + log WARNING (jamais bloquer).
+    """
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            token = auth[7:]
+            try:
+                from jose import jwt as _jwt
+
+                # SÉCURITÉ : get_unverified_claims() ne vérifie PAS la signature.
+                # Ne jamais positionner app.is_admin depuis des claims non vérifiés —
+                # un attaquant pourrait forger is_admin=true et bypasser l'isolation RLS.
+                # app.is_admin est forcé à False ici ; seul get_current_user() (qui
+                # vérifie la signature) doit le promouvoir via set_rls_is_admin(True).
+                payload = _jwt.get_unverified_claims(token)
+                tenant_id = payload.get("tenant_id") or ""
+                user_id = str(payload.get("sub", ""))
+
+                from src.db.tenant_context import (
+                    set_db_tenant_id,
+                    set_rls_is_admin,
+                    set_rls_user_id,
+                )
+
+                set_db_tenant_id(tenant_id)
+                set_rls_is_admin(False)  # jamais True depuis claims non vérifiés
+                set_rls_user_id(user_id)
+            except Exception as exc:
+                logger.warning(
+                    "tenant_context_middleware_parse_error",
+                    extra={"error": str(exc)[:200]},
+                )
+        return await call_next(request)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):

@@ -73,6 +73,7 @@ def test_functional_index_imc_entries(db_conn):
 
 # Heads valides — mis à jour après chaque migration
 # Ref : Mandat 2 pré-M12 — 2026-03-17
+# Chantier 2 CTO correction plan — 2026-04-01 : 055 RLS extension
 VALID_ALEMBIC_HEADS = (
     "046b_imc_map_fix_restrict_indexes",
     "047_couche_a_service_columns",
@@ -83,6 +84,7 @@ VALID_ALEMBIC_HEADS = (
     "052_dm_app_rls_role",
     "053_dm_app_enforce_security_attrs",
     "054_m12_correction_log",
+    "055_extend_rls_documents_extraction_jobs",  # Chantier 2 — RLS extension
     "m7_4_dict_vivant",  # branche parallèle
 )
 
