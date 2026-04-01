@@ -330,3 +330,20 @@ def test_retry_cloud_ocr_success_first_attempt(monkeypatch):
     text, _ = eng._retry_cloud_ocr(ok_func, "/fake/path.pdf", "test_ocr")
     assert text == "extracted text"
     assert not wait_calls, "Aucun wait si succès immédiat"
+
+
+def test_retry_cloud_ocr_api_key_missing_raises_immediately(monkeypatch):
+    """APIKeyMissingError (non-retryable) est propagée sans retry."""
+    import src.extraction.engine as eng
+    from src.core.api_keys import APIKeyMissingError
+
+    calls = []
+
+    def missing_key_func(_uri):
+        calls.append(1)
+        raise APIKeyMissingError("MISTRAL_API_KEY absent")
+
+    monkeypatch.setattr(eng._BACKOFF_WAITER, "wait", lambda _t: None)
+    with pytest.raises(APIKeyMissingError, match="MISTRAL_API_KEY"):
+        eng._retry_cloud_ocr(missing_key_func, "/fake/path.pdf", "test_ocr")
+    assert len(calls) == 1, "APIKeyMissingError doit échouer immédiatement sans retry"

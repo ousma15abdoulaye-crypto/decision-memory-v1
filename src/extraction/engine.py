@@ -26,7 +26,11 @@ import openpyxl  # type: ignore
 import pdfplumber  # type: ignore
 from docx import Document  # type: ignore
 
-from src.core.api_keys import get_llama_cloud_api_key, get_mistral_api_key
+from src.core.api_keys import (
+    APIKeyMissingError,
+    get_llama_cloud_api_key,
+    get_mistral_api_key,
+)
 
 # local
 from src.db.connection import get_db_cursor
@@ -268,7 +272,9 @@ _OCR_BACKOFF_BASE_S = 2.0
 _OCR_JITTER_MAX_S = 0.5
 
 # Exceptions non-retryables : erreurs fatales de configuration ou de fichier.
+# APIKeyMissingError (sous-classe RuntimeError) : clé absente → ne jamais retenter.
 _NON_RETRYABLE_EXCEPTIONS = (
+    APIKeyMissingError,
     ValueError,
     FileNotFoundError,
     ImportError,
@@ -279,10 +285,14 @@ _NON_RETRYABLE_EXCEPTIONS = (
 def _retry_cloud_ocr(func, storage_uri: str, method_name: str) -> tuple[str, dict]:
     """Wrapper retry avec backoff exponentiel + jitter pour les extracteurs cloud.
 
-    Exceptions non-retryables (ValueError, FileNotFoundError, ImportError,
-    PermissionError) sont re-levées immédiatement sans retry.
-    Exceptions réseau (ConnectionError, TimeoutError, OSError) déclenchent
-    le backoff exponentiel avec jitter.
+    Exceptions non-retryables (_NON_RETRYABLE_EXCEPTIONS : APIKeyMissingError,
+    ValueError, FileNotFoundError, ImportError, PermissionError) sont re-levées
+    immédiatement sans retry — ce sont des erreurs de configuration ou de fichier
+    pour lesquelles un second essai ne changera rien.
+
+    Toute autre exception (y compris RuntimeError, ConnectionError, TimeoutError…)
+    déclenche le backoff exponentiel + jitter jusqu'à _OCR_MAX_RETRIES tentatives,
+    puis re-lève la dernière exception.
     """
     last_exc: Exception | None = None
     for attempt in range(_OCR_MAX_RETRIES):
