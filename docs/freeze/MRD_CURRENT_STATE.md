@@ -161,14 +161,10 @@ railway_cli               : Railway CLI — lien projet local (.railway/ gitigno
   birth_source_dominant       : unknown (tous les 1490 items)
   item_code_format            : LG-202603-000001 a LG-202603-001490
 
-### Railway (maglev.proxy.rlwy.net:35451/railway — PostgreSQL 17.7)
+### Railway (PostgreSQL prod)
 
-  alembic_version      : m7_4b  (3 migrations en retard)
-  vendors              : 661
-  mercurials           : 27 396
-  dict_items_actifs    : 0      (pas encore ingere en prod)
-  aliases              : 0
-  seeds_validated      : 0
+  alembic_version      : 056_evaluation_documents (aligné dépôt — sync 2026-04-01)
+  mesures compteurs    : non figées ici — probes read-only : scripts/probe_railway_counts.py (avec RAILWAY_DATABASE_URL locale, jamais commitée)
 
 ### Collisions detectees
 
