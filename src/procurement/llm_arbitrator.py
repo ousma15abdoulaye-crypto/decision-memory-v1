@@ -29,6 +29,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -80,20 +81,24 @@ def _load_yaml_config() -> dict:
 # ── Singleton ─────────────────────────────────────────────────────────────
 
 _arbitrator_instance: LLMArbitrator | None = None
+_arbitrator_lock: threading.Lock = threading.Lock()
 
 
 def get_arbitrator() -> LLMArbitrator:
-    """Retourne le singleton LLMArbitrator."""
+    """Retourne le singleton LLMArbitrator (thread-safe, double-checked locking)."""
     global _arbitrator_instance
     if _arbitrator_instance is None:
-        _arbitrator_instance = LLMArbitrator()
+        with _arbitrator_lock:
+            if _arbitrator_instance is None:
+                _arbitrator_instance = LLMArbitrator()
     return _arbitrator_instance
 
 
 def reset_arbitrator() -> None:
     """Reinitialise le singleton (utile en tests)."""
     global _arbitrator_instance
-    _arbitrator_instance = None
+    with _arbitrator_lock:
+        _arbitrator_instance = None
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────
@@ -202,7 +207,8 @@ class LLMArbitrator:
         )
         self._trigger_type_below = float(td.get("trigger_below_confidence", 0.80))
 
-        self._last_cost: dict = {}
+        # Thread-local storage pour _last_cost : chaque thread voit son propre coût.
+        self._tls: threading.local = threading.local()
 
         logger.debug(
             "[ARBITRATOR] init model=%s timeout=%ds retries=%d enabled=%s",
@@ -211,6 +217,15 @@ class LLMArbitrator:
             self._max_retries,
             self._enabled,
         )
+
+    @property
+    def last_cost(self) -> dict:
+        """Retourne le coût du dernier appel LLM pour le thread courant.
+
+        Thread-safe : chaque thread possède sa propre valeur.
+        Retourne {} si aucun appel n'a été effectué dans ce thread.
+        """
+        return getattr(self._tls, "last_cost", {})
 
     def is_available(self) -> bool:
         """True si arbitrateur actif ET MISTRAL_API_KEY presente.
@@ -282,7 +297,7 @@ class LLMArbitrator:
                     self._model,
                     cost["cost_estimate_usd"],
                 )
-                self._last_cost = cost
+                self._tls.last_cost = cost
                 return output
             except Exception as exc:
                 last_exc = exc
