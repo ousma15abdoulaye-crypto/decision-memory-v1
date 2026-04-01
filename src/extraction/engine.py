@@ -315,9 +315,19 @@ def _retry_cloud_ocr(func, storage_uri: str, method_name: str) -> tuple[str, dic
             )
             return result
         except Exception as exc:
-            # isinstance(tuple) — fiable sur tous les runtimes (évite les edge cases
-            # de « except _tuple_variable » avec certains loaders / coverage).
-            if isinstance(exc, _NON_RETRYABLE_EXCEPTIONS):
+            # Tuple littéral (pas seulement _NON_RETRYABLE_EXCEPTIONS) : sous pytest-cov,
+            # isinstance(exc, tuple_nommé) a pu ne pas matcher APIKeyMissingError (import dupliqué).
+            if isinstance(
+                exc,
+                (
+                    APIKeyMissingError,
+                    _OcrConfigError,
+                    ValueError,
+                    FileNotFoundError,
+                    ImportError,
+                    PermissionError,
+                ),
+            ):
                 _logger.error(
                     "[OCR] %s erreur fatale (non-retryable) : %s",
                     method_name,
