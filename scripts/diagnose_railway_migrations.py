@@ -10,6 +10,7 @@ Requis :
 """
 
 import argparse
+import functools
 import os
 import sys
 from pathlib import Path
@@ -18,12 +19,18 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 
+@functools.lru_cache(maxsize=1)
 def _script_directory():
-    """Script Alembic du dépôt — même source de vérité que `alembic heads`."""
+    """Script Alembic du dépôt — même source de vérité que `alembic heads`.
+
+    Chemins absolus depuis REPO_ROOT pour que le diagnostic fonctionne quel que soit le CWD.
+    """
     from alembic.config import Config
     from alembic.script import ScriptDirectory
 
     cfg = Config(str(REPO_ROOT / "alembic.ini"))
+    cfg.set_main_option("script_location", str(REPO_ROOT / "alembic"))
+    cfg.set_main_option("prepend_sys_path", str(REPO_ROOT))
     return ScriptDirectory.from_config(cfg)
 
 
@@ -121,8 +128,10 @@ def main():
     print(f":: Revision DB actuelle : {db_revision}")
 
     if local_head.startswith("INCONNU") or local_head.startswith("MULTIPLE"):
-        print(f"\n[ATTENTION] Head local non utilisable : {local_head}")
-        return
+        print(
+            f"\n[ATTENTION] Head local non utilisable : {local_head}", file=sys.stderr
+        )
+        sys.exit(1)
 
     if db_revision == local_head:
         print("\n[OK] La DB est synchronisee avec le head local.")
