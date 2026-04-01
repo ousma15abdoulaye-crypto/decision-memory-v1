@@ -271,10 +271,16 @@ _OCR_MAX_RETRIES = 3
 _OCR_BACKOFF_BASE_S = 2.0
 _OCR_JITTER_MAX_S = 0.5
 
+
+class _OcrConfigError(RuntimeError):
+    """Erreur de configuration OCR fatale (clé/endpoint manquant) — non-retryable."""
+
+
 # Exceptions non-retryables : erreurs fatales de configuration ou de fichier.
-# APIKeyMissingError (sous-classe RuntimeError) : clé absente → ne jamais retenter.
+# Ces erreurs ne peuvent pas être résolues en réessayant la même opération.
 _NON_RETRYABLE_EXCEPTIONS = (
     APIKeyMissingError,
+    _OcrConfigError,
     ValueError,
     FileNotFoundError,
     ImportError,
@@ -286,13 +292,13 @@ def _retry_cloud_ocr(func, storage_uri: str, method_name: str) -> tuple[str, dic
     """Wrapper retry avec backoff exponentiel + jitter pour les extracteurs cloud.
 
     Exceptions non-retryables (_NON_RETRYABLE_EXCEPTIONS : APIKeyMissingError,
-    ValueError, FileNotFoundError, ImportError, PermissionError) sont re-levées
-    immédiatement sans retry — ce sont des erreurs de configuration ou de fichier
-    pour lesquelles un second essai ne changera rien.
+    _OcrConfigError, ValueError, FileNotFoundError, ImportError, PermissionError)
+    sont re-levées immédiatement sans retry — ce sont des erreurs de configuration
+    ou de fichier pour lesquelles un second essai ne changera rien.
 
-    Toute autre exception (y compris RuntimeError, ConnectionError, TimeoutError…)
-    déclenche le backoff exponentiel + jitter jusqu'à _OCR_MAX_RETRIES tentatives,
-    puis re-lève la dernière exception.
+    Toute autre exception (ConnectionError, TimeoutError, OSError, et tout RuntimeError
+    non sous-classé par _OcrConfigError) déclenche le backoff exponentiel + jitter
+    jusqu'à _OCR_MAX_RETRIES tentatives, puis re-lève la dernière exception.
     """
     last_exc: Exception | None = None
     for attempt in range(_OCR_MAX_RETRIES):
@@ -530,7 +536,7 @@ def _extract_azure_ocr_fallback(storage_uri: str, mime: str) -> tuple[str, dict]
     endpoint = os.environ.get("AZURE_FORM_RECOGNIZER_ENDPOINT", "")
     key = os.environ.get("AZURE_FORM_RECOGNIZER_KEY", "")
     if not endpoint or not key:
-        raise RuntimeError(
+        raise _OcrConfigError(
             "[OCR] Azure fallback non configuré "
             "(AZURE_FORM_RECOGNIZER_ENDPOINT ou AZURE_FORM_RECOGNIZER_KEY manquant)."
         )

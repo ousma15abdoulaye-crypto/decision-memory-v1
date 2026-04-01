@@ -347,3 +347,19 @@ def test_retry_cloud_ocr_api_key_missing_raises_immediately(monkeypatch):
     with pytest.raises(APIKeyMissingError, match="MISTRAL_API_KEY"):
         eng._retry_cloud_ocr(missing_key_func, "/fake/path.pdf", "test_ocr")
     assert len(calls) == 1, "APIKeyMissingError doit échouer immédiatement sans retry"
+
+
+def test_retry_cloud_ocr_azure_config_error_raises_immediately(monkeypatch):
+    """_OcrConfigError (Azure non configuré) est non-retryable."""
+    import src.extraction.engine as eng
+
+    calls = []
+
+    def azure_config_missing(_uri):
+        calls.append(1)
+        raise eng._OcrConfigError("Azure endpoint manquant")
+
+    monkeypatch.setattr(eng._BACKOFF_WAITER, "wait", lambda _t: None)
+    with pytest.raises(eng._OcrConfigError, match="Azure endpoint manquant"):
+        eng._retry_cloud_ocr(azure_config_missing, "/fake/path.pdf", "azure")
+    assert len(calls) == 1, "_OcrConfigError doit échouer immédiatement sans retry"
