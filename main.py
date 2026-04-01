@@ -84,7 +84,20 @@ async def lifespan(app):
     yield
 
 
-app = FastAPI(title=APP_TITLE, version=APP_VERSION, lifespan=lifespan)
+OPENAPI_DESCRIPTION = (
+    "Certaines routes renvoient volontairement HTTP 501 (Not Implemented), documentées "
+    "dans OpenAPI et dans docs/audits/HTTP_501_PUBLIC_STATUS.md : "
+    "`POST /api/scoring/calculate` (scoring réservé au pipeline FSM, pas d’appel direct) ; "
+    "`POST /api/analyze` s’appuie sur l’extraction structurée des critères DAO — tant que "
+    "cette étape n’est pas livrée (roadmap M10B), la réponse peut être 501 (comportement attendu)."
+)
+
+app = FastAPI(
+    title=APP_TITLE,
+    version=APP_VERSION,
+    lifespan=lifespan,
+    description=OPENAPI_DESCRIPTION,
+)
 
 
 @app.get("/health")

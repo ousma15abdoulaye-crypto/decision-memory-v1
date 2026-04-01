@@ -195,6 +195,35 @@ Toute modification du plan d'exécution (durées, séquence, règles agent, gate
 
 ---
 
+## Applications FastAPI (prod vs tests)
+
+- **Production / Railway** : `uvicorn main:app` — fichier racine `main.py`.
+- Toute **nouvelle route** exposée en production doit être montée dans `main.py` (inclusion du router).
+- `src/api/main.py` sert de référence ADR-M5-PRE-001 §D1.3 et de harness pour une partie des tests ; ne pas y ajouter une surface « prod-only » sans équivalent dans `main.py`, sauf décision CTO documentée. Voir `docs/adr/ADR-DUAL-FASTAPI-ENTRYPOINTS.md`.
+- Matrice des tests par application importée : `tests/README.md`.
+
+## PR touchant une migration Alembic (E-82)
+
+Si la PR ajoute ou modifie un fichier sous `alembic/versions/` :
+
+- [ ] `docs/freeze/MRD_CURRENT_STATE.md` — section ÉTAT ALEMBIC (head local, pending Railway si pertinent)
+- [ ] `docs/freeze/CONTEXT_ANCHOR.md` — bloc GIT/ALEMBIC
+- [ ] `scripts/validate_mrd_state.py` — `_KNOWN_MIGRATION_CHAIN`
+- [ ] `tests/test_046b_imc_map_fix.py` — `VALID_ALEMBIC_HEADS` si nouveau head
+- [ ] Runbook canonique : `docs/ops/RAILWAY_MIGRATION_RUNBOOK.md` (pas de duplicate sous `docs/operations/` sauf stub redirect)
+
+Référence : `docs/adr/ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE.md` pour la preuve live Railway.
+
+## DDL freeze vs schéma Alembic
+
+Le DDL dans `docs/freeze/DMS_V4.1.0_FREEZE.md` décrit l’intention produit ; les **types et contraintes effectifs** en base suivent la **chaîne Alembic** (`alembic/versions/`). En cas de divergence (ex. `cases.id` en TEXT dans les migrations vs UUID dans un extrait freeze), l’implémentation et les nouvelles migrations doivent s’aligner sur Alembic. Voir `docs/freeze/DDL_VS_ALEMBIC.md` (note courte).
+
+## Lint sur `main.py` (racine)
+
+Les workflows CI ciblent en général `src/`, `tests/`, `services/`. Le fichier `main.py` charge `.env` avant les autres imports : des avertissements Ruff E402 peuvent apparaître si l’on lint la racine. Ne pas appliquer un refactor massif « pour le lint » sans mandat ; préférer un bootstrap extrait ou `# noqa: E402` avec commentaire justificatif.
+
+---
+
 ## Checklist avant ouverture de PR
 
 Avant d'ouvrir une PR, vérifier :

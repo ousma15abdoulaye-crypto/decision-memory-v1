@@ -69,6 +69,16 @@ Justification si OUI:
 
  Pas de dépendance externe critique ajoutée
 
+🔧 Migration Alembic (uniquement si la PR modifie ou ajoute `alembic/versions/**`)
+ Cocher si applicable — sinon laisser vide (E-82 / `docs/CONTRIBUTING.md`) :
+
+- [ ] `docs/freeze/MRD_CURRENT_STATE.md` — section ÉTAT ALEMBIC
+- [ ] `docs/freeze/CONTEXT_ANCHOR.md` — bloc GIT/ALEMBIC
+- [ ] `scripts/validate_mrd_state.py` — `_KNOWN_MIGRATION_CHAIN`
+- [ ] `tests/test_046b_imc_map_fix.py` — `VALID_ALEMBIC_HEADS` si nouveau head
+- [ ] Runbook : `docs/ops/RAILWAY_MIGRATION_RUNBOOK.md`
+- [ ] Note sync prod : `docs/adr/ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE.md` si impact Railway
+
 👥 Reviewers
 Obligatoire:
 

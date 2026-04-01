@@ -886,7 +886,7 @@ Détails : `docs/calibration/M12_calibration_log.md`, `docs/calibration/benchmar
 - `scripts/probe_alembic_head.py` — probe Alembic local ou Railway (`--railway`), affiche delta ordonné.
 - `scripts/probe_railway_counts.py` — COUNT tables critiques Railway (read-only), vérifie triggers couche_b.
 - `scripts/validate_mrd_state.py` — enrichi : affiche la liste exacte des migrations pending entre local et Railway (plus juste "DÉSALIGNÉ").
-- `docs/operations/RAILWAY_MIGRATION_RUNBOOK.md` — runbook 3 lots sécurisés avec probe pre/post et rollback documenté.
+- `docs/ops/RAILWAY_MIGRATION_RUNBOOK.md` — runbook canonique (probes pre/post, rollback ; `docs/operations/` = stub redirect).
 
 ### PHASE 3 — INTELLIGENCE LLM STRATEGIQUE (M12 Double Cerveau)
 

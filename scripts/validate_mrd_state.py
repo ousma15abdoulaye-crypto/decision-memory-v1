@@ -645,7 +645,7 @@ def check_alignment(head_lines: list, db_result: dict, railway_result: dict):
                 info(f"  Migrations pending RAILWAY ({len(delta)}) :")
                 for m in delta:
                     info(f"    -> {m}")
-                info("  Runbook : docs/operations/RAILWAY_MIGRATION_RUNBOOK.md")
+                info("  Runbook : docs/ops/RAILWAY_MIGRATION_RUNBOOK.md")
                 info("  Flag requis : DMS_ALLOW_RAILWAY_MIGRATE=1 (GO CTO obligatoire)")
     elif not rail_ver:
         warn(
