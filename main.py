@@ -120,6 +120,16 @@ def health_probe() -> dict[str, str]:
 # Initialize rate limiting
 init_rate_limit(app)
 
+# Middleware sécurité — SecurityHeaders (identique à src/api/main.py)
+try:
+    from src.couche_a.auth.middleware import SecurityHeadersMiddleware
+
+    app.add_middleware(SecurityHeadersMiddleware)
+except ImportError as _mw_err:
+    logging.getLogger(__name__).warning(
+        "[main] SecurityHeadersMiddleware non chargé : %s", _mw_err
+    )
+
 # Include routers
 app.include_router(auth_router)
 app.include_router(upload_router)

@@ -170,12 +170,17 @@ def _mistral_message_content_to_str(content: Any) -> str:
 
 # E-27 : CORS restrictif — CORS_ORIGINS env (comma-separated)
 # Default localhost:8080 pour dev. Prod Railway : définir CORS_ORIGINS=URL_LABEL_STUDIO
+# SÉCURITÉ : le wildcard "*" est interdit — fallback sur localhost:8080 + CRITICAL log.
 _CORS_RAW = os.environ.get("CORS_ORIGINS", "http://localhost:8080")
-CORS_ORIGINS = (
-    ["*"]
-    if _CORS_RAW.strip() == "*"
-    else [o.strip() for o in _CORS_RAW.split(",") if o.strip()]
-)
+if _CORS_RAW.strip() == "*":
+    logging.getLogger(__name__).critical(
+        "[SECURITY] CORS_ORIGINS='*' est interdit — "
+        "fallback sur ['http://localhost:8080']. "
+        "Définir CORS_ORIGINS=<URL_LABEL_STUDIO> en production."
+    )
+    CORS_ORIGINS: list[str] = ["http://localhost:8080"]
+else:
+    CORS_ORIGINS = [o.strip() for o in _CORS_RAW.split(",") if o.strip()]
 
 # Sel pseudonymisation — variable env obligatoire
 # Si absent → échec du démarrage, sauf si ALLOW_WEAK_PSEUDONYMIZATION est activé
@@ -425,7 +430,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
