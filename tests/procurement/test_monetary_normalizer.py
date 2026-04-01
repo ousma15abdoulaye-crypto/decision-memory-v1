@@ -11,7 +11,9 @@ T7  : classify_dgmp_tier — aon (25M FCFA, goods/services)
 T8  : classify_dgmp_tier — aoi (≥ 500M FCFA)
 T9  : classify_dgmp_tier — travaux tier works (< 100M = gré à gré)
 T10 : H1 builder peuple dgmp_threshold_tier_detected si framework=DGMP
-T11 : SCI_DGMP_OVERLAP_ZONE_USD — zone de recouvrement correctement bornée
+T11 : H1 builder transmet family=WORKS → tier travaux correct (80M → gré à gré)
+T12 : H1 SCI — dgmp_threshold_tier_detected reste None
+T13 : SCI_DGMP_OVERLAP_ZONE_USD — zone de recouvrement correctement bornée
 """
 
 from __future__ import annotations
@@ -124,7 +126,34 @@ def test_h1_no_dgmp_tier_for_sci_framework():
     assert profile.dgmp_threshold_tier_detected is None
 
 
-# ── T11 : SCI_DGMP_OVERLAP_ZONE_USD ──────────────────────────────────────
+# ── T11 : H1 builder family=WORKS → seuils travaux ───────────────────────
+
+
+def test_h1_dgmp_tier_works_80m_is_gre_a_gre():
+    """80M FCFA = gré à gré pour les travaux (seuil travaux: 100M), pas pour biens (25M)."""
+    from src.procurement.document_ontology import (
+        ProcurementFamily,
+        ProcurementFramework,
+    )
+    from src.procurement.handoff_builder import _build_h1_regulatory
+
+    text = "Travaux de réhabilitation — budget estimé 80 000 000 FCFA"
+    profile = _build_h1_regulatory(
+        framework=ProcurementFramework.DGMP_MALI,
+        framework_confidence=0.85,
+        text=text,
+        family=ProcurementFamily.WORKS,
+    )
+    assert profile.dgmp_threshold_tier_detected == "gre_a_gre", (
+        "80M FCFA pour des travaux doit être gré à gré (seuil 100M), "
+        "pas aon comme pour les biens/services (seuil 25M)"
+    )
+
+
+# ── T12 : SCI → pas de tier DGMP (déjà couvert, référence mise à jour) ───
+# (test_h1_no_dgmp_tier_for_sci_framework ci-dessus)
+
+# ── T13 : SCI_DGMP_OVERLAP_ZONE_USD ──────────────────────────────────────
 
 
 def test_sci_dgmp_overlap_zone_bounds():

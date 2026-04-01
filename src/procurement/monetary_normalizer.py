@@ -83,7 +83,7 @@ _PATTERN = re.compile(
     r"|\d+"
     r")"
     r"\s*"
-    r"(?P<mult>m|mm|k|millions?|milliards?|mille|b)?"
+    r"(?P<mult>millions?|milliards?|mille|mm|m|k|b)?"
     r"\s*"
     r"(?P<currency>FCFA|XOF|CFA|F CFA|Franc CFA|USD|\$|US\$|EUR|€|euros?|dollars?)",
     re.IGNORECASE,
