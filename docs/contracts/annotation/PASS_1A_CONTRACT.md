@@ -21,9 +21,9 @@
 | document_role | str | Legacy backward-compat: document kind value |
 | taxonomy_core | str | Legacy backward-compat: document kind value |
 | routing_confidence | float | Discretized to {0.6, 0.8, 1.0} |
-| routing_source | str | "deterministic" or "llm_fallback" |
+| routing_source | str | Enum: "deterministic", "hybrid_deterministic_llm", "deterministic_blocked" |
 | matched_rule | str | Rule ID that matched |
-| deterministic | bool | Always True for now |
+| deterministic | bool | True if deterministic path only; False when LLM overrides the result |
 | routing_evidence | list[str] | Evidence list |
 | routing_failure_reason | str or None | None unless unresolved |
 

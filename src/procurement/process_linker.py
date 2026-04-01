@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
+from pathlib import Path
 
 from src.procurement.document_ontology import (
     DOCUMENT_KIND_TO_PROCESS_ROLE,
@@ -41,7 +42,36 @@ except ImportError:
         return 1.0 if a == b else 0.0
 
 
-FUZZY_THRESHOLD = 0.85
+def _load_fuzzy_threshold(fallback: float = 0.85) -> float:
+    """Charge le seuil fuzzy depuis config/llm_arbitration.yaml.
+
+    Retourne ``fallback`` si le fichier est absent ou le chemin introuvable.
+    """
+    try:
+        import yaml  # type: ignore[import-untyped]
+
+        _config_path = (
+            Path(__file__).resolve().parents[2] / "config" / "llm_arbitration.yaml"
+        )
+        if not _config_path.exists():
+            return fallback
+        with _config_path.open(encoding="utf-8") as _f:
+            _cfg = yaml.safe_load(_f)
+        return float(
+            _cfg.get("thresholds", {})
+            .get("process_linking", {})
+            .get("trigger_below_fuzzy", fallback)
+        )
+    except Exception:
+        logger.warning(
+            "process_linker: impossible de charger llm_arbitration.yaml — "
+            "FUZZY_THRESHOLD=%s (fallback)",
+            fallback,
+        )
+        return fallback
+
+
+FUZZY_THRESHOLD: float = _load_fuzzy_threshold()
 
 # Budget LLM par document : limite le nombre d'appels semantiques Level 5
 # pour eviter l'explosion sur les dossiers avec N candidats sans references.
