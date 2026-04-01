@@ -16,6 +16,10 @@ from src.procurement.document_ontology import (
     ProcurementFamilySub,
     ProcurementFramework,
 )
+from src.procurement.monetary_normalizer import (
+    classify_dgmp_tier,
+    normalize_monetary_value,
+)
 from src.procurement.procedure_models import (
     AtomicCapabilitySkeleton,
     EligibilityGateExtracted,
@@ -89,6 +93,15 @@ def _build_h1_regulatory(
     if pct_match:
         sustainability_pct = float(pct_match.group(1))
 
+    # Détection tier DGMP via normalisation monétaire
+    dgmp_threshold_tier: str | None = None
+    if framework == ProcurementFramework.DGMP_MALI:
+        monetary_values = normalize_monetary_value(text)
+        if monetary_values:
+            largest = monetary_values[0]
+            dgmp_threshold_tier = classify_dgmp_tier(largest.amount_fcfa)
+            dgmp_signals.append(f"tier_{dgmp_threshold_tier}_detected")
+
     return RegulatoryProfileSkeleton(
         framework_detected=framework,
         framework_confidence=framework_confidence,
@@ -99,6 +112,7 @@ def _build_h1_regulatory(
         sci_sanctions_clause_present=bool(_SCI_SANCTIONS.search(text)),
         dgmp_signals_detected=dgmp_signals,
         dgmp_procedure_type_detected=dgmp_proc_type,
+        dgmp_threshold_tier_detected=dgmp_threshold_tier,
     )
 
 

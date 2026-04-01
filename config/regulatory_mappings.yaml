@@ -1,4 +1,12 @@
 # DMS — Mapping declaratif : sections reglementaires -> regles DMS
+#
+# ÉCART SCI ↔ DGMP — zone de recouvrement (prérequis M13)
+# ─────────────────────────────────────────────────────────
+# SCI ITB upper  : 50 000 USD ≈ 30 000 000 FCFA (@ 600 FCFA/USD)
+# DGMP AON lower : 25 000 000 FCFA ≈ 41 667 USD
+# Zone de recouvrement : 25M–30M FCFA (41 667–50 000 USD)
+# Tout marché dans cette zone est potentiellement soumis aux deux cadres.
+# M13 doit résoudre l'ambiguïté : priorité au cadre detecté par framework_signal_bank.
 # Extensible sans toucher au code Python.
 # Utilise par src/procurement/regulatory_index.py
 
