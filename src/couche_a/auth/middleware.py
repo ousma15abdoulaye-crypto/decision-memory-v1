@@ -50,9 +50,13 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
             try:
                 from jose import jwt as _jwt
 
+                # SÉCURITÉ : get_unverified_claims() ne vérifie PAS la signature.
+                # Ne jamais positionner app.is_admin depuis des claims non vérifiés —
+                # un attaquant pourrait forger is_admin=true et bypasser l'isolation RLS.
+                # app.is_admin est forcé à False ici ; seul get_current_user() (qui
+                # vérifie la signature) doit le promouvoir via set_rls_is_admin(True).
                 payload = _jwt.get_unverified_claims(token)
                 tenant_id = payload.get("tenant_id") or ""
-                role = payload.get("role", "")
                 user_id = str(payload.get("sub", ""))
 
                 from src.db.tenant_context import (
@@ -62,7 +66,7 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
                 )
 
                 set_db_tenant_id(tenant_id)
-                set_rls_is_admin(role == "admin")
+                set_rls_is_admin(False)  # jamais True depuis claims non vérifiés
                 set_rls_user_id(user_id)
             except Exception as exc:
                 logger.warning(

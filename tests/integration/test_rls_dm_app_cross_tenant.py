@@ -236,3 +236,81 @@ def test_dm_app_cannot_select_other_tenant_extraction_job(db_conn):
             cur.execute(
                 "DELETE FROM public.cases WHERE id = ANY(%s)", ([case_a, case_b],)
             )
+
+
+def _insert_user_tenant(cur, user_id: str, tenant_id: str) -> None:
+    cur.execute(
+        """
+        INSERT INTO public.user_tenants (user_id, tenant_id)
+        VALUES (%s, %s)
+        ON CONFLICT DO NOTHING
+        """,
+        (user_id, tenant_id),
+    )
+
+
+def test_dm_app_user_tenants_self_isolation(db_conn):
+    """Sous app.user_id=U1, SELECT user_tenants ne retourne que les lignes de U1."""
+    uid_a = str(uuid.uuid4())
+    uid_b = str(uuid.uuid4())
+    tid = f"rls-ut-{uuid.uuid4().hex[:8]}"
+
+    with db_conn.cursor() as cur:
+        _insert_user_tenant(cur, uid_a, tid)
+        _insert_user_tenant(cur, uid_b, tid)
+    db_conn.commit()
+
+    try:
+        with _rls_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT set_config('app.user_id', %s, true)", (uid_a,))
+                cur.execute("SELECT set_config('app.tenant_id', %s, true)", (tid,))
+                cur.execute(
+                    "SELECT user_id FROM public.user_tenants WHERE user_id = %s",
+                    (uid_b,),
+                )
+                rows = cur.fetchall()
+            conn.commit()
+        assert (
+            rows == []
+        ), "RLS user_tenants — user A ne doit pas voir les lignes de user B"
+    finally:
+        with db_conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM public.user_tenants WHERE user_id = ANY(%s)",
+                ([uid_a, uid_b],),
+            )
+
+
+def test_dm_app_admin_bypass_sees_all_user_tenants(db_conn):
+    """Sous app.is_admin=true, SELECT user_tenants retourne toutes les lignes."""
+    uid_a = str(uuid.uuid4())
+    uid_b = str(uuid.uuid4())
+    tid = f"rls-ut-adm-{uuid.uuid4().hex[:8]}"
+
+    with db_conn.cursor() as cur:
+        _insert_user_tenant(cur, uid_a, tid)
+        _insert_user_tenant(cur, uid_b, tid)
+    db_conn.commit()
+
+    try:
+        with _rls_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT set_config('app.is_admin', 'true', true)", ())
+                cur.execute("SELECT set_config('app.tenant_id', %s, true)", (tid,))
+                cur.execute(
+                    "SELECT user_id FROM public.user_tenants WHERE user_id = ANY(%s)",
+                    ([uid_a, uid_b],),
+                )
+                rows = cur.fetchall()
+            conn.commit()
+        found_ids = {r["user_id"] for r in rows}
+        assert (
+            uid_a in found_ids and uid_b in found_ids
+        ), "Admin doit voir toutes les lignes user_tenants"
+    finally:
+        with db_conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM public.user_tenants WHERE user_id = ANY(%s)",
+                ([uid_a, uid_b],),
+            )

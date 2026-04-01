@@ -150,7 +150,11 @@ def get_connection() -> Iterator[_ConnectionWrapper]:
 
     conn = _connect()
     wrapper = _ConnectionWrapper(conn)
-    from src.db.tenant_context import get_db_tenant_id, get_rls_is_admin
+    from src.db.tenant_context import (
+        get_db_tenant_id,
+        get_rls_is_admin,
+        get_rls_user_id,
+    )
 
     tid = get_db_tenant_id()
     if tid:
@@ -162,6 +166,12 @@ def get_connection() -> Iterator[_ConnectionWrapper]:
         wrapper.execute(
             "SELECT set_config('app.is_admin', :v, true)",
             {"v": "true"},
+        )
+    uid = get_rls_user_id()
+    if uid:
+        wrapper.execute(
+            "SELECT set_config('app.user_id', :uid, true)",
+            {"uid": uid},
         )
     try:
         yield wrapper
