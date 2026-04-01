@@ -88,7 +88,7 @@
 ║                                                                      ║
 ║  GIT — 2026-04-01                                                    ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  main              : 6a8988c6 (Merge PR #287 docs/pre-m13-enterprise-governance) ║
+║  main              : 134412dc (CONTEXT + MRD post-merge PR #286 #287)            ║
 ║  PR #286 fix/alembic-diagnose-chain-truth : MERGÉ (diagnostic Alembic ScriptDirectory) ║
 ║  PR #287 docs/pre-m13-enterprise-governance : MERGÉ (ADR, runbook unique, smoke main:app) ║
 ║  Branches distantes PR #286 / #287 : supprimées après merge                       ║
