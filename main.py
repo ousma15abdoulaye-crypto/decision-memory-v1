@@ -129,17 +129,12 @@ from src.couche_a.scoring import api as scoring_api
 app.include_router(scoring_api.router)
 # ❌ REMOVED: app.include_router(procurement_router) (M2-Extended)
 
+# ── Router criteria (OBLIGATOIRE — mirrors src/api/main.py §D1.3) ────────────
+from src.couche_a.criteria.router import router as _criteria_router
+
+app.include_router(_criteria_router)
+
 # ── Routers optionnels (strangler pattern — mirrors src/api/main.py) ──────────
-_criteria_router = None
-try:
-    from src.couche_a.criteria.router import router as _criteria_router_imp
-
-    _criteria_router = _criteria_router_imp
-except ImportError as _e:
-    logging.getLogger(__name__).warning(
-        "[main] router optionnel src.couche_a.criteria non chargé : %s", _e
-    )
-
 _geo_router = None
 try:
     from src.geo.router import router as _geo_router_imp
@@ -203,7 +198,6 @@ except ImportError as _e:
     )
 
 for _opt_router in [
-    _criteria_router,
     _geo_router,
     _vendors_router,
     _mercuriale_router,

@@ -13,7 +13,7 @@ python scripts/diagnose_railway_migrations.py
 ```
 
 Sortie attendue :
-- Head local : `055_extend_rls_documents_extraction_jobs` (ou le dernier head)
+- Head local : `056_evaluation_documents` (ou le dernier head)
 - Revision DB : la revision actuelle de Railway
 - Liste des migrations manquantes si ecart
 
