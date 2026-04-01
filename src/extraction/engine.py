@@ -18,8 +18,7 @@ import logging
 import os
 import time
 import uuid
-
-_logger = logging.getLogger(__name__)
+from threading import Event
 
 # third-party
 import openpyxl  # type: ignore
@@ -30,6 +29,9 @@ from src.core.api_keys import get_llama_cloud_api_key, get_mistral_api_key
 
 # local
 from src.db.connection import get_db_cursor
+
+_logger = logging.getLogger(__name__)
+_BACKOFF_WAITER = Event()
 
 # ── Constantes ───────────────────────────────────────────────────
 
@@ -293,7 +295,7 @@ def _retry_cloud_ocr(func, storage_uri: str, method_name: str) -> tuple[str, dic
                     exc,
                     wait,
                 )
-                time.sleep(wait)
+                _BACKOFF_WAITER.wait(wait)
             else:
                 _logger.error(
                     "[OCR] %s echec definitif apres %d tentatives (%.0fms) : %s",

@@ -2,7 +2,7 @@
 """Applique les migrations Alembic une par une avec verification entre chaque etape.
 
 Usage :
-    python scripts/apply_railway_migrations_safe.py --dry-run
+    python scripts/apply_railway_migrations_safe.py
     python scripts/apply_railway_migrations_safe.py --apply
     python scripts/apply_railway_migrations_safe.py --apply --db-url "postgresql+psycopg://..."
 
@@ -45,10 +45,16 @@ def _get_db_url(cli_url: str | None = None) -> str:
 
 def _get_current_revision(db_url: str) -> str | None:
     from sqlalchemy import create_engine, text
+    from sqlalchemy.exc import ProgrammingError
 
     engine = create_engine(db_url, pool_pre_ping=True)
     with engine.connect() as conn:
-        result = conn.execute(text("SELECT version_num FROM alembic_version LIMIT 1"))
+        try:
+            result = conn.execute(text("SELECT version_num FROM alembic_version LIMIT 1"))
+        except ProgrammingError as exc:
+            if "alembic_version" in str(exc).lower():
+                return None
+            raise
         row = result.fetchone()
         return row[0] if row else None
 
@@ -58,13 +64,18 @@ def _get_pending_migrations(db_url: str) -> list[str]:
     env = os.environ.copy()
     env["DATABASE_URL"] = db_url
 
-    subprocess.run(
+    result_history = subprocess.run(
         ["alembic", "history", "--verbose"],
         capture_output=True,
         text=True,
         cwd=str(REPO_ROOT),
         env=env,
     )
+    if result_history.returncode != 0:
+        print("ERREUR : echec de la commande 'alembic history --verbose'.", file=sys.stderr)
+        if result_history.stderr:
+            print(result_history.stderr.strip(), file=sys.stderr)
+        sys.exit(1)
 
     current = _get_current_revision(db_url)
 
@@ -75,6 +86,11 @@ def _get_pending_migrations(db_url: str) -> list[str]:
         cwd=str(REPO_ROOT),
         env=env,
     )
+    if result_heads.returncode != 0:
+        print("ERREUR : echec de la commande 'alembic heads'.", file=sys.stderr)
+        if result_heads.stderr:
+            print(result_heads.stderr.strip(), file=sys.stderr)
+        sys.exit(1)
     heads_output = result_heads.stdout.strip()
     head_revisions = []
     for line in heads_output.splitlines():
@@ -105,6 +121,11 @@ def _get_pending_migrations(db_url: str) -> list[str]:
         cwd=str(REPO_ROOT),
         env=env,
     )
+    if result_pending.returncode != 0:
+        print("ERREUR : echec de la commande 'alembic history base:head'.", file=sys.stderr)
+        if result_pending.stderr:
+            print(result_pending.stderr.strip(), file=sys.stderr)
+        sys.exit(1)
 
     pending = []
     for line in result_pending.stdout.strip().splitlines():
@@ -112,7 +133,8 @@ def _get_pending_migrations(db_url: str) -> list[str]:
         if " -> " in line:
             parts = line.split(" -> ")
             if len(parts) >= 2:
-                rev = parts[1].split(" ")[0].split(",")[0].strip()
+                # Extraire l'ID de revision de gauche : "revision -> down_revision"
+                rev = parts[0].split(" ")[0].split(",")[0].strip()
                 if rev:
                     pending.append(rev)
 
@@ -129,12 +151,6 @@ def main():
         "--apply",
         action="store_true",
         help="Appliquer les migrations (sans ce flag = dry-run)",
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        default=True,
-        help="Mode simulation (defaut)",
     )
     args = parser.parse_args()
 

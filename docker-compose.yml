@@ -64,10 +64,10 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql+psycopg://dms:dms@postgres:5432/dms
-      REDIS_URL: redis://redis:6379/0
-      PORT: "8000"
-      SECRET_KEY: dev-docker-compose-change-me
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://dms:dms@postgres:5432/dms}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      PORT: ${PORT:-8000}
+      SECRET_KEY: ${SECRET_KEY:-dev-docker-compose-change-me}
     env_file:
       - path: .env.docker
         required: false
@@ -107,7 +107,7 @@ services:
       start_period: 15s
 
   label-studio:
-    image: heartexlabs/label-studio:latest
+    image: heartexlabs/label-studio:1.14.3
     profiles:
       - full
     ports:

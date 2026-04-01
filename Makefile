@@ -1,5 +1,5 @@
 # DMS — Makefile d'orchestration Docker
-# Prereqis : Docker Desktop, docker compose v2
+# Prerequis : Docker Desktop, docker compose v2
 #
 # Commandes principales :
 #   make up        — lance Postgres + migrations + stack complete

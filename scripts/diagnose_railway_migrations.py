@@ -151,16 +151,23 @@ def main():
 
     try:
         from sqlalchemy import create_engine, text
+        from sqlalchemy.exc import ProgrammingError
 
         engine = create_engine(db_url, pool_pre_ping=True)
         with engine.connect() as conn:
-            row = conn.execute(
-                text("SELECT version_num FROM alembic_version LIMIT 1")
-            ).fetchone()
-            if row:
-                db_revision = row[0]
-            else:
-                db_revision = "(table vide — aucune migration appliquee)"
+            try:
+                row = conn.execute(
+                    text("SELECT version_num FROM alembic_version LIMIT 1")
+                ).fetchone()
+                if row:
+                    db_revision = row[0]
+                else:
+                    db_revision = "(table vide — aucune migration appliquee)"
+            except ProgrammingError as exc:
+                if "alembic_version" in str(exc).lower():
+                    db_revision = "(table alembic_version absente — aucune migration appliquee)"
+                else:
+                    raise
     except Exception as exc:
         print(f"ERREUR connexion DB : {exc}", file=sys.stderr)
         print(
