@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-02 (M13 PR #292 + audit hardening NC-01/02/03 + migration 058) ║
+║  Dernière mise à jour : 2026-04-02 (PR #293 merged — audit hardening M13 NC-01/02/03 + F-01/F-02 + migration 058) ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -102,10 +102,11 @@
 ║  feat/m12-engine-v6 : MERGÉ dans main (M12 Engine V6 — PR #274)     ║
 ║  feat/fix-extract-02 : MERGÉ dans main (M-FIX-EXTRACT-02)            ║
 ║  feat/pre-m12-extraction-reelle : MERGÉ dans main (Mandat 4)        ║
+║  fix/m13-audit-hardening : MERGÉ dans main (PR #293 — audit M13 hardening) ║
 ║  feat/fix-backend-production : backend v3.0.1d (en attente merge)   ║
 ║  alembic head dépôt / CI : 058_m13_correction_log_case_id_index          ║
-║  alembic head Railway prod : 057 (058 à appliquer après merge fix/m13-audit-hardening) ║
-║  migrations pending Railway : 058_m13_correction_log_case_id_index — 057 appliquée (apply_railway_migrations_safe.py --apply) ║
+║  alembic head Railway prod : 057 (058 pending — appliquer via apply_railway_migrations_safe.py --apply) ║
+║  migrations pending Railway : 058_m13_correction_log_case_id_index                          ║
 ║  RAILWAY_DATABASE_URL : défini hors dépôt — fichier local .env.railway.local (gitignored) ; ║
 ║    chargement scripts/with_railway_env.py ou .\\scripts\\load_railway_env.ps1 — RAILWAY_LOCAL_ENV.md ║
 ║  annotation-backend M12 Ph.3 : orchestrateur derrière ANNOTATION_USE_PASS_ORCHESTRATOR ║
@@ -142,7 +143,7 @@
 ║  RÈGLE           : zéro autogenerate — SQL brut uniquement         ║
 ║  RÈGLE           : zéro modification fichiers existants 001-058    ║
 ║  RÈGLE           : toute nouvelle migration = 059+ séquentiel       ║
-║  apply_safe      : scripts/apply_railway_migrations_safe.py — prod 057 ; 058 pending après merge ║
+║  apply_safe      : scripts/apply_railway_migrations_safe.py — prod 057 ; 058 pending (PR #293 merged) ║
 ║    via ScriptDirectory (graphe merges), pas parse linéaire seul    ║
 ║  VIOLATION       : faute disciplinaire grave immédiate             ║
 ║                                                                      ║
@@ -1050,9 +1051,10 @@ Voir diff GitHub PR #276 pour liste exhaustive ; points d’ancrage code : `src/
 
 ---
 
-## ADDENDUM 2026-04-02 — AUDIT M13 HARDENING (fix/m13-audit-hardening)
+## ADDENDUM 2026-04-02 — AUDIT M13 HARDENING (PR #293 — merged f2aef1d1)
 
 **Autorité :** audit système post-PR #292 — correctifs NC-01 / NC-02 / NC-03 + faiblesses F-01 / F-02.
+**Statut :** MERGÉ dans main — CI 9/9 pass.
 
 ### NC-01 — Orchestrateur FSM (corrigé)
 
