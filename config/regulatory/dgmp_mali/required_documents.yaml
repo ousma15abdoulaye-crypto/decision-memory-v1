@@ -1,0 +1,86 @@
+framework: dgmp_mali
+
+buyer_documents:
+  by_procedure:
+    open_national:
+      - document_name: "Dossier d'Appel d'Offres (DAO)"
+        is_mandatory: true
+        is_eliminatory: false
+        applicable_stages: ["solicitation"]
+      - document_name: "Avis d'appel à concurrence"
+        is_mandatory: true
+        is_eliminatory: false
+        applicable_stages: ["solicitation"]
+    open_international:
+      - document_name: "DAO avec spécifications internationales"
+        is_mandatory: true
+        is_eliminatory: false
+        applicable_stages: ["solicitation"]
+
+supplier_documents:
+  common:
+    - document_name: "NIF"
+      admin_subtype: "nif"
+      is_mandatory: true
+      is_eliminatory: true
+      applicable_stages: ["submission"]
+      validity_rule_ref: "nif"
+      article: "Article 62"
+    - document_name: "RCCM"
+      admin_subtype: "rccm"
+      is_mandatory: true
+      is_eliminatory: true
+      applicable_stages: ["submission"]
+      validity_rule_ref: "rccm"
+      article: "Article 62"
+    - document_name: "Attestation fiscale"
+      admin_subtype: "quitus_fiscal"
+      is_mandatory: true
+      is_eliminatory: true
+      applicable_stages: ["submission"]
+      validity_rule_ref: "quitus_fiscal"
+      article: "Article 62"
+    - document_name: "Certificat de non-faillite"
+      admin_subtype: "certificat_non_faillite"
+      is_mandatory: true
+      is_eliminatory: true
+      applicable_stages: ["submission"]
+      validity_rule_ref: "certificat_non_faillite"
+      article: "Article 62"
+    - document_name: "Attestation INPS"
+      admin_subtype: "attestation"
+      is_mandatory: true
+      is_eliminatory: true
+      applicable_stages: ["submission"]
+      validity_rule_ref: "attestation"
+      article: "Article 62"
+    - document_name: "RIB"
+      admin_subtype: "rib"
+      is_mandatory: true
+      is_eliminatory: false
+      applicable_stages: ["submission"]
+      validity_rule_ref: "rib"
+      article: "Article 62"
+  by_procedure:
+    open_national:
+      - document_name: "Caution de soumission"
+        admin_subtype: "certification"
+        is_mandatory: true
+        is_eliminatory: true
+        applicable_stages: ["submission"]
+        validity_rule_ref: "certification"
+        article: "Article 63"
+    open_international:
+      - document_name: "Caution de soumission"
+        admin_subtype: "certification"
+        is_mandatory: true
+        is_eliminatory: true
+        applicable_stages: ["submission"]
+        validity_rule_ref: "certification"
+        article: "Article 63"
+      - document_name: "Agrément professionnel"
+        admin_subtype: "licence"
+        is_mandatory: false
+        is_eliminatory: false
+        applicable_stages: ["submission"]
+        validity_rule_ref: "licence"

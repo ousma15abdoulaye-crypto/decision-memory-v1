@@ -1,0 +1,40 @@
+framework: dgmp_mali
+
+organs:
+  commission_ouverture:
+    organ_name: "Commission d'ouverture des plis"
+    organ_role: "opening_committee"
+    required_for_procedure:
+      - "open_national"
+      - "open_international"
+    quorum_rule: "Présidence + 2 membres minimum"
+    composition_rule: "Autorité contractante + représentant DGMP"
+    article: "Article 72"
+  commission_evaluation:
+    organ_name: "Commission d'évaluation des offres"
+    organ_role: "evaluation_committee"
+    required_for_procedure:
+      - "open_national"
+      - "open_international"
+      - "request_for_quotation"
+    quorum_rule: "Minimum 3 membres"
+    composition_rule: "Technique + Finance + Juridique"
+    article: "Article 74"
+  personne_responsable:
+    organ_name: "Personne Responsable des Marchés Publics (PRMP)"
+    organ_role: "approval_authority"
+    required_for_procedure: ["all"]
+    article: "Article 20"
+  dgmp_controle:
+    organ_name: "DGMP — Contrôle a priori"
+    organ_role: "oversight_body"
+    required_for_procedure:
+      - "open_national"
+      - "open_international"
+    article: "Article 8"
+  armds:
+    organ_name: "ARMDS — Autorité de Régulation"
+    organ_role: "oversight_body"
+    required_for_procedure: ["all"]
+    composition_rule: "Organe indépendant de régulation"
+    article: "Article 9"

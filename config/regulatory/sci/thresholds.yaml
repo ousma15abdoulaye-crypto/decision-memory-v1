@@ -1,0 +1,60 @@
+framework: sci
+currency_default: USD
+
+default:
+  tiers:
+    - name: "tier_1_micro"
+      min_value: 0
+      max_value: 5000
+      currency: USD
+      procedure_required: "direct_purchase"
+      article: "Procurement Manual Section 3.1"
+      description: "Direct purchase — 3 quotes recommended"
+    - name: "tier_2_small"
+      min_value: 5000
+      max_value: 50000
+      currency: USD
+      procedure_required: "request_for_quotation"
+      article: "Procurement Manual Section 3.2"
+      description: "RFQ — minimum 3 formal quotes"
+    - name: "tier_3_medium"
+      min_value: 50000
+      max_value: 250000
+      currency: USD
+      procedure_required: "open_national"
+      article: "Procurement Manual Section 3.3"
+      description: "Open national tender"
+    - name: "tier_4_high"
+      min_value: 250000
+      max_value: null
+      currency: USD
+      procedure_required: "open_international"
+      article: "Procurement Manual Section 3.4"
+      description: "Open international tender"
+
+works:
+  tiers:
+    - name: "tier_1_micro_works"
+      min_value: 0
+      max_value: 10000
+      currency: USD
+      procedure_required: "direct_purchase"
+      article: "Procurement Manual Section 3.1"
+    - name: "tier_2_small_works"
+      min_value: 10000
+      max_value: 100000
+      currency: USD
+      procedure_required: "request_for_quotation"
+      article: "Procurement Manual Section 3.2"
+    - name: "tier_3_medium_works"
+      min_value: 100000
+      max_value: 500000
+      currency: USD
+      procedure_required: "open_national"
+      article: "Procurement Manual Section 3.3"
+    - name: "tier_4_high_works"
+      min_value: 500000
+      max_value: null
+      currency: USD
+      procedure_required: "open_international"
+      article: "Procurement Manual Section 3.4"

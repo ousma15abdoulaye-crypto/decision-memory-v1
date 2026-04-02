@@ -136,6 +136,9 @@ app.include_router(cases.router)
 app.include_router(documents.router)
 app.include_router(analysis.router)
 app.include_router(extraction_router)
+from src.api.routes.regulatory_profile import router as regulatory_profile_router
+
+app.include_router(regulatory_profile_router)
 app.include_router(committee_router)
 from src.couche_a.scoring import api as scoring_api
 

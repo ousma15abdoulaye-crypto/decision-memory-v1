@@ -1,7 +1,7 @@
 # ANNOTATION_ORCHESTRATOR_FSM — Machine à états (pipeline annotation)
 
-**Version** : `1.0.0`  
-**Date** : 2026-03-24  
+**Version** : `1.1.0`  
+**Date** : 2026-04-02  
 **Subordonné** : [PASS_OUTPUT_STANDARD.md](./PASS_OUTPUT_STANDARD.md), contrats Pass 0 / 0.5 / 1
 
 ---
@@ -21,6 +21,19 @@
 | `annotated_validated` | Ground truth humain scellé (RÈGLE-25) |
 | `rejected` | Document exclu du corpus |
 | `dead_letter` | Échec non récupérable après retries |
+
+### 1.1 Sous-passes M12 et Pass 2A (impl. `src/annotation/orchestrator.py`)
+
+Lorsque `ANNOTATION_USE_M12_SUBPASSES=1`, la chaîne **1A → 1B → 1C → 1D** remplace le routage Pass 1 monolithique. Les états persistés incluent :
+
+| État | Description |
+| --- | --- |
+| `pass_1a_done` | Pass 1A (reconnaissance cœur) terminé avec succès |
+| `pass_1b_done` | Pass 1B (validité documentaire) terminé |
+| `pass_1c_done` | Pass 1C (conformité + handoffs M12) terminé |
+| `pass_1d_done` | Pass 1D (lien processus) terminé |
+
+**Pass 2A (M13 — profil réglementaire)** : si `ANNOTATION_USE_PASS_2A=1`, après `pass_1d_done` l’orchestrateur enchaîne Pass 2A puis positionne l’état à `pass_2a_done`. Si le flag est à **0**, `pass_1d_done` est **terminal** pour la séquence M12 (aucun 2A). Contrat : [PASS_2A_REGULATORY_PROFILE_CONTRACT.md](./PASS_2A_REGULATORY_PROFILE_CONTRACT.md).
 
 ---
 

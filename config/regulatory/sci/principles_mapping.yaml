@@ -1,0 +1,68 @@
+framework: sci
+
+principle_mappings:
+  competition:
+    rules_implementing:
+      - rule: "minimum_bids_per_tier"
+        description: "Minimum 3 quotes for RFQ, open competition for higher tiers"
+        contribution: strong
+      - rule: "publication_requirements"
+        description: "Publication in ProSave + external channels"
+        contribution: medium
+    coverage: full
+  transparency:
+    rules_implementing:
+      - rule: "publication_mandatory"
+        description: "All tenders published on ProSave"
+        contribution: strong
+    coverage: full
+  fairness:
+    rules_implementing:
+      - rule: "sealed_bids"
+        description: "Sealed bid opening for formal tenders"
+        contribution: strong
+    coverage: full
+  economy:
+    rules_implementing:
+      - rule: "threshold_based_procedure"
+        description: "Procedure proportional to value"
+        contribution: strong
+    coverage: full
+  efficiency:
+    rules_implementing:
+      - rule: "timeline_limits"
+        description: "Maximum evaluation period per tier"
+        contribution: strong
+    coverage: partial
+    gap: "No explicit KPI tracking on procurement cycle time"
+  integrity:
+    rules_implementing:
+      - rule: "sanctions_screening"
+        description: "IAPG sanctions list screening"
+        contribution: strong
+    coverage: full
+  fit_for_purpose:
+    rules_implementing:
+      - rule: "tdr_mandatory"
+        description: "Specifications/TDR required for all formal tenders"
+        contribution: strong
+    coverage: full
+    durability_indicators:
+      - rule: "tdr_lifecycle_cost"
+        description: "Life-cycle cost in TDR for works/goods > 50k USD"
+        contribution: medium
+        active_for_families: ["works", "goods"]
+    durability_coverage: partial
+    durability_gap: "No systematic life-cycle cost requirement below 50k USD"
+  value_for_money:
+    rules_implementing:
+      - rule: "mieux_disant_method"
+        description: "Quality-cost based evaluation for high-value"
+        contribution: strong
+    coverage: full
+  sustainability:
+    rules_implementing:
+      - rule: "sustainability_min_pct"
+        description: "Minimum 10% sustainability criteria weight"
+        contribution: strong
+    coverage: full

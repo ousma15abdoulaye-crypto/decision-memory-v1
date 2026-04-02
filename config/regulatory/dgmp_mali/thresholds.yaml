@@ -1,0 +1,57 @@
+framework: dgmp_mali
+currency_default: XOF
+
+goods:
+  tiers:
+    - name: "tier_1_simplified"
+      min_value: 0
+      max_value: 25000000
+      currency: XOF
+      procedure_required: "simplified"
+      article: "Article 12"
+      description: "Procédure simplifiée"
+    - name: "tier_2_rfq"
+      min_value: 25000000
+      max_value: 100000000
+      currency: XOF
+      procedure_required: "request_for_quotation"
+      article: "Article 12"
+    - name: "tier_3_open_national"
+      min_value: 100000000
+      max_value: 500000000
+      currency: XOF
+      procedure_required: "open_national"
+      article: "Article 12"
+    - name: "tier_4_open_international"
+      min_value: 500000000
+      max_value: null
+      currency: XOF
+      procedure_required: "open_international"
+      article: "Article 12"
+
+works:
+  tiers:
+    - name: "tier_1_simplified_works"
+      min_value: 0
+      max_value: 50000000
+      currency: XOF
+      procedure_required: "simplified"
+      article: "Article 12"
+    - name: "tier_2_rfq_works"
+      min_value: 50000000
+      max_value: 200000000
+      currency: XOF
+      procedure_required: "request_for_quotation"
+      article: "Article 12"
+    - name: "tier_3_open_national_works"
+      min_value: 200000000
+      max_value: 1000000000
+      currency: XOF
+      procedure_required: "open_national"
+      article: "Article 12"
+    - name: "tier_4_open_international_works"
+      min_value: 1000000000
+      max_value: null
+      currency: XOF
+      procedure_required: "open_international"
+      article: "Article 12"

@@ -1,0 +1,21 @@
+framework: dgmp_mali
+
+sole_source:
+  article: "Article 36-37"
+  description: "Entente directe / Gré à gré"
+  approval_required: "PRMP + avis DGMP"
+  approval_authority: "PRMP"
+  conditions:
+    - "Monopole"
+    - "Urgence impérieuse"
+    - "Secret défense"
+  documentation_required: "Rapport justificatif + avis DGMP"
+
+emergency:
+  article: "Article 36 alinéa 2"
+  description: "Urgence impérieuse"
+  approval_required: "PRMP + avis DGMP + validation ARMDS"
+  approval_authority: "PRMP"
+  timeline_reduction_pct: 0
+  note: "Pas de réduction de délai — changement de procédure"
+  documentation_required: "Déclaration d'urgence + justification"

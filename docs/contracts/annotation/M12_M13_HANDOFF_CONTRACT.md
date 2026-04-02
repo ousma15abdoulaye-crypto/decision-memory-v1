@@ -1,9 +1,9 @@
 # M12 → M13 Handoff Contract
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 **Emis par:** M12 Pass 1C (conformity + handoffs)
-**Consomme par:** M13 — Regulatory Compliance Engine (PLAN — non implémenté)
-**Autorite:** Plan Directeur DMS V4.1 — CONTEXT_ANCHOR.md
+**Consomme par:** M13 — Regulatory Profile Engine (Pass 2A)
+**Autorite:** Plan Directeur DMS V4.1 — CONTEXT_ANCHOR.md — ADR-M13-001
 
 ---
 
@@ -11,7 +11,7 @@
 
 M12 PRÉPARE. M13 APPLIQUE.
 
-M12 détecte les signaux réglementaires présents dans le document (framework, clauses, seuils) et les emballe dans `RegulatoryProfileSkeleton`. M13 reçoit ce squelette et applique les règles de conformité complètes (SCI §5.2, DGMP, seuils procédure). M12 n'évalue jamais la conformité réglementaire : il signale, il ne juge pas.
+M12 détecte les signaux réglementaires présents dans le document (framework, clauses, seuils) et les emballe dans `RegulatoryProfileSkeleton`. M13 reçoit ce squelette et applique les règles complètes depuis **YAML** (seuils, procédures, documents requis, validité, principes). M12 n'évalue jamais la conformité réglementaire : il signale, il ne juge pas.
 
 ---
 
@@ -35,9 +35,9 @@ M12 détecte les signaux réglementaires présents dans le document (framework, 
 | `sci_sanctions_clause_present` | bool | Clause sanctions mentionnée | regex |
 | `dgmp_signals_detected` | list[str] | Signaux DGMP présents (ex. `threshold_referenced`) | regex |
 | `dgmp_procedure_type_detected` | str \| None | Type procédure DGMP (ex. `ouvert`, `restreint`) | regex |
-| `dgmp_threshold_tier_detected` | str \| None | Palier seuil DGMP détecté | regex (non implémenté M12 — None) |
-| `other_framework_signals` | dict[str, list[str]] | Autres frameworks détectés | vide en V6 |
-| `m13_todo` | str | "Apply full regulatory profile based on these signals" | constante |
+| `dgmp_threshold_tier_detected` | str \| None | Palier seuil DGMP détecté | regex (peut être None) |
+| `other_framework_signals` | dict[str, list[str]] | Autres frameworks détectés (MIXED) | extension |
+| `m13_todo` | str | Message de délégation M13 | constante |
 
 ### Condition de production
 
@@ -45,79 +45,78 @@ H1 est produit **uniquement** si `document_kind in SOURCE_RULES_KINDS` (DAO, RFQ
 
 ---
 
-## Ce que M13 doit faire avec H1
+## Entrée agrégée M13 — `M12Output`
 
-1. **Vérifier la cohérence framework** : si `framework_detected=SCI` et `sci_conditions_referenced=False` → non-conformité signalable
-2. **Appliquer les seuils procédure SCI §4.2** : croiser `framework_detected` + `dgmp_procedure_type_detected` avec les seuils du Plan Directeur V4.1 (100$, 1k$, 10k$, 100k$)
-3. **Checker les critères éliminatoires SCI §5.2** : NIF, RCCM, conditions SCI, sanctions, RIB — croisement avec `eligibility_gates_extracted` de Pass 1C
-4. **Valider la pondération durabilité** : SCI impose ≥ 10% — croiser `sci_sustainability_pct_detected` avec `scoring_structure_extracted`
-5. **Produire un `RegulatoryComplianceReport`** — modèle Pydantic défini dans `src/procurement/compliance_models.py`
+M13 consomme le **`M12Output` complet** (`src/procurement/procedure_models.py`) reconstruit après Pass 1A–1D :
+
+- `procedure_recognition` (Pass 1A)
+- `document_validity` (Pass 1B)
+- `document_conformity_signal` (Pass 1C) — inclut `gates` et `eligibility_gates_extracted`
+- `process_linking` (Pass 1D)
+- `handoffs` (Pass 1C) — H1/H2/H3
+- `m12_meta`
 
 ---
 
-## Payload de sortie M13 — RegulatoryComplianceReport
+## Payload de sortie M13
 
-**Modèle Pydantic :** `RegulatoryComplianceReport` (`src/procurement/compliance_models.py`)
+### Rapport moteur V5 (canonique)
 
-### Champs
+**Modèle :** `M13RegulatoryComplianceReport` — `src/procurement/compliance_models_m13.py`
 
-| Champ | Type | Description |
-|-------|------|-------------|
-| `document_id` | `str` | ID du document analysé |
-| `framework_applied` | `ProcurementFramework` | Framework utilisé pour l'évaluation |
-| `verdict` | `ComplianceVerdict` | Verdict final (voir valeurs ci-dessous) |
-| `eliminatory_checks` | `list[EliminatoryGateCheck]` | Critères éliminatoires vérifiés (SCI §5.2, DGMP…) |
-| `threshold_tier` | `str \| None` | Palier seuil procédure (ex. `below_100k`, `above_100k`) |
-| `sustainability_check` | `bool \| None` | Pondération durabilité ≥ 10% (SCI §4.2) — None si N/A |
-| `review_reasons` | `list[str]` | Raisons du verdict `review_required` ou `non_compliant` |
-| `produced_by` | `str` | `"M13"` |
+Contient : régime résolu (R1), exigences procédurales (R2), gates assemblées (R3), dérogations (R4), `PrinciplesComplianceMap` (9 principes), `OCDSProcessCoverage`, `M13Meta`.
 
-### Valeurs autorisées de `verdict` (`ComplianceVerdict`)
+### Résumé legacy (compatibilité)
 
-| Valeur | Condition de déclenchement |
-|--------|---------------------------|
-| `compliant` | Tous les `EliminatoryGateCheck.status` = `"present"` ou `"not_applicable"` ET `threshold_tier` cohérent |
-| `non_compliant` | ≥ 1 check `status = "absent"` |
-| `review_required` | `framework_confidence < 0.60` OU ambiguïté multi-framework |
-| `not_assessable` | `framework_detected = UNKNOWN` — règles inapplicables |
-| `pipeline_error` | H1 `None` sur document `kind in SOURCE_RULES_KINDS`, ou exception inattendue |
+**Modèle :** `RegulatoryComplianceReport` — `src/procurement/compliance_models.py`
 
-### `EliminatoryGateCheck` — champs
+Résumé verdict + checks éliminatoires. Dérivé du rapport V5 via **`legacy_compliance_report_from_m13()`** (`compliance_models_m13.py`).
 
-| Champ | Type | Description |
-|-------|------|-------------|
-| `gate_name` | `str` | Nom du critère (ex. `nif`, `rccm`, `sci_conditions`, `sanctions_clause`) |
-| `status` | `"present" \| "absent" \| "not_applicable"` | Résultat du check |
-| `evidence` | `str` | Fragment textuel ou motif regex (vide si non applicable) |
+### Handoffs M14
+
+- **RH1** : `ComplianceChecklist` — `compliance_models_m13.py`
+- **RH2** : `EvaluationBlueprint` — cadrage uniquement ; voir [M13_M14_HANDOFF_CONTRACT.md](./M13_M14_HANDOFF_CONTRACT.md)
+
+**Bundle :** `M13Output` (`report`, `compliance_checklist`, `evaluation_blueprint`).
+
+---
+
+## Ce que M13 doit faire avec H1
+
+1. Résoudre le régime (framework M12 + YAML) sans redétecter le framework (M12 est source de vérité détection).
+2. Instancier documents requis, délais, organes, garanties, seuils depuis YAML.
+3. Réconcilier gates document (M12) et exigences réglementaires (4 phases dont validité).
+4. Produire la carte des 9 principes et la couverture OCDS déclarative.
+5. **Ne pas** scorer les offres ni produire de verdict d’attribution (M14).
 
 ---
 
 ## Invariants de passage
 
-- `framework_confidence < 0.60` → M13 doit marquer le rapport `review_required`
-- `framework_detected = UNKNOWN` → M13 ne peut pas appliquer les règles SCI/DGMP — `not_assessable`
-- H1 `None` sur un document `source_rules` → anomalie pipeline — M13 signale `pipeline_error`
+- `framework_confidence < 0.60` → `review_required` au niveau legacy et métadonnées M13.
+- `framework_detected = UNKNOWN` → sortie dégradée + `not_assessable` / revue selon ADR-M13-001 (mapping confiance).
+- H1 `None` sur un document `source_rules` attendu → anomalie pipeline.
 
 ---
 
 ## Ce que M13 N'EST PAS autorisé à faire
 
-- Modifier les données M12 (append-only, RÈGLE-05)
-- Supposer un framework non détecté par M12
-- Créer des entrées `annotated_validated` (RÈGLE-25 — travail humain uniquement)
+- Appeler un LLM (moteur 100 % déterministe).
+- Modifier les données M12.
+- Dupliquer `regulatory_index` comme source de seuils parallèle (consultation audit OK).
 
 ---
 
 ## Dépendances
 
-- `src/procurement/procedure_models.py` : `RegulatoryProfileSkeleton`, `M12Handoffs`
-- `src/procurement/compliance_models.py` : `RegulatoryComplianceReport`, `EliminatoryGateCheck`, `ComplianceVerdict`
-- `src/procurement/handoff_builder.py` : `build_handoffs()`, `_build_h1_regulatory()`
-- `src/annotation/passes/pass_1c_conformity_and_handoffs.py` : producteur M12
-- `docs/freeze/DMS_V4.1.0_FREEZE.md` : seuils SCI §4.2 et §5.2 (autorité)
+- `src/procurement/procedure_models.py` : `M12Output`, `RegulatoryProfileSkeleton`
+- `src/procurement/compliance_models.py` : `RegulatoryComplianceReport` (legacy)
+- `src/procurement/compliance_models_m13.py` : modèles V5 + pont legacy
+- `docs/adr/ADR-M13-001_regulatory_profile_engine.md`
+- `docs/contracts/annotation/PASS_2A_REGULATORY_PROFILE_CONTRACT.md`
 
 ---
 
 ## Milestone
 
-M13 : PLAN — implémentation après M12 DoD validé (RÈGLE-01).
+M13 : implémenté — Pass 2A sous feature flag `ANNOTATION_USE_PASS_2A`.
