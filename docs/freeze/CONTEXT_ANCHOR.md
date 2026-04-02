@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-02 (PR #293 merged — audit hardening M13 NC-01/02/03 + F-01/F-02 + migration 058) ║
+║  Dernière mise à jour : 2026-04-02 (feat/M14-evaluation-engine — M14 Evaluation Engine implementation) ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -105,8 +105,8 @@
 ║  fix/m13-audit-hardening : MERGÉ dans main (PR #293 — audit M13 hardening) ║
 ║  feat/fix-backend-production : backend v3.0.1d (en attente merge)   ║
 ║  alembic head dépôt / CI : 058_m13_correction_log_case_id_index          ║
-║  alembic head Railway prod : 057 (058 pending — appliquer via apply_railway_migrations_safe.py --apply) ║
-║  migrations pending Railway : 058_m13_correction_log_case_id_index                          ║
+║  alembic head Railway prod : 058_m13_correction_log_case_id_index (ALIGNÉ — sync 2026-04-02)  ║
+║  migrations pending Railway : (vide)                                                         ║
 ║  RAILWAY_DATABASE_URL : défini hors dépôt — fichier local .env.railway.local (gitignored) ; ║
 ║    chargement scripts/with_railway_env.py ou .\\scripts\\load_railway_env.ps1 — RAILWAY_LOCAL_ENV.md ║
 ║  annotation-backend M12 Ph.3 : orchestrateur derrière ANNOTATION_USE_PASS_ORCHESTRATOR ║
@@ -143,7 +143,7 @@
 ║  RÈGLE           : zéro autogenerate — SQL brut uniquement         ║
 ║  RÈGLE           : zéro modification fichiers existants 001-058    ║
 ║  RÈGLE           : toute nouvelle migration = 059+ séquentiel       ║
-║  apply_safe      : scripts/apply_railway_migrations_safe.py — prod 057 ; 058 pending (PR #293 merged) ║
+║  apply_safe      : scripts/apply_railway_migrations_safe.py — prod 058 ALIGNÉ (sync 2026-04-02) ║
 ║    via ScriptDirectory (graphe merges), pas parse linéaire seul    ║
 ║  VIOLATION       : faute disciplinaire grave immédiate             ║
 ║                                                                      ║
@@ -286,7 +286,7 @@
 ║  src/    : api/, business/, core/, couche_a/, couche_b/, db/        ║
 ║            evaluation/, extraction/, geo/, mapping/, vendors/       ║
 ║            annotation/ (orchestrator FSM, passes 0→1D, export)      ║
-║            procurement/ (M12 engine L1→L7 + H1/H2/H3 ; M13 Pass 2A réglementaire) ║
+║            procurement/ (M12 engine L1→L7 + H1/H2/H3 ; M13 Pass 2A ; M14 Evaluation Engine) ║
 ║            auth_router.py, logging_config.py, ratelimit.py          ║
 ║  config/ : framework_signals.yaml, procurement_family_signals.yaml  ║
 ║            mandatory_parts/*.yaml (20 doc-type rule files)          ║
@@ -343,6 +343,11 @@
 ║  M13     DONE (cœur moteur) — PR #292 mergé 2026-04-02 — Pass 2A réglementaire, ║
 ║          config/regulatory YAML, migration 057, ADR-M13-001 ; flag ANNOTATION_USE_PASS_2A ║
 ║          Suite métier / API / persistance prod : aligner Railway sur 057 puis jalons M14 ║
+║  M14     EN COURS — branche feat/M14-evaluation-engine — Evaluation Engine V1              ║
+║          ADR-M14-001, m14_engine.py, m14_evaluation_models.py, m14_evaluation_repository.py ║
+║          Routes API /api/m14/, wire case_id backend→orchestrateur, PASS_2A_DONE support    ║
+║          Persistance : evaluation_documents (migration 056 existante) — pas de nouvelle migration ║
+║          Tests : 26 unit + DB integrity + RLS (evaluation_documents)                        ║
 ║  M15     GATE  4 seuils validation go-live                         ║
 ║                                                                      ║
 ║  SEUILS M15 — FIGÉS NON NÉGOCIABLES                                 ║
@@ -359,7 +364,7 @@
 ║  DETTE-2    : listener pg_notify CRITICAL → webhook/email          ║
 ║  DETTE-3    : workflow validation decision_history                 ║
 ║  DETTE-4    : Tests Railway CI/CD (GitHub Actions)                 ║
-║  DETTE-5    : 046_evaluation_documents (M13/M14)                   ║
+║  DETTE-5    : ✅ DONE — evaluation_documents (migration 056) consommée par M14 ║
 ║  DETTE-6    : market_surveys terrain réels                         ║
 ║  DETTE-7    : ✅ DONE — imc_category_item_map                      ║
 ║               046_imc_category_item_map + 046b_imc_map_fix         ║
@@ -1080,5 +1085,58 @@ Voir diff GitHub PR #276 pour liste exhaustive ; points d’ancrage code : `src/
 ### F-02 — `registry.yaml` documenté
 
 - Commentaire en tête : fichier documentaire / probe, pas lu par `RegulatoryConfigLoader`.
+
+---
+
+## ADDENDUM 2026-04-02 — M14 EVALUATION ENGINE (feat/M14-evaluation-engine)
+
+**Autorité :** mandat CTO — implémentation M14 (DMS V4.1 Phase 5).
+
+### Architecture M14
+
+- **ADR-M14-001** : `docs/adr/ADR-M14-001_evaluation_engine.md`
+- **Moteur** : `src/procurement/m14_engine.py` — `EvaluationEngine` (déterministe, pas de LLM)
+- **Modèles** : `src/procurement/m14_evaluation_models.py` — Pydantic `extra="forbid"`, `M14Confidence = {0.6, 0.8, 1.0}`
+- **Repository** : `src/procurement/m14_evaluation_repository.py` — CRUD `evaluation_documents` (migration 056)
+- **API** : `src/api/routes/evaluation.py` — `/api/m14/status`, `POST /api/m14/evaluate`, `GET /api/m14/evaluations/{case_id}`
+- **Auth** : `Depends(get_current_user)` sur toutes les routes M14
+
+### Handoffs consommés
+
+| Handoff | Source | Modèle | Module source |
+|---------|--------|--------|---------------|
+| H2 | M12 Pass 1C | `AtomicCapabilitySkeleton` | `procedure_models.py` |
+| H3 | M12 Pass 1C | `MarketContextSignal` | `procedure_models.py` |
+| RH1 | M13 Pass 2A | `ComplianceChecklist` | `compliance_models_m13.py` |
+| RH2 | M13 Pass 2A | `EvaluationBlueprint` | `compliance_models_m13.py` |
+
+### Wire case_id (BLQ-4/5 résolu)
+
+- `run_passes_0_to_1` : paramètre `case_id` ajouté, transmis à `run_passes_1a_to_1d`
+- Backend `/predict` : résout `case_id` depuis `task.data.case_id` ou `body.case_id`
+- `_orchestrator_skip_mistral_reason` : `PASS_2A_DONE` ajouté aux états qui poursuivent avec Mistral
+
+### RÈGLE-09 — Interdictions M14
+
+- `winner`, `rank`, `recommendation`, `best_offer` = INTERDITS (Pydantic `extra="forbid"` bloque)
+- M14 produit des scores et analyses, jamais de verdict d'attribution
+- Le statut `"sealed"` dans `evaluation_documents` = comité humain uniquement
+
+### DETTE-5 — FERMÉE
+
+- Table `evaluation_documents` (migration 056) désormais consommée par `M14EvaluationRepository`
+- DETTE-5 = ✅ DONE
+
+### Tests M14
+
+- `test_m14_engine_smoke.py` : 12 tests (évaluation, éligibilité, complétude, prix, confidence, kill list)
+- `test_m14_models.py` : 14 tests (extra=forbid × 9 modèles, confidence grid, kill list, evaluation methods)
+- `test_evaluation_documents.py` : 7 tests DDL/FK/RLS/columns
+- `test_rls_dm_app_cross_tenant.py` : +1 test RLS evaluation_documents
+
+### Railway
+
+- 058 appliquée sur Railway prod (2026-04-02) — DB synchronisée avec dépôt
+- Aucune nouvelle migration M14 (utilise migration 056 existante)
 
 ---

@@ -440,3 +440,72 @@ def test_dm_app_cannot_select_other_tenant_m13_correction_log(db_conn):
                 "DELETE FROM public.cases WHERE id = ANY(%s)",
                 ([case_a, case_b],),
             )
+
+
+def test_dm_app_cannot_select_other_tenant_evaluation_documents(db_conn):
+    """RLS sur evaluation_documents : tenant A ne voit pas tenant B."""
+    tid_a = f"rls-eval-a-{uuid.uuid4().hex[:8]}"
+    tid_b = f"rls-eval-b-{uuid.uuid4().hex[:8]}"
+    case_a = str(uuid.uuid4())
+    case_b = str(uuid.uuid4())
+    now = datetime.now(UTC).isoformat()
+
+    with db_conn.cursor() as cur:
+        _insert_case(cur, case_a, tid_a, now)
+        _insert_case(cur, case_b, tid_b, now)
+        cur.execute(
+            "INSERT INTO public.committees (committee_id, case_id, org_id, committee_type, created_by) "
+            "VALUES (gen_random_uuid(), %s, %s, 'achat', 'rls-test'), "
+            "       (gen_random_uuid(), %s, %s, 'achat', 'rls-test')",
+            (case_a, tid_a, case_b, tid_b),
+        )
+        cur.execute(
+            "SELECT committee_id FROM public.committees WHERE case_id = %s",
+            (case_a,),
+        )
+        cmt_a = cur.fetchone()
+        cmt_a_id = cmt_a[0] if isinstance(cmt_a, tuple) else cmt_a["committee_id"]
+        cur.execute(
+            "SELECT committee_id FROM public.committees WHERE case_id = %s",
+            (case_b,),
+        )
+        cmt_b = cur.fetchone()
+        cmt_b_id = cmt_b[0] if isinstance(cmt_b, tuple) else cmt_b["committee_id"]
+        cur.execute(
+            """
+            INSERT INTO public.evaluation_documents
+                (case_id, committee_id, version, scores_matrix, status)
+            VALUES
+                (%s, %s, 1, '{}'::jsonb, 'draft'),
+                (%s, %s, 1, '{}'::jsonb, 'draft')
+            """,
+            (case_a, cmt_a_id, case_b, cmt_b_id),
+        )
+
+    try:
+        with _rls_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT set_config('app.tenant_id', %s, true)", (tid_a,))
+                cur.execute(
+                    "SELECT id FROM public.evaluation_documents WHERE case_id = %s",
+                    (case_b,),
+                )
+                rows = cur.fetchall()
+            conn.commit()
+        assert (
+            rows == []
+        ), "RLS evaluation_documents — tenant A ne doit pas voir tenant B"
+    finally:
+        with db_conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM public.evaluation_documents WHERE case_id = ANY(%s)",
+                ([case_a, case_b],),
+            )
+            cur.execute(
+                "DELETE FROM public.committees WHERE case_id = ANY(%s)",
+                ([case_a, case_b],),
+            )
+            cur.execute(
+                "DELETE FROM public.cases WHERE id = ANY(%s)",
+                ([case_a, case_b],),
+            )

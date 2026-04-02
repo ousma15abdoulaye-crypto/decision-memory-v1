@@ -93,6 +93,7 @@ def test_predict_skips_mistral_on_dead_letter(
         file_metadata=None,
         filename=None,
         case_documents_1a=None,
+        case_id=None,
     ):
         rec = PipelineRunRecord(
             run_id=str(run_id),
@@ -132,6 +133,7 @@ def test_predict_uses_normalized_text_when_llm_pending(
         file_metadata=None,
         filename=None,
         case_documents_1a=None,
+        case_id=None,
     ):
         rec = PipelineRunRecord(
             run_id=str(run_id),
