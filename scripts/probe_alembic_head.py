@@ -25,7 +25,7 @@ from pathlib import Path
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-# Chaine ordonnee des migrations depuis 044 (Railway actuel) jusqu'a 054 (repo head)
+# Chaine ordonnee des migrations depuis 044 jusqu'au head repo (aligner validate_mrd_state.py)
 # Mettre a jour manuellement lors de chaque nouvelle migration (REGLE-ANCHOR-05).
 KNOWN_CHAIN: list[str] = [
     "044_decision_history",
@@ -40,6 +40,8 @@ KNOWN_CHAIN: list[str] = [
     "052_dm_app_rls_role",
     "053_dm_app_enforce_security_attrs",
     "054_m12_correction_log",
+    "055_extend_rls_documents_extraction_jobs",
+    "056_evaluation_documents",
 ]
 
 REPO_HEAD = KNOWN_CHAIN[-1]

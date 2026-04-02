@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-04-01 — sync Railway prod Alembic 056_evaluation_documents (apply_railway_migrations_safe.py) ; MRD/CONTEXT alignes
+# Derniere mise a jour : 2026-04-01 — M12 Phase 3 annotation-backend (ADR-M12-PHASE3) + sync Railway Alembic 056
 
 ---
 
@@ -37,7 +37,7 @@ last_tag              : v4.1.0-m12-done
 next_milestone        : M13
 next_status           : PENDING
 blocked_on            : (vide)
-m13_prerequisites     : hors registre STOP — ADR LLM (RÈGLE-11), wiring backend.py si GO CTO, sync Railway si GO CTO — détail transition § dans docs/milestones/M12_PROCEDURE_RECOGNIZER_DONE.md
+m13_prerequisites     : ADR LLM (RÈGLE-11) pour nouveaux chemins LLM ; M12 Phase 3 wiring backend = étape distincte (orchestrateur /predict, ADR-M12-PHASE3) avant features M13 métier (evaluation_documents API, etc.) ; sync Railway = fait 2026-04-01 — voir docs/milestones/M12_PROCEDURE_RECOGNIZER_DONE.md
 branch_courante       : main
 
 ---
@@ -93,6 +93,14 @@ evaluation_documents     : schéma + RLS livrés par migration 056 — aucune é
 
 railway_access_method     : RAILWAY_DATABASE_URL (URL publique proxy Railway ; scripts dms_pg_connect.py + diagnose / apply)
 railway_cli               : Railway CLI — lien projet local (.railway/ gitignored) ; voir docs/ops/RAILWAY_CLI_LOCAL_LINK.md
+
+## ANNOTATION-BACKEND — M12 PHASE 3 (orchestrateur /predict)
+
+  statut_branchement     : implémenté — déploiement prod : ANNOTATION_USE_PASS_ORCHESTRATOR=0 par défaut jusqu’à validation ops ; puis bascule pilotée vers 1
+  flags                  : ANNOTATION_USE_PASS_ORCHESTRATOR (défaut 0) ; ANNOTATION_USE_M12_SUBPASSES (aligner avec passes 1A–1D si activé) ; ANNOTATION_PIPELINE_RUNS_DIR (optionnel, sinon répertoire temporaire conteneur)
+  corpus_gate            : dépassé — ≥ 22 annotated_validated (Document B post-M12) ; gate historique 15 clos
+  ref_adr                : docs/adr/ADR-M12-PHASE3-BACKEND-WIRING.md
+  ref_strangler          : docs/contracts/annotation/ANNOTATION_BACKEND_MIGRATION_STRATEGY.md Phase 3 GO
 
 ---
 

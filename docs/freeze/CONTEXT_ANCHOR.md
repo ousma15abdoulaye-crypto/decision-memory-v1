@@ -101,6 +101,10 @@
 ║  alembic head local : 056_evaluation_documents                        ║
 ║  alembic head Railway prod : 056_evaluation_documents (ALIGNÉ — sync 2026-04-01) ║
 ║  migrations pending Railway : (vide)                                 ║
+║  annotation-backend M12 Ph.3 : orchestrateur derrière ANNOTATION_USE_PASS_ORCHESTRATOR ║
+║    (défaut 0 — monolith Mistral inchangé ; 1 = Pass 0→0.5→1 puis Mistral) ║
+║  Gel Cursor services/annotation-backend : dégel conditionnel Phase 3 sous mandat ║
+║    CTO — voir .cursor/rules/dms-annotation-backend-freeze.mdc + ADR-M12-PHASE3 ║
 ║  tags posés :                                                         ║
 ║    v4.1.0-ocr-files-api-done                                         ║
 ║    v4.1.0-m12-dette7-done                                             ║
@@ -335,7 +339,7 @@
 ║                                                                      ║
 ║  DETTES OUVERTES → DETTE_M12.md                                     ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  BLOQUANT   : 15 docs annotated_validated (AO, non déléguable)     ║
+║  Gate 15 docs : CLOS — corpus ≥ 22 annotated_validated (Document B) ║
 ║  DETTE-1    : API GET /signals (market_signals_v2)                  ║
 ║  DETTE-2    : listener pg_notify CRITICAL → webhook/email          ║
 ║  DETTE-3    : workflow validation decision_history                 ║
