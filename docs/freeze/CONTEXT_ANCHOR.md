@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-02 (feat/M14-evaluation-engine — M14 Evaluation Engine implementation) ║
+║  Dernière mise à jour : 2026-04-02 (post-merge PR #295 — M14 Evaluation Engine DONE) ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -343,11 +343,12 @@
 ║  M13     DONE (cœur moteur) — PR #292 mergé 2026-04-02 — Pass 2A réglementaire, ║
 ║          config/regulatory YAML, migration 057, ADR-M13-001 ; flag ANNOTATION_USE_PASS_2A ║
 ║          Suite métier / API / persistance prod : aligner Railway sur 057 puis jalons M14 ║
-║  M14     EN COURS — branche feat/M14-evaluation-engine — Evaluation Engine V1              ║
+║  M14     DONE — PR #295 merged 2026-04-02 — Evaluation Engine V1                            ║
 ║          ADR-M14-001, m14_engine.py, m14_evaluation_models.py, m14_evaluation_repository.py ║
 ║          Routes API /api/m14/, wire case_id backend→orchestrateur, PASS_2A_DONE support    ║
 ║          Persistance : evaluation_documents (migration 056 existante) — pas de nouvelle migration ║
-║          Tests : 26 unit + DB integrity + RLS (evaluation_documents)                        ║
+║          Tests : 26 unit + DB integrity + RLS (evaluation_documents) — CI 9/9 verte        ║
+║          Copilot review : committee_id FK lookup, completion ratio bound, weighted score calc ║
 ║  M15     GATE  4 seuils validation go-live                         ║
 ║                                                                      ║
 ║  SEUILS M15 — FIGÉS NON NÉGOCIABLES                                 ║
@@ -1088,7 +1089,7 @@ Voir diff GitHub PR #276 pour liste exhaustive ; points d’ancrage code : `src/
 
 ---
 
-## ADDENDUM 2026-04-02 — M14 EVALUATION ENGINE (feat/M14-evaluation-engine)
+## ADDENDUM 2026-04-02 — M14 EVALUATION ENGINE (PR #295 merged)
 
 **Autorité :** mandat CTO — implémentation M14 (DMS V4.1 Phase 5).
 
@@ -1118,7 +1119,7 @@ Voir diff GitHub PR #276 pour liste exhaustive ; points d’ancrage code : `src/
 
 ### RÈGLE-09 — Interdictions M14
 
-- `winner`, `rank`, `recommendation`, `best_offer` = INTERDITS (Pydantic `extra="forbid"` bloque)
+- `winner`, `rank`, `recommendation`, `offre_retenue` = INTERDITS (Pydantic `extra="forbid"` bloque)
 - M14 produit des scores et analyses, jamais de verdict d'attribution
 - Le statut `"sealed"` dans `evaluation_documents` = comité humain uniquement
 
@@ -1138,5 +1139,13 @@ Voir diff GitHub PR #276 pour liste exhaustive ; points d’ancrage code : `src/
 
 - 058 appliquée sur Railway prod (2026-04-02) — DB synchronisée avec dépôt
 - Aucune nouvelle migration M14 (utilise migration 056 existante)
+
+### Post-merge PR #295 — 2026-04-02
+
+- PR #295 merged : 3 commits (feat + CI fixes + Copilot review fixes)
+- Branche `feat/M14-evaluation-engine` supprimée
+- Copilot review : 9 commentaires résolus (committee_id FK lookup, completion ratio [0,1], weighted score calc, retry guard, ADR contract ref, process_role canonique)
+- CI finale 9/9 verte (lint, black, invariants, freeze, milestones, coverage, lint-and-test)
+- M14 = DONE — prochaine étape : taguer `v4.1.0-m14-done` (CTO)
 
 ---
