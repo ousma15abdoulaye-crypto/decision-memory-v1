@@ -54,5 +54,9 @@ else
 fi
 
 PORT="${PORT:-8080}"
+# Flags M12 Phase 3 (valeurs non sensibles — diagnostic boot)
+_po="${ANNOTATION_USE_PASS_ORCHESTRATOR:-0}"
+_sp="${ANNOTATION_USE_M12_SUBPASSES:-0}"
 echo "[start.sh] DMS annotation-backend — uvicorn backend:app — port=$PORT (GET /health)" >&2
+echo "[start.sh] flags: ANNOTATION_USE_PASS_ORCHESTRATOR=${_po} ANNOTATION_USE_M12_SUBPASSES=${_sp}" >&2
 exec uvicorn backend:app --host 0.0.0.0 --port "$PORT" --log-level info 2>&1

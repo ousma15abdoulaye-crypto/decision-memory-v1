@@ -39,6 +39,8 @@ Remplacer le monolithe **sans** big bang : le endpoint Label Studio `/predict` r
 
 **Critère de sortie** : flag activé en staging ; métriques latence / erreurs documentées.
 
+**Statut Phase 3** : **GO** — implémentation sous [`ADR-M12-PHASE3-BACKEND-WIRING.md`](../../adr/ADR-M12-PHASE3-BACKEND-WIRING.md) ; gel Cursor révisé (`.cursor/rules/dms-annotation-backend-freeze.mdc`) pour mandat CTO explicite.
+
 ### Phase 3 — Plan de câblage opérationnel
 
 Quand les passes et l'orchestrateur sont prouvés (CI verte, métriques calibrées, macro-F1 >= 0.70) :
@@ -50,11 +52,9 @@ Quand les passes et l'orchestrateur sont prouvés (CI verte, métriques calibré
        # Utiliser record.pass_outputs pour enrichir le contexte Mistral
    ```
 2. **Feature flag** : `ANNOTATION_USE_PASS_ORCHESTRATOR` (défaut `0`, Railway env variable).
-3. **Dual-run** : en mode flag=1, logger la sortie orchestrateur ET la sortie monolithe, comparer en post-run (pas de double écriture LS).
+3. **Dual-run** : en mode flag=1, logger la sortie orchestrateur ET la sortie monolithe, comparer en post-run (pas de double écriture LS). Variable optionnelle `ANNOTATION_ORCHESTRATOR_DUAL_LOG`.
 4. **Rollback** : flag à `0` = retour instantané au monolithe.
-5. **Prérequis** : gel `backend.py` levé par GO CTO explicite (pas avant M13).
-
-> **IMPORTANT** : `backend.py` reste sous gel jusqu'à GO CTO. Ce plan documente l'intention, pas une autorisation de modifier.
+5. **Prérequis** : mandat CTO + ADR Phase 3 (le gel générique annotation est levé pour ce chantier nommé).
 
 ---
 

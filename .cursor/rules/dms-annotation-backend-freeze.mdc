@@ -15,6 +15,15 @@ alwaysApply: true
 
 Tout changement backend + déploiement Railway peut redémarrer le service, invalider des sessions, ou introduire une régression pendant une session d'annotation en cours.
 
+## Dégel — chantier M12 Phase 3 (CTO)
+
+Lorsqu'un **mandat CTO** nomme explicitement les fichiers (ex. `services/annotation-backend/backend.py`, ADR Phase 3, MRD/CONTEXT), les modifications suivantes **ne sont pas** couvertes par le gel « campagne annotation » :
+
+- Branchement `AnnotationOrchestrator` (`src/annotation/orchestrator.py`) sur `/predict` derrière `ANNOTATION_USE_PASS_ORCHESTRATOR` (`docs/adr/ADR-M12-PHASE3-BACKEND-WIRING.md`).
+- Documentation associée (`ENVIRONMENT.md`, stratégie strangler).
+
+**Critère campagne active** : si une session Label Studio critique est en cours, coordonner fenêtre de déploiement ; sinon le gel générique ne bloque plus ce chantier une fois le mandat émis.
+
 ## Suite (hors session annotation)
 
 Les durcissements sécurité / auth sur les routes FastAPI, gates CI plus strictes sur `main:app`, refactors `couche_a/routers.py`, etc. font l'objet d'un **second plan** explicitement nommé (ex. « post-annotation — durcissement API »), validé CTO, **après** la campagne d'annotation.

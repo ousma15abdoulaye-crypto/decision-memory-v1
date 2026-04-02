@@ -12,6 +12,8 @@ import logging
 import os
 import re
 import sys
+import tempfile
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -45,6 +47,7 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
+from starlette.concurrency import run_in_threadpool
 
 try:
     from mistralai import Mistral
@@ -71,6 +74,13 @@ from src.annotation.document_classifier import (
     TaxonomyCore,
     classify_document,
 )
+from src.annotation.orchestrator import (
+    AnnotationOrchestrator,
+    AnnotationPipelineState,
+    PipelineRunRecord,
+    use_m12_subpasses,
+    use_pass_orchestrator,
+)
 
 _VALID_TAXONOMY_CORE = frozenset(e.value for e in TaxonomyCore)
 _VALID_DOCUMENT_ROLE = frozenset(e.value for e in DocumentRole)
@@ -82,6 +92,8 @@ LS_TEXTAREA_TO_NAME = "document_text"
 SCHEMA_VERSION = "v3.0.1d"
 FRAMEWORK_VERSION = "annotation-framework-v3.0.1d"
 MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
+# Identifiant stable pour uuid5(run_id) — bump si sémantique orchestrateur change
+_ANNOTATION_PIPELINE_VERSION = "v1"
 
 
 def _mistral_api_key_from_env() -> str:
@@ -140,6 +152,59 @@ def _env_truthy(name: str, default: bool = True) -> bool:
     if not raw:
         return default
     return raw not in ("0", "false", "no", "off")
+
+
+def _annotation_pipeline_runs_dir() -> Path:
+    """Répertoire writable pour les JSON d’exécution orchestrateur.
+
+    Si ``ANNOTATION_PIPELINE_RUNS_DIR`` est défini : chemin persistant (volume Docker, etc.).
+    Sinon : sous ``tempfile.gettempdir()`` / ``dms_annotation_pipeline_runs`` — souvent **non
+    persistant** au redémarrage du conteneur.
+    """
+    raw = (os.environ.get("ANNOTATION_PIPELINE_RUNS_DIR") or "").strip()
+    if raw:
+        return Path(raw)
+    return Path(tempfile.gettempdir()) / "dms_annotation_pipeline_runs"
+
+
+def _orchestrator_run_id(doc_id: Any, task_id: int) -> uuid.UUID:
+    """UUID déterministe pour checkpoints et idempotence (même doc/tâche → même run)."""
+    name = f"annotation-pipeline:{_ANNOTATION_PIPELINE_VERSION}|doc:{doc_id}|task:{task_id}"
+    return uuid.uuid5(uuid.NAMESPACE_URL, name)
+
+
+def _llm_text_from_orchestrator_record(record: PipelineRunRecord, fallback: str) -> str:
+    p0 = (record.pass_outputs or {}).get("pass_0_ingestion") or {}
+    od = p0.get("output_data") or {}
+    nt = (od.get("normalized_text") or "").strip()
+    return nt if nt else fallback
+
+
+def _orchestrator_skip_mistral_reason(
+    state: AnnotationPipelineState,
+) -> str | None:
+    """Si non None : pas d’appel Mistral — résultat vide traçable (raison)."""
+    if state == AnnotationPipelineState.DEAD_LETTER:
+        return "orchestrator_dead_letter"
+    if state == AnnotationPipelineState.REVIEW_REQUIRED:
+        return "orchestrator_review_required_ocr"
+    if state == AnnotationPipelineState.ROUTED:
+        return "orchestrator_routed_no_llm"
+    if state in (
+        AnnotationPipelineState.LLM_PREANNOTATION_PENDING,
+        AnnotationPipelineState.PASS_1D_DONE,
+    ):
+        return None
+    return f"orchestrator_unexpected_state_{state.value}"
+
+
+def _runs_dir_health_hint() -> str:
+    p = _annotation_pipeline_runs_dir()
+    try:
+        p.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return "(unwritable)"
+    return p.name
 
 
 def _mistral_message_content_to_str(content: Any) -> str:
@@ -1198,6 +1263,9 @@ def _health_payload() -> dict[str, Any]:
         "model": MISTRAL_MODEL,
         "mistral_configured": bool(MISTRAL_API_KEY),
         "strict_predict": STRICT_PREDICT,
+        "pass_orchestrator_enabled": use_pass_orchestrator(),
+        "m12_subpasses_enabled": use_m12_subpasses(),
+        "orchestrator_runs_dir_hint": _runs_dir_health_hint(),
     }
 
 
@@ -1363,9 +1431,58 @@ async def predict(request: Request) -> JSONResponse:
             predictions.append(_build_empty_result(task_id, "text_too_short"))
             continue
 
+        text_for_llm = text
+        if use_pass_orchestrator():
+            runs_dir = _annotation_pipeline_runs_dir()
+            try:
+                runs_dir.mkdir(parents=True, exist_ok=True)
+            except OSError as exc:
+                logger.error(
+                    "[PREDICT] ANNOTATION_PIPELINE_RUNS_DIR inaccessible : %s",
+                    exc,
+                )
+                predictions.append(
+                    _build_empty_result(task_id, "orchestrator_runs_dir_unwritable")
+                )
+                continue
+            run_id = _orchestrator_run_id(
+                doc_id, int(task_id) if task_id is not None else 0
+            )
+            orch = AnnotationOrchestrator(runs_dir=runs_dir)
+            try:
+                orch_record, orch_state = await run_in_threadpool(
+                    orch.run_passes_0_to_1,
+                    text,
+                    document_id=str(doc_id),
+                    run_id=run_id,
+                    filename=source_filename or None,
+                )
+            except Exception as exc:
+                logger.error(
+                    "[PREDICT] orchestrator error: %s",
+                    exc,
+                    exc_info=True,
+                )
+                predictions.append(_build_empty_result(task_id, "orchestrator_error"))
+                continue
+
+            if _env_truthy("ANNOTATION_ORCHESTRATOR_DUAL_LOG", default=False):
+                logger.info(
+                    "[PREDICT] orchestrator state=%s pass_keys=%s",
+                    orch_state.value,
+                    list((orch_record.pass_outputs or {}).keys()),
+                )
+
+            skip_reason = _orchestrator_skip_mistral_reason(orch_state)
+            if skip_reason:
+                predictions.append(_build_empty_result(task_id, skip_reason))
+                continue
+
+            text_for_llm = _llm_text_from_orchestrator_record(orch_record, text)
+
         try:
             annotation = await _call_mistral(
-                text,
+                text_for_llm,
                 task_id,
                 document_role=document_role,
                 source_filename=source_filename,

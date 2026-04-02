@@ -11,12 +11,18 @@ Requis :
 
 import argparse
 import functools
-import os
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+
+from dms_pg_connect import (  # noqa: E402
+    get_raw_database_url,
+    psycopg_connect_kwargs,
+    safe_target_hint,
+)
 
 
 @functools.lru_cache(maxsize=1)
@@ -35,23 +41,11 @@ def _script_directory():
 
 
 def _get_db_url(cli_url: str | None = None) -> str:
-    url = (
-        cli_url
-        or os.environ.get("RAILWAY_DATABASE_URL", "").strip()
-        or os.environ.get("DATABASE_URL", "").strip()
-    )
-    if not url:
-        print(
-            "ERREUR : aucune URL de base de donnees fournie.\n"
-            "Definir RAILWAY_DATABASE_URL, DATABASE_URL, ou --db-url.",
-            file=sys.stderr,
-        )
+    try:
+        return get_raw_database_url(cli_url)
+    except ValueError as exc:
+        print(f"ERREUR : {exc}", file=sys.stderr)
         sys.exit(1)
-    if url.startswith("postgres://"):
-        url = "postgresql://" + url[len("postgres://") :]
-    if "postgresql+psycopg" not in url and url.startswith("postgresql://"):
-        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
-    return url
 
 
 def _get_local_head() -> str:
@@ -89,33 +83,30 @@ def main():
     args = parser.parse_args()
 
     db_url = _get_db_url(args.db_url)
-    safe_url = db_url.split("@")[-1] if "@" in db_url else "***"
-    print(f":: Cible DB : ...@{safe_url}")
+    print(f":: Cible DB : {safe_target_hint(db_url)}")
 
     local_head = _get_local_head()
     print(f":: Head Alembic local : {local_head}")
 
     try:
-        from sqlalchemy import create_engine, text
-        from sqlalchemy.exc import ProgrammingError
+        import psycopg
+        from psycopg import errors as pg_errors
 
-        engine = create_engine(db_url, pool_pre_ping=True)
-        with engine.connect() as conn:
-            try:
-                row = conn.execute(
-                    text("SELECT version_num FROM alembic_version LIMIT 1")
-                ).fetchone()
-                if row:
-                    db_revision = row[0]
-                else:
-                    db_revision = "(table vide — aucune migration appliquee)"
-            except ProgrammingError as exc:
-                if "alembic_version" in str(exc).lower():
+        conn_kw = psycopg_connect_kwargs(db_url)
+        with psycopg.connect(**conn_kw) as conn:
+            with conn.cursor() as cur:
+                try:
+                    cur.execute("SELECT version_num FROM alembic_version LIMIT 1")
+                    row = cur.fetchone()
+                except pg_errors.UndefinedTable:
                     db_revision = (
                         "(table alembic_version absente — aucune migration appliquee)"
                     )
                 else:
-                    raise
+                    if row:
+                        db_revision = row[0]
+                    else:
+                        db_revision = "(table vide — aucune migration appliquee)"
     except Exception as exc:
         print(f"ERREUR connexion DB : {exc}", file=sys.stderr)
         print(

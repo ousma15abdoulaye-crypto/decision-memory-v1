@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-04-01 — merge main PR #286 + #287 (pre-M13 diagnostic Alembic + gouvernance)
+# Derniere mise a jour : 2026-04-01 — M12 Phase 3 annotation-backend (ADR-M12-PHASE3) + sync Railway Alembic 056
 
 ---
 
@@ -37,7 +37,7 @@ last_tag              : v4.1.0-m12-done
 next_milestone        : M13
 next_status           : PENDING
 blocked_on            : (vide)
-m13_prerequisites     : hors registre STOP — ADR LLM (RÈGLE-11), wiring backend.py si GO CTO, sync Railway si GO CTO — détail transition § dans docs/milestones/M12_PROCEDURE_RECOGNIZER_DONE.md
+m13_prerequisites     : ADR LLM (RÈGLE-11) pour nouveaux chemins LLM ; M12 Phase 3 wiring backend = étape distincte (orchestrateur /predict, ADR-M12-PHASE3) avant features M13 métier (evaluation_documents API, etc.) ; sync Railway = fait 2026-04-01 — voir docs/milestones/M12_PROCEDURE_RECOGNIZER_DONE.md
 branch_courante       : main
 
 ---
@@ -60,29 +60,17 @@ branch_courante       : main
 
 ---
 
-## ÉTAT ALEMBIC — MIS À JOUR 2026-04-01
+## ÉTAT ALEMBIC — MIS À JOUR 2026-04-01 (sync Railway prod)
 
 local_alembic_head       : 056_evaluation_documents
-railway_alembic_head     : 044_decision_history
+railway_alembic_head     : 056_evaluation_documents
 migrations_pending_railway:
-  - 045_agent_native_foundation
-  - 046_imc_category_item_map
-  - 046b_imc_map_fix_restrict_indexes
-  - 047_couche_a_service_columns
-  - 048_vendors_sensitive_data
-  - 049_validate_pipeline_runs_fk
-  - 050_documents_sha256_not_null
-  - 051_cases_tenant_user_tenants_rls
-  - 052_dm_app_rls_role
-  - 053_dm_app_enforce_security_attrs
-  - 054_m12_correction_log
-  - 055_extend_rls_documents_extraction_jobs
-  - 056_evaluation_documents
-last_sync_railway        : DÉSYNCHRONISÉ — GO CTO requis avant sync
+  - (vide — DB prod alignée sur le head du dépôt)
+last_sync_railway        : 2026-04-01 — aligné — preuve : python scripts/diagnose_railway_migrations.py → [OK] synchronisé
 last_updated             : 2026-04-01
-updated_by               : merge 2026-04-01 — PR #286 + #287 sur main (E-82 / gouvernance pré-M13)
+updated_by               : post-sync Railway — migrations 055 + 056 appliquées (apply_railway_migrations_safe.py --apply)
 audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
-railway_sync_governance  : docs/adr/ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE.md — preuve live (diagnose_railway) + checklist post-sync obligatoires avant de certifier railway_alembic_head
+railway_sync_governance  : docs/adr/ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE.md
 evaluation_documents     : schéma + RLS livrés par migration 056 — aucune écriture applicative sous src/ avant mandat M13 (moteur conformité / API dédiée).
 
 ## MANDAT 4 — EXTRACTION RÉELLE (2026-03-17)
@@ -96,16 +84,23 @@ evaluation_documents     : schéma + RLS livrés par migration 056 — aucune é
   - 049_validate_pipeline_runs_fk     (ASAP-05 — trigger drop/recreate)
   - 050_documents_sha256_not_null     (ASAP-06 — backfill pgcrypto/md5)
 
-## DIVERGENCE RAILWAY — CRITIQUE
-  12 migrations non appliquées en production (045→056 ; voir liste migrations_pending_railway).
-  Toute fonctionnalité basée sur 045-048 (incl. 046b) est silencieusement
-  cassée en production jusqu'à synchronisation.
-  GO CTO obligatoire avant alembic upgrade sur Railway.
+## RAILWAY — SYNC PROD (2026-04-01)
+
+  Head prod PostgreSQL Railway : 056_evaluation_documents (identique au dépôt).
+  Toute nouvelle migration reste sous GO CTO + runbook (ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE).
 
 ## STACK ALEMBIC (legacy)
 
-railway_access_method     : RAILWAY_DATABASE_URL dans .env (direct)
-railway_cli               : ABSENT (node/npm absents sur ce poste)
+railway_access_method     : RAILWAY_DATABASE_URL (URL publique proxy Railway ; scripts dms_pg_connect.py + diagnose / apply)
+railway_cli               : Railway CLI — lien projet local (.railway/ gitignored) ; voir docs/ops/RAILWAY_CLI_LOCAL_LINK.md
+
+## ANNOTATION-BACKEND — M12 PHASE 3 (orchestrateur /predict)
+
+  statut_branchement     : implémenté — déploiement prod : ANNOTATION_USE_PASS_ORCHESTRATOR=0 par défaut jusqu’à validation ops ; puis bascule pilotée vers 1
+  flags                  : ANNOTATION_USE_PASS_ORCHESTRATOR (défaut 0) ; ANNOTATION_USE_M12_SUBPASSES (aligner avec passes 1A–1D si activé) ; ANNOTATION_PIPELINE_RUNS_DIR (optionnel, sinon répertoire temporaire conteneur)
+  corpus_gate            : dépassé — ≥ 22 annotated_validated (Document B post-M12) ; gate historique 15 clos
+  ref_adr                : docs/adr/ADR-M12-PHASE3-BACKEND-WIRING.md
+  ref_strangler          : docs/contracts/annotation/ANNOTATION_BACKEND_MIGRATION_STRATEGY.md Phase 3 GO
 
 ---
 
@@ -174,14 +169,10 @@ railway_cli               : ABSENT (node/npm absents sur ce poste)
   birth_source_dominant       : unknown (tous les 1490 items)
   item_code_format            : LG-202603-000001 a LG-202603-001490
 
-### Railway (maglev.proxy.rlwy.net:35451/railway — PostgreSQL 17.7)
+### Railway (PostgreSQL prod)
 
-  alembic_version      : m7_4b  (3 migrations en retard)
-  vendors              : 661
-  mercurials           : 27 396
-  dict_items_actifs    : 0      (pas encore ingere en prod)
-  aliases              : 0
-  seeds_validated      : 0
+  alembic_version      : 056_evaluation_documents (aligné dépôt — sync 2026-04-01)
+  mesures compteurs    : non figées ici — probes read-only : scripts/probe_railway_counts.py (avec RAILWAY_DATABASE_URL locale, jamais commitée)
 
 ### Collisions detectees
 

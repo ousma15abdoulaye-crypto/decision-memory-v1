@@ -99,8 +99,12 @@
 ║  feat/pre-m12-extraction-reelle : MERGÉ dans main (Mandat 4)        ║
 ║  feat/fix-backend-production : backend v3.0.1d (en attente merge)   ║
 ║  alembic head local : 056_evaluation_documents                        ║
-║  alembic head Railway : 044_decision_history (DÉSYNCHRONISÉ)         ║
-║  migrations pending Railway : 045 046 046b 047 048 049 050 051 052 053 054 055 056 ║
+║  alembic head Railway prod : 056_evaluation_documents (ALIGNÉ — sync 2026-04-01) ║
+║  migrations pending Railway : (vide)                                 ║
+║  annotation-backend M12 Ph.3 : orchestrateur derrière ANNOTATION_USE_PASS_ORCHESTRATOR ║
+║    (défaut 0 — monolith Mistral inchangé ; 1 = Pass 0→0.5→1 puis Mistral) ║
+║  Gel Cursor services/annotation-backend : dégel conditionnel Phase 3 sous mandat ║
+║    CTO — voir .cursor/rules/dms-annotation-backend-freeze.mdc + ADR-M12-PHASE3 ║
 ║  tags posés :                                                         ║
 ║    v4.1.0-ocr-files-api-done                                         ║
 ║    v4.1.0-m12-dette7-done                                             ║
@@ -127,7 +131,7 @@
 ║                    055 = extend_rls_documents_extraction_jobs (RLS)  ║
 ║                    056 = evaluation_documents (M13 ACO + RLS)        ║
 ║  RÈGLE           : zéro autogenerate — SQL brut uniquement         ║
-║  RÈGLE           : zéro modification fichiers existants 001-055    ║
+║  RÈGLE           : zéro modification fichiers existants 001-056    ║
 ║  RÈGLE           : toute nouvelle migration = 057+ séquentiel       ║
 ║  VIOLATION       : faute disciplinaire grave immédiate             ║
 ║                                                                      ║
@@ -301,7 +305,7 @@
 ║  PRÉ-M12 EN COURS (feat/pre-m12-cleanup) :                           ║
 ║    ASAP-01 : purge git .txt/.csv        ✓ DONE                       ║
 ║    ASAP-02 : MRD_CURRENT_STATE.md       ✓ DONE                        ║
-║    ASAP-03 : Railway sync 045→048       ⏳ GO CTO requis              ║
+║    ASAP-03 : Railway sync prod → head 056 ✓ DONE (2026-04-01)         ║
 ║    ASAP-04 : M-TESTS.done              ⏳ (Mandat 2)                 ║
 ║    ASAP-05 : migration 049 FK validate  ⏳ (Mandat 2)                 ║
 ║    ASAP-06 : migration 050 sha256       ⏳ (Mandat 2)                 ║
@@ -335,7 +339,7 @@
 ║                                                                      ║
 ║  DETTES OUVERTES → DETTE_M12.md                                     ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  BLOQUANT   : 15 docs annotated_validated (AO, non déléguable)     ║
+║  Gate 15 docs : CLOS — corpus ≥ 22 annotated_validated (Document B) ║
 ║  DETTE-1    : API GET /signals (market_signals_v2)                  ║
 ║  DETTE-2    : listener pg_notify CRITICAL → webhook/email          ║
 ║  DETTE-3    : workflow validation decision_history                 ║
@@ -866,9 +870,9 @@ Détails : `docs/calibration/M12_calibration_log.md`, `docs/calibration/benchmar
 
 ### GIT
 
-- Branche active : `feat/llm-arbitrator-ocr-railway-fix` (base `main` / `a6a4d7b`)
+- Branche active : `feat/llm-arbitrator-ocr-railway-fix` (base `main` / `a6a4d7b`) — historique mandat ; prod alignée 2026-04-01
 - Repo head Alembic : `056_evaluation_documents` (fix/pre-m13-blockers — mis à jour 2026-04-01)
-- Railway head : `044_decision_history` (DÉSYNCHRONISÉ — 13 migrations pending, voir runbook)
+- Railway head prod : `056_evaluation_documents` (ALIGNÉ — sync 2026-04-01, apply_railway_migrations_safe.py)
 
 ### PHASE 1 — OCR CLOUD-FIRST (84 PDFs débloqués)
 

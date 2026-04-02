@@ -103,6 +103,19 @@ Les logs Railway cherchent `[PARSE] Fallback` (hash + longueur) ou `[MISTRAL] Er
 
 **Choix prod** : laisser désactivé tant que les annotateurs ont besoin d’un brouillon Mistral à corriger ; activer pour les dossiers où seule une extraction entièrement valide est acceptée.
 
+## M12 Phase 3 — orchestrateur multipass (`/predict`)
+
+Branchement **AnnotationOrchestrator** (Pass 0 → 0.5 → 1 ou 1A→1D) avant l’appel Mistral pour le JSON Label Studio. Voir [`docs/adr/ADR-M12-PHASE3-BACKEND-WIRING.md`](../../docs/adr/ADR-M12-PHASE3-BACKEND-WIRING.md).
+
+| Variable | Description |
+| --- | --- |
+| `ANNOTATION_USE_PASS_ORCHESTRATOR` | `1` / `true` / `yes` : activer l’orchestrateur sur `/predict`. **Défaut prod : `0`** (chemin historique : Mistral seul après garde-fous texte). Rollback : remettre à `0`. |
+| `ANNOTATION_USE_M12_SUBPASSES` | `1` : enchaîner les sous-passes 1A→1D au lieu du `pass_1_router` seul. **Si des runs JSON existent déjà en état reprise (QUALITY_ASSESSED / PASS_1x) sans ce flag, l’orchestrateur lève une erreur explicite** — activer ce flag ou purger / requeue. Toujours combiné avec la stratégie d’exploitation documentée dans l’ADR. |
+| `ANNOTATION_PIPELINE_RUNS_DIR` | Répertoire writable pour les fichiers d’état `{run_id}.json` (checkpoints). Si absent : `tempfile` + sous-dossier `dms_annotation_pipeline_runs` (voir code). |
+| `ANNOTATION_ORCHESTRATOR_DUAL_LOG` | Optionnel — `1` : journaliser état FSM et clés `pass_outputs` après l’orchestrateur (diagnostic). |
+
+`GET /health` expose : `pass_orchestrator_enabled`, `m12_subpasses_enabled`, `orchestrator_runs_dir_hint` (dernier segment du chemin uniquement — pas de secrets).
+
 ## Dépôt corpus m12-v2 (webhook → stockage durable)
 
 Après `ANNOTATION_CREATED` / `ANNOTATION_UPDATED`, le backend peut construire une ligne m12-v2 et l’écrire dans un sink (fichier local, S3-compatible, ou noop). Sur Railway sans volume, privilégier **S3** (ex. R2, bucket S3).

@@ -15,6 +15,7 @@ Securites :
 """
 
 import argparse
+import functools
 import os
 import subprocess
 import sys
@@ -22,124 +23,91 @@ import time
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+
+from dms_pg_connect import (  # noqa: E402
+    alembic_database_url,
+    get_raw_database_url,
+    psycopg_connect_kwargs,
+    safe_target_hint,
+)
+
+
+@functools.lru_cache(maxsize=1)
+def _script_directory():
+    """Graphe Alembic du dépôt — aligné ``diagnose_railway_migrations.py`` (merges inclus)."""
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+
+    cfg = Config(str(REPO_ROOT / "alembic.ini"))
+    cfg.set_main_option("script_location", str(REPO_ROOT / "alembic"))
+    cfg.set_main_option("prepend_sys_path", str(REPO_ROOT))
+    return ScriptDirectory.from_config(cfg)
+
+
+def _revision_chain_base_to_head(head_revision: str) -> list[str]:
+    """Révisions ordonnées base → ``head_revision`` (inclus), via ``walk_revisions``."""
+    script = _script_directory()
+    revs = list(script.walk_revisions("base", head_revision))
+    return [r.revision for r in reversed(revs)]
 
 
 def _get_db_url(cli_url: str | None = None) -> str:
-    url = (
-        cli_url
-        or os.environ.get("RAILWAY_DATABASE_URL", "").strip()
-        or os.environ.get("DATABASE_URL", "").strip()
-    )
-    if not url:
-        print(
-            "ERREUR : aucune URL de base de donnees fournie.",
-            file=sys.stderr,
-        )
+    try:
+        return get_raw_database_url(cli_url)
+    except ValueError as exc:
+        print(f"ERREUR : {exc}", file=sys.stderr)
         sys.exit(1)
-    if url.startswith("postgres://"):
-        url = "postgresql://" + url[len("postgres://") :]
-    if "postgresql+psycopg" not in url and url.startswith("postgresql://"):
-        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
-    return url
 
 
-def _get_current_revision(db_url: str) -> str | None:
-    from sqlalchemy import create_engine, text
-    from sqlalchemy.exc import ProgrammingError
+def _get_current_revision(raw_url: str) -> str | None:
+    import psycopg
+    from psycopg import errors as pg_errors
 
-    engine = create_engine(db_url, pool_pre_ping=True)
-    with engine.connect() as conn:
-        try:
-            result = conn.execute(text("SELECT version_num FROM alembic_version LIMIT 1"))
-        except ProgrammingError as exc:
-            if "alembic_version" in str(exc).lower():
+    conn_kw = psycopg_connect_kwargs(raw_url)
+    with psycopg.connect(**conn_kw) as conn:
+        with conn.cursor() as cur:
+            try:
+                cur.execute("SELECT version_num FROM alembic_version LIMIT 1")
+                row = cur.fetchone()
+            except pg_errors.UndefinedTable:
                 return None
-            raise
-        row = result.fetchone()
-        return row[0] if row else None
+            return row[0] if row else None
 
 
-def _get_pending_migrations(db_url: str) -> list[str]:
-    """Retourne la liste des revisions non appliquees, dans l'ordre."""
-    env = os.environ.copy()
-    env["DATABASE_URL"] = db_url
-
-    result_history = subprocess.run(
-        ["alembic", "history", "--verbose"],
-        capture_output=True,
-        text=True,
-        cwd=str(REPO_ROOT),
-        env=env,
-    )
-    if result_history.returncode != 0:
-        print("ERREUR : echec de la commande 'alembic history --verbose'.", file=sys.stderr)
-        if result_history.stderr:
-            print(result_history.stderr.strip(), file=sys.stderr)
-        sys.exit(1)
-
-    current = _get_current_revision(db_url)
-
-    result_heads = subprocess.run(
-        ["alembic", "heads"],
-        capture_output=True,
-        text=True,
-        cwd=str(REPO_ROOT),
-        env=env,
-    )
-    if result_heads.returncode != 0:
-        print("ERREUR : echec de la commande 'alembic heads'.", file=sys.stderr)
-        if result_heads.stderr:
-            print(result_heads.stderr.strip(), file=sys.stderr)
-        sys.exit(1)
-    heads_output = result_heads.stdout.strip()
-    head_revisions = []
-    for line in heads_output.splitlines():
-        rev = line.strip().split(" ")[0] if line.strip() else ""
-        if rev:
-            head_revisions.append(rev)
-
-    if not head_revisions:
+def _get_pending_migrations(raw_url: str) -> list[str]:
+    """Retourne la liste des revisions non appliquees, dans l'ordre (API ScriptDirectory)."""
+    script = _script_directory()
+    heads = script.get_heads()
+    if not heads:
         print("ERREUR : impossible de determiner le head Alembic.", file=sys.stderr)
         sys.exit(1)
-
-    if len(head_revisions) > 1:
+    if len(heads) > 1:
         print(
-            f"STOP-1 : Multiple heads detectes : {head_revisions}",
+            f"STOP-1 : Multiple heads detectes : {sorted(heads)}",
             file=sys.stderr,
         )
         sys.exit(1)
 
-    target_head = head_revisions[0]
+    target_head = heads[0]
+    current = _get_current_revision(raw_url)
 
     if current == target_head:
         return []
 
-    result_pending = subprocess.run(
-        ["alembic", "history", f"{current or 'base'}:{target_head}"],
-        capture_output=True,
-        text=True,
-        cwd=str(REPO_ROOT),
-        env=env,
-    )
-    if result_pending.returncode != 0:
-        print("ERREUR : echec de la commande 'alembic history base:head'.", file=sys.stderr)
-        if result_pending.stderr:
-            print(result_pending.stderr.strip(), file=sys.stderr)
+    chain = _revision_chain_base_to_head(target_head)
+    if current is None:
+        return chain
+
+    try:
+        idx = chain.index(current)
+    except ValueError:
+        print(
+            f"ERREUR : revision DB {current!r} absente du graphe Alembic vers {target_head!r}.",
+            file=sys.stderr,
+        )
         sys.exit(1)
-
-    pending = []
-    for line in result_pending.stdout.strip().splitlines():
-        line = line.strip()
-        if " -> " in line:
-            parts = line.split(" -> ")
-            if len(parts) >= 2:
-                # Extraire l'ID de revision de gauche : "revision -> down_revision"
-                rev = parts[0].split(" ")[0].split(",")[0].strip()
-                if rev:
-                    pending.append(rev)
-
-    pending.reverse()
-    return pending
+    return chain[idx + 1 :]
 
 
 def main():
@@ -154,16 +122,15 @@ def main():
     )
     args = parser.parse_args()
 
-    db_url = _get_db_url(args.db_url)
-    safe_url = db_url.split("@")[-1] if "@" in db_url else "***"
+    raw_url = _get_db_url(args.db_url)
     mode = "APPLY" if args.apply else "DRY-RUN"
     print(f":: Mode : {mode}")
-    print(f":: Cible : ...@{safe_url}")
+    print(f":: Cible : {safe_target_hint(raw_url)}")
 
-    current = _get_current_revision(db_url)
+    current = _get_current_revision(raw_url)
     print(f":: Revision actuelle : {current or '(aucune)'}")
 
-    pending = _get_pending_migrations(db_url)
+    pending = _get_pending_migrations(raw_url)
     if not pending:
         print("\n[OK] Aucune migration en attente. La DB est a jour.")
         return
@@ -179,7 +146,7 @@ def main():
 
     print("\n:: Application sequentielle...")
     env = os.environ.copy()
-    env["DATABASE_URL"] = db_url
+    env["DATABASE_URL"] = alembic_database_url(raw_url)
 
     for i, rev in enumerate(pending, 1):
         print(f"\n  [{i}/{len(pending)}] Upgrade vers {rev}...")
@@ -200,10 +167,12 @@ def main():
             print(f"  stdout: {result.stdout}")
             print(f"  stderr: {result.stderr}")
             print(f"\n:: ARRET IMMEDIAT — la migration {rev} a echoue.")
-            print(f":: Revision actuelle apres echec : {_get_current_revision(db_url)}")
+            print(
+                f":: Revision actuelle apres echec : {_get_current_revision(raw_url)}"
+            )
             sys.exit(1)
 
-        new_current = _get_current_revision(db_url)
+        new_current = _get_current_revision(raw_url)
         if new_current != rev:
             print(
                 f"  ATTENTION : apres upgrade, la revision est {new_current} "
@@ -212,7 +181,7 @@ def main():
         else:
             print(f"  OK ({elapsed:.1f}s) — revision = {rev}")
 
-    final = _get_current_revision(db_url)
+    final = _get_current_revision(raw_url)
     print(f"\n:: Terminé. Revision finale : {final}")
     print(f":: {len(pending)} migration(s) appliquee(s) avec succes.")
 

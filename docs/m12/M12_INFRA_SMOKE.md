@@ -25,7 +25,8 @@ Variables obligatoires :
 
 Vérifications :
 
-- [ ] `GET {ANNOTATION_BACKEND_URL}/health` → JSON `status: ok` (vérifier `strict_predict` si vous utilisez le mode strict)
+- [ ] `GET {ANNOTATION_BACKEND_URL}/health` → JSON `status: ok` ; champs **`pass_orchestrator_enabled`**, **`m12_subpasses_enabled`**, **`orchestrator_runs_dir_hint`** alignés avec les variables Railway (défaut orchestrateur `false` / `0` jusqu’à bascule pilotée)
+- [ ] (vérifier aussi `strict_predict` si vous utilisez le mode strict)
 - [ ] `POST {ANNOTATION_BACKEND_URL}/setup` → `status: ready`
 
 ## 3. Liaison LS → backend

@@ -45,3 +45,7 @@ Railway uses HTTP health checks by default. Ensure the app responds on `$PORT`.
 - **Never commit** `.env` or credentials
 - Use Railway Variables for `DATABASE_URL` and any API keys
 - `.env.example` documents expected vars (no secrets)
+
+## CLI local et lien avec le dépôt
+
+Pour authentifier le CLI, lier la racine du repo au projet Railway et récupérer les variables (ex. `RAILWAY_DATABASE_URL` pour les scripts de migration), voir [docs/ops/RAILWAY_CLI_LOCAL_LINK.md](ops/RAILWAY_CLI_LOCAL_LINK.md).
