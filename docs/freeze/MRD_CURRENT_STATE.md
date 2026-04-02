@@ -99,7 +99,7 @@ railway_cli               : Railway CLI — lien projet local (.railway/ gitigno
   pr_integration         : #289 — branche feat/m12-phase3-backend-wiring → main (merge = humain) ; livrables code + doc gelée ici (E-82)
   statut_branchement     : implémenté — déploiement prod : ANNOTATION_USE_PASS_ORCHESTRATOR=0 par défaut jusqu’à validation ops ; puis bascule pilotée vers 1
   flags                  : ANNOTATION_USE_PASS_ORCHESTRATOR (défaut 0) ; ANNOTATION_USE_M12_SUBPASSES (aligner avec passes 1A–1D si activé) ; ANNOTATION_PIPELINE_RUNS_DIR (optionnel ; sinon tempfile — voir ENVIRONMENT.md)
-  runtime_post_revue     : run_passes_0_to_1 via threadpool (non-bloquant async) ; run_id uuid5 déterministe (doc + task + version pipeline v1) ; apply_railway_migrations_safe pending = ScriptDirectory.walk_revisions (merges Alembic) ; alembic_database_url IPv6 = host entre crochets dans netloc
+  runtime_post_revue     : run_passes_0_to_1 via threadpool (async, ne bloque pas l’event loop) ; run_id uuid5 déterministe (doc + task + version pipeline v1) ; apply_railway_migrations_safe pending = ScriptDirectory.walk_revisions (merges Alembic) ; alembic_database_url IPv6 = host entre crochets dans netloc
   corpus_gate            : dépassé — ≥ 22 annotated_validated (Document B post-M12) ; gate historique 15 clos
   ref_adr                : docs/adr/ADR-M12-PHASE3-BACKEND-WIRING.md
   ref_strangler          : docs/contracts/annotation/ANNOTATION_BACKEND_MIGRATION_STRATEGY.md Phase 3 GO
