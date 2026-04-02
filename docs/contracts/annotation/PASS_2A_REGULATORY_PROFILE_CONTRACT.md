@@ -20,7 +20,7 @@ Pass **2A** exécute le **Regulatory Compliance Engine** (M13) : résolution de 
 | `M12Output` reconstituable | Sorties `pass_1a` … `pass_1d` présentes dans le run |
 | H1 présent si `source_rules` | `handoffs.regulatory_profile_skeleton` non null pour kinds source_rules |
 
-Si H1 est absent alors que le document exige un profil réglementaire, M13 produit un rapport en `pipeline_error` (via méta et legacy verdict).
+Si H1 est absent alors que le document exige un profil réglementaire, Pass 2A est ignoré (`PassRunStatus.SKIPPED`) et aucun rapport M13 n’est produit.
 
 ---
 
