@@ -26,6 +26,21 @@ def _is_rls_denied(exc: BaseException) -> bool:
 class M14EvaluationRepository:
     """CRUD sur evaluation_documents (migration 056)."""
 
+    def _resolve_committee_id(self, case_id: str) -> str | None:
+        """Lookup le premier committee_id rattaché au case. None si absent."""
+        try:
+            with get_connection() as conn:
+                conn.execute(
+                    "SELECT committee_id::text AS cid FROM public.committees "
+                    "WHERE case_id = :case_id LIMIT 1",
+                    {"case_id": case_id},
+                )
+                row = conn.fetchone()
+                return str(row["cid"]) if row else None
+        except Exception as exc:
+            logger.warning("committee_id lookup failed for case %s: %s", case_id, exc)
+            return None
+
     def save_evaluation(
         self,
         *,
@@ -36,11 +51,17 @@ class M14EvaluationRepository:
     ) -> str | None:
         """Insère un nouveau draft. Retourne l'id UUID, ou None si erreur.
 
-        ``committee_id`` est NOT NULL en DB, mais M14 le positionne à un UUID
-        sentinel si non fourni (le comité humain met à jour après scellement).
+        ``committee_id`` est NOT NULL + FK en DB. Si non fourni, le repository
+        résout le premier comité rattaché au case. En l'absence de comité,
+        la sauvegarde est abandonnée (log warning).
         """
-        sentinel_committee = "00000000-0000-0000-0000-000000000000"
-        cid = committee_id or sentinel_committee
+        cid = committee_id or self._resolve_committee_id(case_id)
+        if cid is None:
+            logger.warning(
+                "evaluation_documents save skipped: no committee found for case %s",
+                case_id,
+            )
+            return None
 
         for attempt in range(_MAX_INSERT_RETRIES):
             try:
@@ -71,9 +92,11 @@ class M14EvaluationRepository:
                     out = conn.fetchone()
                     return str(out["id"]) if out else None
             except psycopg.errors.UniqueViolation:
-                if attempt + 1 >= _MAX_INSERT_RETRIES:
+                if version is not None or attempt + 1 >= _MAX_INSERT_RETRIES:
                     logger.warning(
-                        "evaluation_documents unique violation after %s retries",
+                        "evaluation_documents unique violation (version=%s, attempt=%s/%s)",
+                        version,
+                        attempt + 1,
                         _MAX_INSERT_RETRIES,
                     )
                     return None

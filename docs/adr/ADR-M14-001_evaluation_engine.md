@@ -24,7 +24,7 @@ M14 **évalue** ; il ne **décide** pas. Tout résultat est soumis au comité hu
 
 - **`src/procurement/m14_evaluation_models.py`** — modèles typés.
 - `M14Confidence = Literal[0.6, 0.8, 1.0]` — réutilise la même grille DMS.
-- Champs interdits (RÈGLE-09 Kill List) : `winner`, `rank`, `recommendation`, `best_offer`.
+- Champs interdits (RÈGLE-09 Kill List) : `winner`, `rank`, `recommendation`, `offre_retenue`.
 - Chaque offre reçoit un `OfferEvaluation` avec :
   - `eligibility_result` : résultat checklist éliminatoire (pass/fail/indeterminate).
   - `technical_score` : score technique pondéré si `scoring_structure` disponible.
@@ -50,7 +50,7 @@ M14 **évalue** ; il ne **décide** pas. Tout résultat est soumis au comité hu
 
 ### 5. Interdictions (STOP signals)
 
-- **RÈGLE-09** : `winner`, `rank`, `recommendation`, `best_offer` = INTERDITS dans tout payload M14.
+- **RÈGLE-09** : `winner`, `rank`, `recommendation`, `offre_retenue` = INTERDITS dans tout payload M14.
 - M14 ne produit pas de verdict d'attribution — uniquement des scores et analyses.
 - M14 ne modifie pas les données M12/M13 (append-only).
 - Le statut `"sealed"` dans `evaluation_documents` ne peut être posé que par le comité humain.
@@ -65,5 +65,5 @@ M14 **évalue** ; il ne **décide** pas. Tout résultat est soumis au comité hu
 
 - Nouvelle migration **non requise** : table `evaluation_documents` existe (056).
 - Mise à jour CI : `VALID_ALEMBIC_HEADS` inchangé (pas de nouvelle migration).
-- Mise à jour contrats : `M14_EVALUATION_CONTRACT.md` créé.
+- Aucun nouveau contrat documentaire créé par cette ADR (contrat éventuel en phase ultérieure).
 - Mise à jour `CONTEXT_ANCHOR` et `MRD_CURRENT_STATE` après merge.

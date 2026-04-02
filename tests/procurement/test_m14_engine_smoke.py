@@ -24,7 +24,7 @@ def _minimal_input(**overrides: object) -> M14EvaluationInput:
             {
                 "document_id": "offer-1",
                 "supplier_name": "Supplier A",
-                "process_role": "technical_offer",
+                "process_role": "offer_technical",
                 "present_admin_subtypes": ["nif", "rccm"],
                 "capability_sections_present": ["methodology"],
                 "currency": "XOF",

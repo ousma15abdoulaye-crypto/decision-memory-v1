@@ -249,13 +249,17 @@ class EvaluationEngine:
         if not active:
             return None
 
-        present = offer.get("capability_sections_present", [])
-        missing = [s for s in active if s not in present]
-        ratio = len(present) / len(active) if active else 0.0
+        present_raw = offer.get("capability_sections_present", [])
+        active_set = set(active)
+        present_in_active = list(
+            dict.fromkeys(s for s in present_raw if s in active_set)
+        )
+        missing = [s for s in active if s not in present_in_active]
+        ratio = len(present_in_active) / len(active) if active else 0.0
 
         return CompletionAnalysis(
             expected_sections=active,
-            present_sections=[s for s in present if s in active],
+            present_sections=present_in_active,
             missing_sections=missing,
             completeness_ratio=round(ratio, 3),
             confidence=_discretize_m14(0.7),
@@ -287,31 +291,44 @@ class EvaluationEngine:
                 pass
 
         scores: list[TechnicalCriterionScore] = []
-        total = 0.0
+        total_weighted_score: float | None = None
         for c in criteria:
             if not isinstance(c, dict):
                 continue
             name = c.get("criteria_name", "")
             weight = c.get("weight_percent")
             max_s = c.get("max_score")
+            awarded = c.get("awarded_score")
             scores.append(
                 TechnicalCriterionScore(
                     criteria_name=name,
                     weight_percent=weight,
                     max_score=max_s,
-                    awarded_score=None,
+                    awarded_score=awarded,
                     justification="scoring_requires_human_evaluation",
                     confidence=0.6,
                 )
             )
+            try:
+                awarded_val = float(awarded)
+            except (ValueError, TypeError):
+                continue
+            if total_weighted_score is None:
+                total_weighted_score = 0.0
+            try:
+                weight_val = float(weight)
+            except (ValueError, TypeError):
+                total_weighted_score += awarded_val
+            else:
+                total_weighted_score += awarded_val * (weight_val / 100.0)
 
         passes = None
-        if threshold is not None and total > 0:
-            passes = total >= threshold
+        if threshold is not None and total_weighted_score is not None:
+            passes = total_weighted_score >= threshold
 
         return TechnicalScore(
             criteria_scores=scores,
-            total_weighted_score=total if total > 0 else None,
+            total_weighted_score=total_weighted_score,
             technical_threshold=threshold,
             passes_threshold=passes,
             ponderation_coherence=(

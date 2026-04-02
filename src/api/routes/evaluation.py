@@ -36,7 +36,8 @@ def m14_evaluate(
 ) -> dict[str, Any]:
     """Lance l'évaluation comparative pour un case.
 
-    Retourne l'EvaluationReport sérialisé + l'id de persistance.
+    Retourne l'EvaluationReport sérialisé. La persistance est tentée mais
+    non bloquante (absence de comité = pas de sauvegarde en DB).
     """
     repo = M14EvaluationRepository()
     engine = EvaluationEngine(repository=repo)
