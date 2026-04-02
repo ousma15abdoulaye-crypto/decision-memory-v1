@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-04-02 — merge PR #292 M13 Regulatory Profile Engine (38733982) ; Alembic dépôt 057 — Railway prod 056 jusqu’à apply 057 (GO CTO)
+# Derniere mise a jour : 2026-04-02 — merge PR #292 + Railway prod Alembic 057 aligné (apply_railway_migrations_safe.py) ; RAILWAY_DATABASE_URL locale .env.railway.local (gitignored)
 
 ---
 
@@ -37,7 +37,7 @@ last_tag              : v4.1.0-m12-done
 next_milestone        : M14
 next_status           : PENDING
 blocked_on            : (vide)
-m13_prerequisites     : M12 Phase 3 PR #289 mergé (orchestrateur /predict) ; ADR-M13-001 + Pass 2A + config/regulatory — livrés PR #292 ; apply migration 057 sur Railway prod sous GO CTO (ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE) avant usage persistance m13_* en prod
+m13_prerequisites     : M12 Phase 3 PR #289 mergé ; ADR-M13-001 + Pass 2A + config/regulatory PR #292 ; migration 057 appliquée prod 2026-04-02 — persistance m13_* opérationnelle côté schéma ; secrets DB = .env.railway.local + with_railway_env.py (RAILWAY_LOCAL_ENV.md)
 branch_courante       : main
 
 ---
@@ -61,18 +61,18 @@ branch_courante       : main
 
 ---
 
-## ÉTAT ALEMBIC — MIS À JOUR 2026-04-02 (dépôt vs Railway prod)
+## ÉTAT ALEMBIC — MIS À JOUR 2026-04-02 (dépôt = Railway prod)
 
 local_alembic_head       : 057_m13_regulatory_profile_and_correction_log
-railway_alembic_head     : 056_evaluation_documents
+railway_alembic_head     : 057_m13_regulatory_profile_and_correction_log
 migrations_pending_railway:
-  - 057_m13_regulatory_profile_and_correction_log (m13_regulatory_profile_versions + m13_correction_log, RLS)
-last_sync_railway        : 2026-04-01 — prod alignée 056 ; post-PR #292 dépôt = 057 — apply 057 en attente GO CTO
+  - (vide)
+last_sync_railway        : 2026-04-02 — apply 057 prod — preuve : diagnose_railway_migrations.py → [OK] synchronisé
 last_updated             : 2026-04-02
-updated_by               : merge PR #292 — head dépôt 057 ; prod Railway inchangée jusqu’à apply_railway_migrations_safe.py
+updated_by               : apply_railway_migrations_safe.py --apply via python scripts/with_railway_env.py (charge .env.railway.local)
 audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
 railway_sync_governance  : docs/adr/ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE.md
-evaluation_documents     : schéma + RLS — migration 056 ; tables M13 snapshot/correction — migration 057 (à appliquer prod).
+evaluation_documents     : migration 056 ; m13_regulatory_profile_versions + m13_correction_log (RLS) — migration 057 déployée prod.
 
 ## MANDAT 4 — EXTRACTION RÉELLE (2026-03-17)
   merge_commit            : 87942a3 (PR#215)
@@ -87,8 +87,8 @@ evaluation_documents     : schéma + RLS — migration 056 ; tables M13 snapshot
 
 ## RAILWAY — SYNC PROD (2026-04-02)
 
-  Head prod PostgreSQL Railway : 056_evaluation_documents — en attente de 057 (aligner après validation CTO).
-  Dépôt / CI : 057 — ne pas supposer prod = dépôt tant que apply 057 non exécuté.
+  Head prod PostgreSQL Railway : 057_m13_regulatory_profile_and_correction_log (aligné dépôt / CI).
+  Secrets connexion scripts : RAILWAY_DATABASE_URL dans .env.railway.local (gitignored) — docs/ops/RAILWAY_LOCAL_ENV.md.
   Toute nouvelle migration reste sous GO CTO + runbook (ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE).
 
 ## M13 — REGULATORY PROFILE ENGINE (merge 2026-04-02)

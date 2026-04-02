@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-02 (MERGE M13 — PR #292 Regulatory Profile Engine) ║
+║  Dernière mise à jour : 2026-04-02 (M13 PR #292 + Railway Alembic 057 aligné prod) ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -104,9 +104,10 @@
 ║  feat/pre-m12-extraction-reelle : MERGÉ dans main (Mandat 4)        ║
 ║  feat/fix-backend-production : backend v3.0.1d (en attente merge)   ║
 ║  alembic head dépôt / CI : 057_m13_regulatory_profile_and_correction_log ║
-║  alembic head Railway prod : 056_evaluation_documents — migration 057 À APPLIQUER ║
-║    (GO CTO + apply_railway_migrations_safe.py — ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE) ║
-║  migrations pending Railway : 057 (m13_regulatory_profile_versions + m13_correction_log RLS) ║
+║  alembic head Railway prod : 057_m13_regulatory_profile_and_correction_log (ALIGNÉ — 2026-04-02) ║
+║  migrations pending Railway : (vide) — 057 appliquée (apply_railway_migrations_safe.py --apply) ║
+║  RAILWAY_DATABASE_URL : défini hors dépôt — fichier local .env.railway.local (gitignored) ; ║
+║    chargement scripts/with_railway_env.py ou .\\scripts\\load_railway_env.ps1 — RAILWAY_LOCAL_ENV.md ║
 ║  annotation-backend M12 Ph.3 : orchestrateur derrière ANNOTATION_USE_PASS_ORCHESTRATOR ║
 ║    (défaut 0 — monolith Mistral inchangé ; 1 = Pass 0→0.5→1 puis Mistral) ║
 ║  Gel Cursor services/annotation-backend : dégel conditionnel Phase 3 sous mandat ║
@@ -140,7 +141,7 @@
 ║  RÈGLE           : zéro autogenerate — SQL brut uniquement         ║
 ║  RÈGLE           : zéro modification fichiers existants 001-057    ║
 ║  RÈGLE           : toute nouvelle migration = 058+ séquentiel       ║
-║  apply_safe      : scripts/apply_railway_migrations_safe.py — pending ║
+║  apply_safe      : scripts/apply_railway_migrations_safe.py — prod alignée 057 (2026-04-02) ║
 ║    via ScriptDirectory (graphe merges), pas parse linéaire seul    ║
 ║  VIOLATION       : faute disciplinaire grave immédiate             ║
 ║                                                                      ║
@@ -1024,5 +1025,26 @@ Les sorties M12 vers les milestones futurs sont désormais contractualisées :
 ### RÉFÉRENCE RAPIDE FICHIERS CLÉS (NE PAS DUPLIQUER LA PR)
 
 Voir diff GitHub PR #276 pour liste exhaustive ; points d’ancrage code : `src/extraction/engine.py`, `docker-compose.yml`, `Makefile`, `scripts/apply_railway_migrations_safe.py`, `scripts/diagnose_railway_migrations.py`, `docs/ops/RAILWAY_MIGRATION_RUNBOOK.md`, `src/procurement/regulatory_index.py`, `tests/test_engine_slab_dispatch.py`.
+
+---
+
+## ADDENDUM 2026-04-02 — RAILWAY ALEMBIC 057 APPLIQUÉ (PROD)
+
+**Autorité :** GO CTO / AO — alignement PostgreSQL Railway sur le head du dépôt.
+
+### Alembic
+
+- **Révision prod** après apply : `057_m13_regulatory_profile_and_correction_log` (tables `m13_regulatory_profile_versions`, `m13_correction_log`, RLS — migration 057).
+- **Preuve** : `python scripts/with_railway_env.py python scripts/diagnose_railway_migrations.py` → `[OK] La DB est synchronisee avec le head local.`
+
+### Variables d’environnement (secrets)
+
+- **`RAILWAY_DATABASE_URL`** n’est **pas** stockée dans le dépôt Git.
+- Sur poste de travail : définie dans **`.env.railway.local`** (fichier **gitignored**, une ligne `RAILWAY_DATABASE_URL=...`).
+- Chargement pour les scripts : **`python scripts/with_railway_env.py`** (recommandé si PowerShell bloque les `.ps1`) ou **`. .\\scripts\\load_railway_env.ps1`** — réf. **`docs/ops/RAILWAY_LOCAL_ENV.md`**.
+
+### Gouvernance
+
+- Runbook : `docs/ops/RAILWAY_MIGRATION_RUNBOOK.md` ; ADR : `docs/adr/ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE.md`.
 
 ---
