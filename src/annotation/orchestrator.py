@@ -775,37 +775,52 @@ class AnnotationOrchestrator:
             self.save_run(record)  # checkpoint
 
         # ── Pass 1D: Process Linking ──
-        p1d = self._run_pass_with_retry(
-            run_pass_1d_process_linking,
-            "pass_1d_process_linking",
-            normalized_text=normalized_text,
-            document_id=document_id,
-            run_id=run_id,
-            pass_1a_output_data=p1a.output_data or {},
-            case_documents_1a=case_documents_1a,
-        )
-        record.pass_outputs["pass_1d_process_linking"] = _serialize_pass_output(p1d)
-        if p1d.status == PassRunStatus.FAILED:
+        p1d: AnnotationPassOutput | None = None
+        if _is_done(AnnotationPipelineState.PASS_1D_DONE):
+            p1d = self._reconstruct_pass_output(record, "pass_1d_process_linking")
+            if p1d is not None:
+                logger.info(
+                    "annotation_orchestrator_checkpoint_hit",
+                    extra={"run_id": str(run_id), "pass": "1d"},
+                )
+            else:
+                _reset_from(
+                    "pass_1d_process_linking",
+                    AnnotationPipelineState.PASS_1C_DONE,
+                )
+        if p1d is None:
+            p1d = self._run_pass_with_retry(
+                run_pass_1d_process_linking,
+                "pass_1d_process_linking",
+                normalized_text=normalized_text,
+                document_id=document_id,
+                run_id=run_id,
+                pass_1a_output_data=p1a.output_data or {},
+                case_documents_1a=case_documents_1a,
+            )
+            record.pass_outputs["pass_1d_process_linking"] = _serialize_pass_output(
+                p1d
+            )
+            if p1d.status == PassRunStatus.FAILED:
+                self._log_transition(
+                    record,
+                    from_state=record.state,
+                    to_state=AnnotationPipelineState.DEAD_LETTER.value,
+                    pass_name="pass_1d_process_linking",
+                    out=p1d,
+                )
+                record.state = AnnotationPipelineState.DEAD_LETTER.value
+                self.save_run(record)
+                return record, AnnotationPipelineState.DEAD_LETTER
             self._log_transition(
                 record,
                 from_state=record.state,
-                to_state=AnnotationPipelineState.DEAD_LETTER.value,
+                to_state=AnnotationPipelineState.PASS_1D_DONE.value,
                 pass_name="pass_1d_process_linking",
                 out=p1d,
             )
-            record.state = AnnotationPipelineState.DEAD_LETTER.value
-            self.save_run(record)
-            return record, AnnotationPipelineState.DEAD_LETTER
-
-        self._log_transition(
-            record,
-            from_state=record.state,
-            to_state=AnnotationPipelineState.PASS_1D_DONE.value,
-            pass_name="pass_1d_process_linking",
-            out=p1d,
-        )
-        record.state = AnnotationPipelineState.PASS_1D_DONE.value
-        self.save_run(record)
+            record.state = AnnotationPipelineState.PASS_1D_DONE.value
+            self.save_run(record)  # checkpoint
 
         if not use_pass_2a():
             return record, AnnotationPipelineState.PASS_1D_DONE
