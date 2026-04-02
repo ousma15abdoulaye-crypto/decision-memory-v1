@@ -336,6 +336,7 @@ class AnnotationOrchestrator:
         file_metadata: dict[str, Any] | None = None,
         filename: str | None = None,
         case_documents_1a: list[dict[str, Any]] | None = None,
+        case_id: str | None = None,
     ) -> tuple[PipelineRunRecord, AnnotationPipelineState]:
         """
         Exécute jusqu'à ``routed`` (ou ``dead_letter`` / ``review_required``).
@@ -491,6 +492,7 @@ class AnnotationOrchestrator:
                 quality_class=qc or "good",
                 block_llm=block_llm,
                 case_documents_1a=case_documents_1a,
+                case_id=case_id,
             )
 
         # Legacy path: Pass 1 — deterministe / LLM optionnel (with retry)

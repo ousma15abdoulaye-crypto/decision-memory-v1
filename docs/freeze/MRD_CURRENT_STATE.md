@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-04-02 — audit hardening NC-01/02/03 + migration 058 (fix/m13-audit-hardening PR #293)
+# Derniere mise a jour : 2026-04-02 — M14 Evaluation Engine (feat/M14-evaluation-engine)
 
 ---
 
@@ -35,7 +35,7 @@ last_completed_at     : 2026-04-02
 last_merge_commit     : 38733982 (main — PR #292 feat/M13-regulatory-profile-engine-v5)
 last_tag              : v4.1.0-m12-done
 next_milestone        : M14
-next_status           : PENDING
+next_status           : EN COURS — branche feat/M14-evaluation-engine
 blocked_on            : (vide)
 m13_prerequisites     : M12 Phase 3 PR #289 mergé ; ADR-M13-001 + Pass 2A + config/regulatory PR #292 ; migration 057 appliquée prod 2026-04-02 — persistance m13_* opérationnelle côté schéma ; secrets DB = .env.railway.local + with_railway_env.py (RAILWAY_LOCAL_ENV.md)
 branch_courante       : main
@@ -64,15 +64,14 @@ branch_courante       : main
 ## ÉTAT ALEMBIC — MIS À JOUR 2026-04-02 (dépôt = Railway prod)
 
 local_alembic_head       : 058_m13_correction_log_case_id_index
-railway_alembic_head     : 057_m13_regulatory_profile_and_correction_log
-migrations_pending_railway:
-  - 058_m13_correction_log_case_id_index
+railway_alembic_head     : 058_m13_correction_log_case_id_index
+migrations_pending_railway: (vide — Railway aligné 2026-04-02)
 last_sync_railway        : 2026-04-02 — apply 057 prod — preuve : diagnose_railway_migrations.py → [OK] synchronisé
 last_updated             : 2026-04-02
 updated_by               : apply_railway_migrations_safe.py --apply via python scripts/with_railway_env.py (charge .env.railway.local)
 audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
 railway_sync_governance  : docs/adr/ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE.md
-evaluation_documents     : migration 056 ; m13_regulatory_profile_versions + m13_correction_log (RLS) — migration 057 déployée prod ; 058 = index case_id (pending).
+evaluation_documents     : migration 056 — consommée par M14 EvaluationEngine (m14_evaluation_repository.py) ; m13_* tables (057+058 déployées prod).
 
 ## MANDAT 4 — EXTRACTION RÉELLE (2026-03-17)
   merge_commit            : 87942a3 (PR#215)
@@ -87,7 +86,7 @@ evaluation_documents     : migration 056 ; m13_regulatory_profile_versions + m13
 
 ## RAILWAY — SYNC PROD (2026-04-02)
 
-  Head prod PostgreSQL Railway : 057 (058 pending — PR #293 merged, apply via apply_railway_migrations_safe.py --apply).
+  Head prod PostgreSQL Railway : 058 (ALIGNÉ — sync 2026-04-02 via apply_railway_migrations_safe.py --apply).
   Secrets connexion scripts : RAILWAY_DATABASE_URL dans .env.railway.local (gitignored) — docs/ops/RAILWAY_LOCAL_ENV.md.
   Toute nouvelle migration reste sous GO CTO + runbook (ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE).
 

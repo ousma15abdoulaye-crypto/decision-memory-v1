@@ -193,6 +193,7 @@ def _orchestrator_skip_mistral_reason(
     if state in (
         AnnotationPipelineState.LLM_PREANNOTATION_PENDING,
         AnnotationPipelineState.PASS_1D_DONE,
+        AnnotationPipelineState.PASS_2A_DONE,
     ):
         return None
     return f"orchestrator_unexpected_state_{state.value}"
@@ -1389,6 +1390,7 @@ async def predict(request: Request) -> JSONResponse:
             raw_fn.strip() if isinstance(raw_fn, str) and raw_fn.strip() else ""
         )
         doc_id = body.get("document_id") or task_data.get("document_id") or "n/a"
+        task_case_id = task_data.get("case_id") or body.get("case_id") or None
 
         logger.info(
             "[PREDICT] task_id=%s text_len_raw=%d text_len_norm=%d document_id=%s field=%s",
@@ -1456,6 +1458,7 @@ async def predict(request: Request) -> JSONResponse:
                     document_id=str(doc_id),
                     run_id=run_id,
                     filename=source_filename or None,
+                    case_id=task_case_id,
                 )
             except Exception as exc:
                 logger.error(
