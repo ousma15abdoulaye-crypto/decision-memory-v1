@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-04-02 — M14 Evaluation Engine (feat/M14-evaluation-engine)
+# Derniere mise a jour : 2026-04-02 — post-merge PR #295 — M14 Evaluation Engine DONE
 
 ---
 
@@ -30,14 +30,15 @@ freeze_hashes_doc     : docs/freeze/FREEZE_HASHES.md
 
 ## ETAT COURANT
 
-last_completed        : M13 (moteur profil réglementaire V5 — code + migration 057)
+last_completed        : M14 (Evaluation Engine V1 — PR #295 merged)
 last_completed_at     : 2026-04-02
-last_merge_commit     : 38733982 (main — PR #292 feat/M13-regulatory-profile-engine-v5)
-last_tag              : v4.1.0-m12-done
-next_milestone        : M14
-next_status           : EN COURS — branche feat/M14-evaluation-engine
+last_merge_commit     : 771ba8d1 (main — PR #295 feat/M14-evaluation-engine)
+last_tag              : v4.1.0-m12-done (M14 tag pending CTO : v4.1.0-m14-done)
+next_milestone        : M15 (à définir CTO)
+next_status           : EN ATTENTE — mandat CTO requis
 blocked_on            : (vide)
 m13_prerequisites     : M12 Phase 3 PR #289 mergé ; ADR-M13-001 + Pass 2A + config/regulatory PR #292 ; migration 057 appliquée prod 2026-04-02 — persistance m13_* opérationnelle côté schéma ; secrets DB = .env.railway.local + with_railway_env.py (RAILWAY_LOCAL_ENV.md)
+m14_deliverables      : PR #295 (3 commits) ; ADR-M14-001 ; m14_engine + m14_evaluation_models + m14_evaluation_repository + evaluation routes ; 26 tests + DB integrity + RLS ; Copilot review 9/9 resolved ; CI 9/9 verte
 branch_courante       : main
 
 ---
@@ -58,6 +59,7 @@ branch_courante       : main
 | M9       | -      | -            | -       | -          | market_signals + formule V1.1               |
 | M12      | DONE   | v4.1.0-m12-done | bde8378 | 2026-03-26 | Procedure Recognizer — passes 0 / 0.5 / 1, FSM, corpus Cloudflare R2, export JSONL calibration |
 | M13      | DONE   | (à taguer CTO) | 38733982 | 2026-04-02 | Regulatory Profile Engine V5 — Pass 2A, config/regulatory YAML, migration 057+058, ADR-M13-001 |
+| M14      | DONE   | (à taguer CTO) | 771ba8d1 | 2026-04-02 | Evaluation Engine V1 — ADR-M14-001, m14_engine, models, repository, API /api/m14/, 26 tests, CI 9/9 |
 
 ---
 
