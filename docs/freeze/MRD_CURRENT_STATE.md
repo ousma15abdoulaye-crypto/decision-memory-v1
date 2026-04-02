@@ -87,7 +87,7 @@ evaluation_documents     : migration 056 ; m13_regulatory_profile_versions + m13
 
 ## RAILWAY — SYNC PROD (2026-04-02)
 
-  Head prod PostgreSQL Railway : 057 (058 pending après merge PR #293).
+  Head prod PostgreSQL Railway : 057 (058 pending — PR #293 merged, apply via apply_railway_migrations_safe.py --apply).
   Secrets connexion scripts : RAILWAY_DATABASE_URL dans .env.railway.local (gitignored) — docs/ops/RAILWAY_LOCAL_ENV.md.
   Toute nouvelle migration reste sous GO CTO + runbook (ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE).
 
