@@ -10,6 +10,8 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+from pydantic import ValidationError
+
 from src.annotation.pass_output import (
     AnnotationPassOutput,
     PassError,
@@ -64,15 +66,25 @@ def run_pass_2a_regulatory_profile(
         legacy = legacy_compliance_report_from_m13(
             document_id=document_id, m13=m13_out.report
         )
-        output_data: dict[str, Any] = {
+        output_data = {
             "m13_output": m13_out.model_dump(mode="json"),
             "legacy_compliance_report": legacy.model_dump(mode="json"),
         }
         status = PassRunStatus.SUCCESS
-    except Exception as exc:
-        errors.append(PassError(code="PASS_2A_ERROR", message=str(exc)[:500]))
+    except ValidationError as exc:
+        errors.append(PassError(code="PASS_2A_M12_INVALID", message=str(exc)[:500]))
         output_data = {}
         status = PassRunStatus.FAILED
+    except Exception as exc:
+        # Config YAML / moteur : sortie dégradée documentée (pas FAILED binaire).
+        msg = str(exc)[:500]
+        errors.append(PassError(code="PASS_2A_DEGRADED", message=msg))
+        output_data = {
+            "pass_2a_degraded": True,
+            "m13_review_required": True,
+            "degraded_reason": msg,
+        }
+        status = PassRunStatus.DEGRADED
 
     completed = datetime.now(UTC)
     return AnnotationPassOutput(

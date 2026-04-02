@@ -18,7 +18,8 @@ class TestM13EngineSmoke:
         )
         assert out.report.regime.framework == ProcurementFramework.SCI
         assert out.report.procedure_requirements is not None
-        assert len(out.report.compliance_gates) >= 0
+        assert isinstance(out.report.compliance_gates, list)
+        assert out.report.gates_summary.total_gates == len(out.report.compliance_gates)
         assert len(out.report.principles_compliance_map.principles) == len(
             ProcurementPrinciple
         )

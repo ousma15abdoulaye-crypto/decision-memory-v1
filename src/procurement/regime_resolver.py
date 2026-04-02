@@ -126,7 +126,7 @@ class RegimeResolver:
             )
         if not regimes:
             return self._unknown_regime(skeleton, recognition, family, value, currency)
-        strictest = max(regimes, key=lambda r: self._strictness_score(r))
+        strictest = max(regimes, key=self._strictness_key)
         strictest = strictest.model_copy(
             update={
                 "is_mixed_framework": True,
@@ -137,16 +137,16 @@ class RegimeResolver:
         )
         return strictest
 
-    def _strictness_score(self, regime: RegulatoryRegime) -> int:
-        """Heuristique : poids des documents éliminatoires dans YAML."""
+    def _strictness_key(self, regime: RegulatoryRegime) -> tuple[int, float, str, str]:
+        """Clé de tri stable (pas de hash() — PYTHONHASHSEED rendrait MIXED non déterministe)."""
         fw = regime.framework.value
         bundle = self.config.load_framework_bundle(fw)
         req = bundle.get("required_documents") or {}
         sup = req.get("supplier_documents") or {}
         common = sup.get("common") or []
         n = sum(1 for d in common if d.get("is_eliminatory"))
-        tier = regime.threshold_tier.tier_name
-        return n + (hash(tier) % 100)
+        tier = regime.threshold_tier
+        return (n, tier.min_value, tier.tier_name, fw)
 
     def _unknown_regime(
         self,

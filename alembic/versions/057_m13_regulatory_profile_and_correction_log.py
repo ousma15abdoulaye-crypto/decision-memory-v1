@@ -61,7 +61,7 @@ def upgrade() -> None:
     op.execute("""
     CREATE TABLE IF NOT EXISTS public.m13_correction_log (
         id                  BIGSERIAL PRIMARY KEY,
-        case_id             TEXT NOT NULL,
+        case_id             TEXT NOT NULL REFERENCES public.cases(id),
         field_path          TEXT NOT NULL,
         value_predicted     TEXT,
         value_corrected     TEXT,
@@ -70,6 +70,37 @@ def upgrade() -> None:
         correction_source   TEXT,
         corpus_size_at_correction INTEGER,
         created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    """)
+    op.execute(
+        "ALTER TABLE public.m13_correction_log ENABLE ROW LEVEL SECURITY;"
+    )
+    op.execute(
+        "ALTER TABLE public.m13_correction_log FORCE ROW LEVEL SECURITY;"
+    )
+    op.execute(
+        "DROP POLICY IF EXISTS m13_correction_log_tenant_isolation"
+        " ON public.m13_correction_log;"
+    )
+    op.execute("""
+    CREATE POLICY m13_correction_log_tenant_isolation
+    ON public.m13_correction_log
+    FOR ALL
+    USING (
+        COALESCE(current_setting('app.is_admin', true), '') = 'true'
+        OR EXISTS (
+            SELECT 1 FROM public.cases c
+            WHERE c.id = m13_correction_log.case_id
+              AND c.tenant_id = current_setting('app.tenant_id', true)
+        )
+    )
+    WITH CHECK (
+        COALESCE(current_setting('app.is_admin', true), '') = 'true'
+        OR EXISTS (
+            SELECT 1 FROM public.cases c
+            WHERE c.id = m13_correction_log.case_id
+              AND c.tenant_id = current_setting('app.tenant_id', true)
+        )
     );
     """)
     op.execute("""
@@ -99,6 +130,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.execute(
+        "DROP POLICY IF EXISTS m13_correction_log_tenant_isolation"
+        " ON public.m13_correction_log;"
+    )
     op.execute(
         "DROP TRIGGER IF EXISTS trg_m13_correction_log_no_delete ON m13_correction_log;"
     )

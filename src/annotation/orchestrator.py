@@ -13,6 +13,7 @@ import os
 import uuid
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -600,15 +601,15 @@ class AnnotationOrchestrator:
             downstream = {
                 "pass_1a_core_recognition": [
                     "pass_1b_document_validity",
-                    "pass_1c_process_linking",
-                    "pass_1d_handoff_builder",
+                    "pass_1c_conformity_and_handoffs",
+                    "pass_1d_process_linking",
                 ],
                 "pass_1b_document_validity": [
-                    "pass_1c_process_linking",
-                    "pass_1d_handoff_builder",
+                    "pass_1c_conformity_and_handoffs",
+                    "pass_1d_process_linking",
                 ],
-                "pass_1c_process_linking": ["pass_1d_handoff_builder"],
-                "pass_1d_handoff_builder": [],
+                "pass_1c_conformity_and_handoffs": ["pass_1d_process_linking"],
+                "pass_1d_process_linking": [],
             }
             for key in downstream.get(pass_name, []):
                 record.pass_outputs.pop(key, None)
@@ -732,7 +733,7 @@ class AnnotationOrchestrator:
                 )
             else:
                 _reset_from(
-                    "pass_1c_process_linking",
+                    "pass_1c_conformity_and_handoffs",
                     AnnotationPipelineState.PASS_1B_DONE,
                 )
         if p1c is None:
@@ -798,9 +799,7 @@ class AnnotationOrchestrator:
                 pass_1a_output_data=p1a.output_data or {},
                 case_documents_1a=case_documents_1a,
             )
-            record.pass_outputs["pass_1d_process_linking"] = _serialize_pass_output(
-                p1d
-            )
+            record.pass_outputs["pass_1d_process_linking"] = _serialize_pass_output(p1d)
             if p1d.status == PassRunStatus.FAILED:
                 self._log_transition(
                     record,
@@ -812,6 +811,7 @@ class AnnotationOrchestrator:
                 record.state = AnnotationPipelineState.DEAD_LETTER.value
                 self.save_run(record)
                 return record, AnnotationPipelineState.DEAD_LETTER
+
             self._log_transition(
                 record,
                 from_state=record.state,
@@ -825,11 +825,36 @@ class AnnotationOrchestrator:
         if not use_pass_2a():
             return record, AnnotationPipelineState.PASS_1D_DONE
 
-        cid = case_id or document_id
+        if not case_id:
+            logger.warning(
+                "annotation_orchestrator_pass_2a_skipped_no_case_id",
+                extra={"run_id": str(run_id), "document_id": document_id},
+            )
+            now = datetime.now(UTC)
+            skip_2a = AnnotationPassOutput(
+                pass_name="pass_2a_regulatory_profile",
+                pass_version="1.0.0",
+                document_id=document_id,
+                run_id=run_id,
+                started_at=now,
+                completed_at=now,
+                status=PassRunStatus.SKIPPED,
+                output_data={
+                    "m13_skip_reason": ("case_id_required_when_annotation_use_pass_2a"),
+                },
+                errors=[],
+                metadata={"duration_ms": 0},
+            )
+            record.pass_outputs["pass_2a_regulatory_profile"] = _serialize_pass_output(
+                skip_2a
+            )
+            self.save_run(record)
+            return record, AnnotationPipelineState.PASS_1D_DONE
+
         p2a = self._run_pass_with_retry(
             run_pass_2a_regulatory_profile,
             "pass_2a_regulatory_profile",
-            case_id=cid,
+            case_id=case_id,
             document_id=document_id,
             run_id=run_id,
             pass_1a_output_data=p1a.output_data or {},
