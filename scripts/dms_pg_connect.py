@@ -139,7 +139,11 @@ def alembic_database_url(raw_url: str) -> str:
     user, password, dbname, port, host, query = _parsed_url_to_parts(raw_url)
     user_q = quote(user, safe="")
     pass_q = quote(password, safe="")
-    netloc = f"{user_q}:{pass_q}@{host}:{port}"
+    # IPv6 littérale : crochets obligatoires dans netloc (sinon URL invalide)
+    host_netloc = host
+    if ":" in host and not host.startswith("["):
+        host_netloc = f"[{host}]"
+    netloc = f"{user_q}:{pass_q}@{host_netloc}:{port}"
     path = f"/{dbname}"
     query_str = urlencode(sorted(query.items())) if query else ""
     rebuilt = urlunparse(("postgresql+psycopg", netloc, path, "", query_str, ""))

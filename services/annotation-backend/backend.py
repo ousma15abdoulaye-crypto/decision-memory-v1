@@ -47,6 +47,7 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
+from starlette.concurrency import run_in_threadpool
 
 try:
     from mistralai import Mistral
@@ -91,6 +92,8 @@ LS_TEXTAREA_TO_NAME = "document_text"
 SCHEMA_VERSION = "v3.0.1d"
 FRAMEWORK_VERSION = "annotation-framework-v3.0.1d"
 MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "mistral-small-latest")
+# Identifiant stable pour uuid5(run_id) — bump si sémantique orchestrateur change
+_ANNOTATION_PIPELINE_VERSION = "v1"
 
 
 def _mistral_api_key_from_env() -> str:
@@ -152,11 +155,22 @@ def _env_truthy(name: str, default: bool = True) -> bool:
 
 
 def _annotation_pipeline_runs_dir() -> Path:
-    """Répertoire persistant pour les JSON d’exécution orchestrateur (writable Docker)."""
+    """Répertoire writable pour les JSON d’exécution orchestrateur.
+
+    Si ``ANNOTATION_PIPELINE_RUNS_DIR`` est défini : chemin persistant (volume Docker, etc.).
+    Sinon : sous ``tempfile.gettempdir()`` / ``dms_annotation_pipeline_runs`` — souvent **non
+    persistant** au redémarrage du conteneur.
+    """
     raw = (os.environ.get("ANNOTATION_PIPELINE_RUNS_DIR") or "").strip()
     if raw:
         return Path(raw)
     return Path(tempfile.gettempdir()) / "dms_annotation_pipeline_runs"
+
+
+def _orchestrator_run_id(doc_id: Any, task_id: int) -> uuid.UUID:
+    """UUID déterministe pour checkpoints et idempotence (même doc/tâche → même run)."""
+    name = f"annotation-pipeline:{_ANNOTATION_PIPELINE_VERSION}|doc:{doc_id}|task:{task_id}"
+    return uuid.uuid5(uuid.NAMESPACE_URL, name)
 
 
 def _llm_text_from_orchestrator_record(record: PipelineRunRecord, fallback: str) -> str:
@@ -1431,10 +1445,13 @@ async def predict(request: Request) -> JSONResponse:
                     _build_empty_result(task_id, "orchestrator_runs_dir_unwritable")
                 )
                 continue
-            run_id = uuid.uuid4()
+            run_id = _orchestrator_run_id(
+                doc_id, int(task_id) if task_id is not None else 0
+            )
             orch = AnnotationOrchestrator(runs_dir=runs_dir)
             try:
-                orch_record, orch_state = orch.run_passes_0_to_1(
+                orch_record, orch_state = await run_in_threadpool(
+                    orch.run_passes_0_to_1,
                     text,
                     document_id=str(doc_id),
                     run_id=run_id,

@@ -15,6 +15,7 @@ Securites :
 """
 
 import argparse
+import functools
 import os
 import subprocess
 import sys
@@ -30,6 +31,25 @@ from dms_pg_connect import (  # noqa: E402
     psycopg_connect_kwargs,
     safe_target_hint,
 )
+
+
+@functools.lru_cache(maxsize=1)
+def _script_directory():
+    """Graphe Alembic du dépôt — aligné ``diagnose_railway_migrations.py`` (merges inclus)."""
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+
+    cfg = Config(str(REPO_ROOT / "alembic.ini"))
+    cfg.set_main_option("script_location", str(REPO_ROOT / "alembic"))
+    cfg.set_main_option("prepend_sys_path", str(REPO_ROOT))
+    return ScriptDirectory.from_config(cfg)
+
+
+def _revision_chain_base_to_head(head_revision: str) -> list[str]:
+    """Révisions ordonnées base → ``head_revision`` (inclus), via ``walk_revisions``."""
+    script = _script_directory()
+    revs = list(script.walk_revisions("base", head_revision))
+    return [r.revision for r in reversed(revs)]
 
 
 def _get_db_url(cli_url: str | None = None) -> str:
@@ -55,124 +75,39 @@ def _get_current_revision(raw_url: str) -> str | None:
             return row[0] if row else None
 
 
-def _parse_history_edges(stdout: str) -> dict[str, str]:
-    """parent_rev -> enfant_rev depuis `alembic history -r` (une ligne = une arete)."""
-    child_of: dict[str, str] = {}
-    for line in stdout.strip().splitlines():
-        line = line.strip()
-        if " -> " not in line:
-            continue
-        left, rest = line.split(" -> ", 1)
-        parent = left.split()[0].strip()
-        if parent.startswith("<") and parent.endswith(">"):
-            parent = parent[1:-1]
-        child = rest.split()[0].strip().rstrip(",")
-        if parent and child:
-            child_of[parent] = child
-    return child_of
-
-
-def _pending_chain(
-    current: str | None, target_head: str, child_of: dict[str, str]
-) -> list[str]:
-    """Revisions a appliquer dans l'ordre pour aller de current a target_head."""
-    cur = "base" if current is None else current
-    pending: list[str] = []
-    while cur != target_head:
-        nxt = child_of.get(cur)
-        if nxt is None:
-            print(
-                f"ERREUR : chaine cassee entre {cur!r} et {target_head!r} "
-                "(pas d'arete parent->enfant dans alembic history -r).",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        pending.append(nxt)
-        cur = nxt
-    return pending
-
-
 def _get_pending_migrations(raw_url: str) -> list[str]:
-    """Retourne la liste des revisions non appliquees, dans l'ordre."""
-    env = os.environ.copy()
-    env["DATABASE_URL"] = alembic_database_url(raw_url)
-
-    result_history = subprocess.run(
-        ["alembic", "history", "--verbose"],
-        capture_output=True,
-        text=True,
-        cwd=str(REPO_ROOT),
-        env=env,
-    )
-    if result_history.returncode != 0:
-        print(
-            "ERREUR : echec de la commande 'alembic history --verbose'.",
-            file=sys.stderr,
-        )
-        if result_history.stderr:
-            print(result_history.stderr.strip(), file=sys.stderr)
-        sys.exit(1)
-
-    current = _get_current_revision(raw_url)
-
-    result_heads = subprocess.run(
-        ["alembic", "heads"],
-        capture_output=True,
-        text=True,
-        cwd=str(REPO_ROOT),
-        env=env,
-    )
-    if result_heads.returncode != 0:
-        print("ERREUR : echec de la commande 'alembic heads'.", file=sys.stderr)
-        if result_heads.stderr:
-            print(result_heads.stderr.strip(), file=sys.stderr)
-        sys.exit(1)
-    heads_output = result_heads.stdout.strip()
-    head_revisions = []
-    for line in heads_output.splitlines():
-        rev = line.strip().split(" ")[0] if line.strip() else ""
-        if rev:
-            head_revisions.append(rev)
-
-    if not head_revisions:
+    """Retourne la liste des revisions non appliquees, dans l'ordre (API ScriptDirectory)."""
+    script = _script_directory()
+    heads = script.get_heads()
+    if not heads:
         print("ERREUR : impossible de determiner le head Alembic.", file=sys.stderr)
         sys.exit(1)
-
-    if len(head_revisions) > 1:
+    if len(heads) > 1:
         print(
-            f"STOP-1 : Multiple heads detectes : {head_revisions}",
+            f"STOP-1 : Multiple heads detectes : {sorted(heads)}",
             file=sys.stderr,
         )
         sys.exit(1)
 
-    target_head = head_revisions[0]
+    target_head = heads[0]
+    current = _get_current_revision(raw_url)
 
     if current == target_head:
         return []
 
-    result_pending = subprocess.run(
-        [
-            "alembic",
-            "history",
-            "-r",
-            f"{current or 'base'}:{target_head}",
-        ],
-        capture_output=True,
-        text=True,
-        cwd=str(REPO_ROOT),
-        env=env,
-    )
-    if result_pending.returncode != 0:
+    chain = _revision_chain_base_to_head(target_head)
+    if current is None:
+        return chain
+
+    try:
+        idx = chain.index(current)
+    except ValueError:
         print(
-            "ERREUR : echec de la commande 'alembic history -r <debut>:<fin>'.",
+            f"ERREUR : revision DB {current!r} absente du graphe Alembic vers {target_head!r}.",
             file=sys.stderr,
         )
-        if result_pending.stderr:
-            print(result_pending.stderr.strip(), file=sys.stderr)
         sys.exit(1)
-
-    child_of = _parse_history_edges(result_pending.stdout)
-    return _pending_chain(current, target_head, child_of)
+    return chain[idx + 1 :]
 
 
 def main():
