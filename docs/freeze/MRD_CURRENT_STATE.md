@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-04-02 — M12 Phase 3 PR #289 (orchestrateur /predict) + revue Copilot ; Alembic 056 inchangé
+# Derniere mise a jour : 2026-04-02 — merge PR #292 M13 Regulatory Profile Engine (38733982) ; Alembic dépôt 057 — Railway prod 056 jusqu’à apply 057 (GO CTO)
 
 ---
 
@@ -30,14 +30,14 @@ freeze_hashes_doc     : docs/freeze/FREEZE_HASHES.md
 
 ## ETAT COURANT
 
-last_completed        : M12
-last_completed_at     : 2026-03-26
-last_merge_commit     : 6a8988c6 (main — PR #287 docs/pre-m13-enterprise-governance ; inclut PR #286 diagnose Alembic)
+last_completed        : M13 (moteur profil réglementaire V5 — code + migration 057)
+last_completed_at     : 2026-04-02
+last_merge_commit     : 38733982 (main — PR #292 feat/M13-regulatory-profile-engine-v5)
 last_tag              : v4.1.0-m12-done
-next_milestone        : M13
+next_milestone        : M14
 next_status           : PENDING
 blocked_on            : (vide)
-m13_prerequisites     : ADR LLM (RÈGLE-11) pour nouveaux chemins LLM ; M12 Phase 3 wiring backend = étape distincte (orchestrateur /predict, ADR-M12-PHASE3) avant features M13 métier (evaluation_documents API, etc.) ; sync Railway = fait 2026-04-01 — voir docs/milestones/M12_PROCEDURE_RECOGNIZER_DONE.md
+m13_prerequisites     : M12 Phase 3 PR #289 mergé (orchestrateur /predict) ; ADR-M13-001 + Pass 2A + config/regulatory — livrés PR #292 ; apply migration 057 sur Railway prod sous GO CTO (ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE) avant usage persistance m13_* en prod
 branch_courante       : main
 
 ---
@@ -57,21 +57,22 @@ branch_courante       : main
 | M8       | DONE   | m8-done      | PR open | 2026-03-10 | 13 tables + matview + 6 triggers + seeds    |
 | M9       | -      | -            | -       | -          | market_signals + formule V1.1               |
 | M12      | DONE   | v4.1.0-m12-done | bde8378 | 2026-03-26 | Procedure Recognizer — passes 0 / 0.5 / 1, FSM, corpus Cloudflare R2, export JSONL calibration |
+| M13      | DONE   | (à taguer CTO) | 38733982 | 2026-04-02 | Regulatory Profile Engine V5 — Pass 2A, config/regulatory YAML, migration 057, ADR-M13-001 |
 
 ---
 
-## ÉTAT ALEMBIC — MIS À JOUR 2026-04-01 (sync Railway prod)
+## ÉTAT ALEMBIC — MIS À JOUR 2026-04-02 (dépôt vs Railway prod)
 
-local_alembic_head       : 056_evaluation_documents
+local_alembic_head       : 057_m13_regulatory_profile_and_correction_log
 railway_alembic_head     : 056_evaluation_documents
 migrations_pending_railway:
-  - (vide — DB prod alignée sur le head du dépôt)
-last_sync_railway        : 2026-04-01 — aligné — preuve : python scripts/diagnose_railway_migrations.py → [OK] synchronisé
-last_updated             : 2026-04-01
-updated_by               : post-sync Railway — migrations 055 + 056 appliquées (apply_railway_migrations_safe.py --apply)
+  - 057_m13_regulatory_profile_and_correction_log (m13_regulatory_profile_versions + m13_correction_log, RLS)
+last_sync_railway        : 2026-04-01 — prod alignée 056 ; post-PR #292 dépôt = 057 — apply 057 en attente GO CTO
+last_updated             : 2026-04-02
+updated_by               : merge PR #292 — head dépôt 057 ; prod Railway inchangée jusqu’à apply_railway_migrations_safe.py
 audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
 railway_sync_governance  : docs/adr/ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE.md
-evaluation_documents     : schéma + RLS livrés par migration 056 — aucune écriture applicative sous src/ avant mandat M13 (moteur conformité / API dédiée).
+evaluation_documents     : schéma + RLS — migration 056 ; tables M13 snapshot/correction — migration 057 (à appliquer prod).
 
 ## MANDAT 4 — EXTRACTION RÉELLE (2026-03-17)
   merge_commit            : 87942a3 (PR#215)
@@ -84,10 +85,19 @@ evaluation_documents     : schéma + RLS livrés par migration 056 — aucune é
   - 049_validate_pipeline_runs_fk     (ASAP-05 — trigger drop/recreate)
   - 050_documents_sha256_not_null     (ASAP-06 — backfill pgcrypto/md5)
 
-## RAILWAY — SYNC PROD (2026-04-01)
+## RAILWAY — SYNC PROD (2026-04-02)
 
-  Head prod PostgreSQL Railway : 056_evaluation_documents (identique au dépôt).
+  Head prod PostgreSQL Railway : 056_evaluation_documents — en attente de 057 (aligner après validation CTO).
+  Dépôt / CI : 057 — ne pas supposer prod = dépôt tant que apply 057 non exécuté.
   Toute nouvelle migration reste sous GO CTO + runbook (ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE).
+
+## M13 — REGULATORY PROFILE ENGINE (merge 2026-04-02)
+
+  pr_merge               : PR #292 — branche feat/M13-regulatory-profile-engine-v5 supprimée sur origin après merge
+  merge_commit           : 38733982
+  livrables              : ADR-M13-001, config/regulatory/, Pass 2A (ANNOTATION_USE_PASS_2A), orchestrateur FSM,
+                           migration 057, routes API regulatory_profile, tests procurement/annotation
+  ref_adr                : docs/adr/ADR-M13-001_regulatory_profile_engine.md
 
 ## STACK ALEMBIC (legacy)
 

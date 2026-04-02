@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-01 (MERGE pré-M13 — PR #286 + PR #287) ║
+║  Dernière mise à jour : 2026-04-02 (MERGE M13 — PR #292 Regulatory Profile Engine) ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -88,7 +88,10 @@
 ║                                                                      ║
 ║  GIT — 2026-04-02                                                    ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  main              : à jour 2026-04-01 — PR #286 + #287 mergés ; MRD/CONTEXT alignés ║
+║  main              : 38733982 — Merge PR #292 feat/M13-regulatory-profile-engine-v5 ║
+║    (M13 V5 engine, config/regulatory YAML SCI+DGMP, Pass 2A, migration 057, ADR-M13-001) ║
+║  Branche PR #292   : supprimée sur origin après merge                              ║
+║  main (historique) : à jour 2026-04-01 — PR #286 + #287 mergés ; MRD/CONTEXT alignés ║
 ║  PR #289 feat/m12-phase3-backend-wiring : M12 Ph.3 backend (orchestrateur /predict, ║
 ║    fixes revue Copilot : threadpool, uuid5, ScriptDirectory apply, IPv6 URL) ║
 ║  PR #286 fix/alembic-diagnose-chain-truth : MERGÉ (diagnostic Alembic ScriptDirectory) ║
@@ -100,9 +103,10 @@
 ║  feat/fix-extract-02 : MERGÉ dans main (M-FIX-EXTRACT-02)            ║
 ║  feat/pre-m12-extraction-reelle : MERGÉ dans main (Mandat 4)        ║
 ║  feat/fix-backend-production : backend v3.0.1d (en attente merge)   ║
-║  alembic head local : 056_evaluation_documents                        ║
-║  alembic head Railway prod : 056_evaluation_documents (ALIGNÉ — sync 2026-04-01) ║
-║  migrations pending Railway : (vide)                                 ║
+║  alembic head dépôt / CI : 057_m13_regulatory_profile_and_correction_log ║
+║  alembic head Railway prod : 056_evaluation_documents — migration 057 À APPLIQUER ║
+║    (GO CTO + apply_railway_migrations_safe.py — ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE) ║
+║  migrations pending Railway : 057 (m13_regulatory_profile_versions + m13_correction_log RLS) ║
 ║  annotation-backend M12 Ph.3 : orchestrateur derrière ANNOTATION_USE_PASS_ORCHESTRATOR ║
 ║    (défaut 0 — monolith Mistral inchangé ; 1 = Pass 0→0.5→1 puis Mistral) ║
 ║  Gel Cursor services/annotation-backend : dégel conditionnel Phase 3 sous mandat ║
@@ -117,9 +121,9 @@
 ║                                                                      ║
 ║  ALEMBIC — FREEZE ABSOLU                                            ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  head actuel     : 056_evaluation_documents                          ║
+║  head actuel     : 057_m13_regulatory_profile_and_correction_log     ║
 ║  historique      : 001 → 045 — FREEZE TOTAL 001-045                ║
-║  chaîne          : 044→045→046→046b→047→048→049→050→051→052→053→054→055→056 ║
+║  chaîne          : 044→045→046→046b→047→048→049→050→051→052→053→054→055→056→057 ║
 ║  FREEZE          : 001 → 045 FREEZE TOTAL                          ║
 ║                    046 + 046b = DETTE-7 DONE                        ║
 ║                    047 = PHASE 1B DONE (ORM→psycopg Couche A)       ║
@@ -132,9 +136,10 @@
 ║                    054 = m12_correction_log (M12 feedback loop)      ║
 ║                    055 = extend_rls_documents_extraction_jobs (RLS)  ║
 ║                    056 = evaluation_documents (M13 ACO + RLS)        ║
+║                    057 = m13_regulatory_profile_versions + m13_correction_log (RLS) ║
 ║  RÈGLE           : zéro autogenerate — SQL brut uniquement         ║
-║  RÈGLE           : zéro modification fichiers existants 001-056    ║
-║  RÈGLE           : toute nouvelle migration = 057+ séquentiel       ║
+║  RÈGLE           : zéro modification fichiers existants 001-057    ║
+║  RÈGLE           : toute nouvelle migration = 058+ séquentiel       ║
 ║  apply_safe      : scripts/apply_railway_migrations_safe.py — pending ║
 ║    via ScriptDirectory (graphe merges), pas parse linéaire seul    ║
 ║  VIOLATION       : faute disciplinaire grave immédiate             ║
@@ -278,11 +283,12 @@
 ║  src/    : api/, business/, core/, couche_a/, couche_b/, db/        ║
 ║            evaluation/, extraction/, geo/, mapping/, vendors/       ║
 ║            annotation/ (orchestrator FSM, passes 0→1D, export)      ║
-║            procurement/ (M12 engine: 16 modules L1→L7 + H1/H2/H3)  ║
+║            procurement/ (M12 engine L1→L7 + H1/H2/H3 ; M13 Pass 2A réglementaire) ║
 ║            auth_router.py, logging_config.py, ratelimit.py          ║
 ║  config/ : framework_signals.yaml, procurement_family_signals.yaml  ║
 ║            mandatory_parts/*.yaml (20 doc-type rule files)          ║
-║  alembic/: versions/ 001–056, env.py                                ║
+║            regulatory/*.yaml (M13 — profils SCI, DGMP Mali, etc.) ║
+║  alembic/: versions/ 001–057, env.py                                ║
 ║  services/: annotation-backend/ (ML Backend Label Studio)            ║
 ║  docs/   : adr/, freeze/, mandates/, milestones/, calibration/     ║
 ║            contracts/annotation/ (PASS_1A→1D contracts)             ║
@@ -331,7 +337,9 @@
 ║          DETTE-7  DONE — imc_category_item_map + 046 + 046b        ║
 ║          DETTE-8  NEXT — signaux IMC → market_signals_v2            ║
 ║                    dépend DETTE-7 ✓                                  ║
-║  M13     PLAN  046_evaluation_documents + extraction pipeline       ║
+║  M13     DONE (cœur moteur) — PR #292 mergé 2026-04-02 — Pass 2A réglementaire, ║
+║          config/regulatory YAML, migration 057, ADR-M13-001 ; flag ANNOTATION_USE_PASS_2A ║
+║          Suite métier / API / persistance prod : aligner Railway sur 057 puis jalons M14 ║
 ║  M15     GATE  4 seuils validation go-live                         ║
 ║                                                                      ║
 ║  SEUILS M15 — FIGÉS NON NÉGOCIABLES                                 ║
