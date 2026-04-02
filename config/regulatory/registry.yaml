@@ -1,3 +1,8 @@
+# Registre documentaire des frameworks réglementaires connus.
+# Ce fichier n'est PAS lu par RegulatoryConfigLoader en production.
+# Le loader résout les bundles par convention de répertoire (config/regulatory/{framework}/).
+# Utilisé par : scripts/probe_m13_files.py (vérification existence fichiers).
+# Pour activer/désactiver un framework en prod, retirer ou ajouter le répertoire correspondant.
 frameworks:
   sci:
     name: "Save the Children International"

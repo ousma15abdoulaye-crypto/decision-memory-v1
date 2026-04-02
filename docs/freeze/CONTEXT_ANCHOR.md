@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-02 (M13 PR #292 + Railway Alembic 057 aligné prod) ║
+║  Dernière mise à jour : 2026-04-02 (M13 PR #292 + audit hardening NC-01/02/03 + migration 058) ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -103,8 +103,8 @@
 ║  feat/fix-extract-02 : MERGÉ dans main (M-FIX-EXTRACT-02)            ║
 ║  feat/pre-m12-extraction-reelle : MERGÉ dans main (Mandat 4)        ║
 ║  feat/fix-backend-production : backend v3.0.1d (en attente merge)   ║
-║  alembic head dépôt / CI : 057_m13_regulatory_profile_and_correction_log ║
-║  alembic head Railway prod : 057_m13_regulatory_profile_and_correction_log (ALIGNÉ — 2026-04-02) ║
+║  alembic head dépôt / CI : 058_m13_correction_log_case_id_index          ║
+║  alembic head Railway prod : 057 (058 à appliquer après merge fix/m13-audit-hardening) ║
 ║  migrations pending Railway : (vide) — 057 appliquée (apply_railway_migrations_safe.py --apply) ║
 ║  RAILWAY_DATABASE_URL : défini hors dépôt — fichier local .env.railway.local (gitignored) ; ║
 ║    chargement scripts/with_railway_env.py ou .\\scripts\\load_railway_env.ps1 — RAILWAY_LOCAL_ENV.md ║
@@ -122,9 +122,9 @@
 ║                                                                      ║
 ║  ALEMBIC — FREEZE ABSOLU                                            ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  head actuel     : 057_m13_regulatory_profile_and_correction_log     ║
+║  head actuel     : 058_m13_correction_log_case_id_index              ║
 ║  historique      : 001 → 045 — FREEZE TOTAL 001-045                ║
-║  chaîne          : 044→045→046→046b→047→048→049→050→051→052→053→054→055→056→057 ║
+║  chaîne          : 044→045→046→046b→047→048→049→050→051→052→053→054→055→056→057→058 ║
 ║  FREEZE          : 001 → 045 FREEZE TOTAL                          ║
 ║                    046 + 046b = DETTE-7 DONE                        ║
 ║                    047 = PHASE 1B DONE (ORM→psycopg Couche A)       ║
@@ -138,10 +138,11 @@
 ║                    055 = extend_rls_documents_extraction_jobs (RLS)  ║
 ║                    056 = evaluation_documents (M13 ACO + RLS)        ║
 ║                    057 = m13_regulatory_profile_versions + m13_correction_log (RLS) ║
+║                    058 = idx_m13_correction_log_case_id (FK join perf) ║
 ║  RÈGLE           : zéro autogenerate — SQL brut uniquement         ║
-║  RÈGLE           : zéro modification fichiers existants 001-057    ║
-║  RÈGLE           : toute nouvelle migration = 058+ séquentiel       ║
-║  apply_safe      : scripts/apply_railway_migrations_safe.py — prod alignée 057 (2026-04-02) ║
+║  RÈGLE           : zéro modification fichiers existants 001-058    ║
+║  RÈGLE           : toute nouvelle migration = 059+ séquentiel       ║
+║  apply_safe      : scripts/apply_railway_migrations_safe.py — prod 057 ; 058 pending après merge ║
 ║    via ScriptDirectory (graphe merges), pas parse linéaire seul    ║
 ║  VIOLATION       : faute disciplinaire grave immédiate             ║
 ║                                                                      ║
@@ -289,7 +290,7 @@
 ║  config/ : framework_signals.yaml, procurement_family_signals.yaml  ║
 ║            mandatory_parts/*.yaml (20 doc-type rule files)          ║
 ║            regulatory/*.yaml (M13 — profils SCI, DGMP Mali, etc.) ║
-║  alembic/: versions/ 001–057, env.py                                ║
+║  alembic/: versions/ 001–058, env.py                                ║
 ║  services/: annotation-backend/ (ML Backend Label Studio)            ║
 ║  docs/   : adr/, freeze/, mandates/, milestones/, calibration/     ║
 ║            contracts/annotation/ (PASS_1A→1D contracts)             ║
@@ -1046,5 +1047,36 @@ Voir diff GitHub PR #276 pour liste exhaustive ; points d’ancrage code : `src/
 ### Gouvernance
 
 - Runbook : `docs/ops/RAILWAY_MIGRATION_RUNBOOK.md` ; ADR : `docs/adr/ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE.md`.
+
+---
+
+## ADDENDUM 2026-04-02 — AUDIT M13 HARDENING (fix/m13-audit-hardening)
+
+**Autorité :** audit système post-PR #292 — correctifs NC-01 / NC-02 / NC-03 + faiblesses F-01 / F-02.
+
+### NC-01 — Orchestrateur FSM (corrigé)
+
+- `_reset_from` downstream : `pass_2a_regulatory_profile` ajouté dans toutes les chaînes (1A→2A, 1B→2A, 1C→2A, 1D→2A).
+- Bug `AnnotationPipelineState.PASS_0_5_DONE` → remplacé par `QUALITY_ASSESSED` (l'enum ne contenait pas `PASS_0_5_DONE`).
+
+### NC-02 — Tests M13 (de 7 à ~20+)
+
+- `test_pass_2a_regulatory_profile.py` : +3 tests (FAILED/DEGRADED/confidence invariant).
+- `test_m13_engine_smoke.py` : +3 tests (extra=forbid, confidence gates, legacy bridge).
+- `test_057_m13_tables.py` (nouveau) : 6 tests DDL/FK/triggers/index (skip sans DB).
+- `test_rls_dm_app_cross_tenant.py` : +2 tests RLS M13 (profile versions + correction log).
+
+### NC-03 — Auth API (corrigé)
+
+- `/api/m13/status` sécurisé par `Depends(get_current_user)` — aligné sur le patron JWT existant.
+
+### F-01 — Migration 058
+
+- `058_m13_correction_log_case_id_index` : `CREATE INDEX idx_m13_correction_log_case_id` sur `case_id`.
+- Alembic head dépôt = **058** ; Railway prod = **057** (apply 058 après merge).
+
+### F-02 — `registry.yaml` documenté
+
+- Commentaire en tête : fichier documentaire / probe, pas lu par `RegulatoryConfigLoader`.
 
 ---

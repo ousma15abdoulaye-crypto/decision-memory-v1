@@ -603,13 +603,19 @@ class AnnotationOrchestrator:
                     "pass_1b_document_validity",
                     "pass_1c_conformity_and_handoffs",
                     "pass_1d_process_linking",
+                    "pass_2a_regulatory_profile",
                 ],
                 "pass_1b_document_validity": [
                     "pass_1c_conformity_and_handoffs",
                     "pass_1d_process_linking",
+                    "pass_2a_regulatory_profile",
                 ],
-                "pass_1c_conformity_and_handoffs": ["pass_1d_process_linking"],
-                "pass_1d_process_linking": [],
+                "pass_1c_conformity_and_handoffs": [
+                    "pass_1d_process_linking",
+                    "pass_2a_regulatory_profile",
+                ],
+                "pass_1d_process_linking": ["pass_2a_regulatory_profile"],
+                "pass_2a_regulatory_profile": [],
             }
             for key in downstream.get(pass_name, []):
                 record.pass_outputs.pop(key, None)
@@ -626,7 +632,7 @@ class AnnotationOrchestrator:
             else:
                 _reset_from(
                     "pass_1a_core_recognition",
-                    AnnotationPipelineState.PASS_0_5_DONE,
+                    AnnotationPipelineState.QUALITY_ASSESSED,
                 )
         if p1a is None:
             p1a = self._run_pass_with_retry(
