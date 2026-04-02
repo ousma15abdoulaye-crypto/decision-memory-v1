@@ -86,9 +86,11 @@
 ║                                                                      ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║                                                                      ║
-║  GIT — 2026-04-01                                                    ║
+║  GIT — 2026-04-02                                                    ║
 ║  ──────────────────────────────────────────────────────────────     ║
 ║  main              : à jour 2026-04-01 — PR #286 + #287 mergés ; MRD/CONTEXT alignés ║
+║  PR #289 feat/m12-phase3-backend-wiring : M12 Ph.3 backend (orchestrateur /predict, ║
+║    fixes revue Copilot : threadpool, uuid5, ScriptDirectory apply, IPv6 URL) ║
 ║  PR #286 fix/alembic-diagnose-chain-truth : MERGÉ (diagnostic Alembic ScriptDirectory) ║
 ║  PR #287 docs/pre-m13-enterprise-governance : MERGÉ (ADR, runbook unique, smoke main:app) ║
 ║  Branches distantes PR #286 / #287 : supprimées après merge                       ║
@@ -133,6 +135,8 @@
 ║  RÈGLE           : zéro autogenerate — SQL brut uniquement         ║
 ║  RÈGLE           : zéro modification fichiers existants 001-056    ║
 ║  RÈGLE           : toute nouvelle migration = 057+ séquentiel       ║
+║  apply_safe      : scripts/apply_railway_migrations_safe.py — pending ║
+║    via ScriptDirectory (graphe merges), pas parse linéaire seul    ║
 ║  VIOLATION       : faute disciplinaire grave immédiate             ║
 ║                                                                      ║
 ║  SCHÉMAS PostgreSQL — DÉFINITIF                                     ║
@@ -527,6 +531,7 @@
 ║         (_KNOWN_MIGRATION_CHAIN). Oubli = divergence accumulative    ║
 ║         qui bloque les audits et les mandats suivants.               ║
 ║         Ref : audit pré-M13 2026-04-01 — 3 sources désalignées.     ║
+║         Exemple alignement 2026-04-02 : MRD + CONTEXT (PR #289 M12 Ph.3). ║
 ║  E-69  Schéma export LS → corpus JSONL **m12-v2** figé — ne pas      ║
 ║         inventer d’autres clés ni un second format sans ADR / CTO.    ║
 ║         Structure canonique, variables d’environnement, scripts et    ║
