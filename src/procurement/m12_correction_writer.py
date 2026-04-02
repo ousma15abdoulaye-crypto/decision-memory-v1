@@ -34,6 +34,9 @@ M12_CORRECTION_TYPES = frozenset(
     )
 )
 
+# Plafond ``get_recent`` — évite LIMIT arbitrairement élevé côté appelant.
+_MAX_RECENT_LIMIT = 1000
+
 
 class M12CorrectionEntry(BaseModel):
     """Une correction humaine — validée avant insertion (E-49 : extra forbid)."""
@@ -141,8 +144,8 @@ class M12CorrectionWriter:
             :run_id,
             :correction_type,
             :field_corrected,
-            :original_value,
-            :corrected_value,
+            CAST(:original_value AS jsonb),
+            CAST(:corrected_value AS jsonb),
             :corrected_by,
             :correction_note
         )
@@ -170,10 +173,7 @@ class M12CorrectionWriter:
     _RATE_LAST_30D_SQL = """
         SELECT
             COUNT(*) AS corrections,
-            (SELECT COUNT(DISTINCT document_id)
-             FROM m12_correction_log
-             WHERE created_at >= NOW() - INTERVAL '30 days'
-            ) AS documents_corrected
+            COUNT(DISTINCT document_id) AS documents_corrected
         FROM m12_correction_log
         WHERE created_at >= NOW() - INTERVAL '30 days'
     """
@@ -186,8 +186,8 @@ class M12CorrectionWriter:
             "run_id": str(entry.run_id),
             "correction_type": entry.correction_type,
             "field_corrected": entry.field_corrected,
-            "original_value": entry.original_value,
-            "corrected_value": entry.corrected_value,
+            "original_value": json.dumps(entry.original_value, ensure_ascii=False),
+            "corrected_value": json.dumps(entry.corrected_value, ensure_ascii=False),
             "corrected_by": entry.corrected_by,
             "correction_note": note,
         }
@@ -240,7 +240,10 @@ class M12CorrectionWriter:
     def get_recent(
         self, conn: _CorrectionLogConnection, limit: int = 20
     ) -> list[dict[str, Any]]:
-        conn.execute(self._RECENT_SQL, {"limit": limit})
+        if limit < 1:
+            raise ValueError("limit must be >= 1")
+        effective = min(limit, _MAX_RECENT_LIMIT)
+        conn.execute(self._RECENT_SQL, {"limit": effective})
         return conn.fetchall()
 
     def rate_last_30d(self, conn: _CorrectionLogConnection) -> float:

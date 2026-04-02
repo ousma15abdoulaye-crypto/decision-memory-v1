@@ -194,8 +194,12 @@ class TestM12CorrectionWriter:
         assert conn.last_params["field_corrected"] == (
             "procedure_recognition.document_kind"
         )
-        assert conn.last_params["original_value"] == {"text": "offer_technical"}
-        assert conn.last_params["corrected_value"] == {"text": "evaluation_doc"}
+        assert json.loads(conn.last_params["original_value"]) == {
+            "text": "offer_technical"
+        }
+        assert json.loads(conn.last_params["corrected_value"]) == {
+            "text": "evaluation_doc"
+        }
         assert conn.last_params["corrected_by"] == "human"
         assert conn.last_params["run_id"] == str(valid_entry.run_id)
         assert conn.last_params["correction_note"] is not None
@@ -274,6 +278,17 @@ class TestM12CorrectionWriter:
         conn = MockConn()
         conn.set_fetchall([])
         assert writer.get_recent(conn) == []
+
+    def test_get_recent_rejects_limit_below_one(self, writer: M12CorrectionWriter):
+        conn = MockConn()
+        with pytest.raises(ValueError, match="limit must be >= 1"):
+            writer.get_recent(conn, limit=0)
+
+    def test_get_recent_caps_limit(self, writer: M12CorrectionWriter):
+        conn = MockConn()
+        conn.set_fetchall([])
+        writer.get_recent(conn, limit=5000)
+        assert conn.last_params == {"limit": 1000}
 
     def test_rate_last_30d_with_data(self, writer: M12CorrectionWriter):
         conn = MockConn()
