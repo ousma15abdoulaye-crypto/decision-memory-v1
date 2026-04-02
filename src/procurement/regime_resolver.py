@@ -49,7 +49,7 @@ class RegimeResolver:
             family = ProcurementFamily.UNKNOWN
 
         ev = recognition.estimated_value_detected.value
-        value = float(ev) if isinstance(ev, (int, float)) else None
+        value = float(ev) if isinstance(ev, int | float) else None
         cur_raw = recognition.currency_detected.value
         currency = str(cur_raw) if cur_raw is not None else None
 
