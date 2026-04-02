@@ -105,7 +105,7 @@
 ║  feat/fix-backend-production : backend v3.0.1d (en attente merge)   ║
 ║  alembic head dépôt / CI : 058_m13_correction_log_case_id_index          ║
 ║  alembic head Railway prod : 057 (058 à appliquer après merge fix/m13-audit-hardening) ║
-║  migrations pending Railway : (vide) — 057 appliquée (apply_railway_migrations_safe.py --apply) ║
+║  migrations pending Railway : 058_m13_correction_log_case_id_index — 057 appliquée (apply_railway_migrations_safe.py --apply) ║
 ║  RAILWAY_DATABASE_URL : défini hors dépôt — fichier local .env.railway.local (gitignored) ; ║
 ║    chargement scripts/with_railway_env.py ou .\\scripts\\load_railway_env.ps1 — RAILWAY_LOCAL_ENV.md ║
 ║  annotation-backend M12 Ph.3 : orchestrateur derrière ANNOTATION_USE_PASS_ORCHESTRATOR ║

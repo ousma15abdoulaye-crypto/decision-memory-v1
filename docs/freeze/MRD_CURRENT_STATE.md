@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-04-02 — merge PR #292 + Railway prod Alembic 057 aligné (apply_railway_migrations_safe.py) ; RAILWAY_DATABASE_URL locale .env.railway.local (gitignored)
+# Derniere mise a jour : 2026-04-02 — audit hardening NC-01/02/03 + migration 058 (fix/m13-audit-hardening PR #293)
 
 ---
 
@@ -57,22 +57,22 @@ branch_courante       : main
 | M8       | DONE   | m8-done      | PR open | 2026-03-10 | 13 tables + matview + 6 triggers + seeds    |
 | M9       | -      | -            | -       | -          | market_signals + formule V1.1               |
 | M12      | DONE   | v4.1.0-m12-done | bde8378 | 2026-03-26 | Procedure Recognizer — passes 0 / 0.5 / 1, FSM, corpus Cloudflare R2, export JSONL calibration |
-| M13      | DONE   | (à taguer CTO) | 38733982 | 2026-04-02 | Regulatory Profile Engine V5 — Pass 2A, config/regulatory YAML, migration 057, ADR-M13-001 |
+| M13      | DONE   | (à taguer CTO) | 38733982 | 2026-04-02 | Regulatory Profile Engine V5 — Pass 2A, config/regulatory YAML, migration 057+058, ADR-M13-001 |
 
 ---
 
 ## ÉTAT ALEMBIC — MIS À JOUR 2026-04-02 (dépôt = Railway prod)
 
-local_alembic_head       : 057_m13_regulatory_profile_and_correction_log
+local_alembic_head       : 058_m13_correction_log_case_id_index
 railway_alembic_head     : 057_m13_regulatory_profile_and_correction_log
 migrations_pending_railway:
-  - (vide)
+  - 058_m13_correction_log_case_id_index
 last_sync_railway        : 2026-04-02 — apply 057 prod — preuve : diagnose_railway_migrations.py → [OK] synchronisé
 last_updated             : 2026-04-02
 updated_by               : apply_railway_migrations_safe.py --apply via python scripts/with_railway_env.py (charge .env.railway.local)
 audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
 railway_sync_governance  : docs/adr/ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE.md
-evaluation_documents     : migration 056 ; m13_regulatory_profile_versions + m13_correction_log (RLS) — migration 057 déployée prod.
+evaluation_documents     : migration 056 ; m13_regulatory_profile_versions + m13_correction_log (RLS) — migration 057 déployée prod ; 058 = index case_id (pending).
 
 ## MANDAT 4 — EXTRACTION RÉELLE (2026-03-17)
   merge_commit            : 87942a3 (PR#215)
@@ -87,7 +87,7 @@ evaluation_documents     : migration 056 ; m13_regulatory_profile_versions + m13
 
 ## RAILWAY — SYNC PROD (2026-04-02)
 
-  Head prod PostgreSQL Railway : 057_m13_regulatory_profile_and_correction_log (aligné dépôt / CI).
+  Head prod PostgreSQL Railway : 057 (058 pending après merge PR #293).
   Secrets connexion scripts : RAILWAY_DATABASE_URL dans .env.railway.local (gitignored) — docs/ops/RAILWAY_LOCAL_ENV.md.
   Toute nouvelle migration reste sous GO CTO + runbook (ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE).
 
@@ -96,7 +96,7 @@ evaluation_documents     : migration 056 ; m13_regulatory_profile_versions + m13
   pr_merge               : PR #292 — branche feat/M13-regulatory-profile-engine-v5 supprimée sur origin après merge
   merge_commit           : 38733982
   livrables              : ADR-M13-001, config/regulatory/, Pass 2A (ANNOTATION_USE_PASS_2A), orchestrateur FSM,
-                           migration 057, routes API regulatory_profile, tests procurement/annotation
+                           migration 057+058, routes API regulatory_profile, tests procurement/annotation
   ref_adr                : docs/adr/ADR-M13-001_regulatory_profile_engine.md
 
 ## STACK ALEMBIC (legacy)

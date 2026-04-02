@@ -430,10 +430,13 @@ def test_dm_app_cannot_select_other_tenant_m13_correction_log(db_conn):
         assert rows == [], "RLS m13_correction_log — tenant A ne doit pas voir tenant B"
     finally:
         with db_conn.cursor() as cur:
+            cur.execute("ALTER TABLE public.m13_correction_log DISABLE TRIGGER ALL")
             cur.execute(
                 "DELETE FROM public.m13_correction_log WHERE case_id = ANY(%s)",
                 ([case_a, case_b],),
             )
+            cur.execute("ALTER TABLE public.m13_correction_log ENABLE TRIGGER ALL")
             cur.execute(
-                "DELETE FROM public.cases WHERE id = ANY(%s)", ([case_a, case_b],)
+                "DELETE FROM public.cases WHERE id = ANY(%s)",
+                ([case_a, case_b],),
             )

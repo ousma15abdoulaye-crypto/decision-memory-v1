@@ -2,15 +2,6 @@
 
 from __future__ import annotations
 
-import os
-
-import pytest
-
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("DATABASE_URL"),
-    reason="DATABASE_URL non défini — tests DB ignorés",
-)
-
 
 class TestM13RegProfileVersions:
     def test_table_exists(self, db_conn) -> None:
