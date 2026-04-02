@@ -599,6 +599,7 @@ _KNOWN_MIGRATION_CHAIN: list[str] = [
     "055_extend_rls_documents_extraction_jobs",
     "056_evaluation_documents",
     "057_m13_regulatory_profile_and_correction_log",
+    "058_m13_correction_log_case_id_index",
 ]
 
 

@@ -342,3 +342,101 @@ def test_dm_app_admin_bypass_sees_all_user_tenants(db_conn):
                 "DELETE FROM public.users WHERE id = ANY(%s)",
                 ([uid_a, uid_b],),
             )
+
+
+# ── M13 Regulatory Profile — tenant isolation ──────────────────────
+
+
+def test_dm_app_cannot_select_other_tenant_m13_profile(db_conn):
+    """RLS sur m13_regulatory_profile_versions : tenant A ne voit pas tenant B."""
+    tid_a = f"rls-m13p-a-{uuid.uuid4().hex[:8]}"
+    tid_b = f"rls-m13p-b-{uuid.uuid4().hex[:8]}"
+    case_a = str(uuid.uuid4())
+    case_b = str(uuid.uuid4())
+    now = datetime.now(UTC).isoformat()
+
+    with db_conn.cursor() as cur:
+        _insert_case(cur, case_a, tid_a, now)
+        _insert_case(cur, case_b, tid_b, now)
+        cur.execute(
+            """
+            INSERT INTO public.m13_regulatory_profile_versions
+                (case_id, version, payload)
+            VALUES
+                (%s, 1, '{"test": "a"}'::jsonb),
+                (%s, 1, '{"test": "b"}'::jsonb)
+            """,
+            (case_a, case_b),
+        )
+
+    try:
+        with _rls_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT set_config('app.tenant_id', %s, true)", (tid_a,))
+                cur.execute(
+                    "SELECT id FROM public.m13_regulatory_profile_versions "
+                    "WHERE case_id = %s",
+                    (case_b,),
+                )
+                rows = cur.fetchall()
+            conn.commit()
+        assert (
+            rows == []
+        ), "RLS m13_regulatory_profile_versions — tenant A ne doit pas voir tenant B"
+    finally:
+        with db_conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM public.m13_regulatory_profile_versions "
+                "WHERE case_id = ANY(%s)",
+                ([case_a, case_b],),
+            )
+            cur.execute(
+                "DELETE FROM public.cases WHERE id = ANY(%s)", ([case_a, case_b],)
+            )
+
+
+def test_dm_app_cannot_select_other_tenant_m13_correction_log(db_conn):
+    """RLS sur m13_correction_log : tenant A ne voit pas tenant B."""
+    tid_a = f"rls-m13c-a-{uuid.uuid4().hex[:8]}"
+    tid_b = f"rls-m13c-b-{uuid.uuid4().hex[:8]}"
+    case_a = str(uuid.uuid4())
+    case_b = str(uuid.uuid4())
+    now = datetime.now(UTC).isoformat()
+
+    with db_conn.cursor() as cur:
+        _insert_case(cur, case_a, tid_a, now)
+        _insert_case(cur, case_b, tid_b, now)
+        cur.execute(
+            """
+            INSERT INTO public.m13_correction_log
+                (case_id, field_path, value_predicted, value_corrected)
+            VALUES
+                (%s, 'test.field', 'old_a', 'new_a'),
+                (%s, 'test.field', 'old_b', 'new_b')
+            """,
+            (case_a, case_b),
+        )
+
+    try:
+        with _rls_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT set_config('app.tenant_id', %s, true)", (tid_a,))
+                cur.execute(
+                    "SELECT id FROM public.m13_correction_log WHERE case_id = %s",
+                    (case_b,),
+                )
+                rows = cur.fetchall()
+            conn.commit()
+        assert rows == [], "RLS m13_correction_log — tenant A ne doit pas voir tenant B"
+    finally:
+        with db_conn.cursor() as cur:
+            cur.execute("ALTER TABLE public.m13_correction_log DISABLE TRIGGER ALL")
+            cur.execute(
+                "DELETE FROM public.m13_correction_log WHERE case_id = ANY(%s)",
+                ([case_a, case_b],),
+            )
+            cur.execute("ALTER TABLE public.m13_correction_log ENABLE TRIGGER ALL")
+            cur.execute(
+                "DELETE FROM public.cases WHERE id = ANY(%s)",
+                ([case_a, case_b],),
+            )
