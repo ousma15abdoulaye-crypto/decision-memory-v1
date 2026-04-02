@@ -1,0 +1,29 @@
+framework: sci
+
+humanitarian_emergency:
+  article: "Emergency Procurement Section"
+  description: "Urgence humanitaire — délais réduits"
+  approval_required: "Country Director"
+  approval_authority: "CD"
+  timeline_reduction_pct: 50
+  minimum_bids_override: 1
+  documentation_required: "Emergency justification memo"
+
+sole_source:
+  article: "Procurement Manual Section 3.5"
+  description: "Source unique justifiée"
+  approval_required: "Country Director + Head of Supply Chain"
+  approval_authority: "CD+SC"
+  conditions:
+    - "No reasonable alternative exists"
+    - "Monopoly supplier"
+    - "Continuity of service"
+  documentation_required: "Sole source justification form"
+
+security_context:
+  article: "Security Protocol Section"
+  description: "Contexte sécuritaire dégradé"
+  approval_required: "Security Director + Country Director"
+  approval_authority: "SD+CD"
+  timeline_reduction_pct: 30
+  documentation_required: "Security assessment"

@@ -1,0 +1,37 @@
+framework: dgmp_mali
+
+by_procedure:
+  simplified:
+    publication_delay_days: 0
+    submission_period_days: 10
+    bid_validity_period_days: 60
+    evaluation_max_days: 10
+    standstill_period_days: 0
+    contract_signature_max_days: 15
+  request_for_quotation:
+    publication_delay_days: 0
+    submission_period_days: 15
+    bid_validity_period_days: 90
+    evaluation_max_days: 15
+    standstill_period_days: 0
+    contract_signature_max_days: 21
+  open_national:
+    publication_delay_days: 15
+    submission_period_days: 30
+    bid_validity_period_days: 90
+    evaluation_max_days: 30
+    standstill_period_days: 10
+    contract_signature_max_days: 30
+    article: "Article 56-58"
+  open_international:
+    publication_delay_days: 30
+    submission_period_days: 45
+    bid_validity_period_days: 120
+    evaluation_max_days: 45
+    standstill_period_days: 15
+    contract_signature_max_days: 30
+    article: "Article 56-58"
+
+humanitarian_override:
+  enabled: false
+  note: "DGMP code has no explicit humanitarian override"

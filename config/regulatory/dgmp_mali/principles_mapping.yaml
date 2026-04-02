@@ -1,0 +1,77 @@
+framework: dgmp_mali
+
+principle_mappings:
+  competition:
+    rules_implementing:
+      - rule: "appel_offres_obligatoire"
+        description: "Open competition mandatory above threshold"
+        contribution: strong
+        article: "Article 12"
+    coverage: full
+  transparency:
+    rules_implementing:
+      - rule: "publication_journal"
+        description: "Publication in official journal"
+        contribution: strong
+        article: "Article 56"
+    coverage: full
+  fairness:
+    rules_implementing:
+      - rule: "commission_independante"
+        description: "Independent evaluation commission"
+        contribution: strong
+        article: "Article 74"
+    coverage: full
+  economy:
+    rules_implementing:
+      - rule: "seuils_procedures"
+        description: "Threshold-based procedure selection"
+        contribution: strong
+        article: "Article 12"
+    coverage: full
+  efficiency:
+    rules_implementing:
+      - rule: "delais_reglementaires"
+        description: "Regulatory timelines for each stage"
+        contribution: strong
+        article: "Article 56-58"
+    coverage: partial
+    gap: "No explicit cycle time KPI in the code"
+  integrity:
+    rules_implementing:
+      - rule: "interdictions"
+        description: "Exclusion of sanctioned/bankrupt suppliers"
+        contribution: strong
+        article: "Article 62"
+    coverage: partial
+    gap: "No explicit whistleblower mechanism in the code"
+  fit_for_purpose:
+    rules_implementing:
+      - rule: "specifications_techniques"
+        description: "Technical specifications mandatory in DAO"
+        contribution: strong
+        article: "Article 48"
+    coverage: full
+    durability_indicators:
+      - rule: "garantie_bonne_execution"
+        description: "Performance bond for works contracts"
+        contribution: medium
+        active_for_families: ["works"]
+    durability_coverage: minimal
+    durability_gap: "No explicit life-cycle cost requirement"
+  value_for_money:
+    rules_implementing:
+      - rule: "moins_disant"
+        description: "Lowest price for goods"
+        contribution: strong
+        article: "Article 75"
+    coverage: partial
+    gap: "Limited to price-based evaluation for goods"
+  sustainability:
+    rules_implementing:
+      - rule: "preference_nationale"
+        description: "National preference margin 5-15%"
+        contribution: medium
+        article: "Article 44"
+    coverage: minimal
+    gap: "No environmental criteria in evaluation"

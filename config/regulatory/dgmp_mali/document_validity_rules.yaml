@@ -1,0 +1,60 @@
+framework: dgmp_mali
+
+rules:
+  nif:
+    document_name: "Numéro d'Identification Fiscale"
+    validity_period_months: 12
+    validity_from: fiscal_year_end
+    expiry_consequence: rejection
+    grace_period_days: 0
+    renewal_instruction: "Annuel. DGI Bamako ou antennes régionales."
+    renewal_typical_duration_days: 15
+    reference: "Article 62"
+  rccm:
+    document_name: "RCCM"
+    no_expiry: true
+    validity_note: "Droit OHADA — pas d'expiration"
+    expiry_consequence: warning
+    reference: "Article 62 + OHADA AUSCGIE"
+  quitus_fiscal:
+    document_name: "Attestation de Situation Fiscale Régulière"
+    validity_period_months: 3
+    validity_from: issue_date
+    expiry_consequence: rejection
+    grace_period_days: 0
+    renewal_instruction: "Moins de 3 mois à la date limite. DGI."
+    renewal_typical_duration_days: 7
+    reference: "Article 62"
+  certificat_non_faillite:
+    document_name: "Certificat de Non-Faillite"
+    validity_period_months: 3
+    validity_from: issue_date
+    expiry_consequence: rejection
+    grace_period_days: 0
+    reference: "Article 62"
+  attestation:
+    document_name: "Attestation INPS/CNSS"
+    validity_period_months: 3
+    validity_from: issue_date
+    expiry_consequence: rejection
+    grace_period_days: 15
+    reference: "Article 62"
+  rib:
+    document_name: "Relevé d'Identité Bancaire"
+    no_expiry: true
+    expiry_consequence: warning
+    reference: "Article 62"
+  certification:
+    document_name: "Caution de soumission"
+    validity_note: "Validité = durée de validité des offres"
+    validity_from: custom
+    expiry_consequence: rejection
+    grace_period_days: 0
+    reference: "Article 63"
+  licence:
+    document_name: "Agrément professionnel (BTP, etc.)"
+    validity_period_months: 12
+    validity_from: issue_date
+    expiry_consequence: rejection
+    grace_period_days: 0
+    reference: "Article 62 + textes sectoriels"

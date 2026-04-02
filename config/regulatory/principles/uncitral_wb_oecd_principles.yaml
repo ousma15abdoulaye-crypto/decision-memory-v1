@@ -1,0 +1,37 @@
+principles:
+  competition:
+    name: "Competition"
+    definition: "Open and effective competition among bidders"
+    sources: ["UNCITRAL Art. 8", "WB Reg. 5th Ed. §1.1(a)", "OECD Principle 1"]
+  transparency:
+    name: "Transparency"
+    definition: "Public access to procurement information and decisions"
+    sources: ["UNCITRAL Art. 5", "WB Reg. §1.1(b)", "OECD Principle 2"]
+  fairness:
+    name: "Fairness"
+    definition: "Equal treatment and non-discrimination of all bidders"
+    sources: ["UNCITRAL Art. 8(2)", "WB Reg. §1.1(c)", "OECD Principle 3"]
+  economy:
+    name: "Economy"
+    definition: "Proportionality of procedure to procurement value"
+    sources: ["UNCITRAL Art. 2", "WB Reg. §1.1(d)", "OECD Principle 4"]
+  efficiency:
+    name: "Efficiency"
+    definition: "Timely completion of procurement process"
+    sources: ["UNCITRAL Art. 2", "WB Reg. §1.1(e)", "OECD Principle 5"]
+  integrity:
+    name: "Integrity"
+    definition: "Prevention of fraud, corruption, and conflicts of interest"
+    sources: ["UNCITRAL Art. 7", "WB Reg. §1.1(f)", "OECD Principle 6"]
+  fit_for_purpose:
+    name: "Fit for Purpose"
+    definition: "Procurement delivers goods/services that meet the need"
+    sources: ["UNCITRAL Art. 10", "WB Reg. §1.1(g)"]
+  value_for_money:
+    name: "Value for Money"
+    definition: "Optimal combination of cost and quality over lifecycle"
+    sources: ["WB Reg. §1.1(h)", "OECD Principle 8"]
+  sustainability:
+    name: "Sustainability"
+    definition: "Integration of environmental, social, economic sustainability"
+    sources: ["OECD Principle 7", "UN Sustainable Procurement Guidelines (2022)"]

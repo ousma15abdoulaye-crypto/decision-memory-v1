@@ -1,0 +1,91 @@
+framework: sci
+
+buyer_documents:
+  by_procedure:
+    request_for_quotation:
+      - document_name: "RFQ document"
+        is_mandatory: true
+        is_eliminatory: false
+        applicable_stages: ["solicitation"]
+      - document_name: "Terms of Reference / Specifications"
+        is_mandatory: true
+        is_eliminatory: false
+        applicable_stages: ["solicitation"]
+    open_national:
+      - document_name: "Tender document (ITT/DAO)"
+        is_mandatory: true
+        is_eliminatory: false
+        applicable_stages: ["solicitation"]
+      - document_name: "Terms of Reference / Specifications"
+        is_mandatory: true
+        is_eliminatory: false
+        applicable_stages: ["solicitation"]
+      - document_name: "Evaluation grid"
+        is_mandatory: true
+        is_eliminatory: false
+        applicable_stages: ["evaluation"]
+
+supplier_documents:
+  common:
+    - document_name: "NIF"
+      admin_subtype: "nif"
+      is_mandatory: true
+      is_eliminatory: false
+      applicable_stages: ["submission"]
+      validity_rule_ref: "nif"
+    - document_name: "RCCM"
+      admin_subtype: "rccm"
+      is_mandatory: true
+      is_eliminatory: false
+      applicable_stages: ["submission"]
+      validity_rule_ref: "rccm"
+    - document_name: "Quitus fiscal"
+      admin_subtype: "quitus_fiscal"
+      is_mandatory: true
+      is_eliminatory: true
+      applicable_stages: ["submission"]
+      validity_rule_ref: "quitus_fiscal"
+    - document_name: "RIB"
+      admin_subtype: "rib"
+      is_mandatory: true
+      is_eliminatory: false
+      applicable_stages: ["submission"]
+      validity_rule_ref: "rib"
+    - document_name: "Conditions SCI signées"
+      admin_subtype: "sci_conditions_signed"
+      is_mandatory: true
+      is_eliminatory: true
+      applicable_stages: ["submission"]
+      validity_rule_ref: "sci_conditions_signed"
+    - document_name: "Déclaration IAPG"
+      admin_subtype: "iapg_signed"
+      is_mandatory: true
+      is_eliminatory: true
+      applicable_stages: ["submission"]
+      validity_rule_ref: "iapg_signed"
+  by_threshold:
+    tier_3_medium:
+      - document_name: "Certificat de non-faillite"
+        admin_subtype: "certificat_non_faillite"
+        is_mandatory: true
+        is_eliminatory: true
+        applicable_stages: ["submission"]
+        validity_rule_ref: "certificat_non_faillite"
+      - document_name: "Attestation INPS"
+        admin_subtype: "attestation"
+        is_mandatory: true
+        is_eliminatory: false
+        applicable_stages: ["submission"]
+        validity_rule_ref: "attestation"
+    tier_4_high:
+      - document_name: "Sustainability self-assessment"
+        admin_subtype: "sustainability_self_assessment"
+        is_mandatory: true
+        is_eliminatory: false
+        applicable_stages: ["submission"]
+      - document_name: "Caution de soumission"
+        admin_subtype: "certification"
+        is_mandatory: true
+        is_eliminatory: true
+        applicable_stages: ["submission"]
+        validity_rule_ref: "certification"

@@ -1,0 +1,18 @@
+framework: dgmp_mali
+procedure_defaults:
+  simplified:
+    evaluation_method: "lowest_price"
+  request_for_quotation:
+    evaluation_method: "lowest_price"
+  open_national:
+    evaluation_method: "mieux_disant"
+  open_international:
+    evaluation_method: "mieux_disant"
+  direct_purchase:
+    evaluation_method: "lowest_price"
+  sole_source:
+    evaluation_method: "lowest_price"
+  emergency:
+    evaluation_method: "lowest_price"
+  unknown:
+    evaluation_method: "unknown"

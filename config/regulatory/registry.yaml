@@ -1,0 +1,9 @@
+frameworks:
+  sci:
+    name: "Save the Children International"
+    config_path: "sci/"
+    active: true
+  dgmp_mali:
+    name: "DGMP Mali — Code des Marchés Publics"
+    config_path: "dgmp_mali/"
+    active: true

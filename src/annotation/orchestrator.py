@@ -37,11 +37,15 @@ from src.annotation.passes.pass_1c_conformity_and_handoffs import (
 from src.annotation.passes.pass_1d_process_linking import (
     run_pass_1d_process_linking,
 )
+from src.annotation.passes.pass_2a_regulatory_profile import (
+    run_pass_2a_regulatory_profile,
+)
 
 logger = logging.getLogger(__name__)
 
 ENV_USE_ORCHESTRATOR = "ANNOTATION_USE_PASS_ORCHESTRATOR"
 ENV_USE_M12_SUBPASSES = "ANNOTATION_USE_M12_SUBPASSES"
+ENV_USE_PASS_2A = "ANNOTATION_USE_PASS_2A"
 
 _DEFAULT_MAX_ATTEMPTS = 2
 
@@ -63,6 +67,24 @@ def use_m12_subpasses() -> bool:
     )
 
 
+def use_pass_2a() -> bool:
+    """Feature flag: after Pass 1D, run M13 Pass 2A (regulatory profile)."""
+    return os.environ.get(ENV_USE_PASS_2A, "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+
+
+def _m12_run_terminal(state: AnnotationPipelineState) -> bool:
+    """Terminal pour une exécution M12 (1A–1D–[2A])."""
+    if state == AnnotationPipelineState.PASS_2A_DONE:
+        return True
+    if state == AnnotationPipelineState.PASS_1D_DONE:
+        return not use_pass_2a()
+    return state in _TERMINAL_STATES
+
+
 class AnnotationPipelineState(StrEnum):
     INGESTED = "ingested"
     PASS_0_DONE = "pass_0_done"
@@ -73,6 +95,7 @@ class AnnotationPipelineState(StrEnum):
     PASS_1B_DONE = "pass_1b_done"
     PASS_1C_DONE = "pass_1c_done"
     PASS_1D_DONE = "pass_1d_done"
+    PASS_2A_DONE = "pass_2a_done"
     LLM_PREANNOTATION_PENDING = "llm_preannotation_pending"
     LLM_PREANNOTATION_DONE = "llm_preannotation_done"
     VALIDATED = "validated"
@@ -86,6 +109,7 @@ class AnnotationPipelineState(StrEnum):
 _TERMINAL_STATES: frozenset[AnnotationPipelineState] = frozenset(
     {
         AnnotationPipelineState.PASS_1D_DONE,
+        AnnotationPipelineState.PASS_2A_DONE,
         AnnotationPipelineState.DEAD_LETTER,
         AnnotationPipelineState.REVIEW_REQUIRED,
         AnnotationPipelineState.REJECTED,
@@ -114,6 +138,7 @@ _M12_STATE_ORDER: list[AnnotationPipelineState] = [
     AnnotationPipelineState.PASS_1B_DONE,
     AnnotationPipelineState.PASS_1C_DONE,
     AnnotationPipelineState.PASS_1D_DONE,
+    AnnotationPipelineState.PASS_2A_DONE,
 ]
 
 
@@ -524,6 +549,7 @@ class AnnotationOrchestrator:
         quality_class: str = "good",
         block_llm: bool = False,
         case_documents_1a: list[dict[str, Any]] | None = None,
+        case_id: str | None = None,
     ) -> tuple[PipelineRunRecord, AnnotationPipelineState]:
         """
         Execute M12 sub-passes (1A -> 1B -> 1C -> 1D) after Pass 0.5 is done.
@@ -546,7 +572,7 @@ class AnnotationOrchestrator:
         current_state = AnnotationPipelineState(record.state)
 
         # Short-circuit if already terminal (e.g. called twice on a finished run).
-        if current_state in _TERMINAL_STATES:
+        if _m12_run_terminal(current_state):
             return record, current_state
 
         def _state_rank(s: AnnotationPipelineState) -> int:
@@ -780,4 +806,41 @@ class AnnotationOrchestrator:
         )
         record.state = AnnotationPipelineState.PASS_1D_DONE.value
         self.save_run(record)
-        return record, AnnotationPipelineState.PASS_1D_DONE
+
+        if not use_pass_2a():
+            return record, AnnotationPipelineState.PASS_1D_DONE
+
+        cid = case_id or document_id
+        p2a = self._run_pass_with_retry(
+            run_pass_2a_regulatory_profile,
+            "pass_2a_regulatory_profile",
+            case_id=cid,
+            document_id=document_id,
+            run_id=run_id,
+            pass_1a_output_data=p1a.output_data or {},
+            pass_1b_output_data=p1b.output_data or {},
+            pass_1c_output_data=p1c.output_data or {},
+            pass_1d_output_data=p1d.output_data or {},
+        )
+        record.pass_outputs["pass_2a_regulatory_profile"] = _serialize_pass_output(p2a)
+        if p2a.status == PassRunStatus.FAILED:
+            self._log_transition(
+                record,
+                from_state=record.state,
+                to_state=AnnotationPipelineState.DEAD_LETTER.value,
+                pass_name="pass_2a_regulatory_profile",
+                out=p2a,
+            )
+            record.state = AnnotationPipelineState.DEAD_LETTER.value
+            self.save_run(record)
+            return record, AnnotationPipelineState.DEAD_LETTER
+        self._log_transition(
+            record,
+            from_state=record.state,
+            to_state=AnnotationPipelineState.PASS_2A_DONE.value,
+            pass_name="pass_2a_regulatory_profile",
+            out=p2a,
+        )
+        record.state = AnnotationPipelineState.PASS_2A_DONE.value
+        self.save_run(record)
+        return record, AnnotationPipelineState.PASS_2A_DONE

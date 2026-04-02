@@ -1,0 +1,94 @@
+framework: sci
+
+rules:
+  nif:
+    document_name: "Numéro d'Identification Fiscale"
+    validity_period_months: 12
+    validity_from: issue_date
+    expiry_consequence: regularization
+    grace_period_days: 30
+    renewal_instruction: "Renouvellement annuel auprès de la DGI"
+    renewal_typical_duration_days: 15
+    reference: "SCI Procurement Manual — Annex"
+  rccm:
+    document_name: "Registre du Commerce (OHADA)"
+    no_expiry: true
+    validity_note: "Pas d'expiration en droit OHADA"
+    expiry_consequence: warning
+    reference: "OHADA — Acte Uniforme Art. 34+"
+  quitus_fiscal:
+    document_name: "Quitus Fiscal / Attestation Fiscale"
+    validity_period_months: 3
+    validity_from: issue_date
+    expiry_consequence: rejection
+    grace_period_days: 0
+    renewal_instruction: "Daté de moins de 3 mois. DGI."
+    renewal_typical_duration_days: 7
+    reference: "SCI Procurement Manual — Annex"
+  certificat_non_faillite:
+    document_name: "Certificat de Non-Faillite"
+    validity_period_months: 3
+    validity_from: issue_date
+    expiry_consequence: rejection
+    grace_period_days: 0
+    reference: "SCI Procurement Manual — Annex"
+  attestation:
+    document_name: "Attestation INPS/CNSS"
+    validity_period_months: 3
+    validity_from: issue_date
+    expiry_consequence: regularization
+    grace_period_days: 30
+    reference: "SCI Procurement Manual — Annex"
+  iapg_signed:
+    document_name: "Déclaration IAPG / Sanctions"
+    validity_period_months: 12
+    validity_from: issue_date
+    expiry_consequence: rejection
+    grace_period_days: 0
+    reference: "SCI Global Policy — Sanctions & IAPG"
+  sci_conditions_signed:
+    document_name: "Conditions Générales SCI signées"
+    no_expiry: true
+    validity_note: "Valable pour la durée de la relation contractuelle"
+    expiry_consequence: warning
+    reference: "SCI Procurement Manual Section 6.1"
+  rib:
+    document_name: "Relevé d'Identité Bancaire"
+    no_expiry: true
+    validity_note: "Valable tant que le compte est actif"
+    expiry_consequence: warning
+    reference: "SCI Procurement Manual — Annex"
+  licence:
+    document_name: "Licence / Agrément professionnel"
+    validity_period_months: 12
+    validity_from: issue_date
+    expiry_consequence: rejection
+    grace_period_days: 0
+    reference: "SCI Procurement Manual — Annex"
+  certification:
+    document_name: "Caution de soumission"
+    validity_note: "Validité alignée sur bid_validity_period_days"
+    validity_from: custom
+    expiry_consequence: rejection
+    grace_period_days: 0
+    reference: "SCI Procurement Manual Section 4.4"
+  pouvoir:
+    document_name: "Pouvoir / Procuration"
+    validity_period_months: 12
+    validity_from: issue_date
+    expiry_consequence: regularization
+    grace_period_days: 15
+    reference: "SCI Procurement Manual — Annex"
+  piece_identite:
+    document_name: "Pièce d'identité du représentant"
+    validity_from: custom
+    validity_note: "Doit être en cours de validité"
+    expiry_consequence: regularization
+    grace_period_days: 0
+    reference: "SCI Procurement Manual — Annex"
+  sustainability_self_assessment:
+    document_name: "Sustainability self-assessment"
+    validity_period_months: 12
+    validity_from: issue_date
+    expiry_consequence: warning
+    reference: "SCI Procurement Manual"

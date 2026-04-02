@@ -1,0 +1,37 @@
+framework: sci
+
+by_procedure:
+  direct_purchase:
+    publication_delay_days: 0
+    submission_period_days: 5
+    bid_validity_period_days: 30
+    evaluation_max_days: 5
+    standstill_period_days: 0
+    contract_signature_max_days: 10
+  request_for_quotation:
+    publication_delay_days: 0
+    submission_period_days: 14
+    bid_validity_period_days: 60
+    evaluation_max_days: 14
+    standstill_period_days: 0
+    contract_signature_max_days: 14
+  open_national:
+    publication_delay_days: 7
+    submission_period_days: 30
+    bid_validity_period_days: 90
+    evaluation_max_days: 21
+    standstill_period_days: 7
+    contract_signature_max_days: 21
+  open_international:
+    publication_delay_days: 14
+    submission_period_days: 45
+    bid_validity_period_days: 120
+    evaluation_max_days: 30
+    standstill_period_days: 10
+    contract_signature_max_days: 30
+
+humanitarian_override:
+  enabled: true
+  reduction_pct: 50
+  minimum_submission_days: 3
+  article: "Emergency Procurement Section"

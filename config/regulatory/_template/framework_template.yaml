@@ -1,0 +1,11 @@
+# Template — copier vers sci/ ou dgmp_mali/ et renseigner.
+framework: "framework_name"
+# Fichiers requis par répertoire :
+#   thresholds.yaml
+#   procedure_types.yaml
+#   required_documents.yaml
+#   timelines.yaml
+#   control_organs.yaml
+#   derogations.yaml
+#   principles_mapping.yaml
+#   document_validity_rules.yaml

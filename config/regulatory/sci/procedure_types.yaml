@@ -1,0 +1,23 @@
+framework: sci
+# procedure_required (from thresholds) -> default evaluation_method
+procedure_defaults:
+  direct_purchase:
+    evaluation_method: "lowest_price"
+  request_for_quotation:
+    evaluation_method: "lowest_price"
+  open_national:
+    evaluation_method: "mieux_disant"
+  open_international:
+    evaluation_method: "mieux_disant"
+  simplified:
+    evaluation_method: "lowest_price"
+  restricted:
+    evaluation_method: "mieux_disant"
+  sole_source:
+    evaluation_method: "lowest_price"
+  emergency:
+    evaluation_method: "lowest_price"
+  framework_agreement:
+    evaluation_method: "quality_cost_based"
+  unknown:
+    evaluation_method: "unknown"

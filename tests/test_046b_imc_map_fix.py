@@ -87,6 +87,7 @@ VALID_ALEMBIC_HEADS = (
     "054_m12_correction_log",
     "055_extend_rls_documents_extraction_jobs",  # Chantier 2 — RLS extension
     "056_evaluation_documents",  # M13 — table ACO + RLS tenant_scoped
+    "057_m13_regulatory_profile_and_correction_log",
     "m7_4_dict_vivant",  # branche parallèle
 )
 

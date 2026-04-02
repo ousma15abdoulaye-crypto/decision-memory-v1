@@ -1,0 +1,25 @@
+framework: sci
+
+organs:
+  procurement_unit:
+    organ_name: "Procurement Unit / Supply Chain"
+    organ_role: "procurement_unit"
+    required_for_procedure: ["all"]
+    composition_rule: "Procurement Officer + line manager"
+    article: "Procurement Manual Section 2"
+  evaluation_committee:
+    organ_name: "Evaluation Committee"
+    organ_role: "evaluation_committee"
+    required_for_procedure:
+      - "request_for_quotation"
+      - "open_national"
+      - "open_international"
+    quorum_rule: "Minimum 3 members, odd number"
+    composition_rule: "Procurement + Technical + Finance"
+    article: "Procurement Manual Section 5"
+  approval_authority:
+    organ_name: "Approval Authority"
+    organ_role: "approval_authority"
+    required_for_procedure: ["all"]
+    composition_rule: "Per delegation of authority matrix"
+    article: "Procurement Manual Section 7"
