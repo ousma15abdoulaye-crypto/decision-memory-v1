@@ -2,7 +2,7 @@
 M14 — Evaluation Engine models (Pydantic, extra=forbid).
 
 ADR-M14-001. Confiance exposée : {0.6, 0.8, 1.0} via M14Confidence.
-RÈGLE-09 : winner / rank / recommendation / best_offer = INTERDITS.
+RÈGLE-09 : winner / rank / recommendation / offre_retenue = INTERDITS.
 """
 
 from __future__ import annotations
@@ -117,7 +117,7 @@ class EvaluationMeta(BaseModel):
 class EvaluationReport(BaseModel):
     """Rapport d'évaluation comparative par dossier (case).
 
-    RÈGLE-09 : ne contient PAS de winner / rank / recommendation / best_offer.
+    RÈGLE-09 : ne contient PAS de winner / rank / recommendation / offre_retenue.
     """
 
     case_id: str

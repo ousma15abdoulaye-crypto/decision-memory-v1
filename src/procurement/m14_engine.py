@@ -4,7 +4,7 @@ Consomme H2 (AtomicCapabilitySkeleton), H3 (MarketContextSignal),
 RH1 (ComplianceChecklist), RH2 (EvaluationBlueprint) et ProcessLinking
 pour produire un EvaluationReport par dossier (case).
 
-RÈGLE-09 : aucun winner / rank / recommendation / best_offer.
+RÈGLE-09 : aucun winner / rank / recommendation / offre_retenue.
 """
 
 from __future__ import annotations

@@ -454,10 +454,10 @@ def test_dm_app_cannot_select_other_tenant_evaluation_documents(db_conn):
         _insert_case(cur, case_a, tid_a, now)
         _insert_case(cur, case_b, tid_b, now)
         cur.execute(
-            "INSERT INTO public.committees (committee_id, case_id, committee_type) "
-            "VALUES (gen_random_uuid(), %s, 'evaluation'), "
-            "       (gen_random_uuid(), %s, 'evaluation')",
-            (case_a, case_b),
+            "INSERT INTO public.committees (committee_id, case_id, org_id, committee_type, created_by) "
+            "VALUES (gen_random_uuid(), %s, %s, 'achat', 'rls-test'), "
+            "       (gen_random_uuid(), %s, %s, 'achat', 'rls-test')",
+            (case_a, tid_a, case_b, tid_b),
         )
         cur.execute(
             "SELECT committee_id FROM public.committees WHERE case_id = %s",
