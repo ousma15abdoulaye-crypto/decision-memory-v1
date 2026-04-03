@@ -33,9 +33,7 @@ class TestIndexEvent:
         from src.workers.arq_tasks import index_event
 
         with pytest.raises(Exception):
-            asyncio.get_event_loop().run_until_complete(
-                index_event({}, {"event_type": "test"})
-            )
+            asyncio.run(index_event({}, {"event_type": "test"}))
 
     def test_complete_event_calls_service(self) -> None:
         """index_event with a valid event dict calls EventIndexService.append."""
@@ -56,9 +54,7 @@ class TestIndexEvent:
         with patch(
             "src.workers.arq_tasks._get_conn_factory", return_value=lambda: mock_conn
         ):
-            result = asyncio.get_event_loop().run_until_complete(
-                index_event({}, complete_event)
-            )
+            result = asyncio.run(index_event({}, complete_event))
         assert result == "abc-123"
 
 
@@ -73,7 +69,7 @@ class TestDetectPatterns:
         with patch(
             "src.workers.arq_tasks._get_conn_factory", return_value=lambda: mock_conn
         ):
-            result = asyncio.get_event_loop().run_until_complete(detect_patterns({}))
+            result = asyncio.run(detect_patterns({}))
 
         assert result == 0
 
@@ -95,7 +91,7 @@ class TestDetectPatterns:
         with patch(
             "src.workers.arq_tasks._get_conn_factory", return_value=lambda: mock_conn
         ):
-            result = asyncio.get_event_loop().run_until_complete(detect_patterns({}))
+            result = asyncio.run(detect_patterns({}))
 
         assert result >= 0
 
@@ -111,8 +107,6 @@ class TestGenerateCandidateRules:
         with patch(
             "src.workers.arq_tasks._get_conn_factory", return_value=lambda: mock_conn
         ):
-            result = asyncio.get_event_loop().run_until_complete(
-                generate_candidate_rules({})
-            )
+            result = asyncio.run(generate_candidate_rules({}))
 
         assert result == 0
