@@ -10,10 +10,15 @@ Pre-requis (gate V2 et V3 verts) :
   - ARQ worker operationnel (smoke_arq_worker.py STATUS=OK)
 
 Strategies :
-  A. Via API HTTP POST (mode --api, defaut) :
-     POST /api/documents/{id}/extract pour chaque document pending
-  B. Via ARQ direct (mode --arq) :
-     Enqueue un job 'process_document' par document dans la queue ARQ
+  Via API HTTP POST (seul mode supporte) :
+     POST /api/extractions/documents/{document_id}/extract
+     (cf. src/api/routes/extractions.py — auth JWT obligatoire en prod)
+
+  JWT : variable DMS_JWT ou DMS_API_JWT (ou --auth-token).
+
+  ARQ : les workers exposent index_event / detect_patterns / generate_candidate_rules
+  uniquement (src/workers/arq_tasks.py). Pour un smoke Redis/worker, utiliser
+  scripts/smoke_arq_worker.py — pas d'enqueue « extraction document » via ARQ.
 
 Gate de sortie V6 :
   - coverage_extraction >= 80% (documents traites / total)
@@ -25,9 +30,6 @@ Usage :
   python scripts/with_railway_env.py python scripts/trigger_extraction_queue.py --dry-run
   python scripts/with_railway_env.py python scripts/trigger_extraction_queue.py --apply
 
-  # Mode ARQ direct (si API indisponible)
-  python scripts/with_railway_env.py python scripts/trigger_extraction_queue.py --apply --mode arq
-
   # Limiter a N documents
   python scripts/with_railway_env.py python scripts/trigger_extraction_queue.py --apply --limit 10
 
@@ -38,7 +40,6 @@ Usage :
 from __future__ import annotations
 
 import argparse
-import asyncio
 import logging
 import os
 import sys
@@ -109,7 +110,10 @@ def probe_extraction_state(cur) -> dict:
     status_dist = {r["extraction_status"]: r["cnt"] for r in cur.fetchall()}
 
     total = sum(status_dist.values())
-    processed = sum(v for k, v in status_dist.items() if k not in ("pending", None))
+    # Gate coverage : uniquement extraction reussie (done), pas failed/error
+    done_count = status_dist.get("done", 0)
+    failed_count = sum(status_dist.get(s, 0) for s in ("failed", "error"))
+    pending_count = status_dist.get("pending", 0)
 
     # Verifier event_index V2 (table dans public, pas dms_vivant)
     event_count = 0
@@ -132,11 +136,25 @@ def probe_extraction_state(cur) -> dict:
     return {
         "status_distribution": status_dist,
         "total_documents": total,
-        "processed_documents": processed,
-        "coverage_pct": round(processed * 100 / max(total, 1), 1),
+        "processed_documents": done_count,
+        "documents_done": done_count,
+        "documents_pending": pending_count,
+        "documents_failed": failed_count,
+        "coverage_pct": round(done_count * 100 / max(total, 1), 1),
         "dms_event_index_count": event_count,
         "candidate_rules_count": rules_count,
     }
+
+
+def _resolve_jwt_token(explicit: str | None) -> str | None:
+    """JWT pour Authorization: Bearer (DMS_JWT, DMS_API_JWT, JWT_ACCESS_TOKEN)."""
+    if explicit and explicit.strip():
+        return explicit.strip()
+    for key in ("DMS_JWT", "DMS_API_JWT", "JWT_ACCESS_TOKEN"):
+        v = os.environ.get(key, "").strip()
+        if v:
+            return v
+    return None
 
 
 def trigger_via_api(
@@ -144,10 +162,11 @@ def trigger_via_api(
     api_url: str,
     dry_run: bool,
     interval_s: float,
+    jwt_token: str | None,
 ) -> dict:
     """Declenche l'extraction d'un document via l'API HTTP."""
     doc_id = doc["id"]
-    endpoint = f"{api_url}/api/documents/{doc_id}/extract"
+    endpoint = f"{api_url}/api/extractions/documents/{doc_id}/extract"
 
     if dry_run:
         logger.info("[DRY-RUN] POST %s", endpoint)
@@ -156,10 +175,14 @@ def trigger_via_api(
     try:
         import requests
 
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        if jwt_token:
+            headers["Authorization"] = f"Bearer {jwt_token}"
+
         resp = requests.post(
             endpoint,
             timeout=60,
-            headers={"Content-Type": "application/json"},
+            headers=headers,
         )
 
         if resp.status_code in (200, 201, 202):
@@ -194,32 +217,6 @@ def trigger_via_api(
         return {"doc_id": str(doc_id), "status": "exception", "error": str(exc)}
 
 
-async def trigger_via_arq(
-    doc: dict,
-    redis_url: str,
-    dry_run: bool,
-) -> dict:
-    """Enqueue un job ARQ 'process_document' pour un document."""
-    doc_id = doc["id"]
-
-    if dry_run:
-        logger.info("[DRY-RUN] ARQ enqueue process_document doc=%s", doc_id)
-        return {"doc_id": str(doc_id), "status": "dry_run"}
-
-    try:
-        import arq
-        import redis.asyncio as aioredis
-
-        pool = arq.ArqRedis(pool_or_conn=aioredis.from_url(redis_url))
-        await pool.enqueue_job("process_document", {"document_id": str(doc_id)})
-        await pool.aclose()
-        logger.info("ARQ enqueued doc=%s", doc_id)
-        return {"doc_id": str(doc_id), "status": "enqueued"}
-    except Exception as exc:
-        logger.error("ARQ ERR doc=%s : %s", doc_id, exc)
-        return {"doc_id": str(doc_id), "status": "exception", "error": str(exc)}
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Trigger extraction queue — 25 docs pending (V6 Wartime M15)"
@@ -236,16 +233,16 @@ def main() -> int:
         help="Declencher reellement les extractions",
     )
     parser.add_argument(
-        "--mode",
-        choices=["api", "arq"],
-        default="api",
-        help="Mode de trigger : 'api' (HTTP POST) ou 'arq' (queue directe) (defaut: api)",
-    )
-    parser.add_argument(
         "--api-url",
         type=str,
         default=None,
         help="URL de base de l'API Railway (ex: https://dms-prod.railway.app)",
+    )
+    parser.add_argument(
+        "--auth-token",
+        type=str,
+        default=None,
+        help="JWT Bearer (sinon DMS_JWT / DMS_API_JWT / JWT_ACCESS_TOKEN)",
     )
     parser.add_argument(
         "--limit",
@@ -269,7 +266,6 @@ def main() -> int:
     dry_run = not args.apply
 
     print(f"\n{BOLD}TRIGGER EXTRACTION QUEUE — V6 M15{RESET}")
-    print(f"Mode trigger   : {args.mode.upper()}")
     print(f"Mode ecriture  : {'DRY-RUN' if dry_run else 'APPLY'}")
     print(f"Limite         : {args.limit} documents")
     print(f"Intervalle     : {args.interval}s entre chaque")
@@ -296,8 +292,9 @@ def main() -> int:
     ):
         print(f"    {str(status):30}: {cnt}")
     print(f"\n  Total documents           : {state['total_documents']}")
-    print(f"  Traites (non pending)     : {state['processed_documents']}")
-    print(f"  Coverage extraction       : {state['coverage_pct']}%")
+    print(f"  Extraits (done)           : {state['documents_done']}")
+    print(f"  En echec (failed/error)   : {state['documents_failed']}")
+    print(f"  Coverage extraction       : {state['coverage_pct']}% (done / total)")
 
     if state["dms_event_index_count"] >= 0:
         print(
@@ -334,47 +331,37 @@ def main() -> int:
 
     conn.close()
 
-    # Mode API
-    if args.mode == "api":
-        api_url = args.api_url or _get_api_url()
-        if not api_url:
-            print(
-                f"{RED}[ERR]{RESET} RAILWAY_URL ou --api-url requis pour le mode api.\n"
-                "  Definir : $env:RAILWAY_URL = 'https://your-app.railway.app'\n"
-                "  Ou utiliser : --mode arq",
-                file=sys.stderr,
-            )
-            return 2
+    api_url = args.api_url or _get_api_url()
+    if not api_url:
+        print(
+            f"{RED}[ERR]{RESET} RAILWAY_URL ou --api-url requis.\n"
+            "  Definir : RAILWAY_URL ou API_BASE_URL (ex. https://your-app.railway.app)",
+            file=sys.stderr,
+        )
+        return 2
 
-        print(f"  API URL : {api_url}")
-        results = []
-        for doc in pending:
-            res = trigger_via_api(doc, api_url, dry_run, args.interval)
-            results.append(res)
+    jwt_token = _resolve_jwt_token(args.auth_token)
+    if not dry_run and not jwt_token:
+        print(
+            f"{RED}[ERR]{RESET} JWT requis pour POST /api/extractions/... en APPLY.\n"
+            "  Definir DMS_JWT (ou DMS_API_JWT) ou passer --auth-token <jwt>",
+            file=sys.stderr,
+        )
+        return 2
+    if dry_run and not jwt_token:
+        print(
+            f"  {YELLOW}[INFO]{RESET} JWT absent — dry-run uniquement (pas d'appel HTTP reel)."
+        )
 
-        triggered = sum(1 for r in results if r["status"] in ("triggered", "dry_run"))
-        errors = sum(1 for r in results if r["status"] in ("error", "exception"))
-        print(f"\n  Triggers : {triggered} OK, {errors} erreurs")
+    print(f"  API URL : {api_url}")
+    results = []
+    for doc in pending:
+        res = trigger_via_api(doc, api_url, dry_run, args.interval, jwt_token)
+        results.append(res)
 
-    # Mode ARQ
-    elif args.mode == "arq":
-        redis_url = os.environ.get("REDIS_URL", "")
-        if not redis_url:
-            print(
-                f"{RED}[ERR]{RESET} REDIS_URL manquante pour le mode arq.\n"
-                "  Definir REDIS_URL dans .env.railway.local",
-                file=sys.stderr,
-            )
-            return 3
-
-        async def run_arq():
-            tasks = [trigger_via_arq(doc, redis_url, dry_run) for doc in pending]
-            return await asyncio.gather(*tasks)
-
-        results = asyncio.run(run_arq())
-        triggered = sum(1 for r in results if r["status"] in ("enqueued", "dry_run"))
-        errors = sum(1 for r in results if r["status"] in ("exception",))
-        print(f"\n  Jobs ARQ enqueues : {triggered}, erreurs : {errors}")
+    triggered = sum(1 for r in results if r["status"] in ("triggered", "dry_run"))
+    errors = sum(1 for r in results if r["status"] in ("error", "exception"))
+    print(f"\n  Triggers : {triggered} OK, {errors} erreurs")
 
     # Probe post-trigger (attente 5s pour laisser le temps au pipeline)
     if not dry_run and pending:
@@ -434,7 +421,9 @@ def _print_gate(state: dict) -> None:
         if not gate1:
             print("  -> Relancer trigger pour les documents restants")
         if not gate2:
-            print("  -> Verifier migrations V2 (schema dms_vivant) et bridge triggers")
+            print(
+                "  -> Verifier migrations V2 (public.dms_event_index) et bridge triggers"
+            )
         if not gate3:
             print("  -> Verifier ARQ worker et job detect_patterns")
 

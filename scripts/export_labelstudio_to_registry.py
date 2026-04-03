@@ -91,6 +91,11 @@ def _ls_headers(api_key: str) -> dict:
     return {"Authorization": f"Token {api_key}", "Content-Type": "application/json"}
 
 
+def _ls_verify_tls() -> bool:
+    """TLS verification on by default; set LABEL_STUDIO_SSL_VERIFY=0 if needed (E-68)."""
+    return os.environ.get("LABEL_STUDIO_SSL_VERIFY", "1") != "0"
+
+
 def probe_label_studio(config: dict) -> dict:
     """Verifie la connexion LS et retourne les stats du projet."""
     url = config["url"]
@@ -102,7 +107,7 @@ def probe_label_studio(config: dict) -> dict:
             f"{url}/api/projects/{project_id}/",
             headers=_ls_headers(api_key),
             timeout=15,
-            verify=False,
+            verify=_ls_verify_tls(),
         )
         if resp.status_code == 401:
             print(
@@ -145,7 +150,7 @@ def fetch_annotations_from_ls(config: dict, page_size: int = 100) -> list[dict]:
                 "fields": "all",
             },
             timeout=30,
-            verify=False,
+            verify=_ls_verify_tls(),
         )
         resp.raise_for_status()
         data = resp.json()
@@ -197,6 +202,15 @@ def _build_registry_row(task: dict) -> dict | None:
     is_validated = annotation.get("was_cancelled", False) is False
     doc_ref = _extract_doc_reference(task)
 
+    # FK documents(id) : utiliser l'ID metier dans task.data, pas l'ID tache LS (Copilot)
+    data = task.get("data") or {}
+    document_id_fk: str | None = None
+    for key in ("document_id", "doc_id"):
+        raw = data.get(key)
+        if raw is not None and str(raw).strip():
+            document_id_fk = str(raw).strip()[:255]
+            break
+
     row_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"ls_task_{task['id']}"))
     sha256 = hashlib.sha256(
         json.dumps(annotation.get("result", []), sort_keys=True).encode()
@@ -204,7 +218,7 @@ def _build_registry_row(task: dict) -> dict | None:
 
     return {
         "id": row_id,
-        "document_id": str(task.get("id")),
+        "document_id": document_id_fk,
         "annotation_file": doc_ref,
         "sha256": sha256,
         "document_type": "label_studio_export",

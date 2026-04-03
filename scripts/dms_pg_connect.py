@@ -157,3 +157,20 @@ def safe_target_hint(raw_url: str) -> str:
         return f"...@{host}:{port}/{dbname}"
     except Exception:
         return "..."
+
+
+def resolve_database_url_for_scripts(argv: list[str] | None = None) -> str:
+    """URL PostgreSQL pour scripts ops : ``--db-url <url>`` prime sur l'environnement.
+
+    Variables lues (via :func:`get_raw_database_url`) : ``RAILWAY_DATABASE_URL``,
+    puis ``DATABASE_URL``. Aucune valeur par défaut avec credentials — évite E-89.
+    """
+    import sys
+
+    a = argv if argv is not None else sys.argv[1:]
+    if "--db-url" in a:
+        idx = a.index("--db-url")
+        if idx + 1 >= len(a) or not str(a[idx + 1]).strip():
+            raise ValueError("Valeur manquante pour --db-url.")
+        return get_raw_database_url(str(a[idx + 1]).strip())
+    return get_raw_database_url(None)

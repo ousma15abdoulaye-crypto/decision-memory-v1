@@ -15,7 +15,7 @@ Usage :
 
 Critere de succes (Gate V3) :
   - Le script affiche STATUS=OK
-  - dms_vivant.dms_event_index contient >= 1 ligne
+  - public.dms_event_index contient >= 1 ligne (migrations VIVANT V2 — schema public)
 """
 
 from __future__ import annotations
@@ -130,15 +130,27 @@ async def _poll_job_result(redis_url: str, job_id: str, timeout_s: int) -> bool:
 
 
 def _check_event_index(db_url: str) -> int:
-    """Compte les lignes dans dms_vivant.dms_event_index."""
+    """Compte les lignes dans public.dms_event_index (fallback legacy dms_vivant)."""
     try:
         import psycopg
 
+        last_exc: Exception | None = None
         with psycopg.connect(db_url, connect_timeout=10) as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT COUNT(*) FROM dms_vivant.dms_event_index")
-                count = cur.fetchone()[0]
-        return count
+                for qualified in (
+                    "public.dms_event_index",
+                    "dms_vivant.dms_event_index",
+                ):
+                    try:
+                        cur.execute(f"SELECT COUNT(*) FROM {qualified}")
+                        row = cur.fetchone()
+                        count = row[0] if row else 0
+                        return int(count)
+                    except Exception as exc:
+                        last_exc = exc
+        if last_exc is not None:
+            raise last_exc
+        return -1
     except Exception as exc:
         print(f"  {YELLOW}[WARN event_index]{RESET} {exc}")
         return -1
@@ -188,8 +200,8 @@ async def main_async(args: argparse.Namespace) -> int:
     else:
         job_ok = await _poll_job_result(redis_url, job_id, args.timeout)
 
-    # 5. Verifier dms_event_index
-    print(f"  {BLUE}[4/4]{RESET} Verification dms_vivant.dms_event_index...")
+    # 5. Verifier dms_event_index (public)
+    print(f"  {BLUE}[4/4]{RESET} Verification public.dms_event_index...")
     if db_url:
         count = _check_event_index(db_url)
         if count >= 0:

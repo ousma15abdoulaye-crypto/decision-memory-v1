@@ -1,21 +1,51 @@
 #!/usr/bin/env python3
 """V5 fix: Creer un vendor 'mercurials_proxy' et lier les 21850 market_surveys."""
 
+import argparse
 import os
+import sys
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 
 import psycopg
 
-RAILWAY_URL = os.environ.get(
-    "RAILWAY_DATABASE_URL",
-    "postgresql://postgres:VvIxShbsVuwXdqGlipWTeZjfHKTEbFHP@maglev.proxy.rlwy.net:35451/railway",
-)
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+
+from dms_pg_connect import get_raw_database_url, safe_target_hint  # noqa: E402
 
 
 def main() -> None:
-    print("Connecting to Railway...")
-    conn = psycopg.connect(RAILWAY_URL, connect_timeout=25)
+    parser = argparse.ArgumentParser(
+        description="Seed mercurials_proxy vendor on Railway."
+    )
+    parser.add_argument(
+        "--db-url",
+        type=str,
+        default=None,
+        help="PostgreSQL URL (sinon RAILWAY_DATABASE_URL / DATABASE_URL)",
+    )
+    args = parser.parse_args()
+    try:
+        db_url = get_raw_database_url(args.db_url)
+    except ValueError as e:
+        raw = (
+            os.environ.get("RAILWAY_DATABASE_URL")
+            or os.environ.get("DATABASE_URL")
+            or ""
+        )
+        hint = safe_target_hint(raw) if raw.strip() else "(env non configure)"
+        print(
+            f"[ERR] {e}\n"
+            "  Definir RAILWAY_DATABASE_URL ou DATABASE_URL, ou passer --db-url.\n"
+            f"  Cible (hint) : {hint}",
+            file=sys.stderr,
+        )
+        raise SystemExit(2) from e
+
+    print(f"Connecting... hint={safe_target_hint(db_url)}")
+    conn = psycopg.connect(db_url, connect_timeout=25)
 
     with conn.cursor() as cur:
         # Get full schema with NOT NULL info

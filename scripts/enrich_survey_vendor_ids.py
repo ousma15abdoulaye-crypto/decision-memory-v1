@@ -4,7 +4,7 @@ enrich_survey_vendor_ids.py — V5 Activation Wartime M15.
 
 ETL vendor_id : enrichit public.market_surveys (vendor_id IS NULL)
 en appliquant la logique de fuzzy matching pg_trgm de resolvers.py
-(seuil similitude = 60%) sur supplier_name_raw.
+(seuil similitude = 60%) sur supplier_raw.
 
 Diagnostic initial :
   - 21 850 market_surveys sans vendor_id (0% match)
@@ -118,112 +118,118 @@ def resolve_vendor_batch(
     cur, threshold: float, limit: int | None, dry_run: bool
 ) -> dict:
     """
-    Applique le matching pg_trgm en batch.
+    Applique le matching pg_trgm en une passe SQL (set-based, pas N+1).
 
-    Pour chaque survey avec vendor_id IS NULL et supplier_name_raw non vide,
-    cherche le vendor le plus proche (similarity >= threshold).
-    Si dry_run : mesure le taux de match potentiel sans UPDATE.
-    Si apply : execute les UPDATE et commit.
+    Pour chaque survey avec vendor_id IS NULL et supplier_raw non vide,
+    selectionne le meilleur vendor par similarity >= threshold (LATERAL).
     """
-    # Charger tous les surveys matchables (par batch de 1000 pour limiter memoire)
-    # Colonne reelle : supplier_raw (pas supplier_name_raw)
-    batch_query = """
-        SELECT id, supplier_raw
-        FROM public.market_surveys
-        WHERE vendor_id IS NULL
-          AND supplier_raw IS NOT NULL
-          AND supplier_raw != ''
-        ORDER BY id
-    """
+    lim_sql = "LIMIT %(lim)s" if limit else ""
+    params: dict[str, object] = {"threshold": threshold}
     if limit:
-        batch_query += f" LIMIT {int(limit)}"
+        params["lim"] = int(limit)
 
-    cur.execute(batch_query)
-    surveys = cur.fetchall()
-
-    if not surveys:
-        return {"matched": 0, "no_match": 0, "total": 0}
-
-    logger.info("%d surveys a traiter (threshold=%.2f)", len(surveys), threshold)
-
-    matched = 0
-    no_match = 0
-    no_vendor_table = 0
-
-    for i, row in enumerate(surveys, 1):
-        survey_id = row["id"]
-        raw_name = row["supplier_raw"]
-
-        # Fuzzy match via pg_trgm — meme logique que resolvers.py
-        # Colonne reelle : vendors.name_raw (pas vendors.name)
-        try:
-            cur.execute(
-                """
-                SELECT id, name_raw, similarity(name_raw, %(name)s) AS sim
-                FROM public.vendors
-                WHERE similarity(name_raw, %(name)s) >= %(threshold)s
+    # Requete unique : meilleur vendor par survey (anti N+1)
+    sql_matches = f"""
+        WITH target_surveys AS (
+            SELECT s.id, s.supplier_raw
+            FROM public.market_surveys s
+            WHERE s.vendor_id IS NULL
+              AND s.supplier_raw IS NOT NULL
+              AND s.supplier_raw != ''
+            ORDER BY s.id
+            {lim_sql}
+        ),
+        best AS (
+            SELECT
+                ts.id AS survey_id,
+                ts.supplier_raw,
+                vm.vendor_id,
+                vm.vendor_name,
+                vm.sim
+            FROM target_surveys ts
+            LEFT JOIN LATERAL (
+                SELECT
+                    v.id AS vendor_id,
+                    v.name_raw AS vendor_name,
+                    similarity(v.name_raw, ts.supplier_raw) AS sim
+                FROM public.vendors v
+                WHERE similarity(v.name_raw, ts.supplier_raw) >= %(threshold)s
                 ORDER BY sim DESC
                 LIMIT 1
-                """,
-                {"name": raw_name, "threshold": threshold},
-            )
-            vendor_row = cur.fetchone()
-        except Exception as exc:
-            logger.error(
-                "Erreur similarity sur survey %s (name=%r): %s",
-                survey_id,
-                raw_name[:40],
-                exc,
-            )
-            no_vendor_table += 1
-            if no_vendor_table > 3:
-                logger.error(
-                    "Table vendors inaccessible ou pg_trgm non disponible — arret."
+            ) vm ON TRUE
+        )
+        SELECT survey_id, supplier_raw, vendor_id, vendor_name, sim
+        FROM best
+        ORDER BY survey_id
+    """
+
+    try:
+        cur.execute(sql_matches, params)
+        matched_rows = cur.fetchall()
+    except Exception as exc:
+        logger.error("Erreur requete bulk similarity: %s", exc)
+        return {"total": 0, "matched": 0, "no_match": 0, "match_rate_pct": 0.0}
+
+    total = len(matched_rows)
+    with_vendor = [r for r in matched_rows if r["vendor_id"] is not None]
+    matched = len(with_vendor)
+    no_match = total - matched
+
+    logger.info(
+        "%d surveys dans le scope (threshold=%.2f) — matches=%d sans_match=%d",
+        total,
+        threshold,
+        matched,
+        no_match,
+    )
+
+    for row in with_vendor[:10]:
+        logger.info(
+            "MATCH %s | '%s' -> '%s' (sim=%.2f)",
+            row["survey_id"],
+            str(row["supplier_raw"])[:40],
+            str(row["vendor_name"])[:30],
+            float(row["sim"]) if row["sim"] is not None else 0.0,
+        )
+
+    if not dry_run and with_vendor:
+        sql_apply = f"""
+            UPDATE public.market_surveys AS ms
+            SET vendor_id = b.vendor_id
+            FROM (
+                WITH target_surveys AS (
+                    SELECT s.id, s.supplier_raw
+                    FROM public.market_surveys s
+                    WHERE s.vendor_id IS NULL
+                      AND s.supplier_raw IS NOT NULL
+                      AND s.supplier_raw != ''
+                    ORDER BY s.id
+                    {lim_sql}
+                ),
+                best AS (
+                    SELECT
+                        ts.id AS survey_id,
+                        vm.vendor_id
+                    FROM target_surveys ts
+                    INNER JOIN LATERAL (
+                        SELECT v.id AS vendor_id
+                        FROM public.vendors v
+                        WHERE similarity(v.name_raw, ts.supplier_raw) >= %(threshold)s
+                        ORDER BY similarity(v.name_raw, ts.supplier_raw) DESC
+                        LIMIT 1
+                    ) vm ON TRUE
                 )
-                break
-            continue
-
-        if vendor_row:
-            vendor_id = vendor_row["id"]
-            sim = vendor_row["sim"]
-            vendor_name = vendor_row["name_raw"]
-
-            if not dry_run:
-                cur.execute(
-                    "UPDATE public.market_surveys "
-                    "SET vendor_id = %(vendor_id)s "
-                    "WHERE id = %(survey_id)s AND vendor_id IS NULL",
-                    {"vendor_id": str(vendor_id), "survey_id": str(survey_id)},
-                )
-            matched += 1
-
-            if i <= 10 or matched % 1000 == 0:
-                logger.info(
-                    "MATCH %s | '%s' -> '%s' (sim=%.2f)",
-                    survey_id,
-                    raw_name[:40],
-                    str(vendor_name)[:30],
-                    sim,
-                )
-        else:
-            no_match += 1
-
-        if i % 500 == 0:
-            pct = round(i * 100 / len(surveys), 1)
-            logger.info(
-                "[%d/%d (%s%%)] matched=%d no_match=%d",
-                i,
-                len(surveys),
-                pct,
-                matched,
-                no_match,
-            )
+                SELECT survey_id, vendor_id FROM best
+            ) AS b
+            WHERE ms.id = b.survey_id AND ms.vendor_id IS NULL
+        """
+        cur.execute(sql_apply, params)
 
     return {
-        "total": len(surveys),
+        "total": total,
         "matched": matched,
         "no_match": no_match,
-        "match_rate_pct": round(matched * 100 / max(len(surveys), 1), 1),
+        "match_rate_pct": round(matched * 100 / max(total, 1), 1),
     }
 
 
@@ -340,9 +346,9 @@ def main() -> int:
         print(f"  {GREEN}[VERT]{RESET} {result['matched']} vendors matches.")
         if result["match_rate_pct"] < 20:
             print(
-                f"  {YELLOW}[WARN]{RESET} Taux < 20% — analyser supplier_name_raw :\n"
-                "    SELECT supplier_name_raw, COUNT(*) FROM market_surveys "
-                "    WHERE vendor_id IS NULL GROUP BY supplier_name_raw ORDER BY 2 DESC LIMIT 20;"
+                f"  {YELLOW}[WARN]{RESET} Taux < 20% — analyser supplier_raw :\n"
+                "    SELECT supplier_raw, COUNT(*) FROM public.market_surveys "
+                "    WHERE vendor_id IS NULL GROUP BY supplier_raw ORDER BY 2 DESC LIMIT 20;"
                 f"\n  Essayer --threshold 0.4 ou mapping manuel top-50."
             )
     else:
@@ -350,7 +356,7 @@ def main() -> int:
             f"  {RED}[ROUGE]{RESET} Aucun match.\n"
             f"  Actions :\n"
             f"  1. Verifier SELECT COUNT(*) FROM public.vendors;\n"
-            f"  2. Verifier colonne supplier_name_raw dans market_surveys\n"
+            f"  2. Verifier colonne supplier_raw dans public.market_surveys\n"
             f"  3. Essayer --threshold 0.4 ou 0.3\n"
             f"  4. Verifier pg_trgm : SELECT similarity('test', 'test');"
         )

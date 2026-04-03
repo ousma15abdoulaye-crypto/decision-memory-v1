@@ -297,7 +297,7 @@ def main() -> int:
                 err,
             )
 
-    conn.commit()
+    # persist_signal() appelle deja conn.commit() par signal (signal_engine.py)
 
     # Probe post-batch
     logger.info("Probe post-batch...")
