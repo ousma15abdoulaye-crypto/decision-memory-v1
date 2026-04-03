@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-03 (post-merge PR #297 — M14 correction A+B sur main) ║
+║  Dernière mise à jour : 2026-04-03 (post-merge PR #300 — DMS VIVANT V2 H0-H4 sur main) ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -104,9 +104,9 @@
 ║  feat/pre-m12-extraction-reelle : MERGÉ dans main (Mandat 4)        ║
 ║  fix/m13-audit-hardening : MERGÉ dans main (PR #293 — audit M13 hardening) ║
 ║  feat/fix-backend-production : backend v3.0.1d (en attente merge)   ║
-║  alembic head dépôt / CI : 058_m13_correction_log_case_id_index          ║
-║  alembic head Railway prod : 058_m13_correction_log_case_id_index (ALIGNÉ — sync 2026-04-02)  ║
-║  migrations pending Railway : (vide)                                                         ║
+║  alembic head dépôt / CI : 067_fix_market_coverage_trigger (main — PR #300 mergé 2026-04-03) ║
+║  alembic head Railway prod : 058_m13_correction_log_case_id_index (désaligné — apply 059→067 GO CTO) ║
+║  migrations pending Railway : 059, 060, 061, 062, 063, 064, 065, 066, 067 (9 migrations)    ║
 ║  RAILWAY_DATABASE_URL : défini hors dépôt — fichier local .env.railway.local (gitignored) ; ║
 ║    chargement scripts/with_railway_env.py ou .\\scripts\\load_railway_env.ps1 — RAILWAY_LOCAL_ENV.md ║
 ║  annotation-backend M12 Ph.3 : orchestrateur derrière ANNOTATION_USE_PASS_ORCHESTRATOR ║
@@ -1169,9 +1169,9 @@ Voir diff GitHub PR #276 pour liste exhaustive ; points d’ancrage code : `src/
 ### Alembic — Nouveau Head
 
 ```
-head dépôt (branche feat/dms-vivant-v2-architecture) : 066_bridge_triggers
-head Railway prod                                     : 058_m13_correction_log_case_id_index (inchangé — migrations pending)
-migrations pending Railway                            : 059 → 060 → 061 → 062 → 063 → 064 → 065 → 066
+head dépôt (main — PR #300 mergé 2026-04-03)          : 067_fix_market_coverage_trigger
+head Railway prod                                     : 058_m13_correction_log_case_id_index (désaligné — GO CTO requis)
+migrations pending Railway                            : 059 → 060 → 061 → 062 → 063 → 064 → 065 → 066 → 067
 ```
 
 **Chaîne complète :**
@@ -1204,6 +1204,14 @@ migrations pending Railway                            : 059 → 060 → 061 → 
 ### Nouvelles Erreurs Capitalisées
 
 **E-83** (2026-04-03) : **Scope confidence `{0.6, 0.8, 1.0}`** — Cette règle s'applique UNIQUEMENT aux champs d'extraction documentaire (`TracedField.confidence`, `ExtractionField.confidence`, `DMSExtractionResult`). Les scores internes RAG (`RAGResult.confidence`), patterns (`PatternDetector._cluster_confidence()`), et mémoire (`CaseMemoryEntry.framework_confidence`) sont des floats continus documentés comme tels. Voir `ADR-CONFIDENCE-SCOPE-001`. Ne jamais appliquer la contrainte `{0.6, 0.8, 1.0}` aux scores internes non-extraction.
+
+**E-84** (2026-04-03) : **`asyncio.get_event_loop()` deprecated Python 3.11** — `asyncio.get_event_loop().run_until_complete(coro)` lève `RuntimeError: There is no current event loop in thread 'MainThread'` sur Python 3.11 sans boucle active. Toujours utiliser `asyncio.run(coro)` dans les tests et scripts non-async. Ne jamais utiliser `get_event_loop()` hors d'un contexte avec boucle active explicite.
+
+**E-85** (2026-04-03) : **`VALID_ALEMBIC_HEADS` dans `tests/test_046b_imc_map_fix.py`** — Ce tuple doit être étendu à chaque nouveau head Alembic ajouté au dépôt. L'oubli de cette mise à jour provoque `AssertionError: Head inattendu : <nouvelle_migration>` en CI. Convention : inclure le nouveau head dans `VALID_ALEMBIC_HEADS` dans le même PR que la migration.
+
+**E-86** (2026-04-03) : **`REFRESH MATERIALIZED VIEW CONCURRENTLY` interdit dans trigger** — PostgreSQL interdit `CONCURRENTLY` à l'intérieur d'un bloc de transaction (trigger function). Toute `CREATE FUNCTION` de trigger qui rafraîchit une vue matérialisée doit utiliser `REFRESH MATERIALIZED VIEW` sans `CONCURRENTLY`. Si `CONCURRENTLY` est nécessaire, exécuter hors trigger via cron/ARQ.
+
+**E-87** (2026-04-03) : **`ADD COLUMN NOT NULL` sans `DEFAULT` sur table existante** — Une migration `ALTER TABLE ... ADD COLUMN event_time TIMESTAMPTZ NOT NULL` sans `DEFAULT` casse les tests qui insèrent sans fournir `event_time`. Toujours combiner `NOT NULL` avec `DEFAULT now()` sur les colonnes temporelles ajoutées à des tables existantes, sauf si un backfill explicite précède l'ajout de la contrainte.
 
 ### Nouvelles Dépendances (RÈGLE-13)
 

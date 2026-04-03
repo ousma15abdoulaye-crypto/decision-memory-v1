@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-04-03 — post-merge PR #297 (M14 correction A+B — gel aligné main)
+# Derniere mise a jour : 2026-04-03 — post-merge PR #300 (DMS VIVANT V2 — IA agentique native H0-H4)
 
 ---
 
@@ -30,13 +30,13 @@ freeze_hashes_doc     : docs/freeze/FREEZE_HASHES.md
 
 ## ETAT COURANT
 
-last_completed        : M14 (Evaluation Engine + correction A+B — PR #295 puis PR #297 merged main)
+last_completed        : DMS VIVANT V2 — IA agentique native H0-H4 (PR #300 feat/dms-vivant-v2-architecture merged main)
 last_completed_at     : 2026-04-03
-last_merge_commit     : 7913d465 (main — PR #297 feat/M14-correction-ab-routes-audit-059)
-last_tag              : v4.1.0-m12-done (M14 tag pending CTO : v4.1.0-m14-done)
-next_milestone        : M15 (à définir CTO)
-next_status           : EN ATTENTE — mandat CTO requis
-blocked_on            : (vide)
+last_merge_commit     : f54a0f00 (main — PR #300 feat/dms-vivant-v2-architecture — squash merge)
+last_tag              : v4.1.0-m12-done (DMS VIVANT V2 tag pending CTO : v4.1.0-dms-vivant-v2-done)
+next_milestone        : M15 / déploiement Railway DMS VIVANT V2 (migrations 060-067 + Railway apply)
+next_status           : EN ATTENTE — mandat CTO requis (apply migrations prod + secrets Railway)
+blocked_on            : apply migrations 060-067 prod Railway (GO CTO requis — runbook ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE)
 m13_prerequisites     : M12 Phase 3 PR #289 mergé ; ADR-M13-001 + Pass 2A + config/regulatory PR #292 ; migration 057 appliquée prod 2026-04-02 — persistance m13_* opérationnelle côté schéma ; secrets DB = .env.railway.local + with_railway_env.py (RAILWAY_LOCAL_ENV.md)
 m14_deliverables      : PR #295 (moteur + API) + PR #297 (dual-app, 059, linking, save_m14_audit, CI, gel) ; ADR-M14-001 + DMS-M14-ARCH-RECONCILIATION ; docs ops Railway (RAILWAY_LOCAL_ENV, with_railway_env)
 branch_courante       : main
@@ -60,15 +60,16 @@ branch_courante       : main
 | M12      | DONE   | v4.1.0-m12-done | bde8378 | 2026-03-26 | Procedure Recognizer — passes 0 / 0.5 / 1, FSM, corpus Cloudflare R2, export JSONL calibration |
 | M13      | DONE   | (à taguer CTO) | 38733982 | 2026-04-02 | Regulatory Profile Engine V5 — Pass 2A, config/regulatory YAML, migration 057+058, ADR-M13-001 |
 | M14      | DONE   | (à taguer CTO) | 7913d465 | 2026-04-03 | M14 + correction A+B — PR #297 : dual-app /api/m14, 059 audit, process linking, save_m14_audit, tests + INV-09 |
+| DMS V2   | DONE   | (à taguer CTO) | f54a0f00 | 2026-04-03 | DMS VIVANT V2 IA agentique native — PR #300 : H0 (060-067), H1 EventIndex+bridge, H2 PatternDetector+ARQ, H3 RAG+embeddings+langfuse+RAGAS, H4 API views + agent tools — CI 9/9 ✓ |
 
 ---
 
 ## ÉTAT ALEMBIC — MIS À JOUR 2026-04-03 (dépôt ; prod = après apply 059)
 
-local_alembic_head       : 059_m14_score_history_elimination_log
-railway_alembic_head     : 058_m13_correction_log_case_id_index (cible post-mandat : 059)
-migrations_pending_railway: 059_m14_score_history_elimination_log — appliquer via runbook Railway
-last_sync_railway        : 2026-04-02 — 057–058 prod ; 059 = déploiement suivant (GO CTO) — code main inclut 059 depuis PR #297
+local_alembic_head       : 067_fix_market_coverage_trigger
+railway_alembic_head     : 058_m13_correction_log_case_id_index (cible post-mandat : 059 puis 060-067)
+migrations_pending_railway: 059 → 060 → 061 → 062 → 063 → 064 → 065 → 066 → 067 — appliquer via runbook Railway (GO CTO)
+last_sync_railway        : 2026-04-02 — 057–058 prod ; 059-067 = déploiement suivant (GO CTO)
 last_updated             : 2026-04-03
 updated_by               : apply_railway_migrations_safe.py --apply via python scripts/with_railway_env.py (charge .env.railway.local)
 audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
@@ -99,6 +100,48 @@ evaluation_documents     : migration 056 — consommée par M14 EvaluationEngine
   livrables              : ADR-M13-001, config/regulatory/, Pass 2A (ANNOTATION_USE_PASS_2A), orchestrateur FSM,
                            migration 057+058, routes API regulatory_profile, tests procurement/annotation
   ref_adr                : docs/adr/ADR-M13-001_regulatory_profile_engine.md
+
+## DMS VIVANT V2 — ARCHITECTURE IA AGENTIQUE NATIVE (merge 2026-04-03)
+
+  pr_merge               : PR #300 — feat/dms-vivant-v2-architecture → main (squash merge f54a0f00)
+  ci_result              : 9/9 SUCCESS (lint, freeze-integrity, check-invariants, Gate·Milestones, Gate·Invariants, Gate·Freeze, Gate·Lint, Gate·Coverage, lint-and-test)
+
+  H0 — Fondations data-native :
+    migration_060        : market_coverage auto-refresh trigger (fn_refresh_market_coverage)
+    migration_061        : dms_event_index partitionné (2025_h2 + default partition)
+    migration_062        : colonnes event_time bitemporal (m12_correction_log, decision_snapshots, market_signals_v2, decision_history)
+    migration_063        : candidate_rules + rule_promotions
+    migration_064        : dms_embeddings (pgvector vector(1024))
+    migration_065        : llm_traces
+    migration_066        : bridge triggers (fn_bridge_* → dms_event_index)
+    migration_067        : fix CONCURRENTLY dans fn_refresh_market_coverage (non-concurrent refresh uniquement)
+    rls_tables           : dms_event_index, dms_embeddings, llm_traces, candidate_rules (RLS tenant_scoped)
+
+  H1 — Memory & Event Index :
+    modules              : src/memory/event_index_models.py, event_index_service.py
+    bridge               : 066_bridge_triggers.py (m13_correction_log, decision_snapshots, market_signals_v2)
+    adapter              : src/db/cursor_adapter.py (PsycopgCursorAdapter — ::type cast safe via negative lookbehind)
+
+  H2 — Pattern Detection & Candidate Rules :
+    modules              : pattern_detector.py, pattern_models.py, candidate_rule_generator.py, candidate_rule_service.py
+    workers              : src/workers/arq_tasks.py (index_event, detect_patterns, generate_candidate_rules)
+    api                  : src/api/views/learning_console.py (/api/learning/corrections, /api/learning/patterns, /api/learning/rules)
+
+  H3 — RAG + Observabilité :
+    modules              : chunker.py, embedding_service.py (BGE-M3), reranker.py, rag_service.py, deterministic_retrieval.py
+    observability        : langfuse_integration.py (trace LLM), llm_traces (table 065)
+    evals                : ragas_evaluator.py (fallback stub si OPENAI_API_KEY absent), golden_dataset_loader.py
+    calibration          : auto_calibrator.py, calibration_service.py
+
+  H4 — Agent Tools + API Views :
+    api_views            : case_timeline.py, market_memory_card.py (GET /api/views/*)
+    annotation_memory    : case_memory_writer.py (append-only → memory_entries)
+    agent_tools          : tool_manifest.py (MCP-compatible), regulatory_tools.py
+
+  nouvelles_dependances  : arq==0.26.1, langfuse>=2.0.0, FlagEmbedding>=1.2.5, ragas>=0.1.0
+  adr_refs               : ADR-H2-ARQ-001, ADR-H3-LANGFUSE-001, ADR-H3-BGE-M3-001, ADR-CONFIDENCE-SCOPE-001
+  freeze_ref             : docs/freeze/DMS_VIVANT_V2_FREEZE.md
+  sovereignty_matrix     : docs/freeze/DMS_ARTIFACT_SOVEREIGNTY_MATRIX.yaml + .md
 
 ## STACK ALEMBIC (legacy)
 
