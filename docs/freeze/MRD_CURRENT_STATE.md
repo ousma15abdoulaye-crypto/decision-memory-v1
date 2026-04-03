@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-04-02 — post-merge PR #295 — M14 Evaluation Engine DONE
+# Derniere mise a jour : 2026-04-02 — M14 correction A+B (059, linking, dual-app, gel)
 
 ---
 
@@ -38,7 +38,7 @@ next_milestone        : M15 (à définir CTO)
 next_status           : EN ATTENTE — mandat CTO requis
 blocked_on            : (vide)
 m13_prerequisites     : M12 Phase 3 PR #289 mergé ; ADR-M13-001 + Pass 2A + config/regulatory PR #292 ; migration 057 appliquée prod 2026-04-02 — persistance m13_* opérationnelle côté schéma ; secrets DB = .env.railway.local + with_railway_env.py (RAILWAY_LOCAL_ENV.md)
-m14_deliverables      : PR #295 (3 commits) ; ADR-M14-001 ; m14_engine + m14_evaluation_models + m14_evaluation_repository + evaluation routes ; 26 tests + DB integrity + RLS ; Copilot review 9/9 resolved ; CI 9/9 verte
+m14_deliverables      : PR #295 + correction A+B ; ADR-M14-001 + DMS-M14-ARCH-RECONCILIATION ; m14_engine (process linking) + repository + save_m14_audit ; migration 059 ; routes dual-app + CI /api/m14 ; tests fumée + DB audit
 branch_courante       : main
 
 ---
@@ -63,12 +63,12 @@ branch_courante       : main
 
 ---
 
-## ÉTAT ALEMBIC — MIS À JOUR 2026-04-02 (dépôt = Railway prod)
+## ÉTAT ALEMBIC — MIS À JOUR 2026-04-02 (dépôt ; prod = après apply 059)
 
-local_alembic_head       : 058_m13_correction_log_case_id_index
-railway_alembic_head     : 058_m13_correction_log_case_id_index
-migrations_pending_railway: (vide — Railway aligné 2026-04-02)
-last_sync_railway        : 2026-04-02 — apply 057 prod — preuve : diagnose_railway_migrations.py → [OK] synchronisé
+local_alembic_head       : 059_m14_score_history_elimination_log
+railway_alembic_head     : 058_m13_correction_log_case_id_index (cible post-mandat : 059)
+migrations_pending_railway: 059_m14_score_history_elimination_log — appliquer via runbook Railway
+last_sync_railway        : 2026-04-02 — 057–058 prod ; 059 = déploiement suivant (GO CTO)
 last_updated             : 2026-04-02
 updated_by               : apply_railway_migrations_safe.py --apply via python scripts/with_railway_env.py (charge .env.railway.local)
 audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
@@ -88,7 +88,7 @@ evaluation_documents     : migration 056 — consommée par M14 EvaluationEngine
 
 ## RAILWAY — SYNC PROD (2026-04-02)
 
-  Head prod PostgreSQL Railway : 058 (ALIGNÉ — sync 2026-04-02 via apply_railway_migrations_safe.py --apply).
+  Head code dépôt : 059 ; head prod jusqu’à apply : 058 — lancer `apply_railway_migrations_safe.py --apply` pour 059 quand validé.
   Secrets connexion scripts : RAILWAY_DATABASE_URL dans .env.railway.local (gitignored) — docs/ops/RAILWAY_LOCAL_ENV.md.
   Toute nouvelle migration reste sous GO CTO + runbook (ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE).
 

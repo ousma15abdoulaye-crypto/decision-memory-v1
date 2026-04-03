@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-02 (post-merge PR #295 — M14 Evaluation Engine DONE) ║
+║  Dernière mise à jour : 2026-04-02 (M14 correction A+B — routes dual-app, 059 audit, linking) ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -1130,15 +1130,20 @@ Voir diff GitHub PR #276 pour liste exhaustive ; points d’ancrage code : `src/
 
 ### Tests M14
 
-- `test_m14_engine_smoke.py` : 12 tests (évaluation, éligibilité, complétude, prix, confidence, kill list)
+- `test_m14_engine_smoke.py` : 14 tests (évaluation, éligibilité, complétude, prix, confidence, kill list, process linking mismatch / UNRESOLVED)
 - `test_m14_models.py` : 14 tests (extra=forbid × 9 modèles, confidence grid, kill list, evaluation methods)
 - `test_evaluation_documents.py` : 7 tests DDL/FK/RLS/columns
 - `test_rls_dm_app_cross_tenant.py` : +1 test RLS evaluation_documents
 
 ### Railway
 
-- 058 appliquée sur Railway prod (2026-04-02) — DB synchronisée avec dépôt
-- Aucune nouvelle migration M14 (utilise migration 056 existante)
+- Tête Alembic dépôt : **059** (`score_history`, `elimination_log`) — appliquer prod selon runbook `ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE` lorsque le mandat déploiement est émis.
+- 056 : `evaluation_documents` (rapport M14) ; 059 : audit append-only complémentaire.
+
+### ADDENDUM court — M14 process linking + audit DB
+
+- **Process linking** : `process_linking_data` consommé dans `EvaluationEngine` ; flags `PROCESS_LINKING_ROLE_MISMATCH`, `PROCESS_LINKING_UNRESOLVED` ; doc `docs/adr/DMS-M14-ARCH-RECONCILIATION.md`.
+- **`save_m14_audit`** : après `save_evaluation`, écriture best-effort vers `score_history` / `elimination_log` (migration 059).
 
 ### Post-merge PR #295 — 2026-04-02
 

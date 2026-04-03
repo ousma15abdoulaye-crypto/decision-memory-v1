@@ -143,8 +143,11 @@ jobs:
         run: |
           echo "SECRET_KEY=$(python -c 'import secrets; print(secrets.token_hex(32))')" >> "$GITHUB_ENV"
 
-      - name: Auth coverage audit (main:app — extractions)
-        run: python scripts/audit_fastapi_auth_coverage.py --app main:app --fail-prefix /api/extractions
+      - name: Auth coverage audit (main:app — extractions + m14)
+        run: |
+          python scripts/audit_fastapi_auth_coverage.py --app main:app \
+            --fail-prefix /api/extractions \
+            --fail-prefix /api/m14
 
       - name: Auth audit report + artifact (main:app)
         run: |
@@ -174,6 +177,7 @@ jobs:
             --fail-prefix /api/analysis \
             --fail-prefix /api/memory \
             --fail-prefix /api/scoring \
+            --fail-prefix /api/m14 \
             --fail-sensitive-prefix /api/cases \
             --fail-sensitive-prefix /api/extractions
 

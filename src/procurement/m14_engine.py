@@ -28,6 +28,56 @@ from src.procurement.m14_evaluation_models import (
 logger = logging.getLogger(__name__)
 
 
+def _link_nature_is_unresolved(hint: dict[str, Any]) -> bool:
+    """True si un LinkHint sérialisé (Pass 1D) indique UNRESOLVED."""
+    ln = hint.get("link_nature")
+    if isinstance(ln, dict):
+        v = ln.get("value", ln)
+    else:
+        v = ln
+    return "UNRESOLVED" in str(v).upper()
+
+
+def index_process_linking(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Indexe les sorties Pass 1D par document_id pour croisement avec les offres M14.
+
+    Format attendu par entrée (au choix) :
+    - sortie complète Pass 1D : ``document_id`` + ``m12_linking`` + ``process_role`` ;
+    - ou dict minimal : ``document_id`` + clés déjà à la racine.
+    """
+    out: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        doc_id = row.get("document_id")
+        if not doc_id:
+            continue
+        m12 = row.get("m12_linking")
+        if not isinstance(m12, dict):
+            m12 = row
+        pr_link: str | None = row.get("process_role")
+        if pr_link is None:
+            pr_field = m12.get("process_role") if isinstance(m12, dict) else None
+            if isinstance(pr_field, dict):
+                pr_link = pr_field.get("value")
+            elif isinstance(pr_field, str):
+                pr_link = pr_field
+        unresolved = False
+        if isinstance(m12, dict):
+            for key in ("linked_parent_hint", "linked_children_hint"):
+                for hint in m12.get(key) or []:
+                    if isinstance(hint, dict) and _link_nature_is_unresolved(hint):
+                        unresolved = True
+                        break
+                if unresolved:
+                    break
+        out[str(doc_id)] = {
+            "process_role_linking": pr_link,
+            "unresolved": unresolved,
+        }
+    return out
+
+
 def _discretize_m14(raw: float) -> float:
     if raw >= 0.9:
         return 1.0
@@ -62,9 +112,15 @@ class EvaluationEngine:
         review_reasons: list[str] = []
         scoring_review = False
 
+        linking_index = index_process_linking(
+            inp.process_linking_data if inp.process_linking_data else []
+        )
+
         offer_evals: list[OfferEvaluation] = []
         for offer in inp.offers:
-            oe = self._evaluate_offer(offer, h2, h3, checklist, blueprint)
+            doc_id = str(offer.get("document_id", "unknown"))
+            link_info = linking_index.get(doc_id)
+            oe = self._evaluate_offer(offer, h2, h3, checklist, blueprint, link_info)
             offer_evals.append(oe)
 
         case_checks = self._run_case_level_checks(checklist)
@@ -79,6 +135,14 @@ class EvaluationEngine:
 
         if not inp.offers:
             review_reasons.append("no_offers_provided")
+
+        for oe in offer_evals:
+            for fl in oe.flags:
+                if fl.startswith("PROCESS_LINKING_"):
+                    rr = f"{oe.offer_document_id}:{fl}"
+                    if rr not in review_reasons:
+                        review_reasons.append(rr)
+                    scoring_review = True
 
         report = EvaluationReport(
             case_id=inp.case_id,
@@ -102,6 +166,9 @@ class EvaluationEngine:
                 case_id=inp.case_id,
                 payload=report.model_dump(mode="json"),
             )
+            save_audit = getattr(self.repository, "save_m14_audit", None)
+            if callable(save_audit):
+                save_audit(case_id=inp.case_id, report=report)
 
         return report
 
@@ -112,6 +179,7 @@ class EvaluationEngine:
         h3: dict[str, Any],
         checklist: dict[str, Any],
         blueprint: dict[str, Any],
+        link_info: dict[str, Any] | None = None,
     ) -> OfferEvaluation:
         doc_id = offer.get("document_id", "unknown")
         supplier = offer.get("supplier_name")
@@ -140,6 +208,13 @@ class EvaluationEngine:
             flags.append(f"PONDERATION_{tech_score.ponderation_coherence}")
         if completion and completion.completeness_ratio < 0.5:
             flags.append("LOW_COMPLETENESS")
+
+        if link_info:
+            pr_l = link_info.get("process_role_linking")
+            if pr_l and role and str(pr_l).strip().lower() != str(role).strip().lower():
+                flags.append("PROCESS_LINKING_ROLE_MISMATCH")
+            if link_info.get("unresolved"):
+                flags.append("PROCESS_LINKING_UNRESOLVED")
 
         return OfferEvaluation(
             offer_document_id=doc_id,

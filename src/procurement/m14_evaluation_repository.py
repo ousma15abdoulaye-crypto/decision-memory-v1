@@ -136,3 +136,85 @@ class M14EvaluationRepository:
             else:
                 logger.warning("evaluation_documents get_latest failed: %s", exc)
             return None
+
+    def save_m14_audit(self, *, case_id: str, report: Any) -> None:
+        """Écrit score_history + elimination_log (migration 059). Append-only, best-effort.
+
+        Appelé après construction du rapport ; les échecs (RLS, table absente) sont loggés
+        sans lever (évaluation déjà calculée).
+        """
+        data = (
+            report.model_dump(mode="json") if hasattr(report, "model_dump") else report
+        )
+        offers = data.get("offer_evaluations") or []
+        try:
+            with get_connection() as conn:
+                for offer in offers:
+                    if not isinstance(offer, dict):
+                        continue
+                    oid = str(offer.get("offer_document_id") or "")
+                    if not oid:
+                        continue
+                    ts = offer.get("technical_score") or {}
+                    for c in ts.get("criteria_scores") or []:
+                        if not isinstance(c, dict):
+                            continue
+                        ck = str(c.get("criteria_name") or "unknown")
+                        conn.execute(
+                            """
+                            INSERT INTO public.score_history (
+                                case_id, offer_document_id, criterion_key,
+                                score_value, max_score, confidence, evidence, scored_by
+                            ) VALUES (
+                                :case_id, :oid, :ck,
+                                :sv, :mx, :conf, :ev, 'system:m14'
+                            )
+                            """,
+                            {
+                                "case_id": case_id,
+                                "oid": oid,
+                                "ck": ck,
+                                "sv": c.get("awarded_score"),
+                                "mx": c.get("max_score"),
+                                "conf": float(c.get("confidence") or 0.6),
+                                "ev": (c.get("justification") or "")[:8000],
+                            },
+                        )
+                    for ev in offer.get("eligibility_results") or []:
+                        if not isinstance(ev, dict):
+                            continue
+                        if not ev.get("is_eliminatory"):
+                            continue
+                        if ev.get("result") != "FAIL":
+                            continue
+                        reason = (
+                            "; ".join(ev.get("evidence") or []) or "eliminatory_fail"
+                        )
+                        conn.execute(
+                            """
+                            INSERT INTO public.elimination_log (
+                                case_id, offer_document_id,
+                                check_id, check_name, reason
+                            ) VALUES (
+                                :case_id, :oid, :cid, :cname, :reason
+                            )
+                            """,
+                            {
+                                "case_id": case_id,
+                                "oid": oid,
+                                "cid": str(ev.get("check_id") or ""),
+                                "cname": str(ev.get("check_name") or ""),
+                                "reason": reason[:8000],
+                            },
+                        )
+        except Exception as exc:
+            err = str(exc).lower()
+            if "undefinedtable" in err or "does not exist" in err:
+                logger.warning(
+                    "save_m14_audit skipped (tables missing — run migration 059): %s",
+                    exc,
+                )
+            elif _is_rls_denied(exc):
+                logger.error("save_m14_audit RLS denied: %s", exc)
+            else:
+                logger.warning("save_m14_audit failed: %s", exc)

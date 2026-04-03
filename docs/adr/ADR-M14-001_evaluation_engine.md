@@ -67,3 +67,28 @@ M14 **évalue** ; il ne **décide** pas. Tout résultat est soumis au comité hu
 - Mise à jour CI : `VALID_ALEMBIC_HEADS` inchangé (pas de nouvelle migration).
 - Aucun nouveau contrat documentaire créé par cette ADR (contrat éventuel en phase ultérieure).
 - Mise à jour `CONTEXT_ANCHOR` et `MRD_CURRENT_STATE` après merge.
+
+---
+
+## Addendum 2026-04-02 — Correction livrée A + B (post PR #295)
+
+### Dual entrypoints et CI
+
+- Router M14 monté sur `main:app` et `src.api.main:app` (import optionnel).
+- CI : `--fail-prefix /api/m14` pour la gate OpenAPI / audit auth sur les deux applications.
+
+### Process linking (Pass 1D)
+
+- Entrée `process_linking_data` sur `M14EvaluationInput` ; indexation par `document_id` dans `m14_engine.index_process_linking`.
+- Flags par offre : `PROCESS_LINKING_ROLE_MISMATCH` (rôle offre ≠ rôle issu du linking), `PROCESS_LINKING_UNRESOLVED` (`link_nature` UNRESOLVED dans les hints parent/enfant).
+- Les flags contribuent à `m14_meta.scoring_review_required` et `review_reasons`.
+
+### Persistance audit — migration 059
+
+- Tables `score_history` et `elimination_log` (RLS, append-only via `fn_reject_mutation` si présent) — révision Alembic `059_m14_score_history_elimination_log`.
+- `M14EvaluationRepository.save_m14_audit(case_id, report)` : écritures best-effort après `save_evaluation` (skip si tables absentes — environnements non migrés).
+
+### Tests
+
+- Fumée moteur : scénarios process linking (cohérence, mismatch, UNRESOLVED) dans `tests/procurement/test_m14_engine_smoke.py`.
+- Intégrité DB : `tests/db_integrity/test_m14_audit_tables.py` (si migration 059 appliquée).

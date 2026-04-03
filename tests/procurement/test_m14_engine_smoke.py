@@ -209,6 +209,52 @@ class TestM14EngineSmoke:
                 c in ALLOWED_CONFIDENCES
             ), f"confidence={c} not in {ALLOWED_CONFIDENCES}"
 
+    def test_process_linking_role_mismatch(self) -> None:
+        engine = EvaluationEngine()
+        pl = [
+            {
+                "document_id": "offer-1",
+                "process_role": "offer_technical",
+                "m12_linking": {
+                    "process_role": {"value": "offer_technical"},
+                    "linked_parent_hint": [],
+                    "linked_children_hint": [],
+                },
+            }
+        ]
+        inp = _minimal_input(process_linking_data=pl)
+        report = engine.evaluate(inp)
+        assert "PROCESS_LINKING_ROLE_MISMATCH" not in report.offer_evaluations[0].flags
+        d = inp.model_dump()
+        d["offers"] = [
+            {**d["offers"][0], "process_role": "offer_financial"},
+        ]
+        inp2 = M14EvaluationInput(**d)
+        report2 = engine.evaluate(inp2)
+        assert "PROCESS_LINKING_ROLE_MISMATCH" in report2.offer_evaluations[0].flags
+        assert report2.m14_meta.scoring_review_required is True
+
+    def test_process_linking_unresolved(self) -> None:
+        engine = EvaluationEngine()
+        inp = _minimal_input(
+            process_linking_data=[
+                {
+                    "document_id": "offer-1",
+                    "m12_linking": {
+                        "process_role": {"value": "offer_technical"},
+                        "linked_parent_hint": [
+                            {
+                                "link_nature": "UNRESOLVED",
+                            }
+                        ],
+                        "linked_children_hint": [],
+                    },
+                }
+            ],
+        )
+        report = engine.evaluate(inp)
+        assert "PROCESS_LINKING_UNRESOLVED" in report.offer_evaluations[0].flags
+
 
 def _collect_confidences(obj: object) -> list[float]:
     found: list[float] = []
