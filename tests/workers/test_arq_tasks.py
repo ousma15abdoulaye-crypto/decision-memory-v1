@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 
 class MockConn:
@@ -53,7 +53,9 @@ class TestIndexEvent:
         mock_conn = MockConn()
         mock_conn._fetchone = {"event_id": "abc-123"}
 
-        with patch("src.workers.arq_tasks._get_conn_factory", return_value=lambda: mock_conn):
+        with patch(
+            "src.workers.arq_tasks._get_conn_factory", return_value=lambda: mock_conn
+        ):
             result = asyncio.get_event_loop().run_until_complete(
                 index_event({}, complete_event)
             )
@@ -68,7 +70,9 @@ class TestDetectPatterns:
         mock_conn = MockConn()
         mock_conn._fetchall = []  # No patterns found
 
-        with patch("src.workers.arq_tasks._get_conn_factory", return_value=lambda: mock_conn):
+        with patch(
+            "src.workers.arq_tasks._get_conn_factory", return_value=lambda: mock_conn
+        ):
             result = asyncio.get_event_loop().run_until_complete(detect_patterns({}))
 
         assert result == 0
@@ -88,7 +92,9 @@ class TestDetectPatterns:
         ]
         mock_conn._fetchone = {"rule_id": "cand_corr_cluster_abc"}
 
-        with patch("src.workers.arq_tasks._get_conn_factory", return_value=lambda: mock_conn):
+        with patch(
+            "src.workers.arq_tasks._get_conn_factory", return_value=lambda: mock_conn
+        ):
             result = asyncio.get_event_loop().run_until_complete(detect_patterns({}))
 
         assert result >= 0
@@ -102,7 +108,9 @@ class TestGenerateCandidateRules:
         mock_conn = MockConn()
         mock_conn._fetchall = []
 
-        with patch("src.workers.arq_tasks._get_conn_factory", return_value=lambda: mock_conn):
+        with patch(
+            "src.workers.arq_tasks._get_conn_factory", return_value=lambda: mock_conn
+        ):
             result = asyncio.get_event_loop().run_until_complete(
                 generate_candidate_rules({})
             )

@@ -113,7 +113,7 @@ def build_from_m12_output(case_id: str, m12_output: dict[str, Any]) -> CaseMemor
     )
 
     confidences = m12_output.get("confidences", []) or []
-    float_confs = [float(c) for c in confidences if isinstance(c, (int, float))]
+    float_confs = [float(c) for c in confidences if isinstance(c, int | float)]
     avg_conf = sum(float_confs) / len(float_confs) if float_confs else 0.6
     min_conf = min(float_confs) if float_confs else 0.6
 
