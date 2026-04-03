@@ -91,6 +91,15 @@ VALID_ALEMBIC_HEADS = (
     "058_m13_correction_log_case_id_index",
     "059_m14_score_history_elimination_log",
     "m7_4_dict_vivant",  # branche parallèle
+    # DMS VIVANT V2 — migrations H0-H4 (PR #300)
+    "060_market_coverage_auto_refresh",
+    "061_dms_event_index",
+    "062_bitemporal_columns",
+    "063_candidate_rules",
+    "064_dms_embeddings",
+    "065_llm_traces",
+    "066_bridge_triggers",
+    "067_fix_market_coverage_trigger",
 )
 
 

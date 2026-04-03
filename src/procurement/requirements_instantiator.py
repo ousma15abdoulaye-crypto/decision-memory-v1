@@ -45,7 +45,7 @@ class RequirementsInstantiator:
         organs = self._load_organs(bundle, proc)
         evaluation = self._load_evaluation(bundle, proc, regime)
         guarantees = self._load_guarantees(bundle, proc)
-        approval = self._load_approval_placeholder(bundle)
+        approval = self._load_approval_chain(bundle)
         min_bids = self._load_minimum_bids(bundle, proc)
         validity_rules = self.validity.load(fw)
         self._link_validity(req_docs, validity_rules)
@@ -169,8 +169,21 @@ class RequirementsInstantiator:
         if method not in allowed:
             method = "unknown"
         fw = pt.get("framework") or ""
+
+        eval_cfg = bundle.get("evaluation_criteria") or {}
+        by_method = (eval_cfg.get("by_method") or {}).get(method) or {}
+
+        technical_weight = by_method.get("technical_weight")
+        financial_weight = by_method.get("financial_weight")
+        sustainability_weight = by_method.get("sustainability_weight")
+        technical_threshold = by_method.get("technical_threshold")
+
         return EvaluationRequirements(
             evaluation_method=method,
+            technical_weight=technical_weight,
+            financial_weight=financial_weight,
+            sustainability_weight=sustainability_weight,
+            technical_threshold=technical_threshold,
             normative_reference=NormativeReference(
                 framework=fw,
                 description=f"default evaluation for {procedure}",
@@ -185,8 +198,26 @@ class RequirementsInstantiator:
             in ("open_national", "open_international", "request_for_quotation"),
         )
 
-    def _load_approval_placeholder(self, bundle: dict[str, Any]) -> list[ApprovalStep]:
-        return []
+    def _load_approval_chain(self, bundle: dict[str, Any]) -> list[ApprovalStep]:
+        ac = bundle.get("approval_chain") or {}
+        steps_raw = ac.get("steps") or []
+        fw = ac.get("framework") or ""
+        steps: list[ApprovalStep] = []
+        for s in steps_raw:
+            steps.append(
+                ApprovalStep(
+                    step_name=s.get("step_name", "unknown"),
+                    authority=s.get("authority", "unknown"),
+                    threshold_applies=bool(s.get("threshold_applies", False)),
+                    is_mandatory=bool(s.get("is_mandatory", True)),
+                    normative_reference=NormativeReference(
+                        framework=fw,
+                        article=s.get("article"),
+                        description=s.get("description", ""),
+                    ),
+                )
+            )
+        return steps
 
     def _load_minimum_bids(
         self, bundle: dict[str, Any], procedure: str

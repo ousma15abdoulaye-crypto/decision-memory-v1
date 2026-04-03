@@ -46,8 +46,21 @@ class DerogationAssessor:
 
     def _security_hint(self, recognition: ProcedureRecognition) -> bool:
         z = recognition.zone_scope_detected.value
-        if isinstance(z, str) and "gao" in z.lower():
-            return True
+        if isinstance(z, str):
+            z_lower = z.lower()
+            conflict_zones = (
+                "gao",
+                "kidal",
+                "tombouctou",
+                "mopti",
+                "menaka",
+                "taoudenit",
+            )
+            if any(zone in z_lower for zone in conflict_zones):
+                return True
+        for ev in recognition.zone_scope_detected.evidence:
+            if "security" in ev.lower() or "conflict" in ev.lower():
+                return True
         return False
 
     def _humanitarian(self, cfg: dict[str, Any], fw: str) -> DerogationAssessment:

@@ -223,6 +223,37 @@ except ImportError as _e:
         "[main] router optionnel src.api.routes.evaluation (M14) non chargé : %s", _e
     )
 
+# ── Routers H4 VIVANT V2 — vues mémoire ──────────────────────────────────────
+_case_timeline_router = None
+try:
+    from src.api.views.case_timeline import router as _case_timeline_router_imp
+
+    _case_timeline_router = _case_timeline_router_imp
+except ImportError as _e:
+    logging.getLogger(__name__).warning(
+        "[main] router optionnel src.api.views.case_timeline non chargé : %s", _e
+    )
+
+_market_memory_router = None
+try:
+    from src.api.views.market_memory_card import router as _market_memory_router_imp
+
+    _market_memory_router = _market_memory_router_imp
+except ImportError as _e:
+    logging.getLogger(__name__).warning(
+        "[main] router optionnel src.api.views.market_memory_card non chargé : %s", _e
+    )
+
+_learning_console_router = None
+try:
+    from src.api.views.learning_console import router as _learning_console_router_imp
+
+    _learning_console_router = _learning_console_router_imp
+except ImportError as _e:
+    logging.getLogger(__name__).warning(
+        "[main] router optionnel src.api.views.learning_console non chargé : %s", _e
+    )
+
 for _opt_router in [
     _geo_router,
     _vendors_router,
@@ -231,6 +262,9 @@ for _opt_router in [
     _pipeline_a_router,
     _analysis_summary_router,
     _m14_evaluation_router,
+    _case_timeline_router,
+    _market_memory_router,
+    _learning_console_router,
 ]:
     if _opt_router is not None:
         app.include_router(_opt_router)

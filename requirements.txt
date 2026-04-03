@@ -44,3 +44,18 @@ pyyaml>=6.0
 # === OCR / SSL resilience (cloud-first) ===
 # certifi : bundle CA Mozilla pour contourner les proxies d'entreprise sur les appels Mistral OCR
 certifi>=2024.2.2
+
+# === VIVANT V2 — H2 Background workers (ADR-H2-ARQ-001) ===
+arq==0.26.1
+
+# === VIVANT V2 — H3 LLM Observability (ADR-H3-LANGFUSE-001) ===
+langfuse>=2.0.0
+
+# === VIVANT V2 — H3 Local Embeddings BGE-M3 (ADR-H3-BGE-M3-001) ===
+# FlagEmbedding: local BGE-M3 + BGE-reranker-v2-m3, 0 external API calls
+# Install only on machines with 8 GB+ RAM (Railway prod tier)
+# In CI/tests, stubs are used automatically when FlagEmbedding is not importable
+FlagEmbedding>=1.2.5
+
+# === VIVANT V2 — H3 RAG Evaluation (ADR-RAGAS-001) ===
+ragas>=0.1.0
