@@ -136,7 +136,7 @@ class M14EvaluationRepository:
                 row = conn.fetchone()
                 if row is None:
                     return None
-                result = dict(row)
+                result = row
                 ca = result.get("created_at")
                 if ca is not None and not isinstance(ca, str):
                     result["created_at"] = (
