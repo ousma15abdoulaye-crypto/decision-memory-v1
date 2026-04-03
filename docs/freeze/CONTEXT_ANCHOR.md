@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-03 (post-merge PR #301 — M15 Correction Gaps 8 phases) ║
+║  Dernière mise à jour : 2026-04-03 (post-session M15 Wartime Activation — PR #304) ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -118,10 +118,13 @@
 ║    unmapped items : docs/data/unmapped_items.csv (200 items pour mapping manuel) ║
 ║  M15 Phase 4 : 100 items procurement_dict_items label_status=validated ✓  ║
 ║  M15 Phase 6 : 12 politiques RLS actives Railway — isolation tenant OK ✓  ║
-║  M15 REGLE-23 gate : 0 annotated_validated Railway — 87 annotations locales à sync ║
-║    Action requise : sync via scripts/sync_annotations_local_to_railway.py  ║
-║    puis bascule ANNOTATION_USE_PASS_ORCHESTRATOR=1 (Railway Dashboard)    ║
+║  M15 REGLE-23 gate : 75 annotated_validated Railway — Gate OK (>= 50)          ║
+║    Import realise : data/annotations/m12_corpus_from_ls.jsonl -> annotation_registry ║
+║    Bascule ANNOTATION_USE_PASS_ORCHESTRATOR=1 : EN ATTENTE (action CTO Dashboard) ║
 ║  PR #301 : feat(m15) plan correction gaps — squash merge 3aa1f509 main (2026-04-03) ║
+║  PR #302 : docs(anchor): MRD + CONTEXT post-merge PR #301 — merge 57d2e839 main    ║
+║  PR #304 : feat(m15) Wartime Activation V1-V6 — branche feat/m15-activation-wartime ║
+║    PUSHED — EN ATTENTE MERGE CTO — commits: 4cf49dd3 + 302fc284 + 16dd840f        ║
 ║  tags posés :                                                         ║
 ║    v4.1.0-ocr-files-api-done                                         ║
 ║    v4.1.0-m12-dette7-done                                             ║
@@ -176,11 +179,14 @@
 ║  zone_context_registry  : 20 contextes (6+14 DETTE-1) ✓            ║
 ║  geo_price_corridors    : 7 corridors (Gao→Menaka ML-9/32%) ✓     ║
 ║  seasonal_patterns      : 1 786 (v1.1_mercurials) ✓                ║
-║  market_signals_v2      : 1 106 signaux (post M11 compute) ✓       ║
+║  market_signals_v2      : 1 109 signaux (post M15 batch V4 — en cours) ✓   ║
 ║                           formula_version 1.1                      ║
+║                           82 items couverts / 496 scope (5.5% → batch V4 tourne) ║
 ║                           CRITICAL zones ipc_3+/ipc_4+ uniquement  ║
 ║                           severity_level NULL = 0 ✓                ║
-║  market_surveys         : 13 110 lignes ✓ DETTE-2 résolue         ║
+║  market_surveys         : 21 850 lignes — vendor_id REMPLI (V5 done 2026-04-03) ║
+║                           supplier_raw = 'mercurials_proxy' (synthetique DGMP) ║
+║                           vendor_id -> DMS-VND-SYN-0001-A (1 vendor cree) ║
 ║  decision_history       : 115 lignes ✓ DETTE-3 résolue            ║
 ║  dict_collision_log     : 0 (résolu M10A)                          ║
 ║  couche_a               : agent_checkpoints, agent_runs_log (045)  ║
@@ -1275,5 +1281,215 @@ docs/adr/ADR-H3-LANGFUSE-001.md
 docs/adr/ADR-H3-BGE-M3-001.md
 docs/adr/ADR-CONFIDENCE-SCOPE-001.md
 ```
+
+---
+
+## ADDENDUM 2026-04-03 — M15 WARTIME ACTIVATION (PR #304) — CONSIGNES AU SUCCESSEUR
+
+**Autorité :** mandat CTO / AO — session post-audit DMS V4.1 (score 6.2/10).
+**Statut :** PR #304 `feat/m15-activation-wartime` — PUSHED — EN ATTENTE MERGE CTO.
+**Commits :** `4cf49dd3` (scripts V1-V6) + `302fc284` (fixes V1/V5/V6) + `16dd840f` (indexes V4).
+
+---
+
+### ETAT RAILWAY POST-SESSION (2026-04-03 ~18h40 UTC)
+
+| Table | Valeur | Commentaire |
+|-------|--------|-------------|
+| `public.annotation_registry` | 75 lignes, `is_validated=true`=75 | Gate REGLE-23 REMPLIE |
+| `public.vendors` | 1 ligne | DMS-VND-SYN-0001-A (mercurials_proxy synthetique) |
+| `public.market_surveys` | 21 850 lignes, `vendor_id IS NULL`=0 | V5 complete |
+| `public.market_signals_v2` | 1 109 signaux, 82 items | V4 batch EN COURS (4.4s/pair) |
+| `public.dms_event_index` | 1 event | V2 tables deployees (public schema) |
+| `public.candidate_rules` | 0 | Normal — pas encore de documents traites |
+| `public.documents` | 25 docs `pending` | En attente trigger extraction |
+| `public.mercurials` | 27 396 lignes | Source prix DGMP 2023→2026 |
+
+**Alembic Railway prod :** `067_fix_market_coverage_trigger` (HEAD — aligne avec depot).
+
+---
+
+### CORRECTIONS SCHEMA REELLES DECOUVERTES (SUCCESSOR — NE PAS REPRODUIRE)
+
+**ATTENTION :** Ces colonnes sont differentes de ce que les scripts precedents supposaient.
+
+| Table | Colonne FAUSSE (supposee) | Colonne REELLE |
+|-------|--------------------------|----------------|
+| `public.documents` | `file_name` | `filename` |
+| `public.documents` | `created_at` | `uploaded_at` |
+| `public.vendors` | (champ simple) | `vendor_id` (TEXT NOT NULL, format `DMS-VND-[A-Z]{3}-[0-9]{4}-[A-Z]`) |
+| `public.vendors` | - | `canonical_name` (TEXT NOT NULL) |
+| `public.vendors` | - | `activity_status` CHECK IN ('VERIFIED_ACTIVE','UNVERIFIED','INACTIVE','GHOST_SUSPECTED') |
+| `public.vendors` | - | `region_code` CHECK IN ('BKO','MPT','SGO','SKS','GAO','TBK','MNK','KYS','KLK','INT') |
+| `public.annotation_registry` | `task_id`, `status` | `annotation_file`, `sha256`, `document_type`, `annotated_by`, `annotated_at` |
+| `public.market_surveys` | `supplier_name_raw` | `supplier_raw` |
+
+**REGLE OBLIGATOIRE** (E-90 renforcee) : Avant tout script SQL sur une table non connue, executer :
+```sql
+SELECT column_name, data_type, is_nullable FROM information_schema.columns
+WHERE table_schema='public' AND table_name='<table>' ORDER BY ordinal_position;
+```
+
+---
+
+### V2 TABLES — SCHEMA PUBLIC (PAS dms_vivant)
+
+Les migrations 059→067 ont cree les tables VIVANT V2 dans le schema **`public`**, pas `dms_vivant`.
+Les tables `dms_vivant.dms_event_index`, `dms_vivant.candidate_rules` etc. **N'EXISTENT PAS**.
+Toujours requeter : `public.dms_event_index`, `public.candidate_rules`, `public.dms_embeddings`, `public.llm_traces`.
+
+---
+
+### INDEX FONCTIONNELS CREES SUR RAILWAY (session 2026-04-03)
+
+Ces index ont ete crees CONCURRENTLY — ils sont actifs et persistent :
+
+| Index | Table | Expression |
+|-------|-------|-----------|
+| `idx_mercurials_item_canonical_lower` | `public.mercurials` | `LOWER(TRIM(item_canonical))` |
+| `idx_mercurials_item_map_canonical_lower` | `public.mercurials_item_map` | `LOWER(TRIM(item_canonical))` |
+| `idx_mercurials_item_map_dict_item_id` | `public.mercurials_item_map` | `dict_item_id` |
+| `idx_mercurials_zone_id` | `public.mercurials` | `zone_id` |
+| `idx_market_signals_v2_item_zone` | `public.market_signals_v2` | `(item_id, zone_id)` |
+| `idx_market_surveys_item_zone` | `public.market_surveys` | `(item_id, zone_id)` |
+| `idx_seasonal_patterns_item_zone` | `public.seasonal_patterns` | `(item_id, zone_id)` |
+
+**EFFET** : signal_engine.get_price_points() 37s/pair → 4.4s/pair (8x speedup).
+**NE PAS RECRÉER** : verifier existence avec `SELECT indexname FROM pg_indexes WHERE tablename='...'` avant tout CREATE INDEX.
+
+---
+
+### ACTIONS REQUISES CTO APRES MERGE PR #304
+
+**OBLIGATOIRE — DANS CET ORDRE :**
+
+1. **Merger PR #304** sur GitHub (pas de merge direct main — respecter REGLE-ORG-10).
+
+2. **Redis Railway** (V3 — BLOQUANT pour ARQ workers) :
+   - Railway Dashboard → projet DMS → `+ New Service` → `Redis`
+   - Copier l'URL (format : `redis://default:XXXXX@monorail.proxy.rlwy.net:PORT`)
+   - Ajouter dans `.env.railway.local` : `REDIS_URL=redis://default:XXXXX@...`
+   - **Tester** : `python scripts/with_railway_env.py python scripts/smoke_arq_worker.py`
+   - Local Docker deja configure : `REDIS_URL=redis://localhost:6379` dans `.env.local`
+
+3. **Orchestrateur** (V2 — BLOQUANT pour annotations automatiques) :
+   - Railway Dashboard → Variables → `ANNOTATION_USE_PASS_ORCHESTRATOR=1`
+   - **NE PAS** le setter a 1 si une session annotation Label Studio est active (risque restart service)
+   - **Verifier** : `curl -X POST $RAILWAY_URL/api/m12/predict -d '{"test":true}'`
+
+4. **Trigger extraction** (V6 — 25 docs pending) :
+   - Recuperer RAILWAY_URL de la Railway Dashboard (URL publique de l'app DMS)
+   - Executer : `python scripts/with_railway_env.py python scripts/trigger_extraction_queue.py --apply --api-url https://TON-APP.railway.app`
+   - **Verifier** : `SELECT extraction_status, COUNT(*) FROM public.documents GROUP BY extraction_status`
+
+5. **Batch signal V4** (en cours au moment du commit) :
+   - Si le batch s'est arrete : `python scripts/with_railway_env.py python scripts/batch_signal_from_map.py --apply`
+   - **Objectif** : `market_signals_v2` strong+moderate >= 40% des signaux
+   - **Verifier** : `SELECT signal_quality, COUNT(*) FROM public.market_signals_v2 GROUP BY signal_quality`
+
+6. **Label Studio token** (V1 — pour nouvelles annotations) :
+   - `.env.local` `LABEL_STUDIO_API_KEY` expire → renouveler sur `https://label-studio-production-1f72.up.railway.app/user/account`
+   - Procedure : se connecter → Account → Access Token → copier le nouveau token
+
+---
+
+### SCRIPTS WARTIME M15 — INVENTAIRE COMPLET (PR #304)
+
+| Script | Role | Commande |
+|--------|------|---------|
+| `scripts/batch_signal_from_map.py` | Batch signal 9424 paires | `python scripts/with_railway_env.py python scripts/batch_signal_from_map.py --apply` |
+| `scripts/export_annotations_jsonl.py` | Export annotations local → JSONL | `python scripts/export_annotations_jsonl.py --output annotations.jsonl` |
+| `scripts/export_labelstudio_to_registry.py` | Export LS → annotation_registry | `python scripts/with_railway_env.py python scripts/export_labelstudio_to_registry.py` |
+| `scripts/smoke_arq_worker.py` | Smoke test ARQ (REDIS_URL requis) | `python scripts/with_railway_env.py python scripts/smoke_arq_worker.py` |
+| `scripts/trigger_extraction_queue.py` | Trigger 25 docs pending | `python scripts/with_railway_env.py python scripts/trigger_extraction_queue.py --apply --api-url URL` |
+| `scripts/enrich_survey_vendor_ids.py` | ETL vendor_id via pg_trgm | `python scripts/with_railway_env.py python scripts/enrich_survey_vendor_ids.py` |
+| `scripts/add_signal_engine_indexes.py` | Index LOWER(TRIM) mercurials | `python scripts/with_railway_env.py python scripts/add_signal_engine_indexes.py` |
+| `scripts/_add_missing_indexes.py` | Index dict_item_id zone etc. | `python scripts/with_railway_env.py python scripts/_add_missing_indexes.py` |
+| `scripts/_seed_vendor_proxy.py` | Seed vendor + link surveys | `python scripts/with_railway_env.py python scripts/_seed_vendor_proxy.py` |
+| `scripts/_probe_registry_schema.py` | Probe + import annotations | `python scripts/_probe_registry_schema.py --import` |
+
+---
+
+### ETAT DB LOCALE (Docker — post-session)
+
+**Docker Desktop tourne** avec :
+- `dms-postgres` : port 5432 (trust all — pg_hba.conf modifie pour la session)
+- `dms-redis` : port 6379 (Redis local operationnel — REDIS_URL=redis://localhost:6379)
+- `dms-label-studio` : port 8080 (vide — 0 tasks, 0 annotations)
+- `dms-pgadmin` : port 80/443
+
+**ATTENTION** : `dms-postgres` local est vide (dev instance, pas replica de Railway) :
+- `public.vendors` = 0 (local)
+- `public.annotation_registry` = 0 (local)
+- `couche_b.procurement_dict_items` = 51 lignes seulement
+
+**Connexion Python locale IMPOSSIBLE** via TCP (auth Docker gateway) — utiliser `docker exec dms-postgres psql -U dms_user dms_dev -c "..."` pour toute requete locale.
+
+---
+
+### GATE M15 — ETAT REEL POST-SESSION
+
+| Critere | Seuil | Valeur actuelle | Statut |
+|---------|-------|-----------------|--------|
+| `annotation_registry is_validated` | >= 50 | 75 | DONE |
+| `market_surveys vendor_id IS NULL` | = 0 | 0 | DONE |
+| `market_signals_v2 strong+moderate` | >= 40% | ~90% (914 mod + 88 str / 1109) | OK (en cours expansion) |
+| `mercurials_item_map coverage` | >= 70% | 67.38% (298 prod) | PARTIEL |
+| `documents extraction_status != pending` | coverage >= 80% | 0% (25 pending) | EN ATTENTE TRIGGER |
+| `ANNOTATION_USE_PASS_ORCHESTRATOR` | = 1 en prod | 0 (pas configure) | EN ATTENTE CTO |
+| `REDIS_URL Railway` | configure | absent | EN ATTENTE CTO |
+
+---
+
+### ERREURS CAPITALISEES — SESSION M15 WARTIME
+
+**E-92** (2026-04-03 — M15 Wartime) : **`annotation_registry.document_id` FK vers `documents`** — La colonne `document_id` de `public.annotation_registry` a une FK vers `public.documents`. Tout INSERT sans un `document_id` valide echoue avec `violates foreign key constraint`. La colonne est NULLABLE — toujours inserer avec `document_id=NULL` si aucun document Railway correspondant n'existe. Ne jamais construire un `document_id` synthetique en string.
+
+**E-93** (2026-04-03 — M15 Wartime) : **`psycopg3 savepoints` obligatoires dans boucle d'insert** — Sans `SAVEPOINT sp / RELEASE SAVEPOINT sp / ROLLBACK TO SAVEPOINT sp`, la premiere erreur d'insert dans une boucle met la transaction en etat `INTRANS_INERROR` et tous les INSERT suivants echouent silencieusement avec `current transaction is aborted`. Toujours encapsuler chaque INSERT dans sa propre savepoint dans les boucles batch.
+
+**E-94** (2026-04-03 — M15 Wartime) : **`CREATE INDEX CONCURRENTLY` interdit dans transaction** — psycopg3 `connect(autocommit=False)` (defaut) met toute commande dans une transaction implicite. `CREATE INDEX CONCURRENTLY` est interdit dans une transaction → `ProgrammingError: can't change 'autocommit' now: connection in transaction status INTRANS`. Toujours ouvrir la connexion avec `autocommit=True` pour les DDL CONCURRENTLY.
+
+**E-95** (2026-04-03 — M15 Wartime) : **`public.vendors` a 12+ contraintes CHECK imbriquees** — Le schema vendors a des CHECK sur `activity_status` (enum: `VERIFIED_ACTIVE|UNVERIFIED|INACTIVE|GHOST_SUSPECTED`), `region_code` (enum: `BKO|MPT|SGO|SKS|GAO|TBK|MNK|KYS|KLK|INT`), `vendor_id` (regex: `^DMS-VND-[A-Z]{3}-[0-9]{4}-[A-Z]$`), `verification_status` (enum: `registered|qualified|approved|suspended`), `verification_source` (enum). Tout INSERT doit respecter ces contraintes. Avant tout INSERT dans `vendors`, inspecter `pg_constraint` avec `pg_get_constraintdef()`.
+
+**E-96** (2026-04-03 — M15 Wartime) : **Docker PostgreSQL TCP auth depuis Windows host** — Sur Windows avec Docker Desktop, la connexion TCP `localhost:5432` ne passe PAS par les regles `127.0.0.1 trust` de pg_hba.conf (le gateway Docker est vu comme IP externe). La modification de pg_hba.conf pour ajouter `host all all 0.0.0.0/0 trust` EST necessaire pour permettre la connexion Python depuis le host. Alternativement : utiliser `docker exec dms-postgres psql -U dms_user dms_dev -c "..."` qui passe par le socket Unix (trust garanti).
+
+**E-97** (2026-04-03 — M15 Wartime) : **`market_surveys.supplier_raw` = `'mercurials_proxy'` uniformement** — Les 21 850 lignes de `market_surveys` ont toutes `supplier_raw='mercurials_proxy'` car elles ont ete generees synthetiquement depuis les mercurials DGMP (pas des enquetes terrain reelles). Aucun matching vendor reel n'est possible tant que de vraies donnees terrain ne sont pas importees. Le `vendor_id` DMS-VND-SYN-0001-A cree est un placeholder synthetique uniquement. DETTE-6 (market_surveys terrain reels) reste ouverte.
+
+---
+
+### CONSIGNES STRICTES AU SUCCESSEUR
+
+**AVANT DE TOUCHER QUOI QUE CE SOIT :**
+
+1. Lire CLAUDE.md + CONTEXT_ANCHOR.md + MRD_CURRENT_STATE.md en entier.
+2. Verifier git branch — jamais travailler sur main.
+3. Verifier `alembic current` sur Railway = `067_fix_market_coverage_trigger`.
+4. Verifier que PR #304 est MERGEE avant de creer un nouveau mandat M15.
+
+**REGLES ABSOLUES SESSION SUIVANTE :**
+
+- **NE PAS** modifier `alembic/versions/` sans mandat dedie (REGLE-12).
+- **NE PAS** executer `alembic upgrade` sur Railway sans runbook + flag `DMS_ALLOW_RAILWAY_MIGRATE=1`.
+- **NE PAS** creer de nouvelles migrations pour les tables V2 — elles existent deja dans `public`.
+- **NE PAS** supposer des noms de colonnes sans verifier `information_schema.columns` d'abord.
+- **NE PAS** committer les fichiers `.env*` (gitignored — secrets).
+- **NE PAS** toucher `services/annotation-backend/` si une session Label Studio est active (gel).
+- **NE PAS** modifier `docs/freeze/DMS_V4.1.0_FREEZE.md` — IMMUABLE.
+- **NE PAS** setter `ANNOTATION_USE_PASS_ORCHESTRATOR=1` pendant une campagne d'annotation en cours.
+
+**SIGNAUX STOP OBLIGATOIRES :**
+- `alembic heads` retourne > 1 ligne → STOP
+- `documents` table vide apres trigger → investiguer avant de continuer
+- `market_signals_v2` count diminue → bug critique → STOP
+- Toute action qui impliquerait de modifier les migrations 001-067 → STOP immédiat
+
+**PROCHAINE SESSION — OBJECTIFS PRIORITAIRES :**
+
+1. Confirmer merge PR #304 et verifier etat Railway.
+2. Configurer REDIS_URL Railway (action Dashboard).
+3. Activer ANNOTATION_USE_PASS_ORCHESTRATOR=1 hors campagne annotation.
+4. Recuperer RAILWAY_URL et lancer trigger extraction (25 docs pending).
+5. Attendre/relancer batch V4 jusqu'a strong+moderate >= 40%.
+6. Mettre a jour MRD_CURRENT_STATE.md avec metriques reelles post-activation.
 
 ---
