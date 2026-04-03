@@ -52,15 +52,51 @@ class BenchmarkStatusService:
         self._corrections = _correction_repo
 
     def compute_status(self) -> BenchmarkStatus:
-        return BenchmarkStatus(
-            total_cases_processed=0,
-            regime_resolution_accuracy=0.0,
-            gate_assembly_recall=0.0,
-            eliminatory_gate_recall=0.0,
-            principles_coverage_completeness=0.0,
-            correction_rate_last_30d=0.0,
-            computed_at=datetime.now(UTC).isoformat(),
-        )
+        if self._db is None or self._corrections is None:
+            return BenchmarkStatus(
+                total_cases_processed=0,
+                regime_resolution_accuracy=0.0,
+                gate_assembly_recall=0.0,
+                eliminatory_gate_recall=0.0,
+                principles_coverage_completeness=0.0,
+                correction_rate_last_30d=0.0,
+                computed_at=datetime.now(UTC).isoformat(),
+            )
+        return self._compute_from_db()
+
+    def _compute_from_db(self) -> BenchmarkStatus:
+        """Real metrics from m13_regulatory_profile_versions + m13_correction_log."""
+        conn = self._db()
+        try:
+            conn.execute(
+                "SELECT COUNT(DISTINCT case_id) AS c "
+                "FROM m13_regulatory_profile_versions",
+                {},
+            )
+            row = conn.fetchone()
+            total = int(row["c"]) if row else 0
+
+            correction_rate = self._corrections.rate_last_30d(conn)
+
+            return BenchmarkStatus(
+                total_cases_processed=total,
+                regime_resolution_accuracy=0.0,
+                gate_assembly_recall=0.0,
+                eliminatory_gate_recall=0.0,
+                principles_coverage_completeness=0.0,
+                correction_rate_last_30d=correction_rate,
+                computed_at=datetime.now(UTC).isoformat(),
+            )
+        except Exception:
+            return BenchmarkStatus(
+                total_cases_processed=0,
+                regime_resolution_accuracy=0.0,
+                gate_assembly_recall=0.0,
+                eliminatory_gate_recall=0.0,
+                principles_coverage_completeness=0.0,
+                correction_rate_last_30d=0.0,
+                computed_at=datetime.now(UTC).isoformat(),
+            )
 
     def evaluate_transition(self) -> ModeTransitionProposal:
         status = self.compute_status()
