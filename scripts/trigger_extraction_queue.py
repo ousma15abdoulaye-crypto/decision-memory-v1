@@ -87,10 +87,10 @@ def _get_api_url() -> str:
 def fetch_pending_documents(cur, limit: int | None) -> list[dict]:
     """Charge les documents en statut 'pending' depuis Railway."""
     query = """
-        SELECT id, file_name, extraction_status, created_at
+        SELECT id, filename, extraction_status, uploaded_at
         FROM public.documents
         WHERE extraction_status = 'pending'
-        ORDER BY created_at ASC
+        ORDER BY uploaded_at ASC
     """
     if limit:
         query += f" LIMIT {int(limit)}"
