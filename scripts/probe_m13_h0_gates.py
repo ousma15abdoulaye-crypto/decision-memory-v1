@@ -56,7 +56,8 @@ def check_rls_policy(conn) -> bool:
     with conn.cursor() as cur:
         cur.execute("""
             SELECT COUNT(*) AS c FROM pg_policies
-            WHERE tablename = 'evaluation_documents'
+            WHERE schemaname = 'public'
+              AND tablename = 'evaluation_documents'
         """)
         row = cur.fetchone()
         return bool(row and row["c"] > 0)

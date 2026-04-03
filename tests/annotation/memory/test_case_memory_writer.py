@@ -242,7 +242,7 @@ class TestCaseMemoryWriter:
             m12_confidence_avg=0.6,
             m12_confidence_min=0.6,
         )
-        with pytest.raises(RuntimeError, match="UPSERT did not RETURNING id"):
+        with pytest.raises(RuntimeError, match="INSERT did not RETURNING id"):
             writer.write(conn, entry)
 
     def test_get_latest_returns_entry(self) -> None:
@@ -290,17 +290,22 @@ class TestCaseMemoryWriter:
         assert writer.count_total(conn) == 0
 
     def test_no_update_delete_in_sql(self) -> None:
-        """Writer must never contain UPDATE/DELETE/DROP/TRUNCATE/ALTER in SQL."""
-        import inspect
+        """SQL constants must not contain mutating DDL/DML keywords.
 
-        source = inspect.getsource(CaseMemoryWriter)
+        Checks the actual SQL strings stored in the module-level constants
+        (_INSERT_SQL, _SELECT_SQL, _COUNT_SQL) rather than the full source,
+        so that documentation comments mentioning those keywords do not
+        cause false positives.
+        """
+        from src.annotation.memory.case_memory_writer import (
+            _COUNT_SQL,
+            _INSERT_SQL,
+            _SELECT_SQL,
+        )
+
+        sql_block = "\n".join([_INSERT_SQL, _SELECT_SQL, _COUNT_SQL]).upper()
         forbidden = ["UPDATE", "DELETE", "DROP", "TRUNCATE", "ALTER"]
         for kw in forbidden:
-            occurrences = source.upper().count(kw)
-            if kw == "UPDATE":
-                assert occurrences <= 1, (
-                    f"Found {occurrences} occurrences of {kw} — "
-                    "only the ON CONFLICT DO UPDATE is allowed"
-                )
-            else:
-                assert occurrences == 0, f"Found forbidden keyword {kw} in writer"
+            assert (
+                kw not in sql_block
+            ), f"Found forbidden keyword '{kw}' in SQL constants"

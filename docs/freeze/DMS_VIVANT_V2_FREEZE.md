@@ -804,7 +804,7 @@ Actions selon résultats documentées dans le rapport.
 
 **Livrable** : `scripts/probe_m13_h0_gates.py`
 
-3 conditions : `evaluation_documents` existe, RLS policy couvre `regulatory_profile`, FSM accepte Pass 2A.
+3 conditions : `evaluation_documents` existe, RLS policy couvre `evaluation_documents`, FSM accepte Pass 2A.
 
 **Effort** : 0.25j
 

@@ -150,9 +150,9 @@ memory_entries:
   write_owner: case_memory_writer
   read_allowed: [api, annotation, retrieval, embedding_service, agent]
   temporal_model: ingestion_only
-  append_only: false
-  migration_ref: "002"
-  notes: "content_json JSONB porte le payload CaseMemoryEntry."
+  append_only: true
+  migration_ref: "002, 010"
+  notes: "content_json TEXT porte le payload CaseMemoryEntry sérialisé en JSON. Écriture en insertion seule (UPDATE/DELETE révoqués par migration 010). Pour passer en JSONB + upsert natif, prévoir une migration dédiée (contrainte UNIQUE sur (case_id, entry_type) + ALTER COLUMN)."
 
 score_runs:
   nature: append_only_log

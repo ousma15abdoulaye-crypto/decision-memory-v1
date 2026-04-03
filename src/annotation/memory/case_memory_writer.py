@@ -1,11 +1,17 @@
 """
 Case Memory Writer — structured pipeline bridge into ``memory_entries``.
 
-Builds a rich ``CaseMemoryEntry`` from M12 pipeline output and upserts it
-into ``memory_entries`` (migration 002) via ``content_json`` JSONB.
+Builds a rich ``CaseMemoryEntry`` from M12 pipeline output and inserts it
+into ``memory_entries`` (migration 002).  In the current schema,
+``content_json`` is stored as TEXT containing serialized JSON, so this
+module writes JSON with ``json.dumps`` and parses it on read when needed.
+
+``memory_entries`` has no uniqueness constraint on ``(case_id, entry_type)``
+in migration 002; writes are append-only.  Use ``get_latest()`` (ORDER BY
+created_at DESC LIMIT 1) to retrieve the most recent summary for a case.
+A dedicated migration is required to move to JSONB + upsert semantics.
 
 Uses the same ``_ConnectionWrapper`` pattern as ``m12_correction_writer``.
-No migration needed — content_json is schema-agnostic JSONB.
 """
 
 from __future__ import annotations
@@ -53,12 +59,9 @@ class _MemoryConnection(Protocol):
 
 _ENTRY_TYPE = "case_summary"
 
-_UPSERT_SQL = """
+_INSERT_SQL = """
     INSERT INTO memory_entries (id, case_id, entry_type, content_json, created_at)
     VALUES (:mid, :cid, :etype, :content, :ts)
-    ON CONFLICT (case_id, entry_type)
-    DO UPDATE SET content_json = EXCLUDED.content_json,
-                  created_at   = EXCLUDED.created_at
     RETURNING id
 """
 
@@ -91,10 +94,10 @@ def build_from_m12_output(case_id: str, m12_output: dict[str, Any]) -> CaseMemor
     - ``review_flags``: list of str
     """
     documents = m12_output.get("documents", [])
-    doc_kinds = list(
+    doc_kinds = sorted(
         {d.get("document_kind", "unknown") for d in documents if isinstance(d, dict)}
     )
-    doc_subtypes = list(
+    doc_subtypes = sorted(
         {
             d.get("subtype", "")
             for d in documents
@@ -142,13 +145,17 @@ def build_from_m12_output(case_id: str, m12_output: dict[str, Any]) -> CaseMemor
 
 class CaseMemoryWriter:
     """
-    Append/upsert writer for ``memory_entries`` (entry_type = ``case_summary``).
+    Append-only writer for ``memory_entries`` (entry_type = ``case_summary``).
+
+    ``memory_entries`` has no uniqueness constraint on ``(case_id, entry_type)``
+    in migration 002, so writes are plain INSERTs.  Use ``get_latest()`` to
+    retrieve the most recent entry per case.
 
     Pattern mirrors ``M12CorrectionWriter``: connection protocol, no ORM.
     """
 
     def write(self, conn: _MemoryConnection, entry: CaseMemoryEntry) -> str:
-        """Upsert a case summary. Returns the memory_entries id."""
+        """Insert a case summary. Returns the new memory_entries id."""
         mem_id = str(uuid4())
         payload = entry.model_dump(mode="json")
         params: dict[str, Any] = {
@@ -158,10 +165,10 @@ class CaseMemoryWriter:
             "content": json.dumps(payload, ensure_ascii=False),
             "ts": entry.created_at,
         }
-        conn.execute(_UPSERT_SQL, params)
+        conn.execute(_INSERT_SQL, params)
         row = conn.fetchone()
         if row is None or "id" not in row:
-            raise RuntimeError("memory_entries UPSERT did not RETURNING id")
+            raise RuntimeError("memory_entries INSERT did not RETURNING id")
         return str(row["id"])
 
     def get_latest(

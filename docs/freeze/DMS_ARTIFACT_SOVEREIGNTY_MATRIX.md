@@ -46,7 +46,7 @@
 | `pipeline_runs` | execution_trace | pipeline_orchestrator | oui | 032 |
 | `pipeline_step_runs` | execution_trace | pipeline_orchestrator | oui | 033 |
 | `analysis_summaries` | derived_summary | pipeline_analysis | oui | 035 |
-| `memory_entries` | case_memory | case_memory_writer | non | 002 |
+| `memory_entries` | case_memory | case_memory_writer | oui | 002, 010 |
 | `score_runs` | append_only_log | scoring_engine | oui | 026 |
 | `committee_events` | append_only_log | committee_service | oui | 028 |
 | `submission_registry_events` | append_only_log | submission_service | oui | 036 |
