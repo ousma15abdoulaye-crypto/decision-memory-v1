@@ -113,7 +113,12 @@ class M14EvaluationRepository:
         return None
 
     def get_latest(self, *, case_id: str) -> dict[str, Any] | None:
-        """Récupère le dernier résultat d'évaluation pour un case."""
+        """Récupère le dernier résultat d'évaluation pour un case.
+
+        Returns a dict compatible with ``EvaluationDocumentEnvelope.model_validate``:
+        ``created_at`` is coerced to ISO-8601 string, ``scores_matrix`` and
+        ``justifications`` default to empty dicts when NULL.
+        """
         try:
             with get_connection() as conn:
                 conn.execute(
@@ -129,7 +134,19 @@ class M14EvaluationRepository:
                     {"case_id": case_id},
                 )
                 row = conn.fetchone()
-                return dict(row) if row else None
+                if row is None:
+                    return None
+                result = row
+                ca = result.get("created_at")
+                if ca is not None and not isinstance(ca, str):
+                    result["created_at"] = (
+                        ca.isoformat() if hasattr(ca, "isoformat") else str(ca)
+                    )
+                if result.get("scores_matrix") is None:
+                    result["scores_matrix"] = {}
+                if result.get("justifications") is None:
+                    result["justifications"] = {}
+                return result
         except Exception as exc:
             if _is_rls_denied(exc):
                 logger.error("evaluation_documents get_latest RLS denied: %s", exc)

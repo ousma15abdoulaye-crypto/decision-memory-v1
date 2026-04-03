@@ -153,3 +153,38 @@ class M14EvaluationInput(BaseModel):
     process_linking_data: list[dict[str, Any]] = Field(default_factory=list)
 
     model_config = ConfigDict(extra="forbid")
+
+
+# ---------------------------------------------------------------------------
+# Response models — typed API contract (GAP-3 / GAP-4 hardening)
+# ---------------------------------------------------------------------------
+
+EvaluationDocumentStatus = Literal["draft", "committee_review", "sealed", "exported"]
+
+
+class M14StatusResponse(BaseModel):
+    """GET /api/m14/status response shape."""
+
+    module: str
+    version: str
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class EvaluationDocumentEnvelope(BaseModel):
+    """Envelope for a persisted evaluation_documents row.
+
+    ``scores_matrix`` is parsed back into ``EvaluationReport`` so
+    clients receive a typed, self-documenting payload rather than
+    opaque JSONB.
+    """
+
+    id: str
+    case_id: str
+    version: int
+    scores_matrix: EvaluationReport
+    justifications: dict[str, Any] = Field(default_factory=dict)
+    status: EvaluationDocumentStatus = "draft"
+    created_at: str
+
+    model_config = ConfigDict(extra="forbid")
