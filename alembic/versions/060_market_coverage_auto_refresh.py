@@ -33,6 +33,9 @@ def upgrade() -> None:
     $$ LANGUAGE plpgsql;
     """)
 
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_refresh_market_coverage ON public.market_signals_v2;"
+    )
     op.execute("""
     CREATE TRIGGER trg_refresh_market_coverage
         AFTER INSERT ON public.market_signals_v2

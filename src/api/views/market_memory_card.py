@@ -39,23 +39,23 @@ _PRICE_HISTORY_ZONE_SQL = """
 _SIGNALS_SQL = """
     SELECT
         alert_level         AS signal_type,
-        computed_at::text   AS detected_at,
+        created_at::text    AS detected_at,
         COALESCE(signal_quality, '') AS description
     FROM public.market_signals_v2
     WHERE item_id = %(item_id)s
-    ORDER BY computed_at DESC
+    ORDER BY created_at DESC
     LIMIT 10
 """
 
 _SIGNALS_ZONE_SQL = """
     SELECT
         alert_level         AS signal_type,
-        computed_at::text   AS detected_at,
+        created_at::text    AS detected_at,
         COALESCE(signal_quality, '') AS description
     FROM public.market_signals_v2
     WHERE item_id = %(item_id)s
       AND zone_id = %(zone_id)s
-    ORDER BY computed_at DESC
+    ORDER BY created_at DESC
     LIMIT 10
 """
 

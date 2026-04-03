@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-_NAMED_PARAM_RE = re.compile(r":([a-zA-Z_][a-zA-Z0-9_]*)")
+_NAMED_PARAM_RE = re.compile(r"(?<!:):([a-zA-Z_][a-zA-Z0-9_]*)")
 
 
 def _convert_params(sql: str) -> str:
