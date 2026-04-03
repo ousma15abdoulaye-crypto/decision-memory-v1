@@ -1,0 +1,15 @@
+---
+langfuse:
+  enabled: false
+  public_key: "${LANGFUSE_PUBLIC_KEY}"
+  secret_key: "${LANGFUSE_SECRET_KEY}"
+  host: "https://cloud.langfuse.com"
+
+local_backup:
+  enabled: true
+  table: "llm_traces"
+
+tracing:
+  default_provider: "openrouter"
+  log_prompts: false
+  log_completions: false
