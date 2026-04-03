@@ -143,8 +143,19 @@ def export_unmapped_csv(rows: list[dict], output_path: Path) -> None:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for row in rows:
+            # Normaliser les retours a la ligne pour garder 1 ligne = 1 item
             writer.writerow(
-                {k: (str(v) if v is not None else "") for k, v in row.items()}
+                {
+                    k: (
+                        str(v)
+                        .replace("\r\n", " ")
+                        .replace("\r", " ")
+                        .replace("\n", " ")
+                        if v is not None
+                        else ""
+                    )
+                    for k, v in row.items()
+                }
             )
     print(f"  {GREEN}[OK]{RESET} CSV ecrit : {output_path} ({len(rows)} items)")
 

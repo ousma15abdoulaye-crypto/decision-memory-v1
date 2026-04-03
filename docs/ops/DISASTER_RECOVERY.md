@@ -33,7 +33,8 @@ railway run --service railway-postgres psql -c "SELECT NOW();"
 python scripts/with_railway_env.py python -c "import os; print(os.environ['RAILWAY_DATABASE_URL'])"
 
 # Dump complet (depuis .env.railway.local)
-$env:PGPASSWORD = "VvIxShbsVuwXdqGlipWTeZjfHKTEbFHP"
+# Renseigner depuis Railway Dashboard > Variables (ne jamais committer une vraie valeur)
+$env:PGPASSWORD = "<RAILWAY_POSTGRES_PASSWORD>"
 pg_dump -h maglev.proxy.rlwy.net -p 35451 -U postgres -d railway -Fc -f "backup_$(Get-Date -Format 'yyyyMMdd_HHmm').dump"
 
 # Tables critiques uniquement

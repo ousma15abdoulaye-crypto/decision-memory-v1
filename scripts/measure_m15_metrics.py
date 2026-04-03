@@ -12,7 +12,7 @@ Metriques M15 (Plan V4.1 XII) :
   C1. coverage_extraction  : % documents avec extraction terminee
   C2. unresolved_rate      : % dossiers sans decision finale
   C3. vendor_match_rate    : % items avec fournisseur identifie
-  C4. review_queue_rate    : % extractions en review_required
+  C4. review_queue_rate    : % entrees public.annotation_registry non validees (is_validated=false)
   C5. signal_quality_cov   : % items avec signal market != empty
   C6. drift_by_category    : derive prix moyenne par categorie L1 (top 5)
 

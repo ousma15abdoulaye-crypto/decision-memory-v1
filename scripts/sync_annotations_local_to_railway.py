@@ -3,7 +3,10 @@
 sync_annotations_local_to_railway.py — Phase 2 M15 / Sync annotations locales → Railway.
 
 Synchronise les enregistrements de public.annotation_registry depuis la base locale
-vers Railway. Import atomique avec SHA256, rollback sur divergence, gate REGLE-23.
+vers Railway. Insert-only (ON CONFLICT DO NOTHING) en transaction atomique,
+rollback sur erreur SQL, gate REGLE-23 post-sync.
+Note : les enregistrements deja presents sur Railway ne sont pas mis a jour (pas d'UPSERT).
+Pour detecter des divergences, consulter les logs "deja presentes" en sortie.
 
 Usage :
   # Configurer les URLs (si DATABASE_URL n'est pas la bonne URL locale) :
@@ -37,6 +40,7 @@ import sys
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -67,8 +71,24 @@ ANNOTATION_REGISTRY_COLS = [
 GATE_MIN_VALIDATED = 50
 
 
+def _assert_safe_local_url(local_url: str) -> None:
+    """Refuse d'utiliser une URL non-locale comme source sauf opt-in explicite.
+
+    Reprend le meme pattern de securite que sync_dict_local_to_railway.py pour
+    eviter d'acceder a Railway en pensant lire depuis local.
+    """
+    hostname = urlparse(local_url).hostname or ""
+    is_local = hostname in ("localhost",) or hostname.startswith("127.")
+    if not is_local:
+        if os.getenv("DMS_ALLOW_RAILWAY_SYNC") != "1":
+            raise RuntimeError(
+                f"URL locale suspecte ({hostname!r}) : ne pointe pas vers localhost/127.x. "
+                "Definir DMS_ALLOW_RAILWAY_SYNC=1 pour forcer."
+            )
+
+
 def _get_local_url() -> str:
-    """Retourne l'URL de la DB locale."""
+    """Retourne l'URL de la DB locale avec guard de securite."""
     url = os.environ.get("LOCAL_DATABASE_URL", "")
     if not url:
         url = os.environ.get("DATABASE_URL", "")
@@ -79,9 +99,11 @@ def _get_local_url() -> str:
             file=sys.stderr,
         )
         sys.exit(2)
-    return url.replace("postgresql+psycopg://", "postgresql://").replace(
+    url = url.replace("postgresql+psycopg://", "postgresql://").replace(
         "postgres://", "postgresql://", 1
     )
+    _assert_safe_local_url(url)
+    return url
 
 
 def _get_railway_url() -> str:
@@ -264,7 +286,7 @@ def import_to_railway(
                         f"VALUES ({placeholders}) ON CONFLICT (id) DO NOTHING",
                         normalized,
                     )
-                    inserted += 1
+                    inserted += cur.rowcount  # 0 si ON CONFLICT DO NOTHING
                 except Exception as exc:
                     errors += 1
                     print(

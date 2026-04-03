@@ -3,21 +3,20 @@
 validate_dict_items.py — Phase 4 M15 / Validation items dictionnaire.
 
 Passe label_status = 'draft' -> 'validated' sur les items confirmes.
-Ecrit un audit_log par item valide. Transaction atomique, rollback sur erreur.
+Transaction atomique, rollback sur erreur.
 
 Usage :
   python scripts/with_railway_env.py python scripts/validate_dict_items.py --input docs/data/dict_top100_to_validate.csv --dry-run
   python scripts/with_railway_env.py python scripts/validate_dict_items.py --input docs/data/dict_top100_to_validate.csv --apply --validated-by "CTO"
 
-  Filtrer par item_id specifique :
+  Limiter le nombre d'items traites :
   python scripts/with_railway_env.py python scripts/validate_dict_items.py --input docs/data/dict_top100_to_validate.csv --apply --limit 20
 
 Regles :
   - Ne modifie QUE label_status (jamais label_fr ni item_code)
   - Trigger trg_protect_item_identity : interdit modif label_fr si label_status='validated'
   - Si item deja 'validated' -> skip (idempotent)
-  - INSERT audit_log par item valide
-  - ROLLBACK complet si le nombre valide < expected
+  - Rollback complet sur erreur durant la transaction
 
 Gate M15 : 100 items label_status='validated' avant premier run 100 dossiers.
 """
@@ -67,8 +66,16 @@ def _connect(url: str):
     )
 
 
+def _normalize_value(v: str) -> str:
+    """Supprime les retours a la ligne dans les valeurs CSV (champs multilignes)."""
+    return v.replace("\r\n", " ").replace("\r", " ").replace("\n", " ").strip()
+
+
 def load_csv(csv_path: Path) -> list[dict]:
-    """Charge les items depuis le CSV de validation."""
+    """Charge les items depuis le CSV de validation.
+
+    Normalise les valeurs pour tolerer les CSV multilignes (label_fr avec retours ligne).
+    """
     if not csv_path.exists():
         print(
             f"{RED}[ERR]{RESET} Fichier CSV introuvable : {csv_path}", file=sys.stderr
@@ -78,14 +85,8 @@ def load_csv(csv_path: Path) -> list[dict]:
     with csv_path.open(encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            rows.append(dict(row))
+            rows.append({k: _normalize_value(str(v)) for k, v in row.items()})
     return rows
-
-
-def audit_log_exists(cur, table: str) -> bool:
-    """Verifie si la table audit_log existe."""
-    cur.execute("SELECT to_regclass(%s) IS NOT NULL AS ex", (table,))
-    return bool(cur.fetchone()["ex"])
 
 
 def validate_items(
@@ -94,17 +95,21 @@ def validate_items(
     validated_by: str,
     dry_run: bool = True,
 ) -> dict:
+    # Copilot C1 : gerer la liste vide avant toute connexion
+    results = {"validated": 0, "skipped_already": 0, "errors": 0, "dry_run": dry_run}
+    if not item_ids:
+        return results
+
     conn = _connect(railway_url)
     now = datetime.now(UTC).isoformat()
-    results = {"validated": 0, "skipped_already": 0, "errors": 0, "dry_run": dry_run}
 
     try:
         with conn.cursor() as cur:
-            # Verifier statut actuel
-            placeholders = ",".join(f"'{iid}'" for iid in item_ids)
+            # Copilot C1 : utiliser ANY(%s) — pas d'interpolation directe (SQL injection)
             cur.execute(
-                f"SELECT item_id, label_status FROM couche_b.procurement_dict_items "
-                f"WHERE item_id IN ({placeholders})"
+                "SELECT item_id, label_status FROM couche_b.procurement_dict_items "
+                "WHERE item_id = ANY(%s)",
+                (item_ids,),
             )
             current = {r["item_id"]: r["label_status"] for r in cur.fetchall()}
 
@@ -117,7 +122,7 @@ def validate_items(
                     to_validate.append(iid)
                 else:
                     print(
-                        f"  {YELLOW}[SKIP]{RESET} item_id={iid} status={status} — inattendu"
+                        f"  {YELLOW}[SKIP]{RESET} item_id={iid} status={status} inattendu"
                     )
 
             print(
@@ -132,8 +137,6 @@ def validate_items(
                 return results
 
             # Validation en transaction
-            has_audit = audit_log_exists(cur, "public.audit_log")
-
             for iid in to_validate:
                 try:
                     # Modifier UNIQUEMENT label_status
@@ -151,10 +154,8 @@ def validate_items(
                         results["skipped_already"] += 1
                         continue
 
-                    # Audit : les colonnes validated_at, validated_by, human_validated
-                    # constituent l'audit suffisant.
-                    # audit_log requiert prev_hash (chaine blockchain) — hors perimetre M15.
-                    _ = has_audit  # variable utilisee pour eviter unused warning
+                    # Audit : validated_at, validated_by, human_validated suffisent.
+                    # audit_log requiert prev_hash (blockchain) — hors perimetre M15.
 
                     results["validated"] += 1
                 except Exception as exc:
@@ -177,6 +178,9 @@ def validate_items(
             results["total_validated_post"] = total_validated
             results["gate_100_rempli"] = total_validated >= GATE_MIN_VALIDATED
 
+            # Copilot C3 : le commit est toujours effectue — la gate est informationnelle,
+            # pas un rollback (la validation partielle est intentionnellement conservee).
+            # Un rollback ici annulerait les validations deja faites ce qui est pire.
             conn.commit()
 
     except Exception as exc:
@@ -214,7 +218,7 @@ def main() -> int:
     railway_url = _get_url()
     target = railway_url.split("@")[-1].split("/")[0] if "@" in railway_url else "?"
 
-    print(f"\n{BOLD}VALIDATION DICT ITEMS — Phase 4 M15{RESET}")
+    print(f"\n{BOLD}VALIDATION DICT ITEMS Phase 4 M15{RESET}")
     print(f"Mode        : {'DRY-RUN' if dry_run else 'APPLY'}")
     print(f"Cible       : {target}")
     print(f"Validateur  : {args.validated_by}")
