@@ -19,7 +19,7 @@ def upgrade() -> None:
     op.execute("""
     CREATE EXTENSION IF NOT EXISTS vector;
 
-    CREATE TABLE public.dms_embeddings (
+    CREATE TABLE IF NOT EXISTS public.dms_embeddings (
         id              BIGSERIAL PRIMARY KEY,
         source_table    TEXT NOT NULL,
         source_pk       BIGINT NOT NULL,
@@ -33,10 +33,10 @@ def upgrade() -> None:
         UNIQUE (source_table, source_pk, chunk_index)
     );
 
-    CREATE INDEX idx_embeddings_source
+    CREATE INDEX IF NOT EXISTS idx_embeddings_source
         ON public.dms_embeddings (source_table, source_pk);
 
-    CREATE INDEX idx_embeddings_model
+    CREATE INDEX IF NOT EXISTS idx_embeddings_model
         ON public.dms_embeddings (model_name);
     """)
 

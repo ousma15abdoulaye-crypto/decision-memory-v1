@@ -21,7 +21,7 @@ depends_on = None
 
 def upgrade() -> None:
     op.execute("""
-    CREATE TABLE public.dms_event_index (
+    CREATE TABLE IF NOT EXISTS public.dms_event_index (
         id                 BIGSERIAL,
         event_id           UUID NOT NULL DEFAULT gen_random_uuid(),
         event_domain       TEXT NOT NULL,
@@ -44,34 +44,35 @@ def upgrade() -> None:
         PRIMARY KEY (id, ingestion_time)
     ) PARTITION BY RANGE (ingestion_time);
 
-    CREATE TABLE public.dms_event_index_2025_h2 PARTITION OF public.dms_event_index
+    CREATE TABLE IF NOT EXISTS public.dms_event_index_2025_h2
+        PARTITION OF public.dms_event_index
         FOR VALUES FROM ('2025-07-01') TO ('2027-01-01');
 
-    CREATE UNIQUE INDEX idx_event_event_id
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_event_event_id
         ON public.dms_event_index (event_id, ingestion_time);
 
-    CREATE INDEX idx_event_case
+    CREATE INDEX IF NOT EXISTS idx_event_case
         ON public.dms_event_index (case_id, event_time)
         WHERE case_id IS NOT NULL;
 
-    CREATE INDEX idx_event_type
+    CREATE INDEX IF NOT EXISTS idx_event_type
         ON public.dms_event_index (event_type, event_time);
 
-    CREATE INDEX idx_event_domain
+    CREATE INDEX IF NOT EXISTS idx_event_domain
         ON public.dms_event_index (event_domain, event_time);
 
-    CREATE UNIQUE INDEX idx_event_source
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_event_source
         ON public.dms_event_index (source_table, source_pk, ingestion_time);
 
-    CREATE UNIQUE INDEX idx_event_aggregate_version
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_event_aggregate_version
         ON public.dms_event_index (aggregate_type, aggregate_id, aggregate_version, ingestion_time)
         WHERE aggregate_version IS NOT NULL;
 
-    CREATE UNIQUE INDEX idx_event_idempotency
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_event_idempotency
         ON public.dms_event_index (idempotency_key, ingestion_time)
         WHERE idempotency_key IS NOT NULL;
 
-    CREATE INDEX idx_event_summary
+    CREATE INDEX IF NOT EXISTS idx_event_summary
         ON public.dms_event_index USING GIN (summary jsonb_path_ops);
 
     CREATE OR REPLACE FUNCTION public.dms_event_index_no_modify()

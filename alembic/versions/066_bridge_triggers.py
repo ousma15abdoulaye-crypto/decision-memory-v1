@@ -171,7 +171,7 @@ def upgrade() -> None:
             NEW.item_id,
             'market_signals_v2',
             'market.signal.created',
-            COALESCE(NEW.computed_at, NOW()),
+            COALESCE(NEW.created_at, NOW()),
             json_build_object(
                 'zone_id',     NEW.zone_id,
                 'alert_level', NEW.alert_level,

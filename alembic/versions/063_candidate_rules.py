@@ -17,7 +17,7 @@ depends_on = None
 
 def upgrade() -> None:
     op.execute("""
-    CREATE TABLE public.candidate_rules (
+    CREATE TABLE IF NOT EXISTS public.candidate_rules (
         id                      SERIAL PRIMARY KEY,
         rule_id                 TEXT NOT NULL UNIQUE,
         origin                  TEXT NOT NULL,
@@ -38,10 +38,10 @@ def upgrade() -> None:
         )
     );
 
-    CREATE INDEX idx_candidate_rules_status
+    CREATE INDEX IF NOT EXISTS idx_candidate_rules_status
         ON public.candidate_rules (status);
 
-    CREATE TABLE public.rule_promotions (
+    CREATE TABLE IF NOT EXISTS public.rule_promotions (
         id                  SERIAL PRIMARY KEY,
         candidate_rule_id   TEXT NOT NULL
             REFERENCES public.candidate_rules (rule_id),

@@ -51,7 +51,14 @@ class RAGASEvaluator:
         ground_truth: str,
     ) -> RAGASResult:
         if _RAGAS_AVAILABLE:
-            return self._evaluate_real(question, answer, contexts, ground_truth)
+            try:
+                return self._evaluate_real(question, answer, contexts, ground_truth)
+            except Exception as exc:
+                logger.warning(
+                    "ragas real eval failed (no API key / model unavailable),"
+                    " falling back to stub: %s",
+                    exc,
+                )
         return self._evaluate_stub(question, answer, contexts, ground_truth)
 
     def evaluate_batch(self, samples: list[dict[str, Any]]) -> list[RAGASResult]:

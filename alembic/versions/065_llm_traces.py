@@ -17,7 +17,7 @@ depends_on = None
 
 def upgrade() -> None:
     op.execute("""
-    CREATE TABLE public.llm_traces (
+    CREATE TABLE IF NOT EXISTS public.llm_traces (
         id              BIGSERIAL PRIMARY KEY,
         trace_id        UUID NOT NULL DEFAULT gen_random_uuid(),
         span_id         TEXT,
@@ -37,13 +37,13 @@ def upgrade() -> None:
         UNIQUE (trace_id)
     );
 
-    CREATE INDEX idx_llm_traces_operation
+    CREATE INDEX IF NOT EXISTS idx_llm_traces_operation
         ON public.llm_traces (operation, created_at);
 
-    CREATE INDEX idx_llm_traces_model
+    CREATE INDEX IF NOT EXISTS idx_llm_traces_model
         ON public.llm_traces (model_name, created_at);
 
-    CREATE INDEX idx_llm_traces_status
+    CREATE INDEX IF NOT EXISTS idx_llm_traces_status
         ON public.llm_traces (status)
         WHERE status <> 'success';
     """)

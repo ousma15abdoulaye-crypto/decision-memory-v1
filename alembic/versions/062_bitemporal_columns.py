@@ -17,46 +17,28 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # ADD COLUMN IF NOT EXISTS + DEFAULT now() so existing inserts without
+    # event_time continue to work (the default provides a safe fallback).
     op.execute("""
     ALTER TABLE public.m12_correction_log
-        ADD COLUMN event_time TIMESTAMPTZ;
-
+        ADD COLUMN IF NOT EXISTS event_time TIMESTAMPTZ NOT NULL DEFAULT now();
     UPDATE public.m12_correction_log
-    SET event_time = created_at
-    WHERE event_time IS NULL;
-
-    ALTER TABLE public.m12_correction_log
-        ALTER COLUMN event_time SET NOT NULL;
+        SET event_time = created_at WHERE event_time IS NULL;
 
     ALTER TABLE public.decision_snapshots
-        ADD COLUMN event_time TIMESTAMPTZ;
-
+        ADD COLUMN IF NOT EXISTS event_time TIMESTAMPTZ NOT NULL DEFAULT now();
     UPDATE public.decision_snapshots
-    SET event_time = created_at
-    WHERE event_time IS NULL;
-
-    ALTER TABLE public.decision_snapshots
-        ALTER COLUMN event_time SET NOT NULL;
+        SET event_time = created_at WHERE event_time IS NULL;
 
     ALTER TABLE public.market_signals_v2
-        ADD COLUMN event_time TIMESTAMPTZ;
-
+        ADD COLUMN IF NOT EXISTS event_time TIMESTAMPTZ NOT NULL DEFAULT now();
     UPDATE public.market_signals_v2
-    SET event_time = created_at
-    WHERE event_time IS NULL;
-
-    ALTER TABLE public.market_signals_v2
-        ALTER COLUMN event_time SET NOT NULL;
+        SET event_time = created_at WHERE event_time IS NULL;
 
     ALTER TABLE public.decision_history
-        ADD COLUMN event_time TIMESTAMPTZ;
-
+        ADD COLUMN IF NOT EXISTS event_time TIMESTAMPTZ NOT NULL DEFAULT now();
     UPDATE public.decision_history
-    SET event_time = created_at
-    WHERE event_time IS NULL;
-
-    ALTER TABLE public.decision_history
-        ALTER COLUMN event_time SET NOT NULL;
+        SET event_time = created_at WHERE event_time IS NULL;
     """)
 
 
