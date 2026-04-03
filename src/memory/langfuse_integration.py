@@ -1,14 +1,40 @@
 """Langfuse integration — trace LLM calls with local DB backup.
 
-Uses Langfuse SDK when available, falls back to local-only recording.
+Uses Langfuse SDK when available AND config/langfuse/langfuse_config.yaml
+has ``langfuse.enabled: true``.  Falls back to local-only recording.
 Every trace is ALSO written to llm_traces table for offline audit.
+
+GAP-20 fix: reads langfuse_config.yaml in __init__ — if enabled=false,
+_langfuse_client is forced to None regardless of SDK availability.
 """
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
+
+logger = logging.getLogger(__name__)
+
+_CONFIG_PATH = (
+    Path(__file__).parent.parent.parent / "config" / "langfuse" / "langfuse_config.yaml"
+)
+
+
+def _read_langfuse_enabled() -> bool:
+    """Return True only if config/langfuse/langfuse_config.yaml has langfuse.enabled: true."""
+    try:
+        import yaml  # type: ignore[import-untyped]
+
+        data = yaml.safe_load(_CONFIG_PATH.read_text(encoding="utf-8"))
+        return bool((data or {}).get("langfuse", {}).get("enabled", False))
+    except Exception as exc:
+        logger.warning(
+            "LangfuseIntegration: could not read langfuse_config.yaml: %s", exc
+        )
+        return False
 
 
 @runtime_checkable
@@ -56,12 +82,18 @@ class LangfuseIntegration:
     def __init__(self, conn_factory: Callable[[], _ConnectionProtocol]) -> None:
         self._conn_factory = conn_factory
         self._langfuse_client: Any = None
-        try:
-            from langfuse import Langfuse
+        if _read_langfuse_enabled():
+            try:
+                from langfuse import Langfuse
 
-            self._langfuse_client = Langfuse()
-        except (ImportError, Exception):
-            pass
+                self._langfuse_client = Langfuse()
+                logger.info("LangfuseIntegration: Langfuse client initialized.")
+            except (ImportError, Exception) as exc:
+                logger.warning("LangfuseIntegration: Langfuse SDK unavailable: %s", exc)
+        else:
+            logger.debug(
+                "LangfuseIntegration: Langfuse disabled (config: enabled=false)."
+            )
 
     def record_trace(self, record: LLMTraceRecord) -> str | None:
         import json as _json

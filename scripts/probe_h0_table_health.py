@@ -118,6 +118,9 @@ def probe_memory_entries(conn) -> dict:
 
 
 def main() -> None:
+    # GAP-25: strict mode — WARN exits with code 2 when PROBE_STRICT=1 (CI default)
+    strict_mode = os.environ.get("PROBE_STRICT", "0") == "1"
+
     conn = _connect()
     results = []
     for probe_fn in [probe_decision_snapshots, probe_analysis_summaries, probe_memory_entries]:
@@ -130,17 +133,24 @@ def main() -> None:
     print("=" * 60)
     print("H0.5 — TABLE HEALTH PROBE")
     print(f"Date: {datetime.utcnow().isoformat()}Z")
+    if strict_mode:
+        print("Mode: STRICT (PROBE_STRICT=1) — WARN exits with code 2")
     print("=" * 60)
     for r in results:
         print(json.dumps(r, indent=2, default=str))
         print("-" * 40)
 
     statuses = [r["status"] for r in results]
+    warn_count = statuses.count("WARN")
+
     if "ERROR" in statuses:
         print("\nVERDICT: ERROR — some probes failed")
         sys.exit(2)
-    elif "WARN" in statuses:
-        print("\nVERDICT: WARN — anomalies detected, see report")
+    elif warn_count > 0:
+        print(f"\nVERDICT: WARN — {warn_count} anomalie(s) detected, see report")
+        if strict_mode:
+            print("STRICT MODE: exiting with code 2 (gate G0.5 FAIL)")
+            sys.exit(2)
         sys.exit(0)
     elif all(s == EMPTY for s in statuses):
         print("\nVERDICT: EMPTY — all tables empty (fresh DB or no pipeline runs)")

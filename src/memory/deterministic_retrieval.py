@@ -75,6 +75,8 @@ class DeterministicRetrieval:
             {"case_id": case_id, "etype": _ENTRY_TYPE, "limit": limit},
         )
         rows = conn.fetchall()
+        from src.memory.retrieval_models import SimilarCaseResult
+
         results: list[dict[str, Any]] = []
         for r in rows:
             raw = r.get("content_json")
@@ -85,13 +87,12 @@ class DeterministicRetrieval:
             fw = str(raw.get("framework_detected", "") or "")
             fam = str(raw.get("procurement_family", "") or "")
             score = float(r.get("similarity_score") or 0.0)
-            results.append(
-                {
-                    "case_id": str(r["case_id"]),
-                    "similarity_score": score,
-                    "framework": fw,
-                    "procurement_family": fam,
-                    "summary": raw,
-                }
+            validated = SimilarCaseResult(
+                case_id=str(r["case_id"]),
+                similarity_score=score,
+                framework=fw,
+                procurement_family=fam,
+                summary=raw,
             )
+            results.append(validated.model_dump())
         return results

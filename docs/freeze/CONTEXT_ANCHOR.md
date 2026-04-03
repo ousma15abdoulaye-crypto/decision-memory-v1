@@ -1160,3 +1160,95 @@ Voir diff GitHub PR #276 pour liste exhaustive ; points d’ancrage code : `src/
 - **Railway** : tête code **059** ; prod à appliquer via runbook lorsque le GO est donné.
 
 ---
+
+## ADDENDUM 2026-04-03 — DMS VIVANT V2 (PR #300 — feat/dms-vivant-v2-architecture) — AUDIT CTO CORRECTIONS C-1→C-5
+
+**Autorité :** mandat CTO — plan DMS VIVANT V2 FREEZE + audit correction 26 gaps critiques.  
+**Statut :** branche `feat/dms-vivant-v2-architecture` — PR #300 en cours de revue.
+
+### Alembic — Nouveau Head
+
+```
+head dépôt (branche feat/dms-vivant-v2-architecture) : 066_bridge_triggers
+head Railway prod                                     : 058_m13_correction_log_case_id_index (inchangé — migrations pending)
+migrations pending Railway                            : 059 → 060 → 061 → 062 → 063 → 064 → 065 → 066
+```
+
+**Chaîne complète :**
+```
+044→045→046→046b→047→048→049→050→051→052→053→054→055→056→057→058
+→059→060→061→062→063→064→065→066
+```
+
+| Migration | Contenu |
+|-----------|---------|
+| 059 | score_history + elimination_log (M14, append-only, RLS) |
+| 060 | trigger auto-refresh market_coverage matview |
+| 061 | dms_event_index (partitioned, append-only, 7 indexes) |
+| 062 | colonnes bitemporal event_time sur m12_correction_log, decision_snapshots, market_signals_v2, decision_history |
+| 063 | candidate_rules + rule_promotions (proposed→approved→applied) |
+| 064 | dms_embeddings (vector(1024) dense + JSONB sparse) — requiert pgvector |
+| 065 | llm_traces (LLM observabilité locale, Langfuse backup) |
+| 066 | bridge triggers 11 sources → dms_event_index + partition DEFAULT |
+
+### Nouvelles Tables VIVANT V2
+
+| Table | Schéma | Owner | Horizon |
+|-------|--------|-------|---------|
+| `dms_event_index` | public (partitioned) | event_index_service | H2 |
+| `candidate_rules` | public | candidate_rule_service | H2 |
+| `rule_promotions` | public | learning_console | H2 |
+| `dms_embeddings` | public | embedding_service | H3 |
+| `llm_traces` | public | langfuse_integration | H3 |
+
+### Nouvelles Erreurs Capitalisées
+
+**E-83** (2026-04-03) : **Scope confidence `{0.6, 0.8, 1.0}`** — Cette règle s'applique UNIQUEMENT aux champs d'extraction documentaire (`TracedField.confidence`, `ExtractionField.confidence`, `DMSExtractionResult`). Les scores internes RAG (`RAGResult.confidence`), patterns (`PatternDetector._cluster_confidence()`), et mémoire (`CaseMemoryEntry.framework_confidence`) sont des floats continus documentés comme tels. Voir `ADR-CONFIDENCE-SCOPE-001`. Ne jamais appliquer la contrainte `{0.6, 0.8, 1.0}` aux scores internes non-extraction.
+
+### Nouvelles Dépendances (RÈGLE-13)
+
+| Package | Version | ADR | Usage |
+|---------|---------|-----|-------|
+| `arq` | 0.26.1 | ADR-H2-ARQ-001 | Background job queue (Redis) |
+| `langfuse` | >=2.0.0 | ADR-H3-LANGFUSE-001 | LLM observabilité |
+| `FlagEmbedding` | >=1.2.5 | ADR-H3-BGE-M3-001 | Embeddings locaux BGE-M3 |
+| `ragas` | >=0.1.0 | (ADR-RAGAS-001 à créer) | Évaluation RAG |
+
+### Nouveaux Modules src/
+
+```
+src/memory/      : event_index_models, event_index_service, pattern_models, pattern_detector,
+                   candidate_rule_generator, candidate_rule_service, deterministic_retrieval,
+                   retrieval_models, chunker_models, chunker, embedding_models, embedding_service,
+                   reranker, rag_models, rag_service, langfuse_integration, calibration_models,
+                   auto_calibrator, calibration_service
+src/workers/     : arq_config, arq_tasks
+src/agents/      : tools/tool_manifest, tools/regulatory_tools
+src/evals/       : ragas_evaluator, golden_dataset_loader
+src/api/views/   : case_timeline, case_timeline_models, market_memory_card, market_memory_models,
+                   learning_console, learning_console_models
+src/db/          : cursor_adapter (PsycopgCursorAdapter — :name → %(name)s translation)
+```
+
+### Nouveaux Scripts ops/
+
+```
+scripts/manage_event_index_partitions.py  : partitions semestrielles dms_event_index
+scripts/create_ivfflat_index.py           : index IVFFlat après premier batch embeddings
+scripts/ingest_embeddings.py              : chunker + embed + INSERT dms_embeddings
+scripts/probe_h0_table_health.py          : health check H0 (exit strict si warn_count > 0)
+scripts/probe_m13_h0_gates.py             : gates H0 M13
+```
+
+### Docs ops/
+
+```
+docs/ops/embeddings_index_runbook.md     : IVFFlat runbook complet
+docs/ops/deployment.md                   : entrypoint Railway canonique (main.py root)
+docs/adr/ADR-H2-ARQ-001.md
+docs/adr/ADR-H3-LANGFUSE-001.md
+docs/adr/ADR-H3-BGE-M3-001.md
+docs/adr/ADR-CONFIDENCE-SCOPE-001.md
+```
+
+---

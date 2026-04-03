@@ -3,11 +3,13 @@
 INVARIANTS (V2 Plan):
 - confidence ALWAYS <= 0.70 (capped)
 - review_required ALWAYS True
-- Uses EmbeddingService + Reranker + DeterministicRetrieval as fallback
+- find_similar_hybrid(): dense cosine + sparse BM25-style fusion (GAP-10)
+- EmbeddingService + Reranker + DeterministicRetrieval as fallback
 """
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from typing import Any, Protocol, runtime_checkable
 
@@ -16,6 +18,7 @@ from src.memory.rag_models import RAGResult
 from src.memory.reranker import Reranker
 
 _MAX_RAG_CONFIDENCE = 0.70
+_DENSE_CANDIDATE_MULTIPLIER = 3  # fetch N*3 dense candidates for reranking with sparse
 
 
 @runtime_checkable
@@ -27,12 +30,39 @@ class _ConnectionProtocol(Protocol):
     def fetchall(self) -> list[dict[str, Any]]: ...
 
 
-_SEARCH_SQL = """
-    SELECT chunk_text, 1 - (embedding_dense <=> :query_vec::vector) AS similarity
+# Dense-only retrieval (first pass candidates)
+_DENSE_SEARCH_SQL = """
+    SELECT
+        id::text             AS id,
+        chunk_text,
+        embedding_sparse,
+        1 - (embedding_dense <=> :query_vec::vector) AS dense_similarity
     FROM dms_embeddings
     ORDER BY embedding_dense <=> :query_vec::vector
     LIMIT :limit
 """
+
+
+def _sparse_dot_product(
+    query_sparse: dict[str, float], doc_sparse: dict[str, float]
+) -> float:
+    """BM25-style dot product between query and document sparse vectors."""
+    if not query_sparse or not doc_sparse:
+        return 0.0
+    score = 0.0
+    for token, qw in query_sparse.items():
+        dw = doc_sparse.get(token, 0.0)
+        score += qw * dw
+    return score
+
+
+def _hybrid_score(
+    dense_sim: float,
+    sparse_sim: float,
+    alpha: float = 0.7,
+) -> float:
+    """Weighted combination: alpha * dense + (1-alpha) * sparse."""
+    return alpha * dense_sim + (1.0 - alpha) * sparse_sim
 
 
 class RAGService:
@@ -49,15 +79,74 @@ class RAGService:
         self._reranker = reranker or Reranker()
 
     def find_similar_hybrid(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
+        """Hybrid dense + sparse retrieval with cross-encoder reranking.
+
+        1. Embed query (dense + sparse via BGE-M3 or stub).
+        2. Fetch top N*3 candidates by dense similarity.
+        3. Rescore each candidate by hybrid score (dense + sparse dot product).
+        4. Cross-encoder rerank top-K for final ordering.
+        """
         emb = self._embedding.embed_query(query)
         vec_str = "[" + ",".join(str(v) for v in emb.dense) + "]"
+        query_sparse = emb.sparse
+
         conn = self._conn_factory()
-        conn.execute(_SEARCH_SQL, {"query_vec": vec_str, "limit": limit})
+        conn.execute(
+            _DENSE_SEARCH_SQL,
+            {"query_vec": vec_str, "limit": limit * _DENSE_CANDIDATE_MULTIPLIER},
+        )
         rows = conn.fetchall()
-        passages = [str(r.get("chunk_text", "")) for r in rows]
-        reranked = self._reranker.rerank(query, passages)
+
+        # Rescore with hybrid fusion
+        candidates: list[dict[str, Any]] = []
+        for r in rows:
+            dense_sim = float(r.get("dense_similarity", 0.0) or 0.0)
+
+            # Parse sparse from JSONB (may be dict already or JSON string)
+            raw_sparse = r.get("embedding_sparse") or {}
+            if isinstance(raw_sparse, str):
+                try:
+                    raw_sparse = json.loads(raw_sparse)
+                except Exception:
+                    raw_sparse = {}
+            doc_sparse: dict[str, float] = {
+                str(k): float(v) for k, v in raw_sparse.items()
+            }
+
+            sparse_sim = _sparse_dot_product(query_sparse, doc_sparse)
+            # Normalize sparse (typical range 0-5, cap at 1.0)
+            sparse_sim_norm = min(sparse_sim / 5.0, 1.0) if sparse_sim > 0 else 0.0
+
+            hybrid = _hybrid_score(dense_sim, sparse_sim_norm)
+            candidates.append(
+                {
+                    "id": str(r.get("id", "")),
+                    "text": str(r.get("chunk_text", "")),
+                    "dense_similarity": dense_sim,
+                    "sparse_similarity": sparse_sim_norm,
+                    "hybrid_score": hybrid,
+                }
+            )
+
+        # Sort by hybrid score
+        candidates.sort(key=lambda x: x["hybrid_score"], reverse=True)
+        top_candidates = candidates[:limit]
+
+        # Cross-encoder rerank
+        passages = [c["text"] for c in top_candidates]
+        reranked = self._reranker.rerank(query, passages, top_k=limit)
+
         return [
-            {"text": rr.text, "score": rr.score, "original_rank": rr.original_rank}
+            {
+                "text": rr.text,
+                "score": rr.score,
+                "original_rank": rr.original_rank,
+                "hybrid_score": (
+                    top_candidates[rr.original_rank]["hybrid_score"]
+                    if rr.original_rank < len(top_candidates)
+                    else 0.0
+                ),
+            }
             for rr in reranked
         ]
 
