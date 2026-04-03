@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-02 (M14 correction A+B — routes dual-app, 059 audit, linking) ║
+║  Dernière mise à jour : 2026-04-03 (post-merge PR #297 — M14 correction A+B sur main) ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -1143,7 +1143,7 @@ Voir diff GitHub PR #276 pour liste exhaustive ; points d’ancrage code : `src/
 ### ADDENDUM court — M14 process linking + audit DB
 
 - **Process linking** : `process_linking_data` consommé dans `EvaluationEngine` ; flags `PROCESS_LINKING_ROLE_MISMATCH`, `PROCESS_LINKING_UNRESOLVED` ; doc `docs/adr/DMS-M14-ARCH-RECONCILIATION.md`.
-- **`save_m14_audit`** : après `save_evaluation`, écriture best-effort vers `score_history` / `elimination_log` (migration 059).
+- **`save_m14_audit`** : après `save_evaluation`, écriture non bloquante (journalisée) vers `score_history` / `elimination_log` (migration 059).
 
 ### Post-merge PR #295 — 2026-04-02
 
@@ -1152,5 +1152,11 @@ Voir diff GitHub PR #276 pour liste exhaustive ; points d’ancrage code : `src/
 - Copilot review : 9 commentaires résolus (committee_id FK lookup, completion ratio [0,1], weighted score calc, retry guard, ADR contract ref, process_role canonique)
 - CI finale 9/9 verte (lint, black, invariants, freeze, milestones, coverage, lint-and-test)
 - M14 = DONE — prochaine étape : taguer `v4.1.0-m14-done` (CTO)
+
+### Post-merge PR #297 — 2026-04-03 (main `7913d465`)
+
+- **PR #297 merged** : correction M14 A+B — routes `/api/m14` sur `main:app` et `src.api.main:app`, gate CI auth, migration **059** (`score_history`, `elimination_log`), process linking dans `m14_engine`, `save_m14_audit`, tests DB + INV-09 + revue Copilot (RLS session dans tests, `load_railway_env.ps1`).
+- **Branche** `feat/M14-correction-ab-routes-audit-059` supprimée après merge.
+- **Railway** : tête code **059** ; prod à appliquer via runbook lorsque le GO est donné.
 
 ---
