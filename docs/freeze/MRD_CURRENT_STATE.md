@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-04-03 — post-merge PR #300 (DMS VIVANT V2 — IA agentique native H0-H4)
+# Derniere mise a jour : 2026-04-03 — post-merge PR #301 (M15 Correction Gaps — 8 phases operationnelles)
 
 ---
 
@@ -30,13 +30,13 @@ freeze_hashes_doc     : docs/freeze/FREEZE_HASHES.md
 
 ## ETAT COURANT
 
-last_completed        : DMS VIVANT V2 — IA agentique native H0-H4 (PR #300 feat/dms-vivant-v2-architecture merged main)
+last_completed        : M15 Correction Gaps — 8 phases (PR #301 feat/m15-gaps-correction-plan squash merge main 2026-04-03)
 last_completed_at     : 2026-04-03
-last_merge_commit     : f54a0f00 (main — PR #300 feat/dms-vivant-v2-architecture — squash merge)
-last_tag              : v4.1.0-m12-done (DMS VIVANT V2 tag pending CTO : v4.1.0-dms-vivant-v2-done)
-next_milestone        : M15 / déploiement Railway DMS VIVANT V2 (migrations 060-067 + Railway apply)
-next_status           : EN ATTENTE — mandat CTO requis (apply migrations prod + secrets Railway)
-blocked_on            : apply migrations 060-067 prod Railway (GO CTO requis — runbook ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE)
+last_merge_commit     : 3aa1f509 (main — PR #301 feat/m15-gaps-correction-plan — squash merge)
+last_tag              : v4.1.0-m12-done (M15 tag pending CTO : v4.1.0-m15-ops-done)
+next_milestone        : M15 Phase active — run 100 dossiers DAO/RFQ avec métriques opposables
+next_status           : EN COURS — gates partiels (REGLE-23 KO — 0/50 validated, mercurials coverage 67%<70%)
+blocked_on            : sync 87 annotations locales → Railway (scripts/sync_annotations_local_to_railway.py) + bascule ANNOTATION_USE_PASS_ORCHESTRATOR=1 Railway Dashboard
 m13_prerequisites     : M12 Phase 3 PR #289 mergé ; ADR-M13-001 + Pass 2A + config/regulatory PR #292 ; migration 057 appliquée prod 2026-04-02 — persistance m13_* opérationnelle côté schéma ; secrets DB = .env.railway.local + with_railway_env.py (RAILWAY_LOCAL_ENV.md)
 m14_deliverables      : PR #295 (moteur + API) + PR #297 (dual-app, 059, linking, save_m14_audit, CI, gel) ; ADR-M14-001 + DMS-M14-ARCH-RECONCILIATION ; docs ops Railway (RAILWAY_LOCAL_ENV, with_railway_env)
 branch_courante       : main
@@ -61,15 +61,16 @@ branch_courante       : main
 | M13      | DONE   | (à taguer CTO) | 38733982 | 2026-04-02 | Regulatory Profile Engine V5 — Pass 2A, config/regulatory YAML, migration 057+058, ADR-M13-001 |
 | M14      | DONE   | (à taguer CTO) | 7913d465 | 2026-04-03 | M14 + correction A+B — PR #297 : dual-app /api/m14, 059 audit, process linking, save_m14_audit, tests + INV-09 |
 | DMS V2   | DONE   | (à taguer CTO) | f54a0f00 | 2026-04-03 | DMS VIVANT V2 IA agentique native — PR #300 : H0 (060-067), H1 EventIndex+bridge, H2 PatternDetector+ARQ, H3 RAG+embeddings+langfuse+RAGAS, H4 API views + agent tools — CI 9/9 ✓ |
+| M15 ops  | DONE   | (à taguer CTO) | 3aa1f509 | 2026-04-03 | M15 Correction Gaps 8 phases — PR #301 : probe Railway, migrations 059→067, sync annotations, mercurials coverage, 100 items validés, RLS, DR, métriques — CI 9/9 ✓ |
 
 ---
 
 ## ÉTAT ALEMBIC — MIS À JOUR 2026-04-03 (dépôt ; prod = après apply 059)
 
 local_alembic_head       : 067_fix_market_coverage_trigger
-railway_alembic_head     : 058_m13_correction_log_case_id_index (cible post-mandat : 059 puis 060-067)
-migrations_pending_railway: 059 → 060 → 061 → 062 → 063 → 064 → 065 → 066 → 067 — appliquer via runbook Railway (GO CTO)
-last_sync_railway        : 2026-04-02 — 057–058 prod ; 059-067 = déploiement suivant (GO CTO)
+railway_alembic_head     : 067_fix_market_coverage_trigger (migrations 059→067 appliquées M15 Phase 1 — 2026-04-03)
+migrations_pending_railway: AUCUNE — dépôt et Railway prod alignés sur 067
+last_sync_railway        : 2026-04-03 — 059→067 appliquées séquentiellement via apply_railway_migrations_safe.py (M15 Phase 1)
 last_updated             : 2026-04-03
 updated_by               : apply_railway_migrations_safe.py --apply via python scripts/with_railway_env.py (charge .env.railway.local)
 audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
@@ -181,6 +182,72 @@ probe_alembic_head       : 058_m13_correction_log_case_id_index
   adr_refs               : ADR-H2-ARQ-001, ADR-H3-LANGFUSE-001, ADR-H3-BGE-M3-001, ADR-CONFIDENCE-SCOPE-001
   freeze_ref             : docs/freeze/DMS_VIVANT_V2_FREEZE.md
   sovereignty_matrix     : docs/freeze/DMS_ARTIFACT_SOVEREIGNTY_MATRIX.yaml + .md
+
+## M15 — CORRECTION GAPS OPERATIONNELS (merge 2026-04-03)
+
+  pr_merge               : PR #301 — feat/m15-gaps-correction-plan → main (squash merge 3aa1f509)
+  ci_result              : 9/9 SUCCESS
+  copilot_comments       : 12 résolus (SQL injection, secret, docstrings, rowcount, URL guard, CSV newlines)
+
+  Phase 0 — Probe Railway :
+    script               : scripts/probe_railway_full.py
+    rapport              : docs/PROBE_2026_04_03.md + docs/PROBE_2026_04_03_post_migration.md
+    resultats            : voir section "PROBE RAILWAY 2026-04-03" ci-dessus
+
+  Phase 1 — Migrations 059→067 Railway :
+    script               : scripts/apply_railway_migrations_safe.py --apply
+    resultats            : 9 migrations appliquées séquentiellement
+    head_railway_post    : 067_fix_market_coverage_trigger (aligné dépôt)
+    tables_V2_creees     : dms_event_index, llm_traces, candidate_rules, dms_embeddings, bridge_triggers
+
+  Phase 2 — Sync annotations :
+    script               : scripts/sync_annotations_local_to_railway.py
+    statut               : script livré — 87 annotations locales NON ENCORE synchronisées (LOCAL_DATABASE_URL requis)
+    gate_regle23         : ROUGE — 0 validated Railway < 50 requis
+    action_requise       : CTO exécuter sync avec LOCAL_DATABASE_URL configuré
+
+  Phase 3 — Signal Engine :
+    script_coverage      : scripts/probe_mercurials_coverage.py
+    coverage_actuelle    : 67.38% (1004/1490 items mappés)
+    seuil_m15            : 70% — ORANGE (44 items manquants)
+    export               : docs/data/unmapped_items.csv (200 items pour mapping manuel)
+    signal_quality       : strong+moderate = 90.43% — VERT (gate >= 40% atteint)
+    adr                  : docs/adr/ADR-SIGNAL-TRIGGER-001.md (trigger ARQ post-ingestion)
+
+  Phase 4 — Validation dictionnaire :
+    script               : scripts/validate_dict_items.py
+    input                : docs/data/dict_top100_to_validate.csv
+    resultats            : 100 items label_status=validated ✓ — gate M15-I2 VERT
+
+  Phase 5 — Orchestrateur M12 :
+    statut               : ANNOTATION_USE_PASS_ORCHESTRATOR=1 NON ACTIVÉ
+    action_requise       : CTO basculer via Railway Dashboard (fenêtre hors session annotation)
+
+  Phase 6 — Isolation tenant / RLS :
+    resultats            : 12 politiques RLS actives — VERT
+    verification         : pg_policies Railway (2026-04-03)
+
+  Phase 7 — Disaster Recovery :
+    doc                  : docs/ops/DISASTER_RECOVERY.md
+    statut               : procédures documentées (backup, RTO, RPO, restore)
+
+  Phase 8 — Métriques M15 :
+    script               : scripts/measure_m15_metrics.py
+    rapport              : docs/reports/M15_METRICS.md
+
+  Gates M15 post-PR #301 :
+    C1 coverage_extraction   : 0%    — ROUGE (aucun dossier traité)
+    C2 unresolved_rate       : 100%  — ROUGE (0 decisions / 12 snapshots)
+    C3 vendor_match_rate     : 0%    — ROUGE (market_surveys sans vendor_id)
+    C4 review_queue_rate     : 100%  — ROUGE (0 validated / 87 annotations)
+    C5 signal_quality_cov    : 5.5%  — ORANGE (82/1490 items avec signal)
+    C6 drift_by_category     : N/A   — données insuffisantes
+    M15-I2 dict validated    : 100/1490 — VERT (gate 100 atteint)
+    REGLE-23                 : 0/50  — ROUGE (gate bloquant)
+
+  erreurs_capitalisees     : E-88 (SQL injection f-string), E-89 (secret commité), E-90 (schéma non vérifié), E-91 (audit_log prev_hash NOT NULL)
+
+---
 
 ## STACK ALEMBIC (legacy)
 
