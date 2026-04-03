@@ -77,15 +77,21 @@ railway variables
 
 Repérer `DATABASE_URL` (ou la variable que vous exposez pour la DB). Ne pas coller l’URL dans le chat ni dans un commit.
 
-### B — Fichier local non versionné
+### B — Fichier local dédié Railway (recommandé pour les scripts prod DB)
 
-Créer ou éditer **`.env.local`** (déjà ignoré par Git si configuré dans le projet) :
+Éviter de mélanger `DATABASE_URL` (Postgres local dev) et l’URL Railway dans le même fichier :
 
-```env
-RAILWAY_DATABASE_URL=postgresql+psycopg://...
+1. Copier **`.env.railway.local.example`** → **`.env.railway.local`** (ignoré par Git — voir [RAILWAY_LOCAL_ENV.md](RAILWAY_LOCAL_ENV.md)).
+2. Y mettre **`RAILWAY_DATABASE_URL`** (URL **publique** / proxy, pas `*.railway.internal`).
+3. Dans chaque session PowerShell avant les scripts :
+
+```powershell
+. .\scripts\load_railway_env.ps1
 ```
 
-Puis lancer les scripts Python depuis le même shell ou avec chargement explicite de `.env.local` selon votre habitude.
+### C — `.env.local` (dev général)
+
+On peut aussi définir **`RAILWAY_DATABASE_URL`** dans **`.env.local`** si vous chargez vous-même les variables ; le dépôt ne charge pas automatiquement `.env.local` pour les scripts Alembic — préférer **B** pour les migrations prod.
 
 ## 4. Commandes utiles après liaison
 

@@ -28,6 +28,7 @@
 | Committee | `/committee/...` | POST, DELETE | `get_current_user` | Conn + user |
 | Criteria | `/cases/{case_id}/criteria/...` | POST, DELETE | `get_current_user` + `require_case_tenant_org` | Tenant org |
 | Scoring | `/api/scoring/calculate` | POST | `get_current_user` | Retourne **501** (volontaire) |
+| M14 | `/api/m14/status`, `/api/m14/evaluate`, `/api/m14/evaluations/{case_id}` | GET, POST | `get_current_user` | Case / évaluation — voir `src/api/routes/evaluation.py` |
 | Pipeline A | `/api/cases/{case_id}/pipeline/a/run` | POST | `require_case_access_dep` + `apply_rls_session_vars_to_connection` | Monté si import OK |
 | Mercuriale / price_check / geo / vendors | selon router | POST | Vérifier fichier | Optionnels |
 

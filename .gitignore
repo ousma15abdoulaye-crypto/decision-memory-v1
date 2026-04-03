@@ -67,6 +67,7 @@ ENV/
 .env.*
 !.env.example
 !.env.docker.example
+!.env.railway.local.example
 .env.local
 .env.*.local
 

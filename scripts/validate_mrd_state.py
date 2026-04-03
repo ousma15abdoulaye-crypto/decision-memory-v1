@@ -600,6 +600,7 @@ _KNOWN_MIGRATION_CHAIN: list[str] = [
     "056_evaluation_documents",
     "057_m13_regulatory_profile_and_correction_log",
     "058_m13_correction_log_case_id_index",
+    "059_m14_score_history_elimination_log",
 ]
 
 

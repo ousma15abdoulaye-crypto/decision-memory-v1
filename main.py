@@ -213,6 +213,16 @@ except ImportError as _e:
         "[main] router optionnel src.couche_a.analysis_summary non chargé : %s", _e
     )
 
+_m14_evaluation_router = None
+try:
+    from src.api.routes.evaluation import router as _m14_evaluation_router_imp
+
+    _m14_evaluation_router = _m14_evaluation_router_imp
+except ImportError as _e:
+    logging.getLogger(__name__).warning(
+        "[main] router optionnel src.api.routes.evaluation (M14) non chargé : %s", _e
+    )
+
 for _opt_router in [
     _geo_router,
     _vendors_router,
@@ -220,6 +230,7 @@ for _opt_router in [
     _price_check_router,
     _pipeline_a_router,
     _analysis_summary_router,
+    _m14_evaluation_router,
 ]:
     if _opt_router is not None:
         app.include_router(_opt_router)

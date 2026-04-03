@@ -1,8 +1,8 @@
 # M12 → M14 Handoff Contract
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 **Emis par:** M12 Pass 1C (conformity + handoffs)
-**Consomme par:** M14 — Evaluation Pipeline (PLAN — non implémenté)
+**Consomme par:** M14 — Evaluation Engine V1 (implémenté — ADR-M14-001, `m14_engine.py`)
 **Autorite:** Plan Directeur DMS V4.1 — CONTEXT_ANCHOR.md
 
 ---
@@ -141,4 +141,4 @@ Le `process_role` de chaque document (Pass 1D) détermine son rôle dans l'éval
 
 ## Milestone
 
-M14 : PLAN — implémentation après M13 DoD validé (RÈGLE-01 — RÈGLE-29 séquence).
+M14 : **DONE** — moteur + API `/api/m14/` + persistance (`evaluation_documents`, audit `059` — `score_history` / `elimination_log`). Réf. `docs/adr/ADR-M14-001_evaluation_engine.md`, `docs/adr/DMS-M14-ARCH-RECONCILIATION.md`.
