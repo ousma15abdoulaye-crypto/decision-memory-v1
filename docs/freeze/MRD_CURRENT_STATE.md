@@ -76,6 +76,45 @@ audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
 railway_sync_governance  : docs/adr/ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE.md
 evaluation_documents     : migration 056 — consommée par M14 EvaluationEngine (m14_evaluation_repository.py) ; m13_* tables (057+058 déployées prod).
 
+---
+
+## PROBE RAILWAY — 2026-04-03 (Phase 0 M15)
+
+probe_script             : scripts/probe_railway_full.py
+probe_date               : 2026-04-03T15:38:49Z
+probe_target             : maglev.proxy.rlwy.net:35451
+probe_alembic_head       : 058_m13_correction_log_case_id_index
+
+### Resultats probe
+
+| ID | Metrique | Valeur | Statut |
+|---|---|---|---|
+| P1 | procurement_dict_items — draft | 1490 | ORANGE — 0 validated |
+| P2 | mercurials_item_map coverage | 67.38% (1004/1490) | ORANGE — seuil 70% |
+| P3 | market_signals_v2 strong+moderate | 90.43% (1002/1108) | VERT |
+| P4 | market_surveys count | 21850 (2023-06-01 → 2026-06-01) | VERT |
+| P5 | zone_context_registry count | 21 | VERT |
+| P6 | annotation_registry validated | 0 (87 locales à sync) | ORANGE — REGLE-23 KO |
+| P7 | decision_snapshots count | 12 | VERT |
+| P8 | public.llm_traces | ABSENTE — migration 065 pending | BLEU |
+| P9 | public.dms_event_index | ABSENTE — migration 061 pending | BLEU |
+
+### Gates M15 post-probe
+
+| Gate | Critere | Seuil | Etat |
+|---|---|---|---|
+| REGLE-23 | annotation_registry.is_validated | >= 50 | ROUGE |
+| M15-C3 | strong+moderate signal_quality | >= 40% | VERT |
+| M15-I2 | procurement_dict_items validated | >= 100 | ROUGE |
+| Phase-3 | mercurials_item_map coverage | >= 70% | ROUGE (67.38%) |
+
+### Actions bloquantes
+
+1. Phase 1 : appliquer migrations 059→067 (P8/P9 PENDING_MIGRATION)
+2. Phase 2 : synchroniser 87 annotations locales (P6 REGLE-23 KO)
+3. Phase 4 : valider 100 items dict (P1 tous draft)
+4. Phase 3.1b : mapper ~44 items manquants pour atteindre 70% coverage
+
 ## MANDAT 4 — EXTRACTION RÉELLE (2026-03-17)
   merge_commit            : 87942a3 (PR#215)
   tag                     : v4.1.0-pre-m12-extraction-reelle-done

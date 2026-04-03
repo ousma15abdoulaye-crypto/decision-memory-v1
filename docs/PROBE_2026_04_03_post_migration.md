@@ -1,0 +1,104 @@
+# Probe Railway Full — Phase 0 M15
+
+**Date :** 2026-04-03T15:42:03Z
+**Cible :** `maglev.proxy.rlwy.net:35451`
+**Script :** `scripts/probe_railway_full.py`
+**Mode :** lecture seule (`autocommit=True`)
+
+---
+
+## Resume executif
+
+| ID | Libelle | Statut |
+|---|---|---|
+| P1 | Dict items par label_status | ORANGE |
+| P2 | Couverture mercurials_item_map | ORANGE |
+| P3 | Distribution signal_quality market_signals_v2 | VERT |
+| P4 | Market surveys | VERT |
+| P5 | Zone context registry | VERT |
+| P6 | Annotations (annotation_registry + documents) | ORANGE |
+| P7 | Decision snapshots (feedback M14) | VERT |
+| P8 | LLM traces (migration 065) | VERT |
+| P9 | DMS event index (migration 061) | VERT |
+
+---
+
+## Details par probe
+
+### P1 — Dict items par label_status
+- **Statut :** `WARN`
+- **draft :** `1490`
+- **Note :** Gate M15 : 100 validated requis — actuellement 0
+
+### P2 — Couverture mercurials_item_map
+- **Statut :** `WARN`
+- **items_mapped :** `1004`
+- **items_total :** `1490`
+- **coverage_pct :** `67.38`
+- **Note :** Gate signal engine : coverage >= 70% — actuellement 67.38%
+
+### P3 — Distribution signal_quality market_signals_v2
+- **Statut :** `OK`
+- **distribution :** `{'moderate': 916, 'propagated': 106, 'strong': 86}`
+- **total :** `1108`
+- **strong_moderate_pct :** `90.43`
+- **Note :** Gate M15 : strong+moderate >= 40% — actuellement 90.43%
+
+### P4 — Market surveys
+- **Statut :** `OK`
+- **count :** `21850`
+- **min_date :** `2023-06-01`
+- **max_date :** `2026-06-01`
+- **Note :** FormulaV11 poids 0.35 pour market_survey — vide = signal faible
+
+### P5 — Zone context registry
+- **Statut :** `OK`
+- **count :** `21`
+- **Note :** Requis pour ajustements IPC saisonniers FormulaV11
+
+### P6 — Annotations (annotation_registry + documents)
+- **Statut :** `WARN`
+- **annotation_registry_total :** `0`
+- **annotation_registry_validated :** `0`
+- **documents_pending_extraction :** `25`
+- **gate_50_rempli :** `False`
+- **Note :** Gate REGLE-23 : is_validated >= 50 — actuellement 0. 87 annotations locales a synchroniser via Phase 2.
+
+### P7 — Decision snapshots (feedback M14)
+- **Statut :** `OK`
+- **count :** `12`
+- **Note :** FormulaV11 poids 0.15 pour decision_history
+
+### P8 — LLM traces (migration 065)
+- **Statut :** `OK`
+- **count :** `0`
+- **Note :** Migration 065 deja appliquee
+
+### P9 — DMS event index (migration 061)
+- **Statut :** `OK`
+- **count :** `0`
+- **Note :** Migration 061 deja appliquee
+
+---
+
+## Gates M15
+
+| Gate | Critere | Seuil | Etat |
+|---|---|---|---|
+| REGLE-23 | annotation_registry.is_validated | >= 50 | ROUGE |
+| M15-C3 | strong+moderate signal_quality | >= 40% | VERT |
+| M15-I2 | procurement_dict_items.validated | >= 100 | ROUGE |
+| Phase-3 | mercurials_item_map coverage | >= 70% | ROUGE |
+
+---
+
+## Actions requises (Phase 1)
+
+1. **Appliquer migrations 059→067** : `python scripts/with_railway_env.py python scripts/apply_railway_migrations_safe.py --apply`
+2. **Synchroniser 87 annotations locales** : Phase 2 — `scripts/sync_annotations_local_to_railway.py`
+3. **Valider top 100 dict items** : Phase 4 — `scripts/validate_dict_items.py`
+4. **Mapping mercurials 67% → 70%** : Phase 3.1b — exporter `unmapped_items.csv`
+
+---
+
+*Genere automatiquement par `scripts/probe_railway_full.py`*
