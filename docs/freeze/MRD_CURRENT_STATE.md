@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-04-02 — M14 correction A+B (059, linking, dual-app, gel)
+# Derniere mise a jour : 2026-04-03 — post-merge PR #297 (M14 correction A+B — gel aligné main)
 
 ---
 
@@ -30,15 +30,15 @@ freeze_hashes_doc     : docs/freeze/FREEZE_HASHES.md
 
 ## ETAT COURANT
 
-last_completed        : M14 (Evaluation Engine V1 — PR #295 merged)
-last_completed_at     : 2026-04-02
-last_merge_commit     : 771ba8d1 (main — PR #295 feat/M14-evaluation-engine)
+last_completed        : M14 (Evaluation Engine + correction A+B — PR #295 puis PR #297 merged main)
+last_completed_at     : 2026-04-03
+last_merge_commit     : 7913d465 (main — PR #297 feat/M14-correction-ab-routes-audit-059)
 last_tag              : v4.1.0-m12-done (M14 tag pending CTO : v4.1.0-m14-done)
 next_milestone        : M15 (à définir CTO)
 next_status           : EN ATTENTE — mandat CTO requis
 blocked_on            : (vide)
 m13_prerequisites     : M12 Phase 3 PR #289 mergé ; ADR-M13-001 + Pass 2A + config/regulatory PR #292 ; migration 057 appliquée prod 2026-04-02 — persistance m13_* opérationnelle côté schéma ; secrets DB = .env.railway.local + with_railway_env.py (RAILWAY_LOCAL_ENV.md)
-m14_deliverables      : PR #295 + correction A+B ; ADR-M14-001 + DMS-M14-ARCH-RECONCILIATION ; m14_engine (process linking) + repository + save_m14_audit ; migration 059 ; routes dual-app + CI /api/m14 ; tests fumée + DB audit
+m14_deliverables      : PR #295 (moteur + API) + PR #297 (dual-app, 059, linking, save_m14_audit, CI, gel) ; ADR-M14-001 + DMS-M14-ARCH-RECONCILIATION ; docs ops Railway (RAILWAY_LOCAL_ENV, with_railway_env)
 branch_courante       : main
 
 ---
@@ -59,17 +59,17 @@ branch_courante       : main
 | M9       | -      | -            | -       | -          | market_signals + formule V1.1               |
 | M12      | DONE   | v4.1.0-m12-done | bde8378 | 2026-03-26 | Procedure Recognizer — passes 0 / 0.5 / 1, FSM, corpus Cloudflare R2, export JSONL calibration |
 | M13      | DONE   | (à taguer CTO) | 38733982 | 2026-04-02 | Regulatory Profile Engine V5 — Pass 2A, config/regulatory YAML, migration 057+058, ADR-M13-001 |
-| M14      | DONE   | (à taguer CTO) | 771ba8d1 | 2026-04-02 | Evaluation Engine V1 — ADR-M14-001, m14_engine, models, repository, API /api/m14/, 26 tests, CI 9/9 |
+| M14      | DONE   | (à taguer CTO) | 7913d465 | 2026-04-03 | M14 + correction A+B — PR #297 : dual-app /api/m14, 059 audit, process linking, save_m14_audit, tests + INV-09 |
 
 ---
 
-## ÉTAT ALEMBIC — MIS À JOUR 2026-04-02 (dépôt ; prod = après apply 059)
+## ÉTAT ALEMBIC — MIS À JOUR 2026-04-03 (dépôt ; prod = après apply 059)
 
 local_alembic_head       : 059_m14_score_history_elimination_log
 railway_alembic_head     : 058_m13_correction_log_case_id_index (cible post-mandat : 059)
 migrations_pending_railway: 059_m14_score_history_elimination_log — appliquer via runbook Railway
-last_sync_railway        : 2026-04-02 — 057–058 prod ; 059 = déploiement suivant (GO CTO)
-last_updated             : 2026-04-02
+last_sync_railway        : 2026-04-02 — 057–058 prod ; 059 = déploiement suivant (GO CTO) — code main inclut 059 depuis PR #297
+last_updated             : 2026-04-03
 updated_by               : apply_railway_migrations_safe.py --apply via python scripts/with_railway_env.py (charge .env.railway.local)
 audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
 railway_sync_governance  : docs/adr/ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE.md
