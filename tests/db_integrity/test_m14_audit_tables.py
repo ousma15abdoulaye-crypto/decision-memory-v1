@@ -46,6 +46,8 @@ class TestM14AuditTables:
             if row is None:
                 pytest.skip("aucun case en base")
             case_id = row[0] if isinstance(row, tuple) else row["id"]
+            # RLS FORCE : même superuser — aligner le test sur le trigger append-only
+            cur.execute("SELECT set_config('app.is_admin', 'true', true)")
             cur.execute(
                 """
                 INSERT INTO public.score_history (
@@ -60,6 +62,7 @@ class TestM14AuditTables:
             pk = rid[0] if isinstance(rid, tuple) else rid["id"]
         with pytest.raises(Exception) as exc:
             with db_conn.cursor() as cur:
+                cur.execute("SELECT set_config('app.is_admin', 'true', true)")
                 cur.execute(
                     "UPDATE public.score_history SET confidence = 1.0 WHERE id = %s",
                     (pk,),
@@ -80,6 +83,7 @@ class TestM14AuditTables:
             if row is None:
                 pytest.skip("aucun case en base")
             case_id = row[0] if isinstance(row, tuple) else row["id"]
+            cur.execute("SELECT set_config('app.is_admin', 'true', true)")
             cur.execute(
                 """
                 INSERT INTO public.elimination_log (
@@ -93,6 +97,7 @@ class TestM14AuditTables:
             pk = rid[0] if isinstance(rid, tuple) else rid["id"]
         with pytest.raises(Exception) as exc:
             with db_conn.cursor() as cur:
+                cur.execute("SELECT set_config('app.is_admin', 'true', true)")
                 cur.execute(
                     "DELETE FROM public.elimination_log WHERE id = %s",
                     (pk,),

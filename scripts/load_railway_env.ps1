@@ -11,8 +11,7 @@ $repoRoot = Split-Path -Parent $here
 $envFile = Join-Path $repoRoot ".env.railway.local"
 
 if (-not (Test-Path -LiteralPath $envFile)) {
-    Write-Error "Fichier absent : $envFile`nCopier .env.railway.local.example vers .env.railway.local et remplir les secrets."
-    exit 1
+    throw "Fichier absent : $envFile`nCopier .env.railway.local.example vers .env.railway.local et remplir les secrets."
 }
 
 $loaded = 0

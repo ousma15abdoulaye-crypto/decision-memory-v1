@@ -138,10 +138,10 @@ class M14EvaluationRepository:
             return None
 
     def save_m14_audit(self, *, case_id: str, report: Any) -> None:
-        """Écrit score_history + elimination_log (migration 059). Append-only, best-effort.
+        """Écrit score_history et elimination_log (migration 059). Tables append-only.
 
-        Appelé après construction du rapport ; les échecs (RLS, table absente) sont loggés
-        sans lever (évaluation déjà calculée).
+        Appelé après construction du rapport ; les échecs (RLS, table absente) sont
+        journalisés sans lever d'exception (l'évaluation est déjà calculée).
         """
         data = (
             report.model_dump(mode="json") if hasattr(report, "model_dump") else report
