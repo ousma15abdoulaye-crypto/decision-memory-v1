@@ -25,6 +25,7 @@ RUN chmod +x start.sh
 
 COPY src/__init__.py ./src/__init__.py
 COPY src/annotation ./src/annotation
+COPY src/procurement ./src/procurement
 
 # Pas de CMD inline : sur Railway le JSON + $$ produisait « 1{PORT} » / « 1PORT » (sh : $$ = PID).
 CMD ["./start.sh"]
