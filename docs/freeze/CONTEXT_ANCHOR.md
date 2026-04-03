@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-03 (post-merge PR #300 — DMS VIVANT V2 H0-H4 sur main) ║
+║  Dernière mise à jour : 2026-04-03 (post-merge PR #301 — M15 Correction Gaps 8 phases) ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -105,14 +105,23 @@
 ║  fix/m13-audit-hardening : MERGÉ dans main (PR #293 — audit M13 hardening) ║
 ║  feat/fix-backend-production : backend v3.0.1d (en attente merge)   ║
 ║  alembic head dépôt / CI : 067_fix_market_coverage_trigger (main — PR #300 mergé 2026-04-03) ║
-║  alembic head Railway prod : 058_m13_correction_log_case_id_index (désaligné — apply 059→067 GO CTO) ║
-║  migrations pending Railway : 059, 060, 061, 062, 063, 064, 065, 066, 067 (9 migrations)    ║
+║  alembic head Railway prod : 067_fix_market_coverage_trigger (migrations 059→067 appliquées — M15 Phase 1) ║
+║  migrations pending Railway : AUCUNE — 059→067 appliquées séquentiellement via apply_railway_migrations_safe.py (M15 Phase 1) ║
 ║  RAILWAY_DATABASE_URL : défini hors dépôt — fichier local .env.railway.local (gitignored) ; ║
 ║    chargement scripts/with_railway_env.py ou .\\scripts\\load_railway_env.ps1 — RAILWAY_LOCAL_ENV.md ║
 ║  annotation-backend M12 Ph.3 : orchestrateur derrière ANNOTATION_USE_PASS_ORCHESTRATOR ║
 ║    (défaut 0 — monolith Mistral inchangé ; 1 = Pass 0→0.5→1 puis Mistral) ║
 ║  Gel Cursor services/annotation-backend : dégel conditionnel Phase 3 sous mandat ║
 ║    CTO — voir .cursor/rules/dms-annotation-backend-freeze.mdc + ADR-M12-PHASE3 ║
+║  M15 Phase 1 : migrations 059→067 appliquées Railway prod (2026-04-03)    ║
+║  M15 Phase 3 : mercurials_item_map coverage = 67.38% (seuil 70% non atteint) ║
+║    unmapped items : docs/data/unmapped_items.csv (200 items pour mapping manuel) ║
+║  M15 Phase 4 : 100 items procurement_dict_items label_status=validated ✓  ║
+║  M15 Phase 6 : 12 politiques RLS actives Railway — isolation tenant OK ✓  ║
+║  M15 REGLE-23 gate : 0 annotated_validated Railway — 87 annotations locales à sync ║
+║    Action requise : sync via scripts/sync_annotations_local_to_railway.py  ║
+║    puis bascule ANNOTATION_USE_PASS_ORCHESTRATOR=1 (Railway Dashboard)    ║
+║  PR #301 : feat(m15) plan correction gaps — squash merge 3aa1f509 main (2026-04-03) ║
 ║  tags posés :                                                         ║
 ║    v4.1.0-ocr-files-api-done                                         ║
 ║    v4.1.0-m12-dette7-done                                             ║
@@ -1212,6 +1221,14 @@ migrations pending Railway                            : 059 → 060 → 061 → 
 **E-86** (2026-04-03) : **`REFRESH MATERIALIZED VIEW CONCURRENTLY` interdit dans trigger** — PostgreSQL interdit `CONCURRENTLY` à l'intérieur d'un bloc de transaction (trigger function). Toute `CREATE FUNCTION` de trigger qui rafraîchit une vue matérialisée doit utiliser `REFRESH MATERIALIZED VIEW` sans `CONCURRENTLY`. Si `CONCURRENTLY` est nécessaire, exécuter hors trigger via cron/ARQ.
 
 **E-87** (2026-04-03) : **`ADD COLUMN NOT NULL` sans `DEFAULT` sur table existante** — Une migration `ALTER TABLE ... ADD COLUMN event_time TIMESTAMPTZ NOT NULL` sans `DEFAULT` casse les tests qui insèrent sans fournir `event_time`. Toujours combiner `NOT NULL` avec `DEFAULT now()` sur les colonnes temporelles ajoutées à des tables existantes, sauf si un backfill explicite précède l'ajout de la contrainte.
+
+**E-88** (2026-04-03 — M15) : **SQL injection via interpolation f-string dans `IN (...)`** — Construction `f"WHERE item_id IN ({placeholders})"` avec des IDs concaténés directement est vulnérable à l'injection SQL et casse si un ID contient un guillemet. Toujours utiliser `WHERE item_id = ANY(%s)` avec une liste Python comme paramètre. Gérer explicitement `item_ids == []` (retour sans requête) pour éviter `IN ()` invalide.
+
+**E-89** (2026-04-03 — M15) : **Secret Railway commité en clair dans un fichier de documentation** — `$env:PGPASSWORD = "VvIxShbsVuwXd..."` commité dans `docs/ops/DISASTER_RECOVERY.md`. Toujours utiliser des placeholders (`<RAILWAY_POSTGRES_PASSWORD>`) dans les docs. Tout secret commité doit être **rotaté immédiatement** côté Railway Dashboard. Ref : PR #301 Copilot C8.
+
+**E-90** (2026-04-03 — M15) : **Hypothèses de schéma non vérifiées avant SQL** — Plan M15 utilisait `couche_b.mercurials_item_map.item_id` (inexistant — colonne réelle : `dict_item_id`) et `couche_b.procurement_dict_items.id` (inexistant — clé primaire réelle : `item_id`). Résultat : 3 scripts en erreur `UndefinedColumn`. **Règle** : avant tout script SQL sur une table inconnue, exécuter `SELECT column_name FROM information_schema.columns WHERE table_name='...'` pour vérifier les colonnes réelles.
+
+**E-91** (2026-04-03 — M15) : **`public.audit_log.prev_hash NOT NULL` — chaîne blockchain non triviale** — La table `audit_log` implémente un chaînage style blockchain : `prev_hash` est `NOT NULL` et doit contenir le `hash` de la dernière ligne. Tout `INSERT` sans calculer `prev_hash` lève `NotNullViolation`. Ce pattern rend l'audit_log non utilisable directement dans un script batch simple. Pour les scripts de validation M15 scope limité, les colonnes `validated_at`, `validated_by`, `human_validated` des tables cibles suffisent comme trace d'audit. N'utiliser `audit_log` que sous mandat explicite avec implémentation du chaînage.
 
 ### Nouvelles Dépendances (RÈGLE-13)
 
