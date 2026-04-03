@@ -1,0 +1,61 @@
+---
+version: "1.0"
+description: "DMS Event Types Registry — H2 VIVANT V2"
+total_event_types: 38
+
+domains:
+  procurement:
+    events:
+      - m12_document_classified
+      - m12_document_validated
+      - m12_correction_applied
+      - m12_process_linked
+      - m12_conformity_assessed
+      - m13_regime_resolved
+      - m13_requirements_instantiated
+      - m13_gates_assembled
+      - m13_derogation_assessed
+      - m13_principles_mapped
+      - m13_profile_persisted
+      - m13_correction_applied
+      - m14_evaluation_started
+      - m14_score_computed
+      - m14_elimination_decided
+
+  market:
+    events:
+      - market_signal_ingested
+      - market_signal_validated
+      - market_coverage_refreshed
+      - market_price_anomaly_detected
+      - market_seasonal_pattern_detected
+
+  annotation:
+    events:
+      - annotation_task_created
+      - annotation_task_completed
+      - annotation_review_requested
+      - annotation_review_completed
+      - annotation_batch_imported
+
+  pipeline:
+    events:
+      - pipeline_run_started
+      - pipeline_run_completed
+      - pipeline_step_started
+      - pipeline_step_completed
+      - pipeline_step_failed
+
+  agent:
+    events:
+      - agent_run_started
+      - agent_run_completed
+      - agent_checkpoint_saved
+      - agent_tool_invoked
+
+  decision:
+    events:
+      - decision_snapshot_created
+      - decision_analysis_completed
+      - decision_memory_written
+      - decision_case_summary_updated
