@@ -1,0 +1,345 @@
+# DMS Artifact Sovereignty Matrix — V2 Recalibré
+# Référence : DMS_VIVANT_V2_FREEZE §4
+# Date : 2026-04-03
+# Autorité : CTO
+#
+# RÈGLE : AVANT TOUT WRITE, vérifier write_owner.
+#         AVANT TOUTE NOUVELLE TABLE, prouver qu'aucun artefact existant
+#         ne porte le besoin, classifier, valider CTO.
+
+---
+# ════════════════════════════════════════════════════════════════
+# COUCHE B — Mémoire Marché & Normalisation (11 artefacts)
+# ════════════════════════════════════════════════════════════════
+
+procurement_dict_items:
+  nature: source_of_truth
+  layer: couche_b
+  write_owner: dictionary_service
+  read_allowed: [all]
+  temporal_model: versioned
+  append_only: false
+  migration_ref: "MRD series"
+
+procurement_dict_aliases:
+  nature: source_of_truth
+  layer: couche_b
+  write_owner: dictionary_service
+  read_allowed: [all]
+  temporal_model: versioned
+  append_only: false
+  migration_ref: "MRD series"
+
+dict_collision_log:
+  nature: append_only_log
+  layer: couche_b
+  write_owner: dictionary_service_trigger
+  read_allowed: [audit, dictionary_service, calibration]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "MRD series"
+
+mercurials:
+  nature: source_of_truth
+  layer: couche_b
+  write_owner: mercuriale_ingestion
+  read_allowed: [all]
+  temporal_model: versioned
+  append_only: false
+  migration_ref: "024, 040"
+
+mercuriale_sources:
+  nature: source_of_truth
+  layer: couche_b
+  write_owner: mercuriale_ingestion
+  read_allowed: [all]
+  temporal_model: versioned
+  append_only: false
+  migration_ref: "024"
+
+mercuriale_raw_queue:
+  nature: append_only_log
+  layer: couche_b
+  write_owner: mercuriale_ingestion
+  read_allowed: [mercuriale_ingestion, audit]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "024"
+
+market_signals_v2:
+  nature: market_memory
+  layer: couche_b
+  write_owner: signal_engine
+  read_allowed: [api, couche_a, event_index, retrieval, price_check]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "043"
+
+market_coverage:
+  nature: read_projection
+  layer: couche_b
+  write_owner: auto_refresh_trigger
+  read_allowed: [api, couche_a, retrieval]
+  temporal_model: derived
+  append_only: false
+  migration_ref: "042, 060"
+  notes: "MATERIALIZED VIEW. Auto-refresh via trigger 060 AFTER INSERT market_signals_v2."
+
+decision_history:
+  nature: market_memory
+  layer: couche_b
+  write_owner: price_check_engine
+  read_allowed: [api, couche_a, retrieval, event_index]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "044"
+
+imc_category_item_map:
+  nature: source_of_truth
+  layer: couche_b
+  write_owner: imc_service
+  read_allowed: [all]
+  temporal_model: versioned
+  append_only: false
+  migration_ref: "046"
+
+vendors:
+  nature: source_of_truth
+  layer: couche_b
+  write_owner: vendor_service
+  read_allowed: [all]
+  temporal_model: versioned
+  append_only: false
+  migration_ref: "041"
+
+# ════════════════════════════════════════════════════════════════
+# COUCHE A — Pipeline & Exécution (9 artefacts)
+# ════════════════════════════════════════════════════════════════
+
+pipeline_runs:
+  nature: execution_trace
+  layer: couche_a
+  write_owner: pipeline_orchestrator
+  read_allowed: [api, audit, event_index, benchmark]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "032"
+
+pipeline_step_runs:
+  nature: execution_trace
+  layer: couche_a
+  write_owner: pipeline_orchestrator
+  read_allowed: [api, audit, event_index, benchmark]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "033"
+
+analysis_summaries:
+  nature: derived_summary
+  layer: couche_a
+  write_owner: pipeline_analysis
+  read_allowed: [api, retrieval, event_index]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "035"
+  notes: "pipeline_run_id nullable (blocked paths)."
+
+memory_entries:
+  nature: case_memory
+  layer: couche_a
+  write_owner: case_memory_writer
+  read_allowed: [api, annotation, retrieval, embedding_service, agent]
+  temporal_model: ingestion_only
+  append_only: false
+  migration_ref: "002"
+  notes: "content_json JSONB porte le payload CaseMemoryEntry."
+
+score_runs:
+  nature: append_only_log
+  layer: couche_a
+  write_owner: scoring_engine
+  read_allowed: [api, audit, event_index]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "026"
+
+committee_events:
+  nature: append_only_log
+  layer: couche_a
+  write_owner: committee_service
+  read_allowed: [api, audit, event_index]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "028"
+
+submission_registry_events:
+  nature: append_only_log
+  layer: couche_a
+  write_owner: submission_service
+  read_allowed: [api, audit, event_index]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "036"
+
+decision_snapshots:
+  nature: sealed_snapshot
+  layer: couche_a
+  write_owner: committee_service
+  read_allowed: [api, audit, retrieval, event_index]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "029"
+
+audits:
+  nature: append_only_log
+  layer: couche_a
+  write_owner: audit_triggers
+  read_allowed: [all]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "010, 038"
+
+# ════════════════════════════════════════════════════════════════
+# COUCHE A — Agents (2 artefacts existants)
+# ════════════════════════════════════════════════════════════════
+
+agent_checkpoints:
+  nature: execution_trace
+  layer: couche_a
+  write_owner: agent_framework
+  read_allowed: [agent_framework, audit]
+  temporal_model: ingestion_only
+  append_only: false
+  migration_ref: "045"
+
+agent_runs_log:
+  nature: execution_trace
+  layer: couche_a
+  write_owner: agent_framework
+  read_allowed: [agent_framework, audit, event_index]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "045"
+
+# ════════════════════════════════════════════════════════════════
+# PROCUREMENT — M12 / M13 / M14 (5 artefacts)
+# ════════════════════════════════════════════════════════════════
+
+m12_correction_log:
+  nature: human_feedback_log
+  layer: procurement
+  write_owner: m12_correction_writer
+  read_allowed: [pattern_detector, benchmark, event_index, calibrator, agent]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "054"
+  notes: "event_time absent — ajouté en 062. Proxy = created_at."
+
+m13_correction_log:
+  nature: human_feedback_log
+  layer: procurement
+  write_owner: m13_correction_writer
+  read_allowed: [pattern_detector, benchmark, event_index, calibrator, agent]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "057, 058"
+
+evaluation_documents:
+  nature: case_memory
+  layer: procurement
+  write_owner: m14_evaluation_repository
+  read_allowed: [m14, api, audit, agent]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "056"
+  notes: "M14 persiste scores_matrix, justifications. RLS via cases.tenant_id."
+
+score_history:
+  nature: append_only_log
+  layer: procurement
+  write_owner: m14_engine
+  read_allowed: [api, audit, event_index]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "059"
+
+elimination_log:
+  nature: append_only_log
+  layer: procurement
+  write_owner: m14_engine
+  read_allowed: [api, audit, event_index]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "059"
+
+# ════════════════════════════════════════════════════════════════
+# TRANSVERSAL — Créés par V2 (4 artefacts, migrations 061–065)
+# ════════════════════════════════════════════════════════════════
+
+dms_event_index:
+  nature: federated_index
+  layer: transversal
+  write_owner: bridge_triggers + event_index_service
+  read_allowed: [all]
+  temporal_model: bitemporal
+  append_only: true
+  migration_ref: "061"
+  notes: >
+    Index navigation. source_table + source_pk pour jointure payload.
+    summary JSONB minimal. aggregate_version + idempotency_key.
+
+candidate_rules:
+  nature: append_only_log
+  layer: transversal
+  write_owner: candidate_rule_generator
+  read_allowed: [learning_console, calibrator, cto, agent]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "063"
+  notes: "Status: proposed -> approved/rejected -> applied"
+
+rule_promotions:
+  nature: append_only_log
+  layer: transversal
+  write_owner: promotion_service
+  read_allowed: [learning_console, audit, calibrator]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "063"
+
+llm_traces:
+  nature: append_only_log
+  layer: transversal
+  write_owner: langfuse_integration
+  read_allowed: [learning_console, audit, calibrator]
+  temporal_model: ingestion_only
+  append_only: true
+  migration_ref: "065"
+  notes: "Backup local traces Langfuse."
+
+# ════════════════════════════════════════════════════════════════
+# MEMORY — Créé en H3 (1 artefact)
+# ════════════════════════════════════════════════════════════════
+
+dms_embeddings:
+  nature: vector_index
+  layer: memory
+  write_owner: embedding_service
+  read_allowed: [rag_service, similar_cases, retrieval, agent]
+  temporal_model: ingestion_only
+  append_only: false
+  migration_ref: "064"
+  notes: "Upsert par source_type+source_id. BGE-M3 1024d. pgvector requis."
+
+# ════════════════════════════════════════════════════════════════
+# ORCHESTRATION — Créé en H2 (1 artefact logique)
+# ════════════════════════════════════════════════════════════════
+
+arq_job_queue:
+  nature: job_queue
+  layer: orchestration
+  write_owner: arq_workers
+  read_allowed: [api, monitoring]
+  temporal_model: ephemeral
+  append_only: false
+  notes: "Redis-backed. Jobs transitoires. Résultats persistés dans tables."
