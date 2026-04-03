@@ -396,7 +396,7 @@ def _collect_confidences(obj: object) -> list[float]:
     found: list[float] = []
     if isinstance(obj, dict):
         for k, v in obj.items():
-            if k == "confidence" and isinstance(v, int | float):
+            if k == "confidence" and isinstance(v, (int, float)):
                 found.append(float(v))
             else:
                 found.extend(_collect_confidences(v))
