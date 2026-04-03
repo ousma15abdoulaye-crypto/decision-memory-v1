@@ -1,0 +1,103 @@
+item_id,item_code,label_fr,taxo_l1,taxo_l2,label_status,signal_count,mercuriale_coverage
+antirouille,LG-202603-000063,Antirouille,Construction,Finitions,draft,19,1
+baguette_enrobee_aluminuim,LG-202603-000087,Baguette enrobée Aluminuim,Divers,Quincaillerie,draft,19,1
+beurre_karite_100_grammes,LG-202603-000116,Beurre de karité 100 grammes,Alimentation,Produits laitiers,draft,19,1
+biscuit_petit_beurre_167grammes,LG-202603-000138,"Biscuit "" petit beurre"" 167grammes",Alimentation,Epicerie,draft,19,1
+anneau_reliure_n°10,LG-202603-000050,Anneau pour reliure N°10,Fournitures bureau,Reliure,draft,19,1
+agrafes_23_17_1000_punti_staples,LG-202603-000034,Agrafes 23/17( 1000 punti/staples),Fournitures bureau,Petite papeterie,draft,19,1
+attaches_rideau_metallique,LG-202603-000081,Attaches rideau en métallique,Mobilier,Decoration,draft,19,1
+attaches_rideau_plastique,LG-202603-000082,Attaches rideau en plastique,Mobilier,Decoration,draft,19,1
+biscuit_bonne_175_grammes,LG-202603-000127,Biscuit bonne qualité 175 grammes,Alimentation,Epicerie,draft,19,1
+agrafe_23_10,LG-202603-000027,Agrafe 23/10,Fournitures bureau,Petite papeterie,draft,19,1
+attache_complet_rideau_corde,LG-202603-000077,Attache complet pour rideau (en corde),Mobilier,Decoration,draft,19,1
+barre_double_z_leger,LG-202603-000100,Barre de double Z leger,Divers,Quincaillerie,draft,19,1
+agrafe_bebe,LG-202603-000030,Agrafe BéBé,Fournitures bureau,Petite papeterie,draft,19,1
+acide_carreaux_1l,LG-202603-000018,Acide pour carreaux 1L,Construction,Carrelage,draft,19,1
+biscuit_bretonnes_pure_beurre_175_grammes,LG-202603-000128,"Biscuit bretonnes ""pure beurre"" 175 grammes",Alimentation,Epicerie,draft,19,1
+barre_double_z_lourd,LG-202603-000101,Barre de double Z lourd,Divers,Quincaillerie,draft,19,1
+assiettes_duralex,LG-202603-000070,Assiettes duralex,Art de la table,Vaisselle,draft,19,1
+biscuit_lighits_begui,LG-202603-000137,Biscuit de lighits (bégui),Alimentation,Epicerie,draft,19,1
+assiettes_jetable,LG-202603-000073,Assiettes jetable,Art de la table,Vaisselle,draft,18,1
+baguette_enrobee_soudure,LG-202603-000088,Baguette enrobée soudure,Construction,Metallurgie,draft,18,1
+bidon_huile_pompe_direction,LG-202603-000125,Bidon d'huile de pompe de direction,Alimentation,Huiles et graisses,draft,18,1
+assiettes_plastique,LG-202603-000074,Assiettes en plastique,Art de la table,Vaisselle,draft,18,1
+aubergine,LG-202603-000083,Aubergine,Alimentation,Fruits,draft,18,1
+assiettes_incassables,LG-202603-000072,Assiettes incassables,Construction,Granulats,draft,18,1
+beurre_karite_vrac,LG-202603-000118,Beurre de karité en vrac,Alimentation,Produits laitiers,draft,18,1
+ardoisine,LG-202603-000068,Ardoisine,Materiel scolaire,Ardoises,draft,17,1
+biscuit_«_butter_cookies_»_300_grammes,LG-202603-000126,Biscuit « butter cookies » 300 grammes,Alimentation,Epicerie,draft,17,1
+ardoise_plastique,LG-202603-000067,Ardoise en plastique,Fournitures bureau,Ecriture,draft,17,1
+assiettes_porcelaine,LG-202603-000075,Assiettes en porcelaine,Textile,Mercerie,draft,17,1
+assiettes_verre,LG-202603-000076,Assiettes en verre,Construction,Vitrerie,draft,17,1
+argile,LG-202603-000069,Argile,Construction,Granulats,draft,17,1
+biscuit_fourre_lait_175_grammes,LG-202603-000133,Biscuit fourré au lait 175 grammes,Alimentation,Produits laitiers,draft,16,1
+baguette_phosphore,LG-202603-000089,Baguette phosphore,Divers,Quincaillerie,draft,16,1
+acide_nitrique,LG-202603-000023,Acide nitrique,Divers,Chimie,draft,16,1
+biscuit_fourre_petit_ourson_500grammes,LG-202603-000134,Biscuit fourré (petit ourson) 500grammes,Alimentation,Epicerie,draft,16,1
+baguette_wotine,LG-202603-000090,Baguette wotine,Divers,Quincaillerie,draft,16,1
+beurre_pasteurise_450_grammes,LG-202603-000119,Beurre pasteurisé 450 grammes,Alimentation,Produits laitiers,draft,16,1
+betonniere,LG-202603-000115,Betonnière,Construction,Maconnerie,draft,16,1
+ardoise_bois,LG-202603-000066,Ardoise en bois,Construction,Bois et menuiserie,draft,16,1
+biscuit_kinder_43_grammes,LG-202603-000135,Biscuit kinder 43 grammes,Alimentation,Epicerie,draft,15,1
+bac_autoportant_4.9kg,LG-202603-000084,"Bac autoportant 4,9 kg",Divers,Vrac,draft,15,1
+attache_geante_gf,LG-202603-000078,Attache géante GF,Divers,Quincaillerie,draft,15,1
+beurre_pasteurise_ecreme_450_grammes,LG-202603-000122,Beurre pasteurisé écrèmé 450 grammes,Alimentation,Produits laitiers,draft,15,1
+acide_carreaux_1l_preparation,LG-202603-000019,Acide pour carreaux 1L avec préparation,Construction,Carrelage,draft,15,1
+barreau_acier_rapide_ars_carre_10x10,LG-202603-000102,Barreau en acier rapide ARS carré de 10x10,Construction,Metallurgie,draft,14,1
+acide_sulfurique,LG-202603-000025,Acide sulfurique,Divers,Chimie,draft,14,1
+beurre_pasteurise_creme_450_grammes,LG-202603-000120,Beurre pasteurisé crèmé 450 grammes,Alimentation,Produits laitiers,draft,14,1
+baguettes_reliure_12mm,LG-202603-000091,Baguettes de reliure de 12mm,Fournitures bureau,Reliure,draft,13,1
+abonnement_journal_essor,LG-202603-000008,Abonnement au journal ESSOR,Presse et abonnements,Journaux,draft,13,1
+agrafes_23_8_1000_punti_staples,LG-202603-000035,Agrafes 23/8( 1000 punti/staples) Importé,Fournitures bureau,Petite papeterie,draft,13,1
+agrafes_10_1000_punti_staples_globe_star,LG-202603-000032,Agrafes 10 ( 1000 punti/staples) Globe Star,Fournitures bureau,Petite papeterie,draft,12,1
+ballast,LG-202603-000097,Ballast,Divers,Composants electriques,draft,12,1
+abonnement_journal_nouvel_horizon,LG-202603-000013,Abonnement au journal Nouvel Horizon,Alimentation,Cereales,draft,12,1
+amidon,LG-202603-000048,Amidon,Alimentation,Epicerie,draft,11,1
+abonnement_journal_l_echos,LG-202603-000010,Abonnement au journal L'Echos,Presse et abonnements,Journaux,draft,10,1
+abonnement_journal_independant,LG-202603-000009,Abonnement au journal Indépendant,Presse et abonnements,Journaux,draft,10,1
+abonnement_journal_republicain,LG-202603-000015,Abonnement au journal Le Républicain,Presse et abonnements,Journaux,draft,10,1
+alcool_ethylique,LG-202603-000047,Alcool éthylique,Sante et hygiene,Desinfectants,draft,10,1
+bazin_riche_getsner_couleur,LG-202603-000113,Bazin riche getsner en couleur,Textile,Tissus,draft,10,1
+bazin_riche_getsner_blanc,LG-202603-000112,Bazin riche getsner Blanc,Textile,Tissus,draft,10,1
+bazin_riche,LG-202603-000110,Bazin riche,Textile,Tissus,draft,10,1
+bazin_blanc_teinture,LG-202603-000108,Bazin blanc pour teinture,Textile,Tissus,draft,9,1
+abonnement_journal_l_inspecteur,LG-202603-000011,Abonnement au journal L'Inspecteur,Presse et abonnements,Journaux,draft,9,1
+biscuit_emmy_combien,LG-202603-000131,Biscuit Emmy combien,Alimentation,Epicerie,draft,8,1
+balai_indigene_manche_bois,LG-202603-000095,Balai indigène avec manche en bois local,Construction,Bois et menuiserie,draft,8,1
+"balai_brosse_nylon,_manche_enplastique",LG-202603-000093,"Balai brosse nylon, à manche enplastique",Plastiques et emballages,Plastique,draft,8,1
+acide_salicylique,LG-202603-000024,Acide salicylique,Divers,Chimie,draft,8,1
+"acide_chloyet_tech_33_35°,_6_colorants",LG-202603-000021,"Acide chloyet tech 33 à 35°, 6 colorants",Divers,Chimie,draft,8,1
+abonnement_journal_22_septembre,LG-202603-000005,Abonnement au journal 22 Septembre,Presse et abonnements,Journaux,draft,8,1
+bicarbonate_soude,LG-202603-000124,Bicarbonate de soude,Construction,Metallurgie,draft,7,1
+aiguille_coudre_petit,LG-202603-000041,Aiguille à coudre petit,Textile,Mercerie,draft,7,1
+bazin_java,LG-202603-000109,Bazin en java,Textile,Tissus,draft,7,1
+"abonnement_journal_challenger_10%_reduction_0_a100_journaux,_15%_reduction_100_200,_200_plus_20%_reduction,",LG-202603-000006,"Abonnement au journal Challenger(10% de reduction de 0 à100 journaux, 15% de reduction de 100 à 200, 200 et plus 20% de reduction,)",Presse et abonnements,Journaux,draft,7,1
+affiche_autocollant_a2,LG-202603-000026,Affiche autocollant A2,Fournitures bureau,Etiquettes,draft,6,1
+"balai_brosse_nylon,_manche_plastique",LG-202603-000094,"Balai brosse nylon, à manche en plastique",Plastiques et emballages,Plastique,draft,6,1
+aiguille_machine_coudre_110,LG-202603-000042,Aiguille pour machine à coudre 110,Textile,Mercerie,draft,6,1
+aiguille_coudre_grand,LG-202603-000040,Aiguille à coudre Grand,Textile,Mercerie,draft,6,1
+agrafes_10_1000_punti_staples_globestar,LG-202603-000033,Agrafes 10 ( 1000 punti/staples) GlobeStar,Fournitures bureau,Petite papeterie,draft,5,1
+biscuit_petit_prince,LG-202603-000140,Biscuit petit prince,Alimentation,Epicerie,draft,4,1
+abonnement_magazine_jeune_afrique,LG-202603-000016,Abonnement au magazine Jeune Afrique,Presse et abonnements,Magazines,draft,4,1
+balai_indigene_manche_boislocal,LG-202603-000096,Balai indigène avec manche en boislocal,Construction,Bois et menuiserie,draft,4,1
+bande_platree_2m_x_15cm_biplatrix,LG-202603-000099,Bande Platree 2m X 15 Cm (Biplatrix),Construction,Maconnerie,draft,2,1
+ardoise,LG-202603-000065,Ardoise,Fournitures bureau,Ecriture,draft,0,1
+arachide,LG-202603-000064,Arachide,Alimentation,Oleagineux,draft,0,1
+acetate_ethyle_preciser,LG-202603-000017,Acétate d'éthyle ( Preciser le type),Divers,Chimie,draft,0,1
+biscuit_emmy,LG-202603-000130,Biscuit Emmy,Alimentation,Epicerie,draft,0,1
+"abonnement_journal_challenger_10%_reduction_0_a100_journaux,15%_reduction_100_200,_200",LG-202603-000007,"Abonnement au journal Challenger(10% de reduction de 0 à100 journaux,15% de reduction de 100 à 200, 200 et",Presse et abonnements,Journaux,draft,0,1
+biscuit_fourre_lait_150_grammes,LG-202603-000132,Biscuit fourre au lait 150 grammes,Alimentation,Produits laitiers,draft,0,1
+beurre_pasteurise_cremeux_450_grammes,LG-202603-000121,Beurre pasteurisé crèmeux 450 grammes,Alimentation,Produits laitiers,draft,0,1
+beurre_pasteurise_ecremeux_450_grammes,LG-202603-000123,Beurre pasteurisé écrèmeux 450 grammes,Alimentation,Produits laitiers,draft,0,1
+biscuits_>,LG-202603-000155,Biscuits >,Alimentation,Epicerie,draft,0,1
+bande_gaz_4m_x_10cm,LG-202603-000098,Bande De Gaz 4m X 10cm,Sante et hygiene,Consommables medicaux,draft,0,1
+bazin_riche_getsner_frais_teinture,LG-202603-000114,Bazin riche getsner(frais de teinture),Textile,Tissus,draft,0,1
+baguette_enrobee,LG-202603-000086,Baguette enrobée,Divers,Quincaillerie,draft,0,1
+abonnement_journal_nouvelhorizon,LG-202603-000014,Abonnement au journal NouvelHorizon,Alimentation,Cereales,draft,0,1
+bayon_liquide,LG-202603-000107,Bayon liquide,Divers,Produits vrac,draft,0,1
+acide_carreaux_1l_preparation_locale,LG-202603-000020,"Acide pour carreaux 1L avec préparation 
+locale",Construction,Carrelage,draft,0,1
+abonnement_journal_lerepublicain,LG-202603-000012,Abonnement au journal LeRépublicain,Presse et abonnements,Journaux,draft,0,1
+assiettes_incassable,LG-202603-000071,Assiettes incassable,Construction,Granulats,draft,0,1
+biscuits_>_110_grammes,LG-202603-000156,"Biscuits > 110 
+grammes",Alimentation,Epicerie,draft,0,1

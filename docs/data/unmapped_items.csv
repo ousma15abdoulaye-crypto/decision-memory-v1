@@ -1,0 +1,205 @@
+item_id,item_code,label_fr,taxo_l1,taxo_l2,label_status,signal_count,mercuriel_count
+"engrais_complexe_coton_rouge,_blanc,noir",LG-202603-000613,"Engrais complexe coton (rouge, blanc,noir)",Agriculture,Intrants,draft,0,0
+engrais_npk_15-15-15_complexecereale_50kg,LG-202603-000621,Engrais NPK ( 15-15-15) (complexecereale) 50KG,Agriculture,Intrants,draft,0,0
+engrais_npkpnt_phosphate_naturellede_tilemsi,LG-202603-000628,Engrais NPKPNT (phosphate Naturellede Tilemsi),Agriculture,Intrants,draft,0,0
+beurre_karite_800_grammes,LG-202603-000117,Beurre de karité 800 grammes,Alimentation,Produits laitiers,draft,0,0
+biscuit_bretonnes_pure_beurre_175grammes,LG-202603-000129,"Biscuit bretonnes ""pure beurre"" 175grammes",Alimentation,Epicerie,draft,0,0
+biscuit_kinder_43_grammes_boite_30,LG-202603-000136,Biscuit kinder 43 grammes Boite de 30,Alimentation,Epicerie,draft,0,0
+biscuit_petit_beurre_175_grammes,LG-202603-000139,"Biscuit "" petit beurre"" 175 grammes",Alimentation,Epicerie,draft,0,0
+biscuits_>_330_grammes,LG-202603-000157,Biscuits > 330 grammes,Alimentation,Epicerie,draft,0,0
+biscuits_>_500_grammes,LG-202603-000159,Biscuits > 500 grammes,Alimentation,Epicerie,draft,0,0
+biscuits_>_500_grammes_combien,LG-202603-000160,"Biscuits > 500 
+grammes combien",Alimentation,Epicerie,draft,0,0
+biscuits_&lt_&lt_fourres_chocolat&gt_&gt_110grammes,LG-202603-000146,Biscuits &lt;&lt;Fourrés au chocolat&gt;&gt; 110grammes,Alimentation,Epicerie,draft,0,0
+biscuits_&lt_&lt_fourres_chocolat&gt_&gt_330grammes_combien,LG-202603-000148,Biscuits &lt;&lt;Fourrés au chocolat&gt;&gt; 330grammes combien,Alimentation,Epicerie,draft,0,0
+biscuits_&lt_&lt_fourres_chocolat&gt_&gt_500_grammes_combien,LG-202603-000149,Biscuits &lt;&lt;Fourrés au chocolat&gt;&gt; 500 grammes combien,Alimentation,Epicerie,draft,0,0
+biscuits_&lt_&lt_fourres_chocolat&gt_&gt_500grammes_combien,LG-202603-000150,Biscuits &lt;&lt;Fourrés au chocolat&gt;&gt; 500grammes combien,Alimentation,Epicerie,draft,0,0
+biscuits_sales_assortiment_350g,LG-202603-000166,Biscuits Salés Assortiment 350g,Alimentation,Epicerie,draft,0,0
+"boisson_baramali_coca,_orange,_pomme_,_raisin_,coctkail_,d_ananas_etc…...",LG-202603-000186,"Boisson Baramali (coca, orange, Pomme , raisin 
+,coctkail ,d'ananas etc…...)",Alimentation,Boissons,draft,0,0
+"boisson_baramali_coca,_orange,_pomme_,_raisin_,coctkail_,d_ananas_etc……",LG-202603-000187,"Boisson Baramali (coca, orange, Pomme , raisin ,coctkail ,d'ananas etc……)",Alimentation,Boissons,draft,0,0
+"boisson_baramali_coca,_orange,_pomme_,raisin_,coctkail_,d_ananas_etc……",LG-202603-000188,"Boisson Baramali (coca, orange, Pomme ,raisin ,coctkail ,d'ananas etc……)",Alimentation,Boissons,draft,0,0
+"boisson_nbb_coca,_orange,_pomme_,_raisin_,coctkail_,d_ananas_etc……",LG-202603-000198,"Boisson NBB (coca, orange, Pomme , raisin ,coctkail ,d'ananas etc……)",Alimentation,Boissons,draft,0,0
+"boisson_nbb_coca,_orange,_pomme_,raisin_,coctkail_,d_ananas_etc......",LG-202603-000199,"Boisson NBB (coca, orange, Pomme ,raisin ,coctkail ,d'ananas etc......)",Alimentation,Boissons,draft,0,0
+"boisson_nbb_coca,_orange,_pomme_,raisin_,coctkail_,d_ananas_etc……",LG-202603-000200,"Boisson NBB (coca, orange, Pomme ,raisin ,coctkail ,d'ananas etc……)",Alimentation,Boissons,draft,0,0
+bouillon_cube_maggie_donner_nbred_unite,LG-202603-000215,Bouillon cube Maggie (donner le nbred'unite),Alimentation,Condiments,draft,0,0
+cafe_maxwell_200_grammes,LG-202603-000267,Café Maxwell 200 grammes,Alimentation,Boissons,draft,0,0
+cafe_nespresso_arpeggio_ristretto_fromindia,LG-202603-000271,Café Nespresso (Arpeggio ristretto fromindia),Alimentation,Boissons,draft,0,0
+cafe_nespresso_n°10_53grammes,LG-202603-000273,Café Nespresso n°10 53grammes,Alimentation,Boissons,draft,0,0
+cafe_nespresso_n°11_53grammes,LG-202603-000274,Café Nespresso n°11 53grammes,Alimentation,Boissons,draft,0,0
+cafe_nespresso_n°12_53grammes,LG-202603-000275,Café Nespresso n°12 53grammes,Alimentation,Boissons,draft,0,0
+cafe_nespresso_n°13_53grammes,LG-202603-000276,Café Nespresso n°13 53grammes,Alimentation,Boissons,draft,0,0
+cafe_nespresso_n°14_53grammes,LG-202603-000277,Café Nespresso n°14 53grammes,Alimentation,Boissons,draft,0,0
+cafe_nespresso_n°15_53grammes,LG-202603-000278,Café Nespresso n°15 53grammes,Alimentation,Boissons,draft,0,0
+cafe_nespresso_n°16_53grammes,LG-202603-000279,Café Nespresso n°16 53grammes,Alimentation,Boissons,draft,0,0
+cafe_nespresso_n°18_53grammes,LG-202603-000280,Café Nespresso n°18 53grammes,Alimentation,Boissons,draft,0,0
+cafe_nespresso_n°19_53grammes,LG-202603-000281,Café Nespresso n°19 53grammes,Alimentation,Boissons,draft,0,0
+cafe_nespresso_n°20_53grammes,LG-202603-000282,Café Nespresso n°20 53grammes,Alimentation,Boissons,draft,0,0
+cafe_nespresso_n°4_53grammes,LG-202603-000283,Café Nespresso n°4 53grammes,Alimentation,Boissons,draft,0,0
+cafe_nespresso_n°5_53grammes,LG-202603-000284,Café Nespresso n°5 53grammes,Alimentation,Boissons,draft,0,0
+cafe_nespresso_n°6_53grammes,LG-202603-000285,Café Nespresso n°6 53grammes,Alimentation,Boissons,draft,0,0
+cafe_nespresso_n°7_53grammes,LG-202603-000286,Café Nespresso n°7 53grammes,Alimentation,Boissons,draft,0,0
+cafe_nespresso_n°8_53grammes,LG-202603-000287,Café Nespresso n°8 53grammes,Alimentation,Boissons,draft,0,0
+cafe_nespresso_n°9_53grammes,LG-202603-000288,Café Nespresso n°9 53grammes,Alimentation,Boissons,draft,0,0
+cafe_soluble_50gr,LG-202603-000293,Café soluble de 50gr,Alimentation,Boissons,draft,0,0
+coquillettes_250_grammes_lot_4,LG-202603-000465,Coquillettes 250 grammes lot de 4,Alimentation,Epicerie,draft,0,0
+coquillettes_500_grammes,LG-202603-000466,Coquillettes 500 grammes,Alimentation,Epicerie,draft,0,0
+cornbeef_mf,LG-202603-000470,Cornbeef MF,Alimentation,Epicerie,draft,0,0
+cornbeef_pf,LG-202603-000471,Cornbeef PF,Alimentation,Epicerie,draft,0,0
+corned_bœufs_mf,LG-202603-000473,Corned Bœufs MF,Alimentation,Epicerie,draft,0,0
+corned_bœufs_pf,LG-202603-000474,Corned Bœufs PF,Alimentation,Epicerie,draft,0,0
+couscous_maghreb_550_grammes,LG-202603-000509,Couscous Maghreb 550 grammes,Alimentation,Cereales,draft,0,0
+couscous_sipa_550_grammes,LG-202603-000511,Couscous SIPA 550 grammes,Alimentation,Cereales,draft,0,0
+eau_minerale_bara_1.5_litre,LG-202603-000571,"Eau minérale Bara 1,5 litre",Alimentation,Boissons,draft,0,0
+eau_minerale_eva_1.5_litre,LG-202603-000573,"Eau minérale EVA 1,5 litre",Alimentation,Boissons,draft,0,0
+eau_minerale_kirene_1.5_litre,LG-202603-000575,"Eau minérale KIRENE 1,5 litre",Alimentation,Boissons,draft,0,0
+eau_minerale_vitale_1.5_litre,LG-202603-000577,"Eau minérale VITALE 1,5 litre",Alimentation,Boissons,draft,0,0
+eau_oasis_0.5_litre,LG-202603-000579,"Eau Oasis 0,5 litre",Alimentation,Boissons,draft,0,0
+eau_oasis_1.5_litre,LG-202603-000580,"Eau Oasis 1,5 litre",Alimentation,Boissons,draft,0,0
+farine_ble_50kg,LG-202603-000658,Farine de blé sac 50kg,Alimentation,Cereales,draft,0,0
+fonio_decortique_kg,LG-202603-000713,Fonio décortiqué kg,Alimentation,Cereales,draft,0,0
+fonio_precuit_1kg,LG-202603-000716,Fonio précuit 1kg,Alimentation,Cereales,draft,0,0
+fonio_precuit_kg,LG-202603-000717,Fonio précuit (kg),Alimentation,Cereales,draft,0,0
+haricots_blancs_50kg,LG-202603-000813,Haricots blancs sac 50kg,Alimentation,Legumineuses,draft,0,0
+huile_50_essence,LG-202603-000817,Huile 50 (essence),Alimentation,Huiles et graisses,draft,0,0
+huile_aya_5_litre,LG-202603-000822,Huile AYA 5 litre,Alimentation,Huiles et graisses,draft,0,0
+huile_dinor_1_litre,LG-202603-000828,Huile Dinor 1 Litre,Alimentation,Huiles et graisses,draft,0,0
+huile_dinor_5_litres,LG-202603-000830,Huile Dinor 5 Litres,Alimentation,Huiles et graisses,draft,0,0
+huile_olive_1_litre,LG-202603-000839,Huile d'olive 1 Litre,Alimentation,Huiles et graisses,draft,0,0
+huile_olive_5_litres,LG-202603-000841,Huile d'olive 5 Litres,Alimentation,Huiles et graisses,draft,0,0
+huile_hydraulique,LG-202603-000832,Huile hydraulique,Alimentation,Huiles et graisses,draft,0,0
+huile_moteur_15w40,LG-202603-000834,Huile moteur 15W40,Alimentation,Huiles et graisses,draft,0,0
+huile_sda_5_litre,LG-202603-000845,Huile SDA 5 litre,Alimentation,Huiles et graisses,draft,0,0
+huile_vegetale_5l,LG-202603-000849,Huile végétale bidon 5L,Alimentation,Huiles et graisses,draft,0,0
+huile_zitma_5_litre,LG-202603-000851,Huile ZITMA 5 litre,Alimentation,Huiles et graisses,draft,0,0
+journal_nouvel_horizon,LG-202603-000876,Journal Nouvel Horizon,Alimentation,Cereales,draft,0,0
+jus_d’ananas_12_unites,LG-202603-000886,Jus d’ananas 12 unités,Alimentation,Boissons,draft,0,0
+lait_belle_hollandaise_boite_450,LG-202603-000915,Lait Belle Hollandaise boîte de 450,Alimentation,Produits laitiers,draft,0,0
+lait_belle_hollandaise_boite_900,LG-202603-000916,Lait Belle Hollandaise boîte de 900,Alimentation,Produits laitiers,draft,0,0
+lait_candia_1l,LG-202603-000922,Lait candia 1 L,Alimentation,Produits laitiers,draft,0,0
+lait_poudre_nido_boite_900_grammes,LG-202603-000950,Lait en poudre Nido/boîte de 900 grammes,Alimentation,Produits laitiers,draft,0,0
+lait_poudre_nido_boite_900grammes_12_unites_dans_carton,LG-202603-000951,"Lait en poudre Nido/boîte de 900grammes 12 
+unités dans le carton",Alimentation,Produits laitiers,draft,0,0
+lait_poudre_sac_10kg,LG-202603-000952,Lait en poudre sac de 10 kg,Alimentation,Produits laitiers,draft,0,0
+lait_poudre_sac_25kg,LG-202603-000953,Lait en poudre sac de 25 kg,Alimentation,Produits laitiers,draft,0,0
+lait_poudre_sac_50kg,LG-202603-000954,Lait en poudre sac de 50kg,Alimentation,Produits laitiers,draft,0,0
+lait_poudre_sac_5kg,LG-202603-000955,Lait en poudre sac de 5 kg,Alimentation,Produits laitiers,draft,0,0
+lait_gali_gf,LG-202603-000928,Lait Gali GF,Alimentation,Produits laitiers,draft,0,0
+lait_gali_mf,LG-202603-000929,Lait Gali MF,Alimentation,Produits laitiers,draft,0,0
+lait_gali_pf,LG-202603-000930,Lait Gali PF,Alimentation,Produits laitiers,draft,0,0
+lait_loya_25kg,LG-202603-000937,Lait Loya 25kg,Alimentation,Produits laitiers,draft,0,0
+lait_loya_25kg_moutarde_dijon_etiquette_rouge_1000,LG-202603-000938,"Lait Loya 25kg
+Moutarde de Dijon étiquette rouge 1000",Alimentation,Produits laitiers,draft,0,0
+lait_loya_5kg,LG-202603-000939,Lait Loya 5kg,Alimentation,Produits laitiers,draft,0,0
+lait_mixwell_25kg,LG-202603-000941,Lait Mixwell 25kg,Alimentation,Produits laitiers,draft,0,0
+lait_mixwell_5kg,LG-202603-000943,Lait Mixwell 5kg,Alimentation,Produits laitiers,draft,0,0
+mayonnaise_bama_12*473ml,LG-202603-001003,Mayonnaise BAMA 12*473ML,Alimentation,Condiments,draft,0,0
+mayonnaise_bama_500ml,LG-202603-001004,Mayonnaise BAMA (500ml),Alimentation,Condiments,draft,0,0
+mayonnaise_calve_500mi,LG-202603-001007,Mayonnaise Calvé (500MI),Alimentation,Condiments,draft,0,0
+mayonnaise_petit_matin_250ml,LG-202603-001014,Mayonnaise petit matin(250ml),Alimentation,Condiments,draft,0,0
+mayonnaise_petit_matin_450ml,LG-202603-001015,Mayonnaise petit matin(450ml),Alimentation,Condiments,draft,0,0
+mayonnaise_remia_100mi,LG-202603-001017,Mayonnaise Rémia(100MI),Alimentation,Condiments,draft,0,0
+peinture_huile_20_kgs_sadolac,LG-202603-001113,Peinture à huile 20 kgs (Sadolac),Alimentation,Huiles et graisses,draft,0,0
+peinture_l_huile_boite_3_kgs_sadolac,LG-202603-001115,Peinture à l'huile boîte de 3 kgs (Sadolac),Alimentation,Huiles et graisses,draft,0,0
+petits_pois_800_grammes,LG-202603-001139,Petits pois 800 grammes,Alimentation,Legumineuses,draft,0,0
+riz_brise_25kg,LG-202603-001235,Riz brisé sac 25kg,Alimentation,Cereales,draft,0,0
+riz_parfume_50kg,LG-202603-001239,Riz parfumé 50 Kg,Alimentation,Cereales,draft,0,0
+riz_parfume_5kg,LG-202603-001240,Riz parfumé 5 Kg,Alimentation,Cereales,draft,0,0
+riz_super_gambiaka_50kg,LG-202603-001242,Riz Super Gambiaka (50 kg),Alimentation,Cereales,draft,0,0
+tasses_cafe_duralex_lot_6,LG-202603-001335,Tasses à café duralex Lot de 6,Alimentation,Boissons,draft,0,0
+tente_familiale_4x4,LG-202603-001340,Tente familiale 4x4,Alimentation,Cereales,draft,0,0
+_test_insert_no_family,LG-202603-000002,Test sans family,Alimentation,Cereales,draft,0,0
+agregats,LG-202603-000039,AGREGATS,Construction,Granulats,draft,0,0
+barreau_acier_rapide_ars_carre_12x12,LG-202603-000103,Barreau en acier rapide ARS carré de 12x12,Construction,Metallurgie,draft,0,0
+barreau_acier_rapide_ars_carre_14x14,LG-202603-000104,Barreau en acier rapide ARS carré de 14x14,Construction,Metallurgie,draft,0,0
+barreau_acier_rapide_ars_carre_16x16,LG-202603-000105,Barreau en acier rapide ARS carré de 16x16,Construction,Metallurgie,draft,0,0
+barreau_acier_rapide_ars_carre_8x8,LG-202603-000106,Barreau en acier rapide ARS carré de 8x8,Construction,Metallurgie,draft,0,0
+bois_blanc_ep_2.5_larg_30cm,LG-202603-000179,"Bois blanc ep 2,5 larg 30cm",Construction,Bois et menuiserie,draft,0,0
+boite_antirouille,LG-202603-000205,Boite antirouille,Construction,Finitions,draft,0,0
+carreau_60_60cm,LG-202603-000322,Carreau 60/60cm,Construction,Carrelage,draft,0,0
+carreau_ciment_30_30,LG-202603-000324,Carreau de ciment 30/30,Construction,Materiaux gros oeuvre,draft,0,0
+carreau_ciment_40_40,LG-202603-000325,Carreau de ciment 40/40,Construction,Materiaux gros oeuvre,draft,0,0
+carreau_ciment_50_50,LG-202603-000326,Carreau de ciment 50/50,Construction,Materiaux gros oeuvre,draft,0,0
+carreau_faience_30_20,LG-202603-000328,Carreau de faïence 30/20,Construction,Carrelage,draft,0,0
+carreau_plastique_30_30,LG-202603-000335,Carreau en plastique 30/30,Construction,Carrelage,draft,0,0
+carreau_parquet_22.5_90cm,LG-202603-000332,"Carreau parquet 22,5/90cm",Construction,Carrelage,draft,0,0
+carreau_parquet_30_120,LG-202603-000333,Carreau parquet 30/120,Construction,Carrelage,draft,0,0
+chaux_vive,LG-202603-000363,Chaux vive,Construction,Materiaux,draft,0,0
+ciment_cpa_42_5,LG-202603-000390,Ciment CPA 42.5,Construction,Materiaux gros oeuvre,draft,0,0
+ciment_cpa42.5,LG-202603-000392,"Ciment CPA42,5",Construction,Materiaux gros oeuvre,draft,0,0
+ciment_cpa_45,LG-202603-000391,Ciment CPA 45,Construction,Materiaux gros oeuvre,draft,0,0
+ciment_cpa52.5,LG-202603-000393,"Ciment CPA52,5",Construction,Materiaux gros oeuvre,draft,0,0
+ciment_m_32.5_r,LG-202603-000396,Ciment M 32.5 R,Construction,Materiaux gros oeuvre,draft,0,0
+compacteur_preciser,LG-202603-000432,Compacteur (à preciser),Construction,Engins,draft,0,0
+confection_cachet_bois,LG-202603-000443,Confection cachet local (bois),Construction,Bois et menuiserie,draft,0,0
+corniere_25x25_barre_6_m,LG-202603-000478,Cornière 25x25 (barre de 6 m),Construction,Metallurgie,draft,0,0
+corniere_30x30x3_barre_6_m,LG-202603-000479,Cornière 30x30x3 (barre de 6 m),Construction,Metallurgie,draft,0,0
+corniere_30x40x5_barre_6_m,LG-202603-000480,Cornière 30x40x5 (barre de 6 m),Construction,Metallurgie,draft,0,0
+corniere_35x35x3.5_barre_6_m,LG-202603-000481,"Cornière 35x35x3,5 (barre de 6 m)",Construction,Metallurgie,draft,0,0
+corniere_40x40x3_barre_6_m,LG-202603-000482,Cornière 40x40x3 (barre de 6 m),Construction,Metallurgie,draft,0,0
+corniere_40x40x4_barre_6_m,LG-202603-000483,Cornière 40x40x4 (barre de 6 m),Construction,Metallurgie,draft,0,0
+corniere_40x40x5_barre_6_m,LG-202603-000484,Cornière 40x40x5 (barre de 6 m),Construction,Metallurgie,draft,0,0
+corniere_45x45_barre_6_m,LG-202603-000485,Cornière 45x45 (barre de 6 m),Construction,Metallurgie,draft,0,0
+corniere_50x50_barre_6_m,LG-202603-000486,Cornière 50x50 (barre de 6 m),Construction,Metallurgie,draft,0,0
+corniere_60x60_barre_6_m,LG-202603-000487,Cornière 60x60 (barre de 6 m),Construction,Metallurgie,draft,0,0
+corniere_70x70_barre_6_m,LG-202603-000488,Cornière 70x70 (barre de 6 m),Construction,Metallurgie,draft,0,0
+corniere_80x80_barre_6_m,LG-202603-000489,Cornière 80x80 (barre de 6 m),Construction,Metallurgie,draft,0,0
+dameuse_preciser,LG-202603-000542,Dameuse (à preciser),Construction,Engins,draft,0,0
+echafaudage_preciser,LG-202603-000598,Echafaudage (à preciser),Construction,Engins,draft,0,0
+enduit_facade,LG-202603-000610,Enduit façade,Construction,Maconnerie,draft,0,0
+"gants_soudeur_poignets_paire,_oxycopeur,_mance_croute_150mm,_antichaleur_conforme_norme_420_12477_gf",LG-202603-000768,"Gants de soudeur à poignets/paire, oxycopeur, mance de croûte 150mm, antichaleur conforme à la norme EN 420/EN 12477 GF",Construction,Metallurgie,draft,0,0
+"gants_soudeur_poignets_paire,_oxycopeur,_mance_croute_150mm,_antichaleur_conforme_norme_420_12477_mf",LG-202603-000769,"Gants de soudeur à poignets/paire, oxycopeur, mance de croûte 150mm, antichaleur conforme à la norme EN 420/EN 12477 MF",Construction,Metallurgie,draft,0,0
+"gants_soudeur_poignets_paire,_oxycopeur,mance_croute_150mm,_antichaleurconforme_norme_420_12477_mf",LG-202603-000771,"Gants de soudeur à poignets/paire, oxycopeur,mance de croûte 150mm, antichaleurconforme à la norme EN 420/EN 12477 MF",Construction,Metallurgie,draft,0,0
+"gants_soudeur_poignets_paire,_oxycopeur,mance_croute_150mm,_antichaleurconforme_norme_420_12477_pf",LG-202603-000772,"Gants de soudeur à poignets/paire, oxycopeur,mance de croûte 150mm, antichaleurconforme à la norme EN 420/EN 12477 PF",Construction,Metallurgie,draft,0,0
+"gants_soudeur_trois_doigts_paire_soudure_arc_mag,_conforme_norme_420_12477_gf",LG-202603-000774,"Gants de soudeur à trois doigts/paire pour soudure ARC/MAG, conforme à la norme en 420/EN 12477 GF",Construction,Metallurgie,draft,0,0
+"gants_soudeur_trois_doigts_paire_soudure_arc_mag,_conforme_norme_420_12477_mf",LG-202603-000775,"Gants de soudeur à trois doigts/paire pour soudure ARC/MAG, conforme à la norme en 420/EN 12477 MF",Construction,Metallurgie,draft,0,0
+"gants_soudeur_trois_doigts_paire_soudure_arc_mag,_conforme_norme_420_12477_pf",LG-202603-000776,"Gants de soudeur à trois doigts/paire pour soudure ARC/MAG, conforme à la norme en 420/EN 12477 PF",Construction,Metallurgie,draft,0,0
+gravier_15_25,LG-202603-000796,Gravier 15/25,Construction,Granulats,draft,0,0
+gravier_fleuve_voyage_bachee,LG-202603-000799,Gravier du fleuve ( Voyage Bachee),Construction,Granulats,draft,0,0
+graviers_produit_traditionnellement_sauvage,LG-202603-000802,Graviers produit traditionnellement(sauvage),Construction,Granulats,draft,0,0
+gravillon_10_14,LG-202603-000804,Gravillon 10/14,Construction,Granulats,draft,0,0
+gravillon_4_6,LG-202603-000805,Gravillon 4/6,Construction,Granulats,draft,0,0
+gravillon_6_10,LG-202603-000806,Gravillon 6/10,Construction,Granulats,draft,0,0
+liants_hydrauliques,LG-202603-000971,LIANTS HYDRAULIQUES,Construction,Granulats,draft,0,0
+menuiserie,LG-202603-001020,MENUISERIE,Construction,Bois et menuiserie,draft,0,0
+papier_sable_n_220,LG-202603-001091,Papier Sable n 220,Construction,Granulats,draft,0,0
+parpaing_15x20x40,LG-202603-001102,Parpaing 15x20x40,Construction,Maconnerie,draft,0,0
+paumelles_meuble_bois_gauche_etdroite,LG-202603-001106,Paumelles de meuble en bois ( gauche etdroite),Construction,Bois et menuiserie,draft,0,0
+pave_beton_10x20,LG-202603-001108,Pavé béton 10x20,Construction,Maconnerie,draft,0,0
+peinture_noire_250g,LG-202603-001117,Peinture noire 250 g,Construction,Finitions,draft,0,0
+peinture_noire_250g_atlas_-_auto,LG-202603-001118,Peinture noire 250 g (Atlas - Auto),Construction,Finitions,draft,0,0
+peinture_noire_250g_atlas_‑_auto,LG-202603-001119,Peinture noire 250 g (Atlas ‑ Auto),Construction,Finitions,draft,0,0
+pelle_mecanique_preciser_types,LG-202603-001124,Pelle mecanique (preciser les types),Construction,Outillage,draft,0,0
+plateaux_inox_42,LG-202603-001150,Plateaux inox 42,Construction,Metallurgie,draft,0,0
+plateaux_inox_50,LG-202603-001151,Plateaux inox 50,Construction,Metallurgie,draft,0,0
+pointe_acier_n°3,LG-202603-001158,Pointe acier N°3,Construction,Metallurgie,draft,0,0
+pointe_acier_n°4,LG-202603-001159,Pointe acier N°4,Construction,Metallurgie,draft,0,0
+pointe_acier_n°5,LG-202603-001160,Pointe acier N°5,Construction,Metallurgie,draft,0,0
+pointe_acier_n°6,LG-202603-001161,Pointe acier N°6,Construction,Metallurgie,draft,0,0
+pointe_acier_n°7,LG-202603-001162,Pointe acier N°7,Construction,Metallurgie,draft,0,0
+pointe_acier_n°8,LG-202603-001163,Pointe acier N°8,Construction,Metallurgie,draft,0,0
+pointe_acier_n°9,LG-202603-001164,Pointe acier N°9,Construction,Metallurgie,draft,0,0
+sable_fleuve_voyage_bachee,LG-202603-001253,Sable du fleuve (voyage Bachee),Construction,Granulats,draft,0,0
+sable_fleuve_voyage_camion,LG-202603-001254,Sable du fleuve (voyage camion),Construction,Granulats,draft,0,0
+tole_noire_15_10,LG-202603-001399,Tôle noire 15/10,Construction,Couverture,draft,0,0
+tole_noire_20_10,LG-202603-001400,Tôle noire 20/10,Construction,Couverture,draft,0,0
+tole_noire_30_10,LG-202603-001401,Tôle noire 30/10,Construction,Couverture,draft,0,0
+tole_noire_40_10,LG-202603-001402,Tôle noire 40/10,Construction,Couverture,draft,0,0
+tole_noire_50_10,LG-202603-001403,Tôle noire 50/10,Construction,Couverture,draft,0,0
+tole_noire_8_10,LG-202603-001404,Tôle noire 8/10,Construction,Couverture,draft,0,0
+tole_ondulee_6kg,LG-202603-001407,Tôle ondulée 6 kg,Construction,Couverture,draft,0,0
+tole_ondulee_7.2kg,LG-202603-001408,"Tôle ondulée 7,2 kg",Construction,Couverture,draft,0,0
+tole_ondulee_8kg,LG-202603-001409,Tôle ondulée 8 kg,Construction,Couverture,draft,0,0
+tole_ondulee_9kg,LG-202603-001410,Tôle ondulée 9 kg,Construction,Couverture,draft,0,0
+tole_ondule_zinc,LG-202603-001405,Tôle ondulée zinc,Construction,Couverture,draft,0,0
+tout_venant_gravier,LG-202603-001420,Tout venant (gravier),Construction,Granulats,draft,0,0
+tube_cuivre_reduit_diametre_12_rouleau_de15_m,LG-202603-001429,Tube en cuivre reduit diamètre 12 (Rouleau de15 m),Construction,Metallurgie,draft,0,0
+tube_cuivre_reduit_diametre_14_rouleau_15_m,LG-202603-001430,Tube en cuivre reduit diamètre 14 (Rouleau de 15 m),Construction,Metallurgie,draft,0,0
+tube_cuivre_reduit_diametre_14_rouleau_de15_m,LG-202603-001431,Tube en cuivre reduit diamètre 14 (Rouleau de15 m),Construction,Metallurgie,draft,0,0
+vis_bois_01_x_25mm_paquet,LG-202603-001460,Vis à bois 01 x 25 mm (paquet),Construction,Bois et menuiserie,draft,0,0
+vis_bois_3x16,LG-202603-001461,Vis à bois 3x16,Construction,Bois et menuiserie,draft,0,0
+vis_bois_3x20,LG-202603-001462,Vis à bois 3x20,Construction,Bois et menuiserie,draft,0,0
+vis_bois_3x25,LG-202603-001463,Vis à bois 3x25,Construction,Bois et menuiserie,draft,0,0
+vis_bois_3x30,LG-202603-001464,Vis à bois 3x30,Construction,Bois et menuiserie,draft,0,0
+vitre_anti‑solaire_4mm,LG-202603-001475,Vitre anti‑solaire 4mm,Construction,Vitrerie,draft,0,0
+vitre_anti-solaire_6mm,LG-202603-001473,Vitre anti-solaire 6mm,Construction,Vitrerie,draft,0,0
