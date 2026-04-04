@@ -8,6 +8,8 @@ from typing import Any
 
 from docx import Document
 
+from src.db.workspace_context import get_workspace_id_for_case
+
 from ..models import (
     ensure_schema,
     generate_id,
@@ -86,16 +88,20 @@ async def _generate_pv(lot_id: str, kind: str, actor: str | None) -> dict[str, A
             doc.save(pv_path)
 
             doc_id = generate_id()
+            _ws_id = get_workspace_id_for_case(conn, lot["case_id"])
+            _pv_ws_clause = ", workspace_id" if _ws_id else ""
+            _pv_ws_val = ", %(workspace_id)s" if _ws_id else ""
             conn.execute(
-                """
+                f"""
                 INSERT INTO documents (
                     id, case_id, lot_id, offer_id, document_type, filename,
-                    storage_path, path, mime_type, metadata_json, uploaded_at
+                    storage_path, path, mime_type, metadata_json, uploaded_at{_pv_ws_clause}
                 )
                 VALUES (
                     %(id)s, %(case_id)s, %(lot_id)s, %(offer_id)s, %(document_type)s, %(filename)s,
-                    %(storage_path)s, %(path)s, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                    %(metadata_json)s, NOW()::TEXT
+                    %(storage_path)s, %(path)s,
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    %(metadata_json)s, NOW()::TEXT{_pv_ws_val}
                 )
                 """,
                 {
@@ -108,6 +114,7 @@ async def _generate_pv(lot_id: str, kind: str, actor: str | None) -> dict[str, A
                     "storage_path": str(pv_path),
                     "path": str(pv_path),
                     "metadata_json": serialize_json({"lot_id": lot_id}),
+                    "workspace_id": _ws_id,
                 },
             )
             conn.execute(
