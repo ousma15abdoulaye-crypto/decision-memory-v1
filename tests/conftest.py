@@ -153,6 +153,75 @@ def case_factory(db_conn):
 
 
 @pytest.fixture
+def workspace_factory(db_conn):
+    """DB factory V4.2.0 — crée un process_workspace minimal et retourne workspace_id.
+
+    Utilise les migrations 068-069 (tenants + process_workspaces).
+    Nécessite que les tables tenants et process_workspaces existent.
+    Scope: function (isolation maximale).
+    Coexiste avec case_factory pendant la période dual-write (Phase 2).
+    """
+    created_ids: list[str] = []
+
+    def _factory(
+        process_type: str = "devis_simple",
+        status: str = "draft",
+        tenant_code: str = "sci_mali",
+    ) -> str:
+        ws_id = str(uuid.uuid4())
+        with db_conn.cursor() as cur:
+            cur.execute("SELECT set_config('app.is_admin', 'true', true)")
+            cur.execute(
+                "SELECT id FROM tenants WHERE code = %s LIMIT 1", (tenant_code,)
+            )
+            row = cur.fetchone()
+            if row:
+                tenant_id = str(row["id"])
+            else:
+                tenant_id = str(uuid.uuid4())
+                cur.execute(
+                    "INSERT INTO tenants (id, code, name) VALUES (%s, %s, %s)",
+                    (tenant_id, tenant_code, f"Test Tenant {tenant_code}"),
+                )
+
+            cur.execute("SELECT id FROM users LIMIT 1")
+            user_row = cur.fetchone()
+            user_id = int(user_row["id"]) if user_row else 1
+
+            cur.execute(
+                """
+                INSERT INTO process_workspaces
+                    (id, tenant_id, created_by, reference_code, title, process_type, status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    ws_id,
+                    tenant_id,
+                    user_id,
+                    f"TEST-{ws_id[:8]}",
+                    f"test-workspace-{ws_id[:8]}",
+                    process_type,
+                    status,
+                ),
+            )
+        created_ids.append(ws_id)
+        return ws_id
+
+    yield _factory
+
+    if created_ids:
+        try:
+            with db_conn.cursor() as cur:
+                cur.execute("SELECT set_config('app.is_admin', 'true', true)")
+                cur.execute(
+                    "DELETE FROM process_workspaces WHERE id = ANY(%s)",
+                    (created_ids,),
+                )
+        except Exception:
+            pass
+
+
+@pytest.fixture
 def _tx(db_conn):
     """Transaction rollback-only — zéro DELETE teardown.
 
