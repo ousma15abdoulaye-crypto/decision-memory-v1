@@ -1634,3 +1634,108 @@ Le V4.2.0 **complete** le V4.1.0, ne le remplace pas. En cas de conflit sur REGL
 **HEAD main au moment de cet addendum :** `c70c826b` (unchanged — aucun merge V4.2.0 sur main encore)
 
 ---
+
+## ADDENDUM 2026-04-04 — HANDOVER AGENT — DEBUG PRs #319-323 (V4.2.0 PHASES 1→5)
+
+**Autorité :** mandat CTO (session précédente) — PR #313 (Phase 0) mergée sur main. PRs #319-323 ouvertes, empilées, en attente CI vert.
+
+**Contexte succinct :** L'implémentation V4.2.0 est découpée en 6 phases. La Phase 0 (PR #313) a été mergée sur main (`c70c826b`). Les branches `feat/v420-p1-final` → `feat/v420-p56-final` ont été reconstruites par cherry-pick depuis main pour former une pile propre. Les PRs correspondantes (#319-323) ont été ouvertes.
+
+---
+
+### ÉTAT DES PRs AU HANDOVER (2026-04-04T16:30Z)
+
+| PR | Titre | Branche source | Base | CI |
+|----|-------|----------------|------|----|
+| #319 | Phase 1 — Migrations 068-073 (15 tables) | `feat/v420-p1-final` | `main` | **EN COURS** (dernier push `02ddfe85`) |
+| #320 | Phase 2 — Dual-Write case_id + workspace_id | `feat/v420-p2-final` | `feat/v420-p1-final` | en attente |
+| #321 | Phase 3 — Big Bang 074-075 + RBAC | `feat/v420-p3-final` | `feat/v420-p2-final` | en attente |
+| #322 | Phase 4 — src/assembler/ Pass-1 LangGraph | `feat/v420-p4-final` | `feat/v420-p3-final` | en attente |
+| #323 | Phase 5+6 — Routes W1/W2/W3 + WebSocket + pilote | `feat/v420-p56-final` | `feat/v420-p4-final` | en attente |
+
+**Ordre de merge obligatoire :** #319 → #320 → #321 → #322 → #323 → post-merge (MRD + anchor).
+
+---
+
+### HISTORIQUE DES ÉCHECS CI ET CORRECTIONS APPLIQUÉES (PR #319)
+
+**Échec 1 — DatatypeMismatch migration 069** (corrigé dans `d471a9c3`)
+- `zone_id` avait type UUID → corrigé en `VARCHAR(50)` (geo_master.id = VARCHAR(50))
+- `category_id` avait type UUID → corrigé en `TEXT` (procurement_categories.id = TEXT)
+
+**Échec 2 — UndefinedTable migration 073** (corrigé dans `8335aacd`)
+- Tables fantômes supprimées : `evaluation_criteria` → remplacée par `dao_criteria` ; `extraction_review_queue`, `decision_history`, `dict_proposals` supprimées (inexistantes)
+- Liste finale canon : `documents`, `dao_criteria`, `offer_extractions`, `score_history`, `elimination_log`, `evaluation_documents`, `market_surveys`
+
+**Échec 3 — test_alembic_head_is_current désaligné** (corrigé dans `206afdc9`)
+- Cause racine : `tests/couche_a/test_migration.py::_restore_schema` corrompt `alembic_version` → insert `m4_patch_a_fix` ; `run_migrations_before_db_integrity_tests` (session-scoped autouse) relance `alembic upgrade head` depuis `m4_patch_a_fix` ; migrations 068-073 non idempotentes → DB bloquée à 067.
+- Correction : toutes les migrations 068-073 rendues idempotentes : `CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`, `DROP POLICY IF EXISTS ... CREATE POLICY`, `DROP TRIGGER IF EXISTS ... CREATE TRIGGER`, `DROP CONSTRAINT IF EXISTS ... ADD CONSTRAINT`.
+
+**Échec 4 — NotNullViolation committee_id** (corrigé dans `f3914441`)
+- `evaluation_documents.committee_id UUID NOT NULL` (migration 056). Les tests n'en fournissaient pas.
+- Correction : `_make_case_and_workspace()` crée un comité minimal et retourne `committee_id` ; `_insert_eval_doc()` inclut `committee_id`.
+
+**Échec 5 — VALID_ALEMBIC_HEADS outdated** (corrigé dans `f3914441`)
+- `tests/test_046b_imc_map_fix.py` a une whitelist hardcodée des heads alembic valides. Migrations 068-073 absentes.
+- Correction : 6 nouveaux heads ajoutés à la tuple.
+
+**Échec 6 — RLS bypass superuser** (corrigé dans `f3914441` + `02ddfe85`)
+- `db_conn` = postgres superuser → bypasse RLS sans `FORCE ROW LEVEL SECURITY`.
+- `set_config(param, val, is_local=true)` en mode autocommit ne persiste pas entre `execute()` calls.
+- Correction DÉFINITIVE (`02ddfe85`) :
+  - Tests d'isolation (`test_rls_no_local_set_returns_empty`, `test_rls_tenant_isolation`) utilisent désormais `DATABASE_URL_RLS_TEST` (rôle `dm_app`, non-superuser, `NOBYPASSRLS`, `autocommit=False`) via `_rls_conn()` — même pattern que `tests/integration/test_rls_dm_app_cross_tenant.py`.
+  - Tests marqués `@_SKIP_NO_RLS` (skipif DATABASE_URL_RLS_TEST absent).
+  - `FORCE ROW LEVEL SECURITY` ajouté à migration 069 (sécurité défense en profondeur — conservé).
+
+**Échec 7 — NotNullViolation scores_matrix** (corrigé dans `02ddfe85`)
+- `evaluation_documents.scores_matrix JSONB NOT NULL DEFAULT '{}'::jsonb` (migration 056).
+- `test_scores_matrix_null_ok` essayait d'insérer NULL → violation schema.
+- Correction : test renommé `test_scores_matrix_empty_ok`, utilise `'{}'::jsonb`.
+
+---
+
+### ÉTAT BRANCH feat/v420-p1-final AU HANDOVER
+
+HEAD : `02ddfe85` (dernier fix — CI en cours)
+
+Commits clés sur cette branche :
+- `d471a9c3` — fix migration 069 types geo
+- `8335aacd` — fix migration 073 tables canon
+- `206afdc9` — idempotency migrations 068-073
+- `f3914441` — committee_id, VALID_ALEMBIC_HEADS, FORCE RLS + is_local
+- `02ddfe85` — RLS définitif via dm_app + scores_matrix NOT NULL
+
+---
+
+### ACTIONS REQUISES POUR LE SUCCESSEUR
+
+**STEP 1 — Attendre CI PR #319**
+- CI déclenché par push `02ddfe85` sur `feat/v420-p1-final`.
+- Si VERT : merger PR #319 dans main (`gh pr merge 319 --squash --auto`).
+- Si ENCORE ROUGE : lire `gh run view <run_id> --log-failed` pour identifier les tests.
+  - ATTENTION : les seuls tests qui peuvent encore échouer sont des tests d'intégration liés à des données manquantes ou des FK. Lire les erreurs exactes avant de toucher le code.
+
+**STEP 2 — Merger PRs #320-323 en séquence**
+- PR #320 : base `feat/v420-p1-final` → après merge #319, rebase sur main si nécessaire.
+- PR #321 : Phase 3 Big Bang — migrations 074-075 (drop case_id, RBAC). CI peut casser des tests référençant `case_id` directement → corriger tests si besoin avant merge.
+- PR #322 / #323 : phases finales assembler + routes.
+
+**STEP 3 — Post dernier merge**
+- Mettre à jour `docs/freeze/MRD_CURRENT_STATE.md` : état V4.2.0 implémenté, alembic head 075.
+- Mettre à jour ce CONTEXT_ANCHOR avec le nouveau HEAD main et statut final.
+
+---
+
+### INVARIANTS À NE PAS VIOLER LORS DU DEBUG
+
+1. Ne JAMAIS modifier `alembic/versions/001_*` → `067_*` (migrations existantes — FREEZE).
+2. `VALID_ALEMBIC_HEADS` dans `tests/test_046b_imc_map_fix.py` doit être étendu si nouvelles migrations (074-075) ajoutées.
+3. `evaluation_documents` : toujours fournir `committee_id` (NOT NULL) dans les INSERT de tests.
+4. Tests RLS sur `process_workspaces` : utiliser `DATABASE_URL_RLS_TEST` (dm_app), pas `db_conn` (superuser).
+5. `scores_matrix` dans `evaluation_documents` : `NOT NULL DEFAULT '{}'::jsonb` — ne jamais insérer NULL.
+6. La chaîne de PRs est empilée. Merger dans l'ordre : #319 → #320 → #321 → #322 → #323.
+
+**HEAD main au handover :** `c70c826b` (inchangé — Phase 0 seulement mergée)
+**HEAD feat/v420-p1-final au handover :** `02ddfe85`
+
+---
