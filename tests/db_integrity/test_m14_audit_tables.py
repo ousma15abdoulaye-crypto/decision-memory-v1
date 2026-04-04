@@ -40,23 +40,23 @@ class TestM14AuditTables:
 
         with db_conn.cursor() as cur:
             cur.execute(
-                "SELECT id::text FROM public.cases LIMIT 1",
+                "SELECT id::text FROM public.process_workspaces LIMIT 1",
             )
             row = cur.fetchone()
             if row is None:
-                pytest.skip("aucun case en base")
-            case_id = row[0] if isinstance(row, tuple) else row["id"]
+                pytest.skip("aucun process_workspace en base")
+            workspace_id = row[0] if isinstance(row, tuple) else row["id"]
             # RLS FORCE : même superuser — aligner le test sur le trigger append-only
             cur.execute("SELECT set_config('app.is_admin', 'true', true)")
             cur.execute(
                 """
                 INSERT INTO public.score_history (
-                    case_id, offer_document_id, criterion_key,
+                    workspace_id, offer_document_id, criterion_key,
                     score_value, max_score, confidence, evidence
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
-                (case_id, "m14-audit-test-offer", "crit_x", 1.0, 10.0, 0.6, "t"),
+                (workspace_id, "m14-audit-test-offer", "crit_x", 1.0, 10.0, 0.6, "t"),
             )
             rid = cur.fetchone()
             pk = rid[0] if isinstance(rid, tuple) else rid["id"]
@@ -77,21 +77,21 @@ class TestM14AuditTables:
             pytest.skip("migration 059 non appliquée")
         with db_conn.cursor() as cur:
             cur.execute(
-                "SELECT id::text FROM public.cases LIMIT 1",
+                "SELECT id::text FROM public.process_workspaces LIMIT 1",
             )
             row = cur.fetchone()
             if row is None:
-                pytest.skip("aucun case en base")
-            case_id = row[0] if isinstance(row, tuple) else row["id"]
+                pytest.skip("aucun process_workspace en base")
+            workspace_id = row[0] if isinstance(row, tuple) else row["id"]
             cur.execute("SELECT set_config('app.is_admin', 'true', true)")
             cur.execute(
                 """
                 INSERT INTO public.elimination_log (
-                    case_id, offer_document_id, check_id, check_name, reason
+                    workspace_id, offer_document_id, check_id, check_name, reason
                 ) VALUES (%s, %s, %s, %s, %s)
                 RETURNING id
                 """,
-                (case_id, "m14-elim-test", "T1", "test", "reason"),
+                (workspace_id, "m14-elim-test", "T1", "test", "reason"),
             )
             rid = cur.fetchone()
             pk = rid[0] if isinstance(rid, tuple) else rid["id"]

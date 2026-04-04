@@ -99,10 +99,11 @@ def get_document(document_id: str) -> dict:
     with get_db_cursor() as cur:
         cur.execute(
             """
-            SELECT id, case_id, mime_type, storage_uri,
-                   extraction_status, extraction_method
-            FROM documents
-            WHERE id = %s
+            SELECT d.id, pw.legacy_case_id AS case_id, d.mime_type, d.storage_uri,
+                   d.extraction_status, d.extraction_method, d.workspace_id
+            FROM documents d
+            LEFT JOIN process_workspaces pw ON pw.id = d.workspace_id
+            WHERE d.id = %s
         """,
             (document_id,),
         )
@@ -732,9 +733,10 @@ def process_extraction_job(job_id: str) -> dict:
         cur.execute(
             """
             SELECT ej.id, ej.document_id, ej.method, ej.status,
-                   d.storage_uri, d.case_id
+                   d.storage_uri, pw.legacy_case_id AS case_id
             FROM extraction_jobs ej
             JOIN documents d ON d.id = ej.document_id
+            LEFT JOIN process_workspaces pw ON pw.id = d.workspace_id
             WHERE ej.id = %s
         """,
             (job_id,),
