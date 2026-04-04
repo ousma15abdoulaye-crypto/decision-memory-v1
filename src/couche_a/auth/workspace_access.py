@@ -3,7 +3,7 @@
 Vérifie l'appartenance d'un utilisateur à un workspace via :
   - workspace_memberships (membership explicite)
   - user_tenant_roles + RBAC (permission workspace.read)
-  - admin flag (superuser)
+  - rôle JWT admin (même barrière que case_access.py)
 
 Référence : docs/freeze/DMS_V4.2.0_RBAC.md — RÈGLE-W01
 users.id = INTEGER (migration 004).
@@ -11,14 +11,17 @@ users.id = INTEGER (migration 004).
 
 from __future__ import annotations
 
-import logging
-
 from fastapi import HTTPException, status
 
 from src.couche_a.auth.dependencies import UserClaims
 from src.db import db_execute_one, get_connection
 
-logger = logging.getLogger(__name__)
+
+def _tenant_id_str(value: object) -> str:
+    """Normalise tenant_id DB (uuid.UUID, str) pour comparaison avec UserClaims.tenant_id."""
+    if value is None:
+        return ""
+    return str(value)
 
 
 def require_workspace_access(workspace_id: str, user: UserClaims) -> None:
@@ -28,7 +31,7 @@ def require_workspace_access(workspace_id: str, user: UserClaims) -> None:
 
     Logique :
       1. Workspace existe ET appartient au même tenant que l'utilisateur.
-      2. Utilisateur est superuser OU membre workspace OU a permission workspace.read.
+      2. Utilisateur est admin (JWT) OU membre workspace OU a permission workspace.read.
 
     Args:
         workspace_id: UUID du workspace à vérifier.
@@ -51,10 +54,12 @@ def require_workspace_access(workspace_id: str, user: UserClaims) -> None:
             detail=f"Workspace {workspace_id!r} non trouvé.",
         )
 
-    if user.is_superuser:
+    if user.role == "admin":
         return
 
-    if user.tenant_id and ws.get("tenant_id") != user.tenant_id:
+    if user.tenant_id and _tenant_id_str(ws.get("tenant_id")) != _tenant_id_str(
+        user.tenant_id
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Accès refusé — workspace appartient à un autre tenant.",
@@ -114,7 +119,7 @@ def require_workspace_permission(
     """
     require_workspace_access(workspace_id, user)
 
-    if user.is_superuser:
+    if user.role == "admin":
         return
 
     user_id = int(user.user_id)

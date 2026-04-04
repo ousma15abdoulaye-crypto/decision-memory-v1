@@ -11,7 +11,7 @@ Cree le systeme RBAC V4.2.0 :
   - user_tenant_roles   : affectation utilisateur <-> role <-> tenant
 
 Migration des utilisateurs existants V4.1.0 :
-  - superuser/admin -> 'procurement_director'
+  - is_superuser -> role 'supply_chain_admin' (par tenant dans user_tenants)
   - procurement_officer -> 'procurement_officer'
   - viewer -> 'market_analyst'
 
@@ -207,10 +207,10 @@ def upgrade() -> None:
         INSERT INTO user_tenant_roles (user_id, tenant_id, role_id)
         SELECT u.id, t.id, r.id
         FROM users u
-        CROSS JOIN tenants t
-        CROSS JOIN rbac_roles r
+        JOIN user_tenants ut ON ut.user_id = u.id
+        JOIN tenants t ON t.code = ut.tenant_id OR t.id::text = ut.tenant_id
+        JOIN rbac_roles r ON r.code = 'supply_chain_admin'
         WHERE u.is_superuser = TRUE
-          AND r.code = 'supply_chain_admin'
         ON CONFLICT DO NOTHING
         """)
 
@@ -219,11 +219,11 @@ def upgrade() -> None:
         SELECT u.id, t.id, r.id
         FROM users u
         JOIN roles old_r ON old_r.id = u.role_id
-        CROSS JOIN tenants t
-        CROSS JOIN rbac_roles r
+        JOIN user_tenants ut ON ut.user_id = u.id
+        JOIN tenants t ON t.code = ut.tenant_id OR t.id::text = ut.tenant_id
+        JOIN rbac_roles r ON r.code = 'procurement_officer'
         WHERE u.is_superuser = FALSE
           AND old_r.name = 'procurement_officer'
-          AND r.code = 'procurement_officer'
         ON CONFLICT DO NOTHING
         """)
 
@@ -232,11 +232,11 @@ def upgrade() -> None:
         SELECT u.id, t.id, r.id
         FROM users u
         JOIN roles old_r ON old_r.id = u.role_id
-        CROSS JOIN tenants t
-        CROSS JOIN rbac_roles r
+        JOIN user_tenants ut ON ut.user_id = u.id
+        JOIN tenants t ON t.code = ut.tenant_id OR t.id::text = ut.tenant_id
+        JOIN rbac_roles r ON r.code = 'market_analyst'
         WHERE u.is_superuser = FALSE
           AND old_r.name = 'viewer'
-          AND r.code = 'market_analyst'
         ON CONFLICT DO NOTHING
         """)
 
