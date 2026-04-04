@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-03 (post-session M15 Wartime Activation — PR #304) ║
+║  Dernière mise à jour : 2026-04-04 (post-merge PR #304 M15 Wartime — main 361b3787) ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -86,9 +86,15 @@
 ║                                                                      ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║                                                                      ║
-║  GIT — 2026-04-02                                                    ║
+║  GIT — 2026-04-04 (PR #304 MERGÉ)                                    ║
 ║  ──────────────────────────────────────────────────────────────     ║
-║  main              : 38733982 — Merge PR #292 feat/M13-regulatory-profile-engine-v5 ║
+║  main              : 361b3787 — squash merge PR #304 feat(m15) Wartime M15 Activation V1-V6 ║
+║    (+ scripts ops : batch_signal, trigger_extraction, export LS/registry, ARQ smoke, ║
+║    indexes signal_engine, dms_pg_connect.resolve_database_url_for_scripts ; Copilot ║
+║    review : secrets DB, API /api/extractions/...+JWT, TLS LS, bulk vendor ETL) ║
+║  PR #304           : MERGÉ — CLOS — branche feat/m15-activation-wartime supprimée origin ║
+║  parent 361b3787   : 91adc2ed — fix Dockerfile annotation-backend COPY procurement (#303) ║
+║  (historique) main : 38733982 — Merge PR #292 feat/M13-regulatory-profile-engine-v5 ║
 ║    (M13 V5 engine, config/regulatory YAML SCI+DGMP, Pass 2A, migration 057, ADR-M13-001) ║
 ║  Branche PR #292   : supprimée sur origin après merge                              ║
 ║  main (historique) : à jour 2026-04-01 — PR #286 + #287 mergés ; MRD/CONTEXT alignés ║
@@ -123,8 +129,7 @@
 ║    Bascule ANNOTATION_USE_PASS_ORCHESTRATOR=1 : EN ATTENTE (action CTO Dashboard) ║
 ║  PR #301 : feat(m15) plan correction gaps — squash merge 3aa1f509 main (2026-04-03) ║
 ║  PR #302 : docs(anchor): MRD + CONTEXT post-merge PR #301 — merge 57d2e839 main    ║
-║  PR #304 : feat(m15) Wartime Activation V1-V6 — branche feat/m15-activation-wartime ║
-║    PUSHED — EN ATTENTE MERGE CTO — commits: 4cf49dd3 + 302fc284 + 16dd840f        ║
+║  PR #304 : feat(m15) Wartime Activation V1-V6 — DONE (squash merge → main 361b3787) ║
 ║  tags posés :                                                         ║
 ║    v4.1.0-ocr-files-api-done                                         ║
 ║    v4.1.0-m12-dette7-done                                             ║
@@ -1287,8 +1292,8 @@ docs/adr/ADR-CONFIDENCE-SCOPE-001.md
 ## ADDENDUM 2026-04-03 — M15 WARTIME ACTIVATION (PR #304) — CONSIGNES AU SUCCESSEUR
 
 **Autorité :** mandat CTO / AO — session post-audit DMS V4.1 (score 6.2/10).
-**Statut :** PR #304 `feat/m15-activation-wartime` — PUSHED — EN ATTENTE MERGE CTO.
-**Commits :** `4cf49dd3` (scripts V1-V6) + `302fc284` (fixes V1/V5/V6) + `16dd840f` (indexes V4).
+**Statut :** PR #304 **MERGÉ** dans `main` — squash **`361b3787`** (2026-04-04) — branche supprimée sur `origin`.
+**Réf. merge :** `feat(m15): Wartime M15 Activation V1-V6 operational (#304)` — revue Copilot intégrée (secrets DB, route extractions+JWT, TLS LS, bulk vendor).
 
 ---
 
@@ -1361,33 +1366,34 @@ Ces index ont ete crees CONCURRENTLY — ils sont actifs et persistent :
 
 ### ACTIONS REQUISES CTO APRES MERGE PR #304
 
-**OBLIGATOIRE — DANS CET ORDRE :**
+**MERGE PR #304 : FAIT** (main `361b3787`, 2026-04-04).
 
-1. **Merger PR #304** sur GitHub (pas de merge direct main — respecter REGLE-ORG-10).
+**OBLIGATOIRE — SUITE OPS (ORDRE RECOMMANDÉ) :**
 
-2. **Redis Railway** (V3 — BLOQUANT pour ARQ workers) :
+1. **Redis Railway** (V3 — BLOQUANT pour ARQ workers) :
    - Railway Dashboard → projet DMS → `+ New Service` → `Redis`
    - Copier l'URL (format : `redis://default:XXXXX@monorail.proxy.rlwy.net:PORT`)
    - Ajouter dans `.env.railway.local` : `REDIS_URL=redis://default:XXXXX@...`
    - **Tester** : `python scripts/with_railway_env.py python scripts/smoke_arq_worker.py`
    - Local Docker deja configure : `REDIS_URL=redis://localhost:6379` dans `.env.local`
 
-3. **Orchestrateur** (V2 — BLOQUANT pour annotations automatiques) :
+2. **Orchestrateur** (V2 — BLOQUANT pour annotations automatiques) :
    - Railway Dashboard → Variables → `ANNOTATION_USE_PASS_ORCHESTRATOR=1`
    - **NE PAS** le setter a 1 si une session annotation Label Studio est active (risque restart service)
    - **Verifier** : `curl -X POST $RAILWAY_URL/api/m12/predict -d '{"test":true}'`
 
-4. **Trigger extraction** (V6 — 25 docs pending) :
+3. **Trigger extraction** (V6 — 25 docs pending) :
    - Recuperer RAILWAY_URL de la Railway Dashboard (URL publique de l'app DMS)
+   - Definir `DMS_JWT` (ou `--auth-token`) — obligatoire en `--apply`
    - Executer : `python scripts/with_railway_env.py python scripts/trigger_extraction_queue.py --apply --api-url https://TON-APP.railway.app`
    - **Verifier** : `SELECT extraction_status, COUNT(*) FROM public.documents GROUP BY extraction_status`
 
-5. **Batch signal V4** (en cours au moment du commit) :
+4. **Batch signal V4** (en cours au moment du commit) :
    - Si le batch s'est arrete : `python scripts/with_railway_env.py python scripts/batch_signal_from_map.py --apply`
    - **Objectif** : `market_signals_v2` strong+moderate >= 40% des signaux
    - **Verifier** : `SELECT signal_quality, COUNT(*) FROM public.market_signals_v2 GROUP BY signal_quality`
 
-6. **Label Studio token** (V1 — pour nouvelles annotations) :
+5. **Label Studio token** (V1 — pour nouvelles annotations) :
    - `.env.local` `LABEL_STUDIO_API_KEY` expire → renouveler sur `https://label-studio-production-1f72.up.railway.app/user/account`
    - Procedure : se connecter → Account → Access Token → copier le nouveau token
 
@@ -1464,7 +1470,7 @@ Ces index ont ete crees CONCURRENTLY — ils sont actifs et persistent :
 1. Lire CLAUDE.md + CONTEXT_ANCHOR.md + MRD_CURRENT_STATE.md en entier.
 2. Verifier git branch — jamais travailler sur main.
 3. Verifier `alembic current` sur Railway = `067_fix_market_coverage_trigger`.
-4. Verifier que PR #304 est MERGEE avant de creer un nouveau mandat M15.
+4. PR #304 est MERGEE dans main (`361b3787`) — nouveaux mandats M15 sur branche dediee.
 
 **REGLES ABSOLUES SESSION SUIVANTE :**
 
@@ -1485,11 +1491,28 @@ Ces index ont ete crees CONCURRENTLY — ils sont actifs et persistent :
 
 **PROCHAINE SESSION — OBJECTIFS PRIORITAIRES :**
 
-1. Confirmer merge PR #304 et verifier etat Railway.
+1. Verifier etat Railway post-merge (scripts ops disponibles sur main).
 2. Configurer REDIS_URL Railway (action Dashboard).
 3. Activer ANNOTATION_USE_PASS_ORCHESTRATOR=1 hors campagne annotation.
 4. Recuperer RAILWAY_URL et lancer trigger extraction (25 docs pending).
 5. Attendre/relancer batch V4 jusqu'a strong+moderate >= 40%.
 6. Mettre a jour MRD_CURRENT_STATE.md avec metriques reelles post-activation.
+
+---
+
+## ADDENDUM 2026-04-04 — POST-MERGE PR #304 (STATUT DONE)
+
+**Autorite :** cloture mandat M15 Wartime Activation — alignement CONTEXT apres merge GitHub.
+
+| Element | Valeur |
+|---------|--------|
+| PR | https://github.com/ousma15abdoulaye-crypto/decision-memory-v1/pull/304 |
+| Etat | **MERGED** (squash) — `mergedAt` 2026-04-04T08:42:22Z |
+| `main` @ merge | `361b3787` — `feat(m15): Wartime M15 Activation V1-V6 operational (#304)` |
+| Branche | `feat/m15-activation-wartime` — supprimee sur `origin` apres merge |
+
+**Livrable depot (principaux) :** scripts `batch_signal_from_map`, `trigger_extraction_queue`, `export_labelstudio_to_registry`, `export_annotations_jsonl`, `smoke_arq_worker`, `enrich_survey_vendor_ids`, `add_signal_engine_indexes`, `_add_missing_indexes`, `_seed_vendor_proxy` ; `scripts/dms_pg_connect.py` (`resolve_database_url_for_scripts`) ; correctifs revue Copilot (pas de secret en dur, route `/api/extractions/...`, JWT, TLS LS, bulk `supplier_raw`).
+
+**Suite CTO :** Redis Railway, `ANNOTATION_USE_PASS_ORCHESTRATOR=1`, trigger extraction avec `DMS_JWT`, batch signal si besoin — voir section « ACTIONS REQUISES CTO » ci-dessus (merge coche).
 
 ---
