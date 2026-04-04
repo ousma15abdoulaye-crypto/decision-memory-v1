@@ -55,8 +55,8 @@ def upgrade() -> None:
             response_period_days INTEGER,
             sealed_bids_required BOOLEAN NOT NULL DEFAULT FALSE,
             committee_required   BOOLEAN NOT NULL DEFAULT FALSE,
-            zone_id              UUID REFERENCES geo_master(id),
-            category_id          UUID REFERENCES procurement_categories(id),
+            zone_id              VARCHAR(50) REFERENCES geo_master(id),
+            category_id          TEXT REFERENCES procurement_categories(id),
             submission_deadline  TIMESTAMPTZ,
             profile_applied      TEXT,
 
