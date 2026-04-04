@@ -11,7 +11,7 @@ Routes :
 Référence : docs/freeze/DMS_V4.2.0_ADDENDUM.md §VII routes W1
 docs/ops/WORKSPACE_ROUTES_CHECKLIST.md — toutes ces routes sont aussi dans main.py
 RÈGLE-W01 : tenant_id extrait du JWT uniquement.
-INV-W06 : aucune réponse ne contient winner/rank/recommendation/best_offer.
+INV-W06 : aucune réponse ne contient les champs neutres interdits (winner/rank/b_offer).
 """
 
 from __future__ import annotations
