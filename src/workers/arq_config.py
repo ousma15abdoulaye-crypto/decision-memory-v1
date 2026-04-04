@@ -17,7 +17,13 @@ try:
 except ImportError:
     RedisSettings = None  # type: ignore[assignment,misc]
 
-from src.workers.arq_tasks import detect_patterns, generate_candidate_rules, index_event
+from src.workers.arq_projector_couche_b import project_workspace_events_to_couche_b
+from src.workers.arq_tasks import (
+    detect_patterns,
+    generate_candidate_rules,
+    index_event,
+    run_pass_minus_1,
+)
 
 
 @dataclass(frozen=True)
@@ -46,7 +52,13 @@ def _make_redis_settings() -> RedisSettings | None:
 class WorkerSettings:
     """ARQ WorkerSettings — consumed by `arq src.workers.arq_config.WorkerSettings`."""
 
-    functions = [index_event, detect_patterns, generate_candidate_rules]
+    functions = [
+        index_event,
+        detect_patterns,
+        generate_candidate_rules,
+        run_pass_minus_1,
+        project_workspace_events_to_couche_b,
+    ]
     max_jobs = 10
     job_timeout = 300
     keep_result = 300
