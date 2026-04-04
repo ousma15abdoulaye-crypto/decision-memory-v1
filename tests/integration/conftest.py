@@ -182,7 +182,7 @@ def test_case_id(db_conn):
             """
             INSERT INTO process_workspaces
                 (id, tenant_id, created_by, reference_code, title, process_type, status, legacy_case_id)
-            VALUES (%s, %s, %s, %s, %s, 'devis_simple', 'DRAFT', %s)
+            VALUES (%s, %s, %s, %s, %s, 'devis_simple', 'draft', %s)
             ON CONFLICT (id) DO NOTHING
             """,
             (

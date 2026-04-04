@@ -110,6 +110,7 @@ VALID_ALEMBIC_HEADS = (
     "074_drop_case_id_set_workspace_not_null",
     "075_rbac_permissions_roles",
     "076_evaluation_documents_workspace_unique",
+    "077_fix_bridge_triggers_workspace_id",
 )
 
 
