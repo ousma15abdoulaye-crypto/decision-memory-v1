@@ -100,6 +100,13 @@ VALID_ALEMBIC_HEADS = (
     "065_llm_traces",
     "066_bridge_triggers",
     "067_fix_market_coverage_trigger",
+    # DMS V4.2.0 — Workspace-First (PR #319-323)
+    "068_create_tenants",
+    "069_process_workspaces_events_memberships",
+    "070_supplier_bundles_documents",
+    "071_committee_sessions_deliberation",
+    "072_vendor_market_signals_watchlist",
+    "073_add_workspace_id_to_canon_tables",
 )
 
 

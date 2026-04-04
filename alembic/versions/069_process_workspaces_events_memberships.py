@@ -89,6 +89,9 @@ def upgrade() -> None:
     op.execute("""
         ALTER TABLE process_workspaces ENABLE ROW LEVEL SECURITY
         """)
+    op.execute("""
+        ALTER TABLE process_workspaces FORCE ROW LEVEL SECURITY
+        """)
 
     op.execute("DROP POLICY IF EXISTS pw_tenant_isolation ON process_workspaces")
     op.execute("""

@@ -18,9 +18,9 @@ import psycopg
 import pytest
 
 
-def _make_case_and_workspace(cur) -> tuple[str, str, str, int]:
-    """Retourne (case_id, ws_id, tenant_id, user_id)."""
-    cur.execute("SELECT set_config('app.is_admin', 'true', true)")
+def _make_case_and_workspace(cur) -> tuple[str, str, str, int, str]:
+    """Retourne (case_id, ws_id, tenant_id, user_id, committee_id)."""
+    cur.execute("SELECT set_config('app.is_admin', 'true', false)")
 
     cur.execute("SELECT id FROM cases LIMIT 1")
     row = cur.fetchone()
@@ -58,17 +58,30 @@ def _make_case_and_workspace(cur) -> tuple[str, str, str, int]:
         """,
         (ws_id, tenant_id, user_id, f"WIN-{ws_id[:8]}", "Winner Test", "devis_formel"),
     )
-    return case_id, ws_id, tenant_id, user_id
+
+    committee_id = str(uuid.uuid4())
+    cur.execute(
+        """
+        INSERT INTO committees
+            (committee_id, case_id, org_id, committee_type, status, created_by)
+        VALUES (%s, %s, 'test-org', 'achat', 'draft', 'test-user')
+        ON CONFLICT (committee_id) DO NOTHING
+        """,
+        (committee_id, case_id),
+    )
+    return case_id, ws_id, tenant_id, user_id, committee_id
 
 
-def _insert_eval_doc(cur, case_id: str, ws_id: str, scores_matrix) -> None:
+def _insert_eval_doc(
+    cur, case_id: str, ws_id: str, scores_matrix, committee_id: str
+) -> None:
     cur.execute(
         """
         INSERT INTO evaluation_documents
-            (id, case_id, workspace_id, scores_matrix)
-        VALUES (%s, %s, %s, %s)
+            (id, case_id, workspace_id, committee_id, scores_matrix)
+        VALUES (%s, %s, %s, %s, %s)
         """,
-        (str(uuid.uuid4()), case_id, ws_id, json.dumps(scores_matrix)),
+        (str(uuid.uuid4()), case_id, ws_id, committee_id, json.dumps(scores_matrix)),
     )
 
 
@@ -76,10 +89,14 @@ def _insert_eval_doc(cur, case_id: str, ws_id: str, scores_matrix) -> None:
 def test_no_winner_in_scores_matrix_rejected(db_conn):
     """scores_matrix avec clé 'winner' doit être rejeté par le CHECK."""
     with db_conn.cursor() as cur:
-        case_id, ws_id, _, _ = _make_case_and_workspace(cur)
+        case_id, ws_id, _, _, committee_id = _make_case_and_workspace(cur)
         with pytest.raises(psycopg.errors.CheckViolation):
             _insert_eval_doc(
-                cur, case_id, ws_id, {"winner": "SARL KONARE", "scores": {}}
+                cur,
+                case_id,
+                ws_id,
+                {"winner": "SARL KONARE", "scores": {}},
+                committee_id,
             )
 
 
@@ -87,19 +104,25 @@ def test_no_winner_in_scores_matrix_rejected(db_conn):
 def test_no_rank_in_scores_matrix_rejected(db_conn):
     """scores_matrix avec clé 'rank' doit être rejeté par le CHECK."""
     with db_conn.cursor() as cur:
-        case_id, ws_id, _, _ = _make_case_and_workspace(cur)
+        case_id, ws_id, _, _, committee_id = _make_case_and_workspace(cur)
         with pytest.raises(psycopg.errors.CheckViolation):
-            _insert_eval_doc(cur, case_id, ws_id, {"rank": [1, 2, 3], "scores": {}})
+            _insert_eval_doc(
+                cur, case_id, ws_id, {"rank": [1, 2, 3], "scores": {}}, committee_id
+            )
 
 
 @pytest.mark.db_integrity
 def test_no_recommendation_in_scores_matrix_rejected(db_conn):
     """scores_matrix avec clé 'recommendation' doit être rejeté."""
     with db_conn.cursor() as cur:
-        case_id, ws_id, _, _ = _make_case_and_workspace(cur)
+        case_id, ws_id, _, _, committee_id = _make_case_and_workspace(cur)
         with pytest.raises(psycopg.errors.CheckViolation):
             _insert_eval_doc(
-                cur, case_id, ws_id, {"recommendation": "choisir A", "scores": {}}
+                cur,
+                case_id,
+                ws_id,
+                {"recommendation": "choisir A", "scores": {}},
+                committee_id,
             )
 
 
@@ -107,7 +130,7 @@ def test_no_recommendation_in_scores_matrix_rejected(db_conn):
 def test_scores_without_winner_ok(db_conn):
     """scores_matrix valide (sans winner/rank) doit être accepté."""
     with db_conn.cursor() as cur:
-        case_id, ws_id, _, _ = _make_case_and_workspace(cur)
+        case_id, ws_id, _, _, committee_id = _make_case_and_workspace(cur)
         _insert_eval_doc(
             cur,
             case_id,
@@ -118,6 +141,7 @@ def test_scores_without_winner_ok(db_conn):
                     "ETS DIALLO": {"technique": 68, "prix": 85},
                 }
             },
+            committee_id,
         )
         cur.execute(
             "SELECT id FROM evaluation_documents WHERE workspace_id = %s LIMIT 1",
@@ -130,14 +154,14 @@ def test_scores_without_winner_ok(db_conn):
 def test_scores_matrix_null_ok(db_conn):
     """scores_matrix NULL doit être accepté."""
     with db_conn.cursor() as cur:
-        case_id, ws_id, _, _ = _make_case_and_workspace(cur)
+        case_id, ws_id, _, _, committee_id = _make_case_and_workspace(cur)
         cur.execute(
             """
             INSERT INTO evaluation_documents
-                (id, case_id, workspace_id, scores_matrix)
-            VALUES (%s, %s, %s, NULL)
+                (id, case_id, workspace_id, committee_id, scores_matrix)
+            VALUES (%s, %s, %s, %s, NULL)
             """,
-            (str(uuid.uuid4()), case_id, ws_id),
+            (str(uuid.uuid4()), case_id, ws_id, committee_id),
         )
         cur.execute(
             "SELECT scores_matrix FROM evaluation_documents WHERE workspace_id = %s LIMIT 1",

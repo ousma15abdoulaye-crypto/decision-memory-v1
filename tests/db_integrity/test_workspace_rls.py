@@ -16,6 +16,7 @@ import pytest
 
 
 def _make_tenant_and_workspace(cur, code: str) -> tuple[str, str]:
+    cur.execute("SELECT set_config('app.is_admin', 'true', false)")
     cur.execute("SELECT id FROM tenants WHERE code = %s LIMIT 1", (code,))
     row = cur.fetchone()
     if row:
@@ -45,14 +46,13 @@ def _make_tenant_and_workspace(cur, code: str) -> tuple[str, str]:
 
 @pytest.mark.db_integrity
 def test_rls_no_local_set_returns_empty(db_conn):
-    """Sans SET LOCAL app.tenant_id, process_workspaces doit retourner 0 lignes."""
+    """Sans tenant_id en session, process_workspaces doit retourner 0 lignes."""
     with db_conn.cursor() as cur:
-        cur.execute("SELECT set_config('app.is_admin', 'true', true)")
         _make_tenant_and_workspace(cur, "sci_mali")
 
     with db_conn.cursor() as cur:
-        cur.execute("SELECT set_config('app.is_admin', '', true)")
-        cur.execute("SELECT set_config('app.tenant_id', '', true)")
+        cur.execute("RESET app.is_admin")
+        cur.execute("RESET app.tenant_id")
         cur.execute("SELECT count(*) AS n FROM process_workspaces")
         count = cur.fetchone()["n"]
         assert (
@@ -62,19 +62,22 @@ def test_rls_no_local_set_returns_empty(db_conn):
 
 @pytest.mark.db_integrity
 def test_rls_tenant_isolation(db_conn):
-    """Avec SET LOCAL app.tenant_id = tenant_a, seules les lignes tenant_a sont visibles."""
+    """Avec app.tenant_id = tenant_a, seules les lignes tenant_a sont visibles."""
     with db_conn.cursor() as cur:
-        cur.execute("SELECT set_config('app.is_admin', 'true', true)")
         tenant_a_id, ws_a = _make_tenant_and_workspace(cur, "test_rls_tenant_a")
         _, _ws_b = _make_tenant_and_workspace(cur, "test_rls_tenant_b")
 
     with db_conn.cursor() as cur:
-        cur.execute("SELECT set_config('app.tenant_id', %s, true)", (tenant_a_id,))
+        cur.execute("RESET app.is_admin")
+        cur.execute("SELECT set_config('app.tenant_id', %s, false)", (tenant_a_id,))
         cur.execute("SELECT id FROM process_workspaces WHERE id = %s", (ws_a,))
         assert cur.fetchone() is not None, "Workspace tenant_a devrait être visible"
 
         cur.execute("SELECT id FROM process_workspaces WHERE id = %s", (_ws_b,))
         assert cur.fetchone() is None, "Workspace tenant_b ne devrait pas être visible"
+
+    with db_conn.cursor() as cur:
+        cur.execute("RESET app.tenant_id")
 
 
 @pytest.mark.db_integrity
@@ -86,7 +89,10 @@ def test_rls_admin_sees_all(db_conn):
         _make_tenant_and_workspace(cur, "test_rls_admin_b")
 
     with db_conn.cursor() as cur:
-        cur.execute("SELECT set_config('app.is_admin', 'true', true)")
+        cur.execute("SELECT set_config('app.is_admin', 'true', false)")
         cur.execute("SELECT count(*) AS n FROM process_workspaces")
         count = cur.fetchone()["n"]
         assert count >= 2, "Admin devrait voir au moins 2 workspaces"
+
+    with db_conn.cursor() as cur:
+        cur.execute("RESET app.is_admin")
