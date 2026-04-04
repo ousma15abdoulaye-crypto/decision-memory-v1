@@ -76,7 +76,7 @@ def upgrade() -> None:
             """)
 
     for table in _TABLES_DROP_CASE_ID:
-        op.execute(f"ALTER TABLE {table} DROP COLUMN IF EXISTS case_id")
+        op.execute(f"ALTER TABLE {table} DROP COLUMN IF EXISTS case_id CASCADE")
 
     for old_name, new_name in _RENAMED_TABLES:
         op.execute(f"ALTER TABLE IF EXISTS {old_name} RENAME TO {new_name}")
