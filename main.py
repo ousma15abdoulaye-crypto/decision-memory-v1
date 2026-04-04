@@ -263,6 +263,54 @@ except ImportError as _e:
         "[main] router optionnel src.api.views.learning_console non chargé : %s", _e
     )
 
+# ── Routers V4.2.0 — W1 (workspaces), W2 (market), W3 (committee sessions) ──
+_workspaces_router = None
+try:
+    from src.api.routers.workspaces import router as _workspaces_router_imp
+
+    _workspaces_router = _workspaces_router_imp
+except ImportError as _e:
+    logging.getLogger(__name__).warning(
+        "[main] router optionnel src.api.routers.workspaces (W1) non chargé : %s", _e
+    )
+
+_market_v420_router = None
+try:
+    from src.api.routers.market import router as _market_v420_router_imp
+
+    _market_v420_router = _market_v420_router_imp
+except ImportError as _e:
+    logging.getLogger(__name__).warning(
+        "[main] router optionnel src.api.routers.market (W2) non chargé : %s", _e
+    )
+
+_committee_sessions_router = None
+try:
+    from src.api.routers.committee_sessions import (
+        router as _committee_sessions_router_imp,
+    )
+
+    _committee_sessions_router = _committee_sessions_router_imp
+except ImportError as _e:
+    logging.getLogger(__name__).warning(
+        "[main] router optionnel src.api.routers.committee_sessions (W3) non chargé : %s",
+        _e,
+    )
+
+# ── WebSocket V4.2.0 — diffusion workspace_events temps réel ─────────────────
+try:
+    from src.api.ws.workspace_events import workspace_events_ws
+
+    app.add_api_websocket_route(
+        "/ws/workspace/{workspace_id}/events",
+        workspace_events_ws,
+        name="workspace_events_ws",
+    )
+except ImportError as _ws_err:
+    logging.getLogger(__name__).warning(
+        "[main] WebSocket workspace_events non chargé : %s", _ws_err
+    )
+
 for _opt_router in [
     _geo_router,
     _vendors_router,
@@ -274,6 +322,9 @@ for _opt_router in [
     _case_timeline_router,
     _market_memory_router,
     _learning_console_router,
+    _workspaces_router,
+    _market_v420_router,
+    _committee_sessions_router,
 ]:
     if _opt_router is not None:
         app.include_router(_opt_router)
