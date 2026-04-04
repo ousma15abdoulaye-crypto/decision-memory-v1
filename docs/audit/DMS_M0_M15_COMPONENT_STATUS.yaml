@@ -1,0 +1,186 @@
+# DMS M0→M15 — Statut composants (machine-readable)
+# Référence: DMS-MAP-M0-M15-001 — Livrable 2
+# Date: 2026-04-04 — branche main @ ca4c8389
+# Légende runtime_status: real_done | substantial_but_open | partial | doc_only | contradictory | unknown
+# Légende debt_level: P0 | P1 | P2 | P3 | none
+
+meta:
+  mandate_id: DMS-MAP-M0-M15-001
+  repo_head: ca4c8389
+  alembic_head_file: 067_fix_market_coverage_trigger
+  pytest_collected: 1737
+  test_py_files: 251
+
+components:
+  - name: alembic_chain
+    milestone: MRD-0→M15
+    type: migration
+    files:
+      - alembic/versions/*.py
+      - alembic/env.py
+    db_objects: all revisions through 067
+    api_exposed: false
+    runtime_status: real_done
+    doc_status: aligned_head
+    debt_level: P3
+    notes: "Head unique vérifié par CLI ; local current peut échouer sans DB."
+
+  - name: fastapi_main_canonical
+    milestone: M0
+    type: api_entrypoint
+    files:
+      - main.py
+    db_objects: []
+    api_exposed: true
+    runtime_status: real_done
+    doc_status: aligned
+    debt_level: P1
+    notes: "Railway web bash start.sh ; double app avec src/api/main.py pour CI."
+
+  - name: fastapi_main_ci
+    milestone: M0
+    type: api_entrypoint
+    files:
+      - src/api/main.py
+    db_objects: []
+    api_exposed: true
+    runtime_status: real_done
+    doc_status: aligned
+    debt_level: P1
+    notes: "PR #297 M14 dual-app."
+
+  - name: extraction_engine
+    milestone: M10-M12
+    type: service
+    files:
+      - src/extraction/engine.py
+      - src/api/routes/extractions.py
+    db_objects:
+      - public.documents
+      - public.extractions
+      - public.extraction_jobs
+    api_exposed: true
+    runtime_status: substantial_but_open
+    doc_status: aligned
+    debt_level: P2
+    notes: "SLA-B async ; dépend Mistral/clefs ; JWT case access."
+
+  - name: annotation_orchestrator_m12
+    milestone: M12
+    type: pipeline_fsm
+    files:
+      - src/annotation/orchestrator.py
+      - src/annotation/passes/*.py
+    db_objects:
+      - annotation_pipeline.extraction_jobs
+      - public.m12_correction_log
+    api_exposed: indirect
+    runtime_status: real_done
+    doc_status: aligned
+    debt_level: P1
+    notes: "Feature flags ANNOTATION_USE_M12_SUBPASSES / orchestrateur backend."
+
+  - name: m13_regulatory_pass2a
+    milestone: M13
+    type: engine
+    files:
+      - src/procurement/*m13*
+      - config/regulatory/*.yaml
+      - src/api/routes/regulatory_profile.py
+    db_objects:
+      - m13_regulatory_profile_versions
+      - m13_correction_log
+    api_exposed: true
+    runtime_status: substantial_but_open
+    doc_status: aligned
+    debt_level: P2
+    notes: "Branché dans main.py ; persistance migrations 057-058."
+
+  - name: m14_evaluation_engine
+    milestone: M14
+    type: engine
+    files:
+      - src/procurement/m14_engine.py
+      - src/api/routes/evaluation.py
+      - src/procurement/m14_evaluation_repository.py
+    db_objects:
+      - evaluation_documents
+      - score_history
+      - elimination_log
+    api_exposed: true
+    runtime_status: substantial_but_open
+    doc_status: aligned
+    debt_level: P1
+    notes: "offers[] fourni en entrée — pas d’assembleur canonique process-only dans ce module."
+
+  - name: couche_b_market_signals
+    milestone: M9-M11
+    type: domain
+    files:
+      - src/couche_a/market/signal_engine.py
+    db_objects:
+      - public.market_signals_v2
+      - public.mercurials
+      - public.market_surveys
+    api_exposed: partial
+    runtime_status: real_done
+    doc_status: aligned
+    debt_level: P2
+    notes: "GET /signals peut être dette ouverte selon route mercuriale."
+
+  - name: vivant_v2_memory_rag
+    milestone: M15-DMS-VIVANT
+    type: memory_stack
+    files:
+      - src/memory/*.py
+      - src/api/views/*.py
+    db_objects:
+      - public.dms_event_index
+      - public.dms_embeddings
+      - public.candidate_rules
+      - public.llm_traces
+    api_exposed: true
+    runtime_status: partial
+    doc_status: substantial
+    debt_level: P2
+    notes: "Code présent ; charge utile dépend workers Redis + données réelles."
+
+  - name: arq_workers
+    milestone: M15-H2
+    type: worker
+    files:
+      - src/workers/arq_config.py
+      - src/workers/arq_tasks.py
+    db_objects: []
+    api_exposed: false
+    runtime_status: partial
+    doc_status: aligned
+    debt_level: P1
+    notes: "index_event detect_patterns generate_candidate_rules ; REDIS_URL requis."
+
+  - name: annotation_backend_label_studio
+    milestone: M11-M12
+    type: service
+    files:
+      - services/annotation-backend/backend.py
+    db_objects: []
+    api_exposed: true
+    runtime_status: real_done
+    doc_status: aligned
+    debt_level: P2
+    notes: "Gel partiel pendant annotation — règle Cursor."
+
+  - name: rls_tenant
+    milestone: M1-M15
+    type: security
+    files:
+      - alembic/versions/051*.py
+      - alembic/versions/052*.py
+      - alembic/versions/053*.py
+      - src/couche_a/auth/middleware.py
+    db_objects: multiple dm_app policies
+    api_exposed: false
+    runtime_status: substantial_but_open
+    doc_status: aligned
+    debt_level: P2
+    notes: "Tests RLS ; isolation tenant à valider scénario par scénario."

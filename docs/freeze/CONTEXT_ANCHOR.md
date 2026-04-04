@@ -1516,3 +1516,26 @@ Ces index ont ete crees CONCURRENTLY — ils sont actifs et persistent :
 **Suite CTO :** Redis Railway, `ANNOTATION_USE_PASS_ORCHESTRATOR=1`, trigger extraction avec `DMS_JWT`, batch signal si besoin — voir section « ACTIONS REQUISES CTO » ci-dessus (merge coche).
 
 ---
+
+## ADDENDUM 2026-04-04 — MANDAT DMS-MAP-M0-M15-001 (CARTOGRAPHIE TOTALE M0→M15)
+
+**Autorite :** mandat CTO — audit systeme sans filtre ; real > doc.
+
+**Reference mandat :** DMS-MAP-M0-M15-001 — livrables deposes sous `docs/audit/` :
+
+| Livrable | Fichier |
+|----------|---------|
+| Rapport principal (16 sections + 10 questions focus) | `docs/audit/DMS_CARTOGRAPHIE_TOTALE_M0_M15.md` |
+| Tableau machine-lisible composants | `docs/audit/DMS_M0_M15_COMPONENT_STATUS.yaml` |
+| Dette P0→P3 priorisee | `docs/audit/DMS_TECHNICAL_DEBT_P0_P3.md` |
+| Verite local / Railway / routes | `docs/audit/DMS_LOCAL_VS_RAILWAY_TRUTH.md` |
+
+**Plan Final 2026-04-02 :** reference `DMS-PLAN-FINAL-2026-04-02` — **non trouve dans le depot** au moment du mandat (0 fichier) ; hierarchie : V4.1.0 FREEZE + ORCHESTRATION_FRAMEWORK + MRD + code.
+
+**Probes executees (preuve mandat) :** `git branch --show-current` ; `git log -n 50` ; `alembic heads` → `067_fix_market_coverage_trigger (head)` ; `alembic current` → **echec auth** Postgres local (voir livrable 4) ; `pytest tests/ --collect-only` → **1737** tests.
+
+**Conclusion executive (une ligne) :** Le depot porte un **socle reel** (FastAPI, 067, M12/M13/M14, Couche B, VIVANT v2, ARQ) ; la **principale faille gouvernance** mise en evidence est la **contradiction interne MRD** (probe 2026-04-03 vs etat Alembic 067) — **reconciliation AO** ; le **trou structurel workspace** explicite est l’**assemblage offres[] amont de M14** (moteur M14 = consommateur, pas producteur canon unique du bundle process).
+
+**HEAD main au depot du mandat :** `ca4c8389` (docs anchor post-merge PR #304 + suite).
+
+---
