@@ -82,6 +82,15 @@ async def lifespan(app):
     if not _is_testing:
         init_db_schema()
     yield
+    # Fermeture des pools connexions V4.2.0 (ADR-V420-004)
+    try:
+        from src.db.async_pool import close_async_pool
+        from src.db.pool import close_pool
+
+        close_pool()
+        await close_async_pool()
+    except Exception:
+        pass
 
 
 OPENAPI_DESCRIPTION = (
