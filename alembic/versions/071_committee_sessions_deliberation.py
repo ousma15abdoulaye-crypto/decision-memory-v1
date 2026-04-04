@@ -34,7 +34,7 @@ depends_on = None
 
 def upgrade() -> None:
     op.execute("""
-        CREATE TABLE committee_sessions (
+        CREATE TABLE IF NOT EXISTS committee_sessions (
             id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             workspace_id UUID NOT NULL REFERENCES process_workspaces(id),
             tenant_id    UUID NOT NULL REFERENCES tenants(id),
@@ -89,6 +89,9 @@ def upgrade() -> None:
         $$
         """)
 
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_committee_session_sealed ON committee_sessions"
+    )
     op.execute("""
         CREATE TRIGGER trg_committee_session_sealed
             BEFORE UPDATE ON committee_sessions
@@ -97,6 +100,7 @@ def upgrade() -> None:
 
     op.execute("ALTER TABLE committee_sessions ENABLE ROW LEVEL SECURITY")
 
+    op.execute("DROP POLICY IF EXISTS cs_tenant_isolation ON committee_sessions")
     op.execute("""
         CREATE POLICY cs_tenant_isolation ON committee_sessions
             USING (
@@ -106,7 +110,7 @@ def upgrade() -> None:
         """)
 
     op.execute("""
-        CREATE TABLE committee_session_members (
+        CREATE TABLE IF NOT EXISTS committee_session_members (
             id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             session_id           UUID NOT NULL REFERENCES committee_sessions(id),
             workspace_id         UUID NOT NULL REFERENCES process_workspaces(id),
@@ -135,7 +139,7 @@ def upgrade() -> None:
         """)
 
     op.execute("""
-        CREATE TABLE committee_deliberation_events (
+        CREATE TABLE IF NOT EXISTS committee_deliberation_events (
             id           BIGSERIAL PRIMARY KEY,
             session_id   UUID NOT NULL REFERENCES committee_sessions(id),
             workspace_id UUID NOT NULL REFERENCES process_workspaces(id),
@@ -162,6 +166,9 @@ def upgrade() -> None:
         )
         """)
 
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_cde_append_only ON committee_deliberation_events"
+    )
     op.execute("""
         CREATE TRIGGER trg_cde_append_only
             BEFORE DELETE OR UPDATE ON committee_deliberation_events
@@ -170,6 +177,9 @@ def upgrade() -> None:
 
     op.execute("ALTER TABLE committee_deliberation_events ENABLE ROW LEVEL SECURITY")
 
+    op.execute(
+        "DROP POLICY IF EXISTS cde_tenant_isolation ON committee_deliberation_events"
+    )
     op.execute("""
         CREATE POLICY cde_tenant_isolation ON committee_deliberation_events
             USING (
@@ -179,7 +189,7 @@ def upgrade() -> None:
         """)
 
     op.execute(
-        "CREATE INDEX idx_cde_session ON committee_deliberation_events(session_id, occurred_at)"
+        "CREATE INDEX IF NOT EXISTS idx_cde_session ON committee_deliberation_events(session_id, occurred_at)"
     )
 
 

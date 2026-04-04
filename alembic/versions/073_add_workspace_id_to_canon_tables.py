@@ -46,14 +46,16 @@ _TABLES = [
 
 def upgrade() -> None:
     for table in _TABLES:
-        op.execute(
-            f"""
+        op.execute(f"""
             ALTER TABLE {table}
             ADD COLUMN IF NOT EXISTS workspace_id UUID
             REFERENCES process_workspaces(id)
-            """
-        )
+            """)
 
+    op.execute("""
+        ALTER TABLE evaluation_documents
+        DROP CONSTRAINT IF EXISTS no_winner_field
+        """)
     op.execute("""
         ALTER TABLE evaluation_documents
         ADD CONSTRAINT no_winner_field CHECK (

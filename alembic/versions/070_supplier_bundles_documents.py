@@ -30,7 +30,7 @@ depends_on = None
 
 def upgrade() -> None:
     op.execute("""
-        CREATE TABLE supplier_bundles (
+        CREATE TABLE IF NOT EXISTS supplier_bundles (
             id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             workspace_id        UUID NOT NULL REFERENCES process_workspaces(id),
             tenant_id           UUID NOT NULL REFERENCES tenants(id),
@@ -61,6 +61,7 @@ def upgrade() -> None:
 
     op.execute("ALTER TABLE supplier_bundles ENABLE ROW LEVEL SECURITY")
 
+    op.execute("DROP POLICY IF EXISTS sb_tenant_isolation ON supplier_bundles")
     op.execute("""
         CREATE POLICY sb_tenant_isolation ON supplier_bundles
             USING (
@@ -69,10 +70,12 @@ def upgrade() -> None:
             )
         """)
 
-    op.execute("CREATE INDEX idx_sb_workspace ON supplier_bundles(workspace_id)")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_sb_workspace ON supplier_bundles(workspace_id)"
+    )
 
     op.execute("""
-        CREATE TABLE bundle_documents (
+        CREATE TABLE IF NOT EXISTS bundle_documents (
             id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             bundle_id    UUID NOT NULL REFERENCES supplier_bundles(id),
             workspace_id UUID NOT NULL REFERENCES process_workspaces(id),
@@ -121,6 +124,7 @@ def upgrade() -> None:
 
     op.execute("ALTER TABLE bundle_documents ENABLE ROW LEVEL SECURITY")
 
+    op.execute("DROP POLICY IF EXISTS bd_tenant_isolation ON bundle_documents")
     op.execute("""
         CREATE POLICY bd_tenant_isolation ON bundle_documents
             USING (
@@ -129,8 +133,12 @@ def upgrade() -> None:
             )
         """)
 
-    op.execute("CREATE INDEX idx_bd_bundle ON bundle_documents(bundle_id)")
-    op.execute("CREATE INDEX idx_bd_workspace ON bundle_documents(workspace_id)")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_bd_bundle ON bundle_documents(bundle_id)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_bd_workspace ON bundle_documents(workspace_id)"
+    )
 
 
 def downgrade() -> None:

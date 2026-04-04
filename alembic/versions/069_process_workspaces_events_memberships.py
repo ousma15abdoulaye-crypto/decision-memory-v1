@@ -34,7 +34,7 @@ depends_on = None
 
 def upgrade() -> None:
     op.execute("""
-        CREATE TABLE process_workspaces (
+        CREATE TABLE IF NOT EXISTS process_workspaces (
             id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             tenant_id       UUID NOT NULL REFERENCES tenants(id),
             created_by      INTEGER NOT NULL REFERENCES users(id),
@@ -90,6 +90,7 @@ def upgrade() -> None:
         ALTER TABLE process_workspaces ENABLE ROW LEVEL SECURITY
         """)
 
+    op.execute("DROP POLICY IF EXISTS pw_tenant_isolation ON process_workspaces")
     op.execute("""
         CREATE POLICY pw_tenant_isolation ON process_workspaces
             USING (
@@ -99,10 +100,12 @@ def upgrade() -> None:
         """)
 
     op.execute(
-        "CREATE INDEX idx_pw_tenant_status ON process_workspaces(tenant_id, status)"
+        "CREATE INDEX IF NOT EXISTS idx_pw_tenant_status ON process_workspaces(tenant_id, status)"
     )
-    op.execute("CREATE INDEX idx_pw_zone ON process_workspaces(zone_id)")
-    op.execute("CREATE INDEX idx_pw_created ON process_workspaces(created_at DESC)")
+    op.execute("CREATE INDEX IF NOT EXISTS idx_pw_zone ON process_workspaces(zone_id)")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_pw_created ON process_workspaces(created_at DESC)"
+    )
 
     op.execute("""
         CREATE OR REPLACE FUNCTION fn_workspace_sealed_final()
@@ -123,6 +126,9 @@ def upgrade() -> None:
         $$
         """)
 
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_workspace_sealed_final ON process_workspaces"
+    )
     op.execute("""
         CREATE TRIGGER trg_workspace_sealed_final
             BEFORE UPDATE ON process_workspaces
@@ -130,7 +136,7 @@ def upgrade() -> None:
         """)
 
     op.execute("""
-        CREATE TABLE workspace_events (
+        CREATE TABLE IF NOT EXISTS workspace_events (
             id             BIGSERIAL PRIMARY KEY,
             workspace_id   UUID NOT NULL REFERENCES process_workspaces(id),
             tenant_id      UUID NOT NULL REFERENCES tenants(id),
@@ -143,6 +149,9 @@ def upgrade() -> None:
         )
         """)
 
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_workspace_events_append_only ON workspace_events"
+    )
     op.execute("""
         CREATE TRIGGER trg_workspace_events_append_only
             BEFORE DELETE OR UPDATE ON workspace_events
@@ -153,6 +162,7 @@ def upgrade() -> None:
         ALTER TABLE workspace_events ENABLE ROW LEVEL SECURITY
         """)
 
+    op.execute("DROP POLICY IF EXISTS we_tenant_isolation ON workspace_events")
     op.execute("""
         CREATE POLICY we_tenant_isolation ON workspace_events
             USING (
@@ -162,15 +172,17 @@ def upgrade() -> None:
         """)
 
     op.execute(
-        "CREATE INDEX idx_we_workspace_time ON workspace_events(workspace_id, emitted_at)"
+        "CREATE INDEX IF NOT EXISTS idx_we_workspace_time ON workspace_events(workspace_id, emitted_at)"
     )
     op.execute(
-        "CREATE INDEX idx_we_tenant_type ON workspace_events(tenant_id, event_type)"
+        "CREATE INDEX IF NOT EXISTS idx_we_tenant_type ON workspace_events(tenant_id, event_type)"
     )
-    op.execute("CREATE INDEX idx_we_emitted ON workspace_events(emitted_at DESC)")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_we_emitted ON workspace_events(emitted_at DESC)"
+    )
 
     op.execute("""
-        CREATE TABLE workspace_memberships (
+        CREATE TABLE IF NOT EXISTS workspace_memberships (
             id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             workspace_id UUID NOT NULL REFERENCES process_workspaces(id),
             tenant_id    UUID NOT NULL REFERENCES tenants(id),

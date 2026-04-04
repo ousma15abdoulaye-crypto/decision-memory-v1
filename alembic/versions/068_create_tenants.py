@@ -24,7 +24,7 @@ depends_on = None
 
 def upgrade() -> None:
     op.execute("""
-        CREATE TABLE tenants (
+        CREATE TABLE IF NOT EXISTS tenants (
             id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             code       TEXT NOT NULL UNIQUE,
             name       TEXT NOT NULL,

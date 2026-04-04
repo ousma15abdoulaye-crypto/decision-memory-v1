@@ -29,7 +29,7 @@ depends_on = None
 
 def upgrade() -> None:
     op.execute("""
-        CREATE TABLE vendor_market_signals (
+        CREATE TABLE IF NOT EXISTS vendor_market_signals (
             id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             tenant_id           UUID NOT NULL REFERENCES tenants(id),
             vendor_id           UUID NOT NULL REFERENCES vendors(id),
@@ -44,6 +44,7 @@ def upgrade() -> None:
         )
         """)
 
+    op.execute("DROP TRIGGER IF EXISTS trg_vms_append_only ON vendor_market_signals")
     op.execute("""
         CREATE TRIGGER trg_vms_append_only
             BEFORE DELETE OR UPDATE ON vendor_market_signals
@@ -51,7 +52,7 @@ def upgrade() -> None:
         """)
 
     op.execute("""
-        CREATE TABLE market_watchlist_items (
+        CREATE TABLE IF NOT EXISTS market_watchlist_items (
             id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             tenant_id           UUID NOT NULL REFERENCES tenants(id),
             created_by          INTEGER NOT NULL REFERENCES users(id),
