@@ -1539,3 +1539,39 @@ Ces index ont ete crees CONCURRENTLY — ils sont actifs et persistent :
 **HEAD main au depot du mandat :** `ca4c8389` (docs anchor post-merge PR #304 + suite).
 
 ---
+
+## ADDENDUM 2026-04-04 — MANDAT DMS-MANDAT-FREEZE-V420-001 (FREEZE V4.2.0 WORKSPACE-FIRST)
+
+**Autorite :** mandat CTO — freeze documentaire addendum V4.2.0 ; zero code.
+
+**Reference mandat :** DMS-MANDAT-FREEZE-V420-001 — PR #306 mergee sur `main`.
+
+**Hierarchie :** V4.1.0 FREEZE (canon) → V4.2.0 ADDENDUM (amendement constitutionnel).
+Le V4.2.0 **complete** le V4.1.0, ne le remplace pas. En cas de conflit sur REGLES/INV-R/SLA → V4.1.0 prime. Sur unite metier/workspace/RBAC → V4.2.0 prime.
+
+**Decision structurelle :** `cases` est **deprecie**. L'unite fondamentale est `process_workspaces`. 6 tables canon renommees `_deprecated_*` (migration 074). 10 tables existantes recoivent `workspace_id`.
+
+| Livrable | Fichier |
+|----------|---------|
+| Document principal (11 parties) | `docs/freeze/DMS_V4.2.0_ADDENDUM.md` |
+| DDL complet etat cible (068→075) | `docs/freeze/DMS_V4.2.0_SCHEMA.sql` |
+| Plan migration semaines 0→10 | `docs/freeze/DMS_V4.2.0_MIGRATION_PLAN.md` |
+| 9 INV-R adaptes + 8 INV-W + REGLE-W01 | `docs/freeze/DMS_V4.2.0_INVARIANTS.md` |
+| 17 permissions × 6 roles SCI Mali | `docs/freeze/DMS_V4.2.0_RBAC.md` |
+| 12 stop signals S1→S12 | `docs/freeze/DMS_V4.2.0_STOP_SIGNALS.md` |
+| SHA-256 des 6 fichiers geles | `docs/freeze/DMS_V4.2.0_HASHES.md` |
+
+**Corrections Copilot integrees avant merge :**
+- RLS policies alignees sur `app.tenant_id` + `app.is_admin` (coherent migrations 055-059)
+- `legacy_case_id` ajoute a `process_workspaces` (idempotence script migration)
+- REGLE-W01 alignee sur `app.tenant_id`
+- Version PostgreSQL rendue agnostique (Railway = 17.7, V4.1.0 disait 16)
+- Placeholder hashes remplaces par reference `DMS_V4.2.0_HASHES.md`
+
+**Nouvelles tables (15)** : `tenants`, `process_workspaces`, `workspace_events`, `workspace_memberships`, `supplier_bundles`, `bundle_documents`, `committee_sessions`, `committee_session_members`, `committee_deliberation_events`, `vendor_market_signals`, `market_watchlist_items`, `rbac_permissions`, `rbac_roles`, `rbac_role_permissions`, `user_tenant_roles`.
+
+**Tag :** `v4.2.0-freeze` sur commit initial (pre-corrections) ; HEAD main apres merge = inclut corrections Copilot.
+
+**Suite CTO :** le prochain mandat (MIGRATION-A) ne demarre qu'apres ce merge. Sequence : semaine 0 = resoudre P0-DOC-01 + P0-OPS-01 + Redis Railway + probe 067. Semaine 1 = migrations 068-069 (fondations).
+
+---
