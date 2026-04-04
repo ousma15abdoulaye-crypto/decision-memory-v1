@@ -6,16 +6,34 @@ Vérifie :
 - SELECT avec app.is_admin = 'true' -> toutes les lignes
 
 Pré-condition : migrations 068-069 appliquées. dm_app role disponible.
+Tests d'isolation (sans tenant) nécessitent DATABASE_URL_RLS_TEST (dm_app).
 """
 
 from __future__ import annotations
 
+import os
 import uuid
 
+import psycopg
 import pytest
+from psycopg.rows import dict_row
+
+_SKIP_NO_RLS = pytest.mark.skipif(
+    not os.environ.get("DATABASE_URL_RLS_TEST"),
+    reason="DATABASE_URL_RLS_TEST non défini — tests RLS workspace ignorés",
+)
+
+
+def _rls_conn():
+    """Connexion dm_app (non-superuser, NOBYPASSRLS, autocommit=False)."""
+    url = os.environ["DATABASE_URL_RLS_TEST"].replace(
+        "postgresql+psycopg://", "postgresql://"
+    )
+    return psycopg.connect(url, row_factory=dict_row, autocommit=False)
 
 
 def _make_tenant_and_workspace(cur, code: str) -> tuple[str, str]:
+    """Crée tenant + workspace via superuser (bypass RLS pour setup)."""
     cur.execute("SELECT set_config('app.is_admin', 'true', false)")
     cur.execute("SELECT id FROM tenants WHERE code = %s LIMIT 1", (code,))
     row = cur.fetchone()
@@ -44,47 +62,58 @@ def _make_tenant_and_workspace(cur, code: str) -> tuple[str, str]:
     return tenant_id, ws_id
 
 
+@_SKIP_NO_RLS
 @pytest.mark.db_integrity
 def test_rls_no_local_set_returns_empty(db_conn):
-    """Sans tenant_id en session, process_workspaces doit retourner 0 lignes."""
+    """Sans SET LOCAL app.tenant_id, process_workspaces doit retourner 0 lignes."""
     with db_conn.cursor() as cur:
         _make_tenant_and_workspace(cur, "sci_mali")
 
-    with db_conn.cursor() as cur:
-        cur.execute("RESET app.is_admin")
-        cur.execute("RESET app.tenant_id")
-        cur.execute("SELECT count(*) AS n FROM process_workspaces")
-        count = cur.fetchone()["n"]
+    conn = _rls_conn()
+    try:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                cur.execute("SELECT count(*) AS n FROM process_workspaces")
+                count = cur.fetchone()["n"]
         assert (
             count == 0
         ), f"RLS devrait masquer toutes les lignes sans tenant_id, got {count}"
+    finally:
+        conn.close()
 
 
+@_SKIP_NO_RLS
 @pytest.mark.db_integrity
 def test_rls_tenant_isolation(db_conn):
-    """Avec app.tenant_id = tenant_a, seules les lignes tenant_a sont visibles."""
+    """Avec SET LOCAL app.tenant_id = tenant_a, seules les lignes tenant_a sont visibles."""
     with db_conn.cursor() as cur:
         tenant_a_id, ws_a = _make_tenant_and_workspace(cur, "test_rls_tenant_a")
         _, _ws_b = _make_tenant_and_workspace(cur, "test_rls_tenant_b")
 
-    with db_conn.cursor() as cur:
-        cur.execute("RESET app.is_admin")
-        cur.execute("SELECT set_config('app.tenant_id', %s, false)", (tenant_a_id,))
-        cur.execute("SELECT id FROM process_workspaces WHERE id = %s", (ws_a,))
-        assert cur.fetchone() is not None, "Workspace tenant_a devrait être visible"
+    conn = _rls_conn()
+    try:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT set_config('app.tenant_id', %s, true)", (tenant_a_id,)
+                )
+                cur.execute("SELECT id FROM process_workspaces WHERE id = %s", (ws_a,))
+                assert (
+                    cur.fetchone() is not None
+                ), "Workspace tenant_a devrait être visible"
 
-        cur.execute("SELECT id FROM process_workspaces WHERE id = %s", (_ws_b,))
-        assert cur.fetchone() is None, "Workspace tenant_b ne devrait pas être visible"
-
-    with db_conn.cursor() as cur:
-        cur.execute("RESET app.tenant_id")
+                cur.execute("SELECT id FROM process_workspaces WHERE id = %s", (_ws_b,))
+                assert (
+                    cur.fetchone() is None
+                ), "Workspace tenant_b ne devrait pas être visible"
+    finally:
+        conn.close()
 
 
 @pytest.mark.db_integrity
 def test_rls_admin_sees_all(db_conn):
     """Avec app.is_admin = 'true', toutes les lignes sont visibles."""
     with db_conn.cursor() as cur:
-        cur.execute("SELECT set_config('app.is_admin', 'true', true)")
         _make_tenant_and_workspace(cur, "test_rls_admin_a")
         _make_tenant_and_workspace(cur, "test_rls_admin_b")
 

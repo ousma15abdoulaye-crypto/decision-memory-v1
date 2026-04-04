@@ -151,15 +151,15 @@ def test_scores_without_winner_ok(db_conn):
 
 
 @pytest.mark.db_integrity
-def test_scores_matrix_null_ok(db_conn):
-    """scores_matrix NULL doit être accepté."""
+def test_scores_matrix_empty_ok(db_conn):
+    """scores_matrix JSON vide doit être accepté (NOT NULL DEFAULT '{}')."""
     with db_conn.cursor() as cur:
         case_id, ws_id, _, _, committee_id = _make_case_and_workspace(cur)
         cur.execute(
             """
             INSERT INTO evaluation_documents
                 (id, case_id, workspace_id, committee_id, scores_matrix)
-            VALUES (%s, %s, %s, %s, NULL)
+            VALUES (%s, %s, %s, %s, '{}'::jsonb)
             """,
             (str(uuid.uuid4()), case_id, ws_id, committee_id),
         )
@@ -169,4 +169,4 @@ def test_scores_matrix_null_ok(db_conn):
         )
         row = cur.fetchone()
         assert row is not None
-        assert row["scores_matrix"] is None
+        assert row["scores_matrix"] == {}
