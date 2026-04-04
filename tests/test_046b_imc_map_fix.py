@@ -109,6 +109,7 @@ VALID_ALEMBIC_HEADS = (
     "073_add_workspace_id_to_canon_tables",
     "074_drop_case_id_set_workspace_not_null",
     "075_rbac_permissions_roles",
+    "076_evaluation_documents_workspace_unique",
 )
 
 

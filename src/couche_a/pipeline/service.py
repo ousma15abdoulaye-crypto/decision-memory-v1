@@ -152,9 +152,11 @@ def _preflight_case_a_partial(case_id: str, conn: Any) -> StepOutcome:
         )
 
     with conn.cursor() as cur:
-        # Check 2 : DAO critères présents
+        # Check 2 : DAO critères présents (V4.2 — workspace_id, lien case via legacy_case_id)
         cur.execute(
-            "SELECT COUNT(*) AS n FROM public.dao_criteria WHERE case_id = %s",
+            "SELECT COUNT(*) AS n FROM public.dao_criteria dc "
+            "INNER JOIN process_workspaces pw ON pw.id = dc.workspace_id "
+            "WHERE pw.legacy_case_id = %s",
             (case_id,),
         )
         dao_count = cur.fetchone()["n"]
@@ -228,8 +230,10 @@ def _load_extraction_summary(case_id: str, conn: Any) -> StepOutcome:
     """
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT supplier_name, extracted_data_json "
-            "FROM public.offer_extractions WHERE case_id = %s",
+            "SELECT oe.supplier_name, oe.extracted_data_json "
+            "FROM public.offer_extractions oe "
+            "INNER JOIN process_workspaces pw ON pw.id = oe.workspace_id "
+            "WHERE pw.legacy_case_id = %s",
             (case_id,),
         )
         rows = cur.fetchall()
@@ -260,8 +264,10 @@ def _load_criteria_summary(case_id: str, conn: Any) -> StepOutcome:
     """
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT categorie, is_eliminatory "
-            "FROM public.dao_criteria WHERE case_id = %s",
+            "SELECT dc.categorie, dc.is_eliminatory "
+            "FROM public.dao_criteria dc "
+            "INNER JOIN process_workspaces pw ON pw.id = dc.workspace_id "
+            "WHERE pw.legacy_case_id = %s",
             (case_id,),
         )
         rows = cur.fetchall()
@@ -401,16 +407,20 @@ def _run_scoring_step(
 
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT id, supplier_name, extracted_data_json "
-            "FROM public.offer_extractions WHERE case_id = %s",
+            "SELECT oe.id, oe.supplier_name, oe.extracted_data_json "
+            "FROM public.offer_extractions oe "
+            "INNER JOIN process_workspaces pw ON pw.id = oe.workspace_id "
+            "WHERE pw.legacy_case_id = %s",
             (case_id,),
         )
         extractions = cur.fetchall()
 
         cur.execute(
-            "SELECT categorie, critere_nom, description, ponderation, "
-            "type_reponse, seuil_elimination, ordre_affichage, is_eliminatory "
-            "FROM public.dao_criteria WHERE case_id = %s",
+            "SELECT dc.categorie, dc.critere_nom, dc.description, dc.ponderation, "
+            "dc.type_reponse, dc.seuil_elimination, dc.ordre_affichage, dc.is_eliminatory "
+            "FROM public.dao_criteria dc "
+            "INNER JOIN process_workspaces pw ON pw.id = dc.workspace_id "
+            "WHERE pw.legacy_case_id = %s",
             (case_id,),
         )
         criteria_rows = cur.fetchall()

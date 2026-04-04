@@ -38,20 +38,23 @@ def pipeline_case_with_dao_and_offers(db_conn, case_factory):
             cur.execute(
                 """
                 INSERT INTO public.dao_criteria
-                    (id, case_id, categorie, critere_nom, description,
+                    (id, workspace_id, categorie, critere_nom, description,
                      ponderation, type_reponse, seuil_elimination,
                      ordre_affichage, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, NULL, %s, NOW()::text)
+                SELECT %s, pw.id, %s, %s, %s,
+                       %s, %s, NULL, %s, NOW()::text
+                FROM process_workspaces pw
+                WHERE pw.legacy_case_id = %s
                 """,
                 (
                     cid,
-                    case_id,
                     "commercial",
                     f"Critère test {i}",
                     f"Description test {i}",
                     0.5,
                     "quantitatif",
                     i,
+                    case_id,
                 ),
             )
 

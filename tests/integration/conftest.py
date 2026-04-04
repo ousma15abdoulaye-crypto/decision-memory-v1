@@ -135,9 +135,11 @@ def test_case_id(db_conn):
     """
     Crée un case de test et le supprime après le test.
     owner_id / tenant_id alignés sur l'admin (require_case_access extractions).
+    V4.2 : crée aussi un process_workspaces (legacy_case_id) pour documents.workspace_id.
     """
     case_id = f"integ-case-{uuid.uuid4().hex[:8]}"
     with db_conn.cursor() as cur:
+        cur.execute("SELECT set_config('app.is_admin', 'true', true)")
         cur.execute("""
             SELECT u.id,
                    COALESCE(ut.tenant_id, 'tenant-' || u.id::text) AS tenant_id
@@ -165,6 +167,33 @@ def test_case_id(db_conn):
                 tenant_id,
             ),
         )
+        cur.execute("SELECT id FROM tenants WHERE code = %s LIMIT 1", ("sci_mali",))
+        trow = cur.fetchone()
+        if trow:
+            tenant_uuid = str(trow["id"])
+        else:
+            tenant_uuid = str(uuid.uuid4())
+            cur.execute(
+                "INSERT INTO tenants (id, code, name) VALUES (%s, %s, %s)",
+                (tenant_uuid, "sci_mali", "SCI Mali"),
+            )
+        ws_id = str(uuid.uuid4())
+        cur.execute(
+            """
+            INSERT INTO process_workspaces
+                (id, tenant_id, created_by, reference_code, title, process_type, status, legacy_case_id)
+            VALUES (%s, %s, %s, %s, %s, 'devis_simple', 'DRAFT', %s)
+            ON CONFLICT (id) DO NOTHING
+            """,
+            (
+                ws_id,
+                tenant_uuid,
+                int(owner_id),
+                f"INT-{case_id[:8]}",
+                f"WS intégration {case_id}",
+                case_id,
+            ),
+        )
     yield case_id
     # Nettoyage
     with db_conn.cursor() as cur:
@@ -172,7 +201,9 @@ def test_case_id(db_conn):
             cur.execute(
                 "DELETE FROM extraction_errors "
                 "WHERE document_id IN ("
-                "  SELECT id FROM documents WHERE case_id = %s"
+                "  SELECT id FROM documents WHERE workspace_id IN ("
+                "    SELECT id FROM process_workspaces WHERE legacy_case_id = %s"
+                "  )"
                 ")",
                 (case_id,),
             )
@@ -186,7 +217,9 @@ def test_case_id(db_conn):
             cur.execute(
                 "DELETE FROM extraction_jobs "
                 "WHERE document_id IN ("
-                "  SELECT id FROM documents WHERE case_id = %s"
+                "  SELECT id FROM documents WHERE workspace_id IN ("
+                "    SELECT id FROM process_workspaces WHERE legacy_case_id = %s"
+                "  )"
                 ")",
                 (case_id,),
             )
@@ -200,7 +233,9 @@ def test_case_id(db_conn):
             cur.execute(
                 "DELETE FROM extractions "
                 "WHERE document_id IN ("
-                "  SELECT id FROM documents WHERE case_id = %s"
+                "  SELECT id FROM documents WHERE workspace_id IN ("
+                "    SELECT id FROM process_workspaces WHERE legacy_case_id = %s"
+                "  )"
                 ")",
                 (case_id,),
             )
@@ -211,11 +246,26 @@ def test_case_id(db_conn):
                 exc,
             )
         try:
-            cur.execute("DELETE FROM documents WHERE case_id = %s", (case_id,))
+            cur.execute(
+                "DELETE FROM documents WHERE workspace_id IN ("
+                "  SELECT id FROM process_workspaces WHERE legacy_case_id = %s"
+                ")",
+                (case_id,),
+            )
         except Exception as exc:  # noqa: BLE001
             logger.warning(
                 "Cleanup documents ignoré : %s "
                 "(acceptable en test — table peut ne pas exister)",
+                exc,
+            )
+        try:
+            cur.execute(
+                "DELETE FROM process_workspaces WHERE legacy_case_id = %s",
+                (case_id,),
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Cleanup process_workspaces ignoré : %s ",
                 exc,
             )
         try:
@@ -239,19 +289,21 @@ def test_doc_pdf(db_conn, test_case_id):
         cur.execute(
             """
             INSERT INTO documents
-                (id, case_id, filename, path, uploaded_at,
+                (id, workspace_id, filename, path, uploaded_at,
                  mime_type, storage_uri, extraction_status,
                  extraction_method)
-            VALUES (%s, %s, %s, %s, NOW()::TEXT,
-                    %s, %s, 'pending', 'native_pdf')
+            SELECT %s, pw.id, %s, %s, NOW()::TEXT,
+                   %s, %s, 'pending', 'native_pdf'
+            FROM process_workspaces pw
+            WHERE pw.legacy_case_id = %s
         """,
             (
                 doc_id,
-                test_case_id,
                 "test_native.pdf",
                 "/tmp/test_native.pdf",
                 "application/pdf",
                 "/tmp/test_native.pdf",
+                test_case_id,
             ),
         )
     yield doc_id
@@ -268,19 +320,21 @@ def test_doc_scan(db_conn, test_case_id):
         cur.execute(
             """
             INSERT INTO documents
-                (id, case_id, filename, path, uploaded_at,
+                (id, workspace_id, filename, path, uploaded_at,
                  mime_type, storage_uri, extraction_status,
                  extraction_method)
-            VALUES (%s, %s, %s, %s, NOW()::TEXT,
-                    %s, %s, 'pending', 'tesseract')
+            SELECT %s, pw.id, %s, %s, NOW()::TEXT,
+                   %s, %s, 'pending', 'tesseract'
+            FROM process_workspaces pw
+            WHERE pw.legacy_case_id = %s
         """,
             (
                 doc_id,
-                test_case_id,
                 "test_scan.tif",
                 "/tmp/test_scan.tif",
                 "image/tiff",
                 "/tmp/test_scan.tif",
+                test_case_id,
             ),
         )
     yield doc_id
@@ -296,19 +350,21 @@ def test_doc_already_extracted(db_conn, test_case_id):
         cur.execute(
             """
             INSERT INTO documents
-                (id, case_id, filename, path, uploaded_at,
+                (id, workspace_id, filename, path, uploaded_at,
                  mime_type, storage_uri, extraction_status,
                  extraction_method)
-            VALUES (%s, %s, %s, %s, NOW()::TEXT,
-                    %s, %s, 'done', 'native_pdf')
+            SELECT %s, pw.id, %s, %s, NOW()::TEXT,
+                   %s, %s, 'done', 'native_pdf'
+            FROM process_workspaces pw
+            WHERE pw.legacy_case_id = %s
         """,
             (
                 doc_id,
-                test_case_id,
                 "already_done.pdf",
                 "/tmp/already_done.pdf",
                 "application/pdf",
                 "/tmp/already_done.pdf",
+                test_case_id,
             ),
         )
         # Insérer aussi une extraction existante

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from importlib import util
 from pathlib import Path
 
@@ -125,6 +126,18 @@ def _restore_schema(engine) -> None:
               END IF;
             END $$;
         """))
+
+    # Réaligne alembic_version + schéma sur le head repo (sinon tests suivants voient m4_patch_a_fix).
+    result = subprocess.run(
+        ["alembic", "upgrade", "head"],
+        cwd=_PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"alembic upgrade head failed: {result.stderr}\n{result.stdout}"
+        )
 
 
 def test_upgrade_downgrade(db_engine) -> None:

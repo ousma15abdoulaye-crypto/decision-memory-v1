@@ -170,6 +170,7 @@ def run_migrations_before_db_integrity_tests():
         with conn.cursor() as cur:
             cur.execute("SELECT 1 FROM documents LIMIT 1")
             if cur.fetchone() is None:
+                cur.execute("SELECT set_config('app.is_admin', 'true', false)")
                 case_id = f"dbintegrity-{uuid.uuid4().hex[:8]}"
                 cur.execute(
                     """
@@ -178,6 +179,39 @@ def run_migrations_before_db_integrity_tests():
                     ON CONFLICT (id) DO NOTHING
                     """,
                     (case_id,),
+                )
+                cur.execute(
+                    "SELECT id FROM tenants WHERE code = %s LIMIT 1", ("sci_mali",)
+                )
+                trow = cur.fetchone()
+                if trow:
+                    tenant_id = str(trow["id"])
+                else:
+                    tenant_id = str(uuid.uuid4())
+                    cur.execute(
+                        "INSERT INTO tenants (id, code, name) VALUES (%s, %s, %s)",
+                        (tenant_id, "sci_mali", "SCI Mali"),
+                    )
+                cur.execute("SELECT id FROM users LIMIT 1")
+                urow = cur.fetchone()
+                user_id = int(urow["id"]) if urow else 1
+                ws_id = str(uuid.uuid4())
+                cur.execute(
+                    """
+                    INSERT INTO process_workspaces
+                        (id, tenant_id, created_by, reference_code, title, process_type,
+                         status, legacy_case_id)
+                    VALUES (%s, %s, %s, %s, %s, 'devis_simple', 'draft', %s)
+                    ON CONFLICT (id) DO NOTHING
+                    """,
+                    (
+                        ws_id,
+                        tenant_id,
+                        user_id,
+                        f"FSM-{case_id[:8]}",
+                        "FSM fixture",
+                        case_id,
+                    ),
                 )
                 cur.execute(
                     """
@@ -190,11 +224,11 @@ def run_migrations_before_db_integrity_tests():
                 doc_id = f"doc-{uuid.uuid4().hex[:8]}"
                 cur.execute(
                     """
-                    INSERT INTO documents (id, case_id, offer_id, filename, path, uploaded_at)
+                    INSERT INTO documents (id, workspace_id, offer_id, filename, path, uploaded_at)
                     VALUES (%s, %s, %s, 'fsm-test.pdf', '/tmp/fsm.pdf', NOW()::TEXT)
                     ON CONFLICT (id) DO NOTHING
                     """,
-                    (doc_id, case_id, f"offer-{case_id}"),
+                    (doc_id, ws_id, f"offer-{case_id}"),
                 )
     finally:
         conn.close()
@@ -209,6 +243,7 @@ def extraction_correction_fixture(db_conn):
     offer_id = f"corr-offer-{uuid.uuid4().hex[:8]}"
     extraction_id = f"ext-{uuid.uuid4().hex[:12]}"
     with db_conn.cursor() as cur:
+        cur.execute("SELECT set_config('app.is_admin', 'true', true)")
         cur.execute(
             """
             INSERT INTO cases (id, case_type, title, created_at, status)
@@ -216,6 +251,37 @@ def extraction_correction_fixture(db_conn):
             ON CONFLICT (id) DO NOTHING
             """,
             (case_id,),
+        )
+        cur.execute("SELECT id FROM tenants WHERE code = %s LIMIT 1", ("sci_mali",))
+        trow = cur.fetchone()
+        if trow:
+            tenant_id = str(trow["id"])
+        else:
+            tenant_id = str(uuid.uuid4())
+            cur.execute(
+                "INSERT INTO tenants (id, code, name) VALUES (%s, %s, %s)",
+                (tenant_id, "sci_mali", "SCI Mali"),
+            )
+        cur.execute("SELECT id FROM users LIMIT 1")
+        urow = cur.fetchone()
+        user_id = int(urow["id"]) if urow else 1
+        ws_id = str(uuid.uuid4())
+        cur.execute(
+            """
+            INSERT INTO process_workspaces
+                (id, tenant_id, created_by, reference_code, title, process_type,
+                 status, legacy_case_id)
+            VALUES (%s, %s, %s, %s, %s, 'devis_simple', 'draft', %s)
+            ON CONFLICT (id) DO NOTHING
+            """,
+            (
+                ws_id,
+                tenant_id,
+                user_id,
+                f"CORR-{case_id[:8]}",
+                "Correction fixture",
+                case_id,
+            ),
         )
         cur.execute(
             """
@@ -227,11 +293,11 @@ def extraction_correction_fixture(db_conn):
         )
         cur.execute(
             """
-            INSERT INTO documents (id, case_id, offer_id, filename, path, uploaded_at)
+            INSERT INTO documents (id, workspace_id, offer_id, filename, path, uploaded_at)
             VALUES (%s, %s, %s, 'fixture.pdf', '/tmp/fixture.pdf', NOW()::TEXT)
             ON CONFLICT (id) DO NOTHING
             """,
-            (doc_id, case_id, offer_id),
+            (doc_id, ws_id, offer_id),
         )
         cur.execute(
             """
