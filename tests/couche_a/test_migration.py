@@ -127,6 +127,13 @@ def _restore_schema(engine) -> None:
             END $$;
         """))
 
+    # Migration 059 crée des index sur case_id (score_history, elimination_log).
+    # Si ces tables existent déjà sans case_id (migration 074 l'a supprimée),
+    # alembic upgrade head échoue. On les droppe pour que 059 les recrée proprement.
+    with engine.begin() as cx:
+        cx.execute(sa.text("DROP TABLE IF EXISTS public.elimination_log CASCADE"))
+        cx.execute(sa.text("DROP TABLE IF EXISTS public.score_history CASCADE"))
+
     # Réaligne alembic_version + schéma sur le head repo (sinon tests suivants voient m4_patch_a_fix).
     result = subprocess.run(
         ["alembic", "upgrade", "head"],

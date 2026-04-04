@@ -113,11 +113,14 @@ def get_case(
     arts = get_artifacts(case_id)
     mem = list_memory(case_id)
 
-    # Get DAO criteria if analyzed
+    # Get DAO criteria if analyzed (workspace-first: join via legacy_case_id)
     with get_connection() as conn:
         criteria = db_fetchall(
             conn,
-            "SELECT * FROM dao_criteria WHERE case_id=:cid ORDER BY ordre_affichage",
+            "SELECT dc.* FROM dao_criteria dc "
+            "JOIN process_workspaces pw ON pw.id = dc.workspace_id "
+            "WHERE pw.legacy_case_id = :cid "
+            "ORDER BY dc.ordre_affichage",
             {"cid": case_id},
         )
 

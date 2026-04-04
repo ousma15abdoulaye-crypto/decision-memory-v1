@@ -165,7 +165,7 @@ def case_factory(db_conn):
                     f"PW-{case_id[:8]}",
                     f"test-ws-{case_id[:8]}",
                     "devis_simple",
-                    status,
+                    "draft",
                     case_id,
                 ),
             )
