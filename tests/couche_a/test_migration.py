@@ -127,10 +127,15 @@ def _restore_schema(engine) -> None:
             END $$;
         """))
 
-    # Migration 059 crée des index sur case_id (score_history, elimination_log).
-    # Si ces tables existent déjà sans case_id (migration 074 l'a supprimée),
-    # alembic upgrade head échoue. On les droppe pour que 059 les recrée proprement.
+    # Dropper les tables créées par des migrations > m4_patch_a_fix qui n'ont pas
+    # de CREATE TABLE IF NOT EXISTS, pour que alembic upgrade head les recrée proprement.
+    # - 059: score_history, elimination_log (index sur case_id, inexistant après 074)
+    # - 075: rbac_permissions, rbac_roles, rbac_role_permissions, user_tenant_roles
     with engine.begin() as cx:
+        cx.execute(sa.text("DROP TABLE IF EXISTS public.user_tenant_roles CASCADE"))
+        cx.execute(sa.text("DROP TABLE IF EXISTS public.rbac_role_permissions CASCADE"))
+        cx.execute(sa.text("DROP TABLE IF EXISTS public.rbac_roles CASCADE"))
+        cx.execute(sa.text("DROP TABLE IF EXISTS public.rbac_permissions CASCADE"))
         cx.execute(sa.text("DROP TABLE IF EXISTS public.elimination_log CASCADE"))
         cx.execute(sa.text("DROP TABLE IF EXISTS public.score_history CASCADE"))
 
