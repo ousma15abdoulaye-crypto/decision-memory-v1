@@ -4,7 +4,7 @@ Vérifie :
 - INSERT evaluation_documents avec payload winner -> rejeté CHECK
 - INSERT evaluation_documents avec payload rank -> rejeté CHECK
 - INSERT evaluation_documents avec payload scores standard -> OK
-- INSERT evaluation_documents avec scores_matrix NULL -> OK
+- INSERT evaluation_documents avec scores_matrix '{}' (NOT NULL) -> OK
 
 Pré-condition : migrations 068-073 appliquées (workspace_id + CHECK constraint).
 """
@@ -22,19 +22,17 @@ def _make_case_and_workspace(cur) -> tuple[str, str, str, int, str]:
     """Retourne (case_id, ws_id, tenant_id, user_id, committee_id)."""
     cur.execute("SELECT set_config('app.is_admin', 'true', false)")
 
-    cur.execute("SELECT id FROM cases LIMIT 1")
-    row = cur.fetchone()
-    if row:
-        case_id = str(row["id"])
-    else:
-        case_id = str(uuid.uuid4())
-        cur.execute(
-            """
-            INSERT INTO cases (id, case_type, title, created_at, status, tenant_id)
-            VALUES (%s, 'DAO', 'Test Case', NOW()::TEXT, 'open', 'test')
-            """,
-            (case_id,),
-        )
+    # Toujours un case_id neuf : uix_evaluation_documents_case_version (case_id, version)
+    # interdit deux lignes (même case, version=1) — réutiliser un case existant casse
+    # test_scores_matrix_empty_ok après test_scores_without_winner_ok.
+    case_id = str(uuid.uuid4())
+    cur.execute(
+        """
+        INSERT INTO cases (id, case_type, title, created_at, status, tenant_id)
+        VALUES (%s, 'DAO', 'Test Case', NOW()::TEXT, 'open', 'test')
+        """,
+        (case_id,),
+    )
 
     cur.execute("SELECT id FROM tenants WHERE code = 'sci_mali' LIMIT 1")
     row = cur.fetchone()
