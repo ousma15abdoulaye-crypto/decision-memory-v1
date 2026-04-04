@@ -68,7 +68,10 @@ def close_pool() -> None:
 ```
 
 ```python
-# Utilisation dans src/db/core.py — get_connection() adapté
+# Utilisation future dans src/db/core.py (Phase 3 — après migration workspace_id)
+# src/db/core.py utilise encore psycopg.connect() direct en Phase 0-2.
+# L'intégration progressive de get_pool() dans core.py est prévue
+# lorsque les routes existantes seront adaptées au workspace_id.
 from src.db.pool import get_pool
 
 @contextmanager
@@ -76,7 +79,7 @@ def get_connection() -> Iterator[_ConnectionWrapper]:
     pool = get_pool()
     with pool.connection() as conn:
         wrapper = _ConnectionWrapper(conn)
-        # SET LOCAL RLS...
+        # SELECT set_config('app.tenant_id', tid, true) avant toute query
         yield wrapper
 ```
 
@@ -130,19 +133,29 @@ psycopg-pool>=3.2.0   # pool sync psycopg
 asyncpg>=0.29.0       # pool async pour nouvelles routes
 ```
 
-Ces dépendances sont ajoutées dans `requirements.txt` lors de Phase 0.
+Ces dépendances sont à ajouter dans `pyproject.toml` (ou `requirements.txt`) :
+
+```
+asyncpg>=0.29.0       # pool async pour nouvelles routes workspace
+psycopg[pool]>=3.2.0  # psycopg_pool inclus (déjà dans psycopg[binary,pool])
+```
+
+Note : `psycopg[binary,pool]` est déjà présent dans `requirements.txt`. Seul `asyncpg` est à ajouter lors de Phase 0.
 
 ## Contraintes
 
-- SET LOCAL tenant_id : doit rester dans chaque transaction (pas de SET global)
+- **RLS** : utiliser `SELECT set_config('app.tenant_id', $1, true)` (is_local=true),
+  aligné sur `src/db/core.py`. `SET LOCAL var = $1` n'est pas supporté par PostgreSQL
+  avec des paramètres — utiliser `set_config()` qui accepte les placeholders.
 - Pool psycopg : `autocommit=False` pour garantir les transactions
-- Pool asyncpg : chaque connexion acquise exécute SET LOCAL avant toute query
+- Pool asyncpg : chaque connexion acquise exécute `set_config()` avant toute query (scope transaction)
 
 ## Conséquences
 
 - Semaine 0 : créer `src/db/pool.py` + `src/db/async_pool.py`
-- Semaine 0 : adapter `src/db/core.py` `get_connection()` pour utiliser le pool
-- Semaine 0 : adapter `main.py` lifespan
+- Semaine 0 : adapter `main.py` lifespan (fermeture pools au shutdown)
+- Phase 3 : adapter progressivement `src/db/core.py` `get_connection()` pour utiliser `get_pool()`
+- Semaine 0 : ajouter `asyncpg>=0.29.0` dans `pyproject.toml`
 - Monitoring : `SELECT count(*) FROM pg_stat_activity` dans gate S3 et pilote
 - Alert : pool > 80% = STOP SIGNAL S3
 

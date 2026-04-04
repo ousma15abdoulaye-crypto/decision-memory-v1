@@ -90,7 +90,7 @@ async def lifespan(app):
         close_pool()
         await close_async_pool()
     except Exception:
-        pass
+        _logger.exception("[lifespan] Erreur fermeture des pools DB au shutdown.")
 
 
 OPENAPI_DESCRIPTION = (
