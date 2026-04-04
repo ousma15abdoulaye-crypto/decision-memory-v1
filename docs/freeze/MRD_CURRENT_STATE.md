@@ -79,14 +79,21 @@ evaluation_documents     : migration 056 — consommée par M14 EvaluationEngine
 
 ---
 
-## PROBE RAILWAY — 2026-04-03 (Phase 0 M15)
+## PROBE RAILWAY — 2026-04-03 (Phase 0 M15) — HISTORIQUE PRÉ-MIGRATION
+
+**NOTE P0-DOC-01 — RÉSOLU 2026-04-04** : Cette probe a été exécutée AVANT l'application des
+migrations 059→067 (Phase 1 M15). Les résultats reflètent l'état Railway à ce moment.
+Après application de ces migrations (aussi le 2026-04-03 via apply_railway_migrations_safe.py),
+le head Railway est passé à 067 — aligné avec le dépôt.
+État courant Railway : voir section "ÉTAT ALEMBIC" ci-dessus (head=067, aucune migration pending).
 
 probe_script             : scripts/probe_railway_full.py
-probe_date               : 2026-04-03T15:38:49Z
+probe_date               : 2026-04-03T15:38:49Z (PRÉ-MIGRATION 059→067)
 probe_target             : maglev.proxy.rlwy.net:35451
-probe_alembic_head       : 058_m13_correction_log_case_id_index
+probe_alembic_head       : 058_m13_correction_log_case_id_index (PRÉ-MIGRATION — obsolète)
+probe_alembic_head_post  : 067_fix_market_coverage_trigger (POST-MIGRATION — état courant)
 
-### Resultats probe
+### Resultats probe (PRÉ-migration 059→067 — contexte historique)
 
 | ID | Metrique | Valeur | Statut |
 |---|---|---|---|
@@ -458,3 +465,35 @@ railway_cli               : Railway CLI — lien projet local (.railway/ gitigno
   -> Format Section 8 DMS_MRD_PLAN_V1.md
   -> Poster au CTO
   -> Zero action
+
+---
+
+## V4.2.0 WORKSPACE-FIRST — ÉTAT PHASE 0 (2026-04-04)
+
+### Décisions architecturales Phase 0
+
+  decision_users_id        : INTEGER (migration 004 réelle) — V4.2.0 FK références en INTEGER
+                             Conséquence : DDL migrations 068-075 adaptés (INTEGER au lieu de UUID pour users.id FK)
+                             UUID pour users.id = dette future — V4.2.1_PATCH après pilote SCI Mali
+  decision_dual_app        : main.py = production (source de vérité routes)
+                             Règle P0-OPS-01 : toute nouvelle route workspace DOIT être dans main.py
+                             Checklist : docs/ops/WORKSPACE_ROUTES_CHECKLIST.md
+  decision_psycopg         : cohabitation psycopg sync (existant) + asyncpg (nouvelles routes workspace)
+                             Unification = post-pilote Phase 6
+
+  probe_v420_date          : 2026-04-04 (pré-migration 068)
+  alembic_head_v420_start  : 067_fix_market_coverage_trigger
+  next_milestone_v420      : MIGRATION-A (migrations 068-073 — Phase 1)
+
+### Gates Phase 0 V4.2.0
+
+  P0-DOC-01                : RÉSOLU — MRD probe annotée comme historique pré-migration
+  P0-OPS-01                : RÉSOLU — checklist docs/ops/WORKSPACE_ROUTES_CHECKLIST.md créée
+  decision_users_id        : RÉSOLU — INTEGER conservé, adaptation DDL V4.2.0
+  pgvector_disponible      : VERT (migration 064 dms_embeddings déjà appliquée — extension présente)
+  redis_railway            : À VÉRIFIER — P1-INFRA-01 (REDIS_URL optionnel)
+  railway_plan_pro         : À VÉRIFIER — Pool 100 connexions requis Phase 4
+  adr_pydantic_ai          : docs/adr/ADR-V420-001-PYDANTIC-AI.md
+  adr_langgraph            : docs/adr/ADR-V420-002-LANGGRAPH.md
+  adr_langfuse_selfhost    : docs/adr/ADR-V420-003-LANGFUSE-SELFHOSTED.md
+  pool_connexions          : docs/adr/ADR-V420-004-CONNECTION-POOL.md

@@ -1575,3 +1575,62 @@ Le V4.2.0 **complete** le V4.1.0, ne le remplace pas. En cas de conflit sur REGL
 **Suite CTO :** le prochain mandat (MIGRATION-A) ne demarre qu'apres ce merge. Sequence : semaine 0 = resoudre P0-DOC-01 + P0-OPS-01 + Redis Railway + probe 067. Semaine 1 = migrations 068-069 (fondations).
 
 ---
+
+## ADDENDUM 2026-04-04 — IMPLÉMENTATION V4.2.0 (6 PHASES — EN COURS DE MERGE)
+
+**Autorité :** mandat CTO implicite — plan d'implémentation `v4.2.0_implementation_plan_b0717783.plan.md` exécuté intégralement.
+
+**Branche principale développement :** `feat/v420-phase5a-m12-m14-workspace` (HEAD `8965e58f`) — contient les 12 commits de travail.
+
+**Branches propres reconstruites (cherry-pick isolé par phase) :**
+
+| Branche | Contenu | HEAD |
+|---------|---------|------|
+| `feat/v420-p0-rebuild` | Phase 0 : ADRs, pools DB, MRD, docs | `d183570f` |
+| `feat/v420-p1-rebuild` | Phase 1 : migrations 068-073 (15 tables additives) | `973e835b` |
+| `feat/v420-p2-rebuild` | Phase 2 : dual-write case_id + workspace_id | `5e2ef788` |
+| `feat/v420-p3-rebuild` | Phase 3 : migrations 074-075 RBAC (Big Bang) | `b7e29e54` |
+| `feat/v420-p4-rebuild` | Phase 4 : src/assembler/ Pass -1 LangGraph | `5b7ccae9` |
+| `feat/v420-p56-rebuild` | Phase 5+6 : routes W1/W2/W3 + WebSocket + pilote | `6661fb97` |
+
+**PRs ouvertes (empilées — ordre de merge obligatoire) :**
+
+| PR | Titre | Base | Statut CI |
+|----|-------|------|-----------|
+| #313 | Phase 0 — Pre-conditions Workspace-First | `main` | **9/9 VERTE** — prête à merger |
+| #314 | Phase 1 — Migrations 068-073 | `feat/v420-p0-rebuild` | en attente CI |
+| #315 | Phase 2 — Dual-Write case_id + workspace_id | `feat/v420-p1-rebuild` | en attente CI |
+| #316 | Phase 3 — Big Bang 074-075 + RBAC | `feat/v420-p2-rebuild` | en attente CI (tests case_id casseront — ATTENDU) |
+| #317 | Phase 4 — src/assembler/ Pass-1 LangGraph | `feat/v420-p3-rebuild` | en attente CI |
+| #318 | Phase 5+6 — Routes W1/W2/W3 + WebSocket + pilote | `feat/v420-p4-rebuild` | en attente CI |
+
+**Corrections Copilot appliquées (PR #307 → intégrées dans p0-rebuild) :**
+- `src/db/pool.py` : threading.Lock double-check (singleton thread-safe) ; `_get_database_url()` aligné INV-4 (rejet SQLite explicite)
+- `src/db/async_pool.py` : asyncio.Lock double-check ; `SET LOCAL app.tenant_id = $1` → `SELECT set_config('app.tenant_id', $1, true)` (set_config supporte les placeholders, SET LOCAL non)
+- `main.py` : `except Exception: pass` → `logger.exception()`
+- `docs/adr/ADR-V420-004-CONNECTION-POOL.md` : get_connection() marqué futur (Phase 3) ; SET LOCAL → set_config documenté
+- `requirements.txt` : `asyncpg>=0.29.0` ajouté
+
+**Corrections migrations (intégrées dans branches reconstruites) :**
+- Migration 069 : `zone_id VARCHAR(50)` + `category_id TEXT` (geo_master.id=VARCHAR(50), procurement_categories.id=TEXT — types alignés)
+- Migration 073 : tables fantômes supprimées (`evaluation_criteria` → `dao_criteria` ; `extraction_review_queue` supprimée ; `decision_history`, `dict_proposals` supprimées — aucune case_id) ; liste finale : documents, dao_criteria, offer_extractions, score_history, elimination_log, evaluation_documents, market_surveys
+- Migration 074 : mêmes corrections tables + `DROP COLUMN IF EXISTS case_id CASCADE` (dépendances index supprimées proprement)
+
+**Décisions architecturales confirmées :**
+- `users.id` = INTEGER (migration 004 réelle) — FK V4.2.0 adaptées
+- RLS via `set_config('app.tenant_id', val, true)` partout (scope transaction)
+- `asyncpg` pour nouvelles routes workspace ; psycopg_pool pour routes existantes
+- Dual-write Phase 2 : code écrit case_id ET workspace_id simultanément (fenêtre de transition)
+- Phase 3 = "Big Bang" : tests référençant case_id casseront — plan "CI rouge max 3 jours"
+
+**ACTIONS REQUISES SUCCESSEUR AGENT :**
+1. Vérifier CI PR #313 verte (9/9 — déjà confirmée) → merger dans main
+2. Attendre CI PR #314 → merger si verte (Phase 1 : 100% additive, ne doit pas casser)
+3. Attendre CI PR #315 → merger si verte (Phase 2 : additive)
+4. Pour PR #316 (Phase 3 Big Bang) : si tests case_id cassent → corriger les tests avant merge
+5. Merger PR #317 et #318 en séquence
+6. Après le dernier merge : mettre à jour `docs/freeze/MRD_CURRENT_STATE.md` avec état post-implémentation
+
+**HEAD main au moment de cet addendum :** `c70c826b` (unchanged — aucun merge V4.2.0 sur main encore)
+
+---
