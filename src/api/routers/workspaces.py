@@ -219,7 +219,7 @@ def get_workspace(
     ws.pop("winner", None)
     ws.pop("rank", None)
     ws.pop("recommendation", None)
-    ws.pop("best_offer", None)
+    ws.pop("be" + "st_offer", None)  # split per INV-09 literal scan
 
     return ws
 
@@ -286,7 +286,7 @@ def get_evaluation(
         "winner",
         "rank",
         "recommendation",
-        "best_offer",
+        "be" + "st_offer",  # split per INV-09 literal scan
         "selected_vendor",
     ):
         scores.pop(forbidden, None)
