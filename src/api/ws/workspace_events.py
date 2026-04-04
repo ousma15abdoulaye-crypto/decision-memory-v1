@@ -3,7 +3,8 @@
 Endpoint : ws://host/ws/workspace/{workspace_id}/events
 
 Protocole :
-  1. Client se connecte avec JWT en query param (?token=...) ou header Sec-WebSocket-Protocol
+  1. Client se connecte avec JWT en query param (?token=...) uniquement
+     (le header Sec-WebSocket-Protocol n'est pas pris en charge)
   2. Handler vérifie JWT + accès workspace
   3. Poll polling sur workspace_events (SELECT WHERE id > last_seen)
   4. Envoi JSON de chaque nouvel event au client

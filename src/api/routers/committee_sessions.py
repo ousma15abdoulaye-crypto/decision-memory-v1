@@ -1,12 +1,14 @@
 """Routes W3 — Committee Sessions (V4.2.0).
 
-Routes :
-  GET  /workspaces/{id}/committee               : détail session comité
-  POST /workspaces/{id}/committee/open-session  : ouvrir session
-  POST /workspaces/{id}/committee/add-member    : ajouter membre
-  POST /workspaces/{id}/committee/add-comment   : ajouter commentaire
-  POST /workspaces/{id}/committee/challenge-score : contester un score
-  POST /workspaces/{id}/committee/seal          : sceller la session (IRR)
+Routes implémentées :
+  GET  /api/workspaces/{id}/committee               : détail session comité
+  POST /api/workspaces/{id}/committee/open-session  : ouvrir session
+  POST /api/workspaces/{id}/committee/add-member    : ajouter membre
+  POST /api/workspaces/{id}/committee/seal          : sceller la session (IRR)
+
+Non implémentés (chantier futur) :
+  POST /api/workspaces/{id}/committee/add-comment
+  POST /api/workspaces/{id}/committee/challenge-score
 
 Référence : docs/freeze/DMS_V4.2.0_ADDENDUM.md §VII routes W3
 INV-W01 : actes irréversibles — committee_deliberation_events append-only.
@@ -36,7 +38,7 @@ from src.couche_a.auth.workspace_access import (
 from src.db import db_execute, db_execute_one, get_connection
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/workspaces", tags=["committee-v420"])
+router = APIRouter(prefix="/api/workspaces", tags=["committee-v420"])
 
 
 @router.get("/{workspace_id}/committee")

@@ -26,7 +26,7 @@ from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.db import db_execute, db_execute_one, db_fetchall, get_connection
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/market", tags=["market-intelligence-v420"])
+router = APIRouter(prefix="/api/market", tags=["market-intelligence-v420"])
 
 
 @router.get("/overview")
@@ -69,10 +69,10 @@ def market_overview(
             """
             SELECT item_type, item_ref, alert_threshold_pct, is_active
             FROM market_watchlist_items
-            WHERE is_active = TRUE
+            WHERE tenant_id = :tid AND is_active = TRUE
             LIMIT 20
             """,
-            {},
+            {"tid": tenant_id},
         )
 
     return {

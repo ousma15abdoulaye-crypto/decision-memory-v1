@@ -19,6 +19,7 @@ Référence : Plan V4.2.0 Phase 5b — ARQ projector Couche B
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -39,16 +40,20 @@ _BATCH_SIZE = 100
 
 
 def _ensure_projection_log(conn) -> None:
-    """Crée la table de curseur si elle n'existe pas encore."""
+    """Crée la table de curseur + contrainte UNIQUE event_id si elle n'existe pas."""
     conn.execute(f"""
         CREATE TABLE IF NOT EXISTS {_PROJECTION_LOG_TABLE} (
             id          BIGSERIAL PRIMARY KEY,
             event_id    BIGINT NOT NULL,
             event_type  TEXT NOT NULL,
-            status      TEXT NOT NULL DEFAULT 'ok',  -- ok | failed
+            status      TEXT NOT NULL DEFAULT 'ok',
             error_msg   TEXT,
             projected_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
+        """)
+    conn.execute(f"""
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_proj_log_event_id
+        ON {_PROJECTION_LOG_TABLE}(event_id)
         """)
     conn.execute(f"""
         CREATE INDEX IF NOT EXISTS idx_proj_log_event_id
@@ -57,72 +62,89 @@ def _ensure_projection_log(conn) -> None:
 
 
 def _get_last_projected_event_id(conn) -> int:
-    """Retourne le dernier event_id projeté (0 si aucun)."""
-    row = conn.execute(
+    """Retourne le dernier event_id projeté avec succès (0 si aucun)."""
+    conn.execute(
         f"SELECT MAX(event_id) FROM {_PROJECTION_LOG_TABLE} WHERE status = 'ok'"
-    ).fetchone()
-    return int(row[0]) if row and row[0] is not None else 0
+    )
+    row = conn.fetchone()
+    return int(row["max"]) if row and row.get("max") is not None else 0
 
 
 def _fetch_pending_events(conn, last_id: int, batch: int) -> list[dict]:
     """Lit les workspace_events non encore projetés."""
-    rows = conn.execute(
+    conn.execute(
         """
         SELECT id, workspace_id, event_type, actor_id, payload, emitted_at
         FROM workspace_events
-        WHERE id > %s
-          AND event_type = ANY(%s)
+        WHERE id > :last_id
+          AND event_type = ANY(:event_types)
         ORDER BY id ASC
-        LIMIT %s
+        LIMIT :lim
         """,
-        (last_id, list(_PROJECTED_EVENT_TYPES), batch),
-    ).fetchall()
-    keys = ["id", "workspace_id", "event_type", "actor_id", "payload", "emitted_at"]
-    return [dict(zip(keys, row)) for row in rows]
+        {"last_id": last_id, "event_types": list(_PROJECTED_EVENT_TYPES), "lim": batch},
+    )
+    return conn.fetchall()
 
 
 def _project_evaluation_sealed(conn, event: dict) -> None:
     """Projette EVALUATION_SEALED → vendor_market_signals.
 
-    Pour chaque ligne de scores dans le payload, insère un signal
-    vendor_market_signals afin d'enrichir la mémoire marché.
+    Insère un signal de type price_anchor_update par ligne de scores.
+    Nécessite la résolution de tenant_id (via process_workspaces) et
+    vendor_id (via vendors). Si l'un ou l'autre est introuvable, l'insertion
+    est silencieusement ignorée — INV-PROJ-03.
     """
     payload = event.get("payload") or {}
     workspace_id = event["workspace_id"]
     scores = payload.get("scores", [])
 
+    conn.execute(
+        "SELECT tenant_id FROM process_workspaces WHERE id = :ws",
+        {"ws": workspace_id},
+    )
+    ws_row = conn.fetchone()
+    if not ws_row:
+        logger.warning(
+            "[PROJ] workspace_id=%s introuvable — EVALUATION_SEALED ignoré",
+            workspace_id,
+        )
+        return
+    tenant_id = str(ws_row["tenant_id"])
+
     for score in scores:
         vendor_name = score.get("vendor_name") or score.get("supplier_name")
-        item_code = score.get("item_code") or score.get("dict_item_code")
-        unit_price = score.get("unit_price")
-        currency = score.get("currency", "XOF")
-
-        if not vendor_name or not item_code:
+        if not vendor_name:
             continue
 
         conn.execute(
-            """
-            INSERT INTO vendor_market_signals
-                (workspace_id, vendor_name, dict_item_code,
-                 signal_type, unit_price, currency, metadata, observed_at)
-            VALUES (%s, %s, %s, 'OFFER_PRICE', %s, %s, %s::jsonb, NOW())
-            ON CONFLICT DO NOTHING
-            """,
-            (
-                workspace_id,
-                vendor_name,
-                item_code,
-                unit_price,
-                currency,
-                __import__("json").dumps(score),
-            ),
+            "SELECT id FROM vendors WHERE name = :name LIMIT 1",
+            {"name": vendor_name},
         )
-        logger.debug(
-            "[PROJ] vendor_market_signals inséré vendor=%s item=%s prix=%s",
-            vendor_name,
-            item_code,
-            unit_price,
-        )
+        v_row = conn.fetchone()
+        if not v_row:
+            logger.debug("[PROJ] vendor=%r introuvable — signal ignoré", vendor_name)
+            continue
+        vendor_id = str(v_row["id"])
+
+        signal_payload = json.dumps(score)
+        try:
+            conn.execute(
+                """
+                INSERT INTO vendor_market_signals
+                    (tenant_id, vendor_id, signal_type, payload, source_workspace_id)
+                VALUES (:tid, :vid, 'price_anchor_update', :payload::jsonb, :ws)
+                ON CONFLICT DO NOTHING
+                """,
+                {
+                    "tid": tenant_id,
+                    "vid": vendor_id,
+                    "payload": signal_payload,
+                    "ws": workspace_id,
+                },
+            )
+            logger.debug("[PROJ] vendor_market_signals inséré vendor=%s", vendor_name)
+        except Exception as exc:
+            logger.debug("[PROJ] vendor_market_signals skip : %s", exc)
 
 
 def _project_bundle_scored(conn, event: dict) -> None:
@@ -147,10 +169,15 @@ def _project_bundle_scored(conn, event: dict) -> None:
                 INSERT INTO market_signals
                     (workspace_id, bundle_id, dict_item_code, score_value,
                      signal_source, created_at)
-                VALUES (%s, %s, %s, %s, 'PASS_MINUS_1', NOW())
+                VALUES (:ws, :bid, :code, :score, 'PASS_MINUS_1', NOW())
                 ON CONFLICT DO NOTHING
                 """,
-                (workspace_id, bundle_id, item_code, score),
+                {
+                    "ws": workspace_id,
+                    "bid": bundle_id,
+                    "code": item_code,
+                    "score": score,
+                },
             )
         except Exception as exc:
             logger.debug("[PROJ] market_signals skip (table absente?) : %s", exc)
@@ -176,17 +203,17 @@ def _project_vendor_score_challenged(conn, event: dict) -> None:
             INSERT INTO m13_correction_log
                 (workspace_id, actor_id, vendor_name, field_name,
                  original_value, corrected_value, reason, logged_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+            VALUES (:ws, :uid, :vendor, :field, :orig, :corr, :reason, NOW())
             """,
-            (
-                workspace_id,
-                actor_id,
-                vendor_name,
-                field_name,
-                str(original) if original is not None else None,
-                str(corrected) if corrected is not None else None,
-                reason,
-            ),
+            {
+                "ws": workspace_id,
+                "uid": actor_id,
+                "vendor": vendor_name,
+                "field": field_name,
+                "orig": str(original) if original is not None else None,
+                "corr": str(corrected) if corrected is not None else None,
+                "reason": reason,
+            },
         )
     except Exception as exc:
         logger.debug("[PROJ] m13_correction_log skip : %s", exc)
@@ -196,7 +223,7 @@ _PROJECTORS = {
     "EVALUATION_SEALED": _project_evaluation_sealed,
     "BUNDLE_SCORED": _project_bundle_scored,
     "VENDOR_SCORE_CHALLENGED": _project_vendor_score_challenged,
-    "WORKSPACE_CLOSED": lambda conn, ev: None,  # no-op, logged only
+    "WORKSPACE_CLOSED": lambda conn, ev: None,
 }
 
 
@@ -207,7 +234,7 @@ async def project_workspace_events_to_couche_b(ctx: dict[str, Any]) -> dict:
     Retourne un résumé {ok, failed, last_event_id}.
 
     INV-PROJ-01 : Zéro écriture dans process_workspaces.
-    INV-PROJ-02 : arq_projection_log assure l'idempotence.
+    INV-PROJ-02 : arq_projection_log (UNIQUE event_id) assure l'idempotence.
     INV-PROJ-03 : Erreurs partielles → marquées failed, pas de rollback global.
     """
     from src.db import get_connection
@@ -234,9 +261,10 @@ async def project_workspace_events_to_couche_b(ctx: dict[str, Any]) -> dict:
                     f"""
                     INSERT INTO {_PROJECTION_LOG_TABLE}
                         (event_id, event_type, status)
-                    VALUES (%s, %s, 'ok')
+                    VALUES (:eid, :etype, 'ok')
+                    ON CONFLICT (event_id) DO NOTHING
                     """,
-                    (event_id, event_type),
+                    {"eid": event_id, "etype": event_type},
                 )
                 ok_count += 1
                 last_id = event_id
@@ -252,9 +280,11 @@ async def project_workspace_events_to_couche_b(ctx: dict[str, Any]) -> dict:
                         f"""
                         INSERT INTO {_PROJECTION_LOG_TABLE}
                             (event_id, event_type, status, error_msg)
-                        VALUES (%s, %s, 'failed', %s)
+                        VALUES (:eid, :etype, 'failed', :err)
+                        ON CONFLICT (event_id) DO UPDATE SET
+                            status = 'failed', error_msg = EXCLUDED.error_msg
                         """,
-                        (event_id, event_type, str(exc)[:500]),
+                        {"eid": event_id, "etype": event_type, "err": str(exc)[:500]},
                     )
                 except Exception:
                     pass

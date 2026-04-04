@@ -16,6 +16,7 @@ INV-W06 : aucune réponse ne contient les champs neutres interdits (winner/rank/
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import tempfile
@@ -34,7 +35,7 @@ from src.couche_a.auth.workspace_access import (
 from src.db import db_execute, db_execute_one, db_fetchall, get_connection
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/workspaces", tags=["workspaces-v420"])
+router = APIRouter(prefix="/api/workspaces", tags=["workspaces-v420"])
 
 VALID_PROCESS_TYPES = {
     "devis_unique",
@@ -188,7 +189,7 @@ def create_workspace(
                 "ws": ws_id,
                 "tid": tenant_id,
                 "uid": user_id,
-                "p": f'{{"reference_code": "{payload.reference_code}"}}',
+                "p": json.dumps({"reference_code": payload.reference_code}),
             },
         )
 
