@@ -30,6 +30,7 @@ class UserClaims:
     role: str
     jti: str
     tenant_id: str | None = None
+    is_superuser: bool = False
 
 
 def _get_db_conn() -> Generator[psycopg.Connection, None, None]:
@@ -104,6 +105,46 @@ def get_current_user(
         role=role,
         jti=payload["jti"],
         tenant_id=tid,
+    )
+
+
+def get_current_user_from_token(token: str) -> UserClaims:
+    """Valide un token JWT brut (hors contexte FastAPI dependency).
+
+    Utilisé par les handlers WebSocket qui reçoivent le token en query param.
+    Ne peut pas vérifier la révocation (pas de connexion DB fournie).
+
+    Raises:
+        ValueError: token absent, invalide ou expiré.
+    """
+    import os
+
+    import psycopg
+    from dotenv import load_dotenv
+
+    if not token:
+        raise ValueError("Token manquant.")
+
+    load_dotenv()
+    url = os.environ.get("DATABASE_URL", "").replace(
+        "postgresql+psycopg://", "postgresql://"
+    )
+    conn = psycopg.connect(url, autocommit=True)
+    try:
+        payload = verify_token(token, "access", conn)
+    finally:
+        conn.close()
+
+    role = payload.get("role", "")
+    if role not in ROLES:
+        raise ValueError(f"Rôle non reconnu : '{role}'.")
+
+    return UserClaims(
+        user_id=payload["sub"],
+        role=role,
+        jti=payload["jti"],
+        tenant_id=str(payload.get("tenant_id") or ""),
+        is_superuser=(role == "admin"),
     )
 
 
