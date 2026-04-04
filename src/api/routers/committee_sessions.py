@@ -1,0 +1,336 @@
+"""Routes W3 — Committee Sessions (V4.2.0).
+
+Routes :
+  GET  /workspaces/{id}/committee               : détail session comité
+  POST /workspaces/{id}/committee/open-session  : ouvrir session
+  POST /workspaces/{id}/committee/add-member    : ajouter membre
+  POST /workspaces/{id}/committee/add-comment   : ajouter commentaire
+  POST /workspaces/{id}/committee/challenge-score : contester un score
+  POST /workspaces/{id}/committee/seal          : sceller la session (IRR)
+
+Référence : docs/freeze/DMS_V4.2.0_ADDENDUM.md §VII routes W3
+INV-W01 : actes irréversibles — committee_deliberation_events append-only.
+INV-W04 : session sealed → aucune transition vers draft/active.
+INV-W06 : aucun champ winner/rank dans les réponses.
+RÈGLE-W01 : tenant_id extrait JWT uniquement.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import logging
+import uuid
+from datetime import UTC, datetime
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi import status as http_status
+from pydantic import BaseModel
+
+from src.couche_a.auth.dependencies import UserClaims, get_current_user
+from src.couche_a.auth.workspace_access import (
+    require_workspace_access,
+    require_workspace_permission,
+)
+from src.db import db_execute, db_execute_one, get_connection
+
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/workspaces", tags=["committee-v420"])
+
+
+@router.get("/{workspace_id}/committee")
+def get_committee_session(
+    workspace_id: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+):
+    """Retourne la session comité du workspace (1 session max par workspace)."""
+    require_workspace_access(workspace_id, user)
+
+    with get_connection() as conn:
+        session = db_execute_one(
+            conn,
+            """
+            SELECT id, workspace_id, committee_type, session_status,
+                   min_members, activated_at, deliberation_opened_at,
+                   sealed_at, closed_at, seal_hash
+            FROM committee_sessions
+            WHERE workspace_id = :ws
+            """,
+            {"ws": workspace_id},
+        )
+
+    if not session:
+        return {"workspace_id": workspace_id, "session": None}
+
+    return {"workspace_id": workspace_id, "session": session}
+
+
+class OpenSessionPayload(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    committee_type: str = "standard"
+    min_members: int = 3
+
+
+@router.post(
+    "/{workspace_id}/committee/open-session", status_code=http_status.HTTP_201_CREATED
+)
+def open_committee_session(
+    workspace_id: str,
+    payload: OpenSessionPayload,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+):
+    """Crée et active la session comité pour ce workspace."""
+    require_workspace_permission(workspace_id, user, "committee.manage")
+
+    if payload.committee_type not in {"standard", "humanitarian", "simplified"}:
+        raise HTTPException(
+            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="committee_type invalide.",
+        )
+
+    tenant_id = user.tenant_id or ""
+    user_id = int(user.user_id)
+
+    with get_connection() as conn:
+        existing = db_execute_one(
+            conn,
+            "SELECT id, session_status FROM committee_sessions WHERE workspace_id = :ws",
+            {"ws": workspace_id},
+        )
+        if existing:
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail=(
+                    f"Session comité déjà existante "
+                    f"(status={existing['session_status']})."
+                ),
+            )
+
+        session_id = str(uuid.uuid4())
+        db_execute(
+            conn,
+            """
+            INSERT INTO committee_sessions
+                (id, workspace_id, tenant_id, committee_type, min_members,
+                 session_status, activated_at)
+            VALUES (:id, :ws, :tid, :ctype, :min, 'active', NOW())
+            """,
+            {
+                "id": session_id,
+                "ws": workspace_id,
+                "tid": tenant_id,
+                "ctype": payload.committee_type,
+                "min": payload.min_members,
+            },
+        )
+
+        db_execute(
+            conn,
+            """
+            INSERT INTO committee_deliberation_events
+                (session_id, workspace_id, tenant_id, actor_id, event_type, payload)
+            VALUES (:sid, :ws, :tid, :uid, 'session_activated', :p)
+            """,
+            {
+                "sid": session_id,
+                "ws": workspace_id,
+                "tid": tenant_id,
+                "uid": user_id,
+                "p": json.dumps({"committee_type": payload.committee_type}),
+            },
+        )
+
+    return {"session_id": session_id, "status": "active"}
+
+
+class AddMemberPayload(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    user_id: int
+    role_in_committee: str
+    is_voting: bool = True
+
+
+@router.post("/{workspace_id}/committee/add-member")
+def add_committee_member(
+    workspace_id: str,
+    payload: AddMemberPayload,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+):
+    """Ajoute un membre à la session comité."""
+    require_workspace_permission(workspace_id, user, "committee.manage")
+
+    valid_roles = {
+        "supply_chain",
+        "finance",
+        "budget_holder",
+        "technical",
+        "security",
+        "pharma",
+        "observer",
+        "secretary",
+    }
+    if payload.role_in_committee not in valid_roles:
+        raise HTTPException(
+            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"role_in_committee invalide. Valeurs : {sorted(valid_roles)}",
+        )
+
+    tenant_id = user.tenant_id or ""
+    actor_id = int(user.user_id)
+
+    with get_connection() as conn:
+        session = db_execute_one(
+            conn,
+            "SELECT id, session_status FROM committee_sessions WHERE workspace_id = :ws",
+            {"ws": workspace_id},
+        )
+        if not session:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Session non trouvée.",
+            )
+        if session["session_status"] in {"sealed", "closed"}:
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail="Session scellée — impossible d'ajouter un membre.",
+            )
+
+        member_id = str(uuid.uuid4())
+        db_execute(
+            conn,
+            """
+            INSERT INTO committee_session_members
+                (id, session_id, workspace_id, tenant_id, user_id,
+                 role_in_committee, is_voting)
+            VALUES (:id, :sid, :ws, :tid, :uid, :role, :voting)
+            ON CONFLICT (session_id, user_id) DO NOTHING
+            """,
+            {
+                "id": member_id,
+                "sid": session["id"],
+                "ws": workspace_id,
+                "tid": tenant_id,
+                "uid": payload.user_id,
+                "role": payload.role_in_committee,
+                "voting": payload.is_voting,
+            },
+        )
+
+        db_execute(
+            conn,
+            """
+            INSERT INTO committee_deliberation_events
+                (session_id, workspace_id, tenant_id, actor_id, event_type, payload)
+            VALUES (:sid, :ws, :tid, :actor, 'member_added', :p)
+            """,
+            {
+                "sid": session["id"],
+                "ws": workspace_id,
+                "tid": tenant_id,
+                "actor": actor_id,
+                "p": json.dumps(
+                    {"user_id": payload.user_id, "role": payload.role_in_committee}
+                ),
+            },
+        )
+
+    return {"status": "member_added", "user_id": payload.user_id}
+
+
+class SealSessionPayload(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    seal_comment: str | None = None
+
+
+@router.post("/{workspace_id}/committee/seal")
+def seal_committee_session(
+    workspace_id: str,
+    payload: SealSessionPayload,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+):
+    """Scelle la session comité (IRR — INV-W01, INV-W04).
+
+    Calcule le seal_hash SHA-256 du snapshot PV.
+    Après scellement : aucune modification possible.
+    """
+    require_workspace_permission(workspace_id, user, "committee.manage")
+
+    tenant_id = user.tenant_id or ""
+    user_id = int(user.user_id)
+
+    with get_connection() as conn:
+        session = db_execute_one(
+            conn,
+            "SELECT id, session_status FROM committee_sessions WHERE workspace_id = :ws",
+            {"ws": workspace_id},
+        )
+        if not session:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Session non trouvée.",
+            )
+        if session["session_status"] == "sealed":
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail="Session déjà scellée.",
+            )
+        if session["session_status"] == "closed":
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail="Session clôturée.",
+            )
+
+        pv_snapshot = {
+            "workspace_id": workspace_id,
+            "session_id": session["id"],
+            "sealed_by": user_id,
+            "sealed_at": datetime.now(UTC).isoformat(),
+            "seal_comment": payload.seal_comment,
+        }
+        pv_json = json.dumps(pv_snapshot, sort_keys=True)
+        seal_hash = hashlib.sha256(pv_json.encode()).hexdigest()
+
+        db_execute(
+            conn,
+            """
+            UPDATE committee_sessions
+            SET session_status = 'sealed',
+                sealed_at = NOW(),
+                sealed_by = :uid,
+                seal_hash = :hash,
+                pv_snapshot = :pv
+            WHERE id = :sid
+            """,
+            {
+                "uid": user_id,
+                "hash": seal_hash,
+                "pv": pv_json,
+                "sid": session["id"],
+            },
+        )
+
+        db_execute(
+            conn,
+            """
+            INSERT INTO committee_deliberation_events
+                (session_id, workspace_id, tenant_id, actor_id, event_type, payload)
+            VALUES (:sid, :ws, :tid, :actor, 'session_sealed', :p)
+            """,
+            {
+                "sid": session["id"],
+                "ws": workspace_id,
+                "tid": tenant_id,
+                "actor": user_id,
+                "p": json.dumps({"seal_hash": seal_hash}),
+            },
+        )
+
+    return {
+        "session_id": session["id"],
+        "status": "sealed",
+        "seal_hash": seal_hash,
+    }
