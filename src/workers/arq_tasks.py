@@ -106,3 +106,83 @@ async def detect_patterns(ctx: dict[str, Any]) -> int:
 async def generate_candidate_rules(ctx: dict[str, Any]) -> int:
     """Alias for detect_patterns — kept for backward compat / independent scheduling."""
     return await detect_patterns(ctx)
+
+
+async def run_pass_minus_1(
+    ctx: dict[str, Any],
+    workspace_id: str,
+    tenant_id: str,
+    zip_path: str,
+) -> dict:
+    """Exécute le Pass -1 (ZIP → bundles fournisseurs) via LangGraph.
+
+    Rejouable (idempotent) : bundle_documents a UNIQUE(workspace_id, sha256).
+    Utilise un ``thread_id`` LangGraph pour l'exécution mais ne configure pas
+    de backend de checkpoint persistant (à ajouter dans un chantier dédié).
+
+    Args:
+        ctx: Contexte ARQ (injecté automatiquement).
+        workspace_id: UUID du workspace cible.
+        tenant_id: UUID du tenant.
+        zip_path: Chemin local vers le fichier ZIP.
+
+    Returns:
+        dict avec keys: bundle_ids, workspace_id, error (si présent).
+    """
+    logger.info("[PASS-1] Démarrage workspace=%s zip=%s", workspace_id, zip_path)
+    try:
+        from src.assembler.graph import build_pass_minus_one_graph
+        from src.assembler.zip_validator import validate_zip
+
+        validation = validate_zip(zip_path)
+        if not validation.is_valid:
+            logger.error(
+                "[PASS-1] ZIP invalide workspace=%s : %s",
+                workspace_id,
+                validation.error,
+            )
+            return {
+                "workspace_id": workspace_id,
+                "bundle_ids": [],
+                "error": validation.error,
+            }
+
+        graph = build_pass_minus_one_graph()
+        if graph is None:
+            return {
+                "workspace_id": workspace_id,
+                "bundle_ids": [],
+                "error": "langgraph non installé",
+            }
+
+        initial_state = {
+            "workspace_id": workspace_id,
+            "tenant_id": tenant_id,
+            "zip_path": zip_path,
+            "extract_dir": "",
+            "raw_documents": [],
+            "bundles_draft": [],
+            "hitl_required": False,
+            "hitl_resolved": False,
+            "finalized": False,
+            "bundle_ids": [],
+            "error": None,
+        }
+
+        config = {"configurable": {"thread_id": workspace_id}}
+        final_state = await graph.ainvoke(initial_state, config=config)
+
+        logger.info(
+            "[PASS-1] Terminé workspace=%s bundles=%d",
+            workspace_id,
+            len(final_state.get("bundle_ids", [])),
+        )
+        return {
+            "workspace_id": workspace_id,
+            "bundle_ids": final_state.get("bundle_ids", []),
+            "error": final_state.get("error"),
+        }
+
+    except Exception as exc:
+        logger.error("[PASS-1] Erreur workspace=%s : %s", workspace_id, exc)
+        raise
