@@ -107,6 +107,8 @@ VALID_ALEMBIC_HEADS = (
     "071_committee_sessions_deliberation",
     "072_vendor_market_signals_watchlist",
     "073_add_workspace_id_to_canon_tables",
+    "074_drop_case_id_set_workspace_not_null",
+    "075_rbac_permissions_roles",
 )
 
 
