@@ -41,27 +41,21 @@ depends_on = None
 # Tables qui passent workspace_id en NOT NULL (market_surveys reste NULLABLE)
 _TABLES_SET_NOT_NULL = [
     "documents",
-    "evaluation_criteria",
+    "dao_criteria",
     "offer_extractions",
-    "extraction_review_queue",
     "score_history",
     "elimination_log",
     "evaluation_documents",
-    "decision_history",
-    "dict_proposals",
 ]
 
 # Tables qui perdent case_id (inclut market_surveys)
 _TABLES_DROP_CASE_ID = [
     "documents",
-    "evaluation_criteria",
+    "dao_criteria",
     "offer_extractions",
-    "extraction_review_queue",
     "score_history",
     "elimination_log",
     "evaluation_documents",
-    "decision_history",
-    "dict_proposals",
     "market_surveys",
 ]
 
@@ -82,7 +76,7 @@ def upgrade() -> None:
             """)
 
     for table in _TABLES_DROP_CASE_ID:
-        op.execute(f"ALTER TABLE {table} DROP COLUMN IF EXISTS case_id")
+        op.execute(f"ALTER TABLE {table} DROP COLUMN IF EXISTS case_id CASCADE")
 
     for old_name, new_name in _RENAMED_TABLES:
         op.execute(f"ALTER TABLE IF EXISTS {old_name} RENAME TO {new_name}")
