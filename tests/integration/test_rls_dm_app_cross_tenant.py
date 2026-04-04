@@ -41,6 +41,35 @@ def _insert_case(cur, case_id: str, tenant_id: str, now: str) -> None:
     )
 
 
+def _ensure_tenant_uuid(cur, tenant_code: str) -> str:
+    cur.execute(
+        "INSERT INTO tenants (code, name) VALUES (%s, %s) ON CONFLICT (code) DO NOTHING",
+        (tenant_code, "rls-test-tenant"),
+    )
+    cur.execute("SELECT id FROM tenants WHERE code = %s", (tenant_code,))
+    row = cur.fetchone()
+    assert row is not None
+    return str(row["id"])
+
+
+def _insert_workspace_for_case(cur, case_id: str, tenant_code: str) -> str:
+    """Crée un process_workspace (legacy_case_id) pour documents.workspace_id post-074."""
+    cur.execute("SELECT set_config('app.is_admin', 'true', true)")
+    tid_uuid = _ensure_tenant_uuid(cur, tenant_code)
+    cur.execute("SELECT id FROM users LIMIT 1")
+    uid = int(cur.fetchone()["id"])
+    ws_id = str(uuid.uuid4())
+    cur.execute(
+        """
+        INSERT INTO process_workspaces
+            (id, tenant_id, created_by, reference_code, title, process_type, status, legacy_case_id)
+        VALUES (%s, %s, %s, %s, %s, 'devis_simple', 'draft', %s)
+        """,
+        (ws_id, tid_uuid, uid, f"RLS-{case_id[:8]}", "rls-ws", case_id),
+    )
+    return ws_id
+
+
 def test_dm_app_cannot_select_other_tenant_case(db_conn):
     """Sous app.tenant_id=A, SELECT par id d'un case du tenant B → 0 ligne."""
     tid_a = f"rls-test-a-{uuid.uuid4().hex[:8]}"
@@ -95,15 +124,17 @@ def test_dm_app_cannot_select_other_tenant_document(db_conn):
     with db_conn.cursor() as cur:
         _insert_case(cur, case_a, tid_a, now)
         _insert_case(cur, case_b, tid_b, now)
+        ws_a = _insert_workspace_for_case(cur, case_a, tid_a)
+        ws_b = _insert_workspace_for_case(cur, case_b, tid_b)
         cur.execute(
             """
             INSERT INTO public.documents
-                (id, case_id, filename, path, uploaded_at, tenant_id)
+                (id, workspace_id, filename, path, uploaded_at, tenant_id)
             VALUES
                 (%s, %s, 'doc-a.pdf', '/a', %s, %s),
                 (%s, %s, 'doc-b.pdf', '/b', %s, %s)
             """,
-            (doc_a, case_a, now, tid_a, doc_b, case_b, now, tid_b),
+            (doc_a, ws_a, now, tid_a, doc_b, ws_b, now, tid_b),
         )
 
     try:
@@ -118,6 +149,10 @@ def test_dm_app_cannot_select_other_tenant_document(db_conn):
         with db_conn.cursor() as cur:
             cur.execute(
                 "DELETE FROM public.documents WHERE id = ANY(%s)", ([doc_a, doc_b],)
+            )
+            cur.execute(
+                "DELETE FROM process_workspaces WHERE legacy_case_id = ANY(%s)",
+                ([case_a, case_b],),
             )
             cur.execute(
                 "DELETE FROM public.cases WHERE id = ANY(%s)", ([case_a, case_b],)
@@ -137,15 +172,17 @@ def test_dm_app_admin_bypass_sees_all_documents(db_conn):
     with db_conn.cursor() as cur:
         _insert_case(cur, case_a, tid_a, now)
         _insert_case(cur, case_b, tid_b, now)
+        ws_a = _insert_workspace_for_case(cur, case_a, tid_a)
+        ws_b = _insert_workspace_for_case(cur, case_b, tid_b)
         cur.execute(
             """
             INSERT INTO public.documents
-                (id, case_id, filename, path, uploaded_at, tenant_id)
+                (id, workspace_id, filename, path, uploaded_at, tenant_id)
             VALUES
                 (%s, %s, 'doc-a.pdf', '/a', %s, %s),
                 (%s, %s, 'doc-b.pdf', '/b', %s, %s)
             """,
-            (doc_a, case_a, now, tid_a, doc_b, case_b, now, tid_b),
+            (doc_a, ws_a, now, tid_a, doc_b, ws_b, now, tid_b),
         )
 
     try:
@@ -169,6 +206,10 @@ def test_dm_app_admin_bypass_sees_all_documents(db_conn):
                 "DELETE FROM public.documents WHERE id = ANY(%s)", ([doc_a, doc_b],)
             )
             cur.execute(
+                "DELETE FROM process_workspaces WHERE legacy_case_id = ANY(%s)",
+                ([case_a, case_b],),
+            )
+            cur.execute(
                 "DELETE FROM public.cases WHERE id = ANY(%s)", ([case_a, case_b],)
             )
 
@@ -186,15 +227,17 @@ def test_dm_app_cannot_select_other_tenant_extraction_job(db_conn):
     with db_conn.cursor() as cur:
         _insert_case(cur, case_a, tid_a, now)
         _insert_case(cur, case_b, tid_b, now)
+        ws_a = _insert_workspace_for_case(cur, case_a, tid_a)
+        ws_b = _insert_workspace_for_case(cur, case_b, tid_b)
         cur.execute(
             """
             INSERT INTO public.documents
-                (id, case_id, filename, path, uploaded_at, tenant_id)
+                (id, workspace_id, filename, path, uploaded_at, tenant_id)
             VALUES
                 (%s, %s, 'doc-a.pdf', '/a', %s, %s),
                 (%s, %s, 'doc-b.pdf', '/b', %s, %s)
             """,
-            (doc_a, case_a, now, tid_a, doc_b, case_b, now, tid_b),
+            (doc_a, ws_a, now, tid_a, doc_b, ws_b, now, tid_b),
         )
         cur.execute(
             """
@@ -232,6 +275,10 @@ def test_dm_app_cannot_select_other_tenant_extraction_job(db_conn):
             )
             cur.execute(
                 "DELETE FROM public.documents WHERE id = ANY(%s)", ([doc_a, doc_b],)
+            )
+            cur.execute(
+                "DELETE FROM process_workspaces WHERE legacy_case_id = ANY(%s)",
+                ([case_a, case_b],),
             )
             cur.execute(
                 "DELETE FROM public.cases WHERE id = ANY(%s)", ([case_a, case_b],)
@@ -449,6 +496,8 @@ def test_dm_app_cannot_select_other_tenant_evaluation_documents(db_conn):
     case_a = str(uuid.uuid4())
     case_b = str(uuid.uuid4())
     now = datetime.now(UTC).isoformat()
+    ws_a = None
+    ws_b = None
 
     with db_conn.cursor() as cur:
         _insert_case(cur, case_a, tid_a, now)
@@ -471,15 +520,17 @@ def test_dm_app_cannot_select_other_tenant_evaluation_documents(db_conn):
         )
         cmt_b = cur.fetchone()
         cmt_b_id = cmt_b[0] if isinstance(cmt_b, tuple) else cmt_b["committee_id"]
+        ws_a = _insert_workspace_for_case(cur, case_a, tid_a)
+        ws_b = _insert_workspace_for_case(cur, case_b, tid_b)
         cur.execute(
             """
             INSERT INTO public.evaluation_documents
-                (case_id, committee_id, version, scores_matrix, status)
+                (workspace_id, committee_id, version, scores_matrix, status)
             VALUES
                 (%s, %s, 1, '{}'::jsonb, 'draft'),
                 (%s, %s, 1, '{}'::jsonb, 'draft')
             """,
-            (case_a, cmt_a_id, case_b, cmt_b_id),
+            (ws_a, cmt_a_id, ws_b, cmt_b_id),
         )
 
     try:
@@ -487,8 +538,8 @@ def test_dm_app_cannot_select_other_tenant_evaluation_documents(db_conn):
             with conn.cursor() as cur:
                 cur.execute("SELECT set_config('app.tenant_id', %s, true)", (tid_a,))
                 cur.execute(
-                    "SELECT id FROM public.evaluation_documents WHERE case_id = %s",
-                    (case_b,),
+                    "SELECT id FROM public.evaluation_documents WHERE workspace_id = %s",
+                    (ws_b,),
                 )
                 rows = cur.fetchall()
             conn.commit()
@@ -497,12 +548,17 @@ def test_dm_app_cannot_select_other_tenant_evaluation_documents(db_conn):
         ), "RLS evaluation_documents — tenant A ne doit pas voir tenant B"
     finally:
         with db_conn.cursor() as cur:
+            if ws_a is not None and ws_b is not None:
+                cur.execute(
+                    "DELETE FROM public.evaluation_documents WHERE workspace_id = ANY(%s)",
+                    ([ws_a, ws_b],),
+                )
             cur.execute(
-                "DELETE FROM public.evaluation_documents WHERE case_id = ANY(%s)",
+                "DELETE FROM public.committees WHERE case_id = ANY(%s)",
                 ([case_a, case_b],),
             )
             cur.execute(
-                "DELETE FROM public.committees WHERE case_id = ANY(%s)",
+                "DELETE FROM process_workspaces WHERE legacy_case_id = ANY(%s)",
                 ([case_a, case_b],),
             )
             cur.execute(

@@ -302,13 +302,21 @@ def decide(
     }
     add_memory(case_id, "decision", decision)
 
-    # Get latest extraction data
+    # Get latest extraction data (workspace-first: join via legacy_case_id)
     with get_connection() as conn:
         extractions = db_fetchall(
-            conn, "SELECT * FROM offer_extractions WHERE case_id=:cid", {"cid": case_id}
+            conn,
+            "SELECT oe.* FROM offer_extractions oe "
+            "JOIN process_workspaces pw ON pw.id = oe.workspace_id "
+            "WHERE pw.legacy_case_id = :cid",
+            {"cid": case_id},
         )
         criteria_rows = db_fetchall(
-            conn, "SELECT * FROM dao_criteria WHERE case_id=:cid", {"cid": case_id}
+            conn,
+            "SELECT dc.* FROM dao_criteria dc "
+            "JOIN process_workspaces pw ON pw.id = dc.workspace_id "
+            "WHERE pw.legacy_case_id = :cid",
+            {"cid": case_id},
         )
 
     suppliers = []

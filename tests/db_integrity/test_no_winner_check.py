@@ -71,15 +71,15 @@ def _make_case_and_workspace(cur) -> tuple[str, str, str, int, str]:
 
 
 def _insert_eval_doc(
-    cur, case_id: str, ws_id: str, scores_matrix, committee_id: str
+    cur, _case_id: str, ws_id: str, scores_matrix, committee_id: str
 ) -> None:
     cur.execute(
         """
         INSERT INTO evaluation_documents
-            (id, case_id, workspace_id, committee_id, scores_matrix)
-        VALUES (%s, %s, %s, %s, %s)
+            (id, workspace_id, committee_id, scores_matrix)
+        VALUES (%s, %s, %s, %s)
         """,
-        (str(uuid.uuid4()), case_id, ws_id, committee_id, json.dumps(scores_matrix)),
+        (str(uuid.uuid4()), ws_id, committee_id, json.dumps(scores_matrix)),
     )
 
 
@@ -156,10 +156,10 @@ def test_scores_matrix_empty_ok(db_conn):
         cur.execute(
             """
             INSERT INTO evaluation_documents
-                (id, case_id, workspace_id, committee_id, scores_matrix)
-            VALUES (%s, %s, %s, %s, '{}'::jsonb)
+                (id, workspace_id, committee_id, scores_matrix)
+            VALUES (%s, %s, %s, '{}'::jsonb)
             """,
-            (str(uuid.uuid4()), case_id, ws_id, committee_id),
+            (str(uuid.uuid4()), ws_id, committee_id),
         )
         cur.execute(
             "SELECT scores_matrix FROM evaluation_documents WHERE workspace_id = %s LIMIT 1",

@@ -120,6 +120,7 @@ def case_factory(db_conn):
     def _factory(currency: str = "XOF", status: str = "draft") -> str:
         case_id = str(uuid.uuid4())
         with db_conn.cursor() as cur:
+            cur.execute("SELECT set_config('app.is_admin', 'true', true)")
             cur.execute(
                 """
                 INSERT INTO public.cases
@@ -136,6 +137,38 @@ def case_factory(db_conn):
                     status,
                 ),
             )
+            cur.execute("SELECT id FROM tenants WHERE code = %s LIMIT 1", ("sci_mali",))
+            row = cur.fetchone()
+            if row:
+                tenant_id = str(row["id"])
+            else:
+                tenant_id = str(uuid.uuid4())
+                cur.execute(
+                    "INSERT INTO tenants (id, code, name) VALUES (%s, %s, %s)",
+                    (tenant_id, "sci_mali", "SCI Mali"),
+                )
+            cur.execute("SELECT id FROM users LIMIT 1")
+            user_row = cur.fetchone()
+            user_id = int(user_row["id"]) if user_row else 1
+            ws_id = str(uuid.uuid4())
+            cur.execute(
+                """
+                INSERT INTO process_workspaces
+                    (id, tenant_id, created_by, reference_code, title, process_type,
+                     status, legacy_case_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    ws_id,
+                    tenant_id,
+                    user_id,
+                    f"PW-{case_id[:8]}",
+                    f"test-ws-{case_id[:8]}",
+                    "devis_simple",
+                    "draft",
+                    case_id,
+                ),
+            )
         created_ids.append(case_id)
         return case_id
 
@@ -144,6 +177,27 @@ def case_factory(db_conn):
     if created_ids:
         try:
             with db_conn.cursor() as cur:
+                cur.execute("SELECT set_config('app.is_admin', 'true', true)")
+                cur.execute(
+                    """
+                    DELETE FROM public.dao_criteria WHERE workspace_id IN (
+                        SELECT id FROM process_workspaces WHERE legacy_case_id = ANY(%s)
+                    )
+                    """,
+                    (created_ids,),
+                )
+                cur.execute(
+                    """
+                    DELETE FROM public.offer_extractions WHERE workspace_id IN (
+                        SELECT id FROM process_workspaces WHERE legacy_case_id = ANY(%s)
+                    )
+                    """,
+                    (created_ids,),
+                )
+                cur.execute(
+                    "DELETE FROM process_workspaces WHERE legacy_case_id = ANY(%s)",
+                    (created_ids,),
+                )
                 cur.execute(
                     "DELETE FROM public.cases WHERE id = ANY(%s)",
                     (created_ids,),

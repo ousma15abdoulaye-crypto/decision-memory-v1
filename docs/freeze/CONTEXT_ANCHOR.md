@@ -6,6 +6,7 @@
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
 ║  Dernière mise à jour : 2026-04-04 (post-merge PR #304 M15 Wartime — main 361b3787) ║
+║  Addendum 2026-04-04 : PR #321 V4.2.0 Phase 3 — CI rouge — handover détaillé fin doc ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -1737,5 +1738,117 @@ Commits clés sur cette branche :
 
 **HEAD main au handover :** `c70c826b` (inchangé — Phase 0 seulement mergée)
 **HEAD feat/v420-p1-final au handover :** `02ddfe85`
+
+---
+
+## ADDENDUM 2026-04-04 — HANDOVER SUCCESSEUR — PR #321 Phase 3 (feat/v420-p3-final) — CI ENCORE ROUGE
+
+**Autorité :** session agent — mise à jour anchor obligatoire (RÈGLE-ANCHOR-02) après échec à stabiliser la CI sur la Phase 3 Big Bang.
+
+**Résumé exécutif :** Un commit correctif a été poussé sur `feat/v420-p3-final` pour aligner code/tests sur le schéma post-migration **074** (suppression de `case_id` sur plusieurs tables canon) et ajouter la migration **076** (index unique `evaluation_documents`). La **CI GitHub Actions est restée en échec** sur le job `lint-and-test` / « Run tests » (run observé : **~23984363232**, head SHA parent **9c3a3e44** ; le push suivant **d5aa845d** déclenche une nouvelle série de checks — **à re-valider** avec `gh pr checks 321` et `gh run list --branch feat/v420-p3-final`).
+
+---
+
+### GIT — ÉTAT AU CLÔTURE DE SESSION AGENT
+
+| Élément | Valeur |
+|---------|--------|
+| Branche cible | `feat/v420-p3-final` (PR **#321** — Phase 3 Big Bang 074-075 + RBAC + `workspace_access`) |
+| Commit poussé (correctif CI) | `d5aa845d` — message : `fix(v420-p3): align pipeline and tests with workspace-first schema after migration 074` |
+| Fichiers **inclus** dans ce commit (14) | `alembic/versions/076_evaluation_documents_workspace_unique.py`, `src/couche_a/pipeline/service.py`, `tests/conftest.py`, `tests/couche_a/test_migration.py`, `tests/db_integrity/conftest.py`, `tests/db_integrity/test_corrections_append_only.py`, `tests/db_integrity/test_evaluation_documents.py`, `tests/db_integrity/test_no_winner_check.py`, `tests/db_integrity/test_triggers_db_level.py`, `tests/integration/conftest.py`, `tests/integration/test_rls_dm_app_cross_tenant.py`, `tests/pipeline/conftest.py`, `tests/pipeline/test_pipeline_a_partial_preflight.py`, `tests/test_046b_imc_map_fix.py` |
+| Fichiers **non commités** (hors périmètre mandat PR — ne pas mélanger avec #321) | `.env.example`, `services/annotation-backend/ENVIRONMENT.md`, `services/annotation-backend/ls_client.py`, `services/annotation-backend/m12_export_line.py`, `data/annotations/*`, `scripts/dry_run_m12_export_audit.py`, `scripts/inventory_m12_jsonl.py` |
+
+**Alembic head dépôt après commit `d5aa845d` :** `076_evaluation_documents_workspace_unique` (parent `075_rbac_permissions_roles`).
+
+**Extension `VALID_ALEMBIC_HEADS` :** dans `tests/test_046b_imc_map_fix.py`, la ligne ajoutée doit être exactement **`076_evaluation_documents_workspace_unique`** (révision Alembic = `revision = "076_evaluation_documents_workspace_unique"` dans `alembic/versions/076_*.py`). Toute typo dans ce tuple déclenche `AssertionError: Head inattendu` dans `test_alembic_head_is_046b`.
+
+---
+
+### CE QUI A ÉTÉ CORRIGÉ DANS LE COMMIT d5aa845d (INTENTION)
+
+1. **`src/couche_a/pipeline/service.py`** — Les requêtes sur `dao_criteria` et `offer_extractions` ne peuvent plus filtrer par `case_id` (colonne supprimée en 074). Résolution via **`JOIN process_workspaces pw ON pw.id = <table>.workspace_id WHERE pw.legacy_case_id = %s`**. Les `offers` et `score_runs` conservent encore `case_id` dans le schéma actuel — non modifiés dans ce commit pour le préflight.
+
+2. **`tests/conftest.py` — `case_factory`** — Création systématique d’un enregistrement **`process_workspaces`** avec **`legacy_case_id`** égal au `case_id` du case de test + teardown ordonné (dao_criteria, offer_extractions, process_workspaces, cases).
+
+3. **Fixtures SQL** — `documents` : passage à **`workspace_id`** (chaîne tenant → `process_workspaces` dans `tests/db_integrity/conftest.py`, `tests/integration/conftest.py`, `test_rls_dm_app_cross_tenant.py`, triggers/corrections).
+
+4. **`tests/couche_a/test_migration.py` — `_restore_schema`** — Ajout de **`subprocess.run(["alembic", "upgrade", "head"], cwd=...)`** à la fin de `_restore_schema` pour réaligner la base après le scénario upgrade/downgrade **002** (sinon `alembic_version` reste sur `m4_patch_a_fix` et tous les tests « head = repo » échouent en cascade).
+
+5. **Migration `076_evaluation_documents_workspace_unique.py`** — `CREATE UNIQUE INDEX IF NOT EXISTS uix_evaluation_documents_workspace_version ON public.evaluation_documents (workspace_id, version)` — car la 074 supprime `case_id` et l’index `(case_id, version)` disparaît avec la colonne.
+
+6. **`tests/db_integrity/test_evaluation_documents.py`** — Assertions mises à jour pour colonnes **`workspace_id`** et nom d’index **`uix_evaluation_documents_workspace_version`**.
+
+7. **`tests/db_integrity/test_no_winner_check.py`** — INSERT **`evaluation_documents`** sans `case_id`.
+
+---
+
+### SYMPTÔMES CI OBSERVÉS (RUN ~23984363232, AVANT PUSH d5aa845d)
+
+- **Job** : `CI Main` / `lint-and-test` — étape **« Run tests »** en **échec** (exit code 1).
+- **Migrations** : le workflow CI exécute **`alembic upgrade head`** avec succès **avant** pytest (étapes « Guard — single Alembic head », « Run migrations », « Proof — alembic_version » **vertes** sur ce run).
+- **Cascade d’échecs pytest** (liste non exhaustive, extraite des logs `--log-failed`) :
+  - `tests/couche_a/test_migration.py::test_upgrade_downgrade` **FAILED**
+  - **ERROR** en setup sur nombreux tests `db_integrity` : message type **`Failed: Migrations Alembic échouées — tests db_integrity impossibles`** (fixture session `run_migrations_before_db_integrity_tests` dans `tests/db_integrity/conftest.py` : `subprocess alembic upgrade head` **returncode != 0**)
+  - Module **`tests/committee/*`** : nombreux **FAILED** en rafale (lifecycle, readiness, seal) — cohérent avec une **base ou schéma incohérent** après un test qui casse l’état global ou une migration partielle
+  - `tests/dict/test_m7_3b_legacy_block.py`, `test_m7_4_dict_vivant.py`, `tests/geo/test_geo_migration.py`, `tests/test_m0b_db_hardening.py`, `tests/vendors/*` : **`test_alembic_head_is_current` / `test_head_alembic_*` FAILED** — comparaison `alembic_version.version_num` vs sortie `alembic heads` (premier token)
+  - `tests/integration/test_extraction_e2e.py` : **ERROR**
+  - `tests/test_rbac.py::test_ownership_check` **FAILED**
+  - `tests/db_integrity/test_057_m13_tables.py` et suivants : **ERROR** si la session migration a échoué
+
+**Important :** Les logs **stderr/stdout** de l’échec **`alembic upgrade head`** dans le fixture **db_integrity** ne sont pas recopiés intégralement dans ce anchor — **le successeur doit exécuter** `gh run view <run_id> --log-failed` et chercher la chaîne **`Migrations Alembic échouées`** ou **`stderr:`** immédiatement au-dessus pour la cause racine (ex. : duplicate index, contrainte violée, objet déjà existant, transaction aborted).
+
+---
+
+### HYPOTHÈSES CAUSES RACINES (À VÉRIFIER AVANT NOUVEAU COMMIT)
+
+1. **`test_upgrade_downgrade` + `_restore_schema` + `alembic upgrade head`** — La fin de `_restore_schema` lance un upgrade complet depuis un état **hybride** (tables recréées via **002** + stamp **`m4_patch_a_fix`** + DDL manuel). Si **`alembic upgrade head` lève** (migration non idempotente, conflit d’objet), le test **échoue** avec `RuntimeError` ; si l’upgrade **réussit partiellement** ou laisse la DB dans un état où un **second** `alembic upgrade` dans db_integrity échoue, la suite est rouge.
+
+2. **Migration 076** — Si **`CREATE UNIQUE INDEX ... (workspace_id, version)`** échoue (lignes dupliquées dans `evaluation_documents` en CI, ou index déjà créé sous autre nom), le **`returncode`** du subprocess dans le fixture db_integrity **≠ 0**.
+
+3. **Ordre d’exécution pytest** — Si `test_migration` **casse** la base partagée **avant** les tests db_integrity (même conteneur Postgres sur le runner), effet domino sur committee / head / RLS. **Isolation :** vérifier si le job utilise un conteneur **neuf** par job ou une DB **réutilisée** entre tests.
+
+4. **`test_rbac.test_ownership_check`** — Peut être **indépendant** du schéma 074 (assert sur `owner_id`, upload 403) ; traiter **après** stabilisation Alembic.
+
+5. **VALID_ALEMBIC_HEADS** — Vérifier que la chaîne ajoutée est **exactement** `076_evaluation_documents_workspace_unique` (pas de typo — sinon **AssertionError** sur `test_alembic_head_is_046b`).
+
+---
+
+### COMMANDES UTILES POUR LE SUCCESSEUR
+
+```bash
+gh pr checks 321
+gh run list --branch feat/v420-p3-final --limit 10
+gh run view <run_id> --log-failed
+git fetch origin && git checkout feat/v420-p3-final && git log -1 --oneline
+python -m alembic heads
+python -m pytest tests/couche_a/test_migration.py::test_upgrade_downgrade -v --tb=long
+# Avec DATABASE_URL pointant vers une DB jetable :
+python -m pytest tests/db_integrity/conftest.py  # non — lancer un test db_integrity isolé
+```
+
+---
+
+### ERREUR CAPITALISÉE — E-90 (2026-04-04) — PHASE 3 V4.2.0 / PR #321
+
+**E-90** : **Big Bang migration 074 (`DROP COLUMN case_id`) sans mise à jour exhaustive de tout le code et des tests SQL qui référencent encore `case_id` sur `documents`, `dao_criteria`, `offer_extractions`, `evaluation_documents`, etc.** — La CI casse par **cascade** (pipeline, fixtures, tests RLS, tests d’intégration). **Corollaire :** toute nouvelle migration qui supprime une colonne référencée dans `src/` ou `tests/` exige une **liste de contrôle** : `rg 'case_id' tests/ src/` sur les tables touchées, plus exécution **`alembic upgrade head`** sur base vide et suite pytest **avant** merge.
+
+**E-91** (2026-04-04) : **`_restore_schema` dans `tests/couche_a/test_migration.py` + exécution globale de la suite pytest** — Le test `test_upgrade_downgrade` modifie le schéma et `alembic_version`. Sans **`alembic upgrade head`** fiable en fin de restauration, ou sans **isolation DB** par test, les tests suivants voient un **head faux** ou des **migrations partielles**. Ne jamais supposer que l’ordre des tests pytest est stable pour l’état global de la base.
+
+**E-92** (2026-04-04) : **Fixture session `run_migrations_before_db_integrity_tests` échoue silencieusement pour l’utilisateur** — Le message `pytest.fail(...)` inclut **stderr/stdout** ; l’échec **réel** est dans le subprocess Alembic. **Toujours** lire le log CI complet pour la ligne **`stderr:`** du bloc migrations.
+
+---
+
+### ACTIONS REQUISES — ORDRE RECOMMANDÉ (SUCCESSEUR)
+
+1. Confirmer le **dernier run CI** sur commit **`d5aa845d`** (ou HEAD actuel de `feat/v420-p3-final`).
+2. Si **rouge** : extraire **`--log-failed`** ; priorité **(a)** `test_upgrade_downgrade`, **(b)** premier **`Migrations Alembic échouées`** dans db_integrity.
+3. Corriger **une cause à la fois** ; relancer **ruff + black** sur `src tests services` avant commit (règle `.cursor/rules/dms-core.mdc`).
+4. Étendre **`VALID_ALEMBIC_HEADS`** si nouveau head au-delà de 076.
+5. Quand **CI verte** sur #321 : merge selon processus humain (RÈGLE-ORG-10), puis enchaîner **rebase des branches PR #322 / #323** sur `main` et répéter.
+6. Mettre à jour **`docs/freeze/MRD_CURRENT_STATE.md`** et **reprendre la section GIT en tête de ce anchor** (nouveau HEAD `main`) — **ajout** en fin de section GIT si politique anchor = append-only strict.
+
+---
+
+**Fin addendum 2026-04-04 — PR #321 / Phase 3 — état CI non résolu par l’agent précédent.**
 
 ---

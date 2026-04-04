@@ -53,13 +53,25 @@ def upgrade() -> None:
         );
     """)
 
-    # ── 2. Index unique (case_id, version) — évite les doublons de version ──
+    # ── 2. Index unique (case_id, version) — seulement si case_id existe encore
+    # Scénario CI : test_migration downgrade + upgrade depuis m4_patch_a_fix —
+    # la table peut exister post-074 sans colonne case_id ; CREATE INDEX sinon échoue.
     op.execute("""
-        CREATE UNIQUE INDEX IF NOT EXISTS uix_evaluation_documents_case_version
-        ON public.evaluation_documents (case_id, version);
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'evaluation_documents'
+                  AND column_name = 'case_id'
+            ) THEN
+                CREATE UNIQUE INDEX IF NOT EXISTS uix_evaluation_documents_case_version
+                ON public.evaluation_documents (case_id, version);
+            END IF;
+        END $$;
     """)
 
-    # ── 3. RLS tenant_scoped via cases.tenant_id ────────────────────────────
+    # ── 3. RLS tenant_scoped via cases.tenant_id (même garde case_id) ───────
     op.execute("ALTER TABLE public.evaluation_documents ENABLE ROW LEVEL SECURITY;")
     op.execute("ALTER TABLE public.evaluation_documents FORCE ROW LEVEL SECURITY;")
     op.execute(
@@ -67,25 +79,35 @@ def upgrade() -> None:
         " ON public.evaluation_documents;"
     )
     op.execute("""
-        CREATE POLICY evaluation_documents_tenant_isolation
-        ON public.evaluation_documents
-        FOR ALL
-        USING (
-            COALESCE(current_setting('app.is_admin', true), '') = 'true'
-            OR EXISTS (
-                SELECT 1 FROM public.cases c
-                WHERE c.id = evaluation_documents.case_id
-                  AND c.tenant_id = current_setting('app.tenant_id', true)
-            )
-        )
-        WITH CHECK (
-            COALESCE(current_setting('app.is_admin', true), '') = 'true'
-            OR EXISTS (
-                SELECT 1 FROM public.cases c
-                WHERE c.id = evaluation_documents.case_id
-                  AND c.tenant_id = current_setting('app.tenant_id', true)
-            )
-        );
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'evaluation_documents'
+                  AND column_name = 'case_id'
+            ) THEN
+                CREATE POLICY evaluation_documents_tenant_isolation
+                ON public.evaluation_documents
+                FOR ALL
+                USING (
+                    COALESCE(current_setting('app.is_admin', true), '') = 'true'
+                    OR EXISTS (
+                        SELECT 1 FROM public.cases c
+                        WHERE c.id = evaluation_documents.case_id
+                          AND c.tenant_id = current_setting('app.tenant_id', true)
+                    )
+                )
+                WITH CHECK (
+                    COALESCE(current_setting('app.is_admin', true), '') = 'true'
+                    OR EXISTS (
+                        SELECT 1 FROM public.cases c
+                        WHERE c.id = evaluation_documents.case_id
+                          AND c.tenant_id = current_setting('app.tenant_id', true)
+                    )
+                );
+            END IF;
+        END $$;
     """)
 
 

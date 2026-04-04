@@ -29,9 +29,30 @@ def setup_base_data(db_conn):
     )
     row = cur.fetchone()
     user_id = str(row["id"])
+    user_id_int = int(row["id"])
+    cur.execute("SELECT set_config('app.is_admin', 'true', true)")
     cur.execute(
         "INSERT INTO cases (id, case_type, title, created_at, status) VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
         (case_id, "CORR_TEST", "Fixture corrections", "2026-02-21", "active"),
+    )
+    cur.execute("SELECT id FROM tenants WHERE code = %s LIMIT 1", ("sci_mali",))
+    trow = cur.fetchone()
+    if trow:
+        tenant_id = str(trow["id"])
+    else:
+        tenant_id = str(uuid.uuid4())
+        cur.execute(
+            "INSERT INTO tenants (id, code, name) VALUES (%s, %s, %s)",
+            (tenant_id, "sci_mali", "SCI Mali"),
+        )
+    ws_id = str(uuid.uuid4())
+    cur.execute(
+        """
+        INSERT INTO process_workspaces
+            (id, tenant_id, created_by, reference_code, title, process_type, status, legacy_case_id)
+        VALUES (%s, %s, %s, %s, %s, 'devis_simple', 'draft', %s)
+        """,
+        (ws_id, tenant_id, user_id_int, f"CO-{case_id[:8]}", "Corr fixture", case_id),
     )
     cur.execute(
         "INSERT INTO offers (id, case_id, supplier_name, offer_type, submitted_at, created_at) "
@@ -39,9 +60,9 @@ def setup_base_data(db_conn):
         (offer_id, case_id, "Test", "technical", "2026-02-21", "2026-02-21"),
     )
     cur.execute(
-        "INSERT INTO documents (id, case_id, offer_id, filename, path, uploaded_at) "
+        "INSERT INTO documents (id, workspace_id, offer_id, filename, path, uploaded_at) "
         "VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
-        (doc_id, case_id, offer_id, "test.pdf", "/tmp/test.pdf", "2026-02-21"),
+        (doc_id, ws_id, offer_id, "test.pdf", "/tmp/test.pdf", "2026-02-21"),
     )
     db_conn.commit()
     return user_id, case_id, doc_id

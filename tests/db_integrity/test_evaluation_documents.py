@@ -1,4 +1,4 @@
-"""Migration 056 — evaluation_documents table, FK, RLS, index (DB required)."""
+"""Migration 056 + 073/074/076 — evaluation_documents table, FK, RLS, index (DB required)."""
 
 from __future__ import annotations
 
@@ -13,15 +13,15 @@ class TestEvaluationDocuments:
             )
             assert cur.fetchone() is not None
 
-    def test_unique_index_case_version(self, db_conn) -> None:
+    def test_unique_index_workspace_version(self, db_conn) -> None:
         with db_conn.cursor() as cur:
             cur.execute(
                 "SELECT 1 FROM pg_indexes "
-                "WHERE indexname = 'uix_evaluation_documents_case_version'"
+                "WHERE indexname = 'uix_evaluation_documents_workspace_version'"
             )
             assert cur.fetchone() is not None
 
-    def test_case_id_fk(self, db_conn) -> None:
+    def test_workspace_id_fk(self, db_conn) -> None:
         with db_conn.cursor() as cur:
             cur.execute(
                 "SELECT 1 FROM information_schema.table_constraints "
@@ -41,7 +41,9 @@ class TestEvaluationDocuments:
             fk_names = [
                 r[0] if isinstance(r, tuple) else r["constraint_name"] for r in rows
             ]
-            assert len(fk_names) >= 2, "Expected at least 2 FKs (case_id, committee_id)"
+            assert (
+                len(fk_names) >= 2
+            ), "Expected at least 2 FKs (workspace_id, committee_id)"
 
     def test_rls_enabled(self, db_conn) -> None:
         with db_conn.cursor() as cur:
@@ -65,7 +67,7 @@ class TestEvaluationDocuments:
     def test_columns_exist(self, db_conn) -> None:
         expected = {
             "id",
-            "case_id",
+            "workspace_id",
             "committee_id",
             "version",
             "scores_matrix",

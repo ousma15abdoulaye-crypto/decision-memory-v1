@@ -74,11 +74,13 @@ def test_preflight_offers_missing_returns_blocked(db_conn, case_factory):
         cur.execute(
             """
             INSERT INTO public.dao_criteria
-                (id, case_id, categorie, critere_nom, description,
+                (id, workspace_id, categorie, critere_nom, description,
                  ponderation, type_reponse, seuil_elimination,
                  ordre_affichage, created_at)
-            VALUES (%s, %s, 'commercial', 'Prix', 'Prix unitaire',
-                    1.0, 'quantitatif', NULL, 0, NOW()::text)
+            SELECT %s, pw.id, 'commercial', 'Prix', 'Prix unitaire',
+                   1.0, 'quantitatif', NULL, 0, NOW()::text
+            FROM process_workspaces pw
+            WHERE pw.legacy_case_id = %s
             """,
             (crit_id, case_id),
         )
@@ -114,11 +116,13 @@ def test_preflight_min_offers_insufficient_returns_blocked(db_conn, case_factory
         cur.execute(
             """
             INSERT INTO public.dao_criteria
-                (id, case_id, categorie, critere_nom, description,
+                (id, workspace_id, categorie, critere_nom, description,
                  ponderation, type_reponse, seuil_elimination,
                  ordre_affichage, created_at)
-            VALUES (%s, %s, 'commercial', 'Prix', 'Prix unitaire',
-                    1.0, 'quantitatif', NULL, 0, NOW()::text)
+            SELECT %s, pw.id, 'commercial', 'Prix', 'Prix unitaire',
+                   1.0, 'quantitatif', NULL, 0, NOW()::text
+            FROM process_workspaces pw
+            WHERE pw.legacy_case_id = %s
             """,
             (crit_id, case_id),
         )

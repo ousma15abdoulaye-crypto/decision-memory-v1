@@ -106,7 +106,10 @@ def test_documents_sha256_column_added(db_transaction):
 
 
 def test_documents_unique_case_sha256_constraint(db_transaction):
-    """Contrainte UNIQUE (case_id, sha256) présente sur documents."""
+    """Migration 074 DROP case_id CASCADE — contrainte uq_documents_case_sha256 supprimée.
+    Vérifier que la contrainte obsolète n'existe plus sur documents.
+    Une contrainte workspace-based sera ajoutée dans un chantier dédié post-074.
+    """
     db_transaction.execute("""
         SELECT EXISTS (
           SELECT 1 FROM information_schema.table_constraints
@@ -115,7 +118,9 @@ def test_documents_unique_case_sha256_constraint(db_transaction):
         ) AS exists
     """)
     row = db_transaction.fetchone()
-    assert row["exists"] is True, "Contrainte uq_documents_case_sha256 absente"
+    assert (
+        row["exists"] is False
+    ), "Contrainte uq_documents_case_sha256 devrait être absente après 074 DROP COLUMN case_id CASCADE"
 
 
 def test_append_only_trigger_on_dict_collision_log(db_transaction):
@@ -189,8 +194,10 @@ def test_fn_sre_functions_created(db_transaction):
 
 
 def test_indexes_created(db_transaction):
-    """Indexes sur tables présentes créés par 036."""
-    expected = ["idx_documents_case_id", "idx_extraction_jobs_doc"]
+    """Indexes sur tables présentes — idx_documents_case_id supprimé par 074 CASCADE.
+    Seul idx_extraction_jobs_doc subsiste dans ce test.
+    """
+    expected = ["idx_extraction_jobs_doc"]
     for idx in expected:
         db_transaction.execute(
             """
