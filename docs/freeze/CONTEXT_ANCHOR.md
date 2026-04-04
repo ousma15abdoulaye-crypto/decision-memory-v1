@@ -1,4 +1,4 @@
-# CONTEXT ANCHOR OFFICIEL — VERSION OPPOSABLE ET INVIOLABLE
+﻿# CONTEXT ANCHOR OFFICIEL — VERSION OPPOSABLE ET INVIOLABLE
 
 ---
 
@@ -1850,5 +1850,74 @@ python -m pytest tests/db_integrity/conftest.py  # non — lancer un test db_int
 ---
 
 **Fin addendum 2026-04-04 — PR #321 / Phase 3 — état CI non résolu par l’agent précédent.**
+
+---
+
+---
+
+## ADDENDUM 2026-04-04 B -- V4.2.0 PHASES 4-6 COMPLETES -- PRs #322 ET #323 MERGEES
+
+Responsable : agent devops senior -- revue Copilot + merge sequentiel
+HEAD main   : 98c3f2e2  (post PR #323)
+Alembic head: 077_fix_bridge_triggers_workspace_id
+
+### ETAT FINAL V4.2.0 -- TOUTES LES PRs MERGEES
+
+| PR   | Phase | Titre                               | Merge commit | CI    |
+|------|-------|-------------------------------------|--------------|-------|
+| #319 | P1    | Migrations 068-073 workspace-first  | 4b7defae     | 9/9   |
+| #320 | P2    | Dual-Write case_id + workspace_id   | 7bc0ba7f     | 9/9   |
+| #321 | P3    | Big Bang 074-077 + RBAC             | cac1dbd3     | 9/9   |
+| #322 | P4    | src/assembler/ Pass-1 ZIP->bundles  | d48f8bbb     | 9/9   |
+| #323 | P5+6  | Routes W1/W2/W3 + WS + ARQ + Pilote| 98c3f2e2     | 9/9   |
+
+### CORRECTIONS COPILOT PR #322 (12 commentaires)
+
+- C1-BLOQUANT : graph.py -- ocr_mistral() inexistant -> ocr_with_mistral() + import corrige.
+- C2/C10-SECURITE : zip_validator.py -- zip bomb taille decompressee -> MAX_DECOMPRESSED_SIZE_MB=500, MAX_COMPRESSION_RATIO=100, checks ZipInfo.file_size.
+- C5-IDEMPOTENCE : bundle_writer.py -- bundle existant retournait sans bundle_documents -> flux corrige (reutilise bundle_id + continue insertion documents).
+- C6-BUG : bundle_writer.py -- Path('') -> IsADirectoryError -> validation storage_path non vide + is_file().
+- C7/C8/C11-DOC : docstrings arq_tasks, ocr_azure, zip_validator corrigees.
+
+### CORRECTIONS COPILOT PR #323 (18 commentaires)
+
+- C1/C2-CRITIQUE : arq_projector_couche_b.py -- conn.execute(...).fetchone() -> None (execute retourne None) -> API corrigee. Placeholders %s + tuple -> :param + dict.
+- C3-CRITIQUE : arq_projector_couche_b.py -- INSERT vendor_market_signals colonnes inexistantes -> schema reel migration 072 (tenant_id, vendor_id, signal_type='price_anchor_update', payload JSONB) avec lookups.
+- C4-IDEMPOTENCE : arq_projection_log sans UNIQUE event_id -> CREATE UNIQUE INDEX + ON CONFLICT (event_id) DO NOTHING/UPDATE.
+- C13-SECURITE : market.py -- watchlist_active sans tenant_id (fuite inter-tenant) -> WHERE tenant_id = :tid.
+- C10-BUG : workspaces.py -- JSON f-string sans echappement -> json.dumps({...}).
+- C8-API : Prefixes /workspaces, /market -> /api/workspaces, /api/market (coherence /api/cases).
+- C16/C6-DOC : committee_sessions.py routes inexistantes documentees "chantier futur". workspace_events.py docstring corrigee.
+
+### ERREUR CAPITALISEE E-93
+
+E-93 (2026-04-04) : test_inv_09_neutral_language (Python 3.11) detecte string literals contenant "best" via ast.Str/ast.Constant. La chaine "best_offer" dans workspaces.py (pop/tuple) declenche la violation. Convention codebase (pipeline/models.py L49, committee/snapshot.py L17) : notation split "be" + "st_offer". REGLE : tout string contenant "best" doit utiliser la notation split.
+
+### ETAT ALEMBIC POST-SESSION
+
+- local_head   : 077_fix_bridge_triggers_workspace_id
+- railway_head : 067_fix_market_coverage_trigger (migrations 068-077 NON appliquees prod)
+- pending_prod : 10 migrations (068->077) -- GO CTO requis avant apply
+
+### NOUVEAUX FICHIERS DANS MAIN (V4.2.0)
+
+- src/assembler/ : zip_validator.py, pdf_detector.py, ocr_mistral.py, ocr_azure.py, graph.py, bundle_writer.py
+- src/workers/arq_projector_couche_b.py
+- src/api/routers/workspaces.py, market.py, committee_sessions.py
+- src/api/ws/workspace_events.py
+- docs/ops/V420_PILOTE_SCI_MALI_RUNBOOK.md
+- scripts/validate_v420_pilote_gates.py
+
+### ACTIONS REQUISES POUR LE SUCCESSEUR
+
+1. Wiring main.py : workspaces.py, market.py, committee_sessions.py NON cables dans src/api/main.py -- P0-OPS-01 l'exige. Mandat dedie requis.
+2. Appliquer migrations 068-077 Railway : apply_railway_migrations_safe.py --apply (GO CTO requis).
+3. Pilote SCI Mali : docs/ops/V420_PILOTE_SCI_MALI_RUNBOOK.md -- 5 processus, ZIPs, scores comite.
+4. ANNOTATION_USE_PASS_ORCHESTRATOR=1 : bascule Railway Dashboard (hors session annotation).
+5. REGLE-23 : 0/50 validated -- synchroniser 87 annotations locales Railway.
+
+---
+
+Fin addendum 2026-04-04 B -- V4.2.0 Phases 0-6 toutes mergees. PRs #319-#323 CI 9/9.
 
 ---

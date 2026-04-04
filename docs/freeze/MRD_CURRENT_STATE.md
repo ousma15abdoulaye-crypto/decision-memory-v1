@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-04-03 — post-merge PR #301 (M15 Correction Gaps — 8 phases operationnelles)
+# Derniere mise a jour : 2026-04-04 — post-merge PR #323 (V4.2.0 Phase 5+6 — toutes les PRs V4.2.0 mergees)
 
 ---
 
@@ -30,13 +30,13 @@ freeze_hashes_doc     : docs/freeze/FREEZE_HASHES.md
 
 ## ETAT COURANT
 
-last_completed        : M15 Correction Gaps — 8 phases (PR #301 feat/m15-gaps-correction-plan squash merge main 2026-04-03)
-last_completed_at     : 2026-04-03
-last_merge_commit     : 3aa1f509 (main — PR #301 feat/m15-gaps-correction-plan — squash merge)
-last_tag              : v4.1.0-m12-done (M15 tag pending CTO : v4.1.0-m15-ops-done)
-next_milestone        : M15 Phase active — run 100 dossiers DAO/RFQ avec métriques opposables
-next_status           : EN COURS — gates partiels (REGLE-23 KO — 0/50 validated, mercurials coverage 67%<70%)
-blocked_on            : sync 87 annotations locales → Railway (scripts/sync_annotations_local_to_railway.py) + bascule ANNOTATION_USE_PASS_ORCHESTRATOR=1 Railway Dashboard
+last_completed        : V4.2.0 Workspace-First — Phases 0-6 completes (PRs #319-#323 squash merge main 2026-04-04)
+last_completed_at     : 2026-04-04
+last_merge_commit     : 98c3f2e2 (main — PR #323 feat/v420-p56-final — squash merge)
+last_tag              : v4.1.0-m12-done (V4.2.0 tag pending CTO : v4.2.0-workspace-first-done)
+next_milestone        : V4.2.0 Pilote SCI Mali — wiring main.py + apply migrations Railway + run pilote 5 processus
+next_status           : EN ATTENTE GO CTO — wiring routers main.py requis + migrations 068-077 non appliquees Railway + REGLE-23 KO
+blocked_on            : (1) wiring src/api/main.py pour routers V4.2.0 ; (2) apply migrations 068-077 Railway (GO CTO) ; (3) sync 87 annotations locales Railway ; (4) bascule ANNOTATION_USE_PASS_ORCHESTRATOR=1
 m13_prerequisites     : M12 Phase 3 PR #289 mergé ; ADR-M13-001 + Pass 2A + config/regulatory PR #292 ; migration 057 appliquée prod 2026-04-02 — persistance m13_* opérationnelle côté schéma ; secrets DB = .env.railway.local + with_railway_env.py (RAILWAY_LOCAL_ENV.md)
 m14_deliverables      : PR #295 (moteur + API) + PR #297 (dual-app, 059, linking, save_m14_audit, CI, gel) ; ADR-M14-001 + DMS-M14-ARCH-RECONCILIATION ; docs ops Railway (RAILWAY_LOCAL_ENV, with_railway_env)
 branch_courante       : main
@@ -62,16 +62,22 @@ branch_courante       : main
 | M14      | DONE   | (à taguer CTO) | 7913d465 | 2026-04-03 | M14 + correction A+B — PR #297 : dual-app /api/m14, 059 audit, process linking, save_m14_audit, tests + INV-09 |
 | DMS V2   | DONE   | (à taguer CTO) | f54a0f00 | 2026-04-03 | DMS VIVANT V2 IA agentique native — PR #300 : H0 (060-067), H1 EventIndex+bridge, H2 PatternDetector+ARQ, H3 RAG+embeddings+langfuse+RAGAS, H4 API views + agent tools — CI 9/9 ✓ |
 | M15 ops  | DONE   | (à taguer CTO) | 3aa1f509 | 2026-04-03 | M15 Correction Gaps 8 phases — PR #301 : probe Railway, migrations 059→067, sync annotations, mercurials coverage, 100 items validés, RLS, DR, métriques — CI 9/9 ✓ |
+| V4.2.0 P0| DONE   | (à taguer CTO) | 7d5f76e4 | 2026-04-04 | Phase 0 Workspace-First — docs ADRs, pools connexions, checklist routes |
+| V4.2.0 P1| DONE   | (à taguer CTO) | 4b7defae | 2026-04-04 | Phase 1 — Migrations 068-073 (15 tables workspace-first) — CI 9/9 ✓ |
+| V4.2.0 P2| DONE   | (à taguer CTO) | 7bc0ba7f | 2026-04-04 | Phase 2 — Dual-Write case_id + workspace_id — CI 9/9 ✓ |
+| V4.2.0 P3| DONE   | (à taguer CTO) | cac1dbd3 | 2026-04-04 | Phase 3 — Big Bang migrations 074-077 + RBAC + workspace_access — CI 9/9 ✓ |
+| V4.2.0 P4| DONE   | (à taguer CTO) | d48f8bbb | 2026-04-04 | Phase 4 — src/assembler/ Pass-1 ZIP→bundles LangGraph — CI 9/9 ✓ |
+| V4.2.0 P56| DONE  | (à taguer CTO) | 98c3f2e2 | 2026-04-04 | Phase 5+6 — Routes W1/W2/W3 + WebSocket + ARQ Couche B + Pilote SCI Mali — CI 9/9 ✓ |
 
 ---
 
-## ÉTAT ALEMBIC — MIS À JOUR 2026-04-03 (dépôt ; prod = après apply 059)
+## ÉTAT ALEMBIC — MIS À JOUR 2026-04-04 (dépôt ; prod = 067 — V4.2.0 en attente)
 
-local_alembic_head       : 067_fix_market_coverage_trigger
-railway_alembic_head     : 067_fix_market_coverage_trigger (migrations 059→067 appliquées M15 Phase 1 — 2026-04-03)
-migrations_pending_railway: AUCUNE — dépôt et Railway prod alignés sur 067
-last_sync_railway        : 2026-04-03 — 059→067 appliquées séquentiellement via apply_railway_migrations_safe.py (M15 Phase 1)
-last_updated             : 2026-04-03
+local_alembic_head       : 077_fix_bridge_triggers_workspace_id
+railway_alembic_head     : 067_fix_market_coverage_trigger (migrations 068-077 NON encore appliquées prod)
+migrations_pending_railway: 10 migrations (068→077) — GO CTO requis + fenêtre maintenance
+last_sync_railway        : 2026-04-03 — 059→067 appliquées (M15 Phase 1)
+last_updated             : 2026-04-04
 updated_by               : apply_railway_migrations_safe.py --apply via python scripts/with_railway_env.py (charge .env.railway.local)
 audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
 railway_sync_governance  : docs/adr/ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE.md
@@ -497,3 +503,82 @@ railway_cli               : Railway CLI — lien projet local (.railway/ gitigno
   adr_langgraph            : docs/adr/ADR-V420-002-LANGGRAPH.md
   adr_langfuse_selfhost    : docs/adr/ADR-V420-003-LANGFUSE-SELFHOSTED.md
   pool_connexions          : docs/adr/ADR-V420-004-CONNECTION-POOL.md
+
+---
+
+## V4.2.0 WORKSPACE-FIRST -- ETAT FINAL (2026-04-04)
+
+### PRs mergees dans main
+
+| PR   | Branche                  | Merge commit | Migrations incluses         |
+|------|--------------------------|--------------|-----------------------------|
+| #319 | feat/v420-p1-final       | 4b7defae     | 068-073                     |
+| #320 | feat/v420-p2-final       | 7bc0ba7f     | aucune (dual-write code)    |
+| #321 | feat/v420-p3-final       | cac1dbd3     | 074-077                     |
+| #322 | feat/v420-p4-final       | d48f8bbb     | aucune (assembler code)     |
+| #323 | feat/v420-p56-final      | 98c3f2e2     | aucune (routes + ARQ code)  |
+
+### Schema V4.2.0 -- tables canoniques
+
+Tables migrées de case_id vers workspace_id (migration 074 DROP COLUMN case_id CASCADE) :
+- public.documents, public.dao_criteria, public.offer_extractions
+- public.score_history, public.elimination_log, public.evaluation_documents
+
+Nouvelles tables V4.2.0 (068-077) :
+- public.process_workspaces (hub workspace)
+- public.workspace_access (RBAC tenant scoping)
+- public.workspace_events (append-only audit)
+- public.supplier_bundles + bundle_documents (Pass-1 output)
+- public.vendor_market_signals (Couche B signaux)
+- public.market_watchlist_items (watchlist W2)
+- public.committee_deliberation_events (W3 comite)
+- public.committee_sessions (W3 sessions)
+- public.arq_projection_log (idempotence projector ARQ)
+
+### Triggers corrigés V4.2.0
+
+Migration 077 (fix_bridge_triggers_workspace_id) :
+- fn_bridge_score_history_to_event_index : NEW.case_id -> NULL (colonne supprimee)
+- fn_bridge_elimination_log_to_event_index : NEW.case_id -> NULL
+
+### Nouveaux modules V4.2.0
+
+`
+src/assembler/              Pass-1 ZIP -> bundles (LangGraph)
+src/couche_a/auth/workspace_access.py  RBAC workspace
+src/workers/arq_projector_couche_b.py  ARQ workspace_events -> Couche B
+src/api/routers/workspaces.py          W1 /api/workspaces
+src/api/routers/market.py              W2 /api/market
+src/api/routers/committee_sessions.py  W3 /api/workspaces/committee
+src/api/ws/workspace_events.py         WebSocket /ws/workspace/{id}/events
+docs/ops/V420_PILOTE_SCI_MALI_RUNBOOK.md
+scripts/validate_v420_pilote_gates.py
+`
+
+### Dettes techniques identifiees V4.2.0
+
+1. WIRING main.py MANQUANT : les 3 routers V4.2.0 (workspaces, market, committee_sessions)
+   ne sont PAS encore inclus dans src/api/main.py -- P0-OPS-01 non respecte.
+   Mandat dedie requis.
+
+2. MIGRATIONS RAILWAY PENDING : 068->077 (10 migrations) non appliquees prod.
+   Runbook : apply_railway_migrations_safe.py --apply (GO CTO + fenetre maintenance).
+
+3. PILOTE SCI MALI : docs/ops/V420_PILOTE_SCI_MALI_RUNBOOK.md -- a executer apres
+   wiring main.py + apply migrations Railway.
+
+4. ANNOTATION_USE_PASS_ORCHESTRATOR=1 : bascule Railway Dashboard pending CTO.
+
+5. REGLE-23 : 0/50 annotations validated Railway -- sync 87 annotations locales pending.
+
+### Gates V4.2.0 post-merge
+
+| Gate                    | Critere                          | Etat   |
+|-------------------------|----------------------------------|--------|
+| P0-OPS-01               | Routers cables main.py           | ROUGE  |
+| P0-MIGRATION-RAILWAY    | Migrations 068-077 appliquees    | ROUGE  |
+| REGLE-23                | >= 50 validated Railway          | ROUGE  |
+| P0-CI-ALL-GREEN         | PRs #319-#323 CI 9/9             | VERT   |
+| P4-ASSEMBLER            | src/assembler/ fonctionne        | VERT   |
+| P5-ROUTES-W1-W2-W3      | Routes implementees (non cablees)| ORANGE |
+| P6-PILOTE-SCI           | Pilote 5 processus executes      | ROUGE  |
