@@ -25,6 +25,7 @@ from src.core.models import AnalyzeRequest, DAOCriterion, DecideRequest
 from src.couche_a.auth.case_access import require_case_access
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.db import db_execute, db_execute_one, db_fetchall, get_connection
+from src.db.workspace_context import enrich_insert_with_workspace_id
 
 router = APIRouter(prefix="/api", tags=["analysis"])
 
@@ -131,14 +132,9 @@ def analyze(
             }
         )
 
-        # Store extraction in DB
+        # Store extraction in DB — dual-write: case_id + workspace_id (Phase 2 V4.2.0)
         with get_connection() as conn:
-            db_execute(
-                conn,
-                """
-                INSERT INTO offer_extractions (id, case_id, artifact_id, supplier_name, extracted_data_json, missing_fields_json, created_at)
-                VALUES (:id, :cid, :aid, :supplier, :extracted, :missing, :ts)
-            """,
+            _params = enrich_insert_with_workspace_id(
                 {
                     "id": str(uuid.uuid4()),
                     "cid": case_id,
@@ -151,7 +147,22 @@ def analyze(
                         offer_data.get("missing_fields", []), ensure_ascii=False
                     ),
                     "ts": datetime.now(UTC).isoformat(),
+                    "workspace_id": None,
                 },
+                conn,
+                case_id_key="cid",
+            )
+            _ws_clause = ", workspace_id" if _params.get("workspace_id") else ""
+            _ws_val = ", :workspace_id" if _params.get("workspace_id") else ""
+            db_execute(
+                conn,
+                f"""
+                INSERT INTO offer_extractions
+                    (id, case_id, artifact_id, supplier_name,
+                     extracted_data_json, missing_fields_json, created_at{_ws_clause})
+                VALUES (:id, :cid, :aid, :supplier, :extracted, :missing, :ts{_ws_val})
+            """,
+                _params,
             )
 
     # CRITIQUE: Agrégation par fournisseur (gestion offres partielles)

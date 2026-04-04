@@ -10,6 +10,8 @@ from fastapi import UploadFile
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill
 
+from src.db.workspace_context import get_workspace_id_for_case
+
 from ..models import (
     deserialize_json,
     ensure_schema,
@@ -120,16 +122,19 @@ async def export_cba(offer_id: str, actor: str | None = None) -> dict[str, Any]:
             doc_id = generate_id()
             metadata = {"version": version, "manual_review": manual_review}
             storage_path = str(export_path)
+            _ws_id = get_workspace_id_for_case(conn, offer["case_id"])
+            _ws_clause = ", workspace_id" if _ws_id else ""
+            _ws_val = ", %(workspace_id)s" if _ws_id else ""
             conn.execute(
-                """
+                f"""
                 INSERT INTO documents (
                     id, case_id, lot_id, offer_id, document_type, filename,
-                    storage_path, path, mime_type, metadata_json, uploaded_at
+                    storage_path, path, mime_type, metadata_json, uploaded_at{_ws_clause}
                 )
                 VALUES (
                     %(id)s, %(case_id)s, %(lot_id)s, %(offer_id)s, 'CBA_EXPORT', %(filename)s,
                     %(storage_path)s, %(path)s, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    %(metadata_json)s, NOW()::TEXT
+                    %(metadata_json)s, NOW()::TEXT{_ws_val}
                 )
                 """,
                 {
@@ -141,6 +146,7 @@ async def export_cba(offer_id: str, actor: str | None = None) -> dict[str, Any]:
                     "storage_path": storage_path,
                     "path": storage_path,
                     "metadata_json": serialize_json(metadata),
+                    "workspace_id": _ws_id,
                 },
             )
             conn.execute(
@@ -196,15 +202,18 @@ async def upload_cba_review(
             if not offer:
                 raise ValueError("Offre introuvable.")
             doc_id = generate_id()
+            _ws_id_rv = get_workspace_id_for_case(conn, offer["case_id"])
+            _rv_ws_clause = ", workspace_id" if _ws_id_rv else ""
+            _rv_ws_val = ", %(workspace_id)s" if _ws_id_rv else ""
             conn.execute(
-                """
+                f"""
                 INSERT INTO documents (
                     id, case_id, lot_id, offer_id, document_type, filename,
-                    storage_path, path, mime_type, metadata_json, uploaded_at
+                    storage_path, path, mime_type, metadata_json, uploaded_at{_rv_ws_clause}
                 )
                 VALUES (
                     %(id)s, %(case_id)s, %(lot_id)s, %(offer_id)s, 'CBA_REVIEW', %(filename)s,
-                    %(storage_path)s, %(path)s, %(mime_type)s, %(metadata_json)s, NOW()::TEXT
+                    %(storage_path)s, %(path)s, %(mime_type)s, %(metadata_json)s, NOW()::TEXT{_rv_ws_val}
                 )
                 """,
                 {
@@ -217,6 +226,7 @@ async def upload_cba_review(
                     "path": str(review_path),
                     "mime_type": upload.content_type or "application/octet-stream",
                     "metadata_json": serialize_json({"reviewer": reviewer}),
+                    "workspace_id": _ws_id_rv,
                 },
             )
             conn.execute(
