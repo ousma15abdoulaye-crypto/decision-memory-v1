@@ -117,7 +117,8 @@ async def run_pass_minus_1(
     """Exécute le Pass -1 (ZIP → bundles fournisseurs) via LangGraph.
 
     Rejouable (idempotent) : bundle_documents a UNIQUE(workspace_id, sha256).
-    Persiste le checkpoint LangGraph en PostgreSQL (AsyncPostgresSaver).
+    Utilise un ``thread_id`` LangGraph pour l'exécution mais ne configure pas
+    de backend de checkpoint persistant (à ajouter dans un chantier dédié).
 
     Args:
         ctx: Contexte ARQ (injecté automatiquement).

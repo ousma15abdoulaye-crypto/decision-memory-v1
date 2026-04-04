@@ -69,46 +69,57 @@ def write_bundle(
         if existing:
             bundle_id = str(existing["id"])
             logger.info(
-                "[BUNDLE-WRITER] Bundle index=%d workspace=%s existe déjà : %s",
+                "[BUNDLE-WRITER] Bundle index=%d workspace=%s existe déjà : %s — "
+                "ré-insertion bundle_documents (idempotent ON CONFLICT)",
                 bundle_index,
                 workspace_id,
                 bundle_id,
             )
-            return bundle_id
-
-        bundle_id = str(uuid.uuid4())
-        db_execute(
-            conn,
-            """
-            INSERT INTO supplier_bundles (
-                id, workspace_id, tenant_id, vendor_name_raw, vendor_id,
-                bundle_status, completeness_score, missing_documents,
-                hitl_required, bundle_index, assembled_by, assembled_at
-            ) VALUES (
-                :id, :ws, :tid, :vendor, :vid,
-                :status, :score, :missing,
-                :hitl, :idx, 'pass_minus_1', NOW()
+        else:
+            bundle_id = str(uuid.uuid4())
+            db_execute(
+                conn,
+                """
+                INSERT INTO supplier_bundles (
+                    id, workspace_id, tenant_id, vendor_name_raw, vendor_id,
+                    bundle_status, completeness_score, missing_documents,
+                    hitl_required, bundle_index, assembled_by, assembled_at
+                ) VALUES (
+                    :id, :ws, :tid, :vendor, :vid,
+                    :status, :score, :missing,
+                    :hitl, :idx, 'pass_minus_1', NOW()
+                )
+                """,
+                {
+                    "id": bundle_id,
+                    "ws": workspace_id,
+                    "tid": tenant_id,
+                    "vendor": vendor_name_raw,
+                    "vid": vendor_id,
+                    "status": "incomplete" if hitl_required else "assembling",
+                    "score": completeness_score,
+                    "missing": missing_documents or [],
+                    "hitl": hitl_required,
+                    "idx": bundle_index,
+                },
             )
-            """,
-            {
-                "id": bundle_id,
-                "ws": workspace_id,
-                "tid": tenant_id,
-                "vendor": vendor_name_raw,
-                "vid": vendor_id,
-                "status": "incomplete" if hitl_required else "assembling",
-                "score": completeness_score,
-                "missing": missing_documents or [],
-                "hitl": hitl_required,
-                "idx": bundle_index,
-            },
-        )
 
         for doc in documents:
-            file_path = Path(doc.get("storage_path", doc.get("path", "")))
-            sha256 = doc.get("sha256") or (
-                _sha256_file(file_path) if file_path.exists() else str(uuid.uuid4())
-            )
+            raw_path = doc.get("storage_path") or doc.get("path") or ""
+            if not raw_path:
+                logger.warning(
+                    "[BUNDLE-WRITER] Document sans storage_path ignoré : %s",
+                    doc.get("filename", "?"),
+                )
+                continue
+            file_path = Path(raw_path)
+            if not file_path.is_file():
+                logger.warning(
+                    "[BUNDLE-WRITER] Fichier introuvable (storage_path=%s) — document ignoré",
+                    raw_path,
+                )
+                continue
+            sha256 = doc.get("sha256") or _sha256_file(file_path)
 
             ocr = doc.get("ocr_result", {})
             db_execute(

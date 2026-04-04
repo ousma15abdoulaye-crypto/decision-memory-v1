@@ -21,6 +21,8 @@ from pathlib import Path
 
 MAX_ZIP_SIZE_MB = 100
 MAX_FILES_PER_ZIP = 200
+MAX_DECOMPRESSED_SIZE_MB = 500
+MAX_COMPRESSION_RATIO = 100
 
 ALLOWED_EXTENSIONS: frozenset[str] = frozenset(
     [
@@ -53,8 +55,12 @@ def validate_zip(zip_path: str | Path) -> ZipValidationResult:
     """Valide un fichier ZIP avant tout appel LLM.
 
     Returns:
-        ZipValidationResult avec is_valid=False + error si invalide.
-        Lève 422 (ValueError) en cas de problème critique.
+        ZipValidationResult.
+        - ``is_valid=True`` si le ZIP est valide.
+        - ``is_valid=False`` avec ``error`` renseigné si le ZIP est invalide
+          (fichier manquant, corrompu, zip bomb, extension interdite, etc.).
+        Ne lève jamais d'exception : tous les cas d'erreur sont capturés
+        et retournés via ``is_valid=False``.
     """
     path = Path(zip_path)
 
@@ -83,6 +89,36 @@ def validate_zip(zip_path: str | Path) -> ZipValidationResult:
                 return ZipValidationResult(
                     is_valid=False,
                     error="ZIP corrompu — testzip() a détecté une erreur.",
+                    file_count=0,
+                    total_size_bytes=total_size,
+                    filenames=[],
+                )
+
+            # Zip bomb check : taille décompressée totale et ratio
+            infos = zf.infolist()
+            total_uncompressed = sum(i.file_size for i in infos)
+            if total_uncompressed > MAX_DECOMPRESSED_SIZE_MB * 1024 * 1024:
+                return ZipValidationResult(
+                    is_valid=False,
+                    error=(
+                        f"ZIP bomb détecté : taille décompressée "
+                        f"{total_uncompressed // 1024 // 1024}MB "
+                        f"> {MAX_DECOMPRESSED_SIZE_MB}MB"
+                    ),
+                    file_count=0,
+                    total_size_bytes=total_size,
+                    filenames=[],
+                )
+            if (
+                total_size > 0
+                and total_uncompressed / total_size > MAX_COMPRESSION_RATIO
+            ):
+                return ZipValidationResult(
+                    is_valid=False,
+                    error=(
+                        f"ZIP bomb détecté : ratio compression "
+                        f"{total_uncompressed // total_size}× > {MAX_COMPRESSION_RATIO}×"
+                    ),
                     file_count=0,
                     total_size_bytes=total_size,
                     filenames=[],

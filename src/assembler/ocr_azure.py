@@ -120,7 +120,7 @@ async def ocr_with_azure(file_path: str | Path) -> dict:
                 "raw_text": "",
                 "confidence": 0.0,
                 "ocr_engine": "azure_doc_intel",
-                "error": "Azure timeout (30s * 15 polls)",
+                "error": "Azure timeout (15 polls × 2s = ~30s d'attente côté code)",
             }
 
     except Exception as exc:

@@ -47,7 +47,7 @@ class PassMinusOneState(TypedDict):
 async def extract_node(state: PassMinusOneState) -> PassMinusOneState:
     """Nœud 1 : Extraire les fichiers du ZIP + OCR."""
     from src.assembler.ocr_azure import ocr_with_azure
-    from src.assembler.ocr_mistral import ocr_mistral, ocr_native_pdf
+    from src.assembler.ocr_mistral import ocr_native_pdf, ocr_with_mistral
     from src.assembler.pdf_detector import FileType, detect_file_type
     from src.assembler.zip_validator import validate_zip
 
@@ -72,7 +72,7 @@ async def extract_node(state: PassMinusOneState) -> PassMinusOneState:
         if file_type == FileType.NATIVE_PDF:
             ocr_result = await ocr_native_pdf(file_path)
         elif file_type in {FileType.SCAN, FileType.IMAGE}:
-            ocr_result = await ocr_mistral(file_path)
+            ocr_result = await ocr_with_mistral(file_path)
             if ocr_result.get("error"):
                 ocr_result = await ocr_with_azure(file_path)
         elif file_type == FileType.WORD:
