@@ -28,7 +28,7 @@
 > - RÈGLE-ORG-01 à RÈGLE-ORG-11
 > - INV-R1 à INV-R9 (adaptés au workspace, jamais supprimés)
 > - Les SLA (UPLOAD ≤500ms, EXTRACT ≤30s, PIPELINE ≤60s, SIGNAL ≤200ms, EXPORT ≤10s)
-> - La stack infrastructure (FastAPI, PostgreSQL 16, Redis 7, ARQ, Railway, Alembic)
+> - La stack infrastructure (FastAPI, PostgreSQL, Redis 7, ARQ, Railway, Alembic)
 > - Les migrations existantes 001→067
 >
 > **En cas de conflit :**
@@ -423,18 +423,11 @@ W4 RAG (post-pilote) :
 
 ## PARTIE XI — HASHES DE VÉRIFICATION
 
-```
-SHA256 fichier  : [GÉNÉRÉ PAR AGENT APRÈS COMMIT]
-SHA256 commit   : [GÉNÉRÉ PAR AGENT APRÈS COMMIT]
-Date hash       : [GÉNÉRÉE PAR AGENT APRÈS COMMIT]
-
-Commande :
-  sha256sum docs/freeze/DMS_V4.2.0_ADDENDUM.md
+Voir `docs/freeze/DMS_V4.2.0_HASHES.md` pour les SHA-256 de chaque fichier gelé.
 
 Ce document est gelé après hash.
-Tout amendement → docs/freeze/DMS_V4.2.1_PATCH.md
+Tout amendement → `docs/freeze/DMS_V4.2.1_PATCH.md`.
 Ce fichier n'est plus jamais modifié.
-```
 
 ---
 

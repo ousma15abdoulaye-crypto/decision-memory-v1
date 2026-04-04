@@ -150,13 +150,16 @@ Exception : market_surveys.workspace_id nullable (W2 hors processus).
 
 ```
 Toute connexion DB dans une requête API DOIT exécuter
-SET LOCAL app.current_tenant = $1 avant toute opération.
+SET LOCAL app.tenant_id = $1 avant toute opération.
+Si l'appelant est admin, SET LOCAL app.is_admin = 'true'.
 
 SET LOCAL obligatoire (pas SET).
   SET LOCAL scope = transaction uniquement.
   Réinitialisé automatiquement à la fin de la transaction.
   Empêche la fuite de tenant entre requêtes sur le même pool.
 
+Variable : app.tenant_id (cohérent avec migrations 055-059).
+Override admin : app.is_admin (cohérent avec RLS existant).
 Le tenant_id provient du JWT décodé, JAMAIS d'un paramètre query/body.
 ```
 
@@ -167,17 +170,22 @@ async def get_db_with_tenant(
     token: str = Depends(verify_jwt),
     pool: asyncpg.Pool = Depends(get_pool)
 ) -> AsyncGenerator[asyncpg.Connection, None]:
-    tenant_id = extract_tenant_from_jwt(token)
+    claims = decode_jwt(token)
+    tenant_id = claims["tenant_id"]
+    is_admin = claims.get("is_admin", False)
     async with pool.acquire() as conn:
         await conn.execute(
-            "SET LOCAL app.current_tenant = $1", str(tenant_id)
+            "SET LOCAL app.tenant_id = $1", str(tenant_id)
         )
+        if is_admin:
+            await conn.execute("SET LOCAL app.is_admin = 'true'")
         yield conn
 ```
 
 **Enforcement** : middleware FastAPI — dependency injection obligatoire
 **Test requis** : requête sans SET LOCAL → RLS retourne 0 lignes
 **Test requis** : deux requêtes consécutives, tenants différents → isolation
+**Test requis** : admin voit tous les tenants (app.is_admin = 'true')
 **Stop signal** : aucun dédié — couvert par test CI
 
 ---

@@ -86,12 +86,18 @@ CREATE TABLE process_workspaces (
     sealed_at               TIMESTAMPTZ,
     closed_at               TIMESTAMPTZ,
 
+    -- Migration idempotence : référence vers l'ancien case.id
+    legacy_case_id          UUID,
+
     UNIQUE (tenant_id, reference_code)
 );
 
 ALTER TABLE process_workspaces ENABLE ROW LEVEL SECURITY;
 CREATE POLICY pw_tenant_isolation ON process_workspaces
-    USING (tenant_id = current_setting('app.current_tenant')::uuid);
+    USING (
+        COALESCE(current_setting('app.is_admin', true), '') = 'true'
+        OR tenant_id = current_setting('app.tenant_id', true)::uuid
+    );
 
 CREATE INDEX idx_pw_tenant_status ON process_workspaces(tenant_id, status);
 CREATE INDEX idx_pw_zone ON process_workspaces(zone_id);
@@ -136,7 +142,10 @@ CREATE TRIGGER trg_workspace_events_append_only
 
 ALTER TABLE workspace_events ENABLE ROW LEVEL SECURITY;
 CREATE POLICY we_tenant_isolation ON workspace_events
-    USING (tenant_id = current_setting('app.current_tenant')::uuid);
+    USING (
+        COALESCE(current_setting('app.is_admin', true), '') = 'true'
+        OR tenant_id = current_setting('app.tenant_id', true)::uuid
+    );
 
 CREATE INDEX idx_we_workspace_time ON workspace_events(workspace_id, emitted_at);
 CREATE INDEX idx_we_tenant_type ON workspace_events(tenant_id, event_type);
@@ -206,7 +215,10 @@ CREATE TABLE supplier_bundles (
 
 ALTER TABLE supplier_bundles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY sb_tenant_isolation ON supplier_bundles
-    USING (tenant_id = current_setting('app.current_tenant')::uuid);
+    USING (
+        COALESCE(current_setting('app.is_admin', true), '') = 'true'
+        OR tenant_id = current_setting('app.tenant_id', true)::uuid
+    );
 
 CREATE INDEX idx_sb_workspace ON supplier_bundles(workspace_id);
 
@@ -260,7 +272,10 @@ CREATE TABLE bundle_documents (
 
 ALTER TABLE bundle_documents ENABLE ROW LEVEL SECURITY;
 CREATE POLICY bd_tenant_isolation ON bundle_documents
-    USING (tenant_id = current_setting('app.current_tenant')::uuid);
+    USING (
+        COALESCE(current_setting('app.is_admin', true), '') = 'true'
+        OR tenant_id = current_setting('app.tenant_id', true)::uuid
+    );
 
 CREATE INDEX idx_bd_bundle ON bundle_documents(bundle_id);
 CREATE INDEX idx_bd_workspace ON bundle_documents(workspace_id);
@@ -327,7 +342,10 @@ CREATE TRIGGER trg_committee_session_sealed
 
 ALTER TABLE committee_sessions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY cs_tenant_isolation ON committee_sessions
-    USING (tenant_id = current_setting('app.current_tenant')::uuid);
+    USING (
+        COALESCE(current_setting('app.is_admin', true), '') = 'true'
+        OR tenant_id = current_setting('app.tenant_id', true)::uuid
+    );
 
 
 -- CRUD (composition administrative — pas append-only)
@@ -396,7 +414,10 @@ CREATE TRIGGER trg_cde_append_only
 
 ALTER TABLE committee_deliberation_events ENABLE ROW LEVEL SECURITY;
 CREATE POLICY cde_tenant_isolation ON committee_deliberation_events
-    USING (tenant_id = current_setting('app.current_tenant')::uuid);
+    USING (
+        COALESCE(current_setting('app.is_admin', true), '') = 'true'
+        OR tenant_id = current_setting('app.tenant_id', true)::uuid
+    );
 
 CREATE INDEX idx_cde_session ON committee_deliberation_events(session_id, occurred_at);
 
