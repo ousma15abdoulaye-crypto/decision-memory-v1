@@ -18,6 +18,7 @@ except ImportError:
     RedisSettings = None  # type: ignore[assignment,misc]
 
 from src.workers.arq_projector_couche_b import project_workspace_events_to_couche_b
+from src.workers.arq_sealed_workspace import project_sealed_workspace
 from src.workers.arq_tasks import (
     detect_patterns,
     generate_candidate_rules,
@@ -58,6 +59,7 @@ class WorkerSettings:
         generate_candidate_rules,
         run_pass_minus_1,
         project_workspace_events_to_couche_b,
+        project_sealed_workspace,
     ]
     max_jobs = 10
     job_timeout = 300

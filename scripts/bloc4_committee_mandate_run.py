@@ -234,6 +234,15 @@ def main() -> int:
             print(json.dumps(out, indent=2, default=str))
             return 1
 
+    # IRR exige process_workspaces.status = in_deliberation (guards BLOC5 + committee seal).
+    # En prod : PATCH /api/workspaces/{id}/status avec evaluation_frame complète.
+    sql_delib = f"""
+    UPDATE process_workspaces
+    SET status = 'in_deliberation', deliberation_started_at = NOW()
+    WHERE id = '{workspace_id}'::uuid;
+    """
+    _sql(sql_delib)
+
     # Seal
     st, body = _req(
         base,

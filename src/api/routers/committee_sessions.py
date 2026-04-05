@@ -14,7 +14,11 @@ Référence : docs/freeze/DMS_V4.2.0_ADDENDUM.md §VII routes W3
 INV-W01 : actes irréversibles — committee_deliberation_events append-only.
 INV-W04 : session sealed → aucune transition vers draft/active.
 INV-W06 : aucun champ winner/rank dans les réponses.
-RÈGLE-W01 : tenant_id extrait JWT uniquement.
+RÈGLE-W01 : le contexte locataire pour l’autorisation (JWT, accès workspace) reste la
+référence RBAC. Pour les écritures CDE (`committee_deliberation_events.tenant_id`),
+la valeur doit correspondre à la ligne métier : `committee_sessions.tenant_id`, avec
+repli `process_workspaces.tenant_id` si la session n’a pas de tenant — jamais une
+chaîne vide ou une valeur inventée pour compenser des claims JWT incomplets.
 """
 
 from __future__ import annotations
@@ -22,14 +26,17 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import uuid
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi import status as http_status
 from pydantic import BaseModel
 
+from src.api.cognitive_helpers import load_cognitive_facts
+from src.cognitive.cognitive_state import TransitionForbidden, validate_transition
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.couche_a.auth.workspace_access import (
     require_workspace_access,
@@ -39,6 +46,46 @@ from src.db import db_execute, db_execute_one, get_connection
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/workspaces", tags=["committee-v420"])
+
+
+def _tenant_id_for_cde_writes(conn, workspace_id: str, user: UserClaims) -> str:
+    """UUID tenant pour écritures CDE : JWT d’abord, sinon `process_workspaces`."""
+    if user.tenant_id:
+        return str(user.tenant_id)
+    ws = db_execute_one(
+        conn,
+        "SELECT tenant_id FROM process_workspaces WHERE id = :wid",
+        {"wid": workspace_id},
+    )
+    if ws and ws.get("tenant_id"):
+        return str(ws["tenant_id"])
+    raise HTTPException(
+        status_code=http_status.HTTP_400_BAD_REQUEST,
+        detail="tenant_id introuvable (JWT ou workspace).",
+    )
+
+
+async def _enqueue_project_sealed_workspace_job(workspace_id: str) -> None:
+    """Enqueue BLOC5 ARQ projection (après COMMIT — appelé via BackgroundTasks)."""
+
+    pool = None
+    try:
+        import arq  # type: ignore[import-untyped]
+
+        redis_url = os.environ.get("REDIS_URL", "").strip()
+        if not redis_url:
+            logger.warning(
+                "[W3] REDIS_URL absent — project_sealed_workspace non enqueue"
+            )
+            return
+        pool = await arq.create_pool(arq.connections.RedisSettings.from_dsn(redis_url))
+        await pool.enqueue_job("project_sealed_workspace", workspace_id=workspace_id)
+        logger.info("[W3] project_sealed_workspace enqueue workspace=%s", workspace_id)
+    except Exception as exc:
+        logger.warning("[W3] enqueue project_sealed_workspace: %s", exc)
+    finally:
+        if pool is not None:
+            await pool.close()
 
 
 @router.get("/{workspace_id}/committee")
@@ -92,10 +139,10 @@ def open_committee_session(
             detail="committee_type invalide.",
         )
 
-    tenant_id = user.tenant_id or ""
     user_id = int(user.user_id)
 
     with get_connection() as conn:
+        tenant_id = _tenant_id_for_cde_writes(conn, workspace_id, user)
         existing = db_execute_one(
             conn,
             "SELECT id, session_status FROM committee_sessions WHERE workspace_id = :ws",
@@ -180,10 +227,10 @@ def add_committee_member(
             detail=f"role_in_committee invalide. Valeurs : {sorted(valid_roles)}",
         )
 
-    tenant_id = user.tenant_id or ""
     actor_id = int(user.user_id)
 
     with get_connection() as conn:
+        tenant_id = _tenant_id_for_cde_writes(conn, workspace_id, user)
         session = db_execute_one(
             conn,
             "SELECT id, session_status FROM committee_sessions WHERE workspace_id = :ws",
@@ -252,6 +299,7 @@ class SealSessionPayload(BaseModel):
 def seal_committee_session(
     workspace_id: str,
     payload: SealSessionPayload,
+    background_tasks: BackgroundTasks,
     user: Annotated[UserClaims, Depends(get_current_user)],
 ):
     """Scelle la session comité (IRR — INV-W01, INV-W04).
@@ -289,17 +337,47 @@ def seal_committee_session(
                 detail="Session clôturée.",
             )
 
+        ws_row = db_execute_one(
+            conn,
+            "SELECT * FROM process_workspaces WHERE id = :wid",
+            {"wid": workspace_id},
+        )
+        if not ws_row:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Workspace introuvable.",
+            )
+        if str(ws_row.get("status") or "") != "in_deliberation":
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail=(
+                    "Le workspace doit être en statut in_deliberation avant le "
+                    "scellement IRR (guards BLOC5 — utiliser PATCH …/status)."
+                ),
+            )
+        facts = load_cognitive_facts(conn, ws_row)
+        try:
+            validate_transition(str(ws_row.get("status") or "draft"), "sealed", facts)
+        except TransitionForbidden as exc:
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail=exc.reason,
+            ) from exc
+
+        # Un seul instantané pour le snapshot PV, la colonne `sealed_at` et le hash
+        # (évite un décalage hash / ligne DB si `NOW()` ≠ horloge applicative).
+        sealed_at = datetime.now(UTC)
         pv_snapshot = {
             "workspace_id": workspace_id,
             "session_id": session["id"],
             "sealed_by": user_id,
-            "sealed_at": datetime.now(UTC).isoformat(),
+            "sealed_at": sealed_at.isoformat(),
             "seal_comment": payload.seal_comment,
         }
         pv_json = json.dumps(pv_snapshot, sort_keys=True)
         seal_hash = hashlib.sha256(pv_json.encode()).hexdigest()
 
-        # PISTE A : éviter tenant_id vide pour INSERT CDE (UUID NOT NULL) si JWT / claims incomplets.
+        # CDE.tenant_id : session puis workspace — UUID NOT NULL (pas de chaîne vide).
         raw_tid = session.get("tenant_id")
         if raw_tid is None:
             ws_row = db_execute_one(
@@ -325,13 +403,14 @@ def seal_committee_session(
             """
             UPDATE committee_sessions
             SET session_status = 'sealed',
-                sealed_at = NOW(),
+                sealed_at = :sealed_at,
                 sealed_by = :uid,
                 seal_hash = :hash,
                 pv_snapshot = :pv
             WHERE id = :sid
             """,
             {
+                "sealed_at": sealed_at,
                 "uid": user_id,
                 "hash": seal_hash,
                 "pv": pv_json,
@@ -354,6 +433,39 @@ def seal_committee_session(
                 "p": json.dumps({"seal_hash": seal_hash}),
             },
         )
+
+        db_execute(
+            conn,
+            """
+            UPDATE process_workspaces
+            SET status = 'sealed',
+                sealed_at = :sealed_at
+            WHERE id = :wid
+            """,
+            {"sealed_at": sealed_at, "wid": workspace_id},
+        )
+        db_execute(
+            conn,
+            """
+            INSERT INTO workspace_events
+                (workspace_id, tenant_id, event_type, actor_id, actor_type, payload)
+            VALUES (:ws, :tid, 'WORKSPACE_STATUS_CHANGED', :uid, 'user', :p)
+            """,
+            {
+                "ws": workspace_id,
+                "tid": tid_cde,
+                "uid": user_id,
+                "p": json.dumps(
+                    {
+                        "from": str(ws_row.get("status")),
+                        "to": "sealed",
+                        "via": "committee_seal",
+                    }
+                ),
+            },
+        )
+
+    background_tasks.add_task(_enqueue_project_sealed_workspace_job, workspace_id)
 
     return {
         "session_id": session["id"],
