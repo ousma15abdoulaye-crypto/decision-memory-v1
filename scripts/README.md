@@ -17,6 +17,8 @@
 | `seed_zone_context.py` | Initialiser zone_context_registry | Local |
 | `seed_market_signals.py` | Compute signaux marché v1.1 | Local + [RAILWAY] |
 | `import_imc_entries.py` | Import bulletins INSTAT | Local |
+| `etl_vendors_m4.py` | Import fournisseurs Mali (Wave 1 · M4) — voir `README_VENDOR_IMPORT.md` | Local |
+| `etl_vendors_wave2.py` | Import fournisseurs Mali (Wave 2 · 663 vendors) — voir `README_VENDOR_IMPORT.md` | Local |
 
 ### Migrations et DB
 | Script | Usage | Environnement |
@@ -36,6 +38,12 @@
 | `derive_pass_0_5_thresholds.py` | Stats texte export LS → seuils Pass 0.5 (voir `docs/contracts/annotation/PASS_0_5_EMPIRICAL_THRESHOLDS.md`) | Local |
 | `ingest_to_annotation_bridge.py` | PDF → `ls_tasks.json` (+ `data.structured_preview`) | Local |
 | `probe_railway_counts.py` | Vérifier counts tables Railway | Local |
+
+## DOCUMENTATION SPÉCIALISÉE
+
+| Fichier | Contenu |
+|---------|---------|
+| `README_VENDOR_IMPORT.md` | Guide complet import vendors : schéma, procédure, codes erreur, compatibilité migrations 078/079 |
 
 ## SONDES TEMPORAIRES (_probe_*)
 Les fichiers `_probe_*.py` sont des diagnostics ad-hoc de session.
