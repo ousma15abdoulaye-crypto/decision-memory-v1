@@ -19,7 +19,7 @@
 | Scellement API | `sealed_by` dans le body | [`SealSessionPayload`](../../src/api/routers/committee_sessions.py) : `seal_comment` optionnel ; scelleur = JWT |
 | Export PV | `GET …/pv/export` | **Aucune route** ; preuve partielle via **`GET …/committee`** (sans `pv_snapshot` dans la réponse JSON actuelle) |
 | Trigger append-only | Nom `trg_cde_appendonly` | Migration **071** : `trg_cde_append_only` + `fn_reject_mutation()` |
-| INV-W04 workspace | UPDATE `title` post-scellement **doit échouer** | **Corrigé post-BLOC4** : `CREATE OR REPLACE FUNCTION fn_workspace_sealed_final()` appliqué sur Railway (one-shot, fichier [`scripts/_bloc4_fix_inv_w04_workspace_fn.sql`](../../scripts/_bloc4_fix_inv_w04_workspace_fn.sql)) — toute modification si `status IN ('sealed','closed')` est rejetée. Vérif : `UPDATE … title …` sur ligne `sealed` → exception levée. **Limite produit** : la transition métier `sealed` → `closed` sur `process_workspaces` est aussi bloquée par cette version ; ajuster côté métier / CTO si nécessaire. |
+| INV-W04 workspace | UPDATE `title` post-scellement **doit échouer** | **Corrigé post-BLOC4** : `CREATE OR REPLACE FUNCTION fn_workspace_sealed_final()` appliqué sur Railway (one-shot, SQL en **annexe** ci-dessous) — toute modification si `status IN ('sealed','closed')` est rejetée. Vérif : `UPDATE … title …` sur ligne `sealed` → exception levée. **Limite produit** : la transition métier `sealed` → `closed` sur `process_workspaces` est aussi bloquée par cette version ; ajuster côté métier / CTO si nécessaire. |
 
 ---
 
@@ -123,3 +123,33 @@ Après statut `session_status = 'sealed'` (voir ci-dessous sur scellement) :
 - Routes W3 : [`src/api/routers/committee_sessions.py`](../../src/api/routers/committee_sessions.py)  
 - Migrations : [`071_committee_sessions_deliberation.py`](../../alembic/versions/071_committee_sessions_deliberation.py), [`069_process_workspaces_events_memberships.py`](../../alembic/versions/069_process_workspaces_events_memberships.py)  
 - RBAC : [`075_rbac_permissions_roles.py`](../../alembic/versions/075_rbac_permissions_roles.py)
+
+---
+
+## Annexe — SQL INV-W04 workspace (replay ops Railway)
+
+Exécuter **en une seule instruction** (psycopg `execute` du bloc entier, ou `psql -f` — pas de découpe naïve sur `;` au milieu du corps PL/pgSQL).
+
+```sql
+CREATE OR REPLACE FUNCTION fn_workspace_sealed_final()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  IF OLD.status IN ('sealed', 'closed') THEN
+    RAISE EXCEPTION
+      'Workspace % est %. Aucune modification autorisée.',
+      OLD.id, OLD.status;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+```
+
+Vérification :
+
+```sql
+UPDATE process_workspaces
+SET title = 'test post-correction'
+WHERE id = (SELECT id FROM process_workspaces WHERE status = 'sealed' LIMIT 1);
+```
+
+Attendu : exception levée par `fn_workspace_sealed_final`.
