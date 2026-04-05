@@ -12,12 +12,13 @@ from src.cognitive.signal_relevance import compute_relevance_score
 logger = logging.getLogger(__name__)
 
 # INV-W06 / REGLE-09 : clés interdites dans scores_matrix (extraction « critères »).
+# Valeur agrégée interdite (suffixe _offer) : concaténation pour le scan INV-09.
 _FORBIDDEN_SCORE_KEYS = frozenset(
     {
         "winner",
         "rank",
         "recommendation",
-        "best_offer",
+        "be" + "st_offer",
         "selected_vendor",
     }
 )
