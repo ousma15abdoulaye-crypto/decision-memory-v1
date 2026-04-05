@@ -35,11 +35,11 @@
 
 ## Verdict
 
-**BLOC 3 = VERT PARTIEL (gaps identifiés — pilote possible après correction des 500 API et alignement ETL/DB/M14).**
+**BLOC 3 = VERT PARTIEL** : à l’issue de l’audit documenté dans le tableau (session initiale), le pilote complet restait conditionné à la levée des **500** W1/W2, à l’alignement ETL/DB/M14, etc. **Post-correctif 500** (voir addendum en tête de document et [`BLOC3_500_DIAGNOSIS.md`](BLOC3_500_DIAGNOSIS.md)), les smokes critiques W1/W2 ne sont plus bloqués par des erreurs serveur sur ces routes en prod ; un **VERT** complet reste toutefois limité par les autres lignes du tableau (vendors, Pass‑1 ZIP réel, M14 `case_id`, etc.).
 
-Les éléments suivants empêchent un **VERT** complet : compteur `vendors` à **1** sur Railway sans import Wave 2 ; **HTTP 500** sur `POST /api/workspaces` et `GET /api/market/overview` en smoke réel ; absence de preuve bout‑en‑bout Pass‑1 / ZIP ; **GAP** documenté sur la persistance M14 (`case_id` vs schéma 074+).
+**À l’état du tableau (snapshot session)** : compteur `vendors` à **1** sans import Wave 2 ; **HTTP 500** sur W1/W2 en smoke réel ; pas de preuve Pass‑1 / ZIP bout‑en‑bout ; **GAP** M14 (`case_id` vs schéma 074+).
 
-**BLOC 3 ≠ ROUGE** : auth fonctionnel sur l’URL testée, chaîne Pass‑1/M12 côté code alignée workspace ; les blocages observés sont **exploitables** (logs Railway, correctif applicatif / déploiement) sans changement de schéma dans ce mandat.
+**BLOC 3 ≠ ROUGE** : auth fonctionnel sur l’URL testée, chaîne Pass‑1/M12 côté code alignée workspace ; les blocages observés en session sont **exploitables** (correctifs applicatifs / déploiement) sans changement de schéma dans ce mandat.
 
 ---
 
