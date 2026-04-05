@@ -1,6 +1,6 @@
 """
 ETL Wave 2 · 663 fournisseurs nettoyés Mali.
-Table cible : vendor_identities (34 colonnes · post-PATCH-A).
+Table cible : vendors (ex vendor_identities · post-m5 consolidation).
 
 CORRECTIONS COPILOT (F4-F6) :
   F4 · dry-run réel : run_wave2_logic() unique pour dry-run et import.
@@ -145,12 +145,15 @@ def _process_row(row: pd.Series) -> tuple | None:
     region_code = ZONE_TO_REGION.get(zone_normalized)
 
     if not region_code:
-        return ("REJECTED", {
-            "name": name,
-            "zone_raw": zone_raw,
-            "zone_normalized": zone_normalized,
-            "source": row.get("_source"),
-        })
+        return (
+            "REJECTED",
+            {
+                "name": name,
+                "zone_raw": zone_raw,
+                "zone_normalized": zone_normalized,
+                "source": row.get("_source"),
+            },
+        )
 
     params = {
         "name_raw": name,
@@ -218,7 +221,7 @@ def run_wave2_logic(dry_run: bool = False) -> Wave2Report:
             fp = generate_fingerprint(payload["name_normalized"], region_code)
             with get_connection() as conn:
                 conn.execute(
-                    "SELECT 1 FROM vendor_identities WHERE fingerprint = %(fp)s",
+                    "SELECT 1 FROM vendors WHERE fingerprint = %(fp)s",
                     {"fp": fp},
                 )
                 if conn.fetchone():
@@ -249,19 +252,19 @@ def run_wave2_logic(dry_run: bool = False) -> Wave2Report:
 
 def _post_import_validation() -> bool:
     """
-    Validation post-import sur vendor_identities via psycopg (ADR-0003).
+    Validation post-import sur vendors via psycopg (ADR-0003).
     Retourne True si propre · False si anomalie.
     """
     clean = True
     with get_connection() as conn:
 
-        conn.execute("SELECT COUNT(*) AS n FROM vendor_identities")
+        conn.execute("SELECT COUNT(*) AS n FROM vendors")
         total = conn.fetchone()["n"]
-        print(f"\nPost-import vendor_identities : {total} vendors")
+        print(f"\nPost-import vendors : {total} rows")
 
         conn.execute(
             "SELECT COUNT(*) AS n FROM ("
-            "  SELECT fingerprint FROM vendor_identities "
+            "  SELECT fingerprint FROM vendors "
             "  GROUP BY fingerprint HAVING COUNT(*) > 1"
             ") t"
         )
@@ -273,7 +276,7 @@ def _post_import_validation() -> bool:
 
         conn.execute(
             "SELECT COUNT(*) AS n FROM ("
-            "  SELECT canonical_name FROM vendor_identities "
+            "  SELECT canonical_name FROM vendors "
             "  GROUP BY canonical_name HAVING COUNT(*) > 1"
             ") t"
         )
@@ -284,7 +287,7 @@ def _post_import_validation() -> bool:
             clean = False
 
         conn.execute(
-            "SELECT COUNT(*) AS n FROM vendor_identities "
+            "SELECT COUNT(*) AS n FROM vendors "
             "WHERE vendor_id !~ '^DMS-VND-[A-Z]{3}-[0-9]{4}-[A-Z]$'"
         )
         bad_id = conn.fetchone()["n"]
@@ -295,7 +298,7 @@ def _post_import_validation() -> bool:
 
         conn.execute(
             "SELECT region_code, verification_status, COUNT(*) AS n "
-            "FROM vendor_identities GROUP BY 1, 2 ORDER BY 1, 2"
+            "FROM vendors GROUP BY 1, 2 ORDER BY 1, 2"
         )
         rows = conn.fetchall()
         print("Distribution région x statut :")
@@ -306,7 +309,9 @@ def _post_import_validation() -> bool:
 
 
 def print_report(report: Wave2Report, dry_run: bool) -> None:
-    mode = "DRY-RUN RÉEL (SELECT uniquement · zéro INSERT)" if dry_run else "IMPORT RÉEL"
+    mode = (
+        "DRY-RUN RÉEL (SELECT uniquement · zéro INSERT)" if dry_run else "IMPORT RÉEL"
+    )
     sep = "=" * 60
     print(f"\n{sep}")
     print(f"RAPPORT WAVE 2 — {mode}")
@@ -319,9 +324,7 @@ def print_report(report: Wave2Report, dry_run: bool) -> None:
     print(f"Taux de rejet            : {report.rejection_rate:.1%}")
 
     if not dry_run:
-        print(
-            f"Import réellement insérés : {report.imported}"
-        )
+        print(f"Import réellement insérés : {report.imported}")
     else:
         print(
             f"Simulation               : "
@@ -356,7 +359,7 @@ def print_report(report: Wave2Report, dry_run: bool) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="ETL Wave 2 · 663 fournisseurs Mali · vendor_identities"
+        description="ETL Wave 2 · 663 fournisseurs Mali · vendors"
     )
     parser.add_argument(
         "--dry-run",

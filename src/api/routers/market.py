@@ -45,23 +45,26 @@ def market_overview(
             detail="tenant_id manquant dans le JWT.",
         )
 
+    lim_safe = max(1, min(limit, 200))
+
     with get_connection() as conn:
+        # Colonnes réelles : migration 043_market_signals_v11 (item_id, zone_id, price_avg, …)
         recent_signals = db_fetchall(
             conn,
             """
             SELECT
-                ms.item_key,
-                ms.signal_type,
-                ms.unit_price,
-                ms.currency,
-                ms.market_zone,
+                ms.item_id AS item_key,
+                ms.alert_level AS signal_type,
+                ms.price_avg AS unit_price,
+                'XOF' AS currency,
+                ms.zone_id AS market_zone,
                 ms.signal_quality,
-                ms.collected_at
+                COALESCE(ms.updated_at, ms.created_at) AS collected_at
             FROM market_signals_v2 ms
-            ORDER BY ms.collected_at DESC
+            ORDER BY COALESCE(ms.updated_at, ms.created_at) DESC
             LIMIT :lim
             """,
-            {"lim": min(limit, 200)},
+            {"lim": lim_safe},
         )
 
         watchlist = db_fetchall(
@@ -97,19 +100,27 @@ def item_price_history(
             status_code=http_status.HTTP_400_BAD_REQUEST, detail="item_key requis."
         )
 
+    lim_safe = max(1, min(limit, 50))
+
     with get_connection() as conn:
         rows = db_fetchall(
             conn,
             """
             SELECT
-                item_key, signal_type, unit_price, currency,
-                market_zone, signal_quality, collected_at, source
-            FROM market_signals_v2
-            WHERE item_key = :key
-            ORDER BY collected_at DESC
+                ms.item_id AS item_key,
+                ms.alert_level AS signal_type,
+                ms.price_avg AS unit_price,
+                'XOF' AS currency,
+                ms.zone_id AS market_zone,
+                ms.signal_quality,
+                COALESCE(ms.updated_at, ms.created_at) AS collected_at,
+                ms.context_type_at_computation AS source
+            FROM market_signals_v2 ms
+            WHERE ms.item_id = :key
+            ORDER BY COALESCE(ms.updated_at, ms.created_at) DESC
             LIMIT :lim
             """,
-            {"key": item_key.strip(), "lim": min(limit, 50)},
+            {"key": item_key.strip(), "lim": lim_safe},
         )
 
     return {"item_key": item_key, "history": rows}
@@ -238,7 +249,7 @@ def annotate_market_item(
     with get_connection() as conn:
         existing = db_execute_one(
             conn,
-            "SELECT item_key FROM market_signals_v2 WHERE item_key = :key LIMIT 1",
+            "SELECT item_id AS item_key FROM market_signals_v2 WHERE item_id = :key LIMIT 1",
             {"key": item_key},
         )
 
