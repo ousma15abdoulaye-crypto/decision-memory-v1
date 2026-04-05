@@ -22,6 +22,16 @@ from src.db.tenant_context import set_db_tenant_id, set_rls_is_admin
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
+# Cache module : évite un SELECT ``tenants`` par requête pour les JWT legacy.
+# Invalidé si la valeur n’est pas un UUID valide.
+_default_tenant_uuid_cache: str | None = None
+
+
+def _default_tenant_code() -> str:
+    """Code métier dans ``tenants.code`` (surcharge : ``DEFAULT_TENANT_CODE``)."""
+    code = (os.environ.get("DEFAULT_TENANT_CODE") or "sci_mali").strip()
+    return code or "sci_mali"
+
 
 def _resolve_tenant_uuid_for_rls(
     tenant_id: str | None, db_conn: psycopg.Connection
@@ -31,7 +41,11 @@ def _resolve_tenant_uuid_for_rls(
     Les lignes legacy ``user_tenants`` portent encore ``tenant-<user_id>`` (TEXT).
     Les tables V4.2.0 (``process_workspaces``, etc.) attendent ``tenants.id`` (UUID).
     Sans résolution, INSERT échoue (cast UUID) ou viole la FK.
+
+    Ne renvoie jamais une chaîne non-UUID : sinon ``set_config(..., ::uuid)`` / RLS échouent.
     """
+    global _default_tenant_uuid_cache
+
     if not tenant_id:
         return None
     s = str(tenant_id).strip()
@@ -40,14 +54,30 @@ def _resolve_tenant_uuid_for_rls(
         return s
     except ValueError:
         pass
+
+    if _default_tenant_uuid_cache:
+        try:
+            _uuid.UUID(_default_tenant_uuid_cache)
+            return _default_tenant_uuid_cache
+        except ValueError:
+            _default_tenant_uuid_cache = None
+
+    code = _default_tenant_code()
     with db_conn.cursor() as cur:
         cur.execute(
-            "SELECT id::text FROM tenants WHERE code = 'sci_mali' LIMIT 1",
+            "SELECT id::text FROM tenants WHERE code = %s LIMIT 1",
+            (code,),
         )
         row = cur.fetchone()
-    if row and row[0]:
-        return str(row[0])
-    return s
+    if not row or not row[0]:
+        return None
+    resolved = str(row[0]).strip()
+    try:
+        _uuid.UUID(resolved)
+    except ValueError:
+        return None
+    _default_tenant_uuid_cache = resolved
+    return resolved
 
 
 @dataclass(frozen=True)

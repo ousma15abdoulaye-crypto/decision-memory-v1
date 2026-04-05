@@ -11,7 +11,7 @@
 | # | Endpoint | Cause identifiée | Type mandat |
 |---|----------|------------------|---------------|
 | 1 | `GET /api/market/overview` | La route sélectionnait des **colonnes inexistantes** sur `public.market_signals_v2` (`item_key`, `signal_type`, `unit_price`, `currency`, `market_zone`, `collected_at`). Le schéma réel (migration `043_market_signals_v11`) expose notamment `item_id`, `zone_id`, `price_avg`, `alert_level`, `created_at` / `updated_at`. PostgreSQL lève une erreur du type **`column ms.item_key does not exist`** → FastAPI **500**. | **CAUSE E** (vue/requête incompatible avec tables post-M9) |
-| 2 | `POST /api/workspaces` | `user_tenants.tenant_id` est encore du **TEXT legacy** (`tenant-{user_id}`, cf. `051_cases_tenant_user_tenants_rls` + `create_user` dans [`auth_helpers.py`](src/api/auth_helpers.py)). `process_workspaces.tenant_id` est un **UUID** avec **FK vers `tenants(id)`** (migration `069`). La valeur `tenant-12` **n’est pas un UUID valide** pour la colonne → erreur SQL (**invalid input syntax for type uuid** ou FK) → **500**. | **CAUSE B** (décalage schéma TEXT legacy vs UUID V4.2.0), aligné REGLE-W01 après résolution |
+| 2 | `POST /api/workspaces` | `user_tenants.tenant_id` est encore du **TEXT legacy** (`tenant-{user_id}`, cf. `051_cases_tenant_user_tenants_rls` + `create_user` dans [`auth_helpers.py`](../../src/api/auth_helpers.py)). `process_workspaces.tenant_id` est un **UUID** avec **FK vers `tenants(id)`** (migration `069`). La valeur `tenant-12` **n’est pas un UUID valide** pour la colonne → erreur SQL (**invalid input syntax for type uuid** ou FK) → **500**. | **CAUSE B** (décalage schéma TEXT legacy vs UUID V4.2.0), aligné REGLE-W01 après résolution |
 
 ---
 
@@ -23,9 +23,9 @@ Vérifié via `information_schema.columns` sur la base Railway (probe agent) : p
 
 ### Cohérence `tenant_id`
 
-- [`tenants`](alembic/versions/068_create_tenants.py) : ligne seed `code = 'sci_mali'` avec `id` UUID.
-- [`user_tenants`](alembic/versions/051_cases_tenant_user_tenants_rls.py) : `tenant_id TEXT`.
-- [`process_workspaces`](alembic/versions/069_process_workspaces_events_memberships.py) : `tenant_id UUID NOT NULL REFERENCES tenants(id)`.
+- [`068_create_tenants.py`](../../alembic/versions/068_create_tenants.py) : ligne seed `code = 'sci_mali'` avec `id` UUID.
+- [`051_cases_tenant_user_tenants_rls.py`](../../alembic/versions/051_cases_tenant_user_tenants_rls.py) : `tenant_id TEXT`.
+- [`069_process_workspaces_events_memberships.py`](../../alembic/versions/069_process_workspaces_events_memberships.py) : `tenant_id UUID NOT NULL REFERENCES tenants(id)`.
 
 ---
 
@@ -33,10 +33,8 @@ Vérifié via `information_schema.columns` sur la base Railway (probe agent) : p
 
 | Fichier | Modification |
 |---------|--------------|
-| [`src/api/routers/market.py`](src/api/routers/market.py) | Requête `market_overview` : jointure implicite supprimée ; `SELECT` aligné sur les colonnes réelles, avec alias de sortie (`item_id AS item_key`, etc.) pour garder une forme de réponse stable. |
-| [`src/couche_a/auth/dependencies.py`](src/couche_a/auth/dependencies.py) | `_resolve_tenant_uuid_for_rls` : si `tenant_id` n’est pas un UUID, résolution vers `SELECT id FROM tenants WHERE code = 'sci_mali' LIMIT 1` avant `set_db_tenant_id` et injection dans `UserClaims`. |
-
-**Non traité dans ce mandat** : autres routes du même router qui référencent encore `item_key` sur `market_signals_v2` (ex. `item_price_history`, `annotate`) — à traiter si des 500 y sont observés.
+| [`market.py`](../../src/api/routers/market.py) | `market_overview` + `item_price_history` + `annotate` : `SELECT` alignés sur `market_signals_v2` / schéma 043 (`item_id`, `price_avg`, etc.) ; `limit` borné à ≥ 1. |
+| [`dependencies.py`](../../src/couche_a/auth/dependencies.py) | `_resolve_tenant_uuid_for_rls` : résolution vers UUID `tenants` (code défaut `sci_mali`, surcharge `DEFAULT_TENANT_CODE`) ; cache module ; **jamais** de fallback chaîne non-UUID ; validation `_uuid.UUID` sur la valeur résolue. |
 
 ---
 
@@ -55,7 +53,7 @@ Vérifié via `information_schema.columns` sur la base Railway (probe agent) : p
 2. `POST /api/workspaces` avec corps JSON mandat BLOC 3 → attendu **201**.
 3. `GET /api/market/overview` → attendu **200** (jeu vide acceptable).
 
-Script : [`scripts/bloc3_smoke_railway.py`](scripts/bloc3_smoke_railway.py).
+Script : [`scripts/bloc3_smoke_railway.py`](../../scripts/bloc3_smoke_railway.py).
 
 ---
 

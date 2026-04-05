@@ -10,7 +10,7 @@ Variables optionnelles :
 Comportement :
   - Crée un utilisateur dédié via POST /auth/register (identifiable smoke-test).
   - POST /auth/token (form-urlencoded, pas JSON).
-  - POST /api/workspaces (reference_code SMOKE-BLOC3-001).
+  - POST /api/workspaces (reference_code unique SMOKE-BLOC3-<suffixe>).
   - GET /api/market/overview
   - GET /api/workspaces/{id}/committee
 
@@ -111,9 +111,11 @@ def main() -> int:
     token = tok_body["access_token"]
     print(f"[1] POST /auth/token -> HTTP {st} OK")
 
+    ref_suffix = uuid.uuid4().hex[:12]
+    reference_code = f"SMOKE-BLOC3-{ref_suffix}"
     ws_payload = json.dumps(
         {
-            "reference_code": "SMOKE-BLOC3-001",
+            "reference_code": reference_code,
             "title": "Smoke test BLOC 3",
             "process_type": "devis_simple",
             "humanitarian_context": "none",
@@ -136,6 +138,7 @@ def main() -> int:
     else:
         print(f"[2] POST /api/workspaces -> HTTP {st} OK")
         workspace_id = ws.get("workspace_id") if isinstance(ws, dict) else None
+        print(f"     reference_code: {reference_code}")
         print(f"     workspace_id: {workspace_id}")
 
     st, mkt = _req(
