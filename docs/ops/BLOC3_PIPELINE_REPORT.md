@@ -43,7 +43,9 @@ Les éléments suivants empêchent un **VERT** complet : compteur `vendors` à *
 
 ## Prochaines actions recommandées (hors mandat)
 
-1. Investiguer les **500** sur `/api/workspaces` et `/api/market/overview` (logs Railway, `tenant_id` / RLS / middleware).
+1. ~~500~~ **Corrigés** (voir [`BLOC3_500_DIAGNOSIS.md`](BLOC3_500_DIAGNOSIS.md)) — smoke **A+B** : [`bloc3_smoke_railway.py`](../../scripts/bloc3_smoke_railway.py) échoue sur **500** seulement pour W1/W2 critiques ; **403** sur `/committee` = RBAC attendu pour un user smoke.
 2. Importer les vendors : `python scripts/etl_vendors_wave2.py --dry-run` puis sans `--dry-run` avec **`DATABASE_URL`** Railway explicite ; re‑vérifier `SELECT COUNT(*) FROM vendors`.
 3. Aligner **`M14EvaluationRepository`** sur `workspace_id` si le produit doit persister M14 sur le schéma 077 (mandat / ADR dédié + GO CTO si toucher des fichiers gelés).
-4. Rejouer [`scripts/bloc3_smoke_railway.py`](../../scripts/bloc3_smoke_railway.py) puis Pass‑1 (`upload-zip`) une fois W1 vert.
+4. Pass‑1 (`upload-zip`) une fois besoin métier.
+5. **Point C (architecture cognitive)** : droit créateur → lecture committee / membership explicite — à traiter comme chantier central avec l’implémentation **arch. cognitive** ; le smoke ne doit pas confondre **403** (autorisation) et **500** (serveur).
+

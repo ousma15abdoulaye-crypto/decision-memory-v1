@@ -14,7 +14,11 @@ Comportement :
   - GET /api/market/overview
   - GET /api/workspaces/{id}/committee
 
-Exit code 0 si tous les appels attendus réussissent ; 1 sinon.
+Gate « plateforme » (A+B) : échec si **500** sur POST /api/workspaces ou GET /api/market/overview.
+Committee : **200 / 404 / 403** = OK — 403 = RBAC (ex. workspace.read) ; le compte smoke
+n’a pas forcément ce droit. Point **C** (créateur workspace → lecture committee / membership)
+sera central dans l’implémentation **architecture cognitive** ; jusqu’alors ne pas traiter 403
+comme régression serveur.
 """
 
 from __future__ import annotations
@@ -157,14 +161,19 @@ def main() -> int:
             f"{base}/api/workspaces/{workspace_id}/committee",
             headers={"Authorization": f"Bearer {token}"},
         )
-        if st not in (200, 404):
+        if st == 403:
+            print(
+                f"[4] GET /api/workspaces/{{id}}/committee -> HTTP {st} OK "
+                f"(RBAC — workspace.read requis ; attendu pour user smoke)"
+            )
+        elif st not in (200, 404):
             print(f"[4] GET /api/workspaces/{{id}}/committee -> HTTP {st} FAIL")
             print(f"     body: {com}")
             ok_all = False
         else:
             print(
                 f"[4] GET /api/workspaces/{{id}}/committee -> HTTP {st} OK "
-                f"(404 acceptable si pas de session)"
+                f"(404 si pas de session committee)"
             )
     else:
         print("[4] GET /api/workspaces/{id}/committee -> SKIP (pas de workspace_id)")
