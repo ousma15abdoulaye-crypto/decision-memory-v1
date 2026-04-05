@@ -19,7 +19,7 @@
 | Scellement API | `sealed_by` dans le body | [`SealSessionPayload`](../../src/api/routers/committee_sessions.py) : `seal_comment` optionnel ; scelleur = JWT |
 | Export PV | `GET …/pv/export` | **Aucune route** ; preuve partielle via **`GET …/committee`** (sans `pv_snapshot` dans la réponse JSON actuelle) |
 | Trigger append-only | Nom `trg_cde_appendonly` | Migration **071** : `trg_cde_append_only` + `fn_reject_mutation()` |
-| INV-W04 workspace | UPDATE `title` post-scellement **doit échouer** | **Corrigé post-BLOC4** : `CREATE OR REPLACE FUNCTION fn_workspace_sealed_final()` appliqué sur Railway (one-shot, SQL en **annexe** ci-dessous) — toute modification si `status IN ('sealed','closed')` est rejetée. Vérif : `UPDATE … title …` sur ligne `sealed` → exception levée. **Limite produit** : la transition métier `sealed` → `closed` sur `process_workspaces` est aussi bloquée par cette version ; ajuster côté métier / CTO si nécessaire. |
+| INV-W04 workspace | UPDATE `title` post-scellement **doit échouer** ; sealed→closed **autorisé** | **v2 sur Railway** (annexe) : mutation sur `sealed` **sans** passage à `closed` → exception ; **`sealed` → `closed`** → autorisé ; **`closed`** → aucune modification. |
 
 ---
 
@@ -114,7 +114,26 @@ Après statut `session_status = 'sealed'` (voir ci-dessous sur scellement) :
 
 ## Verdict final
 
-**BLOC 4 = VERT PARTIEL** — **INV-W04 workspace** corrigé en base (trigger) ; **500 seal** adressé dans le code (**PISTE A**). **Confirmation « VERT » complet** (seal API + hash 64) **après déploiement Railway** et re-test `POST …/seal`. **Délibération live** et **export PV dédié** restent **hors périmètre** (routes non implémentées). Si le scellement API échoue encore post-déploiement : consulter les logs Railway (ordre transaction, RLS, contraintes) avant toute migration corrective (**STOP** si migration requise — GO CTO).
+**BLOC 4 = ROUGE (seal API)** — `POST …/committee/seal` retourne encore **HTTP 500** sur la prod au **2026-04-05** (handler corrigé **non déployé** : commits `eadd7baa` / `8ca58108` à merger + push). Corps de réponse : voir **§ Validation post-fix**. **INV-W04** : trigger **v2** sur Railway (sealed → **closed** autorisé ; autres mutations sur `sealed` refusées). Repasser en **VERT** après merge `main` + déploiement + re-test seal.
+
+---
+
+## Validation post-fix (mandat agent — 2026-04-05)
+
+Commits de référence : `eadd7baa`, `8ca58108` sur `feat/mandat-bloc4-committee-pv`.
+
+| Étape | Statut | Détail |
+|-------|--------|--------|
+| Push + merge `main` | **KO** (push) | `git push` : erreur réseau `RPC failed` / `curl 55` — branche distante non mise à jour depuis l’agent ; **à pousser manuellement** (`git push --no-thin`) puis ouvrir PR / merger |
+| Railway redéployé | **NON** | Tant que le merge n’est pas sur `main`, le **fix `tid_cde`** n’est **pas** en prod |
+| `POST /committee/seal` HTTP | **500** | Run [`scripts/bloc4_seal_validation_postfix.py`](../../scripts/bloc4_seal_validation_postfix.py) — workspace `SEAL-TEST-FINAL-3297a66c`, `workspace_id` `fbbfac7b-98a7-4b5b-afd7-cb1b14536c09` |
+| Corps d’erreur (obligatoire si 500) | **voir ci-dessous** | Réponse brute **complète** : `Internal Server Error` (pas de JSON ; corps texte plat, ~21 caractères) |
+| `seal_hash` 64 chars | **KO** | Session `a58ef4dd-6166-4c1d-8f1a-6de552c04bcf` reste **`active`**, pas de hash (scellement API non appliqué) |
+| `sealed_at` NOT NULL | **KO** | Idem |
+| `pv_snapshot` NOT NULL | **KO** | Idem |
+| sealed → closed autorisé (produit) | **OK** (DB) | **CAS A** sur trigger v1 : `sealed` → `closed` **bloqué**. **Trigger v2** appliqué sur Railway via [`scripts/bloc4_apply_workspace_trigger_v2.py`](../../scripts/bloc4_apply_workspace_trigger_v2.py) — `UPDATE … SET status = 'closed'` depuis `sealed` **réussi** sur `SEAL-TEST-FINAL-3297a66c` |
+
+**Escalade** : tant que la prod renvoie **500** sur seal après **déploiement confirmé** du handler — consulter **logs Railway** au timestamp du POST ; si besoin d’une migration corrective → **STOP**, **GO CTO** (règle mandat).
 
 ---
 
@@ -128,28 +147,40 @@ Après statut `session_status = 'sealed'` (voir ci-dessous sur scellement) :
 
 ## Annexe — SQL INV-W04 workspace (replay ops Railway)
 
-Exécuter **en une seule instruction** (psycopg `execute` du bloc entier, ou `psql -f` — pas de découpe naïve sur `;` au milieu du corps PL/pgSQL).
+**Version actuelle sur Railway (v2 — post-validation 2026-04-05)** : interdit toute modification d’une ligne **`closed`** ; sur une ligne **`sealed`**, autorise **uniquement** le passage **`status = 'closed'`** ; toute autre modification (ex. `title` avec `status` toujours `sealed`) est rejetée.
+
+Exécuter **en une seule instruction** (voir [`scripts/bloc4_apply_workspace_trigger_v2.py`](../../scripts/bloc4_apply_workspace_trigger_v2.py)).
 
 ```sql
 CREATE OR REPLACE FUNCTION fn_workspace_sealed_final()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
-  IF OLD.status IN ('sealed', 'closed') THEN
+  IF OLD.status = 'sealed'
+     AND NEW.status IS DISTINCT FROM 'closed' THEN
     RAISE EXCEPTION
-      'Workspace % est %. Aucune modification autorisée.',
-      OLD.id, OLD.status;
+      'Workspace % est sealed. Seule transition autorisée : closed.',
+      OLD.id;
+  END IF;
+  IF OLD.status = 'closed' THEN
+    RAISE EXCEPTION
+      'Workspace % est closed. Aucune transition autorisée.',
+      OLD.id;
   END IF;
   RETURN NEW;
 END;
 $$;
 ```
 
-Vérification :
+Vérifications :
 
 ```sql
+-- Doit échouer (mutation métier sans clôture)
 UPDATE process_workspaces
 SET title = 'test post-correction'
 WHERE id = (SELECT id FROM process_workspaces WHERE status = 'sealed' LIMIT 1);
-```
 
-Attendu : exception levée par `fn_workspace_sealed_final`.
+-- Doit réussir (clôture explicite)
+UPDATE process_workspaces
+SET status = 'closed'
+WHERE status = 'sealed' AND reference_code = '…';
+```
