@@ -26,14 +26,17 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import uuid
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi import status as http_status
 from pydantic import BaseModel
 
+from src.api.cognitive_helpers import load_cognitive_facts
+from src.cognitive.cognitive_state import TransitionForbidden, validate_transition
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.couche_a.auth.workspace_access import (
     require_workspace_access,
@@ -43,6 +46,26 @@ from src.db import db_execute, db_execute_one, get_connection
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/workspaces", tags=["committee-v420"])
+
+
+async def _enqueue_project_sealed_workspace_job(workspace_id: str) -> None:
+    """Enqueue BLOC5 ARQ projection (après COMMIT — appelé via BackgroundTasks)."""
+
+    try:
+        import arq  # type: ignore[import-untyped]
+
+        redis_url = os.environ.get("REDIS_URL", "").strip()
+        if not redis_url:
+            logger.warning(
+                "[W3] REDIS_URL absent — project_sealed_workspace non enqueue"
+            )
+            return
+        pool = await arq.create_pool(arq.connections.RedisSettings.from_dsn(redis_url))
+        await pool.enqueue_job("project_sealed_workspace", workspace_id=workspace_id)
+        await pool.close()
+        logger.info("[W3] project_sealed_workspace enqueue workspace=%s", workspace_id)
+    except Exception as exc:
+        logger.warning("[W3] enqueue project_sealed_workspace: %s", exc)
 
 
 @router.get("/{workspace_id}/committee")
@@ -256,6 +279,7 @@ class SealSessionPayload(BaseModel):
 def seal_committee_session(
     workspace_id: str,
     payload: SealSessionPayload,
+    background_tasks: BackgroundTasks,
     user: Annotated[UserClaims, Depends(get_current_user)],
 ):
     """Scelle la session comité (IRR — INV-W01, INV-W04).
@@ -292,6 +316,33 @@ def seal_committee_session(
                 status_code=http_status.HTTP_409_CONFLICT,
                 detail="Session clôturée.",
             )
+
+        ws_row = db_execute_one(
+            conn,
+            "SELECT * FROM process_workspaces WHERE id = :wid",
+            {"wid": workspace_id},
+        )
+        if not ws_row:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Workspace introuvable.",
+            )
+        if str(ws_row.get("status") or "") != "in_deliberation":
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail=(
+                    "Le workspace doit être en statut in_deliberation avant le "
+                    "scellement IRR (guards BLOC5 — utiliser PATCH …/status)."
+                ),
+            )
+        facts = load_cognitive_facts(conn, ws_row)
+        try:
+            validate_transition(str(ws_row.get("status") or "draft"), "sealed", facts)
+        except TransitionForbidden as exc:
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail=exc.reason,
+            ) from exc
 
         # Un seul instantané pour le snapshot PV, la colonne `sealed_at` et le hash
         # (évite un décalage hash / ligne DB si `NOW()` ≠ horloge applicative).
@@ -362,6 +413,39 @@ def seal_committee_session(
                 "p": json.dumps({"seal_hash": seal_hash}),
             },
         )
+
+        db_execute(
+            conn,
+            """
+            UPDATE process_workspaces
+            SET status = 'sealed',
+                sealed_at = :sealed_at
+            WHERE id = :wid
+            """,
+            {"sealed_at": sealed_at, "wid": workspace_id},
+        )
+        db_execute(
+            conn,
+            """
+            INSERT INTO workspace_events
+                (workspace_id, tenant_id, event_type, actor_id, actor_type, payload)
+            VALUES (:ws, :tid, 'WORKSPACE_STATUS_CHANGED', :uid, 'user', :p)
+            """,
+            {
+                "ws": workspace_id,
+                "tid": tid_cde,
+                "uid": user_id,
+                "p": json.dumps(
+                    {
+                        "from": str(ws_row.get("status")),
+                        "to": "sealed",
+                        "via": "committee_seal",
+                    }
+                ),
+            },
+        )
+
+    background_tasks.add_task(_enqueue_project_sealed_workspace_job, workspace_id)
 
     return {
         "session_id": session["id"],
