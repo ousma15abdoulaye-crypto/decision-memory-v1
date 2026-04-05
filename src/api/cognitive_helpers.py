@@ -115,9 +115,10 @@ def confidence_summary_for_workspace(conn, workspace_id: str) -> dict[str, Any]:
             """,
             {"ws": workspace_id},
         )
-        overall = float(r["mn"]) if r and r["mn"] is not None else 1.0
-    except Exception:
-        overall = 1.0
+        overall = float(r["mn"]) if r and r["mn"] is not None else 0.0
+    except Exception as exc:
+        logger.debug("[cognitive] confidence_summary_for_workspace fallback: %s", exc)
+        overall = 0.0
     env = build_envelope_from_overall(overall)
     reg = regime_from_overall(env.overall)
     warn = None

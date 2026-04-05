@@ -43,11 +43,8 @@ def upgrade() -> None:
         ADD COLUMN hitl_validated_by INTEGER REFERENCES users(id)
         """)
 
-    op.execute("""
-        ALTER TABLE bundle_documents ADD CONSTRAINT bd_hitl_when_low_confidence CHECK (
-            NOT (system_confidence < 0.5 AND hitl_validated_at IS NULL)
-        )
-        """)
+    # Pas de CHECK interdisant system_confidence < 0.5 sans HITL : l’API doit pouvoir
+    # exposer ces lignes (zones de clarification / file d’attente HITL) — voir PR review.
 
     op.execute("""
         CREATE TABLE IF NOT EXISTS signal_relevance_log (
@@ -77,9 +74,6 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.execute("DROP TABLE IF EXISTS signal_relevance_log CASCADE")
-    op.execute(
-        "ALTER TABLE bundle_documents DROP CONSTRAINT IF EXISTS bd_hitl_when_low_confidence"
-    )
     op.execute("ALTER TABLE bundle_documents DROP COLUMN IF EXISTS hitl_validated_by")
     op.execute("ALTER TABLE bundle_documents DROP COLUMN IF EXISTS hitl_validated_at")
     op.execute("ALTER TABLE bundle_documents DROP COLUMN IF EXISTS system_confidence")

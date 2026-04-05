@@ -48,9 +48,27 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/workspaces", tags=["committee-v420"])
 
 
+def _tenant_id_for_cde_writes(conn, workspace_id: str, user: UserClaims) -> str:
+    """UUID tenant pour écritures CDE : JWT d’abord, sinon `process_workspaces`."""
+    if user.tenant_id:
+        return str(user.tenant_id)
+    ws = db_execute_one(
+        conn,
+        "SELECT tenant_id FROM process_workspaces WHERE id = :wid",
+        {"wid": workspace_id},
+    )
+    if ws and ws.get("tenant_id"):
+        return str(ws["tenant_id"])
+    raise HTTPException(
+        status_code=http_status.HTTP_400_BAD_REQUEST,
+        detail="tenant_id introuvable (JWT ou workspace).",
+    )
+
+
 async def _enqueue_project_sealed_workspace_job(workspace_id: str) -> None:
     """Enqueue BLOC5 ARQ projection (après COMMIT — appelé via BackgroundTasks)."""
 
+    pool = None
     try:
         import arq  # type: ignore[import-untyped]
 
@@ -62,10 +80,12 @@ async def _enqueue_project_sealed_workspace_job(workspace_id: str) -> None:
             return
         pool = await arq.create_pool(arq.connections.RedisSettings.from_dsn(redis_url))
         await pool.enqueue_job("project_sealed_workspace", workspace_id=workspace_id)
-        await pool.close()
         logger.info("[W3] project_sealed_workspace enqueue workspace=%s", workspace_id)
     except Exception as exc:
         logger.warning("[W3] enqueue project_sealed_workspace: %s", exc)
+    finally:
+        if pool is not None:
+            await pool.close()
 
 
 @router.get("/{workspace_id}/committee")
@@ -119,10 +139,10 @@ def open_committee_session(
             detail="committee_type invalide.",
         )
 
-    tenant_id = user.tenant_id or ""
     user_id = int(user.user_id)
 
     with get_connection() as conn:
+        tenant_id = _tenant_id_for_cde_writes(conn, workspace_id, user)
         existing = db_execute_one(
             conn,
             "SELECT id, session_status FROM committee_sessions WHERE workspace_id = :ws",
@@ -207,10 +227,10 @@ def add_committee_member(
             detail=f"role_in_committee invalide. Valeurs : {sorted(valid_roles)}",
         )
 
-    tenant_id = user.tenant_id or ""
     actor_id = int(user.user_id)
 
     with get_connection() as conn:
+        tenant_id = _tenant_id_for_cde_writes(conn, workspace_id, user)
         session = db_execute_one(
             conn,
             "SELECT id, session_status FROM committee_sessions WHERE workspace_id = :ws",
