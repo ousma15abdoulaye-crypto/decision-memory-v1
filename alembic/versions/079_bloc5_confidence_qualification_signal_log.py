@@ -21,26 +21,26 @@ depends_on = None
 def upgrade() -> None:
     op.execute("""
         ALTER TABLE supplier_bundles
-        ADD COLUMN qualification_status TEXT NOT NULL DEFAULT 'pending'
+        ADD COLUMN IF NOT EXISTS qualification_status TEXT NOT NULL DEFAULT 'pending'
             CHECK (qualification_status IN ('pending','qualified','disqualified'))
         """)
     op.execute("""
         ALTER TABLE supplier_bundles
-        ADD COLUMN is_retained BOOLEAN NOT NULL DEFAULT FALSE
+        ADD COLUMN IF NOT EXISTS is_retained BOOLEAN NOT NULL DEFAULT FALSE
         """)
 
     op.execute("""
         ALTER TABLE bundle_documents
-        ADD COLUMN system_confidence NUMERIC(4,3) NOT NULL DEFAULT 1.0
+        ADD COLUMN IF NOT EXISTS system_confidence NUMERIC(4,3) NOT NULL DEFAULT 1.0
             CHECK (system_confidence >= 0 AND system_confidence <= 1)
         """)
     op.execute("""
         ALTER TABLE bundle_documents
-        ADD COLUMN hitl_validated_at TIMESTAMPTZ
+        ADD COLUMN IF NOT EXISTS hitl_validated_at TIMESTAMPTZ
         """)
     op.execute("""
         ALTER TABLE bundle_documents
-        ADD COLUMN hitl_validated_by INTEGER REFERENCES users(id)
+        ADD COLUMN IF NOT EXISTS hitl_validated_by INTEGER REFERENCES users(id)
         """)
 
     # Pas de CHECK interdisant system_confidence < 0.5 sans HITL : l’API doit pouvoir
