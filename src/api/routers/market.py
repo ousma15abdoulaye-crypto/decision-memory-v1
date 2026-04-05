@@ -46,19 +46,20 @@ def market_overview(
         )
 
     with get_connection() as conn:
+        # Colonnes réelles : migration 043_market_signals_v11 (item_id, zone_id, price_avg, …)
         recent_signals = db_fetchall(
             conn,
             """
             SELECT
-                ms.item_key,
-                ms.signal_type,
-                ms.unit_price,
-                ms.currency,
-                ms.market_zone,
+                ms.item_id AS item_key,
+                ms.alert_level AS signal_type,
+                ms.price_avg AS unit_price,
+                'XOF' AS currency,
+                ms.zone_id AS market_zone,
                 ms.signal_quality,
-                ms.collected_at
+                COALESCE(ms.updated_at, ms.created_at) AS collected_at
             FROM market_signals_v2 ms
-            ORDER BY ms.collected_at DESC
+            ORDER BY COALESCE(ms.updated_at, ms.created_at) DESC
             LIMIT :lim
             """,
             {"lim": min(limit, 200)},

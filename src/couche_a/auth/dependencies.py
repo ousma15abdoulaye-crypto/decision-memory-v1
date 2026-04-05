@@ -7,6 +7,7 @@ ADR-M1-001 · ADR-M1-002.
 from __future__ import annotations
 
 import os
+import uuid as _uuid
 from collections.abc import Callable, Generator
 from dataclasses import dataclass
 
@@ -20,6 +21,33 @@ from src.couche_a.auth.rbac import ROLES
 from src.db.tenant_context import set_db_tenant_id, set_rls_is_admin
 
 _bearer_scheme = HTTPBearer(auto_error=False)
+
+
+def _resolve_tenant_uuid_for_rls(
+    tenant_id: str | None, db_conn: psycopg.Connection
+) -> str | None:
+    """Aligne tenant_id JWT / user_tenants sur l'UUID réel dans ``tenants``.
+
+    Les lignes legacy ``user_tenants`` portent encore ``tenant-<user_id>`` (TEXT).
+    Les tables V4.2.0 (``process_workspaces``, etc.) attendent ``tenants.id`` (UUID).
+    Sans résolution, INSERT échoue (cast UUID) ou viole la FK.
+    """
+    if not tenant_id:
+        return None
+    s = str(tenant_id).strip()
+    try:
+        _uuid.UUID(s)
+        return s
+    except ValueError:
+        pass
+    with db_conn.cursor() as cur:
+        cur.execute(
+            "SELECT id::text FROM tenants WHERE code = 'sci_mali' LIMIT 1",
+        )
+        row = cur.fetchone()
+    if row and row[0]:
+        return str(row[0])
+    return s
 
 
 @dataclass(frozen=True)
@@ -96,6 +124,8 @@ def get_current_user(
         tid = r[0] if r else None
     else:
         tid = str(tid)
+
+    tid = _resolve_tenant_uuid_for_rls(tid, db_conn)
 
     set_db_tenant_id(tid)
     set_rls_is_admin(role == "admin")
