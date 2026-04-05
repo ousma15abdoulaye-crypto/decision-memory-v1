@@ -4,6 +4,8 @@
 **Prérequis** : BLOC 1 VERT (077), BLOC 2 VERT partiel (routers câblés).  
 **Contraintes** : aucune modification de schéma DB ; pas de données de test permanentes non identifiées comme smoke (utilisateur `smoke_bloc3_*` + `reference_code` unique `SMOKE-BLOC3-<suffixe>`).
 
+> **Addendum (post-merge correctif 500, ex. PR #324)** : en prod, `POST /api/workspaces` et `GET /api/market/overview` passent en smoke ; `GET …/committee` peut répondre **403** (RBAC) — attendu pour le script **A+B**. Le tableau ci-dessous documente surtout la **session d’audit initiale** (avant correctif), pour trace.
+
 ---
 
 ## Résumé exécutif
@@ -43,7 +45,7 @@ Les éléments suivants empêchent un **VERT** complet : compteur `vendors` à *
 
 ## Prochaines actions recommandées (hors mandat)
 
-1. ~~500~~ **Corrigés** (voir [`BLOC3_500_DIAGNOSIS.md`](BLOC3_500_DIAGNOSIS.md)) — smoke **A+B** : [`bloc3_smoke_railway.py`](../../scripts/bloc3_smoke_railway.py) échoue sur **500** seulement pour W1/W2 critiques ; **403** sur `/committee` = RBAC attendu pour un user smoke.
+1. **500 W1/W2** : corrigés (voir [`BLOC3_500_DIAGNOSIS.md`](BLOC3_500_DIAGNOSIS.md)). **État actuel du smoke** : [`bloc3_smoke_railway.py`](../../scripts/bloc3_smoke_railway.py) échoue si W1/W2 ne renvoient pas les succès attendus (**201/200**), *quel que soit* le code d’erreur (**4xx** ou **5xx**) — le script ne filtre pas « 500 seul ». **403** sur `/committee` = RBAC attendu (user smoke), pas une erreur plateforme.
 2. Importer les vendors : `python scripts/etl_vendors_wave2.py --dry-run` puis sans `--dry-run` avec **`DATABASE_URL`** Railway explicite ; re‑vérifier `SELECT COUNT(*) FROM vendors`.
 3. Aligner **`M14EvaluationRepository`** sur `workspace_id` si le produit doit persister M14 sur le schéma 077 (mandat / ADR dédié + GO CTO si toucher des fichiers gelés).
 4. Pass‑1 (`upload-zip`) une fois besoin métier.

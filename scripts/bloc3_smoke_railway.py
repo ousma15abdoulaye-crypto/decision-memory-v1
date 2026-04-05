@@ -14,11 +14,15 @@ Comportement :
   - GET /api/market/overview
   - GET /api/workspaces/{id}/committee
 
-Gate « plateforme » (A+B) : échec si **500** sur POST /api/workspaces ou GET /api/market/overview.
-Committee : **200 / 404 / 403** = OK — 403 = RBAC (ex. workspace.read) ; le compte smoke
-n’a pas forcément ce droit. Point **C** (créateur workspace → lecture committee / membership)
-sera central dans l’implémentation **architecture cognitive** ; jusqu’alors ne pas traiter 403
-comme régression serveur.
+Gate **A+B** (implémenté) :
+  - **W1/W2** : exit 1 si ``POST /api/workspaces`` n’est pas **200/201** ou si ``GET /api/market/overview``
+    n’est pas **200** (tout **4xx/5xx** incl.). La régression **500** plateforme corrigée en BLOC3
+    entre dans cette catégorie ; le script ne distingue pas 500 des autres erreurs sur ces routes.
+  - **Committee** : **200 / 404 / 403** = OK — **403** = RBAC (ex. ``workspace.read``), pas une
+    régression serveur pour un user smoke.
+
+Point **C** (créateur → lecture committee / membership) : chantier prévu avec l’**architecture
+cognitive** ; ne pas interpréter le **403** committee comme un défaut de déploiement.
 """
 
 from __future__ import annotations
