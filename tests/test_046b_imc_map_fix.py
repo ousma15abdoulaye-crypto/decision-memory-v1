@@ -111,6 +111,9 @@ VALID_ALEMBIC_HEADS = (
     "075_rbac_permissions_roles",
     "076_evaluation_documents_workspace_unique",
     "077_fix_bridge_triggers_workspace_id",
+    # BLOC5 — SPEC V4.3.1 (source package O2 + qualification / signal_relevance_log)
+    "078_source_package_documents_bloc5",
+    "079_bloc5_confidence_qualification_signal_log",
 )
 
 
