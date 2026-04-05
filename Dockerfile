@@ -24,6 +24,7 @@ COPY alembic.ini .
 COPY alembic/ ./alembic/
 COPY main.py start.sh ./
 COPY src/ ./src/
+COPY config/ ./config/
 COPY static/ ./static/
 COPY data/ ./data/
 
