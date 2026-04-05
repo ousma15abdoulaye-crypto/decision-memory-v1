@@ -261,13 +261,16 @@ def seal_committee_session(
     """
     require_workspace_permission(workspace_id, user, "committee.manage")
 
-    tenant_id = user.tenant_id or ""
     user_id = int(user.user_id)
 
     with get_connection() as conn:
         session = db_execute_one(
             conn,
-            "SELECT id, session_status FROM committee_sessions WHERE workspace_id = :ws",
+            """
+            SELECT id, session_status, tenant_id
+            FROM committee_sessions
+            WHERE workspace_id = :ws
+            """,
             {"ws": workspace_id},
         )
         if not session:
@@ -295,6 +298,27 @@ def seal_committee_session(
         }
         pv_json = json.dumps(pv_snapshot, sort_keys=True)
         seal_hash = hashlib.sha256(pv_json.encode()).hexdigest()
+
+        # PISTE A : éviter tenant_id vide pour INSERT CDE (UUID NOT NULL) si JWT / claims incomplets.
+        raw_tid = session.get("tenant_id")
+        if raw_tid is None:
+            ws_row = db_execute_one(
+                conn,
+                "SELECT tenant_id FROM process_workspaces WHERE id = :wid",
+                {"wid": workspace_id},
+            )
+            raw_tid = ws_row["tenant_id"] if ws_row else None
+        if not raw_tid:
+            logger.error(
+                "seal_committee_session: tenant_id introuvable session=%s workspace=%s",
+                session["id"],
+                workspace_id,
+            )
+            raise HTTPException(
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="tenant_id introuvable pour le journal de délibération",
+            )
+        tid_cde = str(raw_tid)
 
         db_execute(
             conn,
@@ -325,7 +349,7 @@ def seal_committee_session(
             {
                 "sid": session["id"],
                 "ws": workspace_id,
-                "tid": tenant_id,
+                "tid": tid_cde,
                 "actor": user_id,
                 "p": json.dumps({"seal_hash": seal_hash}),
             },
