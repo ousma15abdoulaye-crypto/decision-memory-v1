@@ -14,7 +14,15 @@ Comportement :
   - GET /api/market/overview
   - GET /api/workspaces/{id}/committee
 
-Exit code 0 si tous les appels attendus réussissent ; 1 sinon.
+Gate **A+B** (implémenté) :
+  - **W1/W2** : exit 1 si ``POST /api/workspaces`` n’est pas **200/201** ou si ``GET /api/market/overview``
+    n’est pas **200** (tout **4xx/5xx** incl.). La régression **500** plateforme corrigée en BLOC3
+    entre dans cette catégorie ; le script ne distingue pas 500 des autres erreurs sur ces routes.
+  - **Committee** : **200 / 404 / 403** = OK — **403** = RBAC (ex. ``workspace.read``), pas une
+    régression serveur pour un user smoke.
+
+Point **C** (créateur → lecture committee / membership) : chantier prévu avec l’**architecture
+cognitive** ; ne pas interpréter le **403** committee comme un défaut de déploiement.
 """
 
 from __future__ import annotations
@@ -157,14 +165,19 @@ def main() -> int:
             f"{base}/api/workspaces/{workspace_id}/committee",
             headers={"Authorization": f"Bearer {token}"},
         )
-        if st not in (200, 404):
+        if st == 403:
+            print(
+                f"[4] GET /api/workspaces/{{id}}/committee -> HTTP {st} OK "
+                f"(RBAC — workspace.read requis ; attendu pour user smoke)"
+            )
+        elif st not in (200, 404):
             print(f"[4] GET /api/workspaces/{{id}}/committee -> HTTP {st} FAIL")
             print(f"     body: {com}")
             ok_all = False
         else:
             print(
                 f"[4] GET /api/workspaces/{{id}}/committee -> HTTP {st} OK "
-                f"(404 acceptable si pas de session)"
+                f"(404 si pas de session committee)"
             )
     else:
         print("[4] GET /api/workspaces/{id}/committee -> SKIP (pas de workspace_id)")

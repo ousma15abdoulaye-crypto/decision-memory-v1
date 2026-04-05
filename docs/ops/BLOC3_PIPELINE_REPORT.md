@@ -4,6 +4,8 @@
 **Prérequis** : BLOC 1 VERT (077), BLOC 2 VERT partiel (routers câblés).  
 **Contraintes** : aucune modification de schéma DB ; pas de données de test permanentes non identifiées comme smoke (utilisateur `smoke_bloc3_*` + `reference_code` unique `SMOKE-BLOC3-<suffixe>`).
 
+> **Addendum (post-merge correctif 500, ex. PR #324)** : en prod, `POST /api/workspaces` et `GET /api/market/overview` passent en smoke ; `GET …/committee` peut répondre **403** (RBAC) — attendu pour le script **A+B**. Le tableau ci-dessous documente surtout la **session d’audit initiale** (avant correctif), pour trace.
+
 ---
 
 ## Résumé exécutif
@@ -33,17 +35,19 @@
 
 ## Verdict
 
-**BLOC 3 = VERT PARTIEL (gaps identifiés — pilote possible après correction des 500 API et alignement ETL/DB/M14).**
+**BLOC 3 = VERT PARTIEL** : à l’issue de l’audit documenté dans le tableau (session initiale), le pilote complet restait conditionné à la levée des **500** W1/W2, à l’alignement ETL/DB/M14, etc. **Post-correctif 500** (voir addendum en tête de document et [`BLOC3_500_DIAGNOSIS.md`](BLOC3_500_DIAGNOSIS.md)), les smokes critiques W1/W2 ne sont plus bloqués par des erreurs serveur sur ces routes en prod ; un **VERT** complet reste toutefois limité par les autres lignes du tableau (vendors, Pass‑1 ZIP réel, M14 `case_id`, etc.).
 
-Les éléments suivants empêchent un **VERT** complet : compteur `vendors` à **1** sur Railway sans import Wave 2 ; **HTTP 500** sur `POST /api/workspaces` et `GET /api/market/overview` en smoke réel ; absence de preuve bout‑en‑bout Pass‑1 / ZIP ; **GAP** documenté sur la persistance M14 (`case_id` vs schéma 074+).
+**À l’état du tableau (snapshot session)** : compteur `vendors` à **1** sans import Wave 2 ; **HTTP 500** sur W1/W2 en smoke réel ; pas de preuve Pass‑1 / ZIP bout‑en‑bout ; **GAP** M14 (`case_id` vs schéma 074+).
 
-**BLOC 3 ≠ ROUGE** : auth fonctionnel sur l’URL testée, chaîne Pass‑1/M12 côté code alignée workspace ; les blocages observés sont **exploitables** (logs Railway, correctif applicatif / déploiement) sans changement de schéma dans ce mandat.
+**BLOC 3 ≠ ROUGE** : auth fonctionnel sur l’URL testée, chaîne Pass‑1/M12 côté code alignée workspace ; les blocages observés en session sont **exploitables** (correctifs applicatifs / déploiement) sans changement de schéma dans ce mandat.
 
 ---
 
 ## Prochaines actions recommandées (hors mandat)
 
-1. Investiguer les **500** sur `/api/workspaces` et `/api/market/overview` (logs Railway, `tenant_id` / RLS / middleware).
+1. **500 W1/W2** : corrigés (voir [`BLOC3_500_DIAGNOSIS.md`](BLOC3_500_DIAGNOSIS.md)). **État actuel du smoke** : [`bloc3_smoke_railway.py`](../../scripts/bloc3_smoke_railway.py) échoue si W1/W2 ne renvoient pas les succès attendus (**201/200**), *quel que soit* le code d’erreur (**4xx** ou **5xx**) — le script ne filtre pas « 500 seul ». **403** sur `/committee` = RBAC attendu (user smoke), pas une erreur plateforme.
 2. Importer les vendors : `python scripts/etl_vendors_wave2.py --dry-run` puis sans `--dry-run` avec **`DATABASE_URL`** Railway explicite ; re‑vérifier `SELECT COUNT(*) FROM vendors`.
 3. Aligner **`M14EvaluationRepository`** sur `workspace_id` si le produit doit persister M14 sur le schéma 077 (mandat / ADR dédié + GO CTO si toucher des fichiers gelés).
-4. Rejouer [`scripts/bloc3_smoke_railway.py`](../../scripts/bloc3_smoke_railway.py) puis Pass‑1 (`upload-zip`) une fois W1 vert.
+4. Pass‑1 (`upload-zip`) une fois besoin métier.
+5. **Point C (architecture cognitive)** : droit créateur → lecture committee / membership explicite — à traiter comme chantier central avec l’implémentation **arch. cognitive** ; le smoke ne doit pas confondre **403** (autorisation) et **500** (serveur).
+
