@@ -112,28 +112,43 @@ Après statut `session_status = 'sealed'` (voir ci-dessous sur scellement) :
 
 ---
 
-## Verdict final
+## Verdict final (synthèse)
 
-**BLOC 4 = ROUGE (seal API)** — `POST …/committee/seal` retourne encore **HTTP 500** sur la prod au **2026-04-05** (handler corrigé **non déployé** : commits `eadd7baa` / `8ca58108` à merger + push). Corps de réponse : voir **§ Validation post-fix**. **INV-W04** : trigger **v2** sur Railway (sealed → **closed** autorisé ; autres mutations sur `sealed` refusées). Repasser en **VERT** après merge `main` + déploiement + re-test seal.
+**BLOC 4 = ROUGE (seal toujours 500 après fix en code)** — détail chiffré et corps d’erreur : **§ Validation post-fix**. Branche **`feat/mandat-bloc4-committee-pv`** poussée sur `origin` ; **merge PR + déploiement Railway** requis pour valider le fix en prod. **INV-W04** : trigger **v2** sur Railway (sealed → **closed** autorisé). Repasser en **VERT** après merge `main` + déploiement + re-test seal **200/201** + `seal_hash` 64.
 
 ---
 
 ## Validation post-fix (mandat agent — 2026-04-05)
 
-Commits de référence : `eadd7baa`, `8ca58108` sur `feat/mandat-bloc4-committee-pv`.
+Commits de référence : `eadd7baa`, `8ca58108` sur `feat/mandat-bloc4-committee-pv` (+ livrables scripts/rapport : `0304b774`).
 
-| Étape | Statut | Détail |
-|-------|--------|--------|
-| Push + merge `main` | **KO** (push) | `git push` : erreur réseau `RPC failed` / `curl 55` — branche distante non mise à jour depuis l’agent ; **à pousser manuellement** (`git push --no-thin`) puis ouvrir PR / merger |
-| Railway redéployé | **NON** | Tant que le merge n’est pas sur `main`, le **fix `tid_cde`** n’est **pas** en prod |
-| `POST /committee/seal` HTTP | **500** | Run [`scripts/bloc4_seal_validation_postfix.py`](../../scripts/bloc4_seal_validation_postfix.py) — workspace `SEAL-TEST-FINAL-3297a66c`, `workspace_id` `fbbfac7b-98a7-4b5b-afd7-cb1b14536c09` |
-| Corps d’erreur (obligatoire si 500) | **voir ci-dessous** | Réponse brute **complète** : `Internal Server Error` (pas de JSON ; corps texte plat, ~21 caractères) |
-| `seal_hash` 64 chars | **KO** | Session `a58ef4dd-6166-4c1d-8f1a-6de552c04bcf` reste **`active`**, pas de hash (scellement API non appliqué) |
-| `sealed_at` NOT NULL | **KO** | Idem |
-| `pv_snapshot` NOT NULL | **KO** | Idem |
-| sealed → closed autorisé (produit) | **OK** (DB) | **CAS A** sur trigger v1 : `sealed` → `closed` **bloqué**. **Trigger v2** appliqué sur Railway via [`scripts/bloc4_apply_workspace_trigger_v2.py`](../../scripts/bloc4_apply_workspace_trigger_v2.py) — `UPDATE … SET status = 'closed'` depuis `sealed` **réussi** sur `SEAL-TEST-FINAL-3297a66c` |
+PR : ouvrir / merger depuis  
+`https://github.com/ousma15abdoulaye-crypto/decision-memory-v1/pull/new/feat/mandat-bloc4-committee-pv`  
+(merge **humain** ; l’agent n’a pas pu utiliser `gh` : timeout TLS vers `api.github.com`.)
 
-**Escalade** : tant que la prod renvoie **500** sur seal après **déploiement confirmé** du handler — consulter **logs Railway** au timestamp du POST ; si besoin d’une migration corrective → **STOP**, **GO CTO** (règle mandat).
+| Étape | Statut |
+|-------|--------|
+| Push + merge `main` | **Push OK** · **Merge KO** (PR à créer/merger manuellement sur GitHub) |
+| Railway redéployé | **KO** (aucun déploiement depuis `main` tant que la PR n’est pas mergée) |
+| `POST /committee/seal` HTTP | **500** |
+| `seal_hash` 64 chars | **KO** |
+| `sealed_at` NOT NULL | **KO** |
+| `pv_snapshot` NOT NULL | **KO** |
+| sealed → closed autorisé | **OK** (DB, trigger **v2** déjà sur Railway — voir annexe ; non rejoué sur le workspace du dernier run car scellement API non appliqué) |
+
+**Dernier run prod** (après push branche, **sans** merge `main`) : [`scripts/bloc4_seal_validation_postfix.py`](../../scripts/bloc4_seal_validation_postfix.py) sur `https://decision-memory-v1-production.up.railway.app` — `reference_code` **`SEAL-TEST-FINAL-47e49367`**, `workspace_id` **`4a9ceea4-d871-40fe-9ad4-08d654035761`**, `session_id` **`fd5339fd-db81-4432-8ee6-7721bc64a52d`**.
+
+**Corps de réponse `POST …/committee/seal` (obligatoire si 500)** — texte brut complet :
+
+```text
+Internal Server Error
+```
+
+**Verdict final (état au 2026-04-05, prod non mise à jour par le fix)** :
+
+**BLOC 4 = ROUGE (seal toujours 500 après fix)** — le correctif handler (`tid_cde`) **n’est pas en production** tant que `feat/mandat-bloc4-committee-pv` n’est **pas** mergée dans `main` et déployée par Railway. **STOP** mandat BLOC 5 jusqu’à merge + déploiement + re-test seal **200/201** avec `seal_hash`. Après déploiement confirmé, si **500** persiste : **logs Railway** au timestamp du POST, corps de réponse complet dans ce rapport, **escalade CTO** immédiate.
+
+**Escalade** : si **500** sur seal **après** déploiement confirmé du handler — consulter **logs Railway** au timestamp du POST ; si besoin d’une migration corrective → **STOP**, **GO CTO** (règle mandat).
 
 ---
 
