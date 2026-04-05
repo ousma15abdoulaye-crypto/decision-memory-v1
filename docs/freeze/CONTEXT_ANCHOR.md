@@ -7,6 +7,8 @@
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
 ║  Dernière mise à jour : 2026-04-04 (post-merge PR #304 M15 Wartime — main 361b3787) ║
 ║  Addendum 2026-04-04 : PR #321 V4.2.0 Phase 3 — CI rouge — handover détaillé fin doc ║
+║  Addendum 2026-04-05 : PR #324 MERGÉ main 107d05a2 — BLOC3 fix HTTP 500 W1/W2 + tenant RLS + market + ETL vendors ║
+║  Addendum 2026-04-05 : PR #325 MERGÉ main a61b8eb9 — docs+smoke BLOC3 gate A+B (bloc3_smoke_railway, BLOC3_PIPELINE_REPORT) ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -94,6 +96,8 @@
 ║    indexes signal_engine, dms_pg_connect.resolve_database_url_for_scripts ; Copilot ║
 ║    review : secrets DB, API /api/extractions/...+JWT, TLS LS, bulk vendor ETL) ║
 ║  PR #304           : MERGÉ — CLOS — branche feat/m15-activation-wartime supprimée origin ║
+║  PR #324 (2026-04-05) : MERGÉ main 107d05a2 — BLOC3 : HTTP 500 POST /api/workspaces + GET /api/market/overview ; tenant UUID RLS ; market_signals_v2 ; ETL vendors table vendors ║
+║  PR #325 (2026-04-05) : MERGÉ main a61b8eb9 — BLOC3 smoke A+B : 403 /committee = RBAC OK ; doc alignée Copilot ; BLOC3_PIPELINE_REPORT historique vs post-fix ║
 ║  parent 361b3787   : 91adc2ed — fix Dockerfile annotation-backend COPY procurement (#303) ║
 ║  (historique) main : 38733982 — Merge PR #292 feat/M13-regulatory-profile-engine-v5 ║
 ║    (M13 V5 engine, config/regulatory YAML SCI+DGMP, Pass 2A, migration 057, ADR-M13-001) ║
@@ -1919,5 +1923,24 @@ E-93 (2026-04-04) : test_inv_09_neutral_language (Python 3.11) detecte string li
 ---
 
 Fin addendum 2026-04-04 B -- V4.2.0 Phases 0-6 toutes mergees. PRs #319-#323 CI 9/9.
+
+---
+
+## ADDENDUM 2026-04-05 — MERGE PR #324 + PR #325 (BLOC3 OPS — correctifs 500 + smoke A+B)
+
+**Statut :** PR **#324** puis PR **#325** **MERGÉES** dans `main` (merge commit PR #325 : **`a61b8eb9`** ; parent merge #324 : **`107d05a2`**).
+
+**PR #324 — synthèse**
+
+- Correctifs **HTTP 500** sur **`POST /api/workspaces`** et **`GET /api/market/overview`** (alignement requêtes `market_signals_v2`, clamp `limit`, chemins `item_price_history`, résolution **tenant UUID** pour RLS sans fallback chaîne non-UUID).
+- **`scripts/etl_vendors_wave2.py`** : références **`vendors`** (plus `vendor_identities`).
+- Trace diagnostic : **`docs/ops/BLOC3_500_DIAGNOSIS.md`**.
+
+**PR #325 — synthèse**
+
+- **`scripts/bloc3_smoke_railway.py`** : gate **A+B** — échec si W1/W2 ne renvoient pas **201/200** (tout **4xx/5xx** sur ces routes) ; **`GET …/committee`** **200 / 404 / 403** = OK (**403** = RBAC smoke attendu, pas régression serveur).
+- **`docs/ops/BLOC3_PIPELINE_REPORT.md`** : addendum historique vs état post-correctif 500 ; verdict réconcilié ; point **C** (créateur → committee/membership) réservé **architecture cognitive** (hors exigence smoke A+B).
+
+**Fichiers de référence (main post-merge) :** `docs/ops/BLOC3_PIPELINE_REPORT.md`, `docs/ops/BLOC3_500_DIAGNOSIS.md`, `scripts/bloc3_smoke_railway.py`.
 
 ---
