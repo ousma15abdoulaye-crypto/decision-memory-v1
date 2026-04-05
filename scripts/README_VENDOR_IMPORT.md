@@ -23,6 +23,15 @@ La table a été renommée en `vendors` et les colonnes ont évolué.
 (`run_preflight_checks()`) qui bloquent l'import avec un message explicite si le schéma
 ne correspond pas.
 
+### Clarification des chiffres (661 vs 103) — cible « completeness »
+
+| Métrique | Ce que c’est | Ce que ce n’est **pas** |
+|----------|----------------|-------------------------|
+| **661** (incident 3–4 avr. 2026) | Volume **d’échecs d’insertion** observés dans les logs (mismatch schéma / contraintes) lors d’une ou plusieurs passes d’import. | **Ni** un objectif métier « il doit y avoir 661 fournisseurs en base », **ni** la taille d’un référentiel national à atteindre par ce seul script. |
+| **103** (ETL M4, deux fichiers Excel listés dans `FILES`) | **Lot attendu** pour ce périmètre : lignes données présentes dans les sources versionnées (ex. 50 + 53 lignes → **103 lignes lues** lorsque les xlsx sont complets). C’est le **chiffre cible du lot M4** tel que défini dans le code. | Un sous-ensemble arbitraire « des 661 » : **661 et 103 ne sont pas le même dénominateur** (incident vs périmètre fichier). |
+
+**Complétude référentiel vendors (hors seul M4)** : d’autres lots ou scripts peuvent viser d’autres fichiers (ex. `scripts/etl_vendors_wave2.py` et `SUPPLIER DATA Mali FINAL.xlsx`). Tant qu’une **décision produit** n’a pas fixé un volume unique « national » et les sources associées, la dette **« vendors completeness »** au sens couverture métier reste **ouverte** — alors que le **lot M4** peut être considéré **complet** lorsque l’ETL lit bien toutes les lignes des fichiers `FILES` sans rejet systémique.
+
 ---
 
 ## Schéma actuel (migration 043 + m4_patch_a + m5_pre_vendors_consolidation)
