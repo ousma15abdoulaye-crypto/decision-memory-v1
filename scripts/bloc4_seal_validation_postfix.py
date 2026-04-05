@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Validation POST /committee/seal post-fix — workspace SEAL-TEST-FINAL-* (routes réelles W3)."""
+"""Validation POST /committee/seal post-fix — workspace SEAL-TEST-FINAL-* (routes réelles W3).
+
+RBAC SQL : surcharger le tenant et le rôle via l'environnement si la base n'utilise pas
+les UUID par défaut (seed sci_mali / procurement_director) :
+
+  BLOC4_TENANT_UUID — UUID `public.tenants`
+  BLOC4_ROLE_UUID — UUID rôle avec permission committee.manage (ex. procurement_director)
+"""
 
 from __future__ import annotations
 
@@ -115,8 +122,11 @@ def main() -> int:
     chair_id = ids[chair]
     mid = [ids[m[0]] for m in members]
 
-    tid = "0daf2d94-93dc-4d56-a8b9-84a2a4b17bbe"
-    rid = "0f2ea9f1-c5e7-4de9-853c-59dc6c7a89b9"
+    # Défauts = seed local / migrations RBAC typiques ; surcharger pour autre environnement.
+    _def_tid = "0daf2d94-93dc-4d56-a8b9-84a2a4b17bbe"
+    _def_rid = "0f2ea9f1-c5e7-4de9-853c-59dc6c7a89b9"
+    tid = (os.environ.get("BLOC4_TENANT_UUID") or _def_tid).strip()
+    rid = (os.environ.get("BLOC4_ROLE_UUID") or _def_rid).strip()
     _sql(
         f"INSERT INTO user_tenant_roles (id, user_id, tenant_id, role_id, granted_at) "
         f"VALUES (gen_random_uuid(), {chair_id}, '{tid}'::uuid, '{rid}'::uuid, NOW()) "

@@ -14,7 +14,11 @@ Référence : docs/freeze/DMS_V4.2.0_ADDENDUM.md §VII routes W3
 INV-W01 : actes irréversibles — committee_deliberation_events append-only.
 INV-W04 : session sealed → aucune transition vers draft/active.
 INV-W06 : aucun champ winner/rank dans les réponses.
-RÈGLE-W01 : tenant_id extrait JWT uniquement.
+RÈGLE-W01 : le contexte locataire pour l’autorisation (JWT, accès workspace) reste la
+référence RBAC. Pour les écritures CDE (`committee_deliberation_events.tenant_id`),
+la valeur doit correspondre à la ligne métier : `committee_sessions.tenant_id`, avec
+repli `process_workspaces.tenant_id` si la session n’a pas de tenant — jamais une
+chaîne vide ou une valeur inventée pour compenser des claims JWT incomplets.
 """
 
 from __future__ import annotations
@@ -289,17 +293,20 @@ def seal_committee_session(
                 detail="Session clôturée.",
             )
 
+        # Un seul instantané pour le snapshot PV, la colonne `sealed_at` et le hash
+        # (évite un décalage hash / ligne DB si `NOW()` ≠ horloge applicative).
+        sealed_at = datetime.now(UTC)
         pv_snapshot = {
             "workspace_id": workspace_id,
             "session_id": session["id"],
             "sealed_by": user_id,
-            "sealed_at": datetime.now(UTC).isoformat(),
+            "sealed_at": sealed_at.isoformat(),
             "seal_comment": payload.seal_comment,
         }
         pv_json = json.dumps(pv_snapshot, sort_keys=True)
         seal_hash = hashlib.sha256(pv_json.encode()).hexdigest()
 
-        # PISTE A : éviter tenant_id vide pour INSERT CDE (UUID NOT NULL) si JWT / claims incomplets.
+        # CDE.tenant_id : session puis workspace — UUID NOT NULL (pas de chaîne vide).
         raw_tid = session.get("tenant_id")
         if raw_tid is None:
             ws_row = db_execute_one(
@@ -325,13 +332,14 @@ def seal_committee_session(
             """
             UPDATE committee_sessions
             SET session_status = 'sealed',
-                sealed_at = NOW(),
+                sealed_at = :sealed_at,
                 sealed_by = :uid,
                 seal_hash = :hash,
                 pv_snapshot = :pv
             WHERE id = :sid
             """,
             {
+                "sealed_at": sealed_at,
                 "uid": user_id,
                 "hash": seal_hash,
                 "pv": pv_json,
