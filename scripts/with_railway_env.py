@@ -6,6 +6,10 @@ Contourne le blocage PowerShell « exécution de scripts désactivée » (pas be
 Usage (à la racine du dépôt) :
     python scripts/with_railway_env.py python scripts/diagnose_railway_migrations.py
     python scripts/with_railway_env.py python scripts/apply_railway_migrations_safe.py --apply
+
+Opt-out : si ``DATABASE_URL`` était déjà exportée dans le shell (ex. Postgres local)
+et que vous devez la conserver tout en chargeant ``RAILWAY_DATABASE_URL`` depuis le
+fichier, définir ``WITH_RAILWAY_ENV_PRESERVE_DATABASE_URL=1`` avant l'appel.
 """
 
 from __future__ import annotations
@@ -34,22 +38,23 @@ def main() -> int:
         )
         return 1
 
-    original_database_url = os.environ.get("DATABASE_URL")
+    # Valeur shell avant .env — pour opt-out si l'utilisateur a déjà fixé DATABASE_URL.
+    prior_database_url = os.environ.get("DATABASE_URL")
+
     load_dotenv(ENV_FILE, override=True)
 
     # ETL et src/db/core.get_connection() lisent DATABASE_URL ; les scripts
     # Alembic utilisent RAILWAY_DATABASE_URL via dms_pg_connect. Aligner ici
-    # pour que les commandes lancées via ce fichier ciblent Railway.
-    #
-    # Opt-out: WITH_RAILWAY_ENV_PRESERVE_DATABASE_URL=1 préserve une valeur
-    # DATABASE_URL explicitement fournie par l'utilisateur avant l'appel.
+    # pour que les commandes lancées via ce fichier ciblent Railway par défaut.
+    # Opt-out : WITH_RAILWAY_ENV_PRESERVE_DATABASE_URL=1 restaure DATABASE_URL
+    # telle qu'exportée dans le shell avant cet appel.
     _rail = os.environ.get("RAILWAY_DATABASE_URL", "").strip()
     _preserve_database_url = (
         os.environ.get("WITH_RAILWAY_ENV_PRESERVE_DATABASE_URL", "").strip() == "1"
     )
     if _rail:
-        if _preserve_database_url and original_database_url is not None:
-            os.environ["DATABASE_URL"] = original_database_url
+        if _preserve_database_url and prior_database_url is not None:
+            os.environ["DATABASE_URL"] = prior_database_url
         else:
             os.environ["DATABASE_URL"] = _rail
 
