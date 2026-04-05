@@ -12,6 +12,17 @@ Patch M4 :
   - insert_vendor : ON CONFLICT (fingerprint) DO NOTHING RETURNING vendor_id
   - get_next_sequence : regex ~ au lieu de LIKE
   - Paramètres badge activité ajoutés (activity_status, verified_by, verification_source)
+
+VÉRIFICATION SCHÉMA (2026-04-04) :
+  insert_vendor() est conforme au schéma post-migration 043 + m4_patch_a.
+  Colonnes INSERT : vendor_id, fingerprint, name_raw, name_normalized,
+    canonical_name, zone_raw, zone_normalized, region_code, category_raw,
+    email, phone, email_verified, activity_status, verified_by,
+    verification_source, is_active, source.
+  Valeurs activity_status valides : VERIFIED_ACTIVE | UNVERIFIED | INACTIVE | GHOST_SUSPECTED.
+  canonical_name calculé comme name_normalized|region_code (cohérent avec m4_patch_a).
+  Aucune modification requise — ce fichier est la source de vérité SQL.
+  Voir scripts/README_VENDOR_IMPORT.md pour la procédure d'import complète.
 """
 
 import hashlib
