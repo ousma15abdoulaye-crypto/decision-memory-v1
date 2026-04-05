@@ -34,14 +34,24 @@ def main() -> int:
         )
         return 1
 
+    original_database_url = os.environ.get("DATABASE_URL")
     load_dotenv(ENV_FILE, override=True)
 
     # ETL et src/db/core.get_connection() lisent DATABASE_URL ; les scripts
     # Alembic utilisent RAILWAY_DATABASE_URL via dms_pg_connect. Aligner ici
     # pour que les commandes lancées via ce fichier ciblent Railway.
+    #
+    # Opt-out: WITH_RAILWAY_ENV_PRESERVE_DATABASE_URL=1 préserve une valeur
+    # DATABASE_URL explicitement fournie par l'utilisateur avant l'appel.
     _rail = os.environ.get("RAILWAY_DATABASE_URL", "").strip()
+    _preserve_database_url = (
+        os.environ.get("WITH_RAILWAY_ENV_PRESERVE_DATABASE_URL", "").strip() == "1"
+    )
     if _rail:
-        os.environ["DATABASE_URL"] = _rail
+        if _preserve_database_url and original_database_url is not None:
+            os.environ["DATABASE_URL"] = original_database_url
+        else:
+            os.environ["DATABASE_URL"] = _rail
 
     if len(sys.argv) < 2:
         print(
