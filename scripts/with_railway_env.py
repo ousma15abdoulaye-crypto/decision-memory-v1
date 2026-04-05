@@ -36,6 +36,13 @@ def main() -> int:
 
     load_dotenv(ENV_FILE, override=True)
 
+    # ETL et src/db/core.get_connection() lisent DATABASE_URL ; les scripts
+    # Alembic utilisent RAILWAY_DATABASE_URL via dms_pg_connect. Aligner ici
+    # pour que les commandes lancées via ce fichier ciblent Railway.
+    _rail = os.environ.get("RAILWAY_DATABASE_URL", "").strip()
+    if _rail:
+        os.environ["DATABASE_URL"] = _rail
+
     if len(sys.argv) < 2:
         print(
             "Usage: python scripts/with_railway_env.py <commande> [args...]\n"
