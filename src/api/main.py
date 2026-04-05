@@ -19,6 +19,9 @@ from fastapi import FastAPI
 # ── Routers OBLIGATOIRES — import direct, aucun try/except ───────────────────
 from src.api.cases import router as _cases_router
 from src.api.health import router as _health_router
+from src.api.routers.committee_sessions import router as committee_sessions_router
+from src.api.routers.market import router as market_router
+from src.api.routers.workspaces import router as workspaces_router
 from src.auth_router import router as _auth_router
 from src.couche_a.criteria.router import router as criteria_router
 
@@ -146,7 +149,8 @@ async def lifespan(app: FastAPI):
     active = [name for name, r in _optional_routers.items() if r is not None]
     inactive = [name for name, r in _optional_routers.items() if r is None]
     logger.info(
-        "[startup] Routers obligatoires : auth, cases, health, criteria — ACTIFS"
+        "[startup] Routers obligatoires : auth, cases, health, criteria, "
+        "workspaces (W1), market (W2), committee_sessions (W3) — ACTIFS"
     )
     if active:
         logger.info("[startup] Routers optionnels actifs : %s", active)
@@ -193,6 +197,11 @@ app.include_router(criteria_router)
 app.include_router(_auth_router)
 app.include_router(_cases_router)
 app.include_router(_health_router)
+
+# V4.2.0 — P0-OPS-01 (préfixes /api/* déjà définis sur chaque APIRouter ; pas de prefix ici)
+app.include_router(workspaces_router)
+app.include_router(committee_sessions_router)
+app.include_router(market_router)
 
 # Optionnels
 for _router in [
