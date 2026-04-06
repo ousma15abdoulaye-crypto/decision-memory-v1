@@ -1,28 +1,28 @@
 # P0 — Livrable 3 : Pipeline d’extraction documentaire
 
-**Principe** : deux chemins principaux — **(A)** cas legacy `/api/cases/...` uploads + extraction moteur [`src/couche_a/routers.py`](../../src/couche_a/routers.py) / [`src/extraction/engine.py`](../../src/extraction/engine.py) ; **(B)** campagne **annotation** Label Studio via [`services/annotation-backend/backend.py`](../../services/annotation-backend/backend.py) + orchestrateur M12 [`src/annotation/orchestrator.py`](../../src/annotation/orchestrator.py). Ne pas les confondre.
+**Principe** : deux chemins principaux — **(A)** cas legacy `/api/cases/...` uploads + extraction moteur [`src/couche_a/routers.py`](../../../src/couche_a/routers.py) / [`src/extraction/engine.py`](../../../src/extraction/engine.py) ; **(B)** campagne **annotation** Label Studio via [`services/annotation-backend/backend.py`](../../../services/annotation-backend/backend.py) + orchestrateur M12 [`src/annotation/orchestrator.py`](../../../src/annotation/orchestrator.py). Ne pas les confondre.
 
 ---
 
 ## 1. Upload (Couche A — cas)
 
-**Fichier** : [`src/couche_a/routers.py`](../../src/couche_a/routers.py)
+**Fichier** : [`src/couche_a/routers.py`](../../../src/couche_a/routers.py)
 
 | Sujet | Valeur / comportement |
 |-------|------------------------|
 | Formats MIME | `application/pdf`, DOCX OOXML, XLSX OOXML (`ALLOWED_MIME_TYPES`) |
 | Taille max | **50 MB** par fichier (`MAX_FILE_SIZE`) |
-| Validation | [`src/upload_security.py`](../../src/upload_security.py) `validate_upload_security` + quota `update_case_quota` |
+| Validation | [`src/upload_security.py`](../../../src/upload_security.py) `validate_upload_security` + quota `update_case_quota` |
 | Stockage disque | `data/uploads` (répertoire relatif, créé au chargement) |
 | Antivirus | **NON TRANCHÉ** dans ce fichier (pas d’appel explicite) |
 
-**Workspace / ZIP** : voir routes dans [`src/api/routers/workspaces.py`](../../src/api/routers/workspaces.py) (`source-package`, `upload-zip`) pour le flux process workspace — détails dans le même fichier (préparation Pass -1).
+**Workspace / ZIP** : voir routes dans [`src/api/routers/workspaces.py`](../../../src/api/routers/workspaces.py) (`source-package`, `upload-zip`) pour le flux process workspace — détails dans le même fichier (préparation Pass -1).
 
 ---
 
 ## 2. Pré-traitement & OCR
 
-**LLM / OCR** : constantes dans [`src/couche_a/llm_router.py`](../../src/couche_a/llm_router.py) :
+**LLM / OCR** : constantes dans [`src/couche_a/llm_router.py`](../../../src/couche_a/llm_router.py) :
 
 - `TIER_1_MODEL` (défaut `mistral-large-latest`)
 - `TIER_1_OCR_MODEL` (défaut `mistral-ocr-latest`)
@@ -38,19 +38,19 @@
 
 | Composant | Rôle |
 |-----------|------|
-| [`src/extraction/engine.py`](../../src/extraction/engine.py) | Moteur extraction couche extraction legacy / jobs |
-| [`services/annotation-backend/backend.py`](../../services/annotation-backend/backend.py) | API Mistral, post-traitement, validation `DMSAnnotation` via [`prompts/schema_validator.py`](../../services/annotation-backend/prompts/schema_validator.py) (**gelé sans GO CTO**) |
-| [`src/annotation/document_classifier.py`](../../src/annotation/document_classifier.py) | Classification déterministe avant / avec LLM (`TaxonomyCore`, `DocumentRole`) |
+| [`src/extraction/engine.py`](../../../src/extraction/engine.py) | Moteur extraction couche extraction legacy / jobs |
+| [`services/annotation-backend/backend.py`](../../../services/annotation-backend/backend.py) | API Mistral, post-traitement, validation `DMSAnnotation` via [`prompts/schema_validator.py`](../../../services/annotation-backend/prompts/schema_validator.py) (**gelé sans GO CTO**) |
+| [`src/annotation/document_classifier.py`](../../../src/annotation/document_classifier.py) | Classification déterministe avant / avec LLM (`TaxonomyCore`, `DocumentRole`) |
 
-**Prompt exact** : [`services/annotation-backend/prompts/`](../../services/annotation-backend/prompts/) — fichier `SYSTEM_PROMPT` et validateur ; **ne pas recopier ici** (taille) ; référence de vérité dans le dépôt.
+**Prompt exact** : [`services/annotation-backend/prompts/`](../../../services/annotation-backend/prompts/) — fichier `SYSTEM_PROMPT` et validateur ; **ne pas recopier ici** (taille) ; référence de vérité dans le dépôt.
 
-**Types documents SCI (RCCM, NIF, etc.)** : le classifieur expose des énumérations **génériques** (DAO, offre, etc.). Une **liste exhaustive alignée RCCM/NIF/Quitus** par libellé métier **n’apparaît pas** comme enums dans [`document_classifier.py`](../../src/annotation/document_classifier.py) — **NON TRANCHÉ** pour correspondance 1:1 avec la taxonomie métier SCI sans revue métier complémentaire.
+**Types documents SCI (RCCM, NIF, etc.)** : le classifieur expose des énumérations **génériques** (DAO, offre, etc.). Une **liste exhaustive alignée RCCM/NIF/Quitus** par libellé métier **n’apparaît pas** comme enums dans [`document_classifier.py`](../../../src/annotation/document_classifier.py) — **NON TRANCHÉ** pour correspondance 1:1 avec la taxonomie métier SCI sans revue métier complémentaire.
 
 ---
 
 ## 4. Scoring de confiance
 
-**Module** : [`src/cognitive/confidence_envelope.py`](../../src/cognitive/confidence_envelope.py)
+**Module** : [`src/cognitive/confidence_envelope.py`](../../../src/cognitive/confidence_envelope.py)
 
 - Seuils de **régime** : `overall >= 0.8` → vert ; `>= 0.5` → jaune ; sinon rouge (`regime_from_overall`).
 - `requires_hitl(overall)` : vrai si régime rouge.
@@ -79,16 +79,16 @@
 
 | Zone | Fichiers clés |
 |------|----------------|
-| Upload handler | [`src/couche_a/routers.py`](../../src/couche_a/routers.py) |
-| Extracteur | [`src/extraction/engine.py`](../../src/extraction/engine.py), [`src/couche_a/llm_router.py`](../../src/couche_a/llm_router.py) |
-| Annotation service | [`services/annotation-backend/backend.py`](../../services/annotation-backend/backend.py) |
-| Orchestrateur | [`src/annotation/orchestrator.py`](../../src/annotation/orchestrator.py) |
-| Scoring confiance | [`src/cognitive/confidence_envelope.py`](../../src/cognitive/confidence_envelope.py) |
+| Upload handler | [`src/couche_a/routers.py`](../../../src/couche_a/routers.py) |
+| Extracteur | [`src/extraction/engine.py`](../../../src/extraction/engine.py), [`src/couche_a/llm_router.py`](../../../src/couche_a/llm_router.py) |
+| Annotation service | [`services/annotation-backend/backend.py`](../../../services/annotation-backend/backend.py) |
+| Orchestrateur | [`src/annotation/orchestrator.py`](../../../src/annotation/orchestrator.py) |
+| Scoring confiance | [`src/cognitive/confidence_envelope.py`](../../../src/cognitive/confidence_envelope.py) |
 | Tests | `tests/annotation/`, `tests/test_extraction_*`, `tests/cognitive/`, etc. |
 
 ---
 
 ## 7. Limitations avouées
 
-- Pipeline **Couche A** (`run_pipeline_a_*` dans [`src/couche_a/pipeline/service.py`](../../src/couche_a/pipeline/service.py)) est un **autre** orchestrateur (étapes `preflight`, `scoring`, …) pour les **cases** — voir INV-P* dans ce fichier.
-- Constitution **online-only** : [`src/core/config.py`](../../src/core/config.py) `INVARIANTS["online_only"]`.
+- Pipeline **Couche A** (`run_pipeline_a_*` dans [`src/couche_a/pipeline/service.py`](../../../src/couche_a/pipeline/service.py)) est un **autre** orchestrateur (étapes `preflight`, `scoring`, …) pour les **cases** — voir INV-P* dans ce fichier.
+- Constitution **online-only** : [`src/core/config.py`](../../../src/core/config.py) `INVARIANTS["online_only"]`.

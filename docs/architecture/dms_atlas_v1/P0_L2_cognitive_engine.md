@@ -1,7 +1,7 @@
 # P0 — Livrable 2 : Moteur cognitif E0→E6
 
 **Statut** : spécification alignée sur le **code réel** (pas de FSM persistante dédiée).  
-**Sources** : [`src/cognitive/cognitive_state.py`](../../src/cognitive/cognitive_state.py), [`src/api/cognitive_helpers.py`](../../src/api/cognitive_helpers.py), [`src/api/routers/workspaces.py`](../../src/api/routers/workspaces.py), [`tests/cognitive/test_cognitive_state.py`](../../tests/cognitive/test_cognitive_state.py).
+**Sources** : [`src/cognitive/cognitive_state.py`](../../../src/cognitive/cognitive_state.py), [`src/api/cognitive_helpers.py`](../../../src/api/cognitive_helpers.py), [`src/api/routers/workspaces.py`](../../../src/api/routers/workspaces.py), [`tests/cognitive/test_cognitive_state.py`](../../../tests/cognitive/test_cognitive_state.py).
 
 ## 1. Nature de l’implémentation
 
@@ -9,14 +9,14 @@
 
 - **`cognitive_state` n’est pas une colonne SQL** : l’état E0–E6 est calculé à la volée par `compute_cognitive_state(CognitiveFacts)`.
 - **`CognitiveFacts`** (`dataclass`) contient : `workspace_status`, `has_source_package`, `bundle_count`, `bundles_all_qualified`, `evaluation_frame_complete`.
-- **Chargement DB** : `load_cognitive_facts(conn, workspace_row)` dans [`src/api/cognitive_helpers.py`](../../src/api/cognitive_helpers.py) :
+- **Chargement DB** : `load_cognitive_facts(conn, workspace_row)` dans [`src/api/cognitive_helpers.py`](../../../src/api/cognitive_helpers.py) :
   - `has_source_package` : `EXISTS` sur `source_package_documents`.
-  - `bundle_count` / `bundles_all_qualified` : agrégation sur `supplier_bundles` (priorité à `qualification_status = 'qualified'`, repli sur `bundle_status = 'complete'`).
+  - `bundle_count` / `bundles_all_qualified` : agrégation sur `supplier_bundles`, basée nominalement sur `qualification_status = 'qualified'` ; le recours à `bundle_status = 'complete'` n’est qu’un repli technique en cas d’exception (par ex. colonne `qualification_status` absente), pas une règle fonctionnelle normale.
   - `evaluation_frame_complete` : dernière ligne `evaluation_documents.scores_matrix` non vide.
 
 ### 1.2 Machine à états distincte : pipeline d’annotation (M12)
 
-Ne pas fusionner avec E0–E6. La FSM **`AnnotationPipelineState`** vit dans [`src/annotation/orchestrator.py`](../../src/annotation/orchestrator.py) (`ingested`, `routed`, `annotated_validated`, etc.). C’est le cycle **ingestion → annotation Label Studio**, pas le cycle **process workspace** SCI.
+Ne pas fusionner avec E0–E6. La FSM **`AnnotationPipelineState`** vit dans [`src/annotation/orchestrator.py`](../../../src/annotation/orchestrator.py) (`ingested`, `routed`, `annotated_validated`, etc.). C’est le cycle **ingestion → annotation Label Studio**, pas le cycle **process workspace** SCI.
 
 ---
 
@@ -58,7 +58,7 @@ Le fichier ne définit **pas** une table complète pré/post par état. Les **gu
 Les transitions de statut passent par `PATCH /api/workspaces/{id}/status` :
 
 - Fonction `_permission_for_status_transition` : cibles `in_deliberation`, `sealed`, `closed` → permission **`committee.manage`** ; sinon **`bundle.upload`**.
-- Vérification : `require_workspace_permission(...)` dans [`src/couche_a/auth/workspace_access.py`](../../src/couche_a/auth/workspace_access.py).
+- Vérification : `require_workspace_permission(...)` dans [`src/couche_a/auth/workspace_access.py`](../../../src/couche_a/auth/workspace_access.py).
 
 Il n’existe **pas** de matrice 17×6 canonique dans le dépôt — seulement cette règle + accès workspace (`require_workspace_access`).
 
@@ -70,7 +70,7 @@ Il n’existe **pas** de matrice 17×6 canonique dans le dépôt — seulement c
 
 ## 3. Transitions E(n)→E(n+1)
 
-Les transitions **métier** opérées sur `process_workspaces.status` sont exposées via **`PATCH /api/workspaces/{workspace_id}/status`** ([`workspaces.py`](../../src/api/routers/workspaces.py)) :
+Les transitions **métier** opérées sur `process_workspaces.status` sont exposées via **`PATCH /api/workspaces/{workspace_id}/status`** ([`workspaces.py`](../../../src/api/routers/workspaces.py)) :
 
 1. Chargement `facts = load_cognitive_facts`.
 2. `validate_transition(current, target, facts)` ou conflit 409.
@@ -86,9 +86,9 @@ Les transitions **métier** opérées sur `process_workspaces.status` sont expos
 
 ## 4. Relation E0–E6 et draft / active / sealed (questions mandat)
 
-- Le code utilise **`process_workspaces.status`** avec valeurs : `draft`, `assembling`, `assembled`, `in_analysis`, `analysis_complete`, `in_deliberation`, `sealed`, `closed`, `cancelled` ([`VALID_WORKSPACE_STATUSES`](../../src/api/routers/workspaces.py)).
+- Le code utilise **`process_workspaces.status`** avec valeurs : `draft`, `assembling`, `assembled`, `in_analysis`, `analysis_complete`, `in_deliberation`, `sealed`, `closed`, `cancelled` ([`VALID_WORKSPACE_STATUSES`](../../../src/api/routers/workspaces.py)).
 - **« active »** n’apparaît pas comme valeur de statut workspace dans ce fichier.
-- **Comité** : statuts de session mappés côté API (`map_committee_session_row`) — `active` → affichage `draft` pour l’API (voir [`cognitive_helpers.py`](../../src/api/cognitive_helpers.py)). **Système distinct** du statut workspace.
+- **Comité** : statuts de session mappés côté API (`map_committee_session_row`) — `active` → affichage `draft` pour l’API (voir [`cognitive_helpers.py`](../../../src/api/cognitive_helpers.py)). **Système distinct** du statut workspace.
 
 **Primaire** : statut workspace + faits DB pour E0–E6 ; la FSM annotation est **orthogonale**.
 
@@ -109,11 +109,11 @@ Les transitions **métier** opérées sur `process_workspaces.status` sont expos
 
 | Rôle | Fichier |
 |------|---------|
-| Calcul E0–E6 | [`src/cognitive/cognitive_state.py`](../../src/cognitive/cognitive_state.py) |
+| Calcul E0–E6 | [`src/cognitive/cognitive_state.py`](../../../src/cognitive/cognitive_state.py) |
 | Guards | `validate_transition` (même fichier) |
-| Faits DB | [`src/api/cognitive_helpers.py`](../../src/api/cognitive_helpers.py) |
-| Route transition + exposition | [`src/api/routers/workspaces.py`](../../src/api/routers/workspaces.py) `patch_workspace_status`, `get_workspace` |
-| Tests | [`tests/cognitive/test_cognitive_state.py`](../../tests/cognitive/test_cognitive_state.py) |
+| Faits DB | [`src/api/cognitive_helpers.py`](../../../src/api/cognitive_helpers.py) |
+| Route transition + exposition | [`src/api/routers/workspaces.py`](../../../src/api/routers/workspaces.py) `patch_workspace_status`, `get_workspace` |
+| Tests | [`tests/cognitive/test_cognitive_state.py`](../../../tests/cognitive/test_cognitive_state.py) |
 
 ---
 

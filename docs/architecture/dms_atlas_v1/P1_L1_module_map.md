@@ -72,7 +72,7 @@ flowchart TB
 
 ## 4. Dépendances externes (principales)
 
-Voir [`requirements.txt`](../../requirements.txt) — inclut notamment : FastAPI, uvicorn, psycopg, SQLAlchemy (si utilisé), jose (JWT), slowapi, mistralai, pydantic, etc.
+Voir [`requirements.txt`](../../../requirements.txt) — inclut notamment : FastAPI, uvicorn, psycopg, SQLAlchemy (si utilisé), jose (JWT), slowapi, mistralai, pydantic, etc.
 
 ---
 
@@ -89,7 +89,7 @@ Voir [`requirements.txt`](../../requirements.txt) — inclut notamment : FastAPI
 |------|----------------|-------------|
 | `tests/` | 267 | 35 160 |
 
-**Couverture %** : **non mesuré automatiquement dans ce livrable** — voir CI ([`ci-main.yml`](../../.github/workflows/ci-main.yml)) pour la présence ou l’absence d’une étape `pytest-cov`.
+**Couverture %** : **non mesuré automatiquement dans ce livrable** — voir CI ([`ci-main.yml`](../../../.github/workflows/ci-main.yml)) pour la présence ou l’absence d’une étape `pytest-cov`.
 
 ---
 

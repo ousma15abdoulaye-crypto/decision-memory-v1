@@ -37,8 +37,8 @@ Aucun autre répertoire n’a été modifié pour cette livraison.
 ## Glossaire rapide : E0–E6 vs statuts workspace
 
 - **Source de vérité en base** : colonne `process_workspaces.status` (et données associées : packages source, bundles, scores). Il n’existe **pas** de colonne `cognitive_state` persistée comme autorité (projection — INV-C01, voir [`P0_L2_cognitive_engine.md`](P0_L2_cognitive_engine.md)).
-- **E0–E6** : identifiants dérivés par `compute_cognitive_state()` dans [`src/cognitive/cognitive_state.py`](../../src/cognitive/cognitive_state.py).
-- **FSM annotation (M12)** : états distincts (`AnnotationPipelineState` dans [`src/annotation/orchestrator.py`](../../src/annotation/orchestrator.py)) — ne pas confondre avec E0–E6.
+- **E0–E6** : identifiants dérivés par `compute_cognitive_state()` dans [`src/cognitive/cognitive_state.py`](../../../src/cognitive/cognitive_state.py).
+- **FSM annotation (M12)** : états distincts (`AnnotationPipelineState` dans [`src/annotation/orchestrator.py`](../../../src/annotation/orchestrator.py)) — ne pas confondre avec E0–E6.
 
 ## Clause de complétude (auto-évaluation)
 
@@ -49,4 +49,4 @@ Aucun autre répertoire n’a été modifié pour cette livraison.
 
 ## Référence d’autorité (rappel)
 
-Hiérarchie : `docs/freeze/DMS_V4.1.0_FREEZE.md`, `docs/freeze/CONTEXT_ANCHOR.md`, mandats CTO — voir [`CLAUDE.md`](../../CLAUDE.md).
+Hiérarchie : `docs/freeze/DMS_V4.1.0_FREEZE.md`, `docs/freeze/CONTEXT_ANCHOR.md`, mandats CTO — voir [`CLAUDE.md`](../../../CLAUDE.md).

@@ -4,7 +4,7 @@
 
 Le DDL effectif en production est la **composition de toutes les migrations** Alembic dans l’ordre du graphe de révisions.
 
-- **Répertoire** : [`alembic/versions/`](../../alembic/versions/) — **106** fichiers `.py` (mesure 2026-04-06).
+- **Répertoire** : [`alembic/versions/`](../../../alembic/versions/) — **106** fichiers `.py` (mesure 2026-04-06).
 - **Commande de vérité** : `alembic upgrade head` sur une base PostgreSQL vierge, puis `pg_dump --schema-only` (ou inspection `information_schema`).
 
 **Note honnête** : tout DDL « prod » peut diverger si des correctifs manuels ont été appliqués hors migrations — **NON TRANCHÉ** sans audit DBA.
@@ -67,7 +67,7 @@ Le détail SQL est **dans chaque fichier de migration** — recopier l’intégr
 
 ## 5. Liste ordonnée des migrations
 
-Voir `alembic heads` et `alembic history` sur la branche courante — **tête unique** imposée par CI ([`.github/workflows/ci-main.yml`](../../.github/workflows/ci-main.yml) garde « single head »).
+Voir `alembic heads` et `alembic history` sur la branche courante — **tête unique** imposée par CI ([`.github/workflows/ci-main.yml`](../../../.github/workflows/ci-main.yml) garde « single head »).
 
 ---
 

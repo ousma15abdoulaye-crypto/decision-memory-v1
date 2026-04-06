@@ -9,31 +9,31 @@ Tout schéma Pydantic complet par endpoint est **dans** ce JSON (`components.sch
 
 ## 2. Regroupement par domaine (inventaire fonctionnel)
 
-Les routeurs sont montés dans [`main.py`](../../main.py). Liste des familles :
+Les routeurs sont montés dans [`main.py`](../../../main.py). Liste des familles :
 
 | Domaine | Module / préfixe typique |
 |---------|---------------------------|
-| AUTH | [`src/auth_router.py`](../../src/auth_router.py) `/auth` |
-| Health | [`src/api/health.py`](../../src/api/health.py) `/api/health` |
-| Cases | [`src/api/cases.py`](../../src/api/cases.py) |
-| Documents | [`src/api/documents.py`](../../src/api/documents.py) |
-| Analysis | [`src/api/analysis.py`](../../src/api/analysis.py) |
-| Extractions | [`src/api/routes/extractions.py`](../../src/api/routes/extractions.py) |
-| Upload Couche A | [`src/couche_a/routers.py`](../../src/couche_a/routers.py) `/api/cases` |
-| Regulatory profile | [`src/api/routes/regulatory_profile.py`](../../src/api/routes/regulatory_profile.py) |
-| Committee | [`src/couche_a/committee/router.py`](../../src/couche_a/committee/router.py) |
-| Scoring | [`src/couche_a/scoring/api.py`](../../src/couche_a/scoring/api.py) |
-| Criteria | [`src/couche_a/criteria/router.py`](../../src/couche_a/criteria/router.py) |
-| Pipeline A | [`src/couche_a/pipeline/router.py`](../../src/couche_a/pipeline/router.py) (optionnel) |
-| Analysis summary | [`src/couche_a/analysis_summary/router.py`](../../src/couche_a/analysis_summary/router.py) (optionnel) |
-| Evaluation M14 | [`src/api/routes/evaluation.py`](../../src/api/routes/evaluation.py) (optionnel) |
+| AUTH | [`src/auth_router.py`](../../../src/auth_router.py) `/auth` |
+| Health | [`src/api/health.py`](../../../src/api/health.py) `/api/health` |
+| Cases | [`src/api/cases.py`](../../../src/api/cases.py) |
+| Documents | [`src/api/documents.py`](../../../src/api/documents.py) |
+| Analysis | [`src/api/analysis.py`](../../../src/api/analysis.py) |
+| Extractions | [`src/api/routes/extractions.py`](../../../src/api/routes/extractions.py) |
+| Upload Couche A | [`src/couche_a/routers.py`](../../../src/couche_a/routers.py) `/api/cases` |
+| Regulatory profile | [`src/api/routes/regulatory_profile.py`](../../../src/api/routes/regulatory_profile.py) |
+| Committee | [`src/couche_a/committee/router.py`](../../../src/couche_a/committee/router.py) |
+| Scoring | [`src/couche_a/scoring/api.py`](../../../src/couche_a/scoring/api.py) |
+| Criteria | [`src/couche_a/criteria/router.py`](../../../src/couche_a/criteria/router.py) |
+| Pipeline A | [`src/couche_a/pipeline/router.py`](../../../src/couche_a/pipeline/router.py) (optionnel) |
+| Analysis summary | [`src/couche_a/analysis_summary/router.py`](../../../src/couche_a/analysis_summary/router.py) (optionnel) |
+| Evaluation M14 | [`src/api/routes/evaluation.py`](../../../src/api/routes/evaluation.py) (optionnel) |
 | Geo / Vendors / Mercuriale / Price check | Routers optionnels sous `src/geo`, `src/vendors`, `src/api/routers/*` |
-| **Workspaces W1** | [`src/api/routers/workspaces.py`](../../src/api/routers/workspaces.py) `/api/workspaces` |
-| **Market W2** | [`src/api/routers/market.py`](../../src/api/routers/market.py) |
-| **Committee sessions W3** | [`src/api/routers/committee_sessions.py`](../../src/api/routers/committee_sessions.py) |
-| Documents BLOC7 | [`src/api/routers/documents.py`](../../src/api/routers/documents.py) (préfixe committee PV) |
-| M16 comparative | [`src/api/routers/m16_comparative.py`](../../src/api/routers/m16_comparative.py) |
-| WebSocket | `/ws/workspace/{workspace_id}/events` — [`src/api/ws/workspace_events.py`](../../src/api/ws/workspace_events.py) |
+| **Workspaces W1** | [`src/api/routers/workspaces.py`](../../../src/api/routers/workspaces.py) `/api/workspaces` |
+| **Market W2** | [`src/api/routers/market.py`](../../../src/api/routers/market.py) |
+| **Committee sessions W3** | [`src/api/routers/committee_sessions.py`](../../../src/api/routers/committee_sessions.py) |
+| Documents BLOC7 | [`src/api/routers/documents.py`](../../../src/api/routers/documents.py) (préfixe committee PV) |
+| M16 comparative | [`src/api/routers/m16_comparative.py`](../../../src/api/routers/m16_comparative.py) |
+| WebSocket | `/ws/workspace/{workspace_id}/events` — [`src/api/ws/workspace_events.py`](../../../src/api/ws/workspace_events.py) |
 
 ### Routes canon mentionnées dans le mandat — statut
 
@@ -48,8 +48,8 @@ Les routeurs sont montés dans [`main.py`](../../main.py). Liste des familles :
 
 ## 3. Authentification et permissions
 
-- **JWT** : dépendance `get_current_user` — [`src/couche_a/auth/dependencies.py`](../../src/couche_a/auth/dependencies.py).
-- **Workspace** : `require_workspace_access`, `require_workspace_permission` — [`src/couche_a/auth/workspace_access.py`](../../src/couche_a/auth/workspace_access.py).
+- **JWT** : dépendance `get_current_user` — [`src/couche_a/auth/dependencies.py`](../../../src/couche_a/auth/dependencies.py).
+- **Workspace** : `require_workspace_access`, `require_workspace_permission` — [`src/couche_a/auth/workspace_access.py`](../../../src/couche_a/auth/workspace_access.py).
 - **Permissions nommées** (exemples utilisés) : `workspace.create`, `workspace.read`, `bundle.upload`, `committee.manage` — voir usages dans `workspaces` et migrations RBAC `075`.
 
 ---
@@ -59,8 +59,8 @@ Les routeurs sont montés dans [`main.py`](../../main.py). Liste des familles :
 | Mécanisme | Détail |
 |-----------|--------|
 | **slowapi** (`src/ratelimit.py`) | Limiter Redis ou `memory://` ; défaut **`100/minute`** par IP si non `TESTING` |
-| **Routes auth** | Décorateurs `@limiter.limit` sur `/auth/token` (5/min), `/auth/register` (3/h), `/auth/me` (60/min) — [`src/auth_router.py`](../../src/auth_router.py) |
-| **Middleware Redis** | IP **100/min**, user **200/min** — [`src/couche_a/auth/middleware.py`](../../src/couche_a/auth/middleware.py) `RedisRateLimitMiddleware` |
+| **Routes auth** | Décorateurs `@limiter.limit` sur `/auth/token` (5/min), `/auth/register` (3/h), `/auth/me` (60/min) — [`src/auth_router.py`](../../../src/auth_router.py) |
+| **Middleware Redis** | IP **100/min**, user **200/min** — [`src/couche_a/auth/middleware.py`](../../../src/couche_a/auth/middleware.py) `RedisRateLimitMiddleware` |
 
 ---
 
@@ -72,7 +72,7 @@ Les routeurs sont montés dans [`main.py`](../../main.py). Liste des familles :
 
 ## 6. HTTP 501 documentés
 
-[`main.py`](../../main.py) `OPENAPI_DESCRIPTION` mentionne des **501** volontaires (ex. `/api/scoring/calculate`, `/api/analyze` selon étape non livrée). Vérifier les `responses` par route dans **ANNEX_A**.
+[`main.py`](../../../main.py) `OPENAPI_DESCRIPTION` mentionne des **501** volontaires (ex. `/api/scoring/calculate`, `/api/analyze` selon étape non livrée). Vérifier les `responses` par route dans **ANNEX_A**.
 
 ---
 

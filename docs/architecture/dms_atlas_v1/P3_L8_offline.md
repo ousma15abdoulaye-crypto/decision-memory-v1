@@ -2,12 +2,12 @@
 
 ## 8.1 État actuel
 
-- **Constitution** : [`src/core/config.py`](../../src/core/config.py) — `INVARIANTS["online_only"] = True` — le produit cible **PostgreSQL online**.
-- **Mode extraction offline** : [`src/couche_a/extraction_models.py`](../../src/couche_a/extraction_models.py) définit un `Tier.T4_OFFLINE` — signal de conception, **NON** une garantie de sync offline complète pour l’UI.
+- **Constitution** : [`src/core/config.py`](../../../src/core/config.py) — `INVARIANTS["online_only"] = True` — le produit cible **PostgreSQL online**.
+- **Mode extraction offline** : [`src/couche_a/extraction_models.py`](../../../src/couche_a/extraction_models.py) définit un `Tier.T4_OFFLINE` — signal de conception, **NON** une garantie de sync offline complète pour l’UI.
 
 ## 8.2 File d’attente / reconciliation
 
-- **Workers ARQ** : [`src/workers/`](../../src/workers/) — jobs asynchrones ; pas une « queue offline client ».
+- **Workers ARQ** : [`src/workers/`](../../../src/workers/) — jobs asynchrones ; pas une « queue offline client ».
 - **Reconciliation mutations client** type PWA : **NON IMPLÉMENTÉ** dans ce dépôt backend.
 
 ## 8.3 Mesures terrain (Mopti → Railway)
