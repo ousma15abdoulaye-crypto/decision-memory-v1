@@ -2,8 +2,25 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import pytest
+
 from src.services import pv_builder
 from src.services.document_service import _canonical_hash
+
+
+@pytest.fixture(autouse=True)
+def _stub_m16_extras(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Les tests passent un faux ``conn`` ; M16 extras requiert un wrapper psycopg."""
+    monkeypatch.setattr(
+        pv_builder,
+        "fetch_m16_evaluation_extras",
+        lambda _conn, _wid: {
+            "domains": [],
+            "assessments": [],
+            "price_lines": [],
+            "price_values": [],
+        },
+    )
 
 
 def test_pv_builder_has_9_blocks_and_kill_list_absent(monkeypatch) -> None:

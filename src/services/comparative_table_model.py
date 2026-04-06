@@ -19,7 +19,7 @@ def build_comparative_table_model(workspace_id: str) -> dict[str, Any]:
     """
     with get_connection() as conn:
         ev = build_evaluation_projection(conn, workspace_id)
-    return {
+    out: dict[str, Any] = {
         "workspace_id": workspace_id,
         "comparative_model_version": COMPARATIVE_MODEL_VERSION,
         "source": "live_db",
@@ -27,6 +27,9 @@ def build_comparative_table_model(workspace_id: str) -> dict[str, Any]:
         "bundles": ev["bundles"],
         "scores_matrix": ev["scores_matrix"],
     }
+    if "m16" in ev:
+        out["m16"] = ev["m16"]
+    return out
 
 
 def build_comparative_table_model_from_snapshot(
@@ -39,7 +42,7 @@ def build_comparative_table_model_from_snapshot(
     proc = snapshot.get("process") or {}
     ev = snapshot.get("evaluation") or {}
     meta = snapshot.get("meta") or {}
-    return {
+    row: dict[str, Any] = {
         "workspace_id": proc.get("workspace_id"),
         "comparative_model_version": COMPARATIVE_MODEL_VERSION,
         "source": "pv_snapshot_sealed",
@@ -52,3 +55,6 @@ def build_comparative_table_model_from_snapshot(
             "generated_from_session_id": meta.get("generated_from_session_id"),
         },
     }
+    if isinstance(ev.get("m16"), dict):
+        row["m16"] = ev["m16"]
+    return row
