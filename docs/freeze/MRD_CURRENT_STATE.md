@@ -613,3 +613,32 @@ scripts/validate_v420_pilote_gates.py
 | cause constatée (logs) | `APIKeyMissingError` Mistral + Llama — aucune clé résolue dans le processus d’exécution |
 
 Preuve machine : `data/ingest/mandate_84pdf_001/MANDATE_DMS-MANDAT-PARSING-84PDF-001_MACHINE_REPORT.json` + `ingest_report.json` du même dossier.
+
+---
+
+## BLOC6 — pilote SCI Mali bout-en-bout (mandat DMS-BLOC6-PILOTE-SCI-MALI-001) — 2026-04-06
+
+| Champ | Valeur |
+|-------|--------|
+| rapport | `docs/ops/BLOC6_PILOT_SCI_MALI_REPORT.md` |
+| verdict | **ROUGE** — scellement `POST …/committee/seal` en **HTTP 500** sur prod au moment du run ; pas de `seal_hash` / `pv_snapshot` persistés (STOP 6) |
+| baseline dépôt (lecture) | `19d8578d3cb41fb977f57114cfe3b8df7ee62634` |
+| `workspace_id` pilote | `3a1ebd0e-dc79-4b40-bc94-dcae1de6d33f` |
+| `session_id` comité | `890d1984-b1b1-46c6-961e-b6e24225e13e` |
+| `reference_code` | `DAO-2026-MOPTI-017-94454af1bc` |
+| correctif dépôt (cause probable 500) | `src/api/routers/committee_sessions.py` — `session_id` snapshot PV en `str(session["id"])` avant `json.dumps` (UUID non sérialisable) |
+| suite | déployer l’API puis **re-lancer** le scellement sur un workspace de test ou rouvrir pilote pour verdict runtime à jour |
+
+---
+
+## BLOC 6 BIS — fix seal UUID (`feat/bloc6-bis-seal-uuid-fix`) — 2026-04-06
+
+| Champ | Valeur |
+|-------|--------|
+| mandat | correctif post-rapport BLOC 6 (UUID JSON + helper `safe_json_dumps`) |
+| verdict **code** | **VERT** — `src/utils/json_utils.py` + handler seal enrichi (`pv_snapshot` + comptage CDE) + tests `tests/test_json_utils_safe_dumps.py` |
+| verdict **prod** | **EN ATTENTE** — merge PR + déploiement Railway ; puis `POST …/committee/seal` à rejouer (session pilote encore **active** + workspace **in_deliberation** au 2026-04-06) |
+| `seal_hash` preview (prod) | **NULL** — aucun seal réussi en prod après correctif tant que déploiement + re-run non faits |
+| preuve SQL prod (lecture) | `committee_sessions` pilote : `seal_hash` / `pv_snapshot` / `sealed_at` NULL ; `reference_code` = `DAO-2026-MOPTI-017-94454af1bc` |
+| doc détaillée | `docs/ops/BLOC6_PILOT_SCI_MALI_REPORT.md` section « BLOC 6 BIS » |
+| escalade | si **500** après déploiement du fix : corps de réponse HTTP complet + logs — **STOP** BLOC 7 |
