@@ -12,6 +12,7 @@
 ║  Addendum 2026-04-06 : BLOC6 pilote SCI Mali — BLOC6_PILOT_SCI_MALI_REPORT.md — verdict ROUGE (seal HTTP 500 prod) ; fix UUID pv_snapshot committee_sessions ║
 ║  Addendum 2026-04-06 (BLOC6 BIS) : branche feat/bloc6-bis-seal-uuid-fix — safe_json_dumps + seal handler ; script bloc6_pilot_sci_mali_run.py versionné ; seal prod EN ATTENTE merge/deploy ║
 ║  Addendum 2026-04-06 — INCIDENT OPS E-98 : git clean sur non suivis → perte corpus M12 ; e49d4e64 scripts + squelettes ; suite 2026-04-06 : corpus restauré (addendum § E-98 suite) ║
+║  Addendum 2026-04-06 : PR #337 MERGÉ main 9d21a6b0 — DMS-MANDAT-HARDENING-PRODUCT-001 : PV snapshot meta+validate ; seal_hash aligné _canonical_hash (seal:{} avant hash) ; comparatif XLSX depuis snapshot scellé ; M14 persistence workspace_id ; scripts hardening_product_sql_checks ; docs ops HARDENING_* + gap matrix J1–J17 ; branche feat/hardening-product-pv-m14-2026-04-06 supprimée origin ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -101,6 +102,7 @@
 ║  PR #304           : MERGÉ — CLOS — branche feat/m15-activation-wartime supprimée origin ║
 ║  PR #324 (2026-04-05) : MERGÉ main 107d05a2 — BLOC3 : HTTP 500 POST /api/workspaces + GET /api/market/overview ; tenant UUID RLS ; market_signals_v2 ; ETL vendors table vendors ║
 ║  PR #325 (2026-04-05) : MERGÉ main a61b8eb9 — BLOC3 smoke A+B : 403 /committee = RBAC OK ; doc alignée Copilot ; BLOC3_PIPELINE_REPORT historique vs post-fix ║
+║  PR #337 (2026-04-06) : MERGÉ main 9d21a6b0 — squash — hardening product : PV seal pipeline + comparatif + M14 workspace_id + preuves ops (voir docs/ops/HARDENING_PRODUCT_STATUS.md) ║
 ║  parent 361b3787   : 91adc2ed — fix Dockerfile annotation-backend COPY procurement (#303) ║
 ║  (historique) main : 38733982 — Merge PR #292 feat/M13-regulatory-profile-engine-v5 ║
 ║    (M13 V5 engine, config/regulatory YAML SCI+DGMP, Pass 2A, migration 057, ADR-M13-001) ║
@@ -2026,5 +2028,15 @@ E-98 (2026-04-06) : **`git clean -fd` (ou équivalent destructif) sans dry-run, 
 | `data/annotations/inventory_m12_latest.{md,json,tsv}` | présents | — |
 
 **Conséquence pour la gouvernance :** la leçon **procédurale** E-98 (**ne jamais** `git clean -fd` sans inventaire / exclusions sur chemins corpus) **reste opposable**. La restauration des données **ne l’annule pas**. Recommandation : conserver des **copies horodatées** hors repo et, si besoin, rejouer `scripts/inventory_m12_corpus_jsonl.py` / `scripts/dry_run_m12_export_audit.py` sur les JSONL canoniques pour preuve d’intégrité avant opérations destructives futures.
+
+---
+
+## ADDENDUM 2026-04-06 — MERGE PR #337 — HARDENING PRODUCT (PV / COMPARATIF / M14)
+
+**Référence Git :** squash merge sur `main` — commit **`9d21a6b0`** — PR **#337** (fermée, branche feature supprimée sur `origin`).
+
+**Objet mandat :** `DMS-MANDAT-HARDENING-PRODUCT-001` — durcissement runtime seal → exports : snapshot PV versionné (`format_version` 1.1, bloc `meta` obligatoire, `validate_pv_snapshot`), hash seal **aligné** avec `document_service._canonical_hash()` (snapshot canonique avec `seal: {}` puis injection `seal_hash`), export comparatif XLSX dérivé du snapshot scellé, persistance M14 sur `workspace_id` (résolution legacy / UUID), script read-only `scripts/hardening_product_sql_checks.py`, rapports ops courts sous `docs/ops/` (statut, preuves, gap matrix J1–J17).
+
+**État produit pilote (rappel) :** preuve seal **AMBRE** possible tant qu’un workspace pilote n’a pas été re-scellé après ces changements — voir `docs/ops/PRODUCT_PROOF_REPORT.md` et `HARDENING_PRODUCT_STATUS.md`.
 
 ---
