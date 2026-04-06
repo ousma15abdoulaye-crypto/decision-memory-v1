@@ -2,18 +2,11 @@
 
 from __future__ import annotations
 
-from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
-
-class TargetType(StrEnum):
-    """Cible de cadrage M16 (routes /targets/...)."""
-
-    workspace = "workspace"
-    session = "session"
-    bundle = "bundle"
+from src.models.m16_enums import TargetType
 
 
 class EvaluationDomainOut(BaseModel):
