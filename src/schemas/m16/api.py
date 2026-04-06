@@ -31,6 +31,8 @@ class CriterionAssessmentOut(BaseModel):
     cell_json: dict[str, Any] = Field(default_factory=dict)
     assessment_status: str
     confidence: float | None = None
+    signal: str | None = None
+    computed_weighted_contribution: float | None = None
 
 
 class DeliberationThreadOut(BaseModel):
@@ -95,6 +97,8 @@ class M16EvaluationFrameOut(BaseModel):
     assessments: list[CriterionAssessmentOut] = Field(default_factory=list)
     price_lines: list[PriceLineComparisonOut] = Field(default_factory=list)
     price_values: list[PriceLineBundleValueOut] = Field(default_factory=list)
+    bundle_weighted_totals: dict[str, float | None] = Field(default_factory=dict)
+    weight_validation: dict[str, Any] = Field(default_factory=dict)
 
 
 class M16InitializeResult(BaseModel):
