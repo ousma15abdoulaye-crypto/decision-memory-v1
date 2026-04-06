@@ -5,10 +5,12 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-05 (post-merge PR #325 — main a61b8eb9) ║
+║  Dernière mise à jour : 2026-04-06 — addendum BLOC6 pilote (verdict ROUGE, docs/ops/BLOC6_PILOT_SCI_MALI_REPORT.md) ; 2026-04-05 post-merge PR #325 main a61b8eb9 ║
 ║  Addendum 2026-04-04 : PR #321 V4.2.0 Phase 3 — CI rouge — handover détaillé fin doc ║
 ║  Addendum 2026-04-05 : PR #324 MERGÉ main 107d05a2 — BLOC3 fix HTTP 500 W1/W2 + tenant RLS + market + ETL vendors ║
 ║  Addendum 2026-04-05 : PR #325 MERGÉ main a61b8eb9 — docs+smoke BLOC3 gate A+B (bloc3_smoke_railway, BLOC3_PIPELINE_REPORT) ║
+║  Addendum 2026-04-06 : BLOC6 pilote SCI Mali — BLOC6_PILOT_SCI_MALI_REPORT.md — verdict ROUGE (seal HTTP 500 prod) ; fix UUID pv_snapshot committee_sessions ║
+║  Addendum 2026-04-06 (BLOC6 BIS) : branche feat/bloc6-bis-seal-uuid-fix — safe_json_dumps + seal handler ; script bloc6_pilot_sci_mali_run.py versionné ; seal prod EN ATTENTE merge/deploy ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -1942,5 +1944,24 @@ Fin addendum 2026-04-04 B -- V4.2.0 Phases 0-6 toutes mergees. PRs #319-#323 CI 
 - **`docs/ops/BLOC3_PIPELINE_REPORT.md`** : addendum historique vs état post-correctif 500 ; verdict réconcilié ; point **C** (créateur → committee/membership) réservé **architecture cognitive** (hors exigence smoke A+B).
 
 **Fichiers de référence (main post-merge) :** `docs/ops/BLOC3_PIPELINE_REPORT.md`, `docs/ops/BLOC3_500_DIAGNOSIS.md`, `scripts/bloc3_smoke_railway.py`.
+
+---
+
+## ADDENDUM 2026-04-06 — BLOC6 pilote SCI Mali (mandat DMS-BLOC6-PILOTE-SCI-MALI-001)
+
+- **Rapport opposable** : `docs/ops/BLOC6_PILOT_SCI_MALI_REPORT.md`.
+- **Verdict terrain** : **ROUGE** — `POST /api/workspaces/{id}/committee/seal` renvoie **500** sur Railway au run documenté ; base : pas de `seal_hash` ni `pv_snapshot` pour la session pilote (conditions VERT mandat §10 non réunies).
+- **IDs pilote** : `workspace_id` = `3a1ebd0e-dc79-4b40-bc94-dcae1de6d33f` ; `session_id` = `890d1984-b1b1-46c6-961e-b6e24225e13e` ; `reference_code` = `DAO-2026-MOPTI-017-94454af1bc`.
+- **Correctif minimal identifié (dépôt)** : `committee_sessions.py` — snapshot PV : `session_id` doit être **chaîne** pour `json.dumps` (UUID driver PG).
+- **Qualification données** : jeu **simulé réaliste** + SQL d’état BLOC4-style ; pas de faux vert sur le parcours métier complet.
+- **MRD** : section BLOC6 ajoutée dans `docs/freeze/MRD_CURRENT_STATE.md` (même date).
+
+---
+
+## ADDENDUM 2026-04-06 — BLOC 6 BIS (correctif seal UUID, dépôt + script pilote versionné)
+
+- **Branche livraison** : `feat/bloc6-bis-seal-uuid-fix` — `safe_json_dumps` (`src/utils/json_utils.py`) ; handler seal `committee_sessions.py` (snapshot PV explicite + comptage CDE `events_count`) ; `tests/test_json_utils_safe_dumps.py` ; rapport `docs/ops/BLOC6_PILOT_SCI_MALI_REPORT.md` (section BLOC 6 BIS) ; `docs/freeze/MRD_CURRENT_STATE.md` (section BLOC 6 BIS) ; script terrain `scripts/bloc6_pilot_sci_mali_run.py`.
+- **Verdict terrain prod (Railway)** : **EN ATTENTE** — merge PR + déploiement + re-run `POST …/committee/seal` avec preuve ; le constat ROUGE initial (HTTP 500 seal, pas de `seal_hash` / `pv_snapshot`) reste opposable jusqu’à preuve post-déploiement — détail section « BLOC 6 BIS » du rapport pilote.
+- **MRD** : section BLOC 6 BIS dans `docs/freeze/MRD_CURRENT_STATE.md` (alignée).
 
 ---
