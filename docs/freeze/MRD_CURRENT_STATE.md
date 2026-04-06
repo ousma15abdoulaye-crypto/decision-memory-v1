@@ -642,3 +642,20 @@ Preuve machine : `data/ingest/mandate_84pdf_001/MANDATE_DMS-MANDAT-PARSING-84PDF
 | preuve SQL prod (lecture) | `committee_sessions` pilote : `seal_hash` / `pv_snapshot` / `sealed_at` NULL ; `reference_code` = `DAO-2026-MOPTI-017-94454af1bc` |
 | doc détaillée | `docs/ops/BLOC6_PILOT_SCI_MALI_REPORT.md` section « BLOC 6 BIS » |
 | escalade | si **500** après déploiement du fix : corps de réponse HTTP complet + logs — **STOP** BLOC 7 |
+
+---
+
+## BLOC7 — DOCGEN ENTERPRISE V4.2.1 (implémentation technique)
+
+| Champ | Valeur |
+|-------|--------|
+| périmètre | Export `committee/pv` depuis snapshot scellé (`json`, `pdf`, `xlsx`) |
+| état | **IMPLÉMENTÉ (code + tests ciblés)** |
+| endpoint | `GET /api/workspaces/{workspace_id}/committee/pv?format=json|pdf|xlsx` |
+| intégrité | Vérification SHA-256 obligatoire (`document_service.get_sealed_session`) ; `409` non scellée ; `500` hash mismatch |
+| génération PDF | Templates `templates/pv/*.j2` + `static/pv_design_system.css` + WeasyPrint |
+| génération XLSX | `src/services/xlsx_builder.py` (`DataBarRule`, `weighted_score` export-only, onglet traçabilité) |
+| câblage API | Router BLOC7 branché dans `src/api/main.py` et `main.py` |
+| tests ciblés | `tests/test_jinja_filters.py`, `tests/services/test_pv_builder.py`, `tests/services/test_document_service.py`, `tests/api/test_committee_pv_export.py` (**8 passed**) |
+| infra runtime | `Dockerfile` enrichi dépendances WeasyPrint + `railway.toml` build Dockerfile + `requirements.txt` (`weasyprint`) |
+| garde-fous | Kill-list exclue du snapshot ; zéro écriture DB en export ; hash recalculé sur snapshot canonique |

@@ -1,0 +1,80 @@
+@page {
+  size: A4;
+  margin: 18mm 14mm 22mm 14mm;
+  @bottom-center {
+    content: "DMS V4.2.1 - PV scellé";
+    color: #666;
+    font-size: 9pt;
+  }
+}
+
+body {
+  font-family: "Liberation Sans", Arial, sans-serif;
+  color: #1a1a1a;
+  font-size: 10.5pt;
+  line-height: 1.35;
+}
+
+h1, h2, h3 {
+  margin: 0 0 6pt 0;
+  color: #0b2a4a;
+}
+
+section {
+  margin-bottom: 14pt;
+  page-break-inside: avoid;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+th, td {
+  border: 1px solid #c7ced6;
+  padding: 5pt 6pt;
+  vertical-align: top;
+  word-wrap: break-word;
+}
+
+th {
+  background: #ecf2f8;
+  text-align: left;
+}
+
+.muted {
+  color: #5f6b77;
+}
+
+.badge {
+  padding: 1pt 5pt;
+  border-radius: 10pt;
+  font-weight: 700;
+  font-size: 8.5pt;
+}
+
+.badge--green {
+  background: #daf5e6;
+  color: #0f6e3d;
+}
+
+.badge--amber {
+  background: #fff3d1;
+  color: #7a5b00;
+}
+
+.badge--red {
+  background: #ffe2e0;
+  color: #8c1d18;
+}
+
+.badge--muted {
+  background: #eef1f4;
+  color: #5f6b77;
+}
+
+.seal-footer code {
+  font-family: "Liberation Mono", Consolas, monospace;
+  font-size: 8.5pt;
+}

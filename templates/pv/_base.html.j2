@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>PV Comité — {{ snapshot.process.reference_code or snapshot.process.workspace_id }}</title>
+  <link rel="stylesheet" href="pv_design_system.css">
+</head>
+<body>
+  {% include "pv/_cover.html.j2" %}
+  {% include "pv/_committee.html.j2" %}
+  {% include "pv/_evaluation_table.html.j2" %}
+  {% include "pv/_deliberation_log.html.j2" %}
+  {% include "pv/_seal_footer.html.j2" %}
+</body>
+</html>

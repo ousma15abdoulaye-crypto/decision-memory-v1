@@ -1,0 +1,23 @@
+<section>
+  <h2>Table d'évaluation consolidée</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Fournisseur</th>
+        <th>Complétude</th>
+        <th>Confiance assemblage</th>
+        <th>Statut</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for bundle in snapshot.evaluation.bundles %}
+      <tr>
+        <td>{{ bundle.supplier_name_display or bundle.supplier_name_raw }}</td>
+        <td>{{ bundle.completeness_score }}</td>
+        <td>{{ bundle.assembly_confidence | confidence_badge }}</td>
+        <td>{{ bundle.status }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>

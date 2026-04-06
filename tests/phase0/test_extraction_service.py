@@ -276,8 +276,6 @@ class TestMistralOCRGuards:
         from types import SimpleNamespace
         from unittest.mock import MagicMock
 
-        import mistralai as _mistralai
-
         import src.extraction.engine as _eng
 
         monkeypatch.setenv("MISTRAL_API_KEY", "sk-test")
@@ -295,7 +293,11 @@ class TestMistralOCRGuards:
             pages=[SimpleNamespace(markdown="Contenu PDF mocké")], text=None
         )
         mock_client.files.delete.return_value = None
-        monkeypatch.setattr(_mistralai, "Mistral", lambda **kw: mock_client)
+        monkeypatch.setattr(
+            _eng,
+            "_mistral_client_factory",
+            lambda: MagicMock(return_value=mock_client),
+        )
 
         raw_text, structured = _extract_mistral_ocr(path)
         assert "Contenu PDF" in raw_text
@@ -317,8 +319,6 @@ class TestMistralOCRGuards:
         from types import SimpleNamespace
         from unittest.mock import MagicMock
 
-        import mistralai as _mistralai
-
         import src.extraction.engine as _eng
 
         monkeypatch.setenv("MISTRAL_API_KEY", "sk-test")
@@ -328,24 +328,34 @@ class TestMistralOCRGuards:
         monkeypatch.setattr(_eng, "_detect_mime_from_header", lambda _: "image/png")
         monkeypatch.setattr(_eng.os.path, "getsize", lambda _: 1024)
 
-        # Patch mistralai.Mistral sur le module réel — plus fiable que sys.modules
         mock_client = MagicMock()
         mock_client.files.upload.return_value = SimpleNamespace(id="file-test")
         mock_client.ocr.process.return_value = SimpleNamespace(
             pages=[SimpleNamespace(markdown="Texte extrait mock")], text=None
         )
         mock_client.files.delete.return_value = None
-        monkeypatch.setattr(_mistralai, "Mistral", lambda **kw: mock_client)
+        monkeypatch.setattr(
+            _eng,
+            "_mistral_client_factory",
+            lambda: MagicMock(return_value=mock_client),
+        )
 
         raw_text, structured = _extract_mistral_ocr(path)
         assert raw_text == "Texte extrait mock"
         assert isinstance(structured, dict)
 
     def test_missing_api_key_raises(self, monkeypatch, tmp_path):
-        """Pas de MISTRAL_API_KEY → APIKeyMissingError."""
+        """Pas de clé Mistral (toutes variantes d'env) → APIKeyMissingError."""
         from src.core.api_keys import APIKeyMissingError
 
-        monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
+        for name in (
+            "MISTRAL_API_KEY",
+            "DMS_API_MISTRAL",
+            "MISTRAL_KEY",
+            "DMS_MISTRAL",
+            "DMSAPIMISTRAL",
+        ):
+            monkeypatch.delenv(name, raising=False)
         monkeypatch.setenv("STORAGE_BASE_PATH", str(tmp_path))
         path = self._make_png_file(tmp_path)
 

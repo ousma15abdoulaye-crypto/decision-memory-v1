@@ -22,6 +22,7 @@ import uuid
 from threading import Event
 
 # third-party
+import httpx
 import openpyxl  # type: ignore
 import pdfplumber  # type: ignore
 from docx import Document  # type: ignore
@@ -405,7 +406,7 @@ def _mistral_client_factory():
     """
     try:
         from mistralai import Mistral as MistralCls  # type: ignore
-    except ImportError as exc_top:
+    except (ImportError, AttributeError) as exc_top:
         try:
             from mistralai.client import Mistral as MistralCls  # type: ignore
         except ImportError as exc_client:
@@ -437,6 +438,23 @@ def _ensure_ssl_env() -> None:
         pass  # certifi optionnel — pas de crash si absent
 
 
+def _mistral_httpx_verify() -> bool | str:
+    """Paramètre ``verify`` pour ``httpx.Client`` utilisé par le SDK Mistral.
+
+    - ``MISTRAL_HTTPX_VERIFY_SSL=0`` / ``false`` / ``no`` / ``off`` → désactive la
+      vérification TLS (dernier recours derrière un proxy d'entreprise qui casse les CA).
+    - ``MISTRAL_SSL_CA_BUNDLE`` → chemin vers un bundle PEM CA (prioritaire si fichier présent).
+    - Sinon ``True`` (défaut httpx / magasins système).
+    """
+    raw = (os.environ.get("MISTRAL_HTTPX_VERIFY_SSL") or "").strip().lower()
+    if raw in ("0", "false", "no", "off"):
+        return False
+    ca = (os.environ.get("MISTRAL_SSL_CA_BUNDLE") or "").strip()
+    if ca and os.path.isfile(ca):
+        return ca
+    return True
+
+
 def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
     """OCR via Mistral Files API (SLA-B) — Mandat 2 / ADR-M11-002.
 
@@ -444,7 +462,8 @@ def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
     RAM consommée : ~2 MB (chunk réseau) au lieu de 117 MB (base64 full-load).
     Fallback Azure actif si AZURE_FORM_RECOGNIZER_ENDPOINT défini.
     Lève APIKeyMissingError si MISTRAL_API_KEY absent.
-    SSL/TLS : certifi utilisé si SSL_CERT_FILE absent (proxy d'entreprise).
+    SSL/TLS : ``_ensure_ssl_env()`` + ``httpx.Client(verify=...)`` via
+    ``MISTRAL_SSL_CA_BUNDLE`` ou ``MISTRAL_HTTPX_VERIFY_SSL=0`` (voir ``_mistral_httpx_verify``).
     """
     _validate_storage_uri(storage_uri)
     api_key = get_mistral_api_key()
@@ -476,7 +495,14 @@ def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
     from src.couche_a.llm_router import TIER_1_OCR_MODEL
 
     mistral_cls = _mistral_client_factory()
-    client = mistral_cls(api_key=api_key)
+    verify = _mistral_httpx_verify()
+    if verify is False:
+        _logger.warning(
+            "[OCR] MISTRAL_HTTPX_VERIFY_SSL désactive la vérification TLS du client httpx "
+            "vers Mistral — risque MITM ; usage typique : proxy / inspection SSL entreprise."
+        )
+    http_client = httpx.Client(verify=verify)
+    client = mistral_cls(api_key=api_key, client=http_client)
     file_name = os.path.basename(storage_uri)
     uploaded_id: str | None = None
 
@@ -489,10 +515,11 @@ def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
             )
         uploaded_id = uploaded.id
 
-        # Étape 2 — OCR via file_id (URL signée gérée côté Mistral Cloud)
+        # Étape 2 — OCR via file_id (mistralai 2.x : FileChunk = type "file" + file_id,
+        # pas type "file_id" — sinon Unmarshaller / validation SDK en échec)
         response = client.ocr.process(
             model=TIER_1_OCR_MODEL,
-            document={"type": "file_id", "file_id": uploaded_id},
+            document={"type": "file", "file_id": uploaded_id},
         )
         raw_text = _ocr_pages_to_text(response)
 

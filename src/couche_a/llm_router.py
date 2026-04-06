@@ -17,7 +17,9 @@ import os
 
 try:
     from mistralai import Mistral
-except ImportError:
+except (ImportError, AttributeError):
+    # mistralai 2.x : package namespace peut lever AttributeError si Mistral
+    # n'est pas exposé au top-level ; client reste la source stable.
     from mistralai.client import Mistral  # mistralai v2.x
 
 from src.couche_a.extraction_models import Tier

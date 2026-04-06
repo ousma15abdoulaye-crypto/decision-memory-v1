@@ -51,7 +51,7 @@ from starlette.concurrency import run_in_threadpool
 
 try:
     from mistralai import Mistral
-except ImportError:
+except (ImportError, AttributeError):
     from mistralai.client import Mistral  # mistralai v2.x
 
 from annotation_qa import (

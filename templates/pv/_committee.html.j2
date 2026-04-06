@@ -1,0 +1,24 @@
+<section>
+  <h2>Composition du comité</h2>
+  <p>Quorum atteint: {{ "Oui" if snapshot.committee.quorum_met else "Non" }}</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Nom</th>
+        <th>Rôle</th>
+        <th>Votant</th>
+        <th>Date d'intégration</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for member in snapshot.committee.members %}
+      <tr>
+        <td>{{ member.full_name }}</td>
+        <td>{{ member.role | translate_role }}</td>
+        <td>{{ "Oui" if member.is_voting else "Non" }}</td>
+        <td>{{ member.joined_at | format_date_fr }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
