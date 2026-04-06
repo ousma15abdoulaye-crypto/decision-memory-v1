@@ -128,6 +128,16 @@ except ImportError as _e:
         "[main] router optionnel src.api.routes.evaluation non chargé : %s", _e
     )
 
+_m16_comparative_router = None
+try:
+    from src.api.routers.m16_comparative import router as m16_comparative_router
+
+    _m16_comparative_router = m16_comparative_router
+except ImportError as _e:
+    logger.warning(
+        "[main] router optionnel src.api.routers.m16_comparative non chargé : %s", _e
+    )
+
 # ── Lifespan (FastAPI >= 0.93.0 — pattern lifespan) ───────────────────────────
 
 
@@ -146,6 +156,7 @@ async def lifespan(app: FastAPI):
         "geo": _geo_router,
         "vendors": _vendors_router,
         "m14_evaluation": _m14_evaluation_router,
+        "m16_comparative": _m16_comparative_router,
     }
     active = [name for name, r in _optional_routers.items() if r is not None]
     inactive = [name for name, r in _optional_routers.items() if r is None]
@@ -218,6 +229,7 @@ for _router in [
     _geo_router,
     _vendors_router,
     _m14_evaluation_router,
+    _m16_comparative_router,
 ]:
     if _router is not None:
         app.include_router(_router)

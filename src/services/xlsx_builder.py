@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import json
 from typing import Any
 
 from openpyxl import Workbook
@@ -121,6 +122,33 @@ def build_xlsx_export(
     trace["B8"] = ct.get("source")
     trace.column_dimensions["A"].width = 26
     trace.column_dimensions["B"].width = 90
+
+    m16 = ct.get("m16") if isinstance(ct.get("m16"), dict) else {}
+    assessments = m16.get("assessments") or []
+    if assessments:
+        m16s = wb.create_sheet("M16_assessments")
+        m16s.append(["Bundle", "Critère", "Statut", "Confiance", "Cell JSON (aperçu)"])
+        for cell in m16s[1]:
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill("solid", fgColor="1F4E78")
+        for a in assessments:
+            cj = a.get("cell_json") if isinstance(a.get("cell_json"), dict) else {}
+            preview = json.dumps(cj, ensure_ascii=False)[:500]
+            conf = a.get("confidence")
+            m16s.append(
+                [
+                    str(a.get("bundle_id")),
+                    str(a.get("criterion_key")),
+                    str(a.get("assessment_status")),
+                    conf,
+                    preview,
+                ]
+            )
+        m16s.column_dimensions["A"].width = 36
+        m16s.column_dimensions["B"].width = 24
+        m16s.column_dimensions["C"].width = 18
+        m16s.column_dimensions["D"].width = 12
+        m16s.column_dimensions["E"].width = 60
 
     stream = io.BytesIO()
     wb.save(stream)

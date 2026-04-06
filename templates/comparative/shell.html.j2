@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>M16 — Comparatif contradictoire</title>
+  <link rel="stylesheet" href="/static/comparative_shell.css"/>
+</head>
+<body>
+  <main class="shell">
+    <h1>Comparatif contradictoire (M16)</h1>
+    <p class="meta">Workspace <code>{{ workspace_id }}</code></p>
+    <p>Cette page est une coquille de navigation : les données métier sont exposées via l’API JSON
+       (authentification requise). Aucun classement « gagnant » n’est calculé côté client.</p>
+    <ul class="links">
+      <li><code>GET /api/workspaces/{{ workspace_id }}/m16/domains</code></li>
+      <li><code>GET /api/workspaces/{{ workspace_id }}/m16/criterion-assessments</code></li>
+      <li><code>POST /api/workspaces/{{ workspace_id }}/m16/initialize-from-m14</code></li>
+      <li><code>GET /api/workspaces/{{ workspace_id }}/m16/targets/workspace/{{ workspace_id }}/frame</code></li>
+      <li><code>GET /api/workspaces/{{ workspace_id }}/m16/deliberation/threads</code></li>
+      <li><code>GET /api/workspaces/{{ workspace_id }}/m16/comparative-table-model</code></li>
+    </ul>
+  </main>
+</body>
+</html>

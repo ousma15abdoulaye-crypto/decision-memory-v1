@@ -7,6 +7,10 @@ from datetime import UTC, datetime
 from typing import Any
 
 from src.db import db_execute_one, db_fetchall
+from src.services.m16_projection import (
+    fetch_m16_evaluation_extras,
+    workspace_has_m16_rows,
+)
 from src.utils.json_utils import safe_json_dumps
 
 # Aligné mandat industrialisation — incrémenter si structure snapshot change.
@@ -236,11 +240,19 @@ def build_evaluation_projection(conn, workspace_id: str) -> dict[str, Any]:
             }
         )
 
-    return {
+    out: dict[str, Any] = {
         "criteria": criteria,
         "bundles": bundles,
         "scores_matrix": scores_matrix,
     }
+    if workspace_has_m16_rows(conn, workspace_id):
+        m16 = fetch_m16_evaluation_extras(conn, workspace_id)
+        if any(
+            m16.get(k)
+            for k in ("domains", "assessments", "price_lines", "price_values")
+        ):
+            out["m16"] = m16
+    return out
 
 
 def build_pv_snapshot(
@@ -345,6 +357,13 @@ def build_pv_snapshot(
         )
 
     ev_block = build_evaluation_projection(conn, workspace_id)
+    eval_block: dict[str, Any] = {
+        "criteria": ev_block["criteria"],
+        "bundles": ev_block["bundles"],
+        "scores_matrix": ev_block["scores_matrix"],
+    }
+    if "m16" in ev_block:
+        eval_block["m16"] = ev_block["m16"]
 
     signals_rows = db_fetchall(
         conn,
@@ -476,11 +495,7 @@ def build_pv_snapshot(
             "members": members,
         },
         "deliberation": {"total_events": len(events), "events": events},
-        "evaluation": {
-            "criteria": ev_block["criteria"],
-            "bundles": ev_block["bundles"],
-            "scores_matrix": ev_block["scores_matrix"],
-        },
+        "evaluation": eval_block,
         "market_signals": market_signals,
         "source_package": source_docs,
         "decision": {
