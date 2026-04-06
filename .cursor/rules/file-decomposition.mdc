@@ -1,0 +1,86 @@
+---
+description: Gouvernance découpage fichiers Python — DMS V4.3+
+globs: ["**/*.py"]
+alwaysApply: true
+---
+
+# Règles de découpage — DMS
+
+## Cohérence avec les règles globales
+
+- **Black / Ruff avant commit** sur `src/`, `tests/`, `services/` : voir **`.cursor/rules/dms-core.mdc`** (obligatoire si `.py` dans le commit).
+- **Alembic** : toute évolution sous `alembic/versions/` est soumise aux mêmes garde-fous que **dms-core** (mandat dédié, pas d’`autogenerate`, RÈGLE-12). Les seuils ci-dessous sur les migrations **ne remplacent pas** ce mandat.
+
+## Seuils obligatoires
+
+- **500 lignes** : signal de revue — vérifier si le fichier a une responsabilité unique.
+- **800 lignes** : seuil de découpage recommandé — proposer une décomposition.
+- **1200 lignes** : seuil bloquant — **ne pas** ajouter de code sans découper d’abord.
+- **Nouveau fichier** : viser **moins de 200 lignes** quand c’est raisonnable (objectif, pas une sanction sur le legacy).
+
+## Règle de responsabilité unique
+
+Chaque fichier `.py` dans `src/` doit avoir **une seule responsabilité** :
+
+- Un service = un domaine métier (`evaluation_frame_service.py`, pas un fourre-tout `services.py`).
+- Un router = un groupe de ressources (`m16_comparative.py`, pas un `api.py` unique).
+- Un modèle = une famille d’objets (`m16_models.py`, pas un `models.py` fourre-tout).
+- Un test = un composant (`test_evaluation_frame.py`, pas `test_all.py`).
+
+## Technique de découpage autorisée
+
+Quand un fichier dépasse **800 lignes**, découper selon ce pattern strict :
+
+```text
+# AVANT — src/services/evaluation_frame_service.py (1200 lignes)
+
+# APRÈS :
+src/services/evaluation_frame/
+├── __init__.py          ← exporte l’interface publique uniquement
+├── projection.py        ← get_evaluation_frame(), _compute_signal()
+├── financial.py         ← get_financial_view(), helpers internes (_price_signal, etc.)
+└── domain_builder.py    ← build_domain_output()
+```
+
+Le `__init__.py` réexporte **uniquement** l’API publique pour que les imports existants puissent rester stables (pas de réexport de symboles préfixés `_` sauf contrat legacy explicite) :
+
+```python
+# src/services/evaluation_frame/__init__.py
+from .projection import get_evaluation_frame
+from .financial import get_financial_view
+```
+
+## Règles de nommage des fichiers
+
+- Noms en `snake_case`, jamais `camelCase` pour les modules.
+- Noms descriptifs du domaine : `deliberation_service.py` plutôt que `utils2.py`.
+- **Préférences pour les nouveaux modules** (le dépôt contient déjà des noms historiques valides) :
+  - `src/services/` → privilégier `*_service.py` ou un nom métier explicite (`pv_builder.py`, `xlsx_builder.py` sont des exemples existants cohérents).
+  - `src/api/routers/` → un fichier par domaine / ressource.
+  - `tests/` → `test_*.py`.
+  - `scripts/` → verbe + objet : `apply_railway_migrations_safe.py` ; sondes `_probe_*.py` suivent la convention du dossier `scripts/`.
+
+## Interdits absolus
+
+- **Ne pas** créer `src/utils.py` monolithique — décomposer en `src/utils/json_utils.py`, `src/utils/date_utils.py`, etc. (le paquet `src/utils/` existe déjà).
+- **Ne pas** créer `src/helpers.py` fourre-tout — même logique.
+- **Ne pas** dupliquer une fonction entre deux fichiers — extraire dans un module partagé.
+- **Ne pas** importer `*` depuis un module interne (`from src.models import *`).
+
+## Migrations Alembic
+
+- **Prérequis** : mandat CTO / processus défini dans **dms-core** — aucune nouvelle migration sans ça.
+- Une migration = un changement de scope cohérent ; `upgrade()` **et** `downgrade()` obligatoires.
+- **Nommage** : rester cohérent avec les formats déjà présents dans `alembic/versions/` (révisions numériques, slugs descriptifs, préfixes historiques du type `m5_*`, etc.) et utiliser un **slug descriptif** ; éviter les noms génériques du type `migration_finale.py`. Exemples valides déjà présents dans le dépôt : `043_market_signals_v11.py`, `079_bloc5_confidence_qualification_signal_log.py`.
+- **Pas** de fichier dupliqué ou `*_copy.py` dans `alembic/versions/`.
+- Ligne directrice : **maximum ~3 tables** créées ou fortement modifiées par migration ; au-delà, envisager un découpage **dans le même mandat** pour la lisibilité.
+
+## Quand Cursor propose du code
+
+Si une fonction ou classe est ajoutée dans un fichier qui dépasse déjà **800 lignes** :
+
+1. Refuser l’ajout direct dans le monolithe.
+2. Proposer la décomposition selon le pattern ci-dessus (package + `__init__.py`).
+3. Vérifier que les imports publics restent compatibles (réexport dans `__init__.py`).
+
+À **1200 lignes** : arrêt dur — découpage avant tout nouveau code métier.
