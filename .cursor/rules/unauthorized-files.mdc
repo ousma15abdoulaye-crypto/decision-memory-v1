@@ -21,7 +21,7 @@ En cas de conflit avec une autre règle Cursor, priment **CLAUDE.md**, **`docs/f
 
 ### Fichiers de config locaux (secrets)
 
-- `.env` avec secrets réels — jamais committer ; modèles `!.env.example`, `!.env.railway.local.example` uniquement comme templates.
+- `.env` avec secrets réels — jamais committer ; seuls `.env.example` et `.env.railway.local.example` sont autorisés comme templates. Si nécessaire, préciser séparément que `.gitignore` peut les ré-inclure via des règles d’exception `!`.
 - `.env.local`, `.env.railway.local` → doivent rester **hors dépôt** (voir `.gitignore`).
 - `local_config.py`, `dev_settings.py` ad hoc à la racine ou sous `src/` : refuser sauf mandat explicite.
 
