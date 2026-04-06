@@ -275,6 +275,7 @@ def build_pv_snapshot(
     if not signals_rows:
         zone_for_msv2 = ws.get("zone_id")
         if zone_for_msv2:
+            # Filtrage zone_id : index idx_msv2_zone_id (migration 080_market_signals_v2_zone_id_index).
             signals_rows = db_fetchall(
                 conn,
                 """
