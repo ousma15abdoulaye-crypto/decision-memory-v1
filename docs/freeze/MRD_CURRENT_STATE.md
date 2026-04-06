@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-04-06 — V4.3.1 BLOC5 (PR #329) + Alembic Railway head 079 + ops vendors PR #330–#332 (mandat AO : MRD degel)
+# Derniere mise a jour : 2026-04-06 — M16 Comparatif (PR #340 merge 1c32f51a) + état Alembic dépôt head 084 ; Railway prod **079** jusqu'à apply migrations 081–084 (mandat AO)
 
 ---
 
@@ -30,13 +30,13 @@ freeze_hashes_doc     : docs/freeze/FREEZE_HASHES.md
 
 ## ETAT COURANT
 
-last_completed        : V4.2.0 Workspace-First (PRs #319–#323, 2026-04-04) + **V4.3.1 BLOC5** cadre cognitif / migrations 078–079 / projection ARQ (PR #329, 2026-04-05)
+last_completed        : V4.2.0 Workspace-First (PRs #319–#323, 2026-04-04) + **V4.3.1 BLOC5** (PR #329, 2026-04-05) + **M16 Comparatif contradictoire** — Alembic 081–084, API `/m16`, PV `evaluation.m16`, backfill `scores_matrix` (PR #340, 2026-04-06)
 last_completed_at     : 2026-04-06
-last_merge_commit     : 9da173f6 (main — PR #332 docs clarif. vendors ; chaîne PR #329–#331 merge 2026-04-05/06)
+last_merge_commit     : 1c32f51a (main — merge PR #340 M16 ; incl. ff88173c revue Copilot)
 last_tag              : v4.1.0-m12-done (V4.2.0 / V4.3.1 tags pending CTO)
 next_milestone        : V4.2.0 Pilote SCI Mali — wiring `src/api/main.py` restant + bascule `ANNOTATION_USE_PASS_ORCHESTRATOR=1` + exécution pilote 5 processus (migrations DB **alignées**)
 next_status           : EN ATTENTE GO CTO — wiring routers **main.py** ; ~~migrations Railway 068–079~~ **OK head 079** ; REGLE-23 annotations **OK** (105 sync 2026-04-05) ; orchestrateur Pass **pas** basculé prod
-blocked_on            : (1) wiring `src/api/main.py` pour routers V4.2.0 ; ~~(2) apply migrations 068–079 Railway~~ **fait** — head **079** (`079_bloc5_confidence_qualification_signal_log`) ; ~~(3) sync annotations~~ **fait** — 105 `annotation_registry` Railway ; (4) bascule `ANNOTATION_USE_PASS_ORCHESTRATOR=1` (fenêtre hors session annotation) ; (5) **complétude référentiel vendors « national »** = décision produit / hors seul lot M4 — voir `scripts/README_VENDOR_IMPORT.md` (103 = cible lot M4 ; 661 = métrique incident avril 2026)
+blocked_on            : (1) wiring `src/api/main.py` pour routers V4.2.0 ; ~~(2) apply migrations 068–079 Railway~~ **fait** — head **079** (`079_bloc5_confidence_qualification_signal_log`) ; **(2b) apply migrations 081–084 Railway** — dépôt head **084** (`084_m16_price_line_comparisons`) ; dry-run : `python scripts/with_railway_env.py python scripts/diagnose_railway_migrations.py` (requis `RAILWAY_DATABASE_URL` / `.env.railway.local`) ; ~~(3) sync annotations~~ **fait** — 105 `annotation_registry` Railway ; (4) bascule `ANNOTATION_USE_PASS_ORCHESTRATOR=1` (fenêtre hors session annotation) ; (5) **complétude référentiel vendors « national »** = décision produit / hors seul lot M4 — voir `scripts/README_VENDOR_IMPORT.md` (103 = cible lot M4 ; 661 = métrique incident avril 2026)
 m13_prerequisites     : M12 Phase 3 PR #289 mergé ; ADR-M13-001 + Pass 2A + config/regulatory PR #292 ; migration 057 appliquée prod 2026-04-02 — persistance m13_* opérationnelle côté schéma ; secrets DB = .env.railway.local + with_railway_env.py (RAILWAY_LOCAL_ENV.md) ; **PR #331** : `with_railway_env` aligne `DATABASE_URL` sur `RAILWAY_DATABASE_URL` (opt-out `WITH_RAILWAY_ENV_PRESERVE_DATABASE_URL=1`)
 m14_deliverables      : PR #295 (moteur + API) + PR #297 (dual-app, 059, linking, save_m14_audit, CI, gel) ; ADR-M14-001 + DMS-M14-ARCH-RECONCILIATION ; docs ops Railway (RAILWAY_LOCAL_ENV, with_railway_env)
 vendors_ops_2026_04   : PR #330 préflight schéma + `--check-migration-compat` ; PR #332 tranche 661 vs 103 ; import ETL M4 Railway **lot 103 lignes** (2026-04-05) — `scripts/README_VENDOR_IMPORT.md`
@@ -70,15 +70,16 @@ branch_courante       : main
 | V4.2.0 P4| DONE   | (à taguer CTO) | d48f8bbb | 2026-04-04 | Phase 4 — src/assembler/ Pass-1 ZIP→bundles LangGraph — CI 9/9 ✓ |
 | V4.2.0 P56| DONE  | (à taguer CTO) | 98c3f2e2 | 2026-04-04 | Phase 5+6 — Routes W1/W2/W3 + WebSocket + ARQ Couche B + Pilote SCI Mali — CI 9/9 ✓ |
 | V4.3.1 BLOC5 | DONE | (à taguer CTO) | 63993752 | 2026-04-05 | SPEC V4.3.1 — cognitive helpers, migrations 078/079, `arq_sealed_workspace`, `evaluation_frame`, CI ✓ — PR #329 |
+| **V4.3.1 M16** | DONE | v4.3.1-m16 (local tag optionnel CTO) | 1c32f51a | 2026-04-06 | Comparatif contradictoire — migrations 081–084, API M16, PV `evaluation.m16`, XLSX, backfill M14 — PR #340 |
 
 ---
 
-## ÉTAT ALEMBIC — MIS À JOUR 2026-04-06 (dépôt = Railway prod — head 079)
+## ÉTAT ALEMBIC — MIS À JOUR 2026-04-06 (dépôt **head 084** ; Railway prod **079** jusqu'à apply 081–084)
 
-local_alembic_head       : 079_bloc5_confidence_qualification_signal_log
-railway_alembic_head     : 079_bloc5_confidence_qualification_signal_log (aligné dépôt — 2026-04-05/06)
-migrations_pending_railway: aucune (0)
-last_sync_railway        : 2026-04-05/06 — chaîne 068→079 appliquée prod (`apply_railway_migrations_safe.py --apply` + `diagnose_railway_migrations.py`)
+local_alembic_head       : 084_m16_price_line_comparisons
+railway_alembic_head     : 079_bloc5_confidence_qualification_signal_log (prod au 2026-04-06 — **écart 4 migrations** 081–084 tant que non appliquées)
+migrations_pending_railway: **081_m16_evaluation_domains → 084_m16_price_line_comparisons** (4 révisions) — apply via runbook CTO / `alembic upgrade head` fenêtre maintenance
+last_sync_railway        : 2026-04-05/06 — chaîne 068→079 appliquée prod ; **M16 081–084** : en attente apply Railway post-merge PR #340
 last_updated             : 2026-04-06
 updated_by               : apply_railway_migrations_safe.py + python scripts/with_railway_env.py (PR #331 : `DATABASE_URL` ← `RAILWAY_DATABASE_URL` si défini)
 audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md

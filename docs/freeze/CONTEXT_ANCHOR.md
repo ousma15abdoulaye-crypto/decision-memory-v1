@@ -6,6 +6,7 @@
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
 ║  Dernière mise à jour : 2026-04-06 — suite E-98 : corpus M12 restauré sous data/annotations/ (vérifié) ; incident E-98 nettoyage git ; BLOC6 pilote ; PR #325 a61b8eb9 ║
+║  Addendum 2026-04-06 : PR #340 MERGÉ main 1c32f51a — M16 Comparatif contradictoire (Alembic 081–084, API `/api/workspaces/.../m16`, PV `evaluation.m16`, backfill `scores_matrix`) ; correctifs revue Copilot ff88173c (isolation thread/workspace, EXISTS avant projection M16, JSON XLSX) ; apply migrations 081–084 Railway **en attente** (prod head 079 au 2026-04-06 — voir MRD_CURRENT_STATE) ║
 ║  Addendum 2026-04-04 : PR #321 V4.2.0 Phase 3 — CI rouge — handover détaillé fin doc ║
 ║  Addendum 2026-04-05 : PR #324 MERGÉ main 107d05a2 — BLOC3 fix HTTP 500 W1/W2 + tenant RLS + market + ETL vendors ║
 ║  Addendum 2026-04-05 : PR #325 MERGÉ main a61b8eb9 — docs+smoke BLOC3 gate A+B (bloc3_smoke_railway, BLOC3_PIPELINE_REPORT) ║
