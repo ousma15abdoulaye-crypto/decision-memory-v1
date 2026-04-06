@@ -1,0 +1,17 @@
+# Service Railway séparé : worker ARQ (Couche B + projection post-seal VMS).
+# Même image Docker que l'API ; seule la commande de démarrage change.
+#
+# Déploiement : créer un service « worker » dans le projet Railway, lier le même
+# dépôt, puis dans les paramètres du service indiquer ce fichier comme config
+# (ou copier deploy.startCommand dans le dashboard).
+#
+# Variables : DATABASE_URL, REDIS_URL (mêmes plugins / variables que l'API).
+# Réf. : docs/ops/RAILWAY_ARQ_WORKER_SERVICE.md
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "python -m arq src.workers.arq_config.WorkerSettings"
+restartPolicyType = "ON_FAILURE"
