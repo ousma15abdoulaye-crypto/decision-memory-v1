@@ -123,3 +123,41 @@ Commande équivalente (sortie attendue : aucune ligne problématique sur le snap
 2. Obtenir un JWT avec `committee.manage` sur le workspace pilote (ou script `bloc6_pilot_sci_mali_run` / client API habituel).
 3. `POST /api/workspaces/3a1ebd0e-dc79-4b40-bc94-dcae1de6d33f/committee/seal` avec `{"seal_comment": "Seal pilote BLOC 6 BIS après fix UUID"}` (le corps **ne contient pas** `sealed_by` — l’API utilise l’utilisateur JWT).
 4. Rejouer les vérifications SQL mandat (longueur hash 64, `pv_snapshot` non NULL, test `UPDATE process_workspaces` bloqué).
+
+---
+
+## BLOC 7 — DOCGEN enterprise (JSON/PDF/XLSX scellés, V4.2.1)
+
+### Livrables implémentés (branche de travail BLOC7)
+
+- Endpoint export read-only : `GET /api/workspaces/{workspace_id}/committee/pv?format=json|pdf|xlsx`.
+- Vérification cryptographique systématique avant export :
+  - `409` si session non scellée,
+  - `500` si mismatch hash snapshot.
+- Génération PDF enterprise via Jinja2 + WeasyPrint (templates + design system CSS impression).
+- Génération XLSX enterprise via OpenPyXL avec :
+  - `DataBarRule` uniquement,
+  - calcul `weighted_score` strictement export-only (jamais persisté),
+  - onglet `Traceability` contenant hash SHA-256 complet.
+
+### Contrôles de conformité BLOC7
+
+- Source de vérité unique export = `committee_sessions.pv_snapshot` (aucun recalcul métier hors snapshot scellé).
+- Kill-list exclue du snapshot (`winner`, `rank`, `recommendation`, `selected_vendor`, `best_offer`, `weighted_scores`).
+- Pas d’écriture DB dans endpoint d’export.
+- Câblage route ajouté sur les deux entrypoints FastAPI (`src/api/main.py` et `main.py`).
+
+### Validation technique effectuée
+
+- Lint/format : `ruff` + `black` sur nouveaux fichiers BLOC7.
+- Tests ciblés passés :
+  - `tests/test_jinja_filters.py`
+  - `tests/services/test_pv_builder.py`
+  - `tests/services/test_document_service.py`
+  - `tests/api/test_committee_pv_export.py`
+  - Résultat : **8 passed**.
+
+### Note runtime WeasyPrint (local Windows vs Railway Docker)
+
+- Le test local Windows a confirmé la présence package Python mais dépendances natives manquantes (`libgobject`), ce qui est attendu hors image Linux dédiée.
+- Le Dockerfile a été renforcé avec les dépendances système WeasyPrint pour exécution Railway.

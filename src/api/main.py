@@ -20,6 +20,7 @@ from fastapi import FastAPI
 from src.api.cases import router as _cases_router
 from src.api.health import router as _health_router
 from src.api.routers.committee_sessions import router as committee_sessions_router
+from src.api.routers.documents import router as committee_documents_router
 from src.api.routers.market import router as market_router
 from src.api.routers.workspaces import router as workspaces_router
 from src.auth_router import router as _auth_router
@@ -201,6 +202,7 @@ app.include_router(_health_router)
 # V4.2.0 — P0-OPS-01 (préfixes /api/* déjà définis sur chaque APIRouter ; pas de prefix ici)
 app.include_router(workspaces_router)
 app.include_router(committee_sessions_router)
+app.include_router(committee_documents_router)
 app.include_router(market_router)
 
 # Optionnels

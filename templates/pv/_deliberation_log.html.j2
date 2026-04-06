@@ -1,0 +1,23 @@
+<section>
+  <h2>Journal de délibération</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Horodatage</th>
+        <th>Événement</th>
+        <th>Acteur</th>
+        <th>Contenu</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for event in snapshot.deliberation.events %}
+      <tr>
+        <td>{{ event.occurred_at | format_date_fr }}</td>
+        <td>{{ event.event_type | translate_event }}</td>
+        <td>{{ event.actor_id or "N/D" }}</td>
+        <td>{{ event.content or "—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>

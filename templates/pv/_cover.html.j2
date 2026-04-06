@@ -1,0 +1,10 @@
+<section class="cover">
+  <h1>Procès-verbal de délibération du comité</h1>
+  <p class="muted">Référence: {{ snapshot.process.reference_code or "N/D" }}</p>
+  <p>Titre: {{ snapshot.process.title or "N/D" }}</p>
+  <p>Type: {{ snapshot.process.process_type or "N/D" }}</p>
+  <p>Zone: {{ snapshot.process.zone or "N/D" }}</p>
+  <p>Catégorie: {{ snapshot.process.category or "N/D" }}</p>
+  <p>Valeur estimée: {{ snapshot.process.estimated_value | format_xof }}</p>
+  <p>Généré le: {{ snapshot.generated_at | format_date_fr }}</p>
+</section>

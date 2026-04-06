@@ -297,6 +297,19 @@ except ImportError as _e:
         _e,
     )
 
+_committee_documents_router = None
+try:
+    from src.api.routers.documents import (
+        router as _committee_documents_router_imp,
+    )
+
+    _committee_documents_router = _committee_documents_router_imp
+except ImportError as _e:
+    logging.getLogger(__name__).warning(
+        "[main] router optionnel src.api.routers.documents (BLOC7) non chargé : %s",
+        _e,
+    )
+
 # ── WebSocket V4.2.0 — diffusion workspace_events temps réel ─────────────────
 try:
     from src.api.ws.workspace_events import workspace_events_ws
@@ -325,6 +338,7 @@ for _opt_router in [
     _workspaces_router,
     _market_v420_router,
     _committee_sessions_router,
+    _committee_documents_router,
 ]:
     if _opt_router is not None:
         app.include_router(_opt_router)

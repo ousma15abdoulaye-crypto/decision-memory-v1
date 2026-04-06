@@ -23,7 +23,6 @@ chaîne vide ou une valeur inventée pour compenser des claims JWT incomplets.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import os
@@ -43,6 +42,7 @@ from src.couche_a.auth.workspace_access import (
     require_workspace_permission,
 )
 from src.db import db_execute, db_execute_one, get_connection
+from src.services.pv_builder import build_pv_snapshot
 from src.utils.json_utils import safe_json_dumps
 
 logger = logging.getLogger(__name__)
@@ -398,21 +398,15 @@ def seal_committee_session(
             )
         tid_cde = str(raw_tid)
 
-        # Un seul instantané pour le snapshot PV, la colonne `sealed_at` et le hash
-        # (évite un décalage hash / ligne DB si `NOW()` ≠ horloge applicative).
-        sealed_at = datetime.now(UTC)
-        events_n = _count_deliberation_events_for_session(conn, session["id"])
-        pv_snapshot = {
-            "workspace_id": str(workspace_id),
-            "session_id": str(session["id"]),
-            "sealed_by": str(user_id),
-            "sealed_at": sealed_at.isoformat(),
-            "seal_comment": payload.seal_comment,
-            "tenant_id": tid_cde,
-            "events_count": events_n,
-        }
+        pv_snapshot, seal_hash = build_pv_snapshot(
+            conn=conn,
+            workspace_id=workspace_id,
+            session_id=str(session["id"]),
+            user_id=user_id,
+            seal_comment=payload.seal_comment,
+        )
         pv_json = safe_json_dumps(pv_snapshot, sort_keys=True)
-        seal_hash = hashlib.sha256(pv_json.encode()).hexdigest()
+        sealed_at = datetime.now(UTC)
 
         db_execute(
             conn,

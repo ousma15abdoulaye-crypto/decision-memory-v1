@@ -1965,3 +1965,23 @@ Fin addendum 2026-04-04 B -- V4.2.0 Phases 0-6 toutes mergees. PRs #319-#323 CI 
 - **MRD** : section BLOC 6 BIS dans `docs/freeze/MRD_CURRENT_STATE.md` (alignée).
 
 ---
+
+## ADDENDUM 2026-04-06 — BLOC7 DOCGEN ENTERPRISE (implémentation P0→P9)
+
+- **Mandat** : `DMS-BLOC7-DOCGEN-V421-FINAL` — export PV enterprise depuis snapshot scellé, sans recalcul métier hors `pv_snapshot`.
+- **Implémentation** :
+  - services : `src/services/pv_builder.py`, `src/services/document_service.py`, `src/services/xlsx_builder.py`
+  - route : `src/api/routers/documents.py` (`GET /api/workspaces/{workspace_id}/committee/pv?format=json|pdf|xlsx`)
+  - templates/CSS : `templates/pv/*.j2`, `static/pv_design_system.css`
+  - utilitaires : `src/utils/jinja_filters.py`
+  - câblage : `src/api/main.py` + `main.py`
+- **Intégrité cryptographique** : recompute SHA-256 snapshot canonique côté export ; `409` non scellée ; `500` mismatch hash.
+- **Conformité kill-list** : exclusion explicite de `winner`, `rank`, `recommendation`, `selected_vendor`, `best_offer`, `weighted_scores`.
+- **XLSX** : `weighted_score` calculé uniquement en mémoire export (jamais DB/snapshot), `DataBarRule` uniquement, onglet `Traceability` avec hash complet.
+- **Infra WeasyPrint** : dépendance Python ajoutée + paquets système Docker Linux requis + `railway.toml` build Dockerfile.
+- **Validation** :
+  - `ruff` + `black` sur fichiers BLOC7 : OK
+  - tests ciblés : **8 passed** (`test_jinja_filters`, `test_pv_builder`, `test_document_service`, `test_committee_pv_export`)
+- **Statut** : livraison code BLOC7 prête pour PR/review ; tag release prévu mandat `v4.2.1-docgen` après validation finale humaine.
+
+---

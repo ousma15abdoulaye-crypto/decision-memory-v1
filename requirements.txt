@@ -6,6 +6,9 @@ email-validator==2.1.0.post1
 python-multipart==0.0.12
 pandas==3.0.1
 openpyxl==3.1.5
+weasyprint>=60.0
+Jinja2>=3.1.0
+babel>=2.12.0
 python-docx==1.1.2
 pypdf==5.1.0
 pdfplumber==0.11.4
@@ -32,7 +35,8 @@ requests>=2.31.0
 
 # LLM — annotation-backend + Tier-1 OCR (ADR-M11-002)
 # mistral-large-latest + mistral-ocr-latest via client.ocr.process()
-mistralai>=1.5.0
+# 2.x : OCR document = { "type": "file", "file_id": ... } (voir engine._extract_mistral_ocr)
+mistralai>=2.0.0,<3
 
 # === RESILIENCE (M4D) ===
 tenacity==9.0.0
