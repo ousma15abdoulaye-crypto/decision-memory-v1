@@ -38,16 +38,16 @@ Quand un fichier dépasse **800 lignes**, découper selon ce pattern strict :
 src/services/evaluation_frame/
 ├── __init__.py          ← exporte l’interface publique uniquement
 ├── projection.py        ← get_evaluation_frame(), _compute_signal()
-├── financial.py         ← _get_financial_view(), _price_signal()
-└── domain_builder.py    ← _build_domain_output()
+├── financial.py         ← get_financial_view(), helpers internes (_price_signal, etc.)
+└── domain_builder.py    ← build_domain_output()
 ```
 
-Le `__init__.py` réexporte pour que les imports existants puissent rester stables :
+Le `__init__.py` réexporte **uniquement** l’API publique pour que les imports existants puissent rester stables (pas de réexport de symboles préfixés `_` sauf contrat legacy explicite) :
 
 ```python
 # src/services/evaluation_frame/__init__.py
 from .projection import get_evaluation_frame
-from .financial import _get_financial_view
+from .financial import get_financial_view
 ```
 
 ## Règles de nommage des fichiers
@@ -71,7 +71,7 @@ from .financial import _get_financial_view
 
 - **Prérequis** : mandat CTO / processus défini dans **dms-core** — aucune nouvelle migration sans ça.
 - Une migration = un changement de scope cohérent ; `upgrade()` **et** `downgrade()` obligatoires.
-- **Nommage** : rester cohérent avec les formats déjà présents dans `alembic/versions/` et utiliser un **slug descriptif** ; éviter les noms génériques du type `migration_finale.py`. Exemples valides déjà présents dans le dépôt : `043_market_signals_v11.py`, `079_bloc5_confidence_qualification_signal_log.py`.
+- **Nommage** : rester cohérent avec les formats déjà présents dans `alembic/versions/` (révisions numériques, slugs descriptifs, préfixes historiques du type `m5_*`, etc.) et utiliser un **slug descriptif** ; éviter les noms génériques du type `migration_finale.py`. Exemples valides déjà présents dans le dépôt : `043_market_signals_v11.py`, `079_bloc5_confidence_qualification_signal_log.py`.
 - **Pas** de fichier dupliqué ou `*_copy.py` dans `alembic/versions/`.
 - Ligne directrice : **maximum ~3 tables** créées ou fortement modifiées par migration ; au-delà, envisager un découpage **dans le même mandat** pour la lisibilité.
 
