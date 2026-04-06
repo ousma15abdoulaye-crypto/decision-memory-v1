@@ -189,4 +189,11 @@ La matrice [`RUNTIME_DOC_ALIGNMENT_MATRIX_EXIT_01.md`](RUNTIME_DOC_ALIGNMENT_MAT
 
 ---
 
+---
+
+## Addendum — remédiation 2026-04-06
+
+- **DD-001 :** migration `080_market_signals_v2_zone_id_index` appliquée sur Railway (dry-run puis `apply_railway_migrations_safe.py --apply`) ; `alembic_version` = **080** ; index `idx_msv2_zone_id` vérifié. Détail : [`docs/ops/POST_DD_RISK_REMEDIATION_2026-04-06.md`](../ops/POST_DD_RISK_REMEDIATION_2026-04-06.md).
+- **DD-002 à DD-006 :** livrables documentaires et smoke étendu — même référence.
+
 *Fin du rapport — Due diligence DMS local → Railway, 2026-04-06.*

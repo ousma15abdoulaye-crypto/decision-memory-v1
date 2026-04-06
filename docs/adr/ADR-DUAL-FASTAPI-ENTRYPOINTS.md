@@ -11,7 +11,8 @@
 
 ## Conséquences
 
-- Les tests qui importent `src.api.main:app` ne garantissent pas à eux seuls la parité production ; voir [`tests/README.md`](../../tests/README.md) et le smoke [`tests/test_main_app_parity_smoke.py`](../../tests/test_main_app_parity_smoke.py).
+- Les tests qui importent `src.api.main:app` ne garantissent pas à eux seuls la parité production ; voir [`tests/README.md`](../../tests/README.md) et le smoke [`tests/test_main_app_parity_smoke.py`](../../tests/test_main_app_parity_smoke.py) (criteria, M14, geo si présent, **préfixes W1/W3** `/api/workspaces` + `committee/seal` + `committee/pv` sur `main:app`).
+- Toute nouvelle route **user-facing** doit être montée dans [`main.py`](../../main.py) **et** couverte ou justifiée dans le smoke / tests d’intégration — voir remédiation post-DD [`docs/ops/POST_DD_RISK_REMEDIATION_2026-04-06.md`](../ops/POST_DD_RISK_REMEDIATION_2026-04-06.md).
 
 ## Références
 
