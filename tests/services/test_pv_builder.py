@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from src.services import pv_builder
+from src.services.document_service import _canonical_hash
 
 
 def test_pv_builder_has_9_blocks_and_kill_list_absent(monkeypatch) -> None:
@@ -98,10 +99,14 @@ def test_pv_builder_has_9_blocks_and_kill_list_absent(monkeypatch) -> None:
         "market_signals",
         "source_package",
         "decision",
+        "meta",
         "seal",
     ):
         assert key in snapshot
+    assert snapshot["meta"]["snapshot_schema_version"]
+    assert snapshot["meta"]["generated_from_session_id"] == "sid-1"
     assert len(seal_hash) == 64
+    assert _canonical_hash(snapshot) == seal_hash
     assert "winner" not in snapshot["evaluation"]["scores_matrix"]["bundle-1"]
     assert "weighted_scores" not in str(snapshot).lower()
 

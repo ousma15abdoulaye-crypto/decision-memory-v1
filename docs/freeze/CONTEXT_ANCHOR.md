@@ -5,13 +5,13 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-06 — incident E-98 nettoyage git (corpus M12 non versionné) ; addendum BLOC6 pilote ; 2026-04-05 post-merge PR #325 main a61b8eb9 ║
+║  Dernière mise à jour : 2026-04-06 — suite E-98 : corpus M12 restauré sous data/annotations/ (vérifié) ; incident E-98 nettoyage git ; BLOC6 pilote ; PR #325 a61b8eb9 ║
 ║  Addendum 2026-04-04 : PR #321 V4.2.0 Phase 3 — CI rouge — handover détaillé fin doc ║
 ║  Addendum 2026-04-05 : PR #324 MERGÉ main 107d05a2 — BLOC3 fix HTTP 500 W1/W2 + tenant RLS + market + ETL vendors ║
 ║  Addendum 2026-04-05 : PR #325 MERGÉ main a61b8eb9 — docs+smoke BLOC3 gate A+B (bloc3_smoke_railway, BLOC3_PIPELINE_REPORT) ║
 ║  Addendum 2026-04-06 : BLOC6 pilote SCI Mali — BLOC6_PILOT_SCI_MALI_REPORT.md — verdict ROUGE (seal HTTP 500 prod) ; fix UUID pv_snapshot committee_sessions ║
 ║  Addendum 2026-04-06 (BLOC6 BIS) : branche feat/bloc6-bis-seal-uuid-fix — safe_json_dumps + seal handler ; script bloc6_pilot_sci_mali_run.py versionné ; seal prod EN ATTENTE merge/deploy ║
-║  Addendum 2026-04-06 — INCIDENT OPS E-98 : git clean sur non suivis → perte corpus annotations M12 (récup. OneDrive / ré-export LS) ; commit e49d4e64 restaure scripts + squelettes ║
+║  Addendum 2026-04-06 — INCIDENT OPS E-98 : git clean sur non suivis → perte corpus M12 ; e49d4e64 scripts + squelettes ; suite 2026-04-06 : corpus restauré (addendum § E-98 suite) ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -2005,8 +2005,26 @@ Fin addendum 2026-04-04 B -- V4.2.0 Phases 0-6 toutes mergees. PRs #319-#323 CI 
 
 **Mesure corrective dépôt :** commit **`e49d4e64`** sur `main` — restauration des scripts ops (`run_pg_sql.py`, `inventory_m12_jsonl.py`, `dry_run_m12_export_audit.py`, `preflight_cto_railway_readonly.py`) et de **squelettes** README / rapports (contenu rédactionnel détaillé des audits **non** reconstituable sans sauvegarde externe).
 
+**État post-restauration données (2026-04-06) :** le **corpus M12** (exports / inventaires sous `data/annotations/`) a été **rétabli** par l’équipe (hors Git). Contrôle documenté : **§ SUITE E-98 — RESTAURATION CORPUS M12** ci-dessous.
+
 ### ERREUR CAPITALISEE E-98
 
 E-98 (2026-04-06) : **`git clean -fd` (ou équivalent destructif) sans dry-run, sans liste validée, et sans exclusion explicite des répertoires de corpus / annotations (`data/annotations/**`, exports JSONL, rapports ops locaux)** — risque de **perte définitive** de données utiles au DMS hors tout mécanisme de récupération Git (**distinct de E-94 M15** : `CREATE INDEX CONCURRENTLY` / transaction). **Règle agent / ops :** avant toute suppression de non suivis — exécuter **`git clean -nd`** (aperçu), produire un **inventaire** des chemins concernés, **exclure** `data/annotations`, `docs/data` et tout chemin listé au mandat comme « prod locale » ; obtenir **validation humaine** si le moindre fichier M12 / audit / backup est présent ; privilégier **déplacement** (copie vers répertoire hors repo) plutôt que `git clean` aveugle.
+
+### SUITE E-98 — RESTAURATION CORPUS M12 (2026-04-06)
+
+**Statut :** le corpus et les inventaires associés sont **de nouveau présents** sous `data/annotations/` (restauration hors Git — ex. OneDrive « Version précédente », copie depuis sauvegarde, ou ré-export LS / pipeline). **Git n’a pas joué** dans cette restauration des blobs non historisés.
+
+**Vérification machine (workspace local, ancrage documentation) :**
+
+| Artefact | Taille indicative | Lignes (JSONL) |
+|----------|-------------------|----------------|
+| `data/annotations/ls_m12_export_latest.jsonl` | ~9,4 Mo | **116** |
+| `data/annotations/m12_corpus_from_ls.jsonl` | ~5,5 Mo | **75** |
+| `data/annotations/m12_corpus_from_ls_relaxed.jsonl` | ~1,1 Mo | **12** |
+| `data/annotations/m12_corpus_from_ls_manifest.tsv` | présent | — |
+| `data/annotations/inventory_m12_latest.{md,json,tsv}` | présents | — |
+
+**Conséquence pour la gouvernance :** la leçon **procédurale** E-98 (**ne jamais** `git clean -fd` sans inventaire / exclusions sur chemins corpus) **reste opposable**. La restauration des données **ne l’annule pas**. Recommandation : conserver des **copies horodatées** hors repo et, si besoin, rejouer `scripts/inventory_m12_corpus_jsonl.py` / `scripts/dry_run_m12_export_audit.py` sur les JSONL canoniques pour preuve d’intégrité avant opérations destructives futures.
 
 ---

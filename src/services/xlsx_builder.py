@@ -10,6 +10,10 @@ from openpyxl.comments import Comment
 from openpyxl.formatting.rule import DataBarRule
 from openpyxl.styles import Alignment, Font, PatternFill
 
+from src.services.comparative_table_model import (
+    build_comparative_table_model_from_snapshot,
+)
+
 
 def _criterion_weight(criteria: list[dict[str, Any]], criterion_id: str) -> float:
     for c in criteria:
@@ -24,6 +28,7 @@ def _criterion_weight(criteria: list[dict[str, Any]], criterion_id: str) -> floa
 def build_xlsx_export(
     snapshot: dict[str, Any], session_id: str, seal_hash: str, sealed_at: str | None
 ) -> bytes:
+    ct = build_comparative_table_model_from_snapshot(snapshot)
     wb = Workbook()
     ws = wb.active
     ws.title = "Comparatif"
@@ -49,9 +54,9 @@ def build_xlsx_export(
         "DMS",
     )
 
-    criteria = snapshot.get("evaluation", {}).get("criteria", []) or []
-    scores = snapshot.get("evaluation", {}).get("scores_matrix", {}) or {}
-    bundles = snapshot.get("evaluation", {}).get("bundles", []) or []
+    criteria = ct.get("criteria") or []
+    scores = ct.get("scores_matrix") or {}
+    bundles = ct.get("bundles") or []
 
     for bundle in bundles:
         supplier = bundle.get("supplier_name_display") or bundle.get(
@@ -97,6 +102,7 @@ def build_xlsx_export(
         ws.column_dimensions[col].width = 16
 
     trace = wb.create_sheet("Traceability")
+    tr = ct.get("trace") or {}
     trace["A1"] = "workspace_id"
     trace["B1"] = snapshot.get("process", {}).get("workspace_id")
     trace["A2"] = "session_id"
@@ -107,6 +113,12 @@ def build_xlsx_export(
     trace["B4"] = seal_hash
     trace["A5"] = "dms_version"
     trace["B5"] = snapshot.get("dms_version")
+    trace["A6"] = "snapshot_schema_version"
+    trace["B6"] = tr.get("snapshot_schema_version")
+    trace["A7"] = "render_template_version"
+    trace["B7"] = tr.get("render_template_version")
+    trace["A8"] = "comparative_source"
+    trace["B8"] = ct.get("source")
     trace.column_dimensions["A"].width = 26
     trace.column_dimensions["B"].width = 90
 
