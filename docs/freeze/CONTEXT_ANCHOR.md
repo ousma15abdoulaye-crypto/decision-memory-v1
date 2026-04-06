@@ -5,12 +5,13 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-06 — addendum BLOC6 pilote (verdict ROUGE, docs/ops/BLOC6_PILOT_SCI_MALI_REPORT.md) ; 2026-04-05 post-merge PR #325 main a61b8eb9 ║
+║  Dernière mise à jour : 2026-04-06 — incident E-98 nettoyage git (corpus M12 non versionné) ; addendum BLOC6 pilote ; 2026-04-05 post-merge PR #325 main a61b8eb9 ║
 ║  Addendum 2026-04-04 : PR #321 V4.2.0 Phase 3 — CI rouge — handover détaillé fin doc ║
 ║  Addendum 2026-04-05 : PR #324 MERGÉ main 107d05a2 — BLOC3 fix HTTP 500 W1/W2 + tenant RLS + market + ETL vendors ║
 ║  Addendum 2026-04-05 : PR #325 MERGÉ main a61b8eb9 — docs+smoke BLOC3 gate A+B (bloc3_smoke_railway, BLOC3_PIPELINE_REPORT) ║
 ║  Addendum 2026-04-06 : BLOC6 pilote SCI Mali — BLOC6_PILOT_SCI_MALI_REPORT.md — verdict ROUGE (seal HTTP 500 prod) ; fix UUID pv_snapshot committee_sessions ║
 ║  Addendum 2026-04-06 (BLOC6 BIS) : branche feat/bloc6-bis-seal-uuid-fix — safe_json_dumps + seal handler ; script bloc6_pilot_sci_mali_run.py versionné ; seal prod EN ATTENTE merge/deploy ║
+║  Addendum 2026-04-06 — INCIDENT OPS E-98 : git clean sur non suivis → perte corpus annotations M12 (récup. OneDrive / ré-export LS) ; commit e49d4e64 restaure scripts + squelettes ║
 ║  Autorité : CTO / AO — Abdoulaye Ousmane                           ║
 ║  Statut : DOCUMENT VIVANT — OPPOSABLE — INVIOLABLE                 ║
 ╠══════════════════════════════════════════════════════════════════════╣
@@ -1983,5 +1984,29 @@ Fin addendum 2026-04-04 B -- V4.2.0 Phases 0-6 toutes mergees. PRs #319-#323 CI 
   - `ruff` + `black` sur fichiers BLOC7 : OK
   - tests ciblés : **8 passed** (`test_jinja_filters`, `test_pv_builder`, `test_document_service`, `test_committee_pv_export`)
 - **Statut** : livraison code BLOC7 prête pour PR/review ; tag release prévu mandat `v4.2.1-docgen` après validation finale humaine.
+
+---
+
+## ADDENDUM 2026-04-06 — INCIDENT OPS — NETTOYAGE GIT ET PERTE DE CORPUS ANNOTATIONS (E-98)
+
+**Contexte :** Après merge PR **#335** (BLOC7 docgen) sur `main`, une session agent a exécuté un « nettoyage » du working tree sur demande explicite (**merge + nettoyage**), sans inventaire préalable des fichiers **non suivis** par Git.
+
+**Chaîne technique :** `git restore .` (annulation des modifications locales sur fichiers suivis) puis **`git clean -fd`** (suppression récursive des fichiers et répertoires **non trackés**).
+
+**Impact :** Perte **irréversible depuis le dépôt Git** d’artefacts **jamais commités** (souvent volontairement — volume, `.gitignore`, secrets) incluant notamment :
+- exports / inventaires sous `data/annotations/` (JSONL corpus M12, etc.) ;
+- rapports d’audit sous `docs/audits/` ;
+- backups / rapports ops sous `docs/data/` et `docs/ops/` ;
+- scripts locaux non versionnés au moment du nettoyage.
+
+**Pourquoi Git ne restaure pas :** `git clean` ne supprime pas des commits ni des blobs indexés — il efface le **working tree** pour les chemins **absents de l’index**. Ces fichiers n’avaient **pas d’objet Git** (pas de SHA traçable dans l’historique du dépôt pour ces chemins).
+
+**Récupération possible (hors Git) :** historique **OneDrive / Version précédente** sur le dossier du clone ; sauvegardes externes ; **ré-export** Label Studio / pipeline M12 (`export_ls_to_dms_jsonl.py`, etc.) selon `docs/m12/M12_EXPORT.md`.
+
+**Mesure corrective dépôt :** commit **`e49d4e64`** sur `main` — restauration des scripts ops (`run_pg_sql.py`, `inventory_m12_jsonl.py`, `dry_run_m12_export_audit.py`, `preflight_cto_railway_readonly.py`) et de **squelettes** README / rapports (contenu rédactionnel détaillé des audits **non** reconstituable sans sauvegarde externe).
+
+### ERREUR CAPITALISEE E-98
+
+E-98 (2026-04-06) : **`git clean -fd` (ou équivalent destructif) sans dry-run, sans liste validée, et sans exclusion explicite des répertoires de corpus / annotations (`data/annotations/**`, exports JSONL, rapports ops locaux)** — risque de **perte définitive** de données utiles au DMS hors tout mécanisme de récupération Git (**distinct de E-94 M15** : `CREATE INDEX CONCURRENTLY` / transaction). **Règle agent / ops :** avant toute suppression de non suivis — exécuter **`git clean -nd`** (aperçu), produire un **inventaire** des chemins concernés, **exclure** `data/annotations`, `docs/data` et tout chemin listé au mandat comme « prod locale » ; obtenir **validation humaine** si le moindre fichier M12 / audit / backup est présent ; privilégier **déplacement** (copie vers répertoire hors repo) plutôt que `git clean` aveugle.
 
 ---
