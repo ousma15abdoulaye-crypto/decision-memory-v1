@@ -54,7 +54,8 @@ def _forbidden_keys_in_tree(obj: Any, path: str = "") -> list[str]:
 def validate_pv_snapshot(snapshot: dict[str, Any]) -> None:
     """Vérifie blocs obligatoires et absence de kill-list dans scores_matrix.
 
-    À appeler sur le snapshot **sans** clé ``seal`` (avant hash canonique).
+    Appeler avant le hash canonique. Le snapshot peut contenir ``seal: {}``
+    (sans ``seal_hash``), aligné avec ``document_service._canonical_hash``.
     """
     required_top = (
         "process",
@@ -493,9 +494,10 @@ def build_pv_snapshot(
             "generated_from_session_id": str(session_id),
             "workspace_id": str(ws.get("id")),
         },
+        "seal": {},
     }
     validate_pv_snapshot(snapshot)
     canonical_json = safe_json_dumps(snapshot, sort_keys=True, ensure_ascii=False)
     seal_hash = hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
-    snapshot["seal"] = {"seal_hash": seal_hash}
+    snapshot["seal"]["seal_hash"] = seal_hash
     return snapshot, seal_hash
