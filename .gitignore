@@ -33,6 +33,10 @@ mercurials_mapping_proposals.csv
 *_dry*.csv
 *_output*.csv
 
+# Frontend M16 (Vite / Vitest)
+frontend/node_modules/
+frontend/dist/
+
 # Artefacts Python
 __pycache__/
 *.py[cod]
