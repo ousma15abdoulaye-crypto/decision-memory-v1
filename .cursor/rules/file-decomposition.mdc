@@ -71,7 +71,7 @@ from .financial import _get_financial_view
 
 - **Prérequis** : mandat CTO / processus défini dans **dms-core** — aucune nouvelle migration sans ça.
 - Une migration = un changement de scope cohérent ; `upgrade()` **et** `downgrade()` obligatoires.
-- **Nommage** : suivre la convention **du dépôt** — fichiers du type `{revision_id}_{slug_descriptif}.py` (ex. `043_market_signals_v11.py`, `079_bloc5_confidence_qualification_signal_log.py`), pas de noms génériques du type `migration_finale.py`.
+- **Nommage** : rester cohérent avec les formats déjà présents dans `alembic/versions/` et utiliser un **slug descriptif** ; éviter les noms génériques du type `migration_finale.py`. Exemples valides déjà présents dans le dépôt : `043_market_signals_v11.py`, `079_bloc5_confidence_qualification_signal_log.py`.
 - **Pas** de fichier dupliqué ou `*_copy.py` dans `alembic/versions/`.
 - Ligne directrice : **maximum ~3 tables** créées ou fortement modifiées par migration ; au-delà, envisager un découpage **dans le même mandat** pour la lisibilité.
 
