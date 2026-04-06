@@ -9,6 +9,10 @@ from typing import Any
 from src.db import db_execute_one, db_fetchall
 from src.utils.json_utils import safe_json_dumps
 
+# Aligné mandat industrialisation — incrémenter si structure snapshot change.
+SNAPSHOT_SCHEMA_VERSION = "1.1"
+RENDER_TEMPLATE_VERSION = "pv-1.0"
+
 _KILL_LIST = {
     "winner",
     "rank",
@@ -30,6 +34,73 @@ def _sanitize_scores_matrix(data: Any) -> Any:
             sanitized[str(k)] = _sanitize_scores_matrix(v)
         return sanitized
     return data
+
+
+def _forbidden_keys_in_tree(obj: Any, path: str = "") -> list[str]:
+    """Retourne les chemins où une clé interdite apparaît (dict uniquement)."""
+    found: list[str] = []
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            ks = str(k)
+            if ks in _KILL_LIST:
+                found.append(f"{path}.{ks}" if path else ks)
+            found.extend(_forbidden_keys_in_tree(v, f"{path}.{ks}" if path else ks))
+    elif isinstance(obj, list):
+        for i, item in enumerate(obj):
+            found.extend(_forbidden_keys_in_tree(item, f"{path}[{i}]"))
+    return found
+
+
+def validate_pv_snapshot(snapshot: dict[str, Any]) -> None:
+    """Vérifie blocs obligatoires et absence de kill-list dans scores_matrix.
+
+    À appeler sur le snapshot **sans** clé ``seal`` (avant hash canonique).
+    """
+    required_top = (
+        "process",
+        "committee",
+        "deliberation",
+        "evaluation",
+        "decision",
+        "meta",
+    )
+    for key in required_top:
+        if key not in snapshot or not isinstance(snapshot[key], dict):
+            raise ValueError(f"snapshot incomplet: bloc '{key}' manquant ou non-objet")
+
+    proc = snapshot["process"]
+    if not proc.get("workspace_id"):
+        raise ValueError("snapshot incomplet: process.workspace_id vide")
+
+    com = snapshot["committee"]
+    if not com.get("session_id"):
+        raise ValueError("snapshot incomplet: committee.session_id vide")
+
+    ev = snapshot["evaluation"]
+    for sub in ("criteria", "bundles", "scores_matrix"):
+        if sub not in ev:
+            raise ValueError(f"snapshot incomplet: evaluation.{sub} manquant")
+
+    dec = snapshot["decision"]
+    if not dec.get("sealed_at") or not dec.get("sealed_by"):
+        raise ValueError("snapshot incomplet: decision.sealed_at ou sealed_by manquant")
+
+    meta = snapshot["meta"]
+    for mk in (
+        "snapshot_schema_version",
+        "render_template_version",
+        "generated_from_session_id",
+        "workspace_id",
+    ):
+        if not meta.get(mk):
+            raise ValueError(f"snapshot incomplet: meta.{mk} manquant ou vide")
+
+    sm = ev.get("scores_matrix")
+    if not isinstance(sm, dict):
+        raise ValueError("evaluation.scores_matrix doit être un objet")
+    bad = _forbidden_keys_in_tree(sm)
+    if bad:
+        raise ValueError(f"champs interdits dans scores_matrix: {', '.join(bad)}")
 
 
 def _confidence_from_bundle_docs(conn, workspace_id: str) -> dict[str, float]:
@@ -72,6 +143,103 @@ def _extract_criteria_from_scores(
         }
         for cid in sorted(criteria_ids)
     ]
+
+
+def build_evaluation_projection(conn, workspace_id: str) -> dict[str, Any]:
+    """Projection comparative / PV — critères, bundles, scores (sanitisés).
+
+    Source unique de vérité pour le tableau comparatif côté serveur (hors seal).
+    """
+    criteria_rows = db_fetchall(
+        conn,
+        """
+        SELECT *
+        FROM dao_criteria
+        WHERE workspace_id = :wid
+        ORDER BY created_at NULLS LAST, id
+        """,
+        {"wid": workspace_id},
+    )
+
+    bundles_rows = db_fetchall(
+        conn,
+        """
+        SELECT *
+        FROM supplier_bundles
+        WHERE workspace_id = :wid
+        ORDER BY assembled_at NULLS LAST, id
+        """,
+        {"wid": workspace_id},
+    )
+    confidence_by_bundle = _confidence_from_bundle_docs(conn, workspace_id)
+
+    latest_eval = db_execute_one(
+        conn,
+        """
+        SELECT scores_matrix
+        FROM evaluation_documents
+        WHERE workspace_id = :wid
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        {"wid": workspace_id},
+    )
+    raw_scores = latest_eval.get("scores_matrix") if latest_eval else {}
+    if not isinstance(raw_scores, dict):
+        raw_scores = {}
+    scores_matrix = _sanitize_scores_matrix(raw_scores)
+
+    criteria: list[dict[str, Any]] = []
+    if criteria_rows:
+        for c in criteria_rows:
+            criteria.append(
+                {
+                    "id": str(c.get("id")),
+                    "name": c.get("name") or c.get("critere_nom") or str(c.get("id")),
+                    "label": c.get("label") or c.get("critere_nom") or str(c.get("id")),
+                    "weight": (
+                        c.get("weight")
+                        if c.get("weight") is not None
+                        else c.get("ponderation")
+                    ),
+                    "is_eliminatory": bool(
+                        c.get("is_eliminatory")
+                        if c.get("is_eliminatory") is not None
+                        else c.get("seuil_elimination") is not None
+                    ),
+                    "unit": c.get("unit"),
+                }
+            )
+    else:
+        criteria = _extract_criteria_from_scores(scores_matrix)
+
+    bundles: list[dict[str, Any]] = []
+    for b in bundles_rows:
+        bid = str(b.get("id"))
+        bundles.append(
+            {
+                "id": bid,
+                "supplier_name_raw": b.get("vendor_name_raw"),
+                "supplier_name_display": b.get("vendor_name_raw"),
+                "completeness_score": b.get("completeness_score"),
+                "assembly_confidence": confidence_by_bundle.get(bid),
+                "status": b.get("bundle_status"),
+                "elimination_flag": bool(
+                    b.get("qualification_status") == "disqualified"
+                ),
+                "elimination_reason": (
+                    "qualification_status=disqualified"
+                    if b.get("qualification_status") == "disqualified"
+                    else None
+                ),
+            }
+        )
+
+    return {
+        "criteria": criteria,
+        "bundles": bundles,
+        "scores_matrix": scores_matrix,
+    }
 
 
 def build_pv_snapshot(
@@ -175,90 +343,7 @@ def build_pv_snapshot(
             }
         )
 
-    criteria_rows = db_fetchall(
-        conn,
-        """
-        SELECT *
-        FROM dao_criteria
-        WHERE workspace_id = :wid
-        ORDER BY created_at NULLS LAST, id
-        """,
-        {"wid": workspace_id},
-    )
-
-    bundles_rows = db_fetchall(
-        conn,
-        """
-        SELECT *
-        FROM supplier_bundles
-        WHERE workspace_id = :wid
-        ORDER BY assembled_at NULLS LAST, id
-        """,
-        {"wid": workspace_id},
-    )
-    confidence_by_bundle = _confidence_from_bundle_docs(conn, workspace_id)
-
-    latest_eval = db_execute_one(
-        conn,
-        """
-        SELECT scores_matrix
-        FROM evaluation_documents
-        WHERE workspace_id = :wid
-        ORDER BY created_at DESC
-        LIMIT 1
-        """,
-        {"wid": workspace_id},
-    )
-    raw_scores = latest_eval.get("scores_matrix") if latest_eval else {}
-    if not isinstance(raw_scores, dict):
-        raw_scores = {}
-    scores_matrix = _sanitize_scores_matrix(raw_scores)
-
-    criteria: list[dict[str, Any]] = []
-    if criteria_rows:
-        for c in criteria_rows:
-            criteria.append(
-                {
-                    "id": str(c.get("id")),
-                    "name": c.get("name") or c.get("critere_nom") or str(c.get("id")),
-                    "label": c.get("label") or c.get("critere_nom") or str(c.get("id")),
-                    "weight": (
-                        c.get("weight")
-                        if c.get("weight") is not None
-                        else c.get("ponderation")
-                    ),
-                    "is_eliminatory": bool(
-                        c.get("is_eliminatory")
-                        if c.get("is_eliminatory") is not None
-                        else c.get("seuil_elimination") is not None
-                    ),
-                    "unit": c.get("unit"),
-                }
-            )
-    else:
-        criteria = _extract_criteria_from_scores(scores_matrix)
-
-    bundles: list[dict[str, Any]] = []
-    for b in bundles_rows:
-        bid = str(b.get("id"))
-        bundles.append(
-            {
-                "id": bid,
-                "supplier_name_raw": b.get("vendor_name_raw"),
-                "supplier_name_display": b.get("vendor_name_raw"),
-                "completeness_score": b.get("completeness_score"),
-                "assembly_confidence": confidence_by_bundle.get(bid),
-                "status": b.get("bundle_status"),
-                "elimination_flag": bool(
-                    b.get("qualification_status") == "disqualified"
-                ),
-                "elimination_reason": (
-                    "qualification_status=disqualified"
-                    if b.get("qualification_status") == "disqualified"
-                    else None
-                ),
-            }
-        )
+    ev_block = build_evaluation_projection(conn, workspace_id)
 
     signals_rows = db_fetchall(
         conn,
@@ -275,7 +360,6 @@ def build_pv_snapshot(
     if not signals_rows:
         zone_for_msv2 = ws.get("zone_id")
         if zone_for_msv2:
-            # Filtrage zone_id : index idx_msv2_zone_id (migration 080_market_signals_v2_zone_id_index).
             signals_rows = db_fetchall(
                 conn,
                 """
@@ -368,7 +452,7 @@ def build_pv_snapshot(
 
     sealed_at = datetime.now(UTC)
     snapshot: dict[str, Any] = {
-        "format_version": "1.0",
+        "format_version": "1.1",
         "dms_version": "4.2.1-docgen",
         "generated_at": sealed_at.isoformat(),
         "process": {
@@ -392,9 +476,9 @@ def build_pv_snapshot(
         },
         "deliberation": {"total_events": len(events), "events": events},
         "evaluation": {
-            "criteria": criteria,
-            "bundles": bundles,
-            "scores_matrix": scores_matrix,
+            "criteria": ev_block["criteria"],
+            "bundles": ev_block["bundles"],
+            "scores_matrix": ev_block["scores_matrix"],
         },
         "market_signals": market_signals,
         "source_package": source_docs,
@@ -403,7 +487,14 @@ def build_pv_snapshot(
             "sealed_at": sealed_at.isoformat(),
             "seal_comment": seal_comment or "",
         },
+        "meta": {
+            "snapshot_schema_version": SNAPSHOT_SCHEMA_VERSION,
+            "render_template_version": RENDER_TEMPLATE_VERSION,
+            "generated_from_session_id": str(session_id),
+            "workspace_id": str(ws.get("id")),
+        },
     }
+    validate_pv_snapshot(snapshot)
     canonical_json = safe_json_dumps(snapshot, sort_keys=True, ensure_ascii=False)
     seal_hash = hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
     snapshot["seal"] = {"seal_hash": seal_hash}

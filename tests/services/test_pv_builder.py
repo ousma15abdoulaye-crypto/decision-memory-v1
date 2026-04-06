@@ -98,9 +98,12 @@ def test_pv_builder_has_9_blocks_and_kill_list_absent(monkeypatch) -> None:
         "market_signals",
         "source_package",
         "decision",
+        "meta",
         "seal",
     ):
         assert key in snapshot
+    assert snapshot["meta"]["snapshot_schema_version"]
+    assert snapshot["meta"]["generated_from_session_id"] == "sid-1"
     assert len(seal_hash) == 64
     assert "winner" not in snapshot["evaluation"]["scores_matrix"]["bundle-1"]
     assert "weighted_scores" not in str(snapshot).lower()

@@ -6,6 +6,8 @@
 
 > **Addendum (post-merge correctif 500, ex. PR #324)** : en prod, `POST /api/workspaces` et `GET /api/market/overview` passent en smoke ; `GET …/committee` peut répondre **403** (RBAC) — attendu pour le script **A+B**. Le tableau ci-dessous documente surtout la **session d’audit initiale** (avant correctif), pour trace.
 
+> **Addendum (code 2026-04-06)** : persistance M14 — [`m14_evaluation_repository.py`](../../src/procurement/m14_evaluation_repository.py) aligné sur schéma post-074 (`workspace_id`, `score_history` / `elimination_log` sans `case_id`). La ligne « M14 persistance moteur » du tableau historique est **fermée côté code** ; rejeu smoke prod / données réelles reste une **preuve terrain** distincte.
+
 ---
 
 ## Résumé exécutif
@@ -24,7 +26,7 @@
 | Pass‑1 test réel (ZIP → DB) | **GAP** | Non rejoué : dépend d’un workspace valide + worker ARQ + Redis + exécution [`workspaces.py` (upload-zip)](../../src/api/routers/workspaces.py) ; bloqué ici par les **500** sur les routes W1. |
 | M12 workspace-aware | **OK** (code) | `classify_node` + persistance `m12_doc_kind` / `m12_confidence` dans [`bundle_writer.py`](../../src/assembler/bundle_writer.py) vers **`bundle_documents`**. |
 | M14 workspace-aware (lecture API) | **OK** (code) | [`workspaces.py` (GET …/evaluation)](../../src/api/routers/workspaces.py) lit `evaluation_documents` par **`workspace_id`**, filtre INV‑W06 sur `scores_matrix`. |
-| M14 persistance moteur (`save_evaluation`) | **GAP** | [`m14_evaluation_repository.py`](../../src/procurement/m14_evaluation_repository.py) insère encore avec **`case_id`** et colonnes héritées du modèle pré‑074 ; la migration [`074_drop_case_id_set_workspace_not_null.py`](../../alembic/versions/074_drop_case_id_set_workspace_not_null.py) supprime **`case_id`** sur `evaluation_documents`. Risque : écriture M14 via ce repository **incompatible** avec le schéma 077 tant que le code n’est pas aligné (hors périmètre correction BLOC 3). |
+| M14 persistance moteur (`save_evaluation`) | **OK** (code, 2026-04-06) | Insertion via **`workspace_id`** résolu depuis `process_workspaces.legacy_case_id` ou UUID workspace ; `score_history` / `elimination_log` avec **`workspace_id`** (post-074). Voir addendum ci-dessus. |
 | `workspace_events` | **PARTIEL** | À la création de workspace, [`workspaces.py`](../../src/api/routers/workspaces.py) émet **`WORKSPACE_CREATED`**. Aucune preuve supplémentaire en session (création workspace API en échec 500). |
 
 ### Outil ajouté

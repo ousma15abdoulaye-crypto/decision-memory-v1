@@ -3,4 +3,7 @@
   <p>Seal hash (SHA-256): <code>{{ seal_hash }}</code></p>
   <p>Session: {{ session_id }}</p>
   <p>Scellé le: {{ sealed_at | format_date_fr }}</p>
+  {% if 'meta' in snapshot and snapshot['meta'] %}
+  <p class="meta-trace">Schéma snapshot {{ snapshot['meta']['snapshot_schema_version'] }} · Rendu {{ snapshot['meta']['render_template_version'] }}</p>
+  {% endif %}
 </section>
