@@ -4,7 +4,23 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.db import db_fetchall
+from src.db import db_execute_one, db_fetchall
+
+
+def workspace_has_m16_rows(conn: Any, workspace_id: str) -> bool:
+    """True si au moins une table M16 a des lignes pour ce workspace (évite 4 requêtes inutiles)."""
+    row = db_execute_one(
+        conn,
+        """
+        SELECT (
+            EXISTS(SELECT 1 FROM evaluation_domains WHERE workspace_id = CAST(:w AS uuid))
+            OR EXISTS(SELECT 1 FROM criterion_assessments WHERE workspace_id = CAST(:w AS uuid))
+            OR EXISTS(SELECT 1 FROM price_line_comparisons WHERE workspace_id = CAST(:w AS uuid))
+        ) AS has_any
+        """,
+        {"w": workspace_id},
+    )
+    return bool(row and row.get("has_any"))
 
 
 def fetch_m16_evaluation_extras(conn: Any, workspace_id: str) -> dict[str, Any]:

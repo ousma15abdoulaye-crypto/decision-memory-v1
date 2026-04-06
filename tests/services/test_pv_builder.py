@@ -10,7 +10,12 @@ from src.services.document_service import _canonical_hash
 
 @pytest.fixture(autouse=True)
 def _stub_m16_extras(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Les tests passent un faux ``conn`` ; M16 extras requiert un wrapper psycopg."""
+    """Les tests passent un faux ``conn`` ; M16 requiert un wrapper psycopg réel."""
+    monkeypatch.setattr(
+        pv_builder,
+        "workspace_has_m16_rows",
+        lambda _conn, _wid: False,
+    )
     monkeypatch.setattr(
         pv_builder,
         "fetch_m16_evaluation_extras",

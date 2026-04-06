@@ -12,6 +12,7 @@ def get_thread(conn: Any, workspace_id: str, thread_id: str) -> dict[str, Any] |
         conn,
         """
         SELECT id::text AS id, workspace_id::text AS workspace_id,
+               tenant_id::text AS tenant_id,
                committee_session_id::text AS committee_session_id,
                title, thread_status
         FROM deliberation_threads
@@ -71,7 +72,7 @@ def insert_thread(
     return str(row["id"])
 
 
-def list_messages(conn: Any, thread_id: str) -> list[dict[str, Any]]:
+def list_messages(conn: Any, workspace_id: str, thread_id: str) -> list[dict[str, Any]]:
     return db_fetchall(
         conn,
         """
@@ -79,9 +80,10 @@ def list_messages(conn: Any, thread_id: str) -> list[dict[str, Any]]:
                author_user_id, body, created_at
         FROM deliberation_messages
         WHERE thread_id = CAST(:tid AS uuid)
+          AND workspace_id = CAST(:wid AS uuid)
         ORDER BY created_at, id
         """,
-        {"tid": thread_id},
+        {"tid": thread_id, "wid": workspace_id},
     )
 
 

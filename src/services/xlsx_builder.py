@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import json
 from typing import Any
 
 from openpyxl import Workbook
@@ -132,7 +133,7 @@ def build_xlsx_export(
             cell.fill = PatternFill("solid", fgColor="1F4E78")
         for a in assessments:
             cj = a.get("cell_json") if isinstance(a.get("cell_json"), dict) else {}
-            preview = str(cj)[:500]
+            preview = json.dumps(cj, ensure_ascii=False)[:500]
             conf = a.get("confidence")
             m16s.append(
                 [

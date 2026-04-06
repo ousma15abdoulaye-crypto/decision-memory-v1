@@ -7,7 +7,10 @@ from datetime import UTC, datetime
 from typing import Any
 
 from src.db import db_execute_one, db_fetchall
-from src.services.m16_projection import fetch_m16_evaluation_extras
+from src.services.m16_projection import (
+    fetch_m16_evaluation_extras,
+    workspace_has_m16_rows,
+)
 from src.utils.json_utils import safe_json_dumps
 
 # Aligné mandat industrialisation — incrémenter si structure snapshot change.
@@ -242,11 +245,13 @@ def build_evaluation_projection(conn, workspace_id: str) -> dict[str, Any]:
         "bundles": bundles,
         "scores_matrix": scores_matrix,
     }
-    m16 = fetch_m16_evaluation_extras(conn, workspace_id)
-    if any(
-        m16.get(k) for k in ("domains", "assessments", "price_lines", "price_values")
-    ):
-        out["m16"] = m16
+    if workspace_has_m16_rows(conn, workspace_id):
+        m16 = fetch_m16_evaluation_extras(conn, workspace_id)
+        if any(
+            m16.get(k)
+            for k in ("domains", "assessments", "price_lines", "price_values")
+        ):
+            out["m16"] = m16
     return out
 
 

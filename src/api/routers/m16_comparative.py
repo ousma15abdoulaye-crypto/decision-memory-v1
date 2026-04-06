@@ -304,7 +304,10 @@ def m16_list_messages(
 ):
     require_workspace_access(workspace_id, user)
     with get_connection() as conn:
-        rows = m16_deliberation_service.list_messages(conn, thread_id)
+        thread = m16_deliberation_service.get_thread(conn, workspace_id, thread_id)
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread introuvable")
+        rows = m16_deliberation_service.list_messages(conn, workspace_id, thread_id)
     return [
         DeliberationMessageOut(
             id=r["id"],
@@ -329,14 +332,14 @@ def m16_post_message(
 ):
     require_workspace_permission(workspace_id, user, "workspace.update")
     with get_connection() as conn:
-        ws = m16_evaluation_service.resolve_workspace_tenant(conn, workspace_id)
-        if not ws:
-            raise HTTPException(status_code=404, detail="Workspace introuvable")
+        thread = m16_deliberation_service.get_thread(conn, workspace_id, thread_id)
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread introuvable")
         mid = m16_deliberation_service.insert_message(
             conn,
-            thread_id=thread_id,
-            workspace_id=workspace_id,
-            tenant_id=str(ws["tenant_id"]),
+            thread_id=str(thread["id"]),
+            workspace_id=str(thread["workspace_id"]),
+            tenant_id=str(thread.get("tenant_id") or ""),
             author_user_id=int(user.user_id),
             body=payload.body,
         )
