@@ -1,3 +1,8 @@
+# API — démarrage effectif : Dockerfile CMD → start.sh → uvicorn (voir Dockerfile).
+# Ne pas ajouter [deploy].startCommand ici pour l’API sans valider le runbook ops.
+#
+# Worker ARQ (service séparé Railway) : railway.worker.toml + docs/ops/RAILWAY_ARQ_WORKER_SERVICE.md
+
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"

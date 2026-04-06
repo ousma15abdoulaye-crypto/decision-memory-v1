@@ -271,8 +271,61 @@ def build_pv_snapshot(
         """,
         {"wid": workspace_id},
     )
+    used_msv2_fallback = False
+    if not signals_rows:
+        zone_for_msv2 = ws.get("zone_id")
+        if zone_for_msv2:
+            signals_rows = db_fetchall(
+                conn,
+                """
+                SELECT alert_level, residual_pct, item_id, zone_id, price_avg,
+                       signal_quality, updated_at, created_at
+                FROM market_signals_v2
+                WHERE zone_id = :zid
+                ORDER BY
+                  CASE COALESCE(alert_level, 'NORMAL')
+                    WHEN 'CRITICAL' THEN 1
+                    WHEN 'WARNING' THEN 2
+                    WHEN 'WATCH' THEN 3
+                    WHEN 'CONTEXT_NORMAL' THEN 4
+                    WHEN 'SEASONAL_NORMAL' THEN 5
+                    WHEN 'NORMAL' THEN 6
+                    ELSE 9
+                  END,
+                  ABS(COALESCE(residual_pct, 0)) DESC
+                LIMIT 10
+                """,
+                {"zid": str(zone_for_msv2)},
+            )
+            used_msv2_fallback = bool(signals_rows)
+
     market_signals: list[dict[str, Any]] = []
     for s in signals_rows:
+        if used_msv2_fallback:
+            ts = s.get("updated_at") or s.get("created_at")
+            market_signals.append(
+                {
+                    "signal_type": s.get("alert_level") or "NORMAL",
+                    "relevance_score": (
+                        float(s["residual_pct"])
+                        if s.get("residual_pct") is not None
+                        else None
+                    ),
+                    "data_points": {
+                        "item_id": s.get("item_id"),
+                        "zone_id": s.get("zone_id"),
+                        "price_avg": (
+                            str(s.get("price_avg"))
+                            if s.get("price_avg") is not None
+                            else None
+                        ),
+                        "signal_quality": s.get("signal_quality"),
+                    },
+                    "surfaced_at": (ts.isoformat() if ts is not None else None),
+                    "source_type": "msv2_fallback",
+                }
+            )
+            continue
         payload = s.get("payload") if isinstance(s.get("payload"), dict) else {}
         market_signals.append(
             {
@@ -284,6 +337,7 @@ def build_pv_snapshot(
                     if s.get("generated_at") is not None
                     else None
                 ),
+                "source_type": "vms",
             }
         )
 

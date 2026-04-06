@@ -12,6 +12,7 @@ def test_pv_builder_has_9_blocks_and_kill_list_absent(monkeypatch) -> None:
                 "title": "Test",
                 "process_type": "devis_simple",
                 "zone": "MLI",
+                "zone_id": "MLI-MOPTI",
                 "category": "med",
                 "estimated_value": 1000,
                 "currency": "XOF",
@@ -67,6 +68,8 @@ def test_pv_builder_has_9_blocks_and_kill_list_absent(monkeypatch) -> None:
         if "GROUP BY bundle_id" in sql:
             return [{"bundle_id": "bundle-1", "mn": 0.8}]
         if "FROM vendor_market_signals" in sql:
+            return []
+        if "FROM market_signals_v2" in sql:
             return []
         if "FROM source_package_documents" in sql:
             return []
