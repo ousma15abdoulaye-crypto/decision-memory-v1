@@ -116,6 +116,11 @@ VALID_ALEMBIC_HEADS = (
     "079_bloc5_confidence_qualification_signal_log",
     # DMS-FIX-VMS-PIPELINE-V001 — index zone_id pour fallback PV / market_signals_v2
     "080_market_signals_v2_zone_id_index",
+    # M16 — Comparatif contradictoire (PR M16)
+    "081_m16_evaluation_domains",
+    "082_m16_criterion_assessments",
+    "083_m16_deliberation_tables",
+    "084_m16_price_line_comparisons",
 )
 
 
