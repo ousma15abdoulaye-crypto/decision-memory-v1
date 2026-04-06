@@ -114,6 +114,8 @@ VALID_ALEMBIC_HEADS = (
     # BLOC5 — SPEC V4.3.1 (source package O2 + qualification / signal_relevance_log)
     "078_source_package_documents_bloc5",
     "079_bloc5_confidence_qualification_signal_log",
+    # DMS-FIX-VMS-PIPELINE-V001 — index zone_id pour fallback PV / market_signals_v2
+    "080_market_signals_v2_zone_id_index",
 )
 
 
