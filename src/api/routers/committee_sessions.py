@@ -381,31 +381,11 @@ def seal_committee_session(
                 detail=exc.reason,
             ) from exc
 
-        # Un seul instantané pour le snapshot PV, la colonne `sealed_at` et le hash
-        # (évite un décalage hash / ligne DB si `NOW()` ≠ horloge applicative).
-        sealed_at = datetime.now(UTC)
-        events_n = _count_deliberation_events_for_session(conn, session["id"])
-        pv_snapshot = {
-            "workspace_id": str(workspace_id),
-            "session_id": str(session["id"]),
-            "sealed_by": str(user_id),
-            "sealed_at": sealed_at.isoformat(),
-            "seal_comment": payload.seal_comment,
-            "tenant_id": str(session.get("tenant_id") or ""),
-            "events_count": events_n,
-        }
-        pv_json = safe_json_dumps(pv_snapshot, sort_keys=True)
-        seal_hash = hashlib.sha256(pv_json.encode()).hexdigest()
-
-        # CDE.tenant_id : session puis workspace — UUID NOT NULL (pas de chaîne vide).
+        # Tenant résolu avant snapshot PV / hash (même source que CDE — pas de chaîne vide
+        # dans le snapshot, aligné RÈGLE-W01).
         raw_tid = session.get("tenant_id")
         if raw_tid is None:
-            ws_row = db_execute_one(
-                conn,
-                "SELECT tenant_id FROM process_workspaces WHERE id = :wid",
-                {"wid": workspace_id},
-            )
-            raw_tid = ws_row["tenant_id"] if ws_row else None
+            raw_tid = ws_row.get("tenant_id")
         if not raw_tid:
             logger.error(
                 "seal_committee_session: tenant_id introuvable session=%s workspace=%s",
@@ -417,6 +397,22 @@ def seal_committee_session(
                 detail="tenant_id introuvable pour le journal de délibération",
             )
         tid_cde = str(raw_tid)
+
+        # Un seul instantané pour le snapshot PV, la colonne `sealed_at` et le hash
+        # (évite un décalage hash / ligne DB si `NOW()` ≠ horloge applicative).
+        sealed_at = datetime.now(UTC)
+        events_n = _count_deliberation_events_for_session(conn, session["id"])
+        pv_snapshot = {
+            "workspace_id": str(workspace_id),
+            "session_id": str(session["id"]),
+            "sealed_by": str(user_id),
+            "sealed_at": sealed_at.isoformat(),
+            "seal_comment": payload.seal_comment,
+            "tenant_id": tid_cde,
+            "events_count": events_n,
+        }
+        pv_json = safe_json_dumps(pv_snapshot, sort_keys=True)
+        seal_hash = hashlib.sha256(pv_json.encode()).hexdigest()
 
         db_execute(
             conn,

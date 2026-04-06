@@ -13,6 +13,13 @@ Réplique le chemin BLOC4 (RBAC SQL + transitions SQL documentées) et ajoute :
 Usage ::
   python scripts/bloc6_pilot_sci_mali_run.py https://<app>.up.railway.app
 
+Variables optionnelles :
+
+- ``BLOC6_ALLOW_PROD=1`` — autorise les écritures si l’URL ressemble à un hôte
+  ``*-production.*`` (Railway). Sans cela, le script quitte avec le code 2.
+- ``BLOC6_PILOT_PASSWORD`` — mot de passe pour tous les comptes enregistrés ;
+  sinon un mot de passe aléatoire par exécution (répété dans la sortie JSON).
+
 Prérequis : ``scripts/run_pg_sql.py`` avec RAILWAY_DATABASE_URL / DATABASE_URL
 (.env.railway.local). Les écritures SQL hors API sont explicitement celles du
 mandat BLOC4 (statuts comité) — à reporter dans BLOC6_PILOT_SCI_MALI_REPORT.md.
@@ -22,10 +29,12 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import subprocess
 import sys
 import uuid
 from pathlib import Path
+from urllib.parse import urlparse
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -136,6 +145,28 @@ def _kill_list_clean(json_text: str) -> tuple[bool, list[str]]:
     return len(hits) == 0, hits
 
 
+def _abort_if_prod_without_opt_in(base: str) -> None:
+    """Évite écritures accidentelles sur un hôte prod typique (sauf opt-in explicite)."""
+    host = (urlparse(base).hostname or "").lower()
+    looks_prod = "-production." in host or host.endswith("-production.up.railway.app")
+    if looks_prod and os.environ.get("BLOC6_ALLOW_PROD", "").strip() != "1":
+        print(
+            "Refus: l’URL semble cibler un environnement *production*.\n"
+            "  Pour forcer les écritures: BLOC6_ALLOW_PROD=1\n"
+            "  (à n’utiliser que sous contrôle CTO / fenêtre définie.)",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+
+
+def _pilot_password() -> tuple[str, str]:
+    """Mot de passe pilote : env prioritaire, sinon aléatoire par exécution."""
+    env_pw = os.environ.get("BLOC6_PILOT_PASSWORD", "").strip()
+    if env_pw:
+        return env_pw, "env:BLOC6_PILOT_PASSWORD"
+    return secrets.token_urlsafe(24), "random_per_run"
+
+
 def main() -> int:
     base = (
         (sys.argv[1] if len(sys.argv) > 1 else os.environ.get("BLOC6_API_BASE", ""))
@@ -150,13 +181,17 @@ def main() -> int:
         )
         return 1
 
+    _abort_if_prod_without_opt_in(base)
+
     suffix = uuid.uuid4().hex[:10]
     ref = f"DAO-2026-MOPTI-017-{suffix}"
-    pwd = "Bloc6PilotMali123!"
+    pwd, pwd_src = _pilot_password()
     out: dict = {
         "base": base,
         "reference_code": ref,
         "pilot_label": "SCI Mali (tenant sci_mali — JWT défaut)",
+        "pilot_password_source": pwd_src,
+        "pilot_password": pwd,
         "steps": [],
     }
 
