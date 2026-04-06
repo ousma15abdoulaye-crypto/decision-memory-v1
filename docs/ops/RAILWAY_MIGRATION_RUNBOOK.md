@@ -70,6 +70,10 @@ alembic downgrade <revision_precedente>
 ATTENTION : certaines migrations contiennent des `DROP` irreversibles.
 Toujours verifier le contenu de la migration avant downgrade.
 
+## Remédiation post-audit
+
+Après une due diligence ou un écart détecté entre DB et head, voir [`POST_DD_RISK_REMEDIATION_2026-04-06.md`](POST_DD_RISK_REMEDIATION_2026-04-06.md) (preuve dry-run / apply / décision `DMS_ALLOW_RAILWAY_MIGRATE`).
+
 ## Signaux STOP (CLAUDE.md)
 
 - STOP-1 : `alembic heads` retourne plus d'une ligne → ne pas deployer

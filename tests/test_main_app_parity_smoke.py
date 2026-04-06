@@ -1,5 +1,8 @@
 """Smoke minimal sur main:app — criteria obligatoire ; /geo si le paquet geo est importable.
 
+Inclut les préfixes W1/W3 (workspaces, committee seal, PV) pour parité prod vs
+``src.api.main:app`` (voir DD + ADR-DUAL-FASTAPI-ENTRYPOINTS).
+
 ``DATABASE_URL`` doit être défini avant la collection (voir ``tests/conftest.py``).
 """
 
@@ -47,3 +50,22 @@ def test_src_api_main_openapi_includes_m14() -> None:
     assert any(
         "/api/m14" in p for p in path_keys
     ), "src.api.main:app doit monter le router M14 (/api/m14)"
+
+
+def test_main_openapi_includes_workspaces_committee_pv_prefixes() -> None:
+    """Production expose W1/W3 + exports PV — régression si oubli de montage dans main.py."""
+    from main import app
+
+    with TestClient(app) as client:
+        r = client.get("/openapi.json")
+    assert r.status_code == 200
+    path_keys = list((r.json().get("paths") or {}).keys())
+    assert any(
+        "/api/workspaces" in p for p in path_keys
+    ), "OpenAPI doit exposer au moins un chemin /api/workspaces (W1)"
+    assert any(
+        "committee/seal" in p for p in path_keys
+    ), "OpenAPI doit exposer committee/seal (W3 scellage)"
+    assert any(
+        "committee/pv" in p for p in path_keys
+    ), "OpenAPI doit exposer committee/pv (exports PV)"
