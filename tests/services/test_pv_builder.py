@@ -25,6 +25,7 @@ def test_pv_builder_has_9_blocks_and_kill_list_absent(monkeypatch) -> None:
                 "workspace_id": "ws-1",
                 "tenant_id": "tenant-1",
                 "session_status": "active",
+                "min_members": 3,
             }
         if "FROM evaluation_documents" in sql:
             return {

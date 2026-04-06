@@ -406,7 +406,38 @@ def seal_committee_session(
             seal_comment=payload.seal_comment,
         )
         pv_json = safe_json_dumps(pv_snapshot, sort_keys=True)
-        sealed_at = datetime.now(UTC)
+        canonical_sealed_at = (pv_snapshot.get("decision") or {}).get("sealed_at")
+        if not canonical_sealed_at:
+            logger.error(
+                "seal_committee_session: decision.sealed_at absent du snapshot "
+                "session=%s workspace=%s",
+                session["id"],
+                workspace_id,
+            )
+            raise HTTPException(
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=(
+                    "Horodatage canonique de scellement introuvable dans le snapshot PV"
+                ),
+            )
+        try:
+            sealed_at = datetime.fromisoformat(
+                str(canonical_sealed_at).replace("Z", "+00:00")
+            ).astimezone(UTC)
+        except ValueError as exc:
+            logger.error(
+                "seal_committee_session: decision.sealed_at invalide session=%s "
+                "workspace=%s value=%r",
+                session["id"],
+                workspace_id,
+                canonical_sealed_at,
+            )
+            raise HTTPException(
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=(
+                    "Horodatage canonique de scellement invalide dans le snapshot PV"
+                ),
+            ) from exc
 
         db_execute(
             conn,

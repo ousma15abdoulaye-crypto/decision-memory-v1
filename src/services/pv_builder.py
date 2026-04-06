@@ -97,7 +97,8 @@ def build_pv_snapshot(
     session = db_execute_one(
         conn,
         """
-        SELECT id, workspace_id, tenant_id, session_status, activated_at, sealed_at
+        SELECT id, workspace_id, tenant_id, session_status, activated_at, sealed_at,
+               min_members
         FROM committee_sessions
         WHERE id = :sid AND workspace_id = :wid
         """,
@@ -134,6 +135,10 @@ def build_pv_snapshot(
             }
         )
     voting_count = sum(1 for m in members if m["is_voting"])
+    try:
+        min_members = int(session.get("min_members") or 3)
+    except (TypeError, ValueError):
+        min_members = 3
 
     events_rows = db_fetchall(
         conn,
@@ -325,7 +330,8 @@ def build_pv_snapshot(
         },
         "committee": {
             "session_id": str(session_id),
-            "quorum_met": voting_count >= 4,
+            "min_members": min_members,
+            "quorum_met": voting_count >= min_members,
             "voting_count": voting_count,
             "members": members,
         },

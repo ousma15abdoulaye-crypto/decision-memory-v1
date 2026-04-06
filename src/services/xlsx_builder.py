@@ -43,6 +43,11 @@ def build_xlsx_export(
         cell.font = Font(bold=True, color="FFFFFF")
         cell.fill = PatternFill("solid", fgColor="1F4E78")
         cell.alignment = Alignment(horizontal="center", vertical="center")
+    ws["F1"].comment = Comment(
+        "Colonne « Score pondéré export » : calcul export-only "
+        "(non persisté en DB/snapshot).",
+        "DMS",
+    )
 
     criteria = snapshot.get("evaluation", {}).get("criteria", []) or []
     scores = snapshot.get("evaluation", {}).get("scores_matrix", {}) or {}
@@ -79,9 +84,6 @@ def build_xlsx_export(
                     weighted,
                     bundle.get("assembly_confidence"),
                 ]
-            )
-            ws.cell(ws.max_row, 6).comment = Comment(
-                "Calcul export-only\nJamais persisté en DB/snapshot", "DMS"
             )
 
     ws.conditional_formatting.add(

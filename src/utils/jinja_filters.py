@@ -6,6 +6,7 @@ from datetime import datetime
 
 from babel.dates import format_date as babel_format_date
 from jinja2 import Environment, FileSystemLoader
+from markupsafe import Markup
 
 
 def format_date_fr(value) -> str:
@@ -50,21 +51,21 @@ def format_score(value, unit: str | None = None) -> str:
     return str(value)
 
 
-def confidence_badge(value) -> str:
-    """Return an HTML badge classed by confidence threshold."""
+def confidence_badge(value) -> Markup:
+    """Return an HTML badge classed by confidence threshold (Markup for autoescape)."""
     if value is None:
-        return '<span class="badge badge--muted">N/D</span>'
+        return Markup('<span class="badge badge--muted">N/D</span>')
     try:
         pct = int(float(value) * 100)
     except (ValueError, TypeError):
-        return '<span class="badge badge--muted">?</span>'
+        return Markup('<span class="badge badge--muted">?</span>')
     if float(value) >= 0.8:
         css_cls = "badge--green"
     elif float(value) >= 0.5:
         css_cls = "badge--amber"
     else:
         css_cls = "badge--red"
-    return f'<span class="badge {css_cls}">{pct}\u202f%</span>'
+    return Markup(f'<span class="badge {css_cls}">{pct}\u202f%</span>')
 
 
 def translate_role(role: str) -> str:
