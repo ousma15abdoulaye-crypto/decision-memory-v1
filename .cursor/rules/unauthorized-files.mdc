@@ -103,7 +103,7 @@ git ls-files | rg '__pycache__'
 
 Sur Windows sans `rg` : `git ls-files` puis filtrage dans l’IDE ou `Select-String`.
 
-**Référence** : [CLAUDE.md](CLAUDE.md) (outillage Windows — préférer commandes documentées dans le repo).
+**Référence** : [CLAUDE.md](/CLAUDE.md) (outillage Windows — préférer commandes documentées dans le repo).
 
 ## Fichiers générés par Cursor / IA
 
