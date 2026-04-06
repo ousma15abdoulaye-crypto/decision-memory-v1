@@ -1,0 +1,124 @@
+---
+description: Gouvernance fichiers non autorisés — DMS V4.3+
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Fichiers interdits et nettoyage — DMS
+
+## Hiérarchie
+
+En cas de conflit avec une autre règle Cursor, priment **CLAUDE.md**, **`docs/freeze/CONTEXT_ANCHOR.md`**, et les mandats CTO. Cette règle complète **`.cursor/rules/dms-core.mdc`** sur l’hygiène des chemins et des artefacts.
+
+## Fichiers à ne pas créer dans ce dépôt
+
+### Fichiers temporaires et brouillons
+
+- `*.tmp`, `*.bak`, `*.backup`
+- `*_old.py`, `*_v2.py`, `*_final.py`, `*_final_v2.py`
+- `test_quick.py`, `test_tmp.py`, `scratch.py`, `playground.py`
+- `debug_*.py` hors `scripts/` (ou sans nommage / mandat clairs)
+
+### Fichiers de config locaux (secrets)
+
+- `.env` avec secrets réels — jamais committer ; modèles `!.env.example`, `!.env.railway.local.example` uniquement comme templates.
+- `.env.local`, `.env.railway.local` → doivent rester **hors dépôt** (voir `.gitignore`).
+- `local_config.py`, `dev_settings.py` ad hoc à la racine ou sous `src/` : refuser sauf mandat explicite.
+
+### Outputs et données brutes aux mauvais endroits
+
+- `*.csv` sous `src/` ou à la racine des tests hors `tests/fixtures/` (sauf mandat).
+- `*.json` sous `src/` sauf schémas / données figées prévues par l’architecture (ex. sous un dossier dédié documenté).
+- `*.log` hors répertoires ignorés / hors usage CI documenté.
+- `output_*.py`, `result_*.txt` comme artéfacts de session : ne pas versionner.
+
+### Doublons de modules
+
+- Pas de `src/api/main_v2.py` parallèle : utiliser ADR + branche + merge.
+- Pas de `src/models_backup.py` : l’historique Git fait foi.
+- Pas de duplication de fichier dans `alembic/versions/`.
+
+## Zones autorisées par type (référence)
+
+| Type | Zones autorisées | Remarques |
+|------|------------------|-----------|
+| `.py` métier principal | `src/` | Pas de logique métier « core » dans `docs/` ou `data/`. |
+| `.py` microservice annotation | `services/annotation-backend/` | Exception explicite : service déployable séparé ; respecter aussi **`.cursor/rules/dms-annotation-backend-freeze.mdc`**. |
+| `.py` tests | `tests/` | Pas de tests de prod mélangés sous `src/`. |
+| `.py` scripts ops / sondes | `scripts/` | Sondes `_probe_*.py`, ETL, etc., conformément aux conventions du dossier. |
+| `.py` migrations | `alembic/versions/` uniquement | Soumis au mandat Alembic (dms-core). |
+| `.md` documentation | `docs/` (sauf templates CI listés ailleurs) | Pas de docs longues sous `src/`. |
+| YAML CI | `.github/workflows/` | Pas de workflows embarqués sous `src/`. |
+| Config outillage | racine, `config/` | Toml/yaml de build — voir section racine ci-dessous. |
+| Fixtures JSON / CSV | `tests/fixtures/` | Éviter les grosses données sensibles non nécessaires. |
+
+## Fichiers à la racine du dépôt
+
+Le dépôt contient déjà plusieurs fichiers légitimes à la racine (`main.py`, `Makefile`, `docker-compose.yml`, `railway.toml`, `pyproject.toml`, `CLAUDE.md`, etc.).
+
+**Règle procédurale** : ne **pas** ajouter de nouveaux fichiers à la racine (`.py`, `.md`, config) **sans** décision tracée (ADR, mandat CTO, ou convention équipe documentée). Préférer :
+
+- **Entrypoints / image** : `main.py`, `start.sh`, `Dockerfile`
+- **CI / qualité** : `.github/`, `pyproject.toml`, `requirements.txt`
+- **Config déploiement** : `railway.toml`, `railway.worker.toml`, `alembic.ini`
+- **Outils** : `Makefile`, `docker-compose.yml`, `Procfile` si présents
+
+Tout ajout hors ces **catégories** = valider explicitement avant commit.
+
+## Protocole de nettoyage — avant chaque PR
+
+### Linux / macOS (bash)
+
+```bash
+find . -name "*.py" \( \
+  -name "*_old*"    -o \
+  -name "*_backup*" -o \
+  -name "*_tmp*"    -o \
+  -name "*_final*"  -o \
+  -name "scratch*"  -o \
+  -name "debug_*"   -o \
+  -name "test_quick*" \
+\) -not -path "./.git/*" | sort
+```
+
+### Windows (PowerShell)
+
+Équivalent indicatif (adapter les exclusions) :
+
+```powershell
+Get-ChildItem -Recurse -Filter *.py | Where-Object {
+  $_.FullName -notmatch '\\\.git\\' -and (
+    $_.Name -match '_old|_backup|_tmp|_final|scratch|debug_|test_quick'
+  )
+} | Select-Object -ExpandProperty FullName
+```
+
+### Fichiers suivis suspects
+
+```bash
+git ls-files | rg '\.env'    # attendu : surtout *.example
+git ls-files | rg '\.(csv|log|tmp|bak)$'
+git ls-files | rg '__pycache__'
+```
+
+Sur Windows sans `rg` : `git ls-files` puis filtrage dans l’IDE ou `Select-String`.
+
+**Référence** : [CLAUDE.md](CLAUDE.md) (outillage Windows — préférer commandes documentées dans le repo).
+
+## Fichiers générés par Cursor / IA
+
+- Ne créer des fichiers **que** dans une zone autorisée (tableau ci-dessus).
+- Tout fichier créé par erreur hors zone = **supprimer** avant `git add`.
+- Ne pas committer de `cursor_debug_*.py`, `output_*.py`, ou exports de session à la racine.
+- Si un fichier temporaire sert uniquement à un test local : le supprimer ou le placer sous un chemin **gitignored**.
+
+## `.gitignore`
+
+Ne pas dupliquer ici la liste complète : le fichier source de vérité est **`.gitignore`** à la racine.
+
+Vérifier que les **catégories** suivantes y sont couvertes (ajuster via PR dédiée si besoin) :
+
+- variables d’environnement locales (`.env`, `.env.*.local`, etc.)
+- caches Python (`__pycache__`, `.pytest_cache`, `.ruff_cache`, …)
+- secrets et sorties locales listés dans la politique du dépôt
+- artefacts de données / annotations sensibles déjà nommés dans `.gitignore`
