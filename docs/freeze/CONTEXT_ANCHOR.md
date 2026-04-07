@@ -5,8 +5,9 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-06 — suite E-98 : corpus M12 restauré sous data/annotations/ (vérifié) ; incident E-98 nettoyage git ; BLOC6 pilote ; PR #325 a61b8eb9 ║
+║  Dernière mise à jour : 2026-04-07 — PR #342 MERGÉ main 42ace370 (M16 hardening + Copilot) ; dry-run Alembic `079→head --sql` sans exécution DB ; voir MRD_CURRENT_STATE ║
 ║  Addendum 2026-04-06 : PR #340 MERGÉ main 1c32f51a — M16 Comparatif contradictoire (Alembic 081–084, API `/api/workspaces/.../m16`, PV `evaluation.m16`, backfill `scores_matrix`) ; correctifs revue Copilot ff88173c (isolation thread/workspace, EXISTS avant projection M16, JSON XLSX) ; apply migrations 081–084 Railway **en attente** (prod head 079 au 2026-04-06 — voir MRD_CURRENT_STATE) ║
+║  Addendum 2026-04-07 : PR #342 MERGÉ main 42ace370 — M16 hardening (INV-weights, guards cognitifs, signal_engine, frontend committee/evaluation, tests DB/e2e) + correctifs revue Copilot (`dao_criteria` : `critere_nom`/`ponderation` ; `require_rbac_permission` pour éviter double `require_workspace_access` dans `m16_guard`) ; dépôt Alembic head **086** (`086_m16_force_row_level_security`) incl. **085** index cadre ; apply **080→086** Railway **en attente** tant que prod **079** (dry-run documenté : `DATABASE_URL=postgresql+psycopg://… alembic upgrade 079_bloc5_confidence_qualification_signal_log:head --sql`) ║
 ║  Addendum 2026-04-04 : PR #321 V4.2.0 Phase 3 — CI rouge — handover détaillé fin doc ║
 ║  Addendum 2026-04-05 : PR #324 MERGÉ main 107d05a2 — BLOC3 fix HTTP 500 W1/W2 + tenant RLS + market + ETL vendors ║
 ║  Addendum 2026-04-05 : PR #325 MERGÉ main a61b8eb9 — docs+smoke BLOC3 gate A+B (bloc3_smoke_railway, BLOC3_PIPELINE_REPORT) ║
@@ -104,6 +105,7 @@
 ║  PR #324 (2026-04-05) : MERGÉ main 107d05a2 — BLOC3 : HTTP 500 POST /api/workspaces + GET /api/market/overview ; tenant UUID RLS ; market_signals_v2 ; ETL vendors table vendors ║
 ║  PR #325 (2026-04-05) : MERGÉ main a61b8eb9 — BLOC3 smoke A+B : 403 /committee = RBAC OK ; doc alignée Copilot ; BLOC3_PIPELINE_REPORT historique vs post-fix ║
 ║  PR #337 (2026-04-06) : MERGÉ main 9d21a6b0 — squash — hardening product : PV seal pipeline + comparatif + M14 workspace_id + preuves ops (voir docs/ops/HARDENING_PRODUCT_STATUS.md) ║
+║  PR #342 (2026-04-07) : MERGÉ main 42ace370 — squash — M16 hardening + revue Copilot (`dao_criteria`, `require_rbac_permission`) ; Alembic dépôt head 086 ; dry-run SQL documenté addendum 2026-04-07 ║
 ║  parent 361b3787   : 91adc2ed — fix Dockerfile annotation-backend COPY procurement (#303) ║
 ║  (historique) main : 38733982 — Merge PR #292 feat/M13-regulatory-profile-engine-v5 ║
 ║    (M13 V5 engine, config/regulatory YAML SCI+DGMP, Pass 2A, migration 057, ADR-M13-001) ║
