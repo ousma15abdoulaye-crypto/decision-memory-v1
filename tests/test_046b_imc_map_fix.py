@@ -121,6 +121,8 @@ VALID_ALEMBIC_HEADS = (
     "082_m16_criterion_assessments",
     "083_m16_deliberation_tables",
     "084_m16_price_line_comparisons",
+    "085_m16_frame_query_indexes",
+    "086_m16_force_row_level_security",
 )
 
 

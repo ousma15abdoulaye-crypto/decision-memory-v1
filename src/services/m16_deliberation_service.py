@@ -7,6 +7,74 @@ from typing import Any
 from src.db import db_execute_one, db_fetchall
 
 
+def count_threads(conn: Any, workspace_id: str) -> int:
+    row = db_execute_one(
+        conn,
+        """
+        SELECT COUNT(*)::int AS n
+        FROM deliberation_threads
+        WHERE workspace_id = CAST(:wid AS uuid)
+        """,
+        {"wid": workspace_id},
+    )
+    return int(row["n"]) if row and row.get("n") is not None else 0
+
+
+def list_threads_paged(
+    conn: Any, workspace_id: str, *, limit: int, offset: int
+) -> list[dict[str, Any]]:
+    return db_fetchall(
+        conn,
+        """
+        SELECT id::text AS id, workspace_id::text AS workspace_id,
+               committee_session_id::text AS committee_session_id,
+               title, thread_status
+        FROM deliberation_threads
+        WHERE workspace_id = CAST(:wid AS uuid)
+        ORDER BY created_at DESC
+        LIMIT :lim OFFSET :off
+        """,
+        {"wid": workspace_id, "lim": limit, "off": offset},
+    )
+
+
+def count_messages(conn: Any, workspace_id: str, thread_id: str) -> int:
+    row = db_execute_one(
+        conn,
+        """
+        SELECT COUNT(*)::int AS n
+        FROM deliberation_messages
+        WHERE thread_id = CAST(:tid AS uuid)
+          AND workspace_id = CAST(:wid AS uuid)
+        """,
+        {"tid": thread_id, "wid": workspace_id},
+    )
+    return int(row["n"]) if row and row.get("n") is not None else 0
+
+
+def list_messages_paged(
+    conn: Any,
+    workspace_id: str,
+    thread_id: str,
+    *,
+    limit: int,
+    offset: int,
+) -> list[dict[str, Any]]:
+    return db_fetchall(
+        conn,
+        """
+        SELECT id::text AS id, thread_id::text AS thread_id,
+               author_user_id, body, created_at
+        FROM deliberation_messages
+        WHERE thread_id = CAST(:tid AS uuid)
+          AND workspace_id = CAST(:wid AS uuid)
+        ORDER BY created_at, id
+        LIMIT :lim OFFSET :off
+        """,
+        {"tid": thread_id, "wid": workspace_id, "lim": limit, "off": offset},
+    )
+
+
 def get_thread(conn: Any, workspace_id: str, thread_id: str) -> dict[str, Any] | None:
     return db_execute_one(
         conn,

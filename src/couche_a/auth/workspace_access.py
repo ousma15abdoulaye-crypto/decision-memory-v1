@@ -105,20 +105,13 @@ def require_workspace_access(workspace_id: str, user: UserClaims) -> None:
     )
 
 
-def require_workspace_permission(
-    workspace_id: str,
-    user: UserClaims,
-    permission: str,
-) -> None:
-    """Vérifie une permission RBAC spécifique pour un workspace.
+def require_rbac_permission(user: UserClaims, permission: str) -> None:
+    """Vérifie une permission RBAC tenant (à appeler après ``require_workspace_access``).
 
     Args:
-        workspace_id: UUID du workspace.
         user: Claims JWT.
         permission: Code de permission (ex: 'workspace.close', 'bundle.upload').
     """
-    require_workspace_access(workspace_id, user)
-
     if user.role == "admin":
         return
 
@@ -144,3 +137,19 @@ def require_workspace_permission(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Accès refusé — permission {permission!r} requise.",
         )
+
+
+def require_workspace_permission(
+    workspace_id: str,
+    user: UserClaims,
+    permission: str,
+) -> None:
+    """Vérifie une permission RBAC spécifique pour un workspace.
+
+    Args:
+        workspace_id: UUID du workspace.
+        user: Claims JWT.
+        permission: Code de permission (ex: 'workspace.close', 'bundle.upload').
+    """
+    require_workspace_access(workspace_id, user)
+    require_rbac_permission(user, permission)
