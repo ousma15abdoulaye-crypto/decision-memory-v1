@@ -13,23 +13,20 @@ def test_valid_weights(monkeypatch: pytest.MonkeyPatch) -> None:
     rows = [
         {
             "id": "c1",
-            "name": "E",
-            "critere_nom": None,
-            "weight": 0,
+            "critere_nom": "E",
+            "ponderation": 0,
             "is_eliminatory": True,
         },
         {
             "id": "c2",
-            "name": "A",
-            "critere_nom": None,
-            "weight": 60,
+            "critere_nom": "A",
+            "ponderation": 60,
             "is_eliminatory": False,
         },
         {
             "id": "c3",
-            "name": "B",
-            "critere_nom": None,
-            "weight": 40,
+            "critere_nom": "B",
+            "ponderation": 40,
             "is_eliminatory": False,
         },
     ]
@@ -52,16 +49,14 @@ def test_invalid_sum(monkeypatch: pytest.MonkeyPatch) -> None:
     rows = [
         {
             "id": "c1",
-            "name": "A",
-            "critere_nom": None,
-            "weight": 60,
+            "critere_nom": "A",
+            "ponderation": 60,
             "is_eliminatory": False,
         },
         {
             "id": "c2",
-            "name": "B",
-            "critere_nom": None,
-            "weight": 30,
+            "critere_nom": "B",
+            "ponderation": 30,
             "is_eliminatory": False,
         },
     ]

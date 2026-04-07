@@ -11,8 +11,8 @@ def validate_criteria_weights(conn: Any, workspace_id: str) -> dict[str, Any]:
     rows = db_fetchall(
         conn,
         """
-        SELECT id::text AS id, name, critere_nom,
-               weight, ponderation,
+        SELECT id::text AS id, critere_nom,
+               ponderation,
                is_eliminatory, seuil_elimination
         FROM dao_criteria
         WHERE workspace_id = CAST(:ws AS uuid)
@@ -26,9 +26,7 @@ def validate_criteria_weights(conn: Any, workspace_id: str) -> dict[str, Any]:
     weighted_sum = 0.0
 
     for c in rows:
-        w_raw = c.get("weight")
-        if w_raw is None:
-            w_raw = c.get("ponderation")
+        w_raw = c.get("ponderation")
         w = float(w_raw) if w_raw is not None else 0.0
 
         is_elim = bool(
@@ -36,7 +34,7 @@ def validate_criteria_weights(conn: Any, workspace_id: str) -> dict[str, Any]:
             if c.get("is_eliminatory") is not None
             else c.get("seuil_elimination") is not None
         )
-        name = str(c.get("name") or c.get("critere_nom") or c.get("id") or "?")
+        name = str(c.get("critere_nom") or c.get("id") or "?")
 
         if is_elim and w > 0.0:
             eliminatory_with_weight.append(
@@ -71,7 +69,7 @@ def criteria_weight_by_id(
         conn,
         """
         SELECT id::text AS id,
-               weight, ponderation,
+               ponderation,
                is_eliminatory, seuil_elimination
         FROM dao_criteria
         WHERE workspace_id = CAST(:ws AS uuid)
@@ -80,9 +78,7 @@ def criteria_weight_by_id(
     )
     out: dict[str, tuple[float, bool]] = {}
     for c in rows:
-        w_raw = c.get("weight")
-        if w_raw is None:
-            w_raw = c.get("ponderation")
+        w_raw = c.get("ponderation")
         w = float(w_raw) if w_raw is not None else 0.0
         is_elim = bool(
             c.get("is_eliminatory")

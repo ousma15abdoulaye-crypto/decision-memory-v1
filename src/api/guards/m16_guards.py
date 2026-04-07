@@ -14,8 +14,8 @@ from src.api.cognitive_helpers import load_cognitive_facts
 from src.cognitive.cognitive_state import compute_cognitive_state
 from src.couche_a.auth.dependencies import UserClaims
 from src.couche_a.auth.workspace_access import (
+    require_rbac_permission,
     require_workspace_access,
-    require_workspace_permission,
 )
 from src.db import db_execute_one, get_connection
 
@@ -47,7 +47,7 @@ def m16_guard(
     """Vérifie accès workspace, permission optionnelle, seuil cognitif, scellement."""
     require_workspace_access(workspace_id, user)
     if permission:
-        require_workspace_permission(workspace_id, user, permission)
+        require_rbac_permission(user, permission)
 
     with get_connection() as conn:
         ws = db_execute_one(
