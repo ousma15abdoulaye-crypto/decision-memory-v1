@@ -2,6 +2,21 @@
   "plugins": {
     "linear": {
       "enabled": true
+    },
+    "langfuse": {
+      "enabled": true
+    },
+    "pagerduty": {
+      "enabled": true
+    },
+    "jfrog": {
+      "enabled": true
+    },
+    "redis-development": {
+      "enabled": true
+    },
+    "context7-plugin": {
+      "enabled": true
     }
   }
 }
