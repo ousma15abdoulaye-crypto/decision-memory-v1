@@ -1,0 +1,154 @@
+"""Agent Conversationnel — Canon V5.1.0 Section 7.2.
+
+POST /agent/prompt — point d'entrée unique.
+- Semantic Router -> 4 handlers SSE
+- Guardrail INV-W06 -> 422 si RECOMMENDATION détectée
+- Langfuse tracing (INV-A01) sur chaque prompt
+"""
+
+from __future__ import annotations
+
+import json
+from typing import Any
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+
+from src.agent.context_store import get_context, save_context
+from src.agent.guardrail import check_recommendation_guardrail
+from src.agent.handlers import (
+    mql_stream_handler,
+    process_info_handler,
+    static_refusal_handler,
+    workspace_status_handler,
+)
+from src.agent.langfuse_client import flush_langfuse, get_langfuse
+from src.agent.semantic_router import IntentClass, classify_intent
+from src.couche_a.auth.dependencies import UserClaims, get_current_user
+
+router = APIRouter(prefix="/api", tags=["agent-v51"])
+
+
+class AgentPromptRequest(BaseModel):
+    query: str
+    workspace_id: UUID | None = None
+    session_id: str | None = None
+
+
+@router.post("/agent/prompt")
+async def agent_prompt(
+    payload: AgentPromptRequest,
+    current_user: UserClaims = Depends(get_current_user),
+) -> Any:
+    """Point d'entrée unique de l'agent conversationnel.
+
+    Retourne un stream SSE pour toutes les réponses sauf guardrail (JSON 422).
+    """
+    langfuse = get_langfuse()
+    trace = langfuse.trace(
+        name="agent_prompt",
+        user_id=str(current_user.user_id),
+        metadata={
+            "workspace_id": (
+                str(payload.workspace_id) if payload.workspace_id else None
+            ),
+            "query_length": len(payload.query),
+        },
+    )
+
+    try:
+        guardrail_result = await check_recommendation_guardrail(payload.query, trace)
+        if guardrail_result.blocked:
+            trace.update(
+                output={"blocked": True, "reason": "guardrail_inv_w06"},
+                tags=["guardrail_inv_w06"],
+            )
+            raise HTTPException(
+                422,
+                {
+                    "error": "guardrail_inv_w06",
+                    "message": (
+                        "DMS ne formule pas de recommandation. "
+                        "Reformulez votre question pour demander des données factuelles."
+                    ),
+                    "confidence": guardrail_result.confidence,
+                },
+            )
+
+        intent_span = trace.span(name="intent_classification")
+        intent = await classify_intent(payload.query)
+        intent_span.end(
+            output={
+                "intent": intent.intent_class.value,
+                "confidence": intent.confidence,
+            }
+        )
+
+        session_key = (
+            f"{payload.workspace_id or 'global'}"
+            f":{payload.session_id or current_user.user_id}"
+        )
+        context = await get_context(session_key)
+
+        user_dict: dict[str, Any] = {
+            "id": current_user.user_id,
+            "tenant_id": current_user.tenant_id,
+            "role": current_user.role,
+        }
+
+        if intent.intent_class == IntentClass.MARKET_QUERY:
+            handler = mql_stream_handler
+        elif intent.intent_class == IntentClass.WORKSPACE_STATUS:
+            handler = workspace_status_handler
+        elif intent.intent_class == IntentClass.PROCESS_INFO:
+            handler = process_info_handler
+        else:
+            handler = static_refusal_handler
+
+        async def event_generator():  # type: ignore[return]
+            try:
+                async for event in handler(
+                    query=payload.query,
+                    workspace_id=payload.workspace_id,
+                    user=user_dict,
+                    db=None,
+                    context=context,
+                    trace=trace,
+                ):
+                    yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+                yield "data: [DONE]\n\n"
+            except Exception as e:
+                error_event = {
+                    "type": "error",
+                    "code": "handler_error",
+                    "message": str(e),
+                }
+                yield f"data: {json.dumps(error_event)}\n\n"
+                trace.update(
+                    output={"error": str(e)},
+                    level="ERROR",
+                )
+            finally:
+                await save_context(session_key, context)
+                trace.update(output={"completed": True})
+                flush_langfuse()
+
+        return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        trace.update(output={"error": str(e)}, level="ERROR")
+        flush_langfuse()
+        raise HTTPException(500, f"Erreur agent : {str(e)}")
