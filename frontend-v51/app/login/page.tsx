@@ -5,8 +5,25 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/stores/auth";
 import { api } from "@/lib/api-client";
 
+/** Réponse POST /auth/login (alignée FastAPI `LoginJsonResponse`). */
+interface LoginJsonResponse {
+  user: {
+    id: number;
+    email: string;
+    username: string;
+    full_name: string | null;
+    role_name: string;
+    is_active: boolean;
+    is_superuser: boolean;
+    tenant_id: string | null;
+  };
+  access_token: string;
+  token_type: string;
+  refresh_token: string | null;
+}
+
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,13 +36,23 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await api.post<{
-        user: { id: number; email: string; full_name: string; role: string; tenant_id: string };
-        access_token: string;
-        refresh_token: string;
-      }>("/api/auth/login", { email, password });
+      const res = await api.post<LoginJsonResponse>("/auth/login", {
+        email: loginId.trim(),
+        password,
+      });
 
-      setAuth(res.user, res.access_token, res.refresh_token);
+      const u = res.user;
+      setAuth(
+        {
+          id: u.id,
+          email: u.email,
+          full_name: u.full_name ?? "",
+          role: u.role_name,
+          tenant_id: u.tenant_id ?? "",
+        },
+        res.access_token,
+        res.refresh_token,
+      );
       document.cookie = `dms-auth=1; path=/; max-age=${60 * 30}`;
       router.push("/dashboard");
     } catch (err) {
@@ -53,17 +80,19 @@ export default function LoginPage() {
           )}
 
           <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium">
-              Email
+            <label htmlFor="loginId" className="text-sm font-medium">
+              Email ou nom d&apos;utilisateur
             </label>
             <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="loginId"
+              type="text"
+              name="username"
+              autoComplete="username"
+              value={loginId}
+              onChange={(e) => setLoginId(e.target.value)}
               required
               className="w-full rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700"
-              placeholder="prenom.nom@sci.org"
+              placeholder="prenom.nom@organisation.org"
             />
           </div>
 
@@ -74,6 +103,8 @@ export default function LoginPage() {
             <input
               id="password"
               type="password"
+              name="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required

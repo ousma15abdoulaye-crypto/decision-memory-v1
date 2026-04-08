@@ -6,7 +6,7 @@ de src/auth.py sans perte de logique métier.
 Contrat : zéro modification de la logique.
   - authenticate_user   : bcrypt + DB + last_login update
   - create_user         : INSERT users avec role_id (legacy, DETTE-M1-04)
-  - get_user_by_username / get_user_by_id : SELECT users JOIN roles
+  - get_user_by_username / get_user_by_login / get_user_by_id : SELECT users JOIN roles
   - verify_password / get_password_hash : helpers passlib/bcrypt
 
 Note DETTE-M1-04 : create_user utilise role_id INTEGER (legacy).
@@ -41,6 +41,7 @@ def get_password_hash(password: str) -> str:
 
 
 def get_user_by_username(username: str) -> dict | None:
+    """Résolution stricte par nom d'utilisateur (compat appels existants)."""
     with get_connection() as conn:
         return db_execute_one(
             conn,
@@ -52,6 +53,35 @@ def get_user_by_username(username: str) -> dict | None:
             """,
             {"username": username},
         )
+
+
+def get_user_by_login(login: str) -> dict | None:
+    """Résout un utilisateur par email **ou** username (champ unique formulaire login)."""
+    login = (login or "").strip()
+    if not login:
+        return None
+    with get_connection() as conn:
+        return db_execute_one(
+            conn,
+            """
+            SELECT u.*, r.name as role_name
+            FROM users u
+            JOIN roles r ON u.role_id = r.id
+            WHERE u.username = :login OR u.email = :login
+            """,
+            {"login": login},
+        )
+
+
+def get_tenant_id_for_user(user_id: int) -> str | None:
+    """Lit tenant_id métier (user_tenants) pour exposer au client / JWT."""
+    with get_connection() as conn:
+        row = db_execute_one(
+            conn,
+            "SELECT tenant_id FROM user_tenants WHERE user_id = :id",
+            {"id": user_id},
+        )
+    return row["tenant_id"] if row else None
 
 
 def get_user_by_id(user_id: int) -> dict | None:
@@ -69,7 +99,7 @@ def get_user_by_id(user_id: int) -> dict | None:
 
 
 def authenticate_user(username: str, password: str) -> dict | None:
-    user = get_user_by_username(username)
+    user = get_user_by_login(username)
     if not user:
         return None
     if not verify_password(password, user["hashed_password"]):

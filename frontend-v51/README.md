@@ -1,4 +1,18 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DMS frontend-v51 (Next.js)
+
+## API backend (`NEXT_PUBLIC_API_URL`)
+
+Toutes les requêtes passent par l’URL de l’API FastAPI racine (`main.py`), **sans** préfixe `/api` pour l’auth :
+
+| Variable | Exemple local | Production |
+|----------|---------------|------------|
+| `NEXT_PUBLIC_API_URL` | `http://127.0.0.1:8000` | URL publique du service DMS API (Railway, etc.) |
+
+- **Login** : `POST {NEXT_PUBLIC_API_URL}/auth/login` (JSON `email` + `password`). Le champ `email` accepte aussi le **nom d’utilisateur**.
+- **Compat Swagger** : `POST /auth/token` (formulaire OAuth2 `username` / `password`).
+- **Ressources V5.1** : `GET /api/dashboard`, `/api/workspaces/...`, etc.
+
+Fichier client : [`lib/api-client.ts`](lib/api-client.ts) (`API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"`).
 
 ## Getting Started
 

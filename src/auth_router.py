@@ -12,13 +12,24 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
 
-from src.api.auth_helpers import authenticate_user, create_user, get_user_by_id
+from src.api.auth_helpers import (
+    authenticate_user,
+    create_user,
+    get_tenant_id_for_user,
+    get_user_by_id,
+)
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.couche_a.auth.jwt_handler import create_access_token
 from src.db import db_execute_one, get_connection
 from src.ratelimit import limiter
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+_ROLE_MAPPING = {
+    "admin": "admin",
+    "procurement_officer": "buyer",
+    "viewer": "viewer",
+}
 
 
 class Token(BaseModel):
@@ -41,6 +52,59 @@ class UserResponse(BaseModel):
     role_name: str
     is_active: bool
     is_superuser: bool
+    tenant_id: str | None = None
+
+
+class LoginJsonRequest(BaseModel):
+    """Identifiant = email **ou** username (même champ que le formulaire Next)."""
+
+    email: str = Field(..., min_length=1, description="Email ou nom d'utilisateur")
+    password: str = Field(..., min_length=1)
+
+
+class LoginJsonResponse(BaseModel):
+    user: UserResponse
+    access_token: str
+    token_type: str = "bearer"
+    refresh_token: str | None = None
+
+
+def _tenant_for_jwt(user: dict) -> str:
+    with get_connection() as conn:
+        trow = db_execute_one(
+            conn,
+            "SELECT tenant_id FROM user_tenants WHERE user_id = :id",
+            {"id": user["id"]},
+        )
+    return trow["tenant_id"] if trow else f"tenant-{user['id']}"
+
+
+def _issue_access_token(user: dict) -> str:
+    role_raw = user.get("role_name", user.get("role", "viewer"))
+    role = _ROLE_MAPPING.get(role_raw, "viewer")
+    tenant_id = _tenant_for_jwt(user)
+    return create_access_token(str(user["id"]), role, tenant_id)
+
+
+def _user_to_response(user: dict) -> UserResponse:
+    return UserResponse(
+        id=user["id"],
+        email=user["email"],
+        username=user["username"],
+        full_name=user.get("full_name"),
+        role_name=user["role_name"],
+        is_active=user["is_active"],
+        is_superuser=user["is_superuser"],
+        tenant_id=get_tenant_id_for_user(user["id"]),
+    )
+
+
+def _unauthorized_login() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Incorrect username or password",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 @router.post("/token", response_model=Token)
@@ -49,35 +113,37 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
     """Login — émet un token V4.1.0 (jti · role · 30 min)."""
     user = authenticate_user(form_data.username, form_data.password)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    _role_mapping = {
-        "admin": "admin",
-        "procurement_officer": "buyer",
-        "viewer": "viewer",
-    }
-    role_raw = user.get("role_name", user.get("role", "viewer"))
-    role = _role_mapping.get(role_raw, "viewer")
-    with get_connection() as conn:
-        trow = db_execute_one(
-            conn,
-            "SELECT tenant_id FROM user_tenants WHERE user_id = :id",
-            {"id": user["id"]},
-        )
-    # tenant_id dans le JWT : même sémantique que « org » métier (isolation R7 / RLS).
-    tenant_id = trow["tenant_id"] if trow else f"tenant-{user['id']}"
+        raise _unauthorized_login()
     try:
-        access_token = create_access_token(str(user["id"]), role, tenant_id)
+        access_token = _issue_access_token(user)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(exc),
         ) from exc
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.post("/login", response_model=LoginJsonResponse)
+@limiter.limit("5/minute")
+async def login_json(request: Request, body: LoginJsonRequest):
+    """Login JSON — contrat frontend-v51 (user + access_token). Pas de refresh_token (phase 1)."""
+    user = authenticate_user(body.email.strip(), body.password)
+    if not user:
+        raise _unauthorized_login()
+    try:
+        access_token = _issue_access_token(user)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        ) from exc
+    return LoginJsonResponse(
+        user=_user_to_response(user),
+        access_token=access_token,
+        token_type="bearer",
+        refresh_token=None,
+    )
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)
@@ -91,7 +157,7 @@ async def register(request: Request, user_data: UserRegister):
         full_name=user_data.full_name,
         role_id=2,
     )
-    return UserResponse(**user)
+    return _user_to_response(user)
 
 
 @router.get("/me", response_model=UserResponse)
@@ -107,4 +173,4 @@ async def get_me(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Utilisateur introuvable",
         )
-    return UserResponse(**user)
+    return _user_to_response(user)
