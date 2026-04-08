@@ -37,6 +37,12 @@ jobs:
       - run: pip install -r requirements.txt
       - run: alembic upgrade head
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend-v51/package-lock.json
+
       - name: "Test 1 — INV-W06"
         run: pytest tests/e2e/test_inv_w06_e2e.py -v
       - name: "Test 2 — INV-W05"
@@ -60,6 +66,7 @@ jobs:
       - name: "Test 11 — INV-F01"
         run: |
           cd frontend-v51
+          npm ci
           npx tsc --noEmit
       - name: "Test 12 — INV-F06"
         run: pytest tests/integration/test_dashboard.py -v
