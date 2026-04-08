@@ -161,10 +161,10 @@ from src.couche_a.criteria.router import router as _criteria_router
 
 app.include_router(_criteria_router)
 
-# ── V5.1 workspace stack (O0, O4, O11, O12) — factory partagée ─────────────
-from src.api.workspace_stack import mount_v51_workspace_routes
+# ── V5.1 workspace stack (O0, O2, O4, O11, O12) — montage unique ───────────
+from src.api.dms_v51_mount import mount_v51_workspace_http_and_ws
 
-mount_v51_workspace_routes(app)
+mount_v51_workspace_http_and_ws(app)
 
 # ── Routers optionnels (strangler pattern — mirrors src/api/main.py) ──────────
 _geo_router = None
@@ -327,11 +327,6 @@ except ImportError as _e:
         "[main] router optionnel src.api.routers.m16_comparative non chargé : %s",
         _e,
     )
-
-# ── WebSocket O2 — factory partagée ───────────────────────────────────────────
-from src.api.workspace_stack import mount_workspace_websockets
-
-mount_workspace_websockets(app)
 
 for _opt_router in [
     _geo_router,

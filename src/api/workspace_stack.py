@@ -1,6 +1,8 @@
 """Montage commun — routes V5.1 workspace (dashboard, agent, MQL, membres, WebSocket).
 
-Évite la dérive entre ``main.py`` (Railway) et ``src.api.main`` (app modulaire).
+Préférer ``src.api.dms_v51_mount.mount_v51_workspace_http_and_ws`` depuis les
+entrypoints pour un seul appel (HTTP + WebSocket). Ce module reste la
+implémentation détaillée.
 """
 
 from __future__ import annotations
