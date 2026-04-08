@@ -76,15 +76,17 @@ def get_dashboard(
             try:
                 facts = load_cognitive_facts(conn, ws_row)
                 cog = compute_cognitive_state_result(facts)
+                blockers = list(cog.advance_blockers)
                 cognitive = {
                     "state": cog.state,
                     "label_fr": cog.label_fr,
                     "phase": cog.phase,
                     "completeness": cog.completeness,
                     "can_advance": cog.can_advance,
-                    "advance_blockers": list(cog.advance_blockers),
+                    "advance_blockers": blockers,
                     "available_actions": sorted(cog.available_actions),
                     "confidence_regime": cog.confidence_regime,
+                    "needs_action": (not cog.can_advance) or bool(blockers),
                 }
             except Exception as exc:
                 logger.warning(
@@ -99,6 +101,7 @@ def get_dashboard(
                     "advance_blockers": [str(exc)],
                     "available_actions": [],
                     "confidence_regime": "red",
+                    "needs_action": True,
                 }
 
             workspaces.append(

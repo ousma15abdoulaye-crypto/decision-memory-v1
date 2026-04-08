@@ -1,6 +1,20 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 class ApiClient {
+  /** Fusionne RequestInit.headers (Headers, tableau ou objet) sans perdre d’entrées. */
+  private mergeHeaders(
+    base: Record<string, string>,
+    init?: HeadersInit,
+  ): Record<string, string> {
+    const out = { ...base };
+    if (init == null) return out;
+    new Headers(init).forEach((value, key) => {
+      out[key] = value;
+    });
+    return out;
+  }
+
   private getToken(): string | null {
     if (typeof window === "undefined") return null;
     const raw = localStorage.getItem("dms-auth");
@@ -17,10 +31,10 @@ class ApiClient {
     options: RequestInit = {},
   ): Promise<T> {
     const token = this.getToken();
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      ...(options.headers as Record<string, string>),
-    };
+    const headers = this.mergeHeaders(
+      { "Content-Type": "application/json" },
+      options.headers,
+    );
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
     const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
@@ -45,6 +59,27 @@ class ApiClient {
   patch<T>(path: string, body: unknown) {
     return this.request<T>(path, {
       method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  }
+
+  /** POST brut (ex. SSE) — en-têtes auth alignés sur get/post ; supporte `signal` (AbortController). */
+  rawPost(
+    path: string,
+    body: unknown,
+    init: RequestInit = {},
+  ): Promise<Response> {
+    const token = this.getToken();
+    const headers = this.mergeHeaders(
+      { "Content-Type": "application/json" },
+      init.headers,
+    );
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    return fetch(`${API_BASE}${path}`, {
+      ...init,
+      method: "POST",
+      headers,
       body: JSON.stringify(body),
     });
   }

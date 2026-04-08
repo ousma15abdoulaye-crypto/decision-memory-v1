@@ -30,7 +30,7 @@ async def mql_stream(
     current_user: UserClaims = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Route interne MQL. Permission mql.internal (admin uniquement)."""
-    role_perms = ROLE_PERMISSIONS.get(current_user.role or "", [])
+    role_perms = ROLE_PERMISSIONS.get(current_user.role or "", frozenset())
     if "mql.internal" not in role_perms and "system.admin" not in role_perms:
         raise HTTPException(403, "Permission mql.internal requise")
 
@@ -40,6 +40,7 @@ async def mql_stream(
     from src.mql.engine import execute_mql_query
 
     tenant_id = UUID(str(current_user.tenant_id))
+    uid = int(current_user.user_id)
     async with acquire_with_rls(
         str(tenant_id),
         is_admin=(current_user.role == "admin"),
@@ -51,6 +52,28 @@ async def mql_stream(
             workspace_id=payload.workspace_id,
             query=payload.query,
             context=None,
+        )
+        await raw_conn.execute(
+            """
+            INSERT INTO mql_query_log
+              (tenant_id, workspace_id, user_id, query_text,
+               intent_classified, intent_confidence,
+               template_used, sources_count, latency_ms,
+               model_used, langfuse_trace_id)
+            VALUES
+              ($1::uuid, $2::uuid, $3, $4,
+               'mql_internal', $5,
+               $6, $7, $8,
+               'mql.internal', NULL)
+            """,
+            str(tenant_id),
+            str(payload.workspace_id) if payload.workspace_id else None,
+            uid,
+            payload.query,
+            float(result.confidence),
+            result.template_used,
+            len(result.sources),
+            result.latency_ms,
         )
 
     return {

@@ -95,8 +95,10 @@ evaluation_documents     : migration 056 — consommée par M14 EvaluationEngine
 **NOTE P0-DOC-01 — RÉSOLU 2026-04-04** : Cette probe a été exécutée AVANT l'application des
 migrations 059→067 (Phase 1 M15). Les résultats reflètent l'état Railway à ce moment.
 Après application de ces migrations (aussi le 2026-04-03 via apply_railway_migrations_safe.py),
-le head Railway est passé à 067 — aligné avec le dépôt.
-État courant Railway : voir section "ÉTAT ALEMBIC" ci-dessus (**head=079**, 0 migration pending vs dépôt).
+le head Railway est passé à 067 — aligné avec le dépôt à cette date.
+**État courant Railway (décisions go/no-go)** : uniquement la section **« ÉTAT ALEMBIC — MIS À JOUR 2026-04-08 »** ci-dessus
+(dépôt et prod **head 090** après mandat DMS-MIGRATION-PROD-V51-001). Ne pas lire les métriques P8/P9 de la probe
+2026-04-03 comme « pending » : elles étaient vraies avant 059→067, pas pour l’état 090 actuel.
 
 probe_script             : scripts/probe_railway_full.py
 probe_date               : 2026-04-03T15:38:49Z (PRÉ-MIGRATION 059→067)
@@ -362,7 +364,7 @@ railway_cli               : Railway CLI — lien projet local (.railway/ gitigno
 
 ### Railway (PostgreSQL prod)
 
-  alembic_version      : 056_evaluation_documents (aligné dépôt — sync 2026-04-01)
+  alembic_version      : **voir section « ÉTAT ALEMBIC » (tête opposable : 090 au 2026-04-08)** — la valeur 056 ci-dessous était un snapshot 2026-04-01 ; ne pas l’utiliser pour le pilotage.
   mesures compteurs    : non figées ici — probes read-only : scripts/probe_railway_counts.py (avec RAILWAY_DATABASE_URL locale, jamais commitée)
 
 ### Collisions detectees

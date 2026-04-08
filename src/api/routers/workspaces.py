@@ -45,6 +45,7 @@ from src.api.cognitive_helpers import (
     load_cognitive_facts,
     map_committee_session_row,
 )
+from src.api.routers.workspaces_comments import comments_subrouter
 from src.cognitive.cognitive_state import (
     TransitionForbidden,
     compute_cognitive_state,
@@ -67,6 +68,7 @@ from src.db import db_execute, db_execute_one, db_fetchall, get_connection
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/workspaces", tags=["workspaces-v420"])
+router.include_router(comments_subrouter)
 
 VALID_WORKSPACE_STATUSES = frozenset(
     {

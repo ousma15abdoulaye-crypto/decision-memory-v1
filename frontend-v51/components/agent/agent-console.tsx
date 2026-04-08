@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import { useAuthStore } from "@/lib/stores/auth";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { api } from "@/lib/api-client";
 
 interface SSEEvent {
   type: "token" | "sources" | "tool_call" | "done" | "error";
@@ -18,40 +18,46 @@ interface Message {
   sources?: SSEEvent["sources"];
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
 export function AgentConsole({ workspaceId }: { workspaceId: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [guardrailBlock, setGuardrailBlock] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const token = useAuthStore((s) => s.accessToken);
+  const streamAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      streamAbortRef.current?.abort();
+    };
+  }, []);
 
   const sendPrompt = useCallback(
     async (query: string) => {
+      streamAbortRef.current?.abort();
+      const ac = new AbortController();
+      streamAbortRef.current = ac;
+
       setGuardrailBlock(null);
       setMessages((prev) => [...prev, { role: "user", content: query }]);
       setStreaming(true);
 
       try {
-        const res = await fetch(`${API_BASE}/api/agent/prompt`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({
+        const res = await api.rawPost(
+          "/api/agent/prompt",
+          {
             query,
             workspace_id: workspaceId,
-          }),
-        });
+          },
+          { signal: ac.signal },
+        );
 
         if (res.status === 422) {
           const body = await res.json();
           setGuardrailBlock(
             body.detail?.message || body.message || "Requête bloquée par le guardrail INV-W06.",
           );
+          ac.abort();
           setStreaming(false);
           return;
         }
@@ -68,6 +74,7 @@ export function AgentConsole({ workspaceId }: { workspaceId: string }) {
         const decoder = new TextDecoder();
 
         while (true) {
+          if (ac.signal.aborted) break;
           const { done, value } = await reader.read();
           if (done) break;
 
@@ -76,6 +83,7 @@ export function AgentConsole({ workspaceId }: { workspaceId: string }) {
           buffer = lines.pop() || "";
 
           for (const block of lines) {
+            if (ac.signal.aborted) break;
             const line = block.replace(/^data: /, "").trim();
             if (!line || line === "[DONE]") continue;
 
@@ -109,6 +117,9 @@ export function AgentConsole({ workspaceId }: { workspaceId: string }) {
           }
         }
       } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          return;
+        }
         setMessages((prev) => [
           ...prev,
           {
@@ -117,11 +128,14 @@ export function AgentConsole({ workspaceId }: { workspaceId: string }) {
           },
         ]);
       } finally {
+        if (streamAbortRef.current === ac) {
+          streamAbortRef.current = null;
+        }
         setStreaming(false);
         scrollRef.current?.scrollIntoView({ behavior: "smooth" });
       }
     },
-    [workspaceId, token],
+    [workspaceId],
   );
 
   function handleSubmit(e: React.FormEvent) {

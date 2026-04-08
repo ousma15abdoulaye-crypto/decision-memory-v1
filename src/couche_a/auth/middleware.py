@@ -101,7 +101,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Content-Security-Policy"] = "default-src 'self'"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
-        if request.url.path.startswith("/auth"):
+        p = request.url.path
+        if p.startswith("/auth") or p.startswith("/api/auth"):
             response.headers["Cache-Control"] = "no-store"
 
         return response
@@ -200,6 +201,11 @@ class RedisRateLimitMiddleware(BaseHTTPMiddleware):
             return None
 
     async def dispatch(self, request: Request, call_next) -> Response:
+        # CI / pytest : Redis actif + milliers de requêtes TestClient → 429 massifs
+        # sans bypass (même IP, fenêtre 60s). TESTING=true est posé dans tests/conftest.
+        if os.environ.get("TESTING", "false").lower() == "true":
+            return await call_next(request)
+
         ip = request.client.host if request.client else "unknown"
         ip_key = f"rate:ip:{ip}"
 

@@ -27,7 +27,9 @@ export function Sidebar() {
   const { data: dashData } = useQuery({
     queryKey: ["dashboard"],
     queryFn: () =>
-      api.get<{ workspaces: SidebarWorkspace[] }>("/api/dashboard"),
+      api.get<{ workspaces: SidebarWorkspace[]; total?: number }>(
+        "/api/dashboard",
+      ),
     refetchInterval: 30_000,
     staleTime: 10_000,
   });
@@ -58,9 +60,12 @@ export function Sidebar() {
           <div className="mt-4">
             <div className="px-3 pb-1 text-xs font-medium uppercase tracking-wider text-gray-400">
               Workspaces
+              {dashData.total != null
+                ? ` (${dashData.workspaces.length}/${dashData.total})`
+                : ` (${dashData.workspaces.length})`}
             </div>
-            <div className="space-y-0.5">
-              {dashData.workspaces.slice(0, 15).map((ws) => (
+            <div className="max-h-[min(60vh,28rem)] space-y-0.5 overflow-y-auto">
+              {dashData.workspaces.map((ws) => (
                 <Link
                   key={ws.id}
                   href={`/workspaces/${ws.id}`}

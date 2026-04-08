@@ -64,8 +64,37 @@ def test_main_openapi_includes_workspaces_committee_pv_prefixes() -> None:
         "/api/workspaces" in p for p in path_keys
     ), "OpenAPI doit exposer au moins un chemin /api/workspaces (W1)"
     assert any(
+        "/api/dashboard" in p for p in path_keys
+    ), "OpenAPI doit exposer /api/dashboard (Canon O0 / V5.1)"
+    assert any(
+        "/api/agent/prompt" in p for p in path_keys
+    ), "OpenAPI doit exposer POST /api/agent/prompt (Canon O11)"
+    assert any(
+        "comments" in p and "/api/workspaces/" in p for p in path_keys
+    ), "OpenAPI doit exposer POST .../comments sous /api/workspaces (O8 CDE)"
+    assert any(
         "committee/seal" in p for p in path_keys
     ), "OpenAPI doit exposer committee/seal (W3 scellage)"
     assert any(
         "committee/pv" in p for p in path_keys
     ), "OpenAPI doit exposer committee/pv (exports PV)"
+    assert any(
+        "/members" in p and "/api/workspaces/" in p for p in path_keys
+    ), "OpenAPI doit exposer …/members (Canon O4)"
+    assert any(
+        p.endswith("/seal") or "/seal}" in p for p in path_keys
+    ), "OpenAPI doit exposer POST …/seal (alias Canon O9)"
+
+
+def test_src_api_main_openapi_includes_v51_workspace_stack() -> None:
+    """Parité modulaire : même bundle V5.1 que main.py."""
+    from src.api.main import app
+
+    with TestClient(app) as client:
+        r = client.get("/openapi.json")
+    assert r.status_code == 200
+    path_keys = list((r.json().get("paths") or {}).keys())
+    assert any("/api/dashboard" in p for p in path_keys)
+    assert any("/api/agent/prompt" in p for p in path_keys)
+    assert any("/api/mql/stream" in p for p in path_keys)
+    assert any("/members" in p and "/api/workspaces/" in p for p in path_keys)

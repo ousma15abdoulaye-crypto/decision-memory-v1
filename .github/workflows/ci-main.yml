@@ -1,4 +1,4 @@
-# V3.3.2 — CI principale (Python 3.11, Postgres 15, tests, lint) — gates dynamiques
+# V3.3.2 — CI principale (Python 3.11, Postgres 16, Redis 7, tests, lint) — gates dynamiques
 name: CI Main
 
 on:
@@ -13,7 +13,7 @@ jobs:
 
     services:
       postgres:
-        image: pgvector/pgvector:pg15
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_PASSWORD: testpass
           POSTGRES_DB: dmstest
@@ -24,11 +24,21 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     env:
       DATABASE_URL: postgresql+psycopg://postgres:testpass@localhost:5432/dmstest
       DATABASE_URL_RLS_TEST: postgresql+psycopg://dm_app:dm_app_ci_test@localhost:5432/dmstest
       PGPASSWORD: testpass
+      REDIS_URL: redis://localhost:6379/0
 
     steps:
       - uses: actions/checkout@v4
@@ -189,6 +199,8 @@ jobs:
             --fail-sensitive-prefix /api/cases \
             --fail-sensitive-prefix /api/extractions
 
+      # Couverture : 68 % si jalons tests actifs, sinon 0 (branches sans M-TESTS.done).
+      # Canon V5.1 cible ≥65 % en prod — le ratchet 68 % s’applique quand M-TESTS.done est présent.
       - name: Resolve coverage gate (ratchet — never decreases)
         id: cov_gate
         run: |

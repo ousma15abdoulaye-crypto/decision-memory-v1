@@ -15,6 +15,8 @@ env:
   LANGFUSE_SECRET_KEY: "test-sk"
   LANGFUSE_HOST: "http://localhost:3000"
   TESTING: "true"
+  # Import racine ``main`` (export OpenAPI, etc.) — aligné CI Main
+  PYTHONPATH: ${{ github.workspace }}
 
 jobs:
   invariants:
@@ -52,9 +54,9 @@ jobs:
       - name: "Test 4 — INV-S01"
         run: pytest tests/integration/test_rls_cross_tenant.py -v
       - name: "Test 5 — INV-S02 observer"
-        run: pytest tests/integration/test_guard_observer.py -v
+        run: pytest tests/unit/test_guard_workspace_mocked.py::TestGuardObserver -v
       - name: "Test 6 — INV-S02 sealed"
-        run: pytest tests/integration/test_guard_sealed.py -v
+        run: pytest tests/unit/test_guard_workspace_mocked.py::TestGuardSealed -v
       - name: "Test 7 — INV-S03"
         run: pytest tests/db/test_messages_append_only.py -v
       - name: "Test 8 — INV-S04"
@@ -65,8 +67,13 @@ jobs:
         run: pytest tests/unit/test_cognitive_projection.py -v
       - name: "Test 11 — INV-F01"
         run: |
+          python scripts/export_openapi_main_app.py --out frontend-v51/openapi-snapshot.json
           cd frontend-v51
           npm ci
+          npx openapi-typescript openapi-snapshot.json -o types/api.ts
+          cd ..
+          python scripts/check_openapi_types_non_stub.py frontend-v51/types/api.ts
+          cd frontend-v51
           npx tsc --noEmit
       - name: "Test 12 — INV-F06"
         run: pytest tests/integration/test_dashboard.py -v
