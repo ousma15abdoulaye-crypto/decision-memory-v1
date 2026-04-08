@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-04-08 — Mandat **DMS-MIGRATION-PROD-V51-001** : Railway prod **090** (`090_v51_extraction_jobs_langfuse_trace`), aligné dépôt ; **pré-migration constatée 080** (pas 079) — appliqué **081→090** (10 rév.) ; rapport `docs/ops/RAILWAY_MIGRATION_V51_001_REPORT.md` ; PR #345 **f0a8379c** + PR #344 **0b952668** ; snapshot Dashboard Phase 1 = confirmer AO
+# Derniere mise a jour : 2026-04-08 — Mandat **DMS-MIGRATION-PROD-V51-001** : Railway prod **090** (`090_v51_extraction_jobs_langfuse_trace`), aligné dépôt ; **pré-migration constatée 080** (pas 079) — appliqué **081→090** (10 rév.) ; rapport `docs/ops/RAILWAY_MIGRATION_V51_001_REPORT.md` ; PR #345 **f0a8379c** + PR #344 **0b952668** ; backup Railway Dashboard Phase 1 **confirmé** : **1,4 Go**, **2026-04-08 15h12**
 
 ---
 

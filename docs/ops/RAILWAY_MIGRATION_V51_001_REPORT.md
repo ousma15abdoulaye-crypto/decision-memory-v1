@@ -20,7 +20,7 @@
 
 ## Phase 1 — Sauvegarde
 
-- **Snapshot Railway (Dashboard)** : à confirmer par **AO** (l’agent ne valide pas l’UI Railway).
+- **Snapshot Railway (Dashboard)** : **confirmé AO** — **1,4 Go**, horodatage **2026-04-08 15h12** (référence fournie par le CTO / AO après la migration).
 
 ## Phase 2 — Application
 
