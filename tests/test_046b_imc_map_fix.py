@@ -131,6 +131,8 @@ VALID_ALEMBIC_HEADS = (
     # PR #351 — auth / workspace access rebuild
     "091_fix_user_tenant_provisioning",
     "092_workspace_access_model_v2",
+    # Canon V5.1.0 §5.4 / O6 — journal métier assessment_history
+    "093_v51_assessment_history",
 )
 
 
