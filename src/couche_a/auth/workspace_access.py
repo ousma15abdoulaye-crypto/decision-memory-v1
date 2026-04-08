@@ -1,9 +1,10 @@
 """Contrôle d'accès workspace — remplace case_access.py (V4.2.0).
 
 Vérifie l'appartenance d'un utilisateur à un workspace via :
-  - workspace_memberships (membership explicite)
-  - user_tenant_roles + RBAC (permission workspace.read)
-  - rôle JWT admin (même barrière que case_access.py)
+  - ``WorkspaceAccessService`` (membership + matrice permissions, ex. ``matrix.read``)
+  - membership explicite (ligne ``workspace_memberships`` sans filtre rôle)
+  - ``user_tenant_roles`` + RBAC (permission ``workspace.read``)
+  - rôle JWT admin (bypass tracé en log)
 
 Référence : docs/freeze/DMS_V4.2.0_RBAC.md — RÈGLE-W01
 users.id = INTEGER (migration 004).
@@ -11,10 +12,15 @@ users.id = INTEGER (migration 004).
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import HTTPException, status
 
 from src.couche_a.auth.dependencies import UserClaims
 from src.db import db_execute_one, get_connection
+from src.services.workspace_access_service import WorkspaceAccessService
+
+logger = logging.getLogger(__name__)
 
 
 def _tenant_id_str(value: object) -> str:
@@ -28,10 +34,6 @@ def require_workspace_access(workspace_id: str, user: UserClaims) -> None:
     """Vérifie que l'utilisateur a accès au workspace.
 
     Lève HTTPException 403 si accès refusé, 404 si workspace absent.
-
-    Logique :
-      1. Workspace existe ET appartient au même tenant que l'utilisateur.
-      2. Utilisateur est admin (JWT) OU membre workspace OU a permission workspace.read.
 
     Args:
         workspace_id: UUID du workspace à vérifier.
@@ -55,6 +57,11 @@ def require_workspace_access(workspace_id: str, user: UserClaims) -> None:
         )
 
     if user.role == "admin":
+        logger.info(
+            "workspace.access admin bypass user_id=%s workspace_id=%s",
+            user.user_id,
+            workspace_id,
+        )
         return
 
     if user.tenant_id and _tenant_id_str(ws.get("tenant_id")) != _tenant_id_str(
@@ -66,6 +73,12 @@ def require_workspace_access(workspace_id: str, user: UserClaims) -> None:
         )
 
     user_id = int(user.user_id)
+    tid = _tenant_id_str(user.tenant_id)
+    if tid and WorkspaceAccessService.check_permission(
+        workspace_id, user_id, "matrix.read", tid
+    ):
+        return
+
     with get_connection() as conn:
         membership = db_execute_one(
             conn,

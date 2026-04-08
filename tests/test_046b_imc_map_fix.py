@@ -128,6 +128,9 @@ VALID_ALEMBIC_HEADS = (
     "088_v51_assessment_comments",
     "089_v51_rls_force_corrective",
     "090_v51_extraction_jobs_langfuse_trace",
+    # PR #351 — auth / workspace access rebuild
+    "091_fix_user_tenant_provisioning",
+    "092_workspace_access_model_v2",
 )
 
 
