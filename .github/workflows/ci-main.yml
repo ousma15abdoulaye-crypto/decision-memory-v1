@@ -140,9 +140,11 @@ jobs:
 
       - name: Blind-except tracker (BLE001 — informational)
         continue-on-error: true
+        shell: bash
         run: |
+          set -o pipefail
           echo "=== BLE001 hits (target: 0) ==="
-          ruff check --select BLE001 src tests 2>&1 | tail -5 || true
+          ruff check --select BLE001 src tests 2>&1 | tail -5
 
       # SECRET_KEY éphémère par run (import main:app) — pas de secret figé dans le YAML
       - name: Ephemeral SECRET_KEY for FastAPI auth audit

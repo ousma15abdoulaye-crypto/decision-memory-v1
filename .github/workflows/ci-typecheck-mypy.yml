@@ -29,12 +29,17 @@ jobs:
 
       - name: Run mypy (informational — non-blocking)
         continue-on-error: true
+        shell: bash
         run: |
+          mypy_output="$(mktemp)"
           mypy src/ \
             --ignore-missing-imports \
             --no-strict-optional \
             --warn-unused-configs \
             --show-error-codes \
             --no-error-summary \
-            2>&1 | head -200
+            >"$mypy_output" 2>&1
+          mypy_status=$?
+          head -200 "$mypy_output"
           echo "--- mypy completed (informational) ---"
+          exit "$mypy_status"

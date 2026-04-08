@@ -18,6 +18,7 @@ from .service_utils import (
     _now,
     _safe_step,
     _to_step_result,
+    get_last_pipeline_run,  # noqa: F401 — re-exported for router.py
     persist_pipeline_run_and_steps,
 )
 from .steps import (
