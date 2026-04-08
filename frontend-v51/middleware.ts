@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+/**
+ * Garde UX Edge : on lit seulement le payload JWT (exp). La signature n'est pas
+ * vérifiée ici — l'API FastAPI reste la barrière d'authentification réelle.
+ */
 const PUBLIC = ["/login", "/api/auth", "/_next", "/favicon"];
 
+/** Décode l'expiration JWT sans vérifier la signature (usage middleware uniquement). */
 function jwtExpSeconds(token: string): number | null {
   try {
     const parts = token.split(".");

@@ -11,27 +11,42 @@ interface User {
 
 const ACCESS_COOKIE_MAX_AGE = 60 * 60; // 1 h (mandat) ; JWT access serveur souvent 30 min
 
+function cookieSecuritySuffix(): string[] {
+  if (typeof location !== "undefined" && location.protocol === "https:") {
+    return ["Secure"];
+  }
+  return [];
+}
+
 function setSessionCookies(access: string) {
   if (typeof document === "undefined") return;
   const enc = encodeURIComponent(access);
+  const sec = cookieSecuritySuffix();
   document.cookie = [
     `dms_token=${enc}`,
     "path=/",
     "SameSite=Strict",
     `max-age=${ACCESS_COOKIE_MAX_AGE}`,
+    ...sec,
   ].join("; ");
   document.cookie = [
     "dms-auth=1",
     "path=/",
     "SameSite=Strict",
     "max-age=3600",
+    ...sec,
   ].join("; ");
 }
 
 function clearSessionCookies() {
   if (typeof document === "undefined") return;
-  document.cookie = "dms_token=; path=/; max-age=0";
-  document.cookie = "dms-auth=; path=/; max-age=0";
+  const sec = cookieSecuritySuffix();
+  document.cookie = ["dms_token=", "path=/", "SameSite=Strict", "max-age=0", ...sec].join(
+    "; ",
+  );
+  document.cookie = ["dms-auth=", "path=/", "SameSite=Strict", "max-age=0", ...sec].join(
+    "; ",
+  );
 }
 
 interface AuthState {

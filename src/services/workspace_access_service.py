@@ -7,6 +7,7 @@ alignés sur le backfill migration 092. Pas d'ORM — requêtes via ``get_connec
 from __future__ import annotations
 
 import logging
+import uuid
 from enum import StrEnum
 
 from src.db import db_fetchall, get_connection
@@ -22,6 +23,14 @@ class WorkspaceRole(StrEnum):
     FINANCE_REVIEWER = "finance_reviewer"
     OBSERVER = "observer"
     AUDITOR = "auditor"
+
+
+def _parse_uuid_param(label: str, value: str) -> uuid.UUID | None:
+    try:
+        return uuid.UUID(str(value).strip())
+    except ValueError:
+        logger.debug("%s non-UUID (%r) — refus contrôle accès", label, value)
+        return None
 
 
 WORKSPACE_PERMISSIONS: dict[WorkspaceRole, frozenset[str]] = {
@@ -117,7 +126,15 @@ class WorkspaceAccessService:
         Ne lève pas d'exception si aucune ligne : retour ``False``.
         Bloque ``deliberation.validate`` et ``pv.seal`` si ``coi_declared`` est vrai
         (colonnes ajoutées en 092).
+
+        ``tenant_id`` / ``workspace_id`` invalides (non-UUID) : ``False`` sans requête
+        SQL (évite erreur ``CAST`` côté Postgres).
         """
+        ws_u = _parse_uuid_param("workspace_id", workspace_id)
+        tid_u = _parse_uuid_param("tenant_id", tenant_id)
+        if ws_u is None or tid_u is None:
+            return False
+
         with get_connection() as conn:
             rows = db_fetchall(
                 conn,
@@ -130,7 +147,7 @@ class WorkspaceAccessService:
                   AND wm.revoked_at IS NULL
                   AND w.tenant_id = CAST(:tid AS uuid)
                 """,
-                {"ws": workspace_id, "uid": user_id, "tid": tenant_id},
+                {"ws": str(ws_u), "uid": user_id, "tid": str(tid_u)},
             )
 
         if not rows:

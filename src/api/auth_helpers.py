@@ -243,8 +243,8 @@ def resolve_tenant_uuid_for_jwt(user_id: int) -> str:
     """UUID texte pour le claim JWT : jointure ``user_tenants`` ↔ ``tenants``.
 
     Couvre ``tenant_id`` stocké comme ``tenants.id::text`` ou comme ``tenants.code``.
-    Si aucune ligne ne matche : repli ``tenant-{user_id}`` (legacy ; migration 091
-    corrige les lignes placeholder côté base).
+    Sans correspondance : premier tenant actif (repli après migrations 091/092).
+    Lève ``ValueError`` si aucun tenant actif n'existe (JWT incohérent évité).
     """
     with get_connection() as conn:
         trow = db_execute_one(
@@ -258,7 +258,24 @@ def resolve_tenant_uuid_for_jwt(user_id: int) -> str:
             """,
             {"uid": user_id},
         )
-    return str(trow["tenant_uuid"]) if trow else f"tenant-{user_id}"
+        if trow:
+            return str(trow["tenant_uuid"])
+        drow = db_execute_one(
+            conn,
+            """
+            SELECT id::text AS tenant_uuid
+            FROM tenants
+            WHERE is_active = TRUE
+            ORDER BY created_at ASC
+            LIMIT 1
+            """,
+            {},
+        )
+    if not drow:
+        raise ValueError(
+            "Impossible de résoudre un tenant UUID pour le JWT : aucun tenant actif."
+        )
+    return str(drow["tenant_uuid"])
 
 
 def create_user(

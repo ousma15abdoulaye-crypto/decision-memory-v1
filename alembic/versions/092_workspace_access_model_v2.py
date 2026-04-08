@@ -86,37 +86,51 @@ def upgrade() -> None:
         ADD COLUMN IF NOT EXISTS coi_note TEXT
         """)
 
-    # ── STEP 4 — Backfill memberships (un rôle par user/workspace) ───────
-    op.execute("""
-        INSERT INTO public.workspace_memberships (
-            workspace_id, tenant_id, user_id, role, granted_by
-        )
-        SELECT
-            w.id,
-            w.tenant_id,
-            u.id,
-            CASE
-                WHEN u.is_superuser = TRUE OR r.name = 'admin'
-                    THEN 'procurement_lead'
-                WHEN r.name = 'procurement_officer'
-                    THEN 'committee_member'
-                ELSE 'observer'
-            END,
-            u.id
-        FROM public.process_workspaces w
-        JOIN public.tenants tw ON tw.id = w.tenant_id
-        JOIN public.user_tenants ut
-            ON (ut.tenant_id = tw.id::text OR ut.tenant_id = tw.code)
-        JOIN public.users u ON u.id = ut.user_id
-        LEFT JOIN public.roles r ON r.id = u.role_id
-        WHERE w.status IS DISTINCT FROM 'sealed'
-          AND NOT EXISTS (
-              SELECT 1 FROM public.workspace_memberships wm
-              WHERE wm.workspace_id = w.id
-                AND wm.user_id = u.id
-                AND wm.revoked_at IS NULL
-          )
-        ON CONFLICT (workspace_id, user_id, role) DO NOTHING
+    # ── STEP 4 — Backfill memberships (par workspace — limite verrous / cartésien)
+    op.execute(r"""
+        DO $092_backfill$
+        DECLARE
+            rec RECORD;
+        BEGIN
+            FOR rec IN
+                SELECT w.id AS wid, w.tenant_id AS tid
+                FROM public.process_workspaces w
+                WHERE w.status IS DISTINCT FROM 'sealed'
+                ORDER BY w.tenant_id, w.id
+            LOOP
+                INSERT INTO public.workspace_memberships (
+                    workspace_id, tenant_id, user_id, role, granted_by
+                )
+                SELECT
+                    w.id,
+                    w.tenant_id,
+                    u.id,
+                    CASE
+                        WHEN u.is_superuser = TRUE OR r.name = 'admin'
+                            THEN 'procurement_lead'
+                        WHEN r.name = 'procurement_officer'
+                            THEN 'committee_member'
+                        ELSE 'observer'
+                    END,
+                    u.id
+                FROM public.process_workspaces w
+                JOIN public.tenants tw ON tw.id = w.tenant_id
+                JOIN public.user_tenants ut
+                    ON (ut.tenant_id = tw.id::text OR ut.tenant_id = tw.code)
+                JOIN public.users u ON u.id = ut.user_id
+                LEFT JOIN public.roles r ON r.id = u.role_id
+                WHERE w.id = rec.wid
+                  AND w.tenant_id = rec.tid
+                  AND NOT EXISTS (
+                      SELECT 1 FROM public.workspace_memberships wm
+                      WHERE wm.workspace_id = w.id
+                        AND wm.user_id = u.id
+                        AND wm.revoked_at IS NULL
+                  )
+                ON CONFLICT (workspace_id, user_id, role) DO NOTHING;
+            END LOOP;
+        END
+        $092_backfill$;
         """)
 
 
