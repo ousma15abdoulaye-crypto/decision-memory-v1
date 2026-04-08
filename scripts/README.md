@@ -25,6 +25,7 @@
 
 | Script | Usage | Env |
 |--------|-------|-----|
+| `seed_dms_app_user.py` | Crée un utilisateur `users` + `user_tenants` (même logique que `/auth/register`) — exécuter en **Python** local, pas dans une image Bun-only (`python3: not found`) ; `with_railway_env.py` pour prod | Env: `DMS_SEED_USER_EMAIL`, `DMS_SEED_USER_USERNAME`, `DMS_SEED_USER_PASSWORD` |
 | `seed_classification_backfill.py` | Backfill classification taxonomy | Local |
 | `seed_decision_history_init.py` | Init decision_history | Local |
 | `seed_geo_corridors_mali.py` | Init corridors géo Mali | Local |
