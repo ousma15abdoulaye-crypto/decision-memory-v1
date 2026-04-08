@@ -1,4 +1,5 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 class ApiClient {
   private getToken(): string | null {
@@ -45,6 +46,27 @@ class ApiClient {
   patch<T>(path: string, body: unknown) {
     return this.request<T>(path, {
       method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  }
+
+  /** POST brut (ex. SSE) — en-têtes auth alignés sur get/post ; supporte `signal` (AbortController). */
+  rawPost(
+    path: string,
+    body: unknown,
+    init: RequestInit = {},
+  ): Promise<Response> {
+    const token = this.getToken();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...(init.headers as Record<string, string>),
+    };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    return fetch(`${API_BASE}${path}`, {
+      ...init,
+      method: "POST",
+      headers,
       body: JSON.stringify(body),
     });
   }

@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import uuid
 from enum import StrEnum
+from typing import Any
 
 from src.db import db_fetchall, get_connection
 
@@ -44,9 +45,16 @@ WORKSPACE_PERMISSIONS: dict[WorkspaceRole, frozenset[str]] = {
             "pv.read",
             "pv.seal",
             "financial.read",
+            "financial.comment",
             "clarification.raise",
             "clarification.resolve",
             "member.invite",
+            "member.revoke",
+            "phase.advance",
+            "workspace.manage",
+            "committee.manage",
+            "bundle.upload",
+            "agent.query",
         }
     ),
     WorkspaceRole.COMMITTEE_MEMBER: frozenset(
@@ -59,6 +67,8 @@ WORKSPACE_PERMISSIONS: dict[WorkspaceRole, frozenset[str]] = {
             "pv.read",
             "financial.read",
             "clarification.raise",
+            "bundle.upload",
+            "agent.query",
         }
     ),
     WorkspaceRole.PROCUREMENT_LEAD: frozenset(
@@ -71,6 +81,9 @@ WORKSPACE_PERMISSIONS: dict[WorkspaceRole, frozenset[str]] = {
             "member.invite",
             "member.revoke",
             "phase.advance",
+            "committee.manage",
+            "bundle.upload",
+            "agent.query",
         }
     ),
     WorkspaceRole.TECHNICAL_REVIEWER: frozenset(
@@ -79,6 +92,8 @@ WORKSPACE_PERMISSIONS: dict[WorkspaceRole, frozenset[str]] = {
             "deliberation.read",
             "deliberation.write",
             "clarification.raise",
+            "bundle.upload",
+            "agent.query",
         }
     ),
     WorkspaceRole.FINANCE_REVIEWER: frozenset(
@@ -89,6 +104,7 @@ WORKSPACE_PERMISSIONS: dict[WorkspaceRole, frozenset[str]] = {
             "deliberation.read",
             "deliberation.write",
             "clarification.raise",
+            "agent.query",
         }
     ),
     WorkspaceRole.OBSERVER: frozenset(
@@ -97,6 +113,7 @@ WORKSPACE_PERMISSIONS: dict[WorkspaceRole, frozenset[str]] = {
             "deliberation.read",
             "pv.read",
             "financial.read",
+            "agent.query",
         }
     ),
     WorkspaceRole.AUDITOR: frozenset(
@@ -106,9 +123,93 @@ WORKSPACE_PERMISSIONS: dict[WorkspaceRole, frozenset[str]] = {
             "pv.read",
             "financial.read",
             "audit.full",
+            "agent.query",
         }
     ),
 }
+
+# Mutations soumises à la protection « workspace scellé » (aligné Canon §5.3, codes métier workspace).
+WORKSPACE_WRITE_PERMISSIONS: frozenset[str] = frozenset(
+    {
+        "matrix.comment",
+        "deliberation.write",
+        "deliberation.validate",
+        "pv.seal",
+        "member.invite",
+        "member.revoke",
+        "phase.advance",
+        "workspace.manage",
+        "bundle.upload",
+        "committee.manage",
+        "financial.comment",
+        "clarification.resolve",
+    }
+)
+
+
+def _permission_granted_by_rows(
+    rows: list[dict[str, Any]],
+    permission: str,
+) -> bool:
+    """Évalue la matrice rôles × permissions + COI (logique partagée sync/async)."""
+    if not rows:
+        return False
+
+    blocked_under_coi = permission in (
+        "deliberation.validate",
+        "pv.seal",
+    )
+
+    for row in rows:
+        role_str = str(row.get("role") or "")
+        try:
+            wr = WorkspaceRole(role_str)
+        except ValueError:
+            logger.debug("Rôle workspace inconnu %r — ignoré", role_str)
+            continue
+
+        perms = WORKSPACE_PERMISSIONS.get(wr, frozenset())
+        if permission not in perms:
+            continue
+
+        coi = bool(row.get("coi_declared"))
+        if coi and blocked_under_coi:
+            continue
+
+        return True
+
+    return False
+
+
+async def check_workspace_permission_async(
+    conn: Any,
+    workspace_id: str,
+    user_id: int,
+    permission: str,
+    tenant_id: str,
+) -> bool:
+    """Même règles que ``WorkspaceAccessService.check_permission`` sur asyncpg."""
+    ws_u = _parse_uuid_param("workspace_id", workspace_id)
+    tid_u = _parse_uuid_param("tenant_id", tenant_id)
+    if ws_u is None or tid_u is None:
+        return False
+
+    rows = await conn.fetch(
+        """
+        SELECT wm.role, COALESCE(wm.coi_declared, FALSE) AS coi_declared
+        FROM workspace_memberships wm
+        JOIN process_workspaces w ON w.id = wm.workspace_id
+        WHERE wm.workspace_id = $1::uuid
+          AND wm.user_id = $2
+          AND wm.revoked_at IS NULL
+          AND w.tenant_id = $3::uuid
+        """,
+        str(ws_u),
+        user_id,
+        str(tid_u),
+    )
+    dict_rows = [dict(r) for r in rows]
+    return _permission_granted_by_rows(dict_rows, permission)
 
 
 class WorkspaceAccessService:
@@ -150,30 +251,4 @@ class WorkspaceAccessService:
                 {"ws": str(ws_u), "uid": user_id, "tid": str(tid_u)},
             )
 
-        if not rows:
-            return False
-
-        blocked_under_coi = permission in (
-            "deliberation.validate",
-            "pv.seal",
-        )
-
-        for row in rows:
-            role_str = str(row.get("role") or "")
-            try:
-                wr = WorkspaceRole(role_str)
-            except ValueError:
-                logger.debug("Rôle workspace inconnu %r — ignoré", role_str)
-                continue
-
-            perms = WORKSPACE_PERMISSIONS.get(wr, frozenset())
-            if permission not in perms:
-                continue
-
-            coi = bool(row.get("coi_declared"))
-            if coi and blocked_under_coi:
-                continue
-
-            return True
-
-        return False
+        return _permission_granted_by_rows(list(rows), permission)

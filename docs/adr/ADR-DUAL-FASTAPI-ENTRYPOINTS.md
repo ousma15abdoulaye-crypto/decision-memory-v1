@@ -18,3 +18,8 @@
 
 - [`src/api/main.py`](../../src/api/main.py) — commentaire §D1.3
 - [`docs/CONTRIBUTING.md`](../CONTRIBUTING.md) — section Applications FastAPI
+- [`scripts/compare_fastapi_openapi_paths.py`](../../scripts/compare_fastapi_openapi_paths.py) — comparaison des chemins OpenAPI `main:app` vs `src.api.main:app` (avec `DATABASE_URL`)
+
+## Convergence « factory unique » (option CTO)
+
+Une fusion de `main.py` et `src/api/main.py` derrière un seul `create_app()` reste un chantier **large** (non requis pour la parité documentée ici). Tant qu’elle n’est pas mandatée, la preuve de prod repose sur le smoke OpenAPI + la checklist release.

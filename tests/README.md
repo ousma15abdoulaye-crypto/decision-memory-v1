@@ -19,3 +19,5 @@ La production expose **`main:app`** (`main.py` à la racine). Une partie des tes
 | `tests/api/test_extractions_auth.py` | `src.api.main.app` |
 
 **Règle** : toute route destinée à Railway / `uvicorn main:app` doit être montée dans `main.py`. Les tests sur `src.api.main` ne remplacent pas une preuve de montage en prod.
+
+**Checklist release (ops)** : [`docs/ops/RELEASE_MAIN_APP_PARITY_CHECKLIST.md`](../docs/ops/RELEASE_MAIN_APP_PARITY_CHECKLIST.md).

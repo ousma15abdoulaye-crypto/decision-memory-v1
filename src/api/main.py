@@ -24,6 +24,10 @@ from src.api.routers.committee_sessions import router as committee_sessions_rout
 from src.api.routers.documents import router as committee_documents_router
 from src.api.routers.market import router as market_router
 from src.api.routers.workspaces import router as workspaces_router
+from src.api.workspace_stack import (
+    mount_v51_workspace_routes,
+    mount_workspace_websockets,
+)
 from src.auth_router import router as _auth_router
 from src.couche_a.criteria.router import router as criteria_router
 
@@ -230,6 +234,10 @@ app.include_router(workspaces_router)
 app.include_router(committee_sessions_router)
 app.include_router(committee_documents_router)
 app.include_router(market_router)
+
+# V5.1 — même bundle que main.py (O0, O2, O4, O11, O12)
+mount_v51_workspace_routes(app)
+mount_workspace_websockets(app)
 
 # Optionnels
 for _router in [

@@ -152,17 +152,68 @@ def require_rbac_permission(user: UserClaims, permission: str) -> None:
         )
 
 
+def require_workspace_comment_permission(workspace_id: str, user: UserClaims) -> None:
+    """Autorise POST commentaire CDE (Canon O8) si membership accorde au moins une des permissions.
+
+    ``matrix.comment`` (comité) ou ``deliberation.write`` (rôles rédacteurs).
+    Admin JWT : bypass loggé via ``require_workspace_access``.
+    """
+    require_workspace_access(workspace_id, user)
+    if user.role == "admin":
+        return
+    user_id = int(user.user_id)
+    tid = user.tenant_id
+    if not tid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="tenant_id manquant dans le JWT.",
+        )
+    tid_s = str(tid)
+    if WorkspaceAccessService.check_permission(
+        workspace_id, user_id, "matrix.comment", tid_s
+    ):
+        return
+    if WorkspaceAccessService.check_permission(
+        workspace_id, user_id, "deliberation.write", tid_s
+    ):
+        return
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Accès refusé — matrix.comment ou deliberation.write requis pour commenter.",
+    )
+
+
 def require_workspace_permission(
     workspace_id: str,
     user: UserClaims,
     permission: str,
 ) -> None:
-    """Vérifie une permission RBAC spécifique pour un workspace.
+    """Vérifie une permission métier via ``workspace_memberships`` (Canon §5.3).
+
+    Après ``require_workspace_access`` (tenant + accès lecture ou membership).
+    Les admins JWT sont déjà autorisés par ``require_workspace_access``.
 
     Args:
         workspace_id: UUID du workspace.
         user: Claims JWT.
-        permission: Code de permission (ex: 'workspace.close', 'bundle.upload').
+        permission: Code permission métier (ex: ``committee.manage``, ``bundle.upload``).
     """
     require_workspace_access(workspace_id, user)
-    require_rbac_permission(user, permission)
+    if user.role == "admin":
+        return
+    tid = user.tenant_id
+    if not tid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="tenant_id manquant dans le JWT.",
+        )
+    if not WorkspaceAccessService.check_permission(
+        workspace_id,
+        int(user.user_id),
+        permission,
+        str(tid),
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Accès refusé — permission workspace {permission!r} requise.",
+        )

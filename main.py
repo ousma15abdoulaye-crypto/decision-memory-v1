@@ -161,17 +161,10 @@ from src.couche_a.criteria.router import router as _criteria_router
 
 app.include_router(_criteria_router)
 
-# ── V5.1 Dashboard (Canon O0 — INV-F06) ─────────────────────────────────────
-from src.api.routers.dashboard import router as _dashboard_router
+# ── V5.1 workspace stack (O0, O4, O11, O12) — factory partagée ─────────────
+from src.api.workspace_stack import mount_v51_workspace_routes
 
-app.include_router(_dashboard_router)
-
-# ── V5.1 Agent + MQL (Canon O11-O12) ────────────────────────────────────────
-from src.api.routers.agent import router as _agent_router
-from src.api.routers.mql import router as _mql_router
-
-app.include_router(_agent_router)
-app.include_router(_mql_router)
+mount_v51_workspace_routes(app)
 
 # ── Routers optionnels (strangler pattern — mirrors src/api/main.py) ──────────
 _geo_router = None
@@ -335,19 +328,10 @@ except ImportError as _e:
         _e,
     )
 
-# ── WebSocket V4.2.0 — diffusion workspace_events temps réel ─────────────────
-try:
-    from src.api.ws.workspace_events import workspace_events_ws
+# ── WebSocket O2 — factory partagée ───────────────────────────────────────────
+from src.api.workspace_stack import mount_workspace_websockets
 
-    app.add_api_websocket_route(
-        "/ws/workspace/{workspace_id}/events",
-        workspace_events_ws,
-        name="workspace_events_ws",
-    )
-except ImportError as _ws_err:
-    logging.getLogger(__name__).warning(
-        "[main] WebSocket workspace_events non chargé : %s", _ws_err
-    )
+mount_workspace_websockets(app)
 
 for _opt_router in [
     _geo_router,

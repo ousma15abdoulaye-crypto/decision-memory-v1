@@ -21,11 +21,19 @@ load_dotenv()
 
 
 def _apply_rls_session_settings(cur) -> None:
-    """Pose app.tenant_id / app.is_admin / app.user_id pour les policies RLS."""
+    """Pose app.tenant_id / app.current_tenant / app.is_admin / app.user_id pour RLS.
+
+    Canon V5.1.0 §O1 : ``app.current_tenant`` ; codebase historique : ``app.tenant_id``.
+    Les deux sont posés à la même valeur jusqu'à convergence des policies SQL.
+    """
     tid = get_rls_tenant_id()
     if tid:
         cur.execute(
             "SELECT set_config('app.tenant_id', %s, true)",
+            (tid,),
+        )
+        cur.execute(
+            "SELECT set_config('app.current_tenant', %s, true)",
             (tid,),
         )
     if get_rls_is_admin():

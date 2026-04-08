@@ -31,6 +31,9 @@ export function CommentDialog({
     retry: 3,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workspace", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["evaluation-frame", workspaceId],
+      });
       onClose();
     },
   });

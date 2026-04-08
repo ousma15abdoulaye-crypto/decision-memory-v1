@@ -513,3 +513,14 @@ def seal_committee_session(
         "status": "sealed",
         "seal_hash": seal_hash,
     }
+
+
+@router.post("/{workspace_id}/seal")
+def seal_workspace_o9_alias(
+    workspace_id: str,
+    payload: SealSessionPayload,
+    background_tasks: BackgroundTasks,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+):
+    """Alias Canon O9 — même logique que ``POST …/committee/seal``."""
+    return seal_committee_session(workspace_id, payload, background_tasks, user)

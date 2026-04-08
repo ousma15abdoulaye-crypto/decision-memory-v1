@@ -183,6 +183,9 @@ async def acquire_with_rls(
             await conn.execute(
                 "SELECT set_config('app.tenant_id', $1, true)", str(tenant_id)
             )
+            await conn.execute(
+                "SELECT set_config('app.current_tenant', $1, true)", str(tenant_id)
+            )
             if is_admin:
                 await conn.execute("SELECT set_config('app.is_admin', 'true', true)")
             yield conn

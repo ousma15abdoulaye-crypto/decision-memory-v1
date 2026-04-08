@@ -101,7 +101,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Content-Security-Policy"] = "default-src 'self'"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
-        if request.url.path.startswith("/auth"):
+        p = request.url.path
+        if p.startswith("/auth") or p.startswith("/api/auth"):
             response.headers["Cache-Control"] = "no-store"
 
         return response
