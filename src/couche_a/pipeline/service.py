@@ -21,6 +21,10 @@ from .service_utils import (
     persist_pipeline_run_and_steps,
 )
 from .steps import (
+    RC_CASE_NOT_FOUND,  # noqa: F401 — re-exported for tests
+    RC_DAO_MISSING,  # noqa: F401 — re-exported for tests
+    RC_MIN_OFFERS_INSUFFICIENT,  # noqa: F401 — re-exported for tests
+    RC_OFFERS_MISSING,  # noqa: F401 — re-exported for tests
     load_criteria_summary,
     load_extraction_summary,
     load_normalization_summary,
