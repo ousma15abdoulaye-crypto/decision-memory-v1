@@ -159,6 +159,11 @@ from src.couche_a.criteria.router import router as _criteria_router
 
 app.include_router(_criteria_router)
 
+# ── V5.1 Dashboard (Canon O0 — INV-F06) ─────────────────────────────────────
+from src.api.routers.dashboard import router as _dashboard_router
+
+app.include_router(_dashboard_router)
+
 # ── Routers optionnels (strangler pattern — mirrors src/api/main.py) ──────────
 _geo_router = None
 try:
