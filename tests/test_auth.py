@@ -20,6 +20,42 @@ def test_login_success():
     assert response.json()["token_type"] == "bearer"
 
 
+def test_login_json_success():
+    """POST /auth/login — user + access_token (contrat frontend-v51)."""
+    response = client.post(
+        "/auth/login",
+        json={"email": "admin", "password": "admin123"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["token_type"] == "bearer"
+    assert "access_token" in data
+    assert data.get("refresh_token") is None
+    user = data["user"]
+    assert user["username"] == "admin"
+    assert user["role_name"] == "admin"
+    assert "tenant_id" in user
+
+
+def test_login_json_with_admin_email():
+    """Le champ JSON `email` accepte l'adresse email réelle (pas seulement username)."""
+    response = client.post(
+        "/auth/login",
+        json={"email": "admin@dms.local", "password": "admin123"},
+    )
+    assert response.status_code == 200
+    assert response.json()["user"]["username"] == "admin"
+
+
+def test_login_json_wrong_password():
+    """POST /auth/login — mauvais mot de passe → 401."""
+    response = client.post(
+        "/auth/login",
+        json={"email": "admin", "password": "WrongPassword"},
+    )
+    assert response.status_code == 401
+
+
 def test_login_wrong_password():
     """Mauvais mot de passe → 401."""
     response = client.post(
@@ -90,6 +126,7 @@ def test_get_me_with_auth():
     data = response.json()
     assert data["username"] == "admin"
     assert data["role_name"] == "admin"
+    assert "tenant_id" in data
 
 
 def test_invalid_token():
