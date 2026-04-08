@@ -1,17 +1,50 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/api"];
+const PUBLIC = ["/login", "/api/auth", "/_next", "/favicon"];
+
+function jwtExpSeconds(token: string): number | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    let b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const pad = b64.length % 4;
+    if (pad) b64 += "=".repeat(4 - pad);
+    const json = atob(b64);
+    const payload = JSON.parse(json) as { exp?: number };
+    return typeof payload.exp === "number" ? payload.exp : null;
+  } catch {
+    return null;
+  }
+}
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+  if (PUBLIC.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 
-  const authCookie = request.cookies.get("dms-auth");
-  if (!authCookie?.value) {
+  const raw = request.cookies.get("dms_token")?.value;
+  let token: string | null = null;
+  if (raw) {
+    try {
+      token = decodeURIComponent(raw);
+    } catch {
+      token = null;
+    }
+  }
+  if (!token) {
+    token =
+      request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? null;
+  }
+
+  if (!token) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  const exp = jwtExpSeconds(token);
+  if (exp === null || exp < Math.floor(Date.now() / 1000)) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

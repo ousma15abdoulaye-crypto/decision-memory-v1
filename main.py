@@ -26,6 +26,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from src.api import analysis, cases, documents, health
+from src.api.api_auth_router import router as api_auth_router
 from src.api.routes.extractions import router as extraction_router
 from src.auth_router import router as auth_router
 from src.core.config import (
@@ -137,7 +138,8 @@ except ImportError as _mw_err:
         "[main] middlewares sécurité non chargés : %s", _mw_err
     )
 
-# Include routers
+# Include routers — JSON login avant le routeur /auth (même contrat, ordre explicite).
+app.include_router(api_auth_router)
 app.include_router(auth_router)
 app.include_router(upload_router)
 app.include_router(health.router)
