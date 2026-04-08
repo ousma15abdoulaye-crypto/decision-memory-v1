@@ -105,9 +105,9 @@ async def project_sealed_workspace(
                             ),
                         },
                     )
-                except Exception:
-                    pass
-            except Exception as exc:
+                except Exception as rel_exc:  # noqa: BLE001
+                    logger.debug("[SEAL-PROJ] signal_relevance_log skip: %s", rel_exc)
+            except Exception as exc:  # noqa: BLE001
                 logger.debug("[SEAL-PROJ] insert skip: %s", exc)
 
         elim_inserted = 0

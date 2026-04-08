@@ -1,8 +1,8 @@
 """
-Orchestrateur FSM — pipeline d'annotation multipasses.
+Orchestrateur FSM ÔÇö pipeline d'annotation multipasses.
 
 Spec : docs/contracts/annotation/ANNOTATION_ORCHESTRATOR_FSM.md
-Feature flag : ANNOTATION_USE_PASS_ORCHESTRATOR (défaut 0) — Phase 3 strangler.
+Feature flag : ANNOTATION_USE_PASS_ORCHESTRATOR (d├®faut 0) ÔÇö Phase 3 strangler.
 """
 
 from __future__ import annotations
@@ -78,7 +78,7 @@ def use_pass_2a() -> bool:
 
 
 def _m12_run_terminal(state: AnnotationPipelineState) -> bool:
-    """Terminal pour une exécution M12 (1A–1D–[2A])."""
+    """Terminal pour une ex├®cution M12 (1AÔÇô1DÔÇô[2A])."""
     if state == AnnotationPipelineState.PASS_2A_DONE:
         return True
     if state == AnnotationPipelineState.PASS_1D_DONE:
@@ -106,7 +106,7 @@ class AnnotationPipelineState(StrEnum):
     DEAD_LETTER = "dead_letter"
 
 
-# States from which the pipeline cannot be resumed — idempotent skip is safe.
+# States from which the pipeline cannot be resumed ÔÇö idempotent skip is safe.
 _TERMINAL_STATES: frozenset[AnnotationPipelineState] = frozenset(
     {
         AnnotationPipelineState.PASS_1D_DONE,
@@ -176,8 +176,8 @@ def default_pipeline_runs_dir() -> Path:
 
 class AnnotationOrchestrator:
     """
-    Enchaîne Pass 0 → 0.5 → 1 avec persistance JSON et journalisation des transitions.
-    Each pass is attempted up to ``max_attempts`` times before declaring failure (FSM §3).
+    Encha├«ne Pass 0 ÔåÆ 0.5 ÔåÆ 1 avec persistance JSON et journalisation des transitions.
+    Each pass is attempted up to ``max_attempts`` times before declaring failure (FSM ┬º3).
     """
 
     def __init__(
@@ -339,7 +339,7 @@ class AnnotationOrchestrator:
         case_id: str | None = None,
     ) -> tuple[PipelineRunRecord, AnnotationPipelineState]:
         """
-        Exécute jusqu'à ``routed`` (ou ``dead_letter`` / ``review_required``).
+        Ex├®cute jusqu'├á ``routed`` (ou ``dead_letter`` / ``review_required``).
 
         If a persisted record already exists for *run_id*, execution is skipped
         and the existing record is returned unchanged.
@@ -354,7 +354,7 @@ class AnnotationOrchestrator:
                 )
                 return existing, existing_state
             if use_m12_subpasses() and existing_state in _M12_RESUMABLE_STATES:
-                # Non-terminal M12 run — recover from last checkpoint.
+                # Non-terminal M12 run ÔÇö recover from last checkpoint.
                 logger.warning(
                     "annotation_orchestrator_recovery",
                     extra={
@@ -393,11 +393,11 @@ class AnnotationOrchestrator:
                     },
                 )
                 raise RuntimeError(
-                    f"Run {run_id} est bloqué en état {existing.state!r} "
-                    "mais use_m12_subpasses() est désactivé. "
-                    "Réactivez M12_SUBPASSES ou requeuez manuellement."
+                    f"Run {run_id} est bloqu├® en ├®tat {existing.state!r} "
+                    "mais use_m12_subpasses() est d├®sactiv├®. "
+                    "R├®activez M12_SUBPASSES ou requeuez manuellement."
                 )
-            # Unknown non-terminal state — skip with warning.
+            # Unknown non-terminal state ÔÇö skip with warning.
             logger.warning(
                 "annotation_orchestrator_unknown_state_skip",
                 extra={"run_id": str(run_id), "state": existing.state},
@@ -495,7 +495,7 @@ class AnnotationOrchestrator:
                 case_id=case_id,
             )
 
-        # Legacy path: Pass 1 — deterministe / LLM optionnel (with retry)
+        # Legacy path: Pass 1 ÔÇö deterministe / LLM optionnel (with retry)
         p1_pass_name = (
             "pass_1_router_llm"
             if (not block_llm and self.llm_router is not None)
@@ -622,7 +622,7 @@ class AnnotationOrchestrator:
             for key in downstream.get(pass_name, []):
                 record.pass_outputs.pop(key, None)
 
-        # ── Pass 1A: Core Recognition ──
+        # ÔöÇÔöÇ Pass 1A: Core Recognition ÔöÇÔöÇ
         p1a: AnnotationPassOutput | None = None
         if _is_done(AnnotationPipelineState.PASS_1A_DONE):
             p1a = self._reconstruct_pass_output(record, "pass_1a_core_recognition")
@@ -673,7 +673,7 @@ class AnnotationOrchestrator:
         m12_rec = (p1a.output_data or {}).get("m12_recognition", {})
         doc_kind = m12_rec.get("document_kind", {}).get("value", "unknown")
 
-        # ── Pass 1B: Document Validity ──
+        # ÔöÇÔöÇ Pass 1B: Document Validity ÔöÇÔöÇ
         p1b: AnnotationPassOutput | None = None
         if _is_done(AnnotationPipelineState.PASS_1B_DONE):
             p1b = self._reconstruct_pass_output(record, "pass_1b_document_validity")
@@ -721,7 +721,7 @@ class AnnotationOrchestrator:
             record.state = AnnotationPipelineState.PASS_1B_DONE.value
             self.save_run(record)  # checkpoint
 
-        # ── Pass 1C: Conformity + Handoffs ──
+        # ÔöÇÔöÇ Pass 1C: Conformity + Handoffs ÔöÇÔöÇ
         validity_dict = (p1b.output_data or {}).get("m12_validity", {})
         is_composite = m12_rec.get("is_composite", {}).get("value", "unknown")
         fw_str = m12_rec.get("framework_detected", {}).get("value", "unknown")
@@ -783,7 +783,7 @@ class AnnotationOrchestrator:
             record.state = AnnotationPipelineState.PASS_1C_DONE.value
             self.save_run(record)  # checkpoint
 
-        # ── Pass 1D: Process Linking ──
+        # ÔöÇÔöÇ Pass 1D: Process Linking ÔöÇÔöÇ
         p1d: AnnotationPassOutput | None = None
         if _is_done(AnnotationPipelineState.PASS_1D_DONE):
             p1d = self._reconstruct_pass_output(record, "pass_1d_process_linking")

@@ -1,0 +1,45 @@
+name: CI Typecheck (mypy)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install mypy
+
+      - name: Set PYTHONPATH
+        run: echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+
+      - name: Run mypy (informational — non-blocking)
+        continue-on-error: true
+        shell: bash
+        run: |
+          mypy_output="$(mktemp)"
+          mypy src/ \
+            --ignore-missing-imports \
+            --no-strict-optional \
+            --warn-unused-configs \
+            --show-error-codes \
+            --no-error-summary \
+            >"$mypy_output" 2>&1
+          mypy_status=$?
+          head -200 "$mypy_output"
+          echo "--- mypy completed (informational) ---"
+          exit "$mypy_status"

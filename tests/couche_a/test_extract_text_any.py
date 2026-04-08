@@ -118,7 +118,7 @@ class TestExtractTextAny:
         long_text = "Z" * 5200
 
         monkeypatch.setattr(
-            "src.couche_a.extraction._try_llamaparse_pdf_first",
+            "src.couche_a.extraction.text_extraction._try_llamaparse_pdf_first",
             lambda _fp: long_text,
         )
 
