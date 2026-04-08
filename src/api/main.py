@@ -15,6 +15,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 # ── Routers OBLIGATOIRES — import direct, aucun try/except ───────────────────
 from src.api.cases import router as _cases_router
@@ -184,6 +185,20 @@ app = FastAPI(
     version="0.1.0",
     description="Decision Memory System — Constitution V3.3.2",
     lifespan=lifespan,
+)
+
+# ── CORS ─────────────────────────────────────────────────────────────────────
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://frontend-v51-production.up.railway.app",
+        "http://localhost:3000",
+        "http://localhost:8000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ── Middlewares sécurité M1 (src/couche_a/auth/middleware.py)
