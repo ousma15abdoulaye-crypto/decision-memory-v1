@@ -1,9 +1,17 @@
 ﻿-- =============================================================================
--- ALEMBIC DRY-RUN (offline) — dépôt DMS — généré 2026-04-09
--- Commande : DATABASE_URL=postgresql+psycopg://… python -m alembic upgrade \
---   090_v51_extraction_jobs_langfuse_trace:092_workspace_access_model_v2 --sql
--- Prérequis cible : alembic_version = 090_v51_extraction_jobs_langfuse_trace
--- Ne pas exécuter sans validation CTO / runbook ; sortie informative uniquement.
+-- DRY-RUN ALEMBIC (offline --sql) — delta EXACT prod → dépôt
+--
+-- PROD (constat AO / mandat V51-001, aligné 2026-04-09) :
+--   alembic_version.version_num = 090_v51_extraction_jobs_langfuse_trace
+--
+-- Ce fichier = SQL émis pour enchaîner 090 → 091 → 092 (sans l’exécuter ici).
+-- Après apply réel : head attendu = 092_workspace_access_model_v2
+--
+-- Regénérer (depuis la racine du repo) :
+--   set DATABASE_URL=postgresql+psycopg://USER:PASS@HOST:PORT/DB
+--   python -m alembic upgrade 090_v51_extraction_jobs_langfuse_trace:092_workspace_access_model_v2 --sql
+--
+-- Ne pas exécuter sur prod sans GO CTO + pre-check `alembic current` = 090_…
 -- =============================================================================
 
 BEGIN;
@@ -142,7 +150,7 @@ DO $wm_backfill$
                 ON CONFLICT (workspace_id, user_id, role) DO NOTHING;
             END LOOP;
         END
-        $wm_backfill$;;
+        $wm_backfill$;
 
 UPDATE alembic_version SET version_num='092_workspace_access_model_v2' WHERE alembic_version.version_num = '091_fix_user_tenant_provisioning';
 

@@ -182,7 +182,7 @@
 ║  apply_safe      : scripts/apply_railway_migrations_safe.py — prod 058 ALIGNÉ (sync 2026-04-02) ║
 ║    via ScriptDirectory (graphe merges), pas parse linéaire seul    ║
 ║  VIOLATION       : faute disciplinaire grave immédiate             ║
-║  Addendum 2026-04-09 — **head dépôt / main** : **092_workspace_access_model_v2** ; si prod encore **090**, enchaînement documenté **091→092** : `docs/ops/ALEMBIC_DRYRUN_090_to_092.sql` ; confirmer `alembic current` sur la cible avant toute exécution (GO CTO / runbook) ║
+║  Addendum 2026-04-09 — **head dépôt / main** : **092_workspace_access_model_v2** ; **prod Railway constatée AO : 090_v51_extraction_jobs_langfuse_trace** — dry-run SQL **091→092** versionné : `docs/ops/ALEMBIC_DRYRUN_090_to_092.sql` ; `alembic current` obligatoire avant apply (GO CTO / runbook) ║
 ║                                                                      ║
 ║  SCHÉMAS PostgreSQL — DÉFINITIF                                     ║
 ║  ──────────────────────────────────────────────────────────────     ║

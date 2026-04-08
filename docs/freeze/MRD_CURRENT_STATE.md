@@ -81,7 +81,7 @@ branch_courante       : main
 ## ÉTAT ALEMBIC — MIS À JOUR 2026-04-09 (dépôt **head 092** ; prod Railway **à reconfirmer** — réf. **090** au 2026-04-08)
 
 local_alembic_head       : 092_workspace_access_model_v2
-railway_alembic_head     : **090_v51_extraction_jobs_langfuse_trace** (dernier constat mandat **DMS-MIGRATION-PROD-V51-001** au 2026-04-08) — **rejouer** `alembic current` après déploiement #351 ; si toujours **090**, apply séquentiel **091→092** (SQL offline : `docs/ops/ALEMBIC_DRYRUN_090_to_092.sql`)
+railway_alembic_head     : **090_v51_extraction_jobs_langfuse_trace** (confirmé prod AO 2026-04-09) — apply séquentiel **091→092** sous GO CTO ; **dry-run SQL versionné** (même delta) : `docs/ops/ALEMBIC_DRYRUN_090_to_092.sql` — pré-vol : `SELECT version_num FROM alembic_version;` doit retourner **090_v51_extraction_jobs_langfuse_trace**
 migrations_pending_railway: **091–092** vs dépôt **092** *si* prod encore **090** ; sinon **aucune** une fois `092` appliqué
 last_sync_railway        : 2026-04-08 — **081→090** — `docs/ops/RAILWAY_MIGRATION_V51_001_REPORT.md` ; **091→092** : non documenté comme appliqué prod au 2026-04-09
 last_updated             : 2026-04-09
