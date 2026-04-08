@@ -36,6 +36,12 @@ def main() -> int:
         print("export_openapi_main_app: DATABASE_URL manquant", file=sys.stderr)
         return 2
 
+    # Racine dépôt sur sys.path (workflows sans PYTHONPATH explicite)
+    _root = Path(__file__).resolve().parent.parent
+    _rs = str(_root)
+    if _rs not in sys.path:
+        sys.path.insert(0, _rs)
+
     from main import app
 
     schema = app.openapi()

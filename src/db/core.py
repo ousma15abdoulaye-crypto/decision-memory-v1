@@ -162,6 +162,10 @@ def get_connection() -> Iterator[_ConnectionWrapper]:
             "SELECT set_config('app.tenant_id', :tid, true)",
             {"tid": tid},
         )
+        wrapper.execute(
+            "SELECT set_config('app.current_tenant', :tid, true)",
+            {"tid": tid},
+        )
     if get_rls_is_admin():
         wrapper.execute(
             "SELECT set_config('app.is_admin', :v, true)",

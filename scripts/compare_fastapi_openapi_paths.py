@@ -8,12 +8,17 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
 
 def main() -> int:
     if not os.environ.get("DATABASE_URL"):
         print("compare_fastapi_openapi_paths: DATABASE_URL manquant", file=sys.stderr)
         return 2
+    _root = Path(__file__).resolve().parent.parent
+    _rs = str(_root)
+    if _rs not in sys.path:
+        sys.path.insert(0, _rs)
     from main import app as main_app
     from src.api.main import app as modular_app
 

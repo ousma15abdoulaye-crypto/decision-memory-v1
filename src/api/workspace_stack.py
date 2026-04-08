@@ -29,16 +29,17 @@ def mount_workspace_websockets(app: FastAPI) -> None:
     """Canon O2 — WebSocket événements workspace (chemin historique + alias canon)."""
     try:
         from src.api.ws.workspace_events import workspace_events_ws
+    except ModuleNotFoundError as exc:
+        logger.warning("[workspace_stack] module WebSocket workspace absent : %s", exc)
+        return
 
-        app.add_api_websocket_route(
-            "/ws/workspace/{workspace_id}/events",
-            workspace_events_ws,
-            name="workspace_events_ws",
-        )
-        app.add_api_websocket_route(
-            "/ws/workspace/{workspace_id}",
-            workspace_events_ws,
-            name="workspace_events_ws_canon_o2",
-        )
-    except ImportError as exc:
-        logger.warning("[workspace_stack] WebSocket workspace non chargé : %s", exc)
+    app.add_api_websocket_route(
+        "/ws/workspace/{workspace_id}/events",
+        workspace_events_ws,
+        name="workspace_events_ws",
+    )
+    app.add_api_websocket_route(
+        "/ws/workspace/{workspace_id}",
+        workspace_events_ws,
+        name="workspace_events_ws_canon_o2",
+    )
