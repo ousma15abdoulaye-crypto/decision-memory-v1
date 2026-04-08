@@ -5,7 +5,7 @@ de src/auth.py sans perte de logique métier.
 
 Contrat : zéro modification de la logique.
   - authenticate_user   : bcrypt + DB + last_login update
-  - create_user         : INSERT users avec role_id (legacy, DETTE-M1-04)
+  - create_user         : INSERT users + user_tenants (role_id legacy, DETTE-M1-04)
   - get_user_by_username / get_user_by_id : SELECT users JOIN roles
   - verify_password / get_password_hash : helpers passlib/bcrypt
 
@@ -93,6 +93,7 @@ def create_user(
     password: str,
     role_id: int = 2,
     full_name: str = None,
+    is_superuser: bool = False,
 ) -> dict:
     hashed_password = get_password_hash(password)
     timestamp = datetime.utcnow().isoformat()
@@ -111,7 +112,7 @@ def create_user(
             INSERT INTO users (email, username, hashed_password, full_name,
                                role_id, is_active, is_superuser, created_at)
             VALUES (:email, :username, :password, :name,
-                    :role, TRUE, FALSE, :ts)
+                    :role, TRUE, :is_superuser, :ts)
             RETURNING id
             """,
             {
@@ -120,6 +121,7 @@ def create_user(
                 "password": hashed_password,
                 "name": full_name,
                 "role": role_id,
+                "is_superuser": is_superuser,
                 "ts": timestamp,
             },
         )

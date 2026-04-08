@@ -6,6 +6,7 @@ Helpers DB legacy (authenticate_user, create_user) : src/api/auth_helpers.py.
 ADR-M2-001.
 """
 
+import os
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -43,6 +44,11 @@ class UserResponse(BaseModel):
     is_superuser: bool
 
 
+class InitialSetupResponse(BaseModel):
+    status: str
+    user_id: int
+
+
 @router.post("/token", response_model=Token)
 @limiter.limit("5/minute")
 async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
@@ -78,6 +84,61 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
             detail=str(exc),
         ) from exc
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.post(
+    "/setup",
+    response_model=InitialSetupResponse,
+    include_in_schema=False,
+)
+@limiter.limit("5/hour")
+async def initial_setup(request: Request):
+    """Bootstrap : premier superuser depuis ADMIN_* (403 si un superuser existe déjà).
+
+    Préférer ``scripts/seed_admin.py`` exécuté dans le service Python (Railway).
+    """
+    with get_connection() as conn:
+        row = db_execute_one(
+            conn,
+            "SELECT COUNT(*) AS c FROM users WHERE is_superuser = TRUE",
+            {},
+        )
+    if row is None or int(row["c"]) > 0:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Setup déjà effectué",
+        )
+
+    email = (os.environ.get("ADMIN_EMAIL") or "").strip()
+    password = os.environ.get("ADMIN_PASSWORD") or ""
+    if not email or not password:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Variables ADMIN_EMAIL / ADMIN_PASSWORD manquantes",
+        )
+
+    username = (os.environ.get("ADMIN_USERNAME") or "admin").strip() or "admin"
+    full_name = (os.environ.get("ADMIN_FULLNAME") or "DMS Admin").strip() or None
+    role_id = int(os.environ.get("ADMIN_ROLE_ID", "1"))
+
+    try:
+        user = create_user(
+            email=email,
+            username=username,
+            password=password,
+            role_id=role_id,
+            full_name=full_name,
+            is_superuser=True,
+        )
+    except HTTPException as exc:
+        if exc.status_code == 409:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Email ou username déjà utilisé",
+            ) from exc
+        raise
+
+    return InitialSetupResponse(status="ok", user_id=int(user["id"]))
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)

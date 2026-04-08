@@ -20,6 +20,13 @@ def test_login_success():
     assert response.json()["token_type"] == "bearer"
 
 
+def test_initial_setup_forbidden_when_superuser_exists():
+    """POST /auth/setup — désactivé dès qu'un superuser existe (seed migration)."""
+    response = client.post("/auth/setup")
+    assert response.status_code == 403
+    assert "setup" in response.json()["detail"].lower()
+
+
 def test_login_wrong_password():
     """Mauvais mot de passe → 401."""
     response = client.post(
