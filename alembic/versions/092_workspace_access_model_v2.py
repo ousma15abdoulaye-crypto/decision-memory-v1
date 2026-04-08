@@ -88,7 +88,7 @@ def upgrade() -> None:
 
     # ── STEP 4 — Backfill memberships (par workspace — limite verrous / cartésien)
     op.execute(r"""
-        DO $092_backfill$
+        DO $wm_backfill$
         DECLARE
             rec RECORD;
         BEGIN
@@ -130,7 +130,7 @@ def upgrade() -> None:
                 ON CONFLICT (workspace_id, user_id, role) DO NOTHING;
             END LOOP;
         END
-        $092_backfill$;
+        $wm_backfill$;
         """)
 
 
