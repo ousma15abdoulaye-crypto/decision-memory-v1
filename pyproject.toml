@@ -25,15 +25,17 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # pyflakes
-    "I",   # isort
-    "N",   # pep8-naming
-    "UP",  # pyupgrade
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "BLE",   # flake8-blind-except — track blind Exception catches
 ]
 ignore = [
-    "E501",  # line too long (handled by black)
+    "E501",    # line too long (handled by black)
+    "BLE001",  # blind except — tracked, ~130 hits to clean up progressively
 ]
 
 [tool.ruff.lint.isort]

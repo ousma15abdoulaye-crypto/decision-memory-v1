@@ -557,13 +557,12 @@ def _detect_mime_from_header(storage_uri: str) -> str:
         if mime == "application/octet-stream" and header[:4] == b"%PDF":
             return "application/pdf"
         return mime
-    except Exception:
-        # Dernier recours : lire les magic bytes directement
+    except Exception:  # noqa: BLE001
         try:
             with open(storage_uri, "rb") as fh:
                 if fh.read(4) == b"%PDF":
                     return "application/pdf"
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
         return "application/octet-stream"
 

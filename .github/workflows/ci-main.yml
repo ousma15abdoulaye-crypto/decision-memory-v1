@@ -138,6 +138,12 @@ jobs:
       - name: Black check
         run: black --check src tests
 
+      - name: Blind-except tracker (BLE001 — informational)
+        continue-on-error: true
+        run: |
+          echo "=== BLE001 hits (target: 0) ==="
+          ruff check --select BLE001 src tests 2>&1 | tail -5 || true
+
       # SECRET_KEY éphémère par run (import main:app) — pas de secret figé dans le YAML
       - name: Ephemeral SECRET_KEY for FastAPI auth audit
         run: |
@@ -181,11 +187,11 @@ jobs:
             --fail-sensitive-prefix /api/cases \
             --fail-sensitive-prefix /api/extractions
 
-      - name: Resolve coverage gate
+      - name: Resolve coverage gate (ratchet — never decreases)
         id: cov_gate
         run: |
           if [ -f .milestones/M-TESTS.done ]; then
-            echo "fail_under=65" >> "$GITHUB_OUTPUT"
+            echo "fail_under=68" >> "$GITHUB_OUTPUT"
           else
             echo "fail_under=0" >> "$GITHUB_OUTPUT"
           fi
