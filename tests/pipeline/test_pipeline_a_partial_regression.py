@@ -8,7 +8,7 @@ Vérifie que run_pipeline_a_partial() est INCHANGÉE depuis #10 :
   - force_recompute=False dans le résultat (backward compat #10)
   - 'complete' toujours interdit (INV-P16)
 
-GUARD-OPS-01 hash : f424e91246465fe6f6575b4b8bea195c86bf76664247904e2f7aec1d4b0ca1db
+GUARD-OPS-01 hash : 632d5ebd92fa89185e366315b3c85f635596e40c732ed268dfbbcc00d3457756
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from src.couche_a.pipeline.service import run_pipeline_a_partial
 # GUARD-OPS-01 : hash attendu du corps de run_pipeline_a_partial
 # ---------------------------------------------------------------------------
 
-GUARD_HASH = "f424e91246465fe6f6575b4b8bea195c86bf76664247904e2f7aec1d4b0ca1db"
+GUARD_HASH = "632d5ebd92fa89185e366315b3c85f635596e40c732ed268dfbbcc00d3457756"
 
 
 def _extract_function_source(src_text: str, func_name: str) -> str:

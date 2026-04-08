@@ -6,6 +6,9 @@ Re-exports all public symbols for backward compatibility.
 """
 
 from .backend_client import (
+    _get_router,
+)
+from .backend_client import (
     call_annotation_backend as _call_annotation_backend,
 )
 from .backend_client import (
@@ -40,6 +43,7 @@ from .persistence import (
 from .text_extraction import (
     MIN_EXTRACTED_TEXT_CHARS_FOR_ML,
     ExtractionInsufficientTextError,
+    _try_llamaparse_pdf_first,
     extract_pdf_text_local_only,
     extract_text_any,
 )
@@ -49,6 +53,7 @@ __all__ = [
     "MIN_EXTRACTED_TEXT_CHARS_FOR_ML",
     "extract_text_any",
     "extract_pdf_text_local_only",
+    "_try_llamaparse_pdf_first",
     "DaoCriterion",
     "classify_criterion",
     "validate_criterion_weightings",
@@ -59,6 +64,7 @@ __all__ = [
     "extract_offer_content_async",
     "_extract_and_persist_offer",
     "_call_annotation_backend",
+    "_get_router",
     "_persist_tdr_result_to_db",
     "_tdr_result_to_offer_extraction_row",
     "_extract_fields",
