@@ -48,6 +48,7 @@ from src.api.cognitive_helpers import (
 from src.cognitive.cognitive_state import (
     TransitionForbidden,
     compute_cognitive_state,
+    compute_cognitive_state_result,
     describe_cognitive_state,
     validate_transition,
 )
@@ -638,6 +639,42 @@ def get_evaluation_frame(
         "data_quality_score": data_quality,
         "low_confidence_bundles": low_b,
         "zones_of_clarification": zones_of_clarification,
+    }
+
+
+@router.get("/{workspace_id}/cognitive-state")
+def get_cognitive_state(
+    workspace_id: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+):
+    """Projection cognitive E0→E6 enrichie (Canon V5.1.0 Section O3).
+
+    INV-C01 : projection pure — aucune colonne SQL.
+    INV-C03 : CognitiveFacts chargés depuis la DB à chaque requête.
+    """
+    from src.db import get_connection
+
+    with get_connection() as conn:
+        ws = db_execute_one(
+            conn,
+            "SELECT * FROM process_workspaces WHERE id = :id",
+            {"id": workspace_id},
+        )
+        if not ws:
+            raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND)
+        facts = load_cognitive_facts(conn, ws)
+
+    result = compute_cognitive_state_result(facts)
+    return {
+        "workspace_id": workspace_id,
+        "state": result.state,
+        "label_fr": result.label_fr,
+        "phase": result.phase,
+        "completeness": result.completeness,
+        "can_advance": result.can_advance,
+        "advance_blockers": result.advance_blockers,
+        "available_actions": sorted(result.available_actions),
+        "confidence_regime": result.confidence_regime,
     }
 
 
