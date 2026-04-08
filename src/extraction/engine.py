@@ -27,13 +27,13 @@ import openpyxl  # type: ignore
 import pdfplumber  # type: ignore
 from docx import Document  # type: ignore
 
+# local
+from src.agent.langfuse_client import flush_langfuse, get_langfuse
 from src.core.api_keys import (
     APIKeyMissingError,
     get_llama_cloud_api_key,
     get_mistral_api_key,
 )
-
-# local
 from src.db.connection import get_db_cursor
 
 _logger = logging.getLogger(__name__)
@@ -799,12 +799,30 @@ def process_extraction_job(job_id: str) -> dict:
 
     start_ms = time.monotonic() * 1000
 
+    # INV-A01 : tout appel LLM d'extraction est tracé (Canon V5.1.0 Section 9.4).
+    langfuse = get_langfuse()
+    trace = langfuse.trace(
+        name="document_extraction",
+        metadata={
+            "job_id": job_id,
+            "document_id": document_id,
+            "method": method,
+            "sla_class": "B",
+        },
+    )
+    trace_id: str | None = trace.id
+
     try:
         doc = {"storage_uri": job["storage_uri"]}
+        span = trace.span(
+            name=method,
+            input={"storage_uri": job["storage_uri"], "method": method},
+        )
         raw_text, structured_data = _dispatch_extraction(doc, method)
         duration_ms = (time.monotonic() * 1000) - start_ms
 
         confidence = _compute_confidence(raw_text, structured_data)
+        span.end(output={"confidence": confidence, "duration_ms": duration_ms})
 
         structured_data["_extraction_duration_ms"] = duration_ms
         structured_data["_sla_class"] = "B"
@@ -818,14 +836,16 @@ def process_extraction_job(job_id: str) -> dict:
             case_id=job.get("case_id"),
         )
 
-        # processing → done
+        # processing → done (+ trace_id stocké — Canon Section 9.4)
         with get_db_cursor() as cur:
             cur.execute(
                 "UPDATE extraction_jobs SET status = 'done', "
-                "completed_at = NOW(), duration_ms = %s WHERE id = %s",
-                (duration_ms, job_id),
+                "completed_at = NOW(), duration_ms = %s, "
+                "langfuse_trace_id = %s WHERE id = %s",
+                (duration_ms, trace_id, job_id),
             )
         _update_document_status(document_id, "done")
+        flush_langfuse()
 
         return {
             "job_id": job_id,
@@ -835,6 +855,7 @@ def process_extraction_job(job_id: str) -> dict:
             "sla_class": "B",
             "duration_ms": duration_ms,
             "confidence": confidence,
+            "langfuse_trace_id": trace_id,
         }
 
     except Exception as exc:
@@ -842,9 +863,11 @@ def process_extraction_job(job_id: str) -> dict:
         with get_db_cursor() as cur:
             cur.execute(
                 "UPDATE extraction_jobs SET status = 'failed', "
-                "completed_at = NOW(), error_message = %s WHERE id = %s",
-                (str(exc)[:500], job_id),
+                "completed_at = NOW(), error_message = %s, "
+                "langfuse_trace_id = %s WHERE id = %s",
+                (str(exc)[:500], trace_id, job_id),
             )
         _update_document_status(document_id, "failed")
         _store_error(document_id, job_id, "PARSE_ERROR", str(exc))
+        flush_langfuse()
         raise
