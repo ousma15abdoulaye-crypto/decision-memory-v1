@@ -29,6 +29,7 @@ router = APIRouter(prefix="/api/dashboard", tags=["dashboard-v51"])
 
 _URGENCY_ORDER = {
     "red": 0,
+    "amber": 1,
     "yellow": 1,
     "green": 2,
 }
@@ -119,7 +120,7 @@ def get_dashboard(
             key=lambda w: (
                 _URGENCY_ORDER.get(w["cognitive"]["confidence_regime"], 99),
                 not w["cognitive"]["can_advance"],
-                w["cognitive"]["completeness"],
+                -w["cognitive"]["completeness"],
             )
         )
 

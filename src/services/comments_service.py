@@ -13,6 +13,7 @@ Règles :
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from typing import Any
@@ -114,9 +115,9 @@ def resolve_comment(
     comment_id: str,
     *,
     resolved_by: int,
-) -> None:
+) -> dict[str, Any] | None:
     """Résout un commentaire/flag. content et is_flag ne changent pas (INV-S04)."""
-    db_execute_one(
+    row = db_execute_one(
         conn,
         """
         UPDATE assessment_comments
@@ -125,9 +126,13 @@ def resolve_comment(
             resolved_at = NOW()
         WHERE id = CAST(:cid AS uuid)
           AND workspace_id = CAST(:wid AS uuid)
+        RETURNING id::text AS id
         """,
         {"cid": comment_id, "wid": workspace_id, "uid": resolved_by},
     )
+    if not row:
+        raise ValueError(f"Comment {comment_id} not found in workspace {workspace_id}")
+    return row
 
 
 # ── Écriture — point d'entrée principal ──────────────────────────
@@ -347,7 +352,7 @@ def _record_flag_in_history(
                 "wid": workspace_id,
                 "tenant": tenant_id,
                 "uid": author_user_id,
-                "meta": f'{{"comment_id": "{comment_id}"}}',
+                "meta": json.dumps({"comment_id": comment_id}),
             },
         )
     except Exception as exc:

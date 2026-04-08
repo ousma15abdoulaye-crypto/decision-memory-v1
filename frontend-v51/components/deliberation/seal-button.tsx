@@ -23,6 +23,7 @@ export function SealButton({
       api.patch(`/api/workspaces/${workspaceId}/status`, {
         status: "sealed",
       }),
+    retry: 3,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workspace", workspaceId] });
       queryClient.invalidateQueries({ queryKey: ["cognitive-state", workspaceId] });

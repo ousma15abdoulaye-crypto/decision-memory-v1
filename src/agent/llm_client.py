@@ -48,7 +48,10 @@ async def stream_mistral(
     """Stream les tokens depuis Mistral. Chaque token est yielded individuellement.
 
     En mode fallback, yielde un message statique.
+    INV-A06 : failures are recorded in the circuit breaker.
     """
+    from src.agent.circuit_breaker import get_breaker
+
     client = _get_client()
 
     if client is None or _fallback:
@@ -63,26 +66,39 @@ async def stream_mistral(
         )
         return
 
-    response = await client.chat.stream_async(
-        model=model,
-        messages=messages,
-    )
-
+    breaker = get_breaker()
     full_content = ""
     usage: dict[str, Any] = {}
 
-    async for chunk in response:
-        if chunk.data.choices:
-            delta = chunk.data.choices[0].delta
-            if delta.content:
-                full_content += delta.content
-                yield delta.content
+    try:
+        response = await client.chat.stream_async(
+            model=model,
+            messages=messages,
+        )
 
-        if chunk.data.usage:
-            usage = {
-                "input_tokens": chunk.data.usage.prompt_tokens,
-                "output_tokens": chunk.data.usage.completion_tokens,
-            }
+        async for chunk in response:
+            if chunk.data.choices:
+                delta = chunk.data.choices[0].delta
+                if delta.content:
+                    full_content += delta.content
+                    yield delta.content
+
+            if chunk.data.usage:
+                usage = {
+                    "input_tokens": chunk.data.usage.prompt_tokens,
+                    "output_tokens": chunk.data.usage.completion_tokens,
+                }
+
+        await breaker.record_success()
+
+    except Exception as exc:
+        await breaker.record_failure()
+        logger.error("Mistral streaming error (model=%s): %s", model, exc)
+        langfuse_span.update(
+            output={"error": str(exc)},
+            level="ERROR",
+        )
+        raise
 
     langfuse_span.update(
         output={"content_length": len(full_content)},

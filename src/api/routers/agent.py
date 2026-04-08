@@ -26,7 +26,9 @@ from src.agent.handlers import (
 )
 from src.agent.langfuse_client import flush_langfuse, get_langfuse
 from src.agent.semantic_router import IntentClass, classify_intent
+from src.auth.guard import guard
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
+from src.db.async_pool import acquire_with_rls
 
 router = APIRouter(prefix="/api", tags=["agent-v51"])
 
@@ -77,74 +79,89 @@ async def agent_prompt(
                 },
             )
 
-        intent_span = trace.span(name="intent_classification")
-        intent = await classify_intent(payload.query)
-        intent_span.end(
-            output={
-                "intent": intent.intent_class.value,
-                "confidence": intent.confidence,
-            }
-        )
+        if not current_user.tenant_id:
+            raise HTTPException(400, "tenant_id manquant dans le JWT.")
 
-        session_key = (
-            f"{payload.workspace_id or 'global'}"
-            f":{payload.session_id or current_user.user_id}"
-        )
-        context = await get_context(session_key)
-
-        user_dict: dict[str, Any] = {
-            "id": current_user.user_id,
-            "tenant_id": current_user.tenant_id,
-            "role": current_user.role,
-        }
-
-        if intent.intent_class == IntentClass.MARKET_QUERY:
-            handler = mql_stream_handler
-        elif intent.intent_class == IntentClass.WORKSPACE_STATUS:
-            handler = workspace_status_handler
-        elif intent.intent_class == IntentClass.PROCESS_INFO:
-            handler = process_info_handler
-        else:
-            handler = static_refusal_handler
-
-        async def event_generator():  # type: ignore[return]
-            try:
-                async for event in handler(
-                    query=payload.query,
-                    workspace_id=payload.workspace_id,
-                    user=user_dict,
-                    db=None,
-                    context=context,
-                    trace=trace,
-                ):
-                    yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
-
-                yield "data: [DONE]\n\n"
-            except Exception as e:
-                error_event = {
-                    "type": "error",
-                    "code": "handler_error",
-                    "message": str(e),
-                }
-                yield f"data: {json.dumps(error_event)}\n\n"
-                trace.update(
-                    output={"error": str(e)},
-                    level="ERROR",
+        async with acquire_with_rls(
+            str(current_user.tenant_id),
+            is_admin=(current_user.role == "admin"),
+        ) as conn:
+            if payload.workspace_id:
+                await guard(
+                    conn,
+                    current_user,
+                    str(payload.workspace_id),
+                    "agent.query",
                 )
-            finally:
-                await save_context(session_key, context)
-                trace.update(output={"completed": True})
-                flush_langfuse()
 
-        return StreamingResponse(
-            event_generator(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "X-Accel-Buffering": "no",
-            },
-        )
+            intent_span = trace.span(name="intent_classification")
+            intent = await classify_intent(payload.query)
+            intent_span.end(
+                output={
+                    "intent": intent.intent_class.value,
+                    "confidence": intent.confidence,
+                }
+            )
+
+            session_key = (
+                f"{payload.workspace_id or 'global'}"
+                f":{payload.session_id or current_user.user_id}"
+            )
+            context = await get_context(session_key)
+
+            user_dict: dict[str, Any] = {
+                "id": current_user.user_id,
+                "tenant_id": current_user.tenant_id,
+                "role": current_user.role,
+            }
+
+            if intent.intent_class == IntentClass.MARKET_QUERY:
+                handler = mql_stream_handler
+            elif intent.intent_class == IntentClass.WORKSPACE_STATUS:
+                handler = workspace_status_handler
+            elif intent.intent_class == IntentClass.PROCESS_INFO:
+                handler = process_info_handler
+            else:
+                handler = static_refusal_handler
+
+            async def event_generator():  # type: ignore[return]
+                try:
+                    async for event in handler(
+                        query=payload.query,
+                        workspace_id=payload.workspace_id,
+                        user=user_dict,
+                        db=conn,
+                        context=context,
+                        trace=trace,
+                    ):
+                        yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+                    yield "data: [DONE]\n\n"
+                except Exception as e:
+                    error_event = {
+                        "type": "error",
+                        "code": "handler_error",
+                        "message": str(e),
+                    }
+                    yield f"data: {json.dumps(error_event)}\n\n"
+                    trace.update(
+                        output={"error": str(e)},
+                        level="ERROR",
+                    )
+                finally:
+                    await save_context(session_key, context)
+                    trace.update(output={"completed": True})
+                    flush_langfuse()
+
+            return StreamingResponse(
+                event_generator(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",
+                },
+            )
 
     except HTTPException:
         raise

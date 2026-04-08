@@ -62,7 +62,10 @@ MQL_TEMPLATES: dict[str, dict] = {
                 DATE_TRUNC('month', sc.published_date) AS period,
                 PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ms.unit_price) AS median_price,
                 COUNT(*) AS sample_count,
+                sc.name AS campaign_name,
                 sc.source_type,
+                sc.publisher,
+                sc.published_date,
                 sc.is_official
             FROM market_surveys ms
             JOIN survey_campaigns sc ON ms.campaign_id = sc.id
@@ -71,7 +74,8 @@ MQL_TEMPLATES: dict[str, dict] = {
               AND ms.zone = ANY(:zones)
               AND sc.published_date BETWEEN :start_date AND :end_date
             GROUP BY ms.article_label, DATE_TRUNC('month', sc.published_date),
-                     sc.source_type, sc.is_official
+                     sc.name, sc.source_type, sc.publisher,
+                     sc.published_date, sc.is_official
             ORDER BY period ASC
         """,
     },
@@ -98,13 +102,20 @@ MQL_TEMPLATES: dict[str, dict] = {
                 ms.zone, ms.article_label,
                 PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ms.unit_price) AS median_price,
                 COUNT(DISTINCT ms.vendor_name) AS vendor_count,
-                COUNT(*) AS sample_count
+                COUNT(*) AS sample_count,
+                sc.name AS campaign_name,
+                sc.source_type,
+                sc.publisher,
+                sc.published_date,
+                sc.is_official
             FROM market_surveys ms
             JOIN survey_campaigns sc ON ms.campaign_id = sc.id
             WHERE ms.tenant_id = :tenant_id
               AND ms.article_label ILIKE :article_pattern
               AND sc.published_date >= :min_date
-            GROUP BY ms.zone, ms.article_label
+            GROUP BY ms.zone, ms.article_label,
+                     sc.name, sc.source_type, sc.publisher,
+                     sc.published_date, sc.is_official
             ORDER BY ms.zone
         """,
     },
@@ -115,15 +126,24 @@ MQL_TEMPLATES: dict[str, dict] = {
                 SELECT
                     ms.article_label, ms.zone,
                     PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ms.unit_price) AS median,
-                    STDDEV(ms.unit_price) AS stddev
+                    STDDEV(ms.unit_price) AS stddev,
+                    sc.name AS campaign_name,
+                    sc.source_type,
+                    sc.publisher,
+                    sc.published_date,
+                    sc.is_official
                 FROM market_surveys ms
                 JOIN survey_campaigns sc ON ms.campaign_id = sc.id
                 WHERE ms.tenant_id = :tenant_id
                   AND sc.published_date >= :min_date
-                GROUP BY ms.article_label, ms.zone
+                GROUP BY ms.article_label, ms.zone,
+                         sc.name, sc.source_type, sc.publisher,
+                         sc.published_date, sc.is_official
             )
             SELECT
                 s.article_label, s.zone, s.median, s.stddev,
+                s.campaign_name, s.source_type, s.publisher,
+                s.published_date, s.is_official,
                 :proposed_price AS proposed_price,
                 CASE WHEN s.stddev > 0
                     THEN ROUND(((:proposed_price - s.median) / s.stddev)::numeric, 2)

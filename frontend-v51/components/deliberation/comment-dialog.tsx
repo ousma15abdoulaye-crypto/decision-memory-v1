@@ -28,6 +28,7 @@ export function CommentDialog({
       criterion_id?: string;
       supplier_id?: string;
     }) => api.post(`/api/workspaces/${workspaceId}/comments`, data),
+    retry: 3,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workspace", workspaceId] });
       onClose();
@@ -35,9 +36,14 @@ export function CommentDialog({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="comment-dialog-title"
+    >
       <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg dark:bg-gray-900">
-        <h2 className="text-lg font-semibold">Ajouter un commentaire</h2>
+        <h2 id="comment-dialog-title" className="text-lg font-semibold">Ajouter un commentaire</h2>
 
         <div className="mt-4 space-y-4">
           <textarea
