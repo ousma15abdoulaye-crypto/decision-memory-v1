@@ -1,21 +1,21 @@
-﻿-- =============================================================================
--- DRY-RUN PARTIEL — 090 → 092 uniquement.
--- Pour aligner la prod sur le dépôt **head 093**, utiliser :
---   docs/ops/ALEMBIC_DRYRUN_090_to_093.sql
 -- =============================================================================
--- DRY-RUN ALEMBIC (offline --sql) — delta EXACT prod → dépôt
+-- DRY-RUN ALEMBIC (offline --sql) — aligner PROD (090) sur DÉPÔT / local (093)
 --
--- PROD (constat AO / mandat V51-001, aligné 2026-04-09) :
---   alembic_version.version_num = 090_v51_extraction_jobs_langfuse_trace
+-- PROD (Railway) — point de départ attendu :
+--   SELECT version_num FROM alembic_version;
+--   → 090_v51_extraction_jobs_langfuse_trace
 --
--- Ce fichier = SQL émis pour enchaîner 090 → 091 → 092 (sans l’exécuter ici).
--- Après apply réel : head attendu = 092_workspace_access_model_v2
+-- Cible après apply séquentiel (GO CTO + runbook) :
+--   → 093_v51_assessment_history
 --
--- Regénérer (depuis la racine du repo) :
+-- Chaîne : 090 → 091_fix_user_tenant_provisioning → 092_workspace_access_model_v2
+--          → 093_v51_assessment_history (table assessment_history + index + RLS)
+--
+-- Regénérer (racine repo) :
 --   set DATABASE_URL=postgresql+psycopg://USER:PASS@HOST:PORT/DB
---   python -m alembic upgrade 090_v51_extraction_jobs_langfuse_trace:092_workspace_access_model_v2 --sql
+--   python -m alembic upgrade 090_v51_extraction_jobs_langfuse_trace:093_v51_assessment_history --sql
 --
--- Ne pas exécuter sur prod sans GO CTO + pre-check `alembic current` = 090_…
+-- Ne pas exécuter sur prod sans preuve `alembic current` = 090_… et GO CTO.
 -- =============================================================================
 
 BEGIN;
@@ -158,5 +158,40 @@ DO $wm_backfill$
 
 UPDATE alembic_version SET version_num='092_workspace_access_model_v2' WHERE alembic_version.version_num = '091_fix_user_tenant_provisioning';
 
-COMMIT;
+-- Running upgrade 092_workspace_access_model_v2 -> 093_v51_assessment_history
 
+CREATE TABLE IF NOT EXISTS assessment_history (
+            id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            criterion_assessment_id UUID NOT NULL
+                REFERENCES criterion_assessments(id) ON DELETE CASCADE,
+            workspace_id            UUID NOT NULL
+                REFERENCES process_workspaces(id) ON DELETE CASCADE,
+            tenant_id               UUID NOT NULL REFERENCES tenants(id),
+            changed_by              INTEGER NOT NULL REFERENCES users(id),
+            change_reason           TEXT NOT NULL,
+            change_metadata         JSONB NOT NULL DEFAULT '{}',
+            created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+CREATE INDEX IF NOT EXISTS idx_assessment_history_workspace ON assessment_history(workspace_id);
+
+CREATE INDEX IF NOT EXISTS idx_assessment_history_tenant ON assessment_history(tenant_id);
+
+CREATE INDEX IF NOT EXISTS idx_assessment_history_ca ON assessment_history(criterion_assessment_id);
+
+ALTER TABLE assessment_history ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE assessment_history FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS assessment_history_tenant ON assessment_history;
+
+CREATE POLICY assessment_history_tenant ON assessment_history
+            USING (
+                COALESCE(current_setting('app.is_admin', true), '') = 'true'
+                OR tenant_id = current_setting('app.tenant_id', true)::uuid
+                OR tenant_id = current_setting('app.current_tenant', true)::uuid
+            );
+
+UPDATE alembic_version SET version_num='093_v51_assessment_history' WHERE alembic_version.version_num = '092_workspace_access_model_v2';
+
+COMMIT;

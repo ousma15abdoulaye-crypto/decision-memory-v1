@@ -140,6 +140,7 @@ Thumbs.db
 dms_prod_backup_*.sql
 # Dry-run Alembic offline documenté (schéma uniquement, pas de dump prod)
 !docs/ops/ALEMBIC_DRYRUN_090_to_092.sql
+!docs/ops/ALEMBIC_DRYRUN_090_to_093.sql
 
 # Logs
 *.log
