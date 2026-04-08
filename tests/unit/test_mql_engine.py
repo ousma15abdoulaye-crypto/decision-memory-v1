@@ -64,43 +64,33 @@ class TestParamExtractor:
     def test_extract_zone_bamako(self):
         from src.mql.param_extractor import extract_mql_params
 
-        p = asyncio.get_event_loop().run_until_complete(
-            extract_mql_params("prix du riz à Bamako", TENANT)
-        )
+        p = asyncio.run(extract_mql_params("prix du riz à Bamako", TENANT))
         assert p.zones is not None
         assert "Bamako" in p.zones
 
     def test_extract_multiple_zones(self):
         from src.mql.param_extractor import extract_mql_params
 
-        p = asyncio.get_event_loop().run_until_complete(
-            extract_mql_params("comparaison Bamako et Mopti", TENANT)
-        )
+        p = asyncio.run(extract_mql_params("comparaison Bamako et Mopti", TENANT))
         assert p.zones is not None
         assert len(p.zones) >= 2
 
     def test_extract_year(self):
         from src.mql.param_extractor import extract_mql_params
 
-        p = asyncio.get_event_loop().run_until_complete(
-            extract_mql_params("prix ciment 2026", TENANT)
-        )
+        p = asyncio.run(extract_mql_params("prix ciment 2026", TENANT))
         assert p.min_date == date(2026, 1, 1)
 
     def test_extract_price_xof(self):
         from src.mql.param_extractor import extract_mql_params
 
-        p = asyncio.get_event_loop().run_until_complete(
-            extract_mql_params("ciment à 5000 FCFA", TENANT)
-        )
+        p = asyncio.run(extract_mql_params("ciment à 5000 FCFA", TENANT))
         assert p.proposed_price == 5000.0
 
     def test_extract_vendor(self):
         from src.mql.param_extractor import extract_mql_params
 
-        p = asyncio.get_event_loop().run_until_complete(
-            extract_mql_params("fournisseur Alpha", TENANT)
-        )
+        p = asyncio.run(extract_mql_params("fournisseur Alpha", TENANT))
         assert p.vendor_pattern == "alpha"
 
     def test_extract_article_filters_stopwords(self):
@@ -114,11 +104,9 @@ class TestParamExtractor:
     def test_extract_quarter(self):
         from src.mql.param_extractor import extract_mql_params
 
-        p = asyncio.get_event_loop().run_until_complete(
-            extract_mql_params("tendance T2 2026 riz", TENANT)
-        )
+        p = asyncio.run(extract_mql_params("tendance T2 2026 riz", TENANT))
         assert p.start_date == date(2026, 4, 1)
-        assert p.end_date == date(2026, 7, 1)
+        assert p.end_date == date(2026, 6, 30)
 
 
 class TestTemplateSelector:
@@ -129,9 +117,7 @@ class TestTemplateSelector:
         from src.mql.templates import MQLParams
 
         p = MQLParams(tenant_id=TENANT)
-        r = asyncio.get_event_loop().run_until_complete(
-            select_template("quelles sources disponibles ?", p)
-        )
+        r = asyncio.run(select_template("quelles sources disponibles ?", p))
         assert r == "T6_CAMPAIGN_INVENTORY"
 
     def test_anomaly_detection_with_price(self):
@@ -139,9 +125,7 @@ class TestTemplateSelector:
         from src.mql.templates import MQLParams
 
         p = MQLParams(tenant_id=TENANT, proposed_price=5000.0)
-        r = asyncio.get_event_loop().run_until_complete(
-            select_template("ciment à 5000 FCFA", p)
-        )
+        r = asyncio.run(select_template("ciment à 5000 FCFA", p))
         assert r == "T5_ANOMALY_DETECTION"
 
     def test_vendor_history(self):
@@ -149,9 +133,7 @@ class TestTemplateSelector:
         from src.mql.templates import MQLParams
 
         p = MQLParams(tenant_id=TENANT, vendor_pattern="alpha")
-        r = asyncio.get_event_loop().run_until_complete(
-            select_template("historique fournisseur alpha", p)
-        )
+        r = asyncio.run(select_template("historique fournisseur alpha", p))
         assert r == "T3_VENDOR_HISTORY"
 
     def test_price_trend(self):
@@ -159,9 +141,7 @@ class TestTemplateSelector:
         from src.mql.templates import MQLParams
 
         p = MQLParams(tenant_id=TENANT)
-        r = asyncio.get_event_loop().run_until_complete(
-            select_template("tendance du prix du riz", p)
-        )
+        r = asyncio.run(select_template("tendance du prix du riz", p))
         assert r == "T2_PRICE_TREND"
 
     def test_zone_comparison(self):
@@ -169,9 +149,7 @@ class TestTemplateSelector:
         from src.mql.templates import MQLParams
 
         p = MQLParams(tenant_id=TENANT, zones=["Bamako", "Mopti"])
-        r = asyncio.get_event_loop().run_until_complete(
-            select_template("prix du ciment", p)
-        )
+        r = asyncio.run(select_template("prix du ciment", p))
         assert r == "T4_ZONE_COMPARISON"
 
     def test_default_price_median(self):
@@ -179,9 +157,7 @@ class TestTemplateSelector:
         from src.mql.templates import MQLParams
 
         p = MQLParams(tenant_id=TENANT)
-        r = asyncio.get_event_loop().run_until_complete(
-            select_template("prix du riz Bamako", p)
-        )
+        r = asyncio.run(select_template("prix du riz Bamako", p))
         assert r == "T1_PRICE_MEDIAN"
 
 

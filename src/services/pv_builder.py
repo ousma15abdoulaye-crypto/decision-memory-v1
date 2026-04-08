@@ -58,7 +58,8 @@ def _forbidden_keys_in_tree(obj: Any, path: str = "") -> list[str]:
 def validate_pv_snapshot(snapshot: dict[str, Any]) -> None:
     """Vérifie blocs obligatoires et absence de kill-list dans tout le snapshot.
 
-    INV-W06 : winner/rank/recommendation/selected_vendor/best_offer interdits partout.
+    INV-W06 : winner/rank/recommendation/selected_vendor et clés équivalentes
+    interdits partout (voir ``_KILL_LIST``).
     Appeler avant le hash canonique. Le snapshot peut contenir ``seal: {}``
     (sans ``seal_hash``), aligné avec ``document_service._canonical_hash``.
     """

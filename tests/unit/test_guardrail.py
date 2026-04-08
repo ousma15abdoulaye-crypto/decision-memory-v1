@@ -14,7 +14,7 @@ from src.agent.semantic_router import IntentClass, reset_centroid_cache
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def _make_trace():

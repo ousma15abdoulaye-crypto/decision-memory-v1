@@ -123,6 +123,11 @@ VALID_ALEMBIC_HEADS = (
     "084_m16_price_line_comparisons",
     "085_m16_frame_query_indexes",
     "086_m16_force_row_level_security",
+    # DMS V5.1.0 — MQL log, comments, RLS correctif, Langfuse trace (PR #345)
+    "087_v51_mql_query_log",
+    "088_v51_assessment_comments",
+    "089_v51_rls_force_corrective",
+    "090_v51_extraction_jobs_langfuse_trace",
 )
 
 

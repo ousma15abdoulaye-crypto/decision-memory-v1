@@ -54,9 +54,8 @@ class TestLangfuseClientNoOp:
         lc.flush_langfuse()
 
     def test_flush_noop_client(self):
-        from src.agent.langfuse_client import _NullLangfuse
-
         import src.agent.langfuse_client as lc
+        from src.agent.langfuse_client import _NullLangfuse
 
         lc._langfuse = _NullLangfuse()
         lc.flush_langfuse()
@@ -64,7 +63,9 @@ class TestLangfuseClientNoOp:
     def test_singleton_returns_same_instance(self):
         import src.agent.langfuse_client as lc
 
-        with patch.dict(os.environ, {"LANGFUSE_PUBLIC_KEY": "", "LANGFUSE_SECRET_KEY": ""}):
+        with patch.dict(
+            os.environ, {"LANGFUSE_PUBLIC_KEY": "", "LANGFUSE_SECRET_KEY": ""}
+        ):
             c1 = lc.get_langfuse()
             c2 = lc.get_langfuse()
         assert c1 is c2
@@ -87,6 +88,8 @@ class TestExtractionTracingPattern:
             name="document_extraction",
             metadata={"document_id": "doc-123", "document_type": "application/pdf"},
         )
-        span = trace.span(name="mistral_extraction", input={"model": "mistral-large-latest"})
+        span = trace.span(
+            name="mistral_extraction", input={"model": "mistral-large-latest"}
+        )
         span.end(output={"fields_extracted": 12, "confidence": 0.87})
         langfuse.flush()
