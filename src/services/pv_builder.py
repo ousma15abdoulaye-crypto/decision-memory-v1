@@ -56,11 +56,20 @@ def _forbidden_keys_in_tree(obj: Any, path: str = "") -> list[str]:
 
 
 def validate_pv_snapshot(snapshot: dict[str, Any]) -> None:
-    """Vérifie blocs obligatoires et absence de kill-list dans scores_matrix.
+    """Vérifie blocs obligatoires et absence de kill-list dans tout le snapshot.
 
+    INV-W06 : winner/rank/recommendation/selected_vendor et clés équivalentes
+    interdits partout (voir ``_KILL_LIST``).
     Appeler avant le hash canonique. Le snapshot peut contenir ``seal: {}``
     (sans ``seal_hash``), aligné avec ``document_service._canonical_hash``.
     """
+    # INV-W06 : scan global du snapshot AVANT vérification structurelle
+    bad_global = _forbidden_keys_in_tree(snapshot)
+    if bad_global:
+        raise ValueError(
+            f"INV-W06 — champs interdits dans le snapshot: {', '.join(bad_global)}"
+        )
+
     required_top = (
         "process",
         "committee",
@@ -103,9 +112,6 @@ def validate_pv_snapshot(snapshot: dict[str, Any]) -> None:
     sm = ev.get("scores_matrix")
     if not isinstance(sm, dict):
         raise ValueError("evaluation.scores_matrix doit être un objet")
-    bad = _forbidden_keys_in_tree(sm)
-    if bad:
-        raise ValueError(f"champs interdits dans scores_matrix: {', '.join(bad)}")
 
 
 def _confidence_from_bundle_docs(conn, workspace_id: str) -> dict[str, float]:

@@ -159,6 +159,18 @@ from src.couche_a.criteria.router import router as _criteria_router
 
 app.include_router(_criteria_router)
 
+# ── V5.1 Dashboard (Canon O0 — INV-F06) ─────────────────────────────────────
+from src.api.routers.dashboard import router as _dashboard_router
+
+app.include_router(_dashboard_router)
+
+# ── V5.1 Agent + MQL (Canon O11-O12) ────────────────────────────────────────
+from src.api.routers.agent import router as _agent_router
+from src.api.routers.mql import router as _mql_router
+
+app.include_router(_agent_router)
+app.include_router(_mql_router)
+
 # ── Routers optionnels (strangler pattern — mirrors src/api/main.py) ──────────
 _geo_router = None
 try:
