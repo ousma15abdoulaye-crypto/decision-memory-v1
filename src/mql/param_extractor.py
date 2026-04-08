@@ -7,7 +7,7 @@ INV-A03 : l'extraction de paramètres MQL utilise des règles déterministes (pa
 from __future__ import annotations
 
 import re
-from datetime import date
+from datetime import date, timedelta
 from uuid import UUID
 
 from src.mql.templates import MQLParams
@@ -68,7 +68,7 @@ async def extract_mql_params(query: str, tenant_id: UUID) -> MQLParams:
         if end_month == 12:
             end_date = date(y, 12, 31)
         else:
-            end_date = date(y, end_month + 1, 1)
+            end_date = date(y, end_month + 1, 1) - timedelta(days=1)
 
     proposed_price = None
     price_match = re.search(

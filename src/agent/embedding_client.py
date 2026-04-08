@@ -9,6 +9,7 @@ retourne un vecteur aléatoire normalisé (pour dev/test).
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 from typing import Any
@@ -58,7 +59,10 @@ async def get_embedding(text: str, dim: int = 1024) -> np.ndarray:
     client = _get_client()
 
     if client is None or _fallback:
-        rng = np.random.RandomState(hash(text) % (2**31))
+        stable_hash = int.from_bytes(
+            hashlib.sha256(text.encode("utf-8")).digest()[:4], "big"
+        )
+        rng = np.random.RandomState(stable_hash % (2**31))
         vec = rng.randn(dim).astype(np.float32)
         return vec / np.linalg.norm(vec)
 

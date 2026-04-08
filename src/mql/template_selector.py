@@ -24,15 +24,18 @@ async def select_template(query: str, params: MQLParams) -> str:
     if params.vendor_pattern:
         return "T3_VENDOR_HISTORY"
 
+    if params.zones and len(params.zones) >= 2:
+        return "T4_ZONE_COMPARISON"
+    if any(kw in query_lower for kw in ["comparaison", "comparer"]):
+        return "T4_ZONE_COMPARISON"
+
     if any(
         kw in query_lower
         for kw in ["tendance", "évolution", "evolution", "depuis", "entre"]
     ):
         return "T2_PRICE_TREND"
 
-    if params.zones and len(params.zones) >= 2:
-        return "T4_ZONE_COMPARISON"
-    if any(kw in query_lower for kw in ["comparaison", "comparer", "entre"]):
-        return "T4_ZONE_COMPARISON"
+    if params.start_date or params.end_date:
+        return "T2_PRICE_TREND"
 
     return "T1_PRICE_MEDIAN"

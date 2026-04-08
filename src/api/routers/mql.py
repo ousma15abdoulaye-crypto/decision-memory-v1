@@ -14,7 +14,7 @@ from pydantic import BaseModel
 
 from src.auth.permissions import ROLE_PERMISSIONS
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
-from src.db.async_pool import acquire_with_rls
+from src.db.async_pool import AsyncpgAdapter, acquire_with_rls
 
 router = APIRouter(prefix="/api", tags=["mql-v51"])
 
@@ -43,7 +43,8 @@ async def mql_stream(
     async with acquire_with_rls(
         str(tenant_id),
         is_admin=(current_user.role == "admin"),
-    ) as conn:
+    ) as raw_conn:
+        conn = AsyncpgAdapter(raw_conn)
         result = await execute_mql_query(
             db=conn,
             tenant_id=tenant_id,

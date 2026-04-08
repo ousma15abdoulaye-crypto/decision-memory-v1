@@ -652,6 +652,8 @@ def get_cognitive_state(
     INV-C01 : projection pure — aucune colonne SQL.
     INV-C03 : CognitiveFacts chargés depuis la DB à chaque requête.
     """
+    require_workspace_access(workspace_id, user)
+
     from src.db import get_connection
 
     with get_connection() as conn:

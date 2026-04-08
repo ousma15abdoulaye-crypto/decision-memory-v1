@@ -15,8 +15,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +102,54 @@ async def close_async_pool() -> None:
             logger.error("[DB-ASYNC-POOL] Erreur fermeture : %s", exc)
         finally:
             _async_pool = None
+
+
+_NAMED_PARAM_RE = re.compile(r":([a-zA-Z_]\w*)")
+
+
+def _convert_named_to_positional(
+    sql: str, params: dict[str, Any]
+) -> tuple[str, list[Any]]:
+    """Convert :name style params to $N positional params for asyncpg."""
+    seen: dict[str, int] = {}
+    args: list[Any] = []
+
+    def _replacer(m: re.Match) -> str:
+        name = m.group(1)
+        if name not in seen:
+            args.append(params[name])
+            seen[name] = len(args)
+        return f"${seen[name]}"
+
+    converted_sql = _NAMED_PARAM_RE.sub(_replacer, sql)
+    return converted_sql, args
+
+
+class AsyncpgAdapter:
+    """Thin adapter wrapping asyncpg.Connection with :name param style.
+
+    Bridges the gap between handler/engine code (psycopg :name style)
+    and asyncpg ($N positional style).
+    """
+
+    def __init__(self, conn: Any) -> None:
+        self._conn = conn
+
+    async def fetch_all(self, sql: str, params: dict[str, Any]) -> list[Any]:
+        q, args = _convert_named_to_positional(sql, params)
+        return await self._conn.fetch(q, *args)
+
+    async def fetch_one(self, sql: str, params: dict[str, Any]) -> Any | None:
+        q, args = _convert_named_to_positional(sql, params)
+        return await self._conn.fetchrow(q, *args)
+
+    async def fetch_val(self, sql: str, params: dict[str, Any]) -> Any | None:
+        q, args = _convert_named_to_positional(sql, params)
+        return await self._conn.fetchval(q, *args)
+
+    async def execute(self, sql: str, params: dict[str, Any]) -> str:
+        q, args = _convert_named_to_positional(sql, params)
+        return await self._conn.execute(q, *args)
 
 
 @asynccontextmanager

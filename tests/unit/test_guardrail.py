@@ -61,7 +61,6 @@ class TestGuardrailResult:
         fake_result = IntentResult(
             intent_class=IntentClass.RECOMMENDATION,
             confidence=0.92,
-            centroid_distances={},
         )
         reset_centroid_cache()
         trace = _make_trace()
@@ -86,7 +85,6 @@ class TestGuardrailResult:
         fake_result = IntentResult(
             intent_class=IntentClass.RECOMMENDATION,
             confidence=0.70,
-            centroid_distances={},
         )
         reset_centroid_cache()
         trace = _make_trace()

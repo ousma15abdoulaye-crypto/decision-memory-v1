@@ -111,12 +111,14 @@ MQL_TEMPLATES: dict[str, dict] = {
             FROM market_surveys ms
             JOIN survey_campaigns sc ON ms.campaign_id = sc.id
             WHERE ms.tenant_id = :tenant_id
+              AND ms.zone = ANY(:zones)
               AND ms.article_label ILIKE :article_pattern
               AND sc.published_date >= :min_date
             GROUP BY ms.zone, ms.article_label,
                      sc.name, sc.source_type, sc.publisher,
                      sc.published_date, sc.is_official
             ORDER BY ms.zone
+            LIMIT :max_results
         """,
     },
     "T5_ANOMALY_DETECTION": {

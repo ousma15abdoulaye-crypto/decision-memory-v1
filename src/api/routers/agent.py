@@ -28,7 +28,7 @@ from src.agent.langfuse_client import flush_langfuse, get_langfuse
 from src.agent.semantic_router import IntentClass, classify_intent
 from src.auth.guard import guard
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
-from src.db.async_pool import acquire_with_rls
+from src.db.async_pool import AsyncpgAdapter, acquire_with_rls
 
 router = APIRouter(prefix="/api", tags=["agent-v51"])
 
@@ -85,10 +85,11 @@ async def agent_prompt(
         async with acquire_with_rls(
             str(current_user.tenant_id),
             is_admin=(current_user.role == "admin"),
-        ) as conn:
+        ) as raw_conn:
+            conn = AsyncpgAdapter(raw_conn)
             if payload.workspace_id:
                 await guard(
-                    conn,
+                    raw_conn,
                     current_user,
                     str(payload.workspace_id),
                     "agent.query",
@@ -125,6 +126,7 @@ async def agent_prompt(
                 handler = static_refusal_handler
 
             async def event_generator():  # type: ignore[return]
+                assistant_content = ""
                 try:
                     async for event in handler(
                         query=payload.query,
@@ -134,6 +136,8 @@ async def agent_prompt(
                         context=context,
                         trace=trace,
                     ):
+                        if event.get("type") == "token" and event.get("content"):
+                            assistant_content += event["content"]
                         yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
                     yield "data: [DONE]\n\n"
@@ -149,6 +153,8 @@ async def agent_prompt(
                         level="ERROR",
                     )
                 finally:
+                    if assistant_content:
+                        context.add_assistant_message(assistant_content)
                     await save_context(session_key, context)
                     trace.update(output={"completed": True})
                     flush_langfuse()

@@ -23,6 +23,9 @@ class _NullSpan:
     def end(self, output: dict[str, Any] | None = None, **kwargs: Any) -> None:
         pass
 
+    def update(self, **kwargs: Any) -> None:
+        pass
+
 
 class _NullTrace:
     """Trace no-op — Langfuse non configuré ou SDK absent."""
