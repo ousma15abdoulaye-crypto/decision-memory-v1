@@ -6,7 +6,7 @@ Introduire la table **`assessment_history`** après la chaîne **`091 → 092`**
 
 ## Périmètre
 
-- **Migration** `093_v51_assessment_history` : table, index, RLS + policy tenant (`app.tenant_id` / `app.current_tenant`, bypass admin).
+- **Migration** `093_v51_assessment_history` : table, index, RLS + policy tenant (bypass admin + alignement sur **`app.tenant_id`** et **`app.current_tenant`**, posés ensemble par l’app — `src/db/connection.py`, `src/db/async_pool.py`, `src/db/core.py`, Canon V5.1.0 §O1).
 - **Tests** : extension de `VALID_ALEMBIC_HEADS` dans `tests/test_046b_imc_map_fix.py` (invariant ANCHOR-05 / tête Alembic attendue en CI).
 
 ## Hors périmètre

@@ -6,6 +6,12 @@ Revises: 092_workspace_access_model_v2
 Journal des changements sur critères d'évaluation (flags, etc.).
 Distinct de criterion_assessment_history (M16 append-only technique).
 
+RLS : la policy accepte ``tenant_id`` si admin, ou si égal à ``app.tenant_id`` **ou**
+``app.current_tenant`` (Canon §O1 : les deux GUC sont posés à la même valeur UUID
+par la couche applicative : ``src/db/connection.py``, ``src/db/async_pool.py``,
+``src/db/core.py``). Si une GUC est absente, ``current_setting(..., true)`` vaut
+NULL et la branche correspondante ne matche pas.
+
 REGLE-12 : op.execute() uniquement.
 """
 
