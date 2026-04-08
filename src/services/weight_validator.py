@@ -1,4 +1,6 @@
-"""INV-W03 — somme des poids pondérés = 100 % (hors éliminatoires à poids 0)."""
+"""INV-W03 — somme des poids pondérés = 100 % (hors éliminatoires à poids 0).
+INV-W04 — critères éliminatoires évalués avant les pondérés (Canon V5.1.0).
+"""
 
 from __future__ import annotations
 
@@ -87,3 +89,23 @@ def criteria_weight_by_id(
         )
         out[str(c["id"])] = (w, is_elim)
     return out
+
+
+def sort_criteria_evaluation_order(
+    criteria: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Trie les critères : éliminatoires d'abord (INV-W04).
+
+    Les éliminatoires sont évalués avant les pondérés pour stopper
+    immédiatement si un critère éliminatoire échoue.
+    L'ordre relatif dans chaque groupe est préservé (stable sort).
+    """
+
+    def _is_elim(c: dict[str, Any]) -> bool:
+        if c.get("is_eliminatory") is not None:
+            return bool(c["is_eliminatory"])
+        return c.get("seuil_elimination") is not None
+
+    eliminatory = [c for c in criteria if _is_elim(c)]
+    weighted = [c for c in criteria if not _is_elim(c)]
+    return eliminatory + weighted
