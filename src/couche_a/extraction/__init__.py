@@ -5,6 +5,8 @@ Package decomposed from the original extraction.py monolith.
 Re-exports all public symbols for backward compatibility.
 """
 
+import httpx
+
 from .backend_client import (
     _get_router,
 )
@@ -49,6 +51,7 @@ from .text_extraction import (
 )
 
 __all__ = [
+    "httpx",
     "ExtractionInsufficientTextError",
     "MIN_EXTRACTED_TEXT_CHARS_FOR_ML",
     "extract_text_any",

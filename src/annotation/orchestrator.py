@@ -1,4 +1,4 @@
-﻿"""
+"""
 Orchestrateur FSM ÔÇö pipeline d'annotation multipasses.
 
 Spec : docs/contracts/annotation/ANNOTATION_ORCHESTRATOR_FSM.md
