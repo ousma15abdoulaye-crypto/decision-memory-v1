@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-empty-object-type -- placeholders jusqu’à gen:types */
 /**
  * DMS API Types — générés depuis OpenAPI (INV-F01).
  *

@@ -104,7 +104,8 @@ async def close_async_pool() -> None:
             _async_pool = None
 
 
-_NAMED_PARAM_RE = re.compile(r":([a-zA-Z_]\w*)")
+# Ne pas traiter « :: » (casts PostgreSQL) comme un paramètre nommé « :text ».
+_NAMED_PARAM_RE = re.compile(r"(?<!:):([a-zA-Z_]\w*)")
 
 
 def _convert_named_to_positional(

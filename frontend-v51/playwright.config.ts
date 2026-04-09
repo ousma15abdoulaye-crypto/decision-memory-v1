@@ -9,12 +9,11 @@ export default defineConfig({
     baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:3000",
     trace: "on-first-retry",
   },
-  webServer: process.env.CI
-    ? undefined
-    : {
-        command: "npm run dev",
-        url: "http://127.0.0.1:3000",
-        reuseExistingServer: true,
-        timeout: 120_000,
-      },
+  // CI : `next start` après `npm run build` (job GitHub). Local : `dev` + reuse.
+  webServer: {
+    command: process.env.CI ? "npm run start" : "npm run dev",
+    url: "http://127.0.0.1:3000",
+    reuseExistingServer: !process.env.CI,
+    timeout: 180_000,
+  },
 });
