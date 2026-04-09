@@ -196,3 +196,66 @@ class TestMQLConfidence:
         rows = [{"x": 1}]
         c = _compute_mql_confidence(rows, [])
         assert c < 0.5, "Peu de données = faible confiance"
+
+
+class TestArticleExtraction:
+    """Tests _extract_article — typage et robustesse (BUG-P1-02)."""
+
+    def test_returns_none_when_only_stopwords(self):
+        """Quand la requête ne contient que des stopwords, retourner None (pas ILIKE '%%')."""
+        from src.mql.param_extractor import _extract_article
+
+        result = _extract_article("quel est le prix")
+        assert result is None
+
+    def test_returns_none_for_empty_string(self):
+        from src.mql.param_extractor import _extract_article
+
+        result = _extract_article("")
+        assert result is None
+
+    def test_returns_article_for_meaningful_word(self):
+        from src.mql.param_extractor import _extract_article
+
+        result = _extract_article("prix du ciment")
+        assert result is not None
+        assert "ciment" in result
+
+
+class TestMQLEmptySourcesGate:
+    """Tests engine.execute_mql_query — gate sources vides (BUG-P0-02 + BUG-P1-02)."""
+
+    def test_returns_empty_result_when_no_article(self):
+        """execute_mql_query doit retourner un MQLResult vide si article_pattern=None.
+
+        Évite une requête dégénérée ILIKE '%%' (BUG-P1-02).
+        """
+        import asyncio
+        from unittest.mock import AsyncMock, MagicMock
+        from uuid import UUID
+
+        from src.mql.engine import execute_mql_query
+
+        tenant_id = UUID("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+
+        db = AsyncMock()
+        db.fetch_all = AsyncMock(return_value=[])
+        context = MagicMock()
+
+        # Requête sans article identifiable (uniquement stopwords)
+        result = asyncio.run(
+            execute_mql_query(
+                db=db,
+                tenant_id=tenant_id,
+                workspace_id=None,
+                query="quel est le prix",
+                context=context,
+            )
+        )
+
+        assert result.template_used == "none"
+        assert result.rows == []
+        assert result.sources == []
+        assert result.confidence == 0.0
+        # Aucun appel SQL dégénéré
+        db.fetch_all.assert_not_called()

@@ -60,20 +60,32 @@ async def execute_mql_query(
 
     params: MQLParams = await extract_mql_params(query, tenant_id)
 
+    if not params.article_pattern:
+        log.warning(
+            "MQL article_pattern absent — requête annulée (pas de requête dégénérée)."
+        )
+        elapsed_ms = int((time.monotonic() - start) * 1000)
+        return MQLResult(
+            template_used="none",
+            rows=[],
+            row_count=0,
+            sources=[],
+            confidence=0.0,
+            latency_ms=elapsed_ms,
+            params_used={
+                "article": None,
+                "zones": params.zones,
+                "vendor": params.vendor_pattern,
+            },
+        )
+
     template_key = await select_template(query, params)
     template = MQL_TEMPLATES[template_key]
 
     bind_params: dict[str, Any] = {
         # asyncpg + CAST(:tenant_id AS text) : passer une str évite DataError sur UUID.
         "tenant_id": str(tenant_id),
-        "article_pattern": (
-            f"%{params.article_pattern}%"
-            if params.article_pattern
-            else (
-                log.warning("MQL article_pattern absent — requête large (ILIKE '%%')")
-                or "%"
-            )
-        ),
+        "article_pattern": f"%{params.article_pattern}%",
         "zones": params.zones or ["Bamako", "Mopti", "Sévaré", "Gao"],
         "vendor_pattern": (
             f"%{params.vendor_pattern}%" if params.vendor_pattern else "%"

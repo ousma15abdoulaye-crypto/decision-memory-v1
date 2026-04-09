@@ -53,7 +53,6 @@ export default function LoginPage() {
         res.access_token,
         res.refresh_token,
       );
-      document.cookie = `dms-auth=1; path=/; max-age=${60 * 30}`;
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur de connexion");

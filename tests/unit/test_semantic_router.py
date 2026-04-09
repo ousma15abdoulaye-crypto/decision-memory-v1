@@ -9,10 +9,13 @@ from __future__ import annotations
 import asyncio
 
 from src.agent.semantic_router import (
+    INTENT_EXAMPLES,
     IntentClass,
     IntentResult,
+    _centroid_cache,
     classify_intent,
     reset_centroid_cache,
+    warm_centroids,
 )
 
 
@@ -64,3 +67,34 @@ class TestClassifyIntent:
     def test_out_of_scope_for_unrelated(self):
         result = _run(classify_intent("Quelle est la météo à Paris ?"))
         assert result.confidence < 1.0
+
+
+class TestWarmCentroids:
+    """Tests warm_centroids() — pré-calcul au démarrage (BUG-P1-01)."""
+
+    def setup_method(self):
+        reset_centroid_cache()
+
+    def test_warm_centroids_fills_cache(self):
+        """warm_centroids() remplit le cache pour les classes dans INTENT_EXAMPLES (pas OUT_OF_SCOPE)."""
+        assert len(_centroid_cache) == 0
+        _run(warm_centroids())
+        assert set(_centroid_cache.keys()) == set(INTENT_EXAMPLES.keys())
+        assert IntentClass.OUT_OF_SCOPE not in _centroid_cache
+
+    def test_warm_centroids_is_idempotent(self):
+        """Appeler warm_centroids() deux fois ne doit pas recalculer (idempotent)."""
+        _run(warm_centroids())
+        first_ids = {k: id(v) for k, v in _centroid_cache.items()}
+        _run(warm_centroids())
+        # Le cache ne doit pas changer (mêmes objets ndarray)
+        assert {k: id(v) for k, v in _centroid_cache.items()} == first_ids
+
+    def test_warm_centroids_allows_classify(self):
+        """Après warm_centroids(), classify_intent ne doit pas recalculer les centroïdes."""
+        _run(warm_centroids())
+        cache_size_before = len(_centroid_cache)
+        result = _run(classify_intent("prix du ciment à Bamako"))
+        assert isinstance(result, IntentResult)
+        # Le cache ne doit pas avoir grossi
+        assert len(_centroid_cache) == cache_size_before

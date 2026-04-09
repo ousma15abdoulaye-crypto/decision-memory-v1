@@ -35,7 +35,7 @@ export function CommentDialog({
       criterion_id?: string;
       supplier_id?: string;
     }) => api.post(`/api/workspaces/${workspaceId}/comments`, data),
-    retry: 3,
+    retry: 1,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workspace", workspaceId] });
       queryClient.invalidateQueries({
@@ -73,6 +73,14 @@ export function CommentDialog({
             </span>
           </label>
         </div>
+
+        {mutation.isError && (
+          <p className="text-sm text-red-600 dark:text-red-400">
+            {mutation.error instanceof Error
+              ? mutation.error.message
+              : "Erreur lors de l'envoi. Réessayez."}
+          </p>
+        )}
 
         <div className="mt-4 flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>

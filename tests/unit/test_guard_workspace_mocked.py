@@ -1,4 +1,7 @@
-"""INV-S02 — guard() async : matrice workspace + scellement (mocks asyncpg, sans DB)."""
+"""INV-S02 — guard() async : matrice workspace + scellement (mocks asyncpg, sans DB).
+
+Inclut les tests RBAC observer sans workspace_id (BUG-P3-07).
+"""
 
 from __future__ import annotations
 
@@ -8,6 +11,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from src.auth.guard import guard
+from src.auth.permissions import ROLE_PERMISSIONS
 from src.couche_a.auth.dependencies import UserClaims
 from src.services.workspace_access_service import WORKSPACE_WRITE_PERMISSIONS
 
@@ -172,3 +176,32 @@ class TestGuardSealed:
         with pytest.raises(HTTPException) as exc_info:
             await guard(conn, user, ws_id, permission)
         assert exc_info.value.status_code == 409
+
+
+class TestRbacObserverNoWorkspaceId:
+    """RBAC tenant-level fallback — observer sans workspace_id (BUG-P3-07).
+
+    Valide la logique du router agent.py : quand workspace_id est absent,
+    un rôle 'observer' sans 'agent.query' doit recevoir 403.
+    """
+
+    def test_observer_lacks_agent_query_permission(self):
+        """Le rôle 'observer' ne doit pas avoir 'agent.query' dans ROLE_PERMISSIONS."""
+        observer_perms = ROLE_PERMISSIONS.get("observer", frozenset())
+        assert (
+            "agent.query" not in observer_perms
+        ), "Le rôle observer ne doit pas avoir agent.query sans workspace_id"
+
+    def test_admin_has_system_admin_permission(self):
+        """Le rôle 'admin' doit avoir 'system.admin' (lui permettant de passer)."""
+        admin_perms = ROLE_PERMISSIONS.get("admin", frozenset())
+        assert "system.admin" in admin_perms or "agent.query" in admin_perms
+
+    def test_agent_query_permission_present_for_authorized_roles(self):
+        """Au moins un rôle (non-observer) possède 'agent.query'."""
+        roles_with_agent_query = [
+            role
+            for role, perms in ROLE_PERMISSIONS.items()
+            if "agent.query" in perms or "system.admin" in perms
+        ]
+        assert len(roles_with_agent_query) > 0

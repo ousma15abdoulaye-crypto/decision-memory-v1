@@ -47,6 +47,19 @@ async def mql_stream_handler(
         }
     )
 
+    if not mql_result.sources:
+        yield {"type": "sources", "sources": [], "has_official_source": False}
+        yield {
+            "type": "token",
+            "content": (
+                "Aucune donnée de marché disponible pour cette requête. "
+                "Vérifiez que des campagnes actives existent pour la zone "
+                "et l'article demandés."
+            ),
+        }
+        yield {"type": "done", "usage": {}}
+        return
+
     yield {
         "type": "sources",
         "sources": [

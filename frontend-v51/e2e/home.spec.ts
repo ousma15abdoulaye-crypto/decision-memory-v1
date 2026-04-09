@@ -1,12 +1,17 @@
 import { expect, test } from "@playwright/test";
 
-test("accueil DMS — liens Connexion et Tableau de bord", async ({ page }) => {
+/**
+ * Racine : redirect serveur vers /dashboard, puis middleware sans JWT → /login (V5.1).
+ * L’ancienne page vitrine avec liens Connexion + Tableau de bord sur « / » n’existe plus.
+ */
+test("accueil DMS — racine redirige vers la page de connexion si non authentifié", async ({
+  page,
+}) => {
   await page.goto("/");
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("heading", { name: "DMS" })).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Connexion" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Tableau de bord" }),
+    page.getByRole("button", { name: /Se connecter/i }),
   ).toBeVisible();
 });
 

@@ -10,6 +10,7 @@ Seuils : sim >= 0.75 pour classification, >= 0.85 pour RECOMMENDATION.
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -71,21 +72,29 @@ INTENT_EXAMPLES: dict[IntentClass, list[str]] = {
     ],
 }
 
+_EXPECTED_CENTROID_KEYS: frozenset[IntentClass] = frozenset(INTENT_EXAMPLES.keys())
 _centroid_cache: dict[IntentClass, np.ndarray] = {}
+_centroid_lock = asyncio.Lock()
 
 
 async def _ensure_centroids() -> None:
-    """Calcule les centroïdes si non en cache."""
-    if _centroid_cache:
+    """Calcule les centroïdes si non en cache (verrouillé — pas de cache partiel)."""
+    if frozenset(_centroid_cache.keys()) == _EXPECTED_CENTROID_KEYS:
         return
-    for intent_class, examples in INTENT_EXAMPLES.items():
-        embeddings = []
-        for example in examples:
-            emb = await get_embedding(example)
-            embeddings.append(emb)
-        centroid = np.mean(embeddings, axis=0)
-        centroid = centroid / np.linalg.norm(centroid)
-        _centroid_cache[intent_class] = centroid
+    async with _centroid_lock:
+        if frozenset(_centroid_cache.keys()) == _EXPECTED_CENTROID_KEYS:
+            return
+        local: dict[IntentClass, np.ndarray] = {}
+        for intent_class, examples in INTENT_EXAMPLES.items():
+            embeddings = []
+            for example in examples:
+                emb = await get_embedding(example)
+                embeddings.append(emb)
+            centroid = np.mean(embeddings, axis=0)
+            centroid = centroid / np.linalg.norm(centroid)
+            local[intent_class] = centroid
+        _centroid_cache.clear()
+        _centroid_cache.update(local)
 
 
 def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
@@ -130,6 +139,16 @@ async def classify_intent(query: str) -> IntentResult:
         intent_class=IntentClass.OUT_OF_SCOPE,
         confidence=best_sim,
     )
+
+
+async def warm_centroids() -> None:
+    """Pré-calcule les centroïdes au démarrage de l'application.
+
+    À appeler dans le lifespan FastAPI pour éviter le cold start (~1.6s)
+    sur la première requête agent, critique en terrain 3G+ Mopti.
+    Délègue à _ensure_centroids() — idempotent si déjà calculés.
+    """
+    await _ensure_centroids()
 
 
 def reset_centroid_cache() -> None:

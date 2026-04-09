@@ -28,7 +28,7 @@ export default function WorkspacePage() {
   const { data: cog, isLoading: cogLoading } = useCognitiveState(id);
   const [showComment, setShowComment] = useState(false);
 
-  const { data: ws, isLoading: wsLoading } = useQuery({
+  const { data: ws, isLoading: wsLoading, error: wsError } = useQuery({
     queryKey: ["workspace", id],
     queryFn: () => api.get<WorkspaceDetail>(`/api/workspaces/${id}`),
     enabled: !!id,
@@ -38,6 +38,26 @@ export default function WorkspacePage() {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (wsError) {
+    const msg =
+      wsError instanceof Error ? wsError.message : "Erreur inconnue.";
+    const isAuth = msg.includes("401") || msg.includes("403");
+    return (
+      <div className="rounded-md bg-red-50 p-6 text-red-700 dark:bg-red-950 dark:text-red-300">
+        <p className="font-medium">Impossible de charger ce workspace.</p>
+        <p className="mt-1 text-sm">{msg}</p>
+        {isAuth && (
+          <p className="mt-2 text-sm">
+            Votre session a peut-être expiré.{" "}
+            <a href="/login" className="underline">
+              Reconnectez-vous.
+            </a>
+          </p>
+        )}
       </div>
     );
   }
@@ -102,7 +122,9 @@ export default function WorkspacePage() {
 
       {isSealed && <PvExportButtons workspaceId={id} />}
 
-      <PdfDrilldownPlaceholder />
+      {process.env.NEXT_PUBLIC_SHOW_PDF_DRILLDOWN === "true" && (
+        <PdfDrilldownPlaceholder />
+      )}
 
       {cog?.advance_blockers && cog.advance_blockers.length > 0 && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
