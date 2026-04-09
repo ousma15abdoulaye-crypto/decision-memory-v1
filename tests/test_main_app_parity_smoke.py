@@ -11,6 +11,7 @@ from __future__ import annotations
 import importlib.util
 
 from fastapi.testclient import TestClient
+from starlette.routing import WebSocketRoute
 
 
 def _geo_package_available() -> bool:
@@ -98,3 +99,28 @@ def test_src_api_main_openapi_includes_v51_workspace_stack() -> None:
     assert any("/api/agent/prompt" in p for p in path_keys)
     assert any("/api/mql/stream" in p for p in path_keys)
     assert any("/members" in p and "/api/workspaces/" in p for p in path_keys)
+
+
+def _websocket_paths(app) -> list[str]:
+    out: list[str] = []
+    for route in app.routes:
+        if isinstance(route, WebSocketRoute):
+            out.append(route.path)
+    return sorted(set(out))
+
+
+def test_main_app_includes_workspace_websocket_routes() -> None:
+    """Canon O2 — les routes WS workspace sont montées (non listées dans OpenAPI)."""
+    from main import app
+
+    paths = _websocket_paths(app)
+    assert any(
+        "/ws/workspace/{workspace_id}/events" in p for p in paths
+    ), f"Attendu WebSocket /events, routes={paths}"
+
+
+def test_src_api_main_includes_workspace_websocket_routes() -> None:
+    from src.api.main import app
+
+    paths = _websocket_paths(app)
+    assert any("/ws/workspace/{workspace_id}/events" in p for p in paths), paths
