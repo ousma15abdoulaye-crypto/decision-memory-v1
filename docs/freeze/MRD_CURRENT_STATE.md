@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-04-09 — **Railway prod = dépôt** : head **093** (`093_v51_assessment_history`) ; apply réussi **090→091→092→093** via `python scripts/with_railway_env.py python scripts/apply_railway_migrations_safe.py --apply` ; preuve SQL hors exécution : `docs/ops/ALEMBIC_DRYRUN_090_to_093.sql` ; **PR #357** : correctifs CI (MQL/asyncpg `::` casts, E2E strict) — **aucune** nouvelle révision Alembic vs main → **pas** d’apply Railway pour #357
+# Derniere mise a jour : 2026-04-09 — **Railway prod = dépôt** : head **093** ; **PR #357** **mergée** main **75a66239** (frontend NL + E2E + MQL/asyncpg) — **0** migration nouvelle → **pas** d’apply Railway pour #357 ; apply **090→093** déjà référencé (`with_railway_env` + `apply_railway_migrations_safe.py --apply`) ; dry-run : `docs/ops/ALEMBIC_DRYRUN_090_to_093.sql`
 
 ---
 
@@ -30,12 +30,12 @@ freeze_hashes_doc     : docs/freeze/FREEZE_HASHES.md
 
 ## ETAT COURANT
 
-last_completed        : V4.2.0 Workspace-First (PRs #319–#323) + **V4.3.1 BLOC5** (PR #329) + **M16** (PRs #340, #342) + **due diligence** (PR #344) + **DMS V5.1.0** (PR #345) + **auth workspace v2** (PR #351) + **V5.1 enterprise suite** (PR #352) + **093 assessment_history** (PR #353) + **apply Railway 090→093** (2026-04-09 : `with_railway_env` + `apply_railway_migrations_safe.py --apply`) — **prod Railway = dépôt head 093**
+last_completed        : V4.2.0 Workspace-First (PRs #319–#323) + **V4.3.1 BLOC5** (PR #329) + **M16** (PRs #340, #342) + **due diligence** (PR #344) + **DMS V5.1.0** (PR #345) + **auth workspace v2** (PR #351) + **V5.1 enterprise suite** (PR #352) + **093 assessment_history** (PR #353) + **apply Railway 090→093** + **PR #357** (frontend NL + CI MQL/E2E, `app_factory`, MQL 042, asyncpg binds) — **prod Railway = dépôt head 093**
 last_completed_at     : 2026-04-09
-last_merge_commit     : 595e4a77 (main — PR #353 : Alembic 093 assessment_history + CI head whitelist)
+last_merge_commit     : 75a66239 (main — PR #357 : feat(v51) NL frontend E2E CI ; merge commit)
 last_tag              : v4.1.0-m12-done (V4.2.0 / V4.3.1 tags pending CTO)
 next_milestone        : Bascule `ANNOTATION_USE_PASS_ORCHESTRATOR=1` (fenêtre hors annotation) + pilote SCI Mali + runbook parity `RELEASE_MAIN_APP_PARITY_CHECKLIST.md`
-next_status           : **Alembic prod aligné dépôt (093)** — 2026-04-09 ; wiring V5.1 partiel #352 ; PR **#357** (frontend NL + CI MQL/E2e) : **0** fichier sous `alembic/versions/` — Railway **093** inchangé ; REGLE-23 **OK** ; orchestrateur Pass **pas** basculé prod
+next_status           : **Alembic prod aligné dépôt (093)** — 2026-04-09 ; **PR #357 mergée** (aucun delta Alembic) ; wiring V5.1 suite #352/#357 ; REGLE-23 **OK** ; orchestrateur Pass **pas** basculé prod
 blocked_on            : (1) runbook parity `docs/ops/RELEASE_MAIN_APP_PARITY_CHECKLIST.md` ; (2) ~~**090→093 Railway**~~ **fait** 2026-04-09 (`apply_railway_migrations_safe.py --apply`) ; ~~080→090~~ **fait** ; (3) ~~sync annotations~~ **fait** ; (4) `ANNOTATION_USE_PASS_ORCHESTRATOR=1` ; (5) vendors — `scripts/README_VENDOR_IMPORT.md`
 m13_prerequisites     : M12 Phase 3 PR #289 mergé ; ADR-M13-001 + Pass 2A + config/regulatory PR #292 ; migration 057 appliquée prod 2026-04-02 — persistance m13_* opérationnelle côté schéma ; secrets DB = .env.railway.local + with_railway_env.py (RAILWAY_LOCAL_ENV.md) ; **PR #331** : `with_railway_env` aligne `DATABASE_URL` sur `RAILWAY_DATABASE_URL` (opt-out `WITH_RAILWAY_ENV_PRESERVE_DATABASE_URL=1`)
 m14_deliverables      : PR #295 (moteur + API) + PR #297 (dual-app, 059, linking, save_m14_audit, CI, gel) ; ADR-M14-001 + DMS-M14-ARCH-RECONCILIATION ; docs ops Railway (RAILWAY_LOCAL_ENV, with_railway_env)
@@ -76,6 +76,7 @@ branch_courante       : main
 | **Auth workspace v2** | DONE | (à taguer CTO) | 6b27651b | 2026-04-09 | PR #351 — `api_auth_router`, provisioning tenant, Alembic **091–092** |
 | **V5.1 enterprise suite** | DONE | (à taguer CTO) | 55e16c41 | 2026-04-09 | PR #352 — comments API, `workspace_stack`, OpenAPI CI, E2E, garde-fous CI |
 | **V5.1 assessment_history (093)** | DONE | (à taguer CTO) | 595e4a77 | 2026-04-09 | PR #353 — table + RLS ; **apply Railway 090→093** OK 2026-04-09 |
+| **V5.1 NL frontend + CI (#357)** | DONE | (à taguer CTO) | 75a66239 | 2026-04-09 | PR #357 — `frontend-v51` E2E, proxy Next, `app_factory`, MQL 042 + asyncpg `::`, tests intégration ; **sans** migration Alembic |
 
 ---
 
