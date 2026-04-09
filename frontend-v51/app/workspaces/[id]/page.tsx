@@ -9,6 +9,9 @@ import { ComparativeTable } from "@/components/workspace/comparative-table";
 import { AgentConsole } from "@/components/agent/agent-console";
 import { SealButton } from "@/components/deliberation/seal-button";
 import { CommentDialog } from "@/components/deliberation/comment-dialog";
+import { PvExportButtons } from "@/components/workspace/pv-export-buttons";
+import { PdfDrilldownPlaceholder } from "@/components/workspace/pdf-drilldown-placeholder";
+import { WorkspaceEventsBridge } from "@/components/workspace/workspace-events-bridge";
 
 interface WorkspaceDetail {
   id: string;
@@ -94,6 +97,12 @@ export default function WorkspacePage() {
           </div>
         </div>
       )}
+
+      <WorkspaceEventsBridge workspaceId={id} />
+
+      {isSealed && <PvExportButtons workspaceId={id} />}
+
+      <PdfDrilldownPlaceholder />
 
       {cog?.advance_blockers && cog.advance_blockers.length > 0 && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">

@@ -27,6 +27,17 @@
 
 **Action :** utiliser `docker exec … psql` ou URL Railway via `scripts/with_railway_env.py` pour un `current` prod.
 
+### 2.1. `DATABASE_URL` — alignement docker-compose vs `.env.local`
+
+| Source | Valeur attendue |
+|--------|-----------------|
+| `docker-compose.yml` (service Postgres du dépôt) | Utilisateur / mot de passe / base **`dms` / `dms` / `dms`**, port **5432** mappé sur l’hôte |
+| URL canonique localhost (hôte → conteneur) | `postgresql+psycopg://dms:dms@localhost:5432/dms` (voir aussi `.env.example`, `.env.local.example`) |
+
+**Piège fréquent :** un `.env.local` copié depuis un exemple avec `postgres:postgres@.../decision_memory_dev` alors que seul le conteneur `dms` tourne → échec Alembic / pytest d’intégration (`authentification par mot de passe échouée pour l'utilisateur postgres`). Corriger en alignant `DATABASE_URL` sur l’instance réellement joignable (Compose ou Postgres natif), sans mélanger les deux.
+
+**Port 5432 déjà pris :** si `docker compose up` renvoie « Bind for 0.0.0.0:5432 failed: port is already allocated », un PostgreSQL hôte occupe 5432. Soit l’arrêter temporairement pour lancer le conteneur `dms`, soit adapter le mapping `ports` du service `postgres` dans `docker-compose.yml` (ex. `5433:5432`) et utiliser `...@localhost:5433/dms` dans `DATABASE_URL`.
+
 ---
 
 ## 3. Railway — vérité attendue (sources repo)

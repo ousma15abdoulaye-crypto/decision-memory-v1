@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/stores/auth";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 interface SidebarWorkspace {
   id: string;
@@ -43,10 +44,11 @@ export function Sidebar() {
 
   return (
     <aside className="flex w-56 flex-col border-r bg-white dark:border-gray-800 dark:bg-gray-900">
-      <div className="flex h-14 items-center border-b px-4 dark:border-gray-800">
+      <div className="flex h-14 items-center justify-between gap-2 border-b px-4 dark:border-gray-800">
         <Link href="/dashboard" className="text-lg font-bold">
           DMS
         </Link>
+        <ThemeToggle />
       </div>
 
       <nav className="flex-1 overflow-y-auto p-3">

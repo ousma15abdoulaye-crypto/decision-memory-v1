@@ -11,25 +11,34 @@ from __future__ import annotations
 
 import uuid
 
+import psycopg.errors
 import pytest
 
 _RLS_SUBJECT_ROLE = "dms_rls_nobypass"
 
 
 def _ensure_rls_subject_role(cur) -> None:
-    cur.execute("""
-        DO $body$
-        BEGIN
-            CREATE ROLE dms_rls_nobypass NOLOGIN NOSUPERUSER NOBYPASSRLS INHERIT;
-        EXCEPTION WHEN duplicate_object THEN
-            NULL;
-        END
-        $body$;
-        """)
-    cur.execute("GRANT USAGE ON SCHEMA public TO dms_rls_nobypass")
+    """Crée le rôle sujet RLS si possible ; sinon skip (CI / DB sans CREATEROLE)."""
+    try:
+        cur.execute("""
+            DO $body$
+            BEGIN
+                CREATE ROLE dms_rls_nobypass NOLOGIN NOSUPERUSER NOBYPASSRLS INHERIT;
+            EXCEPTION WHEN duplicate_object THEN
+                NULL;
+            END
+            $body$;
+            """)
+        cur.execute("GRANT USAGE ON SCHEMA public TO dms_rls_nobypass")
+    except psycopg.errors.InsufficientPrivilege:
+        cur.connection.rollback()
+        pytest.skip(
+            "RLS role setup: privilèges insuffisants (CREATE ROLE / GRANT USAGE schema)"
+        )
     try:
         cur.execute("GRANT SELECT ON assessment_history TO dms_rls_nobypass")
     except Exception:
+        cur.connection.rollback()
         pytest.skip("GRANT SELECT assessment_history impossible (droits DB)")
 
 
@@ -63,6 +72,9 @@ def test_assessment_history_rls_tenant_id_and_current_tenant_guc(
     cur = db_transaction
     if not _table_exists(cur, "assessment_history"):
         pytest.skip("Table assessment_history absente (migration 093 non appliquée)")
+
+    # Avant tout INSERT : si CREATE ROLE échoue, rollback — sinon transaction avortée.
+    _ensure_rls_subject_role(cur)
 
     tenant_id = str(uuid.uuid4())
     ws_id = str(uuid.uuid4())
@@ -130,13 +142,16 @@ def test_assessment_history_rls_tenant_id_and_current_tenant_guc(
     )
 
     other_tenant = str(uuid.uuid4())
+    # Policy 093 : current_setting(..., true)::uuid — éviter '' sur GUC ; UUID factices pour désaligner.
+    wrong_current = str(uuid.uuid4())
 
     try:
         _set_rls_subject_role(cur)
         cur.execute("SELECT set_config('app.is_admin', '', true)")
         cur.execute("SELECT set_config('app.tenant_id', %s, true)", (other_tenant,))
-        # Ne pas utiliser '' : le cast ::uuid de la policy 093 lèverait une erreur.
-        cur.execute("SELECT set_config('app.current_tenant', NULL, true)")
+        cur.execute(
+            "SELECT set_config('app.current_tenant', %s, true)", (wrong_current,)
+        )
         cur.execute(
             "SELECT COUNT(*) AS c FROM assessment_history WHERE id = %s",
             (ah_id,),
@@ -150,7 +165,8 @@ def test_assessment_history_rls_tenant_id_and_current_tenant_guc(
         )
         assert cur.fetchone()["c"] == 1, "app.tenant_id aligné → visible"
 
-        cur.execute("SELECT set_config('app.tenant_id', NULL, true)")
+        wrong_tenant_guc = str(uuid.uuid4())
+        cur.execute("SELECT set_config('app.tenant_id', %s, true)", (wrong_tenant_guc,))
         cur.execute("SELECT set_config('app.current_tenant', %s, true)", (tenant_id,))
         cur.execute(
             "SELECT COUNT(*) AS c FROM assessment_history WHERE id = %s",
