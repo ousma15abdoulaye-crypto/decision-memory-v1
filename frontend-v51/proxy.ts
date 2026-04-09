@@ -26,7 +26,8 @@ function jwtExpSeconds(token: string): number | null {
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (PUBLIC.some((p) => pathname.startsWith(p))) {
+  // Page d'accueil publique (liens Connexion / Tableau de bord) — ne pas exiger JWT.
+  if (pathname === "/" || PUBLIC.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 
