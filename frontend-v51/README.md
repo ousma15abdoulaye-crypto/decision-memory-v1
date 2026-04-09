@@ -6,13 +6,18 @@ Toutes les requêtes passent par l’URL de l’API FastAPI racine (`main.py`), 
 
 | Variable | Exemple local | Production |
 |----------|---------------|------------|
-| `NEXT_PUBLIC_API_URL` | `http://127.0.0.1:8000` | URL publique du service DMS API (Railway, etc.) |
+| `NEXT_PUBLIC_API_URL` | `http://127.0.0.1:8000` | `https://decision-memory-v1-production.up.railway.app:8080` |
 
 - **Login** : `POST {NEXT_PUBLIC_API_URL}/auth/login` (JSON `email` + `password`). Le champ `email` accepte aussi le **nom d’utilisateur**.
 - **Compat Swagger** : `POST /auth/token` (formulaire OAuth2 `username` / `password`).
 - **Ressources V5.1** : `GET /api/dashboard`, `/api/workspaces/...`, etc.
 
 Fichier client : [`lib/api-client.ts`](lib/api-client.ts) (`API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"`).
+
+> **⚠️ Railway / production** : `NEXT_PUBLIC_*` variables are inlined at **build time** by Next.js.
+> Set `NEXT_PUBLIC_API_URL` in the Railway service environment **before** triggering a deploy,
+> otherwise the built bundle will fall back to `http://localhost:8000` and all API calls will fail.
+> See [`railway.toml`](railway.toml) and [`.env.example`](.env.example) for reference values.
 
 ## Getting Started
 

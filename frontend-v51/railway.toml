@@ -1,0 +1,17 @@
+# Railway service configuration for frontend-v51 (Next.js)
+#
+# Required environment variable — set this in the Railway dashboard or via CLI:
+#   NEXT_PUBLIC_API_URL=https://decision-memory-v1-production.up.railway.app:8080
+#
+# NEXT_PUBLIC_* variables are embedded at build time by Next.js.
+# They MUST be present in the Railway service environment before the build runs.
+
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "npm run start"
+healthcheckPath = "/"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
