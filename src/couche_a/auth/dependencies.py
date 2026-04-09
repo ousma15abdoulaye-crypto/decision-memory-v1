@@ -111,7 +111,13 @@ def get_current_user(
         )
 
     load_dotenv()
-    url = os.environ["DATABASE_URL"].replace("postgresql+psycopg://", "postgresql://")
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url or not str(database_url).strip():
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Configuration invalide : DATABASE_URL n'est pas définie",
+        )
+    url = str(database_url).replace("postgresql+psycopg://", "postgresql://")
     conn = psycopg.connect(url, autocommit=True)
     try:
         try:
