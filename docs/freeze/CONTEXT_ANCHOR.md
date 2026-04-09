@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-08 — Mandat **DMS-MIGRATION-PROD-V51-001** (GO AO, RÈGLE-ANCHOR-06) : Railway PostgreSQL **090** (`090_v51_extraction_jobs_langfuse_trace`) — aligné dépôt ; **pré-état réel 080** (pas 079) — appliqué **081→090** (10 révisions) ; pre-check + post-check : `scripts/railway_migration_precheck_v51_001.py`, `scripts/railway_migration_postcheck_v51_001.py` ; rapport `docs/ops/RAILWAY_MIGRATION_V51_001_REPORT.md` ; backup Railway Dashboard Phase 1 **confirmé AO** : **1,4 Go**, **2026-04-08 15h12** ║
+║  Dernière mise à jour : 2026-04-08 — Mandat **DMS-MIGRATION-PROD-V51-001** (GO AO, RÈGLE-ANCHOR-06) : Railway PostgreSQL **090** (`090_v51_extraction_jobs_langfuse_trace`) — aligné dépôt ; **pré-état réel 080** (pas 079) — appliqué **081→090** (10 révisions) ; pre-check + post-check : `scripts/railway_migration_precheck_v51_001.py`, `scripts/railway_migration_postcheck_v51_001.py` ; rapport `docs/ops/RAILWAY_MIGRATION_V51_001_REPORT.md` ; backup Railway Dashboard Phase 1 **confirmé AO** : **1,4 Go**, **2026-04-08 15h12** ; **2026-04-09** — PR **#357** mergée (`75a66239`, NL/E2E/MQL/RLS test) — **E-99** + § **ADDENDUM 2026-04-09 — PR #357** ║
 ║  Addendum 2026-04-08 : Phase 1 **DMS-MIGRATION-PROD-V51-001** — preuve backup prod (PostgreSQL Railway) : taille **1,4 Go**, horodatage **2026-04-08 15h12** (saisie AO / CTO) ║
 ║  Addendum 2026-04-08 : PR #344 MERGÉ main 0b952668 — **due diligence + refactoring** : (1) `src/couche_a/extraction.py` → package `src/couche_a/extraction/` avec ré-exports publics + `httpx` (patches tests) ; (2) pipeline A découpé `service.py` + `steps.py` + `service_utils.py` + `cas_builder.py`, scoring/ScoringEngine **conservés dans** `service.py` (compat monkeypatch tests), GUARD-OPS-01 hash recalculé ; (3) `src/annotation/orchestrator.py` **fichier unique** (split package annulé — tests M12), **sans BOM UTF-8** ; (4) CI : workflow `ci-typecheck-mypy.yml` (informationnel), étape BLE001 Ruff sur `src/` seulement, `fail_under` couverture **68%** + `.milestones/M-TESTS.done`, pipefail exit codes ; (5) dette documentée `docs/audit/ALEMBIC_STATE_2026-04-08.md`, inventaire `scripts/README.md`, gel `DMS_CANON_V5.1.0_FREEZE.md` ; **hors périmètre / gel** : `services/annotation-backend/backend.py` non découpé (gel annotation + mandat CTO) ; squash Alembic / single-head **documenté, non exécuté** ║
 ║  Addendum 2026-04-08 : PR #345 MERGÉ main f0a8379c — Canon V5.1.0 (4 voies, due diligence, `frontend-v51`, MQL, Langfuse, garde-fous, migrations **087–090**) ; correctifs CI : `pytest-asyncio`, rôle RLS `dms_rls_nobypass`, `asyncio.run` (tests), whitelist heads **087–090** dans `tests/test_046b_imc_map_fix.py`, docstring `pv_builder` (INV-09) ; INV-F01 : `actions/setup-node@v4` + `npm ci` + `npx tsc --noEmit` sous `frontend-v51` (workflow `.github/workflows/dms_invariants_v51.yml`) ; **Railway prod** : migrations **081→090** appliquées sous mandat DMS-MIGRATION-PROD-V51-001 (pré-état **080**) ║
@@ -13,7 +13,7 @@
 ║  Addendum 2026-04-09 : PR #353 — Alembic **093** (`093_v51_assessment_history` : table + index + RLS) ; **align prod (090) → dépôt/local (093)** : dry-run complet `docs/ops/ALEMBIC_DRYRUN_090_to_093.sql` (offline `alembic upgrade 090_v51_extraction_jobs_langfuse_trace:093_v51_assessment_history --sql`) ║
 ║  Addendum 2026-04-09 (apply prod) : migrations **091→092→093** exécutées sur Railway PostgreSQL (pré-état **090**) via `scripts/with_railway_env.py` + `scripts/apply_railway_migrations_safe.py --apply` — **prod head = 093_v51_assessment_history** (alignée dépôt / main) ║
 ║  Addendum 2026-04-09 : fermeture backend V5.1 — factory `src/api/app_factory.py` : `create_railway_app` (`main.py`) + `create_modular_app` (`src.api.main`) ; hooks `_add_security_middleware`, `_mount_v51_workspace_bundle`, `_register_common_routers` ; gouvernance : `docs/ops/V51_BACKEND_API_CONTRACT_FOR_FRONTEND.md`, `docs/ops/V51_ROUTE_GUARD_INVENTORY.md`, `docs/adr/ADR-V51-WORKSPACE-ROLE-PERMISSION-MAP.md` ; ADR dual entrypoints mis à jour (Option A, sans `create_app(deployment_mode=…)`) ║
-║  Addendum 2026-04-09 : PR #357 **MERGÉ main 75a66239** — `feat/v51-nl-frontend-e2e-ci` : correctifs CI **MQL** — `src/db/async_pool.py` regex `_NAMED_PARAM_RE` avec lookbehind `(?<!:)` pour ne pas traiter les casts PostgreSQL `::text` / `::numeric` comme paramètres `:name` (KeyError dans `execute_mql_query`) ; `src/mql/engine.py` : `tenant_id` bind en **str** pour `CAST(:tenant_id AS text)` + asyncpg ; **E2E** Playwright `comparative-matrix.spec.ts` strict mode (grille / `columnheader`) ; **RLS 093** : GUC désalignés via UUID factices (évite `::uuid` sur `''`) ; templates MQL alignés schéma **042** ; **aucun nouveau fichier `alembic/versions/`** — **pas d’apply Railway** (head prod inchangé **093**) ║
+║  Addendum 2026-04-09 : PR #357 **MERGÉ main 75a66239** — `feat/v51-nl-frontend-e2e-ci` : **MQL + asyncpg** — `src/db/async_pool.py` `_NAMED_PARAM_RE` `(?<!:):([a-zA-Z_]\w*)` (évite `KeyError :text` sur `::text` / `::numeric`) ; `src/db/cursor_adapter.py` même principe ; `src/mql/engine.py` : `tenant_id` en **str** pour `CAST(:tenant_id AS text)` (évite `DataError` UUID) ; `src/mql/templates.py` aligné **042** + filtre `org_id` ; **E2E** `frontend-v51/e2e/comparative-matrix.spec.ts` : `path` dans `route`, grille + `columnheader`, cookie `dms_token` / proxy Next 16 ; **RLS** `tests/db/test_v51_assessment_history_rls.py` : UUID factices (pas `''` / `set_config` NULL→`''`) ; merge **main** pré-merge : conflits résolus spec + test ; **CI** vert (Coverage, lint-and-test, invariants, `frontend_v51_e2e`) ; **E-99** ; détail **§ ADDENDUM 2026-04-09 — PR #357** ; **sans** nouveau `alembic/versions/` — head prod **093** ║
 ║  Addendum 2026-04-07 : PR #342 MERGÉ main 42ace370 — M16 hardening (INV-weights, guards cognitifs, signal_engine, frontend committee/evaluation, tests DB/e2e) + correctifs revue Copilot (`dao_criteria` : `critere_nom`/`ponderation` ; `require_rbac_permission` pour éviter double `require_workspace_access` dans `m16_guard`) ; dépôt Alembic head **086** (`086_m16_force_row_level_security`) incl. **085** index cadre ; apply **080→086** Railway **en attente** tant que prod **079** (dry-run documenté : `DATABASE_URL=postgresql+psycopg://… alembic upgrade 079_bloc5_confidence_qualification_signal_log:head --sql`) ║
 ║  Addendum 2026-04-04 : PR #321 V4.2.0 Phase 3 — CI rouge — handover détaillé fin doc ║
 ║  Addendum 2026-04-05 : PR #324 MERGÉ main 107d05a2 — BLOC3 fix HTTP 500 W1/W2 + tenant RLS + market + ETL vendors ║
@@ -117,7 +117,7 @@
 ║  PR #351 (2026-04-09) : MERGÉ main 6b27651b — squash — auth workspace access v2 + migrations **091–092** ║
 ║  PR #352 (2026-04-09) : MERGÉ main 55e16c41 — squash — V5.1 suite : comments, OpenAPI CI, `workspace_stack`, tests/E2E, correctifs CI V5.1 ║
 ║  PR #353 (2026-04-09) : MERGÉ main — Alembic **093** `assessment_history` + CI head whitelist ; dry-run **090→093** : `docs/ops/ALEMBIC_DRYRUN_090_to_093.sql` ║
-║  PR #357 (2026-04-09) : **MERGÉ main 75a66239** — NL frontend sprint, proxy Next, E2E CI ; **asyncpg** binds + MQL + RLS test ; **sans migration Alembic** ║
+║  PR #357 (2026-04-09) : **MERGÉ main 75a66239** — NL `frontend-v51`, proxy Next 16, Playwright matrice ; **asyncpg** `:name`/`::cast`, MQL `str(tenant_id)`, RLS 093 test ; **sans migration Alembic** ; § ADDENDUM 2026-04-09 — PR #357 ║
 ║  parent 361b3787   : 91adc2ed — fix Dockerfile annotation-backend COPY procurement (#303) ║
 ║  (historique) main : 38733982 — Merge PR #292 feat/M13-regulatory-profile-engine-v5 ║
 ║    (M13 V5 engine, config/regulatory YAML SCI+DGMP, Pass 2A, migration 057, ADR-M13-001) ║
@@ -603,6 +603,14 @@
 ║         (fin de fichier). Secrets LS (URL, token, IDs) : **uniquement**║
 ║         `.env` / `.env.local` / secrets hébergeur — **interdit** de     ║
 ║         les hardcoder ou de les committer dans le dépôt.             ║
+║  E-99  MQL + asyncpg + RLS 093 (PR #357, 2026-04-09) : (1) convertisseur ║
+║         `:nom` → `$N` qui interprète `::text` / `::uuid` comme faux    ║
+║         paramètre `:text` → KeyError — fix `(?<!:):([a-zA-Z_]\w*)` ; ║
+║         (2) `CAST(:tenant_id AS text)` + UUID Python → DataError      ║
+║         asyncpg — fix `str(tenant_id)` dans bind_params ; (3) policy  ║
+║         093 `current_setting(..., true)::uuid` : GUC `''` ou reset   ║
+║         NULL→`''` → invalid uuid — tests : UUID factices, pas `''`.    ║
+║         Détail § ADDENDUM 2026-04-09 — PR #357.                        ║
 ║                                                                      ║
 ║  ADR-015  Line items chirurgical — docs/adr/ADR-015_*.md            ║
 ║           Date : 2026-03-16 — Statut : ACCEPTÉ — v3.0.1d           ║
@@ -2055,5 +2063,40 @@ E-98 (2026-04-06) : **`git clean -fd` (ou équivalent destructif) sans dry-run, 
 **Objet mandat :** `DMS-MANDAT-HARDENING-PRODUCT-001` — durcissement runtime seal → exports : snapshot PV versionné (`format_version` 1.1, bloc `meta` obligatoire, `validate_pv_snapshot`), hash seal **aligné** avec `document_service._canonical_hash()` (snapshot canonique avec `seal: {}` puis injection `seal_hash`), export comparatif XLSX dérivé du snapshot scellé, persistance M14 sur `workspace_id` (résolution legacy / UUID), script read-only `scripts/hardening_product_sql_checks.py`, rapports ops courts sous `docs/ops/` (statut, preuves, gap matrix J1–J17).
 
 **État produit pilote (rappel) :** preuve seal **AMBRE** possible tant qu’un workspace pilote n’a pas été re-scellé après ces changements — voir `docs/ops/PRODUCT_PROOF_REPORT.md` et `HARDENING_PRODUCT_STATUS.md`.
+
+---
+
+## ADDENDUM 2026-04-09 — PR #357 — LIVRABLES V51 (NL FRONTEND, E2E CI, MQL, RLS TEST)
+
+**Référence Git :** merge sur `main` — commit de merge **75a66239** — PR **#357** fermée — branche `feat/v51-nl-frontend-e2e-ci`.
+
+**Objectif livré :** débloquer la CI (invariants V5.1, Gate Coverage, lint-and-test), intégrer le sprint **NL** sur `frontend-v51` avec **Playwright** en CI, corriger le moteur **MQL** sous **asyncpg**, et stabiliser le test **RLS** sur `assessment_history` (093), sans nouvelle migration Alembic ni apply Railway.
+
+### Périmètre fichiers (trace agent / revue)
+
+| Zone | Fichiers / éléments |
+|------|---------------------|
+| Pool asyncpg | `src/db/async_pool.py` — `_NAMED_PARAM_RE = re.compile(r"(?<!:):([a-zA-Z_]\w*)")` pour ignorer les casts SQL `::type` lors du remplacement `:name` → `$N` |
+| Curseur (symétrie) | `src/db/cursor_adapter.py` — même motif lookbehind sur les requêtes style psycopg `%()s` |
+| MQL engine | `src/mql/engine.py` — `bind_params["tenant_id"] = str(tenant_id)` lorsque le SQL fait `CAST(:tenant_id AS text)` (asyncpg : `DataError` si objet `UUID` Python passé tel quel pour ce motif) |
+| MQL SQL | `src/mql/templates.py` — requêtes alignées schéma **042** (`market_surveys`, `survey_campaigns`) ; filtre multi-tenant via `org_id` textuel ; pas de colonnes fantômes type `ms.article_label` sur `market_surveys` |
+| Test RLS | `tests/db/test_v51_assessment_history_rls.py` — scénario `app.tenant_id` / `app.current_tenant` / admin ; **UUID aléatoires** pour simuler des GUC non alignés (éviter `''` et `set_config(..., NULL)` qui peuvent laisser `''` et faire échouer `current_setting(..., true)::uuid` dans la policy 093) ; création rôle `dms_rls_nobypass` avec `pytest.skip` si privilèges insuffisants |
+| E2E | `frontend-v51/e2e/comparative-matrix.spec.ts` — `page.route` sur `pathname` ; assertions **scoped** à `getByTestId("comparative-table-grid")` ; zoom fournisseur via `getByRole("columnheader", …)` ; cookie `dms_token` + fonction `e2eDmsToken()` pour le proxy |
+| Proxy Next | `frontend-v51/proxy.ts` — attente JWT minimal côté E2E (si présent sur le commit mergé) |
+| Intégration MQL | `tests/test_v51_plan_closure_integration.py` — `test_mql_stream_persists_mql_query_log` : route réelle `POST /api/mql/stream`, persistance `mql_query_log` (dépend des correctifs ci-dessus) |
+
+### CI / qualité
+
+- Workflows concernés : **CI Main** (`lint-and-test`), **CI — Milestone Gates** (**Gate · Coverage**), **DMS V5.1 — 16 Tests de Verrouillage** (`invariants`, `frontend_v51_e2e`), **INV-F01** (`tsc` sous `frontend-v51`).
+- Revue **Copilot** (fichier E2E) : correction variable `url` non définie → utilisation de `path` ; strict mode Playwright → ciblage grille / en-tête de colonne.
+
+### Gouvernance Alembic / Railway
+
+- **Aucun** nouveau fichier sous `alembic/versions/` dans ce périmètre.
+- **Head prod** : inchangé **093** (`093_v51_assessment_history`) — pas d’apply supplémentaire lié à PR #357.
+
+### ERREUR CAPITALISÉE — E-99 (2026-04-09) — MQL, ASYNCPG, RLS GUC (PR #357)
+
+**E-99** : **Trois pièges CI liés à V5.1 MQL + tests RLS 093.** (1) Un convertisseur SQL `:nom` → positionnel qui traite **`::text` / `::uuid` comme un faux paramètre `:text`** → `KeyError` ou bind incorrect — **correctif :** lookbehind `(?<!:):` sur le motif nommé. (2) **asyncpg** avec `CAST(:tenant_id AS text)` : passer un **`UUID` Python** peut produire **`DataError: expected str, got UUID`** — **correctif :** `str(tenant_id)` dans les `bind_params` du moteur MQL pour ce pattern. (3) Policy RLS 093 **`current_setting('app.tenant_id', true)::uuid`** : valeurs GUC **`''`** ou reset **`NULL` → `''`** sur variables custom → **`invalid input syntax for type uuid: ""`** et transaction avortée — **correctif tests :** utiliser des **UUID aléatoires** pour les cas « non alignés », pas chaîne vide ni `set_config(..., NULL)` si le reset remet `''`.
 
 ---
