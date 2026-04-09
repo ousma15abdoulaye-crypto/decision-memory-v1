@@ -98,6 +98,16 @@ async def railway_lifespan(_app: FastAPI):
         from src.db import init_db_schema
 
         init_db_schema()
+    if not _is_testing:
+        try:
+            from src.agent.semantic_router import warm_centroids
+
+            await warm_centroids()
+            _logger.info("[lifespan] Centroïdes pré-calculés (warm_centroids OK).")
+        except Exception:
+            _logger.warning(
+                "[lifespan] warm_centroids échoué — sera calculé au premier appel agent."
+            )
     yield
     try:
         from src.db.async_pool import close_async_pool
@@ -540,6 +550,17 @@ def create_modular_app() -> FastAPI:
                 "[startup] Routers optionnels inactifs (milestone non ouvert) : %s",
                 inactive,
             )
+        _is_testing = os.environ.get("TESTING", "false").lower() == "true"
+        if not _is_testing:
+            try:
+                from src.agent.semantic_router import warm_centroids
+
+                await warm_centroids()
+                logger.info("[startup] Centroïdes pré-calculés (warm_centroids OK).")
+            except Exception:
+                logger.warning(
+                    "[startup] warm_centroids échoué — sera calculé au premier appel agent."
+                )
         yield
 
     app = FastAPI(

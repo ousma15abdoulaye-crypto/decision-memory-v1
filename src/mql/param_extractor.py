@@ -89,7 +89,7 @@ async def extract_mql_params(query: str, tenant_id: UUID) -> MQLParams:
     )
 
 
-def _extract_article(query_lower: str) -> str:
+def _extract_article(query_lower: str) -> str | None:
     """Extrait l'article principal de la question."""
     stop_words = {
         "quel",

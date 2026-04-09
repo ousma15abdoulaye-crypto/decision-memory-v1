@@ -53,6 +53,7 @@ async def stream_mistral(
     from src.agent.circuit_breaker import get_breaker
 
     client = _get_client()
+    breaker = get_breaker()
 
     if client is None or _fallback:
         fallback_msg = (
@@ -64,9 +65,8 @@ async def stream_mistral(
             output={"content_length": len(fallback_msg)},
             metadata={"usage": {"fallback": True}},
         )
+        await breaker.record_failure()
         return
-
-    breaker = get_breaker()
     full_content = ""
     usage: dict[str, Any] = {}
 

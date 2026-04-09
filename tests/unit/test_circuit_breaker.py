@@ -77,3 +77,39 @@ class TestGetModelWithBreaker:
             mock_b.get_state = _fake_open
             model = _run(get_model_with_breaker())
         assert model == FALLBACK_MODEL
+
+
+class TestBreakerFallbackPath:
+    """Tests circuit breaker coverage sur le path fallback (BUG-P0-03).
+
+    Quand _get_client() retourne None, stream_mistral doit appeler record_failure()
+    pour que le circuit breaker reflète l'état réel.
+    """
+
+    def test_record_failure_called_when_client_none(self):
+        """record_failure() DOIT être appelé quand MISTRAL_API_KEY est absente."""
+        import asyncio
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        mock_breaker = MagicMock()
+        mock_breaker.record_failure = AsyncMock()
+
+        mock_span = MagicMock()
+        mock_span.update = MagicMock()
+
+        async def _collect():
+            with (
+                patch("src.agent.llm_client._client", None),
+                patch("src.agent.llm_client._fallback", True),
+                patch("src.agent.llm_client.get_breaker", return_value=mock_breaker),
+            ):
+                from src.agent.llm_client import stream_mistral
+
+                tokens = []
+                async for tok in stream_mistral("mistral-small-latest", [], mock_span):
+                    tokens.append(tok)
+                return tokens
+
+        tokens = asyncio.run(_collect())
+        assert len(tokens) > 0
+        mock_breaker.record_failure.assert_awaited_once()

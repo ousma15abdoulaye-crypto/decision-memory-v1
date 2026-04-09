@@ -132,6 +132,16 @@ async def classify_intent(query: str) -> IntentResult:
     )
 
 
+async def warm_centroids() -> None:
+    """Pré-calcule les centroïdes au démarrage de l'application.
+
+    À appeler dans le lifespan FastAPI pour éviter le cold start (~1.6s)
+    sur la première requête agent, critique en terrain 3G+ Mopti.
+    Délègue à _ensure_centroids() — idempotent si déjà calculés.
+    """
+    await _ensure_centroids()
+
+
 def reset_centroid_cache() -> None:
     """Réinitialise le cache de centroïdes (utile pour les tests)."""
     _centroid_cache.clear()

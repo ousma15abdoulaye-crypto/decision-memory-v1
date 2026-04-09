@@ -12,7 +12,7 @@ import json
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -25,11 +25,13 @@ from src.agent.handlers import (
     workspace_status_handler,
 )
 from src.agent.langfuse_client import flush_langfuse, get_langfuse
+from src.agent.output_filter import filter_token_stream
 from src.agent.semantic_router import IntentClass, classify_intent
 from src.auth.guard import guard
 from src.auth.permissions import ROLE_PERMISSIONS
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.db.async_pool import AsyncpgAdapter, acquire_with_rls
+from src.ratelimit import LIMIT_ANNOTATION, limiter
 
 router = APIRouter(prefix="/api", tags=["agent-v51"])
 
@@ -41,7 +43,9 @@ class AgentPromptRequest(BaseModel):
 
 
 @router.post("/agent/prompt")
+@limiter.limit(LIMIT_ANNOTATION)
 async def agent_prompt(
+    request: Request,
     payload: AgentPromptRequest,
     current_user: UserClaims = Depends(get_current_user),
 ) -> Any:
@@ -133,14 +137,15 @@ async def agent_prompt(
             async def event_generator():  # type: ignore[return]
                 assistant_content = ""
                 try:
-                    async for event in handler(
+                    raw_stream = handler(
                         query=payload.query,
                         workspace_id=payload.workspace_id,
                         user=user_dict,
                         db=conn,
                         context=context,
                         trace=trace,
-                    ):
+                    )
+                    async for event in filter_token_stream(raw_stream, trace):
                         if event.get("type") == "token" and event.get("content"):
                             assistant_content += event["content"]
                         yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"

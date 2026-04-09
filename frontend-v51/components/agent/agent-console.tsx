@@ -62,7 +62,25 @@ export function AgentConsole({ workspaceId }: { workspaceId: string }) {
           return;
         }
 
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          let detail = "";
+          try {
+            const body = await res.json();
+            detail = body.detail || body.message || "";
+          } catch {
+            // ignore parse error
+          }
+          const HTTP_ERRORS: Record<number, string> = {
+            401: "Session expirée. Reconnectez-vous.",
+            403: "Accès refusé. Vérifiez vos permissions pour ce workspace.",
+            429: "Trop de requêtes. Réessayez dans quelques secondes.",
+          };
+          const human =
+            HTTP_ERRORS[res.status] ||
+            detail ||
+            `Erreur serveur (${res.status}). Réessayez ou contactez l'administrateur.`;
+          throw new Error(human);
+        }
 
         const reader = res.body?.getReader();
         if (!reader) return;
