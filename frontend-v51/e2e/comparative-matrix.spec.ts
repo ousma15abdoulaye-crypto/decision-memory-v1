@@ -2,6 +2,13 @@ import { expect, test } from "@playwright/test";
 
 const WS_ID = "aaaaaaaa-bbbb-4ccc-dddd-eeeeeeeeeeee";
 
+/** Cookie attendu par `proxy.ts` : JWT minimal avec `exp` futur (signature non vérifiée). */
+function e2eDmsToken(): string {
+  const exp = Math.floor(Date.now() / 1000) + 86_400;
+  const payload = Buffer.from(JSON.stringify({ exp })).toString("base64url");
+  return `e2e.${payload}.sig`;
+}
+
 const mockWorkspace = {
   id: WS_ID,
   reference_code: "E2E-WS",
@@ -62,6 +69,15 @@ const mockEvalFrame = {
 
 test.describe("Matrice comparative (NL-01 / NL-08 / NL-09)", () => {
   test.beforeEach(async ({ page }) => {
+    const base = process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:3000";
+    await page.context().addCookies([
+      {
+        name: "dms_token",
+        value: encodeURIComponent(e2eDmsToken()),
+        url: base,
+      },
+    ]);
+
     await page.addInitScript(() => {
       window.localStorage.setItem(
         "dms-auth",
@@ -76,17 +92,18 @@ test.describe("Matrice comparative (NL-01 / NL-08 / NL-09)", () => {
     });
 
     await page.route("**/api/workspaces/**", async (route) => {
-      const path = new URL(route.request().url()).pathname.replace(/\/$/, "");
+      const reqUrl = route.request().url();
+      const path = new URL(reqUrl).pathname.replace(/\/$/, "");
       const base = `/api/workspaces/${WS_ID}`;
       if (path === base) {
         await route.fulfill(fulfillJson(mockWorkspace));
         return;
       }
-      if (url.includes("/cognitive-state")) {
+      if (path.includes("/cognitive-state")) {
         await route.fulfill(fulfillJson(mockCognitive));
         return;
       }
-      if (url.includes("/evaluation-frame")) {
+      if (path.includes("/evaluation-frame")) {
         await route.fulfill(fulfillJson(mockEvalFrame));
         return;
       }
