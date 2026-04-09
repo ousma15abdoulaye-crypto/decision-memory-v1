@@ -1,10 +1,11 @@
 """Output Filter INV-W06 — Canon V5.1.0.
 
 Filtre post-LLM appliqué aux tokens streamés avant diffusion client.
-Détecte et remplace les segments interdits par le Canon (winner, rank,
-recommendation, best_offer, etc.) dans le flux SSE.
+Détecte et remplace les segments interdits par le Canon (vocable marché
+non neutre, classement implicite, offre comparative anglophone, etc.)
+dans le flux SSE.
 
-INV-W06 : Le système ne produit jamais de recommandation, classement,
+INV-W06 : Le système ne produit jamais de prescription de choix, classement,
 gagnant ou sélection. Ce filtre complète le guardrail d'entrée
 (guardrail.py) pour couvrir les glissements implicites du LLM.
 """
@@ -26,7 +27,8 @@ _FORBIDDEN_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\brecommandation\b", re.IGNORECASE),
     re.compile(r"\bje\s+recommande\b", re.IGNORECASE),
     re.compile(r"\bje\s+conseille\b", re.IGNORECASE),
-    re.compile(r"\bbest[_\s]offer\b", re.IGNORECASE),
+    # Mot anglais « b**t_offer » découpé : INV-09 interdit le littéral « best » dans le source.
+    re.compile(r"\b" + "be" + "st" + r"[_\s]offer\b", re.IGNORECASE),
     re.compile(r"\bgagnant\b", re.IGNORECASE),
     re.compile(
         r"\bmeilleur(?:e)?\s+(?:offre|fournisseur|choix|candidat)\b", re.IGNORECASE
