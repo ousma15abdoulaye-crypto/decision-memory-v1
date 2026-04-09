@@ -160,15 +160,44 @@ def _register_common_routers(
     app.include_router(criteria_router)
 
 
+_DEFAULT_CORS_ORIGINS: tuple[str, ...] = (
+    "https://frontend-v51-production.up.railway.app",
+    "http://localhost:3000",
+    "http://localhost:8000",
+)
+
+
+def _cors_allow_origins() -> list[str]:
+    """Liste d'origines autorisées — E-27 : aucun item ``*`` ; préférer ``CORS_ORIGINS`` en prod."""
+    raw = (os.environ.get("CORS_ORIGINS") or "").strip()
+    if not raw:
+        return list(_DEFAULT_CORS_ORIGINS)
+    origins = [o.strip() for o in raw.split(",") if o.strip()]
+    if any(origin == "*" for origin in origins):
+        logger.warning(
+            "[CORS] CORS_ORIGINS contient '*' refusé (E-27) — utilisation des origines par défaut"
+        )
+        return list(_DEFAULT_CORS_ORIGINS)
+    return origins
+
+
 def register_modular_cors(app: FastAPI) -> None:
-    """CORS aligné frontend-v51 / dev local."""
+    """CORS aligné frontend-v51 / dev local + Railway ``main:app``.
+
+    À appeler **après** les autres ``add_middleware`` (rate limit, sécurité) : sous Starlette,
+    le dernier middleware ajouté est le plus externe ; sinon les réponses court-circuitées
+    (ex. 429) partent sans en-têtes CORS.
+
+    Variables : ``CORS_ORIGINS`` (séparateur virgule, ex. ``https://app.example.com``).
+    Si absente : défauts (frontend Railway historique + localhost).
+    """
+    allow_origins = _cors_allow_origins()
+    if not allow_origins:
+        logger.warning("[CORS] Liste d'origines vide — fallback défaut")
+        allow_origins = list(_DEFAULT_CORS_ORIGINS)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "https://frontend-v51-production.up.railway.app",
-            "http://localhost:3000",
-            "http://localhost:8000",
-        ],
+        allow_origins=allow_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -519,8 +548,8 @@ def create_modular_app() -> FastAPI:
         description="Decision Memory System — Constitution V3.3.2",
         lifespan=lifespan,
     )
-    register_modular_cors(app)
     _add_security_middleware(app, log_prefix="[src.api.main]")
+    register_modular_cors(app)
     _register_common_routers(app, entry="modular")
     _mount_v51_workspace_bundle(app)
 
@@ -549,6 +578,8 @@ def create_railway_app() -> FastAPI:
 
     init_rate_limit(app)
     _add_security_middleware(app, log_prefix="[main]")
+    # Dernier middleware = le plus externe (headers CORS aussi sur 429 / erreurs).
+    register_modular_cors(app)
     _register_common_routers(app, entry="railway")
     _mount_v51_workspace_bundle(app)
 
