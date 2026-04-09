@@ -98,10 +98,14 @@ class TestBreakerFallbackPath:
         mock_span.update = MagicMock()
 
         async def _collect():
+            # get_breaker est importé dans stream_mistral depuis circuit_breaker, pas un attribut de llm_client
             with (
                 patch("src.agent.llm_client._client", None),
                 patch("src.agent.llm_client._fallback", True),
-                patch("src.agent.llm_client.get_breaker", return_value=mock_breaker),
+                patch(
+                    "src.agent.circuit_breaker.get_breaker",
+                    return_value=mock_breaker,
+                ),
             ):
                 from src.agent.llm_client import stream_mistral
 

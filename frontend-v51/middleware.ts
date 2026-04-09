@@ -26,7 +26,7 @@ function jwtExpSeconds(token: string): number | null {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Page d'accueil publique (liens Connexion / Tableau de bord) — ne pas exiger JWT.
+  // Racine : pas de JWT ici (redirect app → /dashboard ; sans cookie → /login).
   if (pathname === "/" || PUBLIC.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
