@@ -135,4 +135,4 @@ def _extract_article(query_lower: str) -> str:
 
     if meaningful:
         return " ".join(meaningful[:3])
-    return "%"
+    return None

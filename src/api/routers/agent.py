@@ -27,6 +27,7 @@ from src.agent.handlers import (
 from src.agent.langfuse_client import flush_langfuse, get_langfuse
 from src.agent.semantic_router import IntentClass, classify_intent
 from src.auth.guard import guard
+from src.auth.permissions import ROLE_PERMISSIONS
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.db.async_pool import AsyncpgAdapter, acquire_with_rls
 
@@ -94,6 +95,10 @@ async def agent_prompt(
                     str(payload.workspace_id),
                     "agent.query",
                 )
+            else:
+                role_perms = ROLE_PERMISSIONS.get(current_user.role or "", frozenset())
+                if "agent.query" not in role_perms and "system.admin" not in role_perms:
+                    raise HTTPException(403, "Permission agent.query requise.")
 
             intent_span = trace.span(name="intent_classification")
             intent = await classify_intent(payload.query)

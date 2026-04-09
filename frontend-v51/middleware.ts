@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 /**
- * Garde UX (proxy Next.js 16) : on lit seulement le payload JWT (exp). La signature n'est pas
+ * Garde UX (middleware Next.js 16) : on lit seulement le payload JWT (exp). La signature n'est pas
  * vérifiée ici — l'API FastAPI reste la barrière d'authentification réelle.
  */
 const PUBLIC = ["/login", "/api/auth", "/_next", "/favicon"];
 
-/** Décode l'expiration JWT sans vérifier la signature (usage proxy uniquement). */
+/** Décode l'expiration JWT sans vérifier la signature (usage middleware uniquement). */
 function jwtExpSeconds(token: string): number | null {
   try {
     const parts = token.split(".");
@@ -23,7 +23,7 @@ function jwtExpSeconds(token: string): number | null {
   }
 }
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Page d'accueil publique (liens Connexion / Tableau de bord) — ne pas exiger JWT.

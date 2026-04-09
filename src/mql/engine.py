@@ -7,6 +7,7 @@ INV-A04 : chaque réponse MQL liste ses sources.
 
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass
 from datetime import date
@@ -16,6 +17,8 @@ from uuid import UUID
 from src.mql.param_extractor import extract_mql_params
 from src.mql.template_selector import select_template
 from src.mql.templates import MQL_TEMPLATES, MQLParams
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -64,7 +67,12 @@ async def execute_mql_query(
         # asyncpg + CAST(:tenant_id AS text) : passer une str évite DataError sur UUID.
         "tenant_id": str(tenant_id),
         "article_pattern": (
-            f"%{params.article_pattern}%" if params.article_pattern else "%"
+            f"%{params.article_pattern}%"
+            if params.article_pattern
+            else (
+                log.warning("MQL article_pattern absent — requête large (ILIKE '%%')")
+                or "%"
+            )
         ),
         "zones": params.zones or ["Bamako", "Mopti", "Sévaré", "Gao"],
         "vendor_pattern": (
