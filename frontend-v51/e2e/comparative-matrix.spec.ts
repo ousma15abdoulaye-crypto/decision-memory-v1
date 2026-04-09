@@ -120,7 +120,7 @@ test.describe("Matrice comparative (NL-01 / NL-08 / NL-09)", () => {
     });
 
     await page.getByTestId("filter-eliminatory").check();
-    // Éviter strict mode : le même libellé apparaît dans les <select> zoom (hors grille).
+    // Strict mode : même libellé dans la grille et hors grille (ex. zoom) — cibler la grille.
     await expect(grid.getByText("Critère 2 ELIM")).toBeVisible();
     await expect(grid.getByText("Critère 1")).not.toBeVisible();
 
