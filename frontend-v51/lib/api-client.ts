@@ -63,6 +63,32 @@ class ApiClient {
     });
   }
 
+  /** Téléchargement binaire (PDF, XLSX) — ne parse pas le corps en JSON. */
+  async downloadBlob(
+    path: string,
+  ): Promise<{ blob: Blob; filename: string | null }> {
+    const token = this.getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_BASE}${path}`, { headers });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new ApiError(
+        res.status,
+        (body.detail || body.message || res.statusText) as string,
+      );
+    }
+    const cd = res.headers.get("Content-Disposition");
+    let filename: string | null = null;
+    if (cd) {
+      const m = cd.match(/filename="?([^";]+)"?/);
+      if (m) filename = m[1];
+    }
+    const blob = await res.blob();
+    return { blob, filename };
+  }
+
   /** POST brut (ex. SSE) — en-têtes auth alignés sur get/post ; supporte `signal` (AbortController). */
   rawPost(
     path: string,

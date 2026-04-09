@@ -3,6 +3,13 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface CommentDialogProps {
   workspaceId: string;
@@ -39,16 +46,13 @@ export function CommentDialog({
   });
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="comment-dialog-title"
-    >
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg dark:bg-gray-900">
-        <h2 id="comment-dialog-title" className="text-lg font-semibold">Ajouter un commentaire</h2>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle>Ajouter un commentaire</DialogTitle>
+        </DialogHeader>
 
-        <div className="mt-4 space-y-4">
+        <div className="space-y-4">
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -70,14 +74,12 @@ export function CommentDialog({
           </label>
         </div>
 
-        <div className="mt-6 flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="rounded-md px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-          >
+        <div className="mt-4 flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose}>
             Annuler
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
             onClick={() =>
               mutation.mutate({
                 content,
@@ -87,12 +89,11 @@ export function CommentDialog({
               })
             }
             disabled={!content.trim() || mutation.isPending}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {mutation.isPending ? "Envoi..." : "Publier"}
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

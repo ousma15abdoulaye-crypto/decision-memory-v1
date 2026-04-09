@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-04-09 — Prod **090** (`090_v51_extraction_jobs_langfuse_trace`) ; dépôt / local **093** (`093_v51_assessment_history`) — dry-run alignement **090→093** : `docs/ops/ALEMBIC_DRYRUN_090_to_093.sql` ; partiel **090→092** : `docs/ops/ALEMBIC_DRYRUN_090_to_092.sql` ; PR #353 (093 + CI) ; #351 / #352 inchangés réf. merges précédents
+# Derniere mise a jour : 2026-04-09 — **Railway prod = dépôt** : head **093** (`093_v51_assessment_history`) ; apply réussi **090→091→092→093** via `python scripts/with_railway_env.py python scripts/apply_railway_migrations_safe.py --apply` ; preuve SQL hors exécution : `docs/ops/ALEMBIC_DRYRUN_090_to_093.sql`
 
 ---
 
@@ -30,13 +30,13 @@ freeze_hashes_doc     : docs/freeze/FREEZE_HASHES.md
 
 ## ETAT COURANT
 
-last_completed        : V4.2.0 Workspace-First (PRs #319–#323) + **V4.3.1 BLOC5** (PR #329) + **M16** (PRs #340, #342) + **due diligence** (PR #344) + **DMS V5.1.0** (PR #345) + **auth workspace v2** (PR #351) + **V5.1 enterprise suite** (PR #352) + **093 assessment_history** (PR #353, 2026-04-09) — PR #351 **091–092** ; PR #352 `workspace_stack`, comments, OpenAPI CI, E2E ; PR #353 **093** + dry-run align prod **090** → dépôt **093** : `docs/ops/ALEMBIC_DRYRUN_090_to_093.sql`
+last_completed        : V4.2.0 Workspace-First (PRs #319–#323) + **V4.3.1 BLOC5** (PR #329) + **M16** (PRs #340, #342) + **due diligence** (PR #344) + **DMS V5.1.0** (PR #345) + **auth workspace v2** (PR #351) + **V5.1 enterprise suite** (PR #352) + **093 assessment_history** (PR #353) + **apply Railway 090→093** (2026-04-09 : `with_railway_env` + `apply_railway_migrations_safe.py --apply`) — **prod Railway = dépôt head 093**
 last_completed_at     : 2026-04-09
 last_merge_commit     : 595e4a77 (main — PR #353 : Alembic 093 assessment_history + CI head whitelist)
 last_tag              : v4.1.0-m12-done (V4.2.0 / V4.3.1 tags pending CTO)
-next_milestone        : **Apply Alembic 090→093** sur Railway (prod **090** → head dépôt **093**) — preuve SQL : `docs/ops/ALEMBIC_DRYRUN_090_to_093.sql` + `alembic upgrade head` sous GO CTO ; puis bascule `ANNOTATION_USE_PASS_ORCHESTRATOR=1` + pilote SCI Mali
-next_status           : EN ATTENTE — **delta prod vs dépôt = 090 vs 093** (3 révisions : 091, 092, 093) ; wiring V5.1 partiel #352 ; REGLE-23 **OK** ; orchestrateur Pass **pas** basculé prod
-blocked_on            : (1) runbook parity `docs/ops/RELEASE_MAIN_APP_PARITY_CHECKLIST.md` ; (2) **090→093 Railway** : GO CTO + pre-check `alembic current` = **090** ; dry-run versionné `ALEMBIC_DRYRUN_090_to_093.sql` ; ~~080→090~~ **fait** ; (3) ~~sync annotations~~ **fait** ; (4) `ANNOTATION_USE_PASS_ORCHESTRATOR=1` ; (5) vendors — `scripts/README_VENDOR_IMPORT.md`
+next_milestone        : Bascule `ANNOTATION_USE_PASS_ORCHESTRATOR=1` (fenêtre hors annotation) + pilote SCI Mali + runbook parity `RELEASE_MAIN_APP_PARITY_CHECKLIST.md`
+next_status           : **Alembic prod aligné dépôt (093)** — 2026-04-09 ; wiring V5.1 partiel #352 ; REGLE-23 **OK** ; orchestrateur Pass **pas** basculé prod
+blocked_on            : (1) runbook parity `docs/ops/RELEASE_MAIN_APP_PARITY_CHECKLIST.md` ; (2) ~~**090→093 Railway**~~ **fait** 2026-04-09 (`apply_railway_migrations_safe.py --apply`) ; ~~080→090~~ **fait** ; (3) ~~sync annotations~~ **fait** ; (4) `ANNOTATION_USE_PASS_ORCHESTRATOR=1` ; (5) vendors — `scripts/README_VENDOR_IMPORT.md`
 m13_prerequisites     : M12 Phase 3 PR #289 mergé ; ADR-M13-001 + Pass 2A + config/regulatory PR #292 ; migration 057 appliquée prod 2026-04-02 — persistance m13_* opérationnelle côté schéma ; secrets DB = .env.railway.local + with_railway_env.py (RAILWAY_LOCAL_ENV.md) ; **PR #331** : `with_railway_env` aligne `DATABASE_URL` sur `RAILWAY_DATABASE_URL` (opt-out `WITH_RAILWAY_ENV_PRESERVE_DATABASE_URL=1`)
 m14_deliverables      : PR #295 (moteur + API) + PR #297 (dual-app, 059, linking, save_m14_audit, CI, gel) ; ADR-M14-001 + DMS-M14-ARCH-RECONCILIATION ; docs ops Railway (RAILWAY_LOCAL_ENV, with_railway_env)
 vendors_ops_2026_04   : PR #330 préflight schéma + `--check-migration-compat` ; PR #332 tranche 661 vs 103 ; import ETL M4 Railway **lot 103 lignes** (2026-04-05) — `scripts/README_VENDOR_IMPORT.md`
@@ -75,16 +75,16 @@ branch_courante       : main
 | **DMS V5.1.0** | DONE | (à taguer CTO) | f0a8379c | 2026-04-08 | PR #345 — Canon V5.1.0 implémentation (4 voies, due diligence, frontend-v51, MQL, Langfuse, migrations 087–090, 16 tests verrouillage CI) |
 | **Auth workspace v2** | DONE | (à taguer CTO) | 6b27651b | 2026-04-09 | PR #351 — `api_auth_router`, provisioning tenant, Alembic **091–092** |
 | **V5.1 enterprise suite** | DONE | (à taguer CTO) | 55e16c41 | 2026-04-09 | PR #352 — comments API, `workspace_stack`, OpenAPI CI, E2E, garde-fous CI |
-| **V5.1 assessment_history (093)** | DONE | (à taguer CTO) | 595e4a77 | 2026-04-09 | PR #353 — table `assessment_history` + index + RLS ; dry-run prod **090→093** versionné |
+| **V5.1 assessment_history (093)** | DONE | (à taguer CTO) | 595e4a77 | 2026-04-09 | PR #353 — table + RLS ; **apply Railway 090→093** OK 2026-04-09 |
 
 ---
 
-## ÉTAT ALEMBIC — MIS À JOUR 2026-04-09 (dépôt **head 093** ; prod **090** — alignement = **090→093**)
+## ÉTAT ALEMBIC — MIS À JOUR 2026-04-09 (dépôt **093** ; **Railway prod 093** — aligné)
 
 local_alembic_head       : 093_v51_assessment_history
-railway_alembic_head     : **090_v51_extraction_jobs_langfuse_trace** (confirmé prod AO 2026-04-09) — apply **091 → 092 → 093** sous GO CTO ; **dry-run SQL complet** : `docs/ops/ALEMBIC_DRYRUN_090_to_093.sql` ; partiel **090→092** : `docs/ops/ALEMBIC_DRYRUN_090_to_092.sql` — pré-vol : `SELECT version_num FROM alembic_version;` = **090_v51_extraction_jobs_langfuse_trace**
-migrations_pending_railway: **091, 092, 093** vs dépôt **093** *si* prod encore **090** ; sinon **aucune** une fois **093** appliqué
-last_sync_railway        : 2026-04-08 — **081→090** — `docs/ops/RAILWAY_MIGRATION_V51_001_REPORT.md` ; **090→093** : non documenté comme appliqué prod au 2026-04-09
+railway_alembic_head     : **093_v51_assessment_history** (apply **091 → 092 → 093** le **2026-04-09** — `python scripts/with_railway_env.py python scripts/apply_railway_migrations_safe.py --apply` ; pré-état **090**) ; **dry-run SQL** (audit hors exécution) : `docs/ops/ALEMBIC_DRYRUN_090_to_093.sql` ; partiel **090→092** : `docs/ops/ALEMBIC_DRYRUN_090_to_092.sql`
+migrations_pending_railway: **aucune** vs dépôt **093** (prod alignée)
+last_sync_railway        : 2026-04-09 — **090→093** (091, 092, 093) — `apply_railway_migrations_safe.py --apply` + `with_railway_env.py` ; historique **081→090** : `docs/ops/RAILWAY_MIGRATION_V51_001_REPORT.md` (2026-04-08)
 last_updated             : 2026-04-09
 updated_by               : apply_railway_migrations_safe.py + python scripts/with_railway_env.py (PR #331 : `DATABASE_URL` ← `RAILWAY_DATABASE_URL` si défini)
 audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
@@ -100,8 +100,8 @@ migrations 059→067 (Phase 1 M15). Les résultats reflètent l'état Railway à
 Après application de ces migrations (aussi le 2026-04-03 via apply_railway_migrations_safe.py),
 le head Railway est passé à 067 — aligné avec le dépôt à cette date.
 **État courant Railway (décisions go/no-go)** : section **« ÉTAT ALEMBIC — MIS À JOUR 2026-04-09 »** ci-dessus
-(dépôt **093** ; prod **090** — confirmer avant apply **090→093** via `docs/ops/ALEMBIC_DRYRUN_090_to_093.sql` / `alembic upgrade head`). Ne pas lire les métriques P8/P9 de la probe
-2026-04-03 comme « pending » : elles étaient vraies avant 059→067, pas pour l’état 090 actuel.
+(dépôt **093** ; **prod 093** après apply 2026-04-09). Ne pas lire les métriques P8/P9 de la probe
+2026-04-03 comme « pending » : elles étaient vraies avant 059→067, pas pour l’état actuel.
 
 probe_script             : scripts/probe_railway_full.py
 probe_date               : 2026-04-03T15:38:49Z (PRÉ-MIGRATION 059→067)
@@ -367,7 +367,7 @@ railway_cli               : Railway CLI — lien projet local (.railway/ gitigno
 
 ### Railway (PostgreSQL prod)
 
-  alembic_version      : **voir section « ÉTAT ALEMBIC » (dépôt 093 ; prod 090 au 2026-04-09)** — la valeur 056 ci-dessous était un snapshot 2026-04-01 ; ne pas l’utiliser pour le pilotage.
+  alembic_version      : **voir section « ÉTAT ALEMBIC » (dépôt 093 ; prod Railway 093 au 2026-04-09)** — la valeur 056 ci-dessous était un snapshot 2026-04-01 ; ne pas l’utiliser pour le pilotage.
   mesures compteurs    : non figées ici — probes read-only : scripts/probe_railway_counts.py (avec RAILWAY_DATABASE_URL locale, jamais commitée)
 
 ### Collisions detectees
