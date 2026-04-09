@@ -135,7 +135,8 @@ def test_assessment_history_rls_tenant_id_and_current_tenant_guc(
         _set_rls_subject_role(cur)
         cur.execute("SELECT set_config('app.is_admin', '', true)")
         cur.execute("SELECT set_config('app.tenant_id', %s, true)", (other_tenant,))
-        cur.execute("SELECT set_config('app.current_tenant', '', true)")
+        # Ne pas utiliser '' : le cast ::uuid de la policy 093 lèverait une erreur.
+        cur.execute("SELECT set_config('app.current_tenant', NULL, true)")
         cur.execute(
             "SELECT COUNT(*) AS c FROM assessment_history WHERE id = %s",
             (ah_id,),
@@ -149,7 +150,7 @@ def test_assessment_history_rls_tenant_id_and_current_tenant_guc(
         )
         assert cur.fetchone()["c"] == 1, "app.tenant_id aligné → visible"
 
-        cur.execute("SELECT set_config('app.tenant_id', '', true)")
+        cur.execute("SELECT set_config('app.tenant_id', NULL, true)")
         cur.execute("SELECT set_config('app.current_tenant', %s, true)", (tenant_id,))
         cur.execute(
             "SELECT COUNT(*) AS c FROM assessment_history WHERE id = %s",
