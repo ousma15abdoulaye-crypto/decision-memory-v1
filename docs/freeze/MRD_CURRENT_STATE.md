@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-04-09 — **Railway prod = dépôt** : head **093** (`093_v51_assessment_history`) ; apply réussi **090→091→092→093** via `python scripts/with_railway_env.py python scripts/apply_railway_migrations_safe.py --apply` ; preuve SQL hors exécution : `docs/ops/ALEMBIC_DRYRUN_090_to_093.sql`
+# Derniere mise a jour : 2026-04-09 — **Railway prod = dépôt** : head **093** (`093_v51_assessment_history`) ; apply réussi **090→091→092→093** via `python scripts/with_railway_env.py python scripts/apply_railway_migrations_safe.py --apply` ; preuve SQL hors exécution : `docs/ops/ALEMBIC_DRYRUN_090_to_093.sql` ; **PR #357** : correctifs CI (MQL/asyncpg `::` casts, E2E strict) — **aucune** nouvelle révision Alembic vs main → **pas** d’apply Railway pour #357
 
 ---
 
@@ -35,7 +35,7 @@ last_completed_at     : 2026-04-09
 last_merge_commit     : 595e4a77 (main — PR #353 : Alembic 093 assessment_history + CI head whitelist)
 last_tag              : v4.1.0-m12-done (V4.2.0 / V4.3.1 tags pending CTO)
 next_milestone        : Bascule `ANNOTATION_USE_PASS_ORCHESTRATOR=1` (fenêtre hors annotation) + pilote SCI Mali + runbook parity `RELEASE_MAIN_APP_PARITY_CHECKLIST.md`
-next_status           : **Alembic prod aligné dépôt (093)** — 2026-04-09 ; wiring V5.1 partiel #352 ; REGLE-23 **OK** ; orchestrateur Pass **pas** basculé prod
+next_status           : **Alembic prod aligné dépôt (093)** — 2026-04-09 ; wiring V5.1 partiel #352 ; PR **#357** (frontend NL + CI MQL/E2e) : **0** fichier sous `alembic/versions/` — Railway **093** inchangé ; REGLE-23 **OK** ; orchestrateur Pass **pas** basculé prod
 blocked_on            : (1) runbook parity `docs/ops/RELEASE_MAIN_APP_PARITY_CHECKLIST.md` ; (2) ~~**090→093 Railway**~~ **fait** 2026-04-09 (`apply_railway_migrations_safe.py --apply`) ; ~~080→090~~ **fait** ; (3) ~~sync annotations~~ **fait** ; (4) `ANNOTATION_USE_PASS_ORCHESTRATOR=1` ; (5) vendors — `scripts/README_VENDOR_IMPORT.md`
 m13_prerequisites     : M12 Phase 3 PR #289 mergé ; ADR-M13-001 + Pass 2A + config/regulatory PR #292 ; migration 057 appliquée prod 2026-04-02 — persistance m13_* opérationnelle côté schéma ; secrets DB = .env.railway.local + with_railway_env.py (RAILWAY_LOCAL_ENV.md) ; **PR #331** : `with_railway_env` aligne `DATABASE_URL` sur `RAILWAY_DATABASE_URL` (opt-out `WITH_RAILWAY_ENV_PRESERVE_DATABASE_URL=1`)
 m14_deliverables      : PR #295 (moteur + API) + PR #297 (dual-app, 059, linking, save_m14_audit, CI, gel) ; ADR-M14-001 + DMS-M14-ARCH-RECONCILIATION ; docs ops Railway (RAILWAY_LOCAL_ENV, with_railway_env)
