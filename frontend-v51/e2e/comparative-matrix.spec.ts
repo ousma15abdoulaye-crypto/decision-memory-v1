@@ -114,19 +114,21 @@ test.describe("Matrice comparative (NL-01 / NL-08 / NL-09)", () => {
   test("filtres et grille cliquable (focus clavier)", async ({ page }) => {
     await page.goto(`/workspaces/${WS_ID}`);
 
-    await expect(page.getByTestId("comparative-table-grid")).toBeVisible({
+    const grid = page.getByTestId("comparative-table-grid");
+    await expect(grid).toBeVisible({
       timeout: 15_000,
     });
 
     await page.getByTestId("filter-eliminatory").check();
-    await expect(page.getByText("Critère 2 ELIM")).toBeVisible();
-    await expect(page.getByText("Critère 1")).not.toBeVisible();
+    // Strict mode : le libellé existe aussi hors grille (ex. zoom).
+    await expect(grid.getByText("Critère 2 ELIM")).toBeVisible();
+    await expect(grid.getByText("Critère 1")).not.toBeVisible();
 
     await page.getByTestId("filter-eliminatory").uncheck();
     await page.getByTestId("filter-red").check();
-    await expect(page.getByText("Critère 2 ELIM")).toBeVisible();
+    await expect(grid.getByText("Critère 2 ELIM")).toBeVisible();
 
-    await page.getByTestId("comparative-table-grid").click();
+    await grid.click();
     await page.keyboard.press("ArrowRight");
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Enter");
@@ -139,6 +141,8 @@ test.describe("Matrice comparative (NL-01 / NL-08 / NL-09)", () => {
       timeout: 15_000,
     });
     await page.getByTestId("zoom-supplier").selectOption(sid1);
-    await expect(page.getByText("Fournisseur A")).toBeVisible();
+    await expect(
+      page.getByRole("columnheader", { name: "Fournisseur A" }),
+    ).toBeVisible();
   });
 });
