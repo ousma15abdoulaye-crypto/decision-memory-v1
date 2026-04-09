@@ -142,14 +142,13 @@ def test_assessment_history_rls_tenant_id_and_current_tenant_guc(
     )
 
     other_tenant = str(uuid.uuid4())
+    # Policy 093 : current_setting(..., true)::uuid — éviter '' sur GUC ; UUID factices pour désaligner.
     wrong_current = str(uuid.uuid4())
 
     try:
         _set_rls_subject_role(cur)
         cur.execute("SELECT set_config('app.is_admin', '', true)")
         cur.execute("SELECT set_config('app.tenant_id', %s, true)", (other_tenant,))
-        # Ni '' ni set_config(..., NULL) : les GUC custom peuvent repasser à '' et la
-        # policy 093 fait current_setting(..., true)::uuid → erreur.
         cur.execute(
             "SELECT set_config('app.current_tenant', %s, true)", (wrong_current,)
         )
