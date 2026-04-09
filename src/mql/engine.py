@@ -61,7 +61,8 @@ async def execute_mql_query(
     template = MQL_TEMPLATES[template_key]
 
     bind_params: dict[str, Any] = {
-        "tenant_id": tenant_id,
+        # asyncpg + CAST(:tenant_id AS text) : passer une str évite DataError sur UUID.
+        "tenant_id": str(tenant_id),
         "article_pattern": (
             f"%{params.article_pattern}%" if params.article_pattern else "%"
         ),
