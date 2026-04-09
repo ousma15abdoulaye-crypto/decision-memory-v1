@@ -142,9 +142,7 @@ def test_assessment_history_rls_tenant_id_and_current_tenant_guc(
     )
 
     other_tenant = str(uuid.uuid4())
-    # Chaîne vide pour app.tenant_id / app.current_tenant → cast ::uuid invalide dans la
-    # policy 093 (current_setting(..., true)::uuid). Utiliser des UUID arbitraires ≠ tenant
-    # pour simuler des GUC non alignés sans casser la transaction.
+    # Policy 093 : current_setting(..., true)::uuid — éviter '' sur GUC ; UUID factices pour désaligner.
     wrong_current = str(uuid.uuid4())
 
     try:
