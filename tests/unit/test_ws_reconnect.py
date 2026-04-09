@@ -3,12 +3,9 @@
 Vérifie la logique de reconnexion avec backoff exponentiel dans
 workspace-events-bridge.tsx.
 
-Ces tests valident les constantes et la logique côté backend :
-- L'endpoint WebSocket /ws/workspace/{id}/events existe bien dans l'API
-- La logique de reconnect frontend est structurellement correcte
+Ces tests sont en unit/ (pas integration/) : pas de DB — imports réels du bundle V5.1.
 
-Note : Les tests du composant React WorkspaceEventsBridge sont à valider
-via les tests E2E (Playwright) ; ce fichier couvre la partie backend/intégration.
+Note : le composant React WorkspaceEventsBridge est couvert par E2E Playwright.
 """
 
 from __future__ import annotations
@@ -19,21 +16,16 @@ class TestWebSocketEndpointRegistered:
 
     def test_ws_endpoint_in_v51_bundle(self):
         """L'endpoint /ws/workspace/{workspace_id}/events doit être monté."""
-        try:
-            from src.api.dms_v51_mount import mount_v51_workspace_http_and_ws
+        from src.api.dms_v51_mount import mount_v51_workspace_http_and_ws
 
-            assert callable(mount_v51_workspace_http_and_ws)
-        except ImportError:
-            pass
+        assert callable(mount_v51_workspace_http_and_ws)
 
     def test_ws_events_module_importable(self):
-        """Le module gérant les événements workspace doit être importable."""
-        try:
-            import src.api.ws_workspace_events as ws_module
+        """Le handler WebSocket workspace_events doit être importable (Canon O2)."""
+        from src.api.ws import workspace_events as ws_module
 
-            assert ws_module is not None
-        except ImportError:
-            pass
+        assert ws_module.workspace_events_ws is not None
+        assert callable(ws_module.workspace_events_ws)
 
 
 class TestReconnectConstants:

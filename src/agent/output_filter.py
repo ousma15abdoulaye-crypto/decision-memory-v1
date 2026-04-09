@@ -118,7 +118,8 @@ async def filter_token_stream(
             if len(full_filtered) > _OVERLAP_CHARS:
                 flush_out = full_filtered[:-_OVERLAP_CHARS]
                 buffer = full_filtered[-_OVERLAP_CHARS:]
-                yield {"type": "token", "content": flush_out}
+                if flush_out.strip():
+                    yield {"type": "token", "content": flush_out}
             else:
                 # Après filtrage, pas assez de contenu pour splitter — accumuler
                 buffer = full_filtered
@@ -131,7 +132,7 @@ async def filter_token_stream(
             logger.warning(
                 "[output_filter] INV-W06 : contenu filtré dans le flux LLM (flush final)."
             )
-        if filtered:
+        if filtered.strip():
             yield {"type": "token", "content": filtered}
 
     if filter_triggered:

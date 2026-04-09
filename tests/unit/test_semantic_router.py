@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 
 from src.agent.semantic_router import (
+    INTENT_EXAMPLES,
     IntentClass,
     IntentResult,
     _centroid_cache,
@@ -75,10 +76,11 @@ class TestWarmCentroids:
         reset_centroid_cache()
 
     def test_warm_centroids_fills_cache(self):
-        """warm_centroids() doit remplir _centroid_cache pour tous les IntentClass."""
+        """warm_centroids() remplit le cache pour les classes dans INTENT_EXAMPLES (pas OUT_OF_SCOPE)."""
         assert len(_centroid_cache) == 0
         _run(warm_centroids())
-        assert len(_centroid_cache) == len(IntentClass)
+        assert set(_centroid_cache.keys()) == set(INTENT_EXAMPLES.keys())
+        assert IntentClass.OUT_OF_SCOPE not in _centroid_cache
 
     def test_warm_centroids_is_idempotent(self):
         """Appeler warm_centroids() deux fois ne doit pas recalculer (idempotent)."""

@@ -41,11 +41,14 @@ export function WorkspaceEventsBridge({ workspaceId }: { workspaceId: string }) 
 
     const connect = () => {
       if (stopped) return;
+      /** Un seul schedule par socket : navigateurs appellent souvent onerror puis onclose. */
+      let reconnectScheduled = false;
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
         if (stopped) return;
+        reconnectScheduled = false;
         retriesRef.current = 0;
         setShowError(false);
       };
@@ -63,8 +66,9 @@ export function WorkspaceEventsBridge({ workspaceId }: { workspaceId: string }) 
         }
       };
 
-      const onFailure = () => {
-        if (stopped) return;
+      const scheduleReconnect = () => {
+        if (stopped || reconnectScheduled) return;
+        reconnectScheduled = true;
         wsRef.current = null;
         retriesRef.current += 1;
         if (retriesRef.current >= MAX_RETRIES_BEFORE_BANNER) {
@@ -77,8 +81,8 @@ export function WorkspaceEventsBridge({ workspaceId }: { workspaceId: string }) 
         timerRef.current = setTimeout(connect, delay);
       };
 
-      ws.onerror = onFailure;
-      ws.onclose = onFailure;
+      ws.onerror = scheduleReconnect;
+      ws.onclose = scheduleReconnect;
     };
 
     connect();
