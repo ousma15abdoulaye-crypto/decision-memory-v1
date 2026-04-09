@@ -142,14 +142,17 @@ def test_assessment_history_rls_tenant_id_and_current_tenant_guc(
     )
 
     other_tenant = str(uuid.uuid4())
+    wrong_current = str(uuid.uuid4())
 
     try:
         _set_rls_subject_role(cur)
         cur.execute("SELECT set_config('app.is_admin', '', true)")
         cur.execute("SELECT set_config('app.tenant_id', %s, true)", (other_tenant,))
-        # Ne pas utiliser '' : le cast ::uuid de la policy 093 lèverait une erreur.
-        # NULL → GUC absent, current_setting(..., true) renvoie NULL (pas d’exception).
-        cur.execute("SELECT set_config('app.current_tenant', NULL, true)")
+        # Ni '' ni set_config(..., NULL) : les GUC custom peuvent repasser à '' et la
+        # policy 093 fait current_setting(..., true)::uuid → erreur.
+        cur.execute(
+            "SELECT set_config('app.current_tenant', %s, true)", (wrong_current,)
+        )
         cur.execute(
             "SELECT COUNT(*) AS c FROM assessment_history WHERE id = %s",
             (ah_id,),
@@ -163,7 +166,8 @@ def test_assessment_history_rls_tenant_id_and_current_tenant_guc(
         )
         assert cur.fetchone()["c"] == 1, "app.tenant_id aligné → visible"
 
-        cur.execute("SELECT set_config('app.tenant_id', NULL, true)")
+        wrong_tenant_guc = str(uuid.uuid4())
+        cur.execute("SELECT set_config('app.tenant_id', %s, true)", (wrong_tenant_guc,))
         cur.execute("SELECT set_config('app.current_tenant', %s, true)", (tenant_id,))
         cur.execute(
             "SELECT COUNT(*) AS c FROM assessment_history WHERE id = %s",
