@@ -15,9 +15,14 @@ COMPATIBILITÉ V4.x → V5.2 (P2.1) :
 
 from __future__ import annotations
 
+import logging
 from uuid import UUID
 
 from fastapi import HTTPException
+
+from src.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 # Permissions qui déclenchent la vérification de scellement (check 3).
 # market.write ajouté en V5.2 (absent de l'ancienne liste workspace_access_service).
@@ -68,6 +73,8 @@ async def guard(
     Args:
         db:           AsyncpgAdapter (ou tout adaptateur exposant fetch_one).
         user:         Dictionnaire des claims JWT ; doit contenir "id" (int).
+                      Clé optionnelle ``role`` (JWT legacy) requise pour le fallback
+                      ``WORKSPACE_ACCESS_JWT_FALLBACK`` sans membership.
         workspace_id: UUID du workspace cible.
         permission:   Code de permission métier (ex : "evaluation.write").
 
@@ -87,10 +94,35 @@ async def guard(
         {"ws": str(workspace_id), "uid": user["id"]},
     )
     if not member:
-        raise HTTPException(
-            status_code=403,
-            detail="Vous n'êtes pas membre de ce workspace.",
-        )
+        # Pilote terrain : même logique que ``require_workspace_access`` — pas de ligne
+        # membership mais JWT legacy mappé V5.2 avec la permission métier demandée.
+        if get_settings().WORKSPACE_ACCESS_JWT_FALLBACK:
+            from src.auth.permissions import ROLE_PERMISSIONS
+            from src.couche_a.auth.rbac import ROLES as JWT_LEGACY_ROLES
+            from src.couche_a.auth.workspace_access import legacy_jwt_to_v52_role
+
+            jwt_role = (user.get("role") or "").strip()
+            if jwt_role in JWT_LEGACY_ROLES:
+                v52 = legacy_jwt_to_v52_role(jwt_role)
+                if v52:
+                    role_perms_fb = ROLE_PERMISSIONS.get(v52, frozenset())
+                    if "system.admin" in role_perms_fb or permission in role_perms_fb:
+                        logger.warning(
+                            "guard JWT_FALLBACK user_id=%s workspace_id=%s permission=%s "
+                            "jwt_role=%s v52=%s",
+                            user["id"],
+                            workspace_id,
+                            permission,
+                            jwt_role,
+                            v52,
+                        )
+                        member = {"role": v52}
+
+        if not member:
+            raise HTTPException(
+                status_code=403,
+                detail="Vous n'êtes pas membre de ce workspace.",
+            )
 
     # ── 2. Permission RBAC ────────────────────────────────────────────────
     role = member["role"]
