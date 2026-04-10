@@ -15,6 +15,45 @@ from src.db import db_execute, db_execute_one, get_connection
 logger = logging.getLogger(__name__)
 
 
+def _resolve_workspace_id_for_case(case_id: str) -> str | None:
+    """Résout ``process_workspaces.id`` depuis ``legacy_case_id`` (schéma V4.2+)."""
+    with get_connection() as conn:
+        row = db_execute_one(
+            conn,
+            """
+            SELECT id::text AS wid FROM public.process_workspaces
+            WHERE legacy_case_id = :cid
+            LIMIT 1
+            """,
+            {"cid": case_id},
+        )
+    return str(row["wid"]) if row and row.get("wid") else None
+
+
+def _offer_extraction_column_flags(conn) -> tuple[bool, bool]:
+    """(has_workspace_id, has_case_id) sur ``public.offer_extractions``."""
+    row = db_execute_one(
+        conn,
+        """
+        SELECT
+            EXISTS(
+                SELECT 1 FROM information_schema.columns c
+                WHERE c.table_schema = 'public' AND c.table_name = 'offer_extractions'
+                  AND c.column_name = 'workspace_id'
+            ) AS has_ws,
+            EXISTS(
+                SELECT 1 FROM information_schema.columns c
+                WHERE c.table_schema = 'public' AND c.table_name = 'offer_extractions'
+                  AND c.column_name = 'case_id'
+            ) AS has_case
+        """,
+        {},
+    )
+    if not row:
+        return False, False
+    return bool(row.get("has_ws")), bool(row.get("has_case"))
+
+
 def tdr_result_to_offer_extraction_row(
     result: TDRExtractionResult,
     case_id: str,
@@ -135,15 +174,22 @@ def persist_tdr_result_to_db(
     result: TDRExtractionResult,
     case_id: str,
     artifact_id: str,
+    *,
+    workspace_id: str | None = None,
 ) -> None:
     """
     Persistance ``TDRExtractionResult`` → ``public.offer_extractions``.
+
+    Schéma V4.2 (migration 074) : ``workspace_id`` NOT NULL, plus de ``case_id``.
+    Si ``workspace_id`` est absent, résolution via ``process_workspaces.legacy_case_id``.
 
     PRE-FLIGHT repo (alembic ``002_add_couche_a``) : pas de UNIQUE sur
     ``artifact_id`` → upsert applicatif.
     """
     row = tdr_result_to_offer_extraction_row(result, case_id, artifact_id)
+    wid = workspace_id or _resolve_workspace_id_for_case(case_id)
     with get_connection() as conn:
+        has_ws, has_case = _offer_extraction_column_flags(conn)
         existing = db_execute_one(
             conn,
             """
@@ -176,7 +222,39 @@ def persist_tdr_result_to_db(
                 artifact_id,
                 row["supplier"],
             )
-        else:
+            return
+
+        if has_ws:
+            if not wid:
+                logger.error(
+                    "[BRIDGE] INSERT refusé — pas de workspace_id pour case_id=%s",
+                    case_id,
+                )
+                return
+            db_execute(
+                conn,
+                """
+                INSERT INTO public.offer_extractions
+                  (id, workspace_id, artifact_id, supplier_name,
+                   extracted_data_json, missing_fields_json, created_at)
+                VALUES (:id, CAST(:wid AS uuid), :aid, :supplier, :extracted, :missing, :ts)
+                """,
+                {
+                    "id": row["id"],
+                    "wid": wid,
+                    "aid": artifact_id,
+                    "supplier": row["supplier"],
+                    "extracted": row["extracted"],
+                    "missing": row["missing"],
+                    "ts": row["ts"],
+                },
+            )
+            logger.info(
+                "[BRIDGE] Inséré (workspace_id) — artifact_id=%s supplier=%s",
+                artifact_id,
+                row["supplier"],
+            )
+        elif has_case:
             db_execute(
                 conn,
                 """
@@ -188,7 +266,11 @@ def persist_tdr_result_to_db(
                 row,
             )
             logger.info(
-                "[BRIDGE] Inséré — artifact_id=%s supplier=%s",
+                "[BRIDGE] Inséré (case_id legacy) — artifact_id=%s supplier=%s",
                 artifact_id,
                 row["supplier"],
+            )
+        else:
+            logger.error(
+                "[BRIDGE] offer_extractions sans colonne workspace_id ni case_id"
             )

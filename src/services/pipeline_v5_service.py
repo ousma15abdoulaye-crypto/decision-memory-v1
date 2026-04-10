@@ -218,7 +218,9 @@ def extract_offers_from_bundles(workspace_id: str, case_id: str) -> int:
                     document_role=role,
                 )
             )
-            persist_tdr_result_to_db(result, case_id, bundle_id)
+            persist_tdr_result_to_db(
+                result, case_id, bundle_id, workspace_id=workspace_id
+            )
             n_ok += 1
         except Exception as exc:
             logger.exception(
@@ -360,10 +362,10 @@ def run_pipeline_v5(
             SELECT artifact_id::text AS artifact_id, supplier_name,
                    extracted_data_json
             FROM offer_extractions
-            WHERE case_id = :cid
+            WHERE workspace_id = CAST(:wid AS uuid)
             ORDER BY created_at DESC
             """,
-            {"cid": case_id},
+            {"wid": workspace_id},
         )
 
     offers: list[dict[str, Any]] = []
