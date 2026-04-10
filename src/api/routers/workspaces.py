@@ -263,6 +263,7 @@ def create_workspace(
                 "tid": tenant_id,
                 "uid": user_id,
                 "role": "supply_chain",
+                "granted_by": user_id,
             },
         )
 
