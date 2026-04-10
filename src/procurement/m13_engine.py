@@ -22,6 +22,12 @@ from src.procurement.derogation_assessor import DerogationAssessor
 from src.procurement.document_ontology import ProcurementFramework
 from src.procurement.m12_reconstruct import build_m12_output_from_pass_outputs
 from src.procurement.m13_confidence import m13_discretize_confidence
+from src.procurement.m13_persistence_payload import (
+    build_m13_regulatory_profile_persist_payload,
+)
+from src.procurement.m13_regulatory_profile_repository import (
+    M13RegulatoryProfileRepository,
+)
 from src.procurement.ocds_coverage_builder import build_ocds_default
 from src.procurement.principles_mapper import PrinciplesMapper
 from src.procurement.procedure_models import M12Output
@@ -122,10 +128,12 @@ class RegulatoryComplianceEngine:
             evaluation_blueprint=blueprint,
         )
         if self.repository is not None:
-            self.repository.save_payload(
+            persist = build_m13_regulatory_profile_persist_payload(
+                out,
                 case_id=case_id,
-                payload=out.model_dump(mode="json"),
+                document_id=document_id,
             )
+            self.repository.save_payload(case_id=case_id, payload=persist)
         return out
 
     def _build_checklist(
@@ -222,5 +230,7 @@ def run_m13_from_pass_json(
         pass_1c_data=pass_1c,
         pass_1d_data=pass_1d,
     )
-    engine = RegulatoryComplianceEngine()
+    engine = RegulatoryComplianceEngine(
+        repository=M13RegulatoryProfileRepository(),
+    )
     return engine.process_m12(case_id=case_id, document_id=document_id, m12=m12)
