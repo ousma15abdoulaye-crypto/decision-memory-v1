@@ -82,6 +82,17 @@ class Settings(BaseSettings):
     LLM_ARBITRATOR_ENABLED: str = ""
     LLM_ARBITRATOR_MODEL: str = ""
 
+    # Accès lecture workspace sans ligne ``workspace_memberships`` / RBAC tenant :
+    # JWT legacy (admin, manager, buyer, viewer, auditor) mappé → rôle V5.2 avec
+    # ``workspace.read``. DÉFAUT false — activer uniquement pilote / terrain Railway.
+    WORKSPACE_ACCESS_JWT_FALLBACK: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "WORKSPACE_ACCESS_JWT_FALLBACK",
+            "DMS_WORKSPACE_ACCESS_JWT_FALLBACK",
+        ),
+    )
+
     # --- SSL / HTTPX ---
     SSL_CERT_FILE: str = ""
     REQUESTS_CA_BUNDLE: str = ""

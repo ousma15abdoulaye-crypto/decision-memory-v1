@@ -16,11 +16,37 @@ import logging
 
 from fastapi import HTTPException, status
 
+from src.auth.permissions import has_permission
+from src.core.config import get_settings
 from src.couche_a.auth.dependencies import UserClaims
+from src.couche_a.auth.rbac import ROLES as JWT_LEGACY_ROLES
 from src.db import db_execute_one, get_connection
 from src.services.workspace_access_service import WorkspaceAccessService
 
 logger = logging.getLogger(__name__)
+
+# JWT Couche A (``rbac.ROLES``) → rôle Canon V5.2 pour ``has_permission(..., "workspace.read")``.
+# Tous les rôles legacy connexes ont au moins ``workspace.read`` en projection V5.2.
+_LEGACY_JWT_TO_V52_FOR_WORKSPACE_READ: dict[str, str] = {
+    "admin": "admin",
+    "manager": "supply_chain",
+    "buyer": "supply_chain",
+    "viewer": "observer",
+    "auditor": "admin",
+}
+
+
+def legacy_jwt_to_v52_role(jwt_role: str) -> str | None:
+    """Projette un rôle JWT legacy sur le libellé V5.2 utilisé par ``ROLE_PERMISSIONS``."""
+    return _LEGACY_JWT_TO_V52_FOR_WORKSPACE_READ.get((jwt_role or "").strip()) or None
+
+
+def legacy_jwt_role_allows_workspace_read(jwt_role: str) -> bool:
+    """True si le rôle JWT legacy est mappé sur un rôle V5.2 avec ``workspace.read``."""
+    v52 = legacy_jwt_to_v52_role(jwt_role)
+    if not v52:
+        return False
+    return has_permission(v52, "workspace.read")
 
 
 def _tenant_id_str(value: object) -> str:
@@ -71,6 +97,21 @@ def require_workspace_access(workspace_id: str, user: UserClaims) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Accès refusé — workspace appartient à un autre tenant.",
         )
+
+    # Mode pilote / terrain : accès lecture si JWT legacy + matrice V5.2 (sans membership DB).
+    # Désactivé par défaut — activer ``WORKSPACE_ACCESS_JWT_FALLBACK`` explicitement (Railway).
+    if get_settings().WORKSPACE_ACCESS_JWT_FALLBACK:
+        if user.role in JWT_LEGACY_ROLES and legacy_jwt_role_allows_workspace_read(
+            user.role
+        ):
+            logger.warning(
+                "workspace.access JWT_FALLBACK user_id=%s workspace_id=%s role=%s "
+                "(WORKSPACE_ACCESS_JWT_FALLBACK=true — désactiver quand memberships prod OK)",
+                user.user_id,
+                workspace_id,
+                user.role,
+            )
+            return
 
     user_id = int(user.user_id)
     tid = _tenant_id_str(user.tenant_id)

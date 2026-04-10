@@ -97,7 +97,10 @@ async def agent_prompt(
                 # et un dict {"id": int} (pas UserClaims).
                 await guard(
                     conn,
-                    {"id": int(current_user.user_id)},
+                    {
+                        "id": int(current_user.user_id),
+                        "role": current_user.role,
+                    },
                     payload.workspace_id,
                     "agent.query",
                 )

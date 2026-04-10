@@ -20,6 +20,9 @@ from src.annotation.pass_output import (
 from src.procurement.compliance_models_m13 import legacy_compliance_report_from_m13
 from src.procurement.m12_reconstruct import build_m12_output_from_pass_outputs
 from src.procurement.m13_engine import RegulatoryComplianceEngine
+from src.procurement.m13_regulatory_profile_repository import (
+    M13RegulatoryProfileRepository,
+)
 
 _PASS_NAME = "pass_2a_regulatory_profile"
 _PASS_VERSION = "1.0.0"
@@ -61,7 +64,9 @@ def run_pass_2a_regulatory_profile(
             pass_1c_data=pass_1c_output_data,
             pass_1d_data=pass_1d_output_data,
         )
-        engine = RegulatoryComplianceEngine()
+        engine = RegulatoryComplianceEngine(
+            repository=M13RegulatoryProfileRepository(),
+        )
         m13_out = engine.process_m12(case_id=case_id, document_id=document_id, m12=m12)
         legacy = legacy_compliance_report_from_m13(
             document_id=document_id, m13=m13_out.report

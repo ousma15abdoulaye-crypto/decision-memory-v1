@@ -15,10 +15,49 @@ from src.db import db_execute, db_execute_one, get_connection
 logger = logging.getLogger(__name__)
 
 
+def _resolve_workspace_id_for_case(case_id: str) -> str | None:
+    """Résout ``process_workspaces.id`` depuis ``legacy_case_id`` (schéma V4.2+)."""
+    with get_connection() as conn:
+        row = db_execute_one(
+            conn,
+            """
+            SELECT id::text AS wid FROM public.process_workspaces
+            WHERE legacy_case_id = :cid
+            LIMIT 1
+            """,
+            {"cid": case_id},
+        )
+    return str(row["wid"]) if row and row.get("wid") else None
+
+
+def _offer_extraction_column_flags(conn) -> tuple[bool, bool]:
+    """(has_workspace_id, has_case_id) sur ``public.offer_extractions``."""
+    row = db_execute_one(
+        conn,
+        """
+        SELECT
+            EXISTS(
+                SELECT 1 FROM information_schema.columns c
+                WHERE c.table_schema = 'public' AND c.table_name = 'offer_extractions'
+                  AND c.column_name = 'workspace_id'
+            ) AS has_ws,
+            EXISTS(
+                SELECT 1 FROM information_schema.columns c
+                WHERE c.table_schema = 'public' AND c.table_name = 'offer_extractions'
+                  AND c.column_name = 'case_id'
+            ) AS has_case
+        """,
+        {},
+    )
+    if not row:
+        return False, False
+    return bool(row.get("has_ws")), bool(row.get("has_case"))
+
+
 def tdr_result_to_offer_extraction_row(
     result: TDRExtractionResult,
     case_id: str,
-    artifact_id: str,
+    bundle_id: str,
 ) -> dict[str, str]:
     """
     Mapper explicite TDRExtractionResult → payload ``offer_extractions``.
@@ -123,7 +162,7 @@ def tdr_result_to_offer_extraction_row(
     return {
         "id": str(uuid.uuid4()),
         "cid": case_id,
-        "aid": artifact_id,
+        "bid": bundle_id,
         "supplier": str(supplier_name),
         "extracted": json.dumps(extracted_payload, ensure_ascii=False),
         "missing": json.dumps(missing_unique, ensure_ascii=False),
@@ -134,25 +173,32 @@ def tdr_result_to_offer_extraction_row(
 def persist_tdr_result_to_db(
     result: TDRExtractionResult,
     case_id: str,
-    artifact_id: str,
+    bundle_id: str,
+    *,
+    workspace_id: str | None = None,
 ) -> None:
     """
     Persistance ``TDRExtractionResult`` → ``public.offer_extractions``.
 
+    Schéma V4.2 (migration 074) : ``workspace_id`` NOT NULL, plus de ``case_id``.
+    Si ``workspace_id`` est absent, résolution via ``process_workspaces.legacy_case_id``.
+
     PRE-FLIGHT repo (alembic ``002_add_couche_a``) : pas de UNIQUE sur
-    ``artifact_id`` → upsert applicatif.
+    ``bundle_id`` → upsert applicatif.
     """
-    row = tdr_result_to_offer_extraction_row(result, case_id, artifact_id)
+    row = tdr_result_to_offer_extraction_row(result, case_id, bundle_id)
+    wid = workspace_id or _resolve_workspace_id_for_case(case_id)
     with get_connection() as conn:
+        has_ws, has_case = _offer_extraction_column_flags(conn)
         existing = db_execute_one(
             conn,
             """
             SELECT id FROM public.offer_extractions
-            WHERE artifact_id = :aid
+            WHERE bundle_id = :bid
             ORDER BY created_at DESC
             LIMIT 1
             """,
-            {"aid": artifact_id},
+            {"bid": bundle_id},
         )
         if existing:
             db_execute(
@@ -172,23 +218,59 @@ def persist_tdr_result_to_db(
                 },
             )
             logger.info(
-                "[BRIDGE] Mis à jour — artifact_id=%s supplier=%s",
-                artifact_id,
+                "[BRIDGE] Mis à jour — bundle_id=%s supplier=%s",
+                bundle_id,
                 row["supplier"],
             )
-        else:
+            return
+
+        if has_ws:
+            if not wid:
+                logger.error(
+                    "[BRIDGE] INSERT refusé — pas de workspace_id pour case_id=%s",
+                    case_id,
+                )
+                return
             db_execute(
                 conn,
                 """
                 INSERT INTO public.offer_extractions
-                  (id, case_id, artifact_id, supplier_name,
+                  (id, workspace_id, bundle_id, supplier_name,
                    extracted_data_json, missing_fields_json, created_at)
-                VALUES (:id, :cid, :aid, :supplier, :extracted, :missing, :ts)
+                VALUES (:id, CAST(:wid AS uuid), :bid, :supplier, :extracted, :missing, :ts)
+                """,
+                {
+                    "id": row["id"],
+                    "wid": wid,
+                    "bid": bundle_id,
+                    "supplier": row["supplier"],
+                    "extracted": row["extracted"],
+                    "missing": row["missing"],
+                    "ts": row["ts"],
+                },
+            )
+            logger.info(
+                "[BRIDGE] Inséré (workspace_id) — bundle_id=%s supplier=%s",
+                bundle_id,
+                row["supplier"],
+            )
+        elif has_case:
+            db_execute(
+                conn,
+                """
+                INSERT INTO public.offer_extractions
+                  (id, case_id, bundle_id, supplier_name,
+                   extracted_data_json, missing_fields_json, created_at)
+                VALUES (:id, :cid, :bid, :supplier, :extracted, :missing, :ts)
                 """,
                 row,
             )
             logger.info(
-                "[BRIDGE] Inséré — artifact_id=%s supplier=%s",
-                artifact_id,
+                "[BRIDGE] Inséré (case_id legacy) — bundle_id=%s supplier=%s",
+                bundle_id,
                 row["supplier"],
+            )
+        else:
+            logger.error(
+                "[BRIDGE] offer_extractions sans colonne workspace_id ni case_id"
             )
