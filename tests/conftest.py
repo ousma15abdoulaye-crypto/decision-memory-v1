@@ -10,17 +10,21 @@ import os
 
 # Doit être posé AVANT tout import src.* (ratelimit.py lu à l'import)
 os.environ.setdefault("TESTING", "true")
-# SECRET_KEY requis par le moteur auth V4.1.0 (jwt_handler._secret_key)
+# SECRET_KEY requis par Settings (min 32 chars) + jwt_handler._secret_key
 # Fallback identique à JWT_SECRET legacy pour compatibilité en CI sans .env
-os.environ.setdefault(
-    "SECRET_KEY",
-    os.environ.get("JWT_SECRET", "CHANGE_IN_PRODUCTION_USE_OPENSSL_RAND_HEX_32"),
+_jwt_fallback = os.environ.get(
+    "JWT_SECRET", "CHANGE_IN_PRODUCTION_USE_OPENSSL_RAND_HEX_32"
 )
+os.environ.setdefault("SECRET_KEY", _jwt_fallback)
+# MISTRAL_API_KEY requis par Settings — valeur factice pour les tests
+os.environ.setdefault("MISTRAL_API_KEY", "test-mistral-key-for-ci")
 
-import uuid
-from datetime import UTC, datetime
+import uuid  # noqa: E402
+from datetime import UTC, datetime  # noqa: E402
 
-import pytest
+import pytest  # noqa: E402
+
+from src.core.config import get_settings  # noqa: E402
 
 # Load .env and .env.local (local overrides) if present
 try:
@@ -49,6 +53,14 @@ except ImportError:
 # DATABASE_URL doit être défini dans .env ou environnement
 if "DATABASE_URL" not in os.environ:
     raise RuntimeError("DATABASE_URL must be set in .env or environment")
+
+
+@pytest.fixture(autouse=True)
+def _reset_settings_cache():
+    """Reset le cache Settings entre chaque test pour isolation."""
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 def _get_db_conn():
