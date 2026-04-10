@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-08 — Mandat **DMS-MIGRATION-PROD-V51-001** (GO AO, RÈGLE-ANCHOR-06) : Railway PostgreSQL **090** (`090_v51_extraction_jobs_langfuse_trace`) — aligné dépôt ; **pré-état réel 080** (pas 079) — appliqué **081→090** (10 révisions) ; pre-check + post-check : `scripts/railway_migration_precheck_v51_001.py`, `scripts/railway_migration_postcheck_v51_001.py` ; rapport `docs/ops/RAILWAY_MIGRATION_V51_001_REPORT.md` ; backup Railway Dashboard Phase 1 **confirmé AO** : **1,4 Go**, **2026-04-08 15h12** ; **2026-04-09** — PR **#357** mergée (`75a66239`, NL/E2E/MQL/RLS test) — **E-99** + § **ADDENDUM 2026-04-09 — PR #357** ║
+║  Dernière mise à jour : 2026-04-08 — Mandat **DMS-MIGRATION-PROD-V51-001** (GO AO, RÈGLE-ANCHOR-06) : Railway PostgreSQL **090** (`090_v51_extraction_jobs_langfuse_trace`) — aligné dépôt ; **pré-état réel 080** (pas 079) — appliqué **081→090** (10 révisions) ; pre-check + post-check : `scripts/railway_migration_precheck_v51_001.py`, `scripts/railway_migration_postcheck_v51_001.py` ; rapport `docs/ops/RAILWAY_MIGRATION_V51_001_REPORT.md` ; backup Railway Dashboard Phase 1 **confirmé AO** : **1,4 Go**, **2026-04-08 15h12** ; **2026-04-09** — PR **#357** mergée (`75a66239`, NL/E2E/MQL/RLS test) — **E-99** + § **ADDENDUM 2026-04-09 — PR #357** ; **2026-04-10** — **V5.2** config centralisée — **E-100** + § **ADDENDUM 2026-04-10 — V5.2 CONFIG** ║
 ║  Addendum 2026-04-08 : Phase 1 **DMS-MIGRATION-PROD-V51-001** — preuve backup prod (PostgreSQL Railway) : taille **1,4 Go**, horodatage **2026-04-08 15h12** (saisie AO / CTO) ║
 ║  Addendum 2026-04-08 : PR #344 MERGÉ main 0b952668 — **due diligence + refactoring** : (1) `src/couche_a/extraction.py` → package `src/couche_a/extraction/` avec ré-exports publics + `httpx` (patches tests) ; (2) pipeline A découpé `service.py` + `steps.py` + `service_utils.py` + `cas_builder.py`, scoring/ScoringEngine **conservés dans** `service.py` (compat monkeypatch tests), GUARD-OPS-01 hash recalculé ; (3) `src/annotation/orchestrator.py` **fichier unique** (split package annulé — tests M12), **sans BOM UTF-8** ; (4) CI : workflow `ci-typecheck-mypy.yml` (informationnel), étape BLE001 Ruff sur `src/` seulement, `fail_under` couverture **68%** + `.milestones/M-TESTS.done`, pipefail exit codes ; (5) dette documentée `docs/audit/ALEMBIC_STATE_2026-04-08.md`, inventaire `scripts/README.md`, gel `DMS_CANON_V5.1.0_FREEZE.md` ; **hors périmètre / gel** : `services/annotation-backend/backend.py` non découpé (gel annotation + mandat CTO) ; squash Alembic / single-head **documenté, non exécuté** ║
 ║  Addendum 2026-04-08 : PR #345 MERGÉ main f0a8379c — Canon V5.1.0 (4 voies, due diligence, `frontend-v51`, MQL, Langfuse, garde-fous, migrations **087–090**) ; correctifs CI : `pytest-asyncio`, rôle RLS `dms_rls_nobypass`, `asyncio.run` (tests), whitelist heads **087–090** dans `tests/test_046b_imc_map_fix.py`, docstring `pv_builder` (INV-09) ; INV-F01 : `actions/setup-node@v4` + `npm ci` + `npx tsc --noEmit` sous `frontend-v51` (workflow `.github/workflows/dms_invariants_v51.yml`) ; **Railway prod** : migrations **081→090** appliquées sous mandat DMS-MIGRATION-PROD-V51-001 (pré-état **080**) ║
@@ -14,6 +14,7 @@
 ║  Addendum 2026-04-09 (apply prod) : migrations **091→092→093** exécutées sur Railway PostgreSQL (pré-état **090**) via `scripts/with_railway_env.py` + `scripts/apply_railway_migrations_safe.py --apply` — **prod head = 093_v51_assessment_history** (alignée dépôt / main) ║
 ║  Addendum 2026-04-09 : fermeture backend V5.1 — factory `src/api/app_factory.py` : `create_railway_app` (`main.py`) + `create_modular_app` (`src.api.main`) ; hooks `_add_security_middleware`, `_mount_v51_workspace_bundle`, `_register_common_routers` ; gouvernance : `docs/ops/V51_BACKEND_API_CONTRACT_FOR_FRONTEND.md`, `docs/ops/V51_ROUTE_GUARD_INVENTORY.md`, `docs/adr/ADR-V51-WORKSPACE-ROLE-PERMISSION-MAP.md` ; ADR dual entrypoints mis à jour (Option A, sans `create_app(deployment_mode=…)`) ║
 ║  Addendum 2026-04-09 : PR #357 **MERGÉ main 75a66239** — `feat/v51-nl-frontend-e2e-ci` : **MQL + asyncpg** — `src/db/async_pool.py` `_NAMED_PARAM_RE` `(?<!:):([a-zA-Z_]\w*)` (évite `KeyError :text` sur `::text` / `::numeric`) ; `src/db/cursor_adapter.py` même principe ; `src/mql/engine.py` : `tenant_id` en **str** pour `CAST(:tenant_id AS text)` (évite `DataError` UUID) ; `src/mql/templates.py` aligné **042** + filtre `org_id` ; **E2E** `frontend-v51/e2e/comparative-matrix.spec.ts` : `path` dans `route`, grille + `columnheader`, cookie `dms_token` / proxy Next 16 ; **RLS** `tests/db/test_v51_assessment_history_rls.py` : UUID factices (pas `''` / `set_config` NULL→`''`) ; merge **main** pré-merge : conflits résolus spec + test ; **CI** vert (Coverage, lint-and-test, invariants, `frontend_v51_e2e`) ; **E-99** ; détail **§ ADDENDUM 2026-04-09 — PR #357** ; **sans** nouveau `alembic/versions/` — head prod **093** ║
+║  Addendum 2026-04-10 : **V5.2 — configuration centralisée** — `src/core/config.py` : classe `Settings` (**pydantic-settings** `BaseSettings`), `get_settings()` décoré **`@lru_cache`** ; variables **requises** au chargement : `DATABASE_URL` (schéma `postgresql://` ou `postgres://`), `SECRET_KEY` (**≥ 32** caractères ; alias **`JWT_SECRET`** accepté si `SECRET_KEY` absent — validator `mode="before"`), `MISTRAL_API_KEY` ; dépendance **`pydantic-settings>=2`** dans `requirements.txt` ; **phase 1** migrée vers `get_settings()` : `src/agent/*` (llm, embed, context Redis, Langfuse), `src/db/*` (connection, core, pools), `src/api/app_factory.py`, `health.py`, `auth_helpers.py`, `src/couche_a/auth/*`, `src/ratelimit.py`, `src/core/api_keys.py`, `src/couche_a/llm_router.py`, `src/extraction/engine.py` ; **exceptions documentées** : `engine._ensure_ssl_certs()` lit / pose `os.environ` (`SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`, `setdefault` certifi) pour compatibilité TLS sous-processus ; **`tests/conftest.py`** : `setdefault` `MISTRAL_API_KEY` factice CI + fixture **autouse** `get_settings.cache_clear()` isolation ; tests **`tests/unit/test_settings.py`** ; **résiduel** `os.environ.get` dans d’autres modules `src/` (annotation, assembler, workers, memory, procurement, routers optionnels) = **phase 2** hors mandat V5.2-001 ; réf. audit **`docs/audit/AUDIT_V52_PYDANTIC_SETTINGS.md`** ; branche cible **`refactor/v52-pydantic-settings`** (PR / merge CTO) ; **E-100** ║
 ║  Addendum 2026-04-07 : PR #342 MERGÉ main 42ace370 — M16 hardening (INV-weights, guards cognitifs, signal_engine, frontend committee/evaluation, tests DB/e2e) + correctifs revue Copilot (`dao_criteria` : `critere_nom`/`ponderation` ; `require_rbac_permission` pour éviter double `require_workspace_access` dans `m16_guard`) ; dépôt Alembic head **086** (`086_m16_force_row_level_security`) incl. **085** index cadre ; apply **080→086** Railway **en attente** tant que prod **079** (dry-run documenté : `DATABASE_URL=postgresql+psycopg://… alembic upgrade 079_bloc5_confidence_qualification_signal_log:head --sql`) ║
 ║  Addendum 2026-04-04 : PR #321 V4.2.0 Phase 3 — CI rouge — handover détaillé fin doc ║
 ║  Addendum 2026-04-05 : PR #324 MERGÉ main 107d05a2 — BLOC3 fix HTTP 500 W1/W2 + tenant RLS + market + ETL vendors ║
@@ -118,6 +119,7 @@
 ║  PR #352 (2026-04-09) : MERGÉ main 55e16c41 — squash — V5.1 suite : comments, OpenAPI CI, `workspace_stack`, tests/E2E, correctifs CI V5.1 ║
 ║  PR #353 (2026-04-09) : MERGÉ main — Alembic **093** `assessment_history` + CI head whitelist ; dry-run **090→093** : `docs/ops/ALEMBIC_DRYRUN_090_to_093.sql` ║
 ║  PR #357 (2026-04-09) : **MERGÉ main 75a66239** — NL `frontend-v51`, proxy Next 16, Playwright matrice ; **asyncpg** `:name`/`::cast`, MQL `str(tenant_id)`, RLS 093 test ; **sans migration Alembic** ; § ADDENDUM 2026-04-09 — PR #357 ║
+║  Branche **refactor/v52-pydantic-settings** (2026-04-10) : **V5.2** Settings centralisés — § **ADDENDUM 2026-04-10 — V5.2 CONFIG CENTRALISÉE (PYDANTIC SETTINGS)** ║
 ║  parent 361b3787   : 91adc2ed — fix Dockerfile annotation-backend COPY procurement (#303) ║
 ║  (historique) main : 38733982 — Merge PR #292 feat/M13-regulatory-profile-engine-v5 ║
 ║    (M13 V5 engine, config/regulatory YAML SCI+DGMP, Pass 2A, migration 057, ADR-M13-001) ║
@@ -611,6 +613,22 @@
 ║         093 `current_setting(..., true)::uuid` : GUC `''` ou reset   ║
 ║         NULL→`''` → invalid uuid — tests : UUID factices, pas `''`.    ║
 ║         Détail § ADDENDUM 2026-04-09 — PR #357.                        ║
+║  E-100 **Settings V5.2** (2026-04-10) : (1) Après centralisation      ║
+║         Pydantic, omettre **`MISTRAL_API_KEY`** (ou autres champs     ║
+║         **required**) dans l’environnement CI / local → **ValidationError**║
+║         au premier `get_settings()` — **correctif :** `conftest` /    ║
+║         secrets hébergeur avec `setdefault` ou variables Railway      ║
+║         complètes. (2) Tests qui **monkeypatch** l’env sans           ║
+║         **`get_settings.cache_clear()`** → instance **stale** —       ║
+║         **correctif :** fixture autouse ou `cache_clear()` dans le    ║
+║         test. (3) **`SECRET_KEY`** < 32 caractères → refus explicite   ║
+║         (aligné sécurité JWT) ; utiliser **`JWT_SECRET`** ≥ 32 si     ║
+║         `SECRET_KEY` non posé (alias géré dans `Settings`). (4) Nouveau║
+║         code : préférer **`get_settings()`** à **`os.environ.get`**   ║
+║         sous `src/` pour les clés déjà modélisées ; laisser           ║
+║         **`os.environ`** uniquement pour cas documentés (ex. SSL      ║
+║         subprocess, scripts hors `src/`). Détail § ADDENDUM 2026-04-10║
+║         — V5.2 CONFIG.                                                ║
 ║                                                                      ║
 ║  ADR-015  Line items chirurgical — docs/adr/ADR-015_*.md            ║
 ║           Date : 2026-03-16 — Statut : ACCEPTÉ — v3.0.1d           ║
@@ -2098,5 +2116,55 @@ E-98 (2026-04-06) : **`git clean -fd` (ou équivalent destructif) sans dry-run, 
 ### ERREUR CAPITALISÉE — E-99 (2026-04-09) — MQL, ASYNCPG, RLS GUC (PR #357)
 
 **E-99** : **Trois pièges CI liés à V5.1 MQL + tests RLS 093.** (1) Un convertisseur SQL `:nom` → positionnel qui traite **`::text` / `::uuid` comme un faux paramètre `:text`** → `KeyError` ou bind incorrect — **correctif :** lookbehind `(?<!:):` sur le motif nommé. (2) **asyncpg** avec `CAST(:tenant_id AS text)` : passer un **`UUID` Python** peut produire **`DataError: expected str, got UUID`** — **correctif :** `str(tenant_id)` dans les `bind_params` du moteur MQL pour ce pattern. (3) Policy RLS 093 **`current_setting('app.tenant_id', true)::uuid`** : valeurs GUC **`''`** ou reset **`NULL` → `''`** sur variables custom → **`invalid input syntax for type uuid: ""`** et transaction avortée — **correctif tests :** utiliser des **UUID aléatoires** pour les cas « non alignés », pas chaîne vide ni `set_config(..., NULL)` si le reset remet `''`.
+
+---
+
+## ADDENDUM 2026-04-10 — V5.2 CONFIG CENTRALISÉE (PYDANTIC SETTINGS)
+
+**Référence :** mandat / audit **`docs/audit/AUDIT_V52_PYDANTIC_SETTINGS.md`** — implémentation cible branche **`refactor/v52-pydantic-settings`** (PR / merge **CTO** — mettre à jour ce paragraphe avec SHA / numéro PR après merge sur `main`).
+
+### Objet
+
+Remplacer la lecture dispersée de **`os.environ.get`** dans le cœur applicatif par une **source de vérité** typée : **`src/core/config.py`** — classe **`Settings`** (`pydantic_settings.BaseSettings`), accès via **`get_settings()`** avec **`@functools.lru_cache`** (premier appel après chargement de l’environnement ; réinitialisation tests via **`get_settings.cache_clear()`**).
+
+### Variables requises (fail-fast)
+
+- **`DATABASE_URL`** — validateur : préfixe `postgresql://` ou `postgres://`.
+- **`SECRET_KEY`** — **minimum 32 caractères** ; si absent, repli sur **`JWT_SECRET`** (même longueur minimale via le modèle).
+- **`MISTRAL_API_KEY`** — requis pour alignement avec les chemins agent / LLM qui consomment la clé au démarrage des flux concernés.
+
+Champs optionnels (defaults) : **`REDIS_URL`**, **`TESTING`**, TTL JWT, Langfuse, CORS, feature flags OCR, etc. — voir le fichier source.
+
+### Périmètre phase 1 (migré vers `get_settings()`)
+
+| Zone | Fichiers |
+|------|----------|
+| Agent | `src/agent/llm_client.py`, `embedding_client.py`, `context_store.py`, `langfuse_client.py` |
+| DB | `src/db/connection.py`, `core.py`, `async_pool.py`, `pool.py` |
+| API | `src/api/app_factory.py`, `health.py`, `auth_helpers.py` |
+| Auth Couche A | `src/couche_a/auth/jwt_handler.py`, `middleware.py`, `dependencies.py` |
+| Divers | `src/ratelimit.py`, `src/core/api_keys.py`, `src/couche_a/llm_router.py`, `src/extraction/engine.py` (partiel) |
+
+### Exceptions `os.environ` (conservées volontairement)
+
+- **`src/extraction/engine.py`** — **`_ensure_ssl_certs()`** : lecture **`SSL_CERT_FILE`** / **`REQUESTS_CA_BUNDLE`** et **`os.environ.setdefault`** avec bundle **certifi** pour les appels HTTPS / sous-processus qui héritent de l’environnement OS.
+- **`src/core/config.py`** — validator **`JWT_SECRET`** : **`os.environ.get("JWT_SECRET")`** en repli si **`SECRET_KEY`** vide (compat Railway / legacy).
+
+### Périmètre résiduel (phase 2)
+
+Modules **`src/`** qui appellent encore **`os.environ.get`** sans passer par **`Settings`** (annotation, assembler, workers ARQ, memory, procurement, certains routers) — migration **hors** mandat V5.2 phase 1 ; tout nouveau code doit **étendre `Settings`** plutôt que d’ajouter des lectures ad hoc dans les zones déjà couvertes.
+
+### Tests / pytest
+
+- **`tests/conftest.py`** : **`os.environ.setdefault("MISTRAL_API_KEY", "test-mistral-key-for-ci")`** (et **`SECRET_KEY`** / **`TESTING`** comme avant) **avant** imports **`src.*`** lourds ; fixture **autouse** qui appelle **`get_settings.cache_clear()`** avant/après chaque test.
+- **`tests/unit/test_settings.py`** : validation URL DB, alias JWT, flag **`TESTING`**, isolation cache.
+
+### Dépendance
+
+- **`pydantic-settings>=2`** dans **`requirements.txt`** (avec **`pydantic==2.11.2`** existant).
+
+### ERREUR CAPITALISÉE — E-100 (2026-04-10) — SETTINGS V5.2
+
+Reprend le bloc **E-100** dans l’encadré ASCII en tête de ce document : variables **required** manquantes en CI, cache **`lru_cache`** non vidé après **monkeypatch**, **`SECRET_KEY`** trop court, et discipline **`get_settings()`** vs **`os.environ`** sous **`src/`**.
 
 ---
