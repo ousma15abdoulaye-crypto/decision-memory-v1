@@ -122,6 +122,11 @@ def write_bundle(
             sha256 = doc.get("sha256") or _sha256_file(file_path)
 
             ocr = doc.get("ocr_result", {})
+            raw_text = ocr.get("raw_text")
+            if isinstance(raw_text, str):
+                raw_text = raw_text.replace("\x00", "")
+            else:
+                raw_text = None
             db_execute(
                 conn,
                 """
@@ -153,7 +158,7 @@ def write_bundle(
                     "spath": str(file_path) if file_path else "",
                     "oengine": ocr.get("ocr_engine"),
                     "oconf": ocr.get("confidence"),
-                    "rawtext": ocr.get("raw_text"),
+                    "rawtext": raw_text,
                     "sjson": None,
                     "m12kind": doc.get("m12_doc_kind"),
                     "m12conf": doc.get("m12_confidence"),
