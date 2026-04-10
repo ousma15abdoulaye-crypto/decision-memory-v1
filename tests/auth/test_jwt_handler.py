@@ -165,12 +165,17 @@ def test_rotate_rejects_second_use(db_conn):
 # ── Sécurité démarrage ────────────────────────────────────────────────────────
 
 
-def test_secret_key_absent_raises_value_error(monkeypatch):
-    """SECRET_KEY absent de l'ENV → ValueError au démarrage."""
+def test_secret_key_absent_raises_validation_error(monkeypatch):
+    """SECRET_KEY absent → ValidationError Settings (fail-fast Pydantic V5.2)."""
+    from pydantic import ValidationError
+
     monkeypatch.delenv("SECRET_KEY", raising=False)
     monkeypatch.delenv("JWT_SECRET", raising=False)
 
     import src.couche_a.auth.jwt_handler as mod
 
-    with pytest.raises(ValueError, match="SECRET_KEY absent"):
+    with pytest.raises(ValidationError) as exc_info:
         mod._secret_key()
+    # .env / JWT_SECRET alias : l'erreur peut être "missing" ou "string_too_short"
+    msg = str(exc_info.value)
+    assert "SECRET_KEY" in msg or "JWT_SECRET" in msg

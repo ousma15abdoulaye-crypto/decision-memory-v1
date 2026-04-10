@@ -45,7 +45,7 @@ class TestGuardrailINVW06:
         with patch(
             "src.agent.guardrail.classify_intent", new=AsyncMock(return_value=intent)
         ):
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 check_recommendation_guardrail(
                     "Quel fournisseur recommandez-vous ?", _mock_trace()
                 )
@@ -63,7 +63,7 @@ class TestGuardrailINVW06:
         with patch(
             "src.agent.guardrail.classify_intent", new=AsyncMock(return_value=intent)
         ):
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 check_recommendation_guardrail(
                     "Quel est le meilleur fournisseur ?", _mock_trace()
                 )
@@ -79,7 +79,7 @@ class TestGuardrailINVW06:
         with patch(
             "src.agent.guardrail.classify_intent", new=AsyncMock(return_value=intent)
         ):
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 check_recommendation_guardrail(
                     "Prix du ciment a Mopti ?", _mock_trace()
                 )
@@ -95,7 +95,7 @@ class TestGuardrailINVW06:
         with patch(
             "src.agent.guardrail.classify_intent", new=AsyncMock(return_value=intent)
         ):
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 check_recommendation_guardrail(
                     "Quels sont les seuils ECHO ?", _mock_trace()
                 )
@@ -111,7 +111,7 @@ class TestGuardrailINVW06:
         with patch(
             "src.agent.guardrail.classify_intent", new=AsyncMock(return_value=intent)
         ):
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 check_recommendation_guardrail(
                     "Ou en est le dossier RFQ-001 ?", _mock_trace()
                 )
@@ -132,7 +132,7 @@ class TestMQLParamExtractor:
         """Mopti est une zone connue."""
         from src.mql.param_extractor import extract_mql_params
 
-        params = asyncio.get_event_loop().run_until_complete(
+        params = asyncio.run(
             extract_mql_params("Prix du ciment a Mopti ce mois ?", self._tid)
         )
         assert params.zones or params.article_pattern, (
@@ -144,27 +144,21 @@ class TestMQLParamExtractor:
         """Un article connu (ciment) est extrait en pattern."""
         from src.mql.param_extractor import extract_mql_params
 
-        params = asyncio.get_event_loop().run_until_complete(
-            extract_mql_params("prix du ciment a Bamako", self._tid)
-        )
+        params = asyncio.run(extract_mql_params("prix du ciment a Bamako", self._tid))
         assert params is not None
 
     def test_does_not_crash_on_empty_query(self) -> None:
         """extract_mql_params ne plante pas sur une query vide."""
         from src.mql.param_extractor import extract_mql_params
 
-        params = asyncio.get_event_loop().run_until_complete(
-            extract_mql_params("", self._tid)
-        )
+        params = asyncio.run(extract_mql_params("", self._tid))
         assert params is not None
 
     def test_detects_bamako_zone(self) -> None:
         """Bamako est une zone géographique connue."""
         from src.mql.param_extractor import extract_mql_params
 
-        params = asyncio.get_event_loop().run_until_complete(
-            extract_mql_params("prix a Bamako", self._tid)
-        )
+        params = asyncio.run(extract_mql_params("prix a Bamako", self._tid))
         assert params is not None
 
 

@@ -29,7 +29,9 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - run: pip install -r requirements.txt
+      - run: |
+          pip install -r requirements.txt
+          pip install "ruff" "black==26.1.0"
 
       - name: "Ruff check"
         run: python -m ruff check src tests services

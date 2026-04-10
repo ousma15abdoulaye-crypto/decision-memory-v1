@@ -168,8 +168,10 @@ jobs:
         env:
           DATABASE_URL: >-
             postgresql://dms:dms@localhost:5432/dms_test
-          TESTING:    "true"
+          TESTING: "true"
           SECRET_KEY: "ci-secret-key-not-for-production"
+          MISTRAL_API_KEY: "ci-test-mistral-key-not-for-production"
+          REDIS_URL: "redis://127.0.0.1:6379/0"
         run: |
           alembic upgrade head
 
@@ -190,8 +192,10 @@ jobs:
         env:
           DATABASE_URL: >-
             postgresql://dms:dms@localhost:5432/dms_test
-          TESTING:    "true"
+          TESTING: "true"
           SECRET_KEY: "ci-secret-key-not-for-production"
+          MISTRAL_API_KEY: "ci-test-mistral-key-not-for-production"
+          REDIS_URL: "redis://127.0.0.1:6379/0"
         run: |
           pytest tests/ \
             --cov=src \

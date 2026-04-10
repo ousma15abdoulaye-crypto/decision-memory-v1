@@ -39,6 +39,8 @@ jobs:
       DATABASE_URL_RLS_TEST: postgresql+psycopg://dm_app:dm_app_ci_test@localhost:5432/dmstest
       PGPASSWORD: testpass
       REDIS_URL: redis://localhost:6379/0
+      # Settings (Pydantic) : requis pour import main:app / audit FastAPI
+      MISTRAL_API_KEY: ci-test-mistral-key-not-for-production
 
     steps:
       - uses: actions/checkout@v4
