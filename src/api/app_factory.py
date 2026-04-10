@@ -550,7 +550,7 @@ def create_modular_app() -> FastAPI:
                 "[startup] Routers optionnels inactifs (milestone non ouvert) : %s",
                 inactive,
             )
-        _is_testing = os.environ.get("TESTING", "false").lower() == "true"
+        _is_testing = get_settings().TESTING
         if not _is_testing:
             try:
                 from src.agent.semantic_router import warm_centroids

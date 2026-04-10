@@ -241,63 +241,6 @@ export default function WorkspacePage() {
           />
         )}
       </div>
-<<<<<<< HEAD
-
-      {cog && (
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-lg border p-4 dark:border-gray-800">
-            <div className="text-sm text-gray-500">Phase</div>
-            <div className="text-lg font-medium">{cog.phase}</div>
-          </div>
-          <div className="rounded-lg border p-4 dark:border-gray-800">
-            <div className="text-sm text-gray-500">Progression</div>
-            <div className="text-lg font-medium">
-              {Math.round(cog.completeness * 100)}%
-            </div>
-          </div>
-          <div className="rounded-lg border p-4 dark:border-gray-800">
-            <div className="text-sm text-gray-500">Actions disponibles</div>
-            <div className="text-lg font-medium">
-              {cog.available_actions.length}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <WorkspaceEventsBridge workspaceId={id} />
-
-      {isSealed && <PvExportButtons workspaceId={id} />}
-
-      {process.env.NEXT_PUBLIC_SHOW_PDF_DRILLDOWN === "true" && (
-        <PdfDrilldownPlaceholder />
-      )}
-
-      {cog?.advance_blockers && cog.advance_blockers.length > 0 && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
-          <h3 className="text-sm font-medium text-amber-800 dark:text-amber-200">
-            Blocages
-          </h3>
-          <ul className="mt-2 space-y-1 text-sm text-amber-700 dark:text-amber-300">
-            {cog.advance_blockers.map((b, i) => (
-              <li key={i}>{b}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <ComparativeTable workspaceId={id} />
-
-      <AgentConsole workspaceId={id} />
-
-      {showComment && (
-        <CommentDialog
-          workspaceId={id}
-          onClose={() => setShowComment(false)}
-        />
-      )}
-    </div>
-=======
     </ErrorBoundary>
->>>>>>> b26e16ac (feat(V52-P1-P4): reconstruction complete backend + frontend DMS V5.2)
   );
 }
