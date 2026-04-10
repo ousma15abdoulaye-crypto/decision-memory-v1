@@ -12,7 +12,17 @@ Toutes les requêtes passent par l’URL de l’API FastAPI racine (`main.py`), 
 - **Compat Swagger** : `POST /auth/token` (formulaire OAuth2 `username` / `password`).
 - **Ressources V5.1** : `GET /api/dashboard`, `/api/workspaces/...`, etc.
 
-Fichier client : [`lib/api-client.ts`](lib/api-client.ts) (`API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"`).
+Fichier client : [`lib/api-client.ts`](lib/api-client.ts) (`API_BASE` = `NEXT_PUBLIC_API_URL` sans slash final, ou défaut `http://localhost:8000`).
+
+### Dépannage : « Failed to fetch » sur le front déployé
+
+1. **`NEXT_PUBLIC_API_URL` au build** — Les variables `NEXT_PUBLIC_*` sont figées **au moment du build** Next.js, pas au runtime. Sur Railway/Vercel : ajouter `NEXT_PUBLIC_API_URL=https://<votre-service-api>.up.railway.app` (URL **HTTPS** publique du FastAPI `main:app`), puis **redéployer** le service frontend (nouveau build). Sans cela, le navigateur appelle `http://localhost:8000` depuis la machine de l’utilisateur → échec immédiat.
+
+2. **CORS** — Sur l’API, `CORS_ORIGINS` doit lister l’**origine exacte** du front (schéma + hôte + port), séparateur virgule, sans slash final inutile : ex. `https://votre-frontend.up.railway.app`. Les défauts dans `src/api/app_factory.py` incluent `https://frontend-v51-production.up.railway.app` ; une autre URL Railway nécessite cette variable.
+
+3. **Mixed content** — Page en **HTTPS** qui appelle une API en **http://** : souvent bloquée par le navigateur. Utiliser une API exposée en HTTPS (Railway le fait en général).
+
+4. **Vérification rapide** — Onglet Réseau (F12) : URL réelle du `POST /auth/login` ; onglet Console pour erreur CORS explicite.
 
 ## Getting Started
 
