@@ -34,7 +34,9 @@ export function SealButton({ workspaceId, canSeal, isSealed }: SealButtonProps) 
     },
     onError: (err) => {
       if (err instanceof ApiError && err.status === 422) {
-        const body = err.body as Partial<SealPreconditionError>;
+        // FastAPI renvoie { detail: {...} } — extraire .detail en priorité
+        const raw = err.body as { detail?: Partial<SealPreconditionError> } & Partial<SealPreconditionError>;
+        const body: Partial<SealPreconditionError> = raw.detail ?? raw;
         setPreconditionErrors({
           error: body.error ?? "seal_preconditions_failed",
           message: body.message ?? err.message,
@@ -42,10 +44,9 @@ export function SealButton({ workspaceId, canSeal, isSealed }: SealButtonProps) 
           warnings: Array.isArray(body.warnings) ? body.warnings : [],
         });
         setConfirm(false);
+      } else {
+        setConfirm(false);
       }
-    },
-    onError: () => {
-      setConfirm(false);
     },
   });
 

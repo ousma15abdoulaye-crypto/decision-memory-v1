@@ -85,7 +85,7 @@ def _lookup_market_price(conn: Any, item_slug: str, zone_id: str) -> Decimal | N
     """Cherche le prix de référence dans market_signals_v2.
 
     Passe 1 : exact slug match (item_id = :slug).
-    Passe 2 : similarity pg_trgm > 0.55.
+    Passe 2 : similarity pg_trgm > _ITEM_SIMILARITY_THRESHOLD.
     Retourne price_seasonal_adj du meilleur signal disponible.
     """
     row = db_execute_one(
@@ -97,14 +97,18 @@ def _lookup_market_price(conn: Any, item_slug: str, zone_id: str) -> Decimal | N
           AND signal_quality IN ('strong', 'moderate', 'propagated')
           AND (
               item_id = :slug
-              OR (set_limit(0.55) IS NOT NULL AND similarity(item_id, :slug) > 0.55)
+              OR (set_limit(:threshold) IS NOT NULL AND similarity(item_id, :slug) > :threshold)
           )
         ORDER BY
             CASE WHEN item_id = :slug THEN 0 ELSE 1 END,
             similarity(item_id, :slug) DESC
         LIMIT 1
         """,
-        {"zone": zone_id, "slug": item_slug},
+        {
+            "zone": zone_id,
+            "slug": item_slug,
+            "threshold": float(_ITEM_SIMILARITY_THRESHOLD),
+        },
     )
     if row and row.get("price_seasonal_adj") is not None:
         try:

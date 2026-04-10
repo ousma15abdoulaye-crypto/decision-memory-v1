@@ -131,6 +131,11 @@ WRITE_PERMISSIONS: frozenset[str] = frozenset(
 )
 
 
+# Ensemble de toutes les permissions V5.2 (== permissions admin).
+# Exposé pour les gates CI et les tests sans instancier Settings.
+ALL_PERMISSIONS: frozenset[str] = ROLE_PERMISSIONS["admin"]
+
+
 def has_permission(role: str, permission: str) -> bool:
     """Vérifie si un rôle V5.2 possède une permission.
 

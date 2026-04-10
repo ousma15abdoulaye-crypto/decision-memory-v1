@@ -1,5 +1,4 @@
-﻿"""
-Tests d'integration -- Flow de scellement V5.2 (run_all_seal_checks).
+﻿"""Tests d'integration -- Flow de scellement V5.2 (run_all_seal_checks).
 
 Verifie que :
 - Quorum insuffisant -> SealCheckResult.passed = False avec erreur quorum

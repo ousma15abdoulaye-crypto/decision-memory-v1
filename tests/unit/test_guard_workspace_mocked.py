@@ -1,4 +1,4 @@
-"""INV-S02 — guard() async : matrice workspace + scellement (mocks asyncpg, sans DB).
+﻿"""INV-S02 â€” guard() async : matrice workspace + scellement (mocks asyncpg, sans DB).
 
 Inclut les tests RBAC observer sans workspace_id (BUG-P3-07).
 """
@@ -15,11 +15,11 @@ from src.auth.permissions import ROLE_PERMISSIONS
 
 
 def _make_user(
-    user_id: str = "42",
+    user_id: int = 42,
     role: str = "observer",
     tenant: str | None = None,
 ) -> dict:
-    """Retourne un dict user compatible avec guard() (V5.2 API — user["id"])."""
+    """Retourne un dict user compatible avec guard() (V5.2 API â€” user["id"] est int)."""
     return {
         "id": user_id,
         "role": role,
@@ -28,12 +28,12 @@ def _make_user(
 
 
 def _mock_conn_workspace(member_role: str | None, ws_status: str = "in_analysis"):
-    """Mock AsyncpgAdapter pour guard() V5.2 — utilise fetch_one() (pas fetchrow)."""
+    """Mock AsyncpgAdapter pour guard() V5.2 â€” utilise fetch_one() (pas fetchrow)."""
     conn = AsyncMock()
 
-    # guard() fait 2 appels à fetch_one :
-    #   1. workspace_memberships → rôle du membre (ou None si non membre)
-    #   2. process_workspaces   → status du workspace (seulement pour WRITE_PERMISSIONS)
+    # guard() fait 2 appels Ã  fetch_one :
+    #   1. workspace_memberships â†’ rÃ´le du membre (ou None si non membre)
+    #   2. process_workspaces   â†’ status du workspace (seulement pour WRITE_PERMISSIONS)
     member_row = {"role": member_role} if member_role else None
     ws_row = {"status": ws_status}
 
@@ -52,7 +52,7 @@ def _mock_conn_workspace(member_role: str | None, ws_status: str = "in_analysis"
 class TestGuardObserver:
     @pytest.mark.asyncio
     async def test_observer_denied_evaluation_write(self):
-        """observer n'a pas de permission d'écriture (V5.2 — aucun .write)."""
+        """observer n'a pas de permission d'Ã©criture (V5.2 â€” aucun .write)."""
         from fastapi import HTTPException
 
         conn = _mock_conn_workspace("observer")
@@ -99,10 +99,10 @@ class TestGuardObserver:
         assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_procurement_lead_denied_workspace_manage(self):
-        """procurement_lead → supply_chain, mais workspace.manage est bloqué
-        car supply_chain A workspace.manage — ce test vérifie la négation:
-        si on utilise un rôle legacy sans la permission, on est bloqué."""
+    async def test_technical_reviewer_denied_workspace_manage(self):
+        """procurement_lead â†’ supply_chain, mais workspace.manage est bloquÃ©
+        car supply_chain A workspace.manage â€” ce test vÃ©rifie la nÃ©gation:
+        si on utilise un rÃ´le legacy sans la permission, on est bloquÃ©."""
         from fastapi import HTTPException
 
         conn = _mock_conn_workspace("technical_reviewer")
@@ -115,7 +115,7 @@ class TestGuardObserver:
 
     @pytest.mark.asyncio
     async def test_committee_member_allowed_evaluation_write(self):
-        """committee_member → supply_chain via _LEGACY_ROLE_MAP → a evaluation.write."""
+        """committee_member â†’ supply_chain via _LEGACY_ROLE_MAP â†’ a evaluation.write."""
         conn = _mock_conn_workspace("committee_member")
         user = _make_user(role="finance")
         ws_id = uuid.uuid4()
@@ -125,7 +125,7 @@ class TestGuardObserver:
 
 
 def _mock_conn_sealed(ws_status: str, member_role: str = "committee_member"):
-    """Mock AsyncpgAdapter pour le check de scellement — fetch_one() séquentiel."""
+    """Mock AsyncpgAdapter pour le check de scellement â€” fetch_one() sÃ©quentiel."""
     conn = AsyncMock()
     call_count = [0]
 
@@ -143,11 +143,11 @@ class TestGuardSealed:
     @pytest.mark.parametrize("status", ["sealed", "closed", "cancelled"])
     @pytest.mark.asyncio
     async def test_write_blocked_on_closed_workspace(self, status):
-        """Écriture (evaluation.write) bloquée sur workspace clos — 409."""
+        """Ã‰criture (evaluation.write) bloquÃ©e sur workspace clos â€” 409."""
         from fastapi import HTTPException
 
         conn = _mock_conn_sealed(status)
-        user = _make_user(user_id="1", role="supply_chain")
+        user = _make_user(user_id=1, role="supply_chain")
         ws_id = uuid.uuid4()
 
         with pytest.raises(HTTPException) as exc_info:
@@ -157,9 +157,9 @@ class TestGuardSealed:
     @pytest.mark.parametrize("status", ["sealed", "closed", "cancelled"])
     @pytest.mark.asyncio
     async def test_read_allowed_on_closed_workspace(self, status):
-        """Lecture (evaluation.read) autorisée même sur workspace clos."""
+        """Lecture (evaluation.read) autorisÃ©e mÃªme sur workspace clos."""
         conn = _mock_conn_sealed(status)
-        user = _make_user(user_id="1", role="supply_chain")
+        user = _make_user(user_id=1, role="supply_chain")
         ws_id = uuid.uuid4()
 
         result = await guard(conn, user, ws_id, "evaluation.read")
@@ -167,9 +167,9 @@ class TestGuardSealed:
 
     @pytest.mark.asyncio
     async def test_write_allowed_on_open_workspace(self):
-        """Écriture autorisée si workspace ouvert."""
+        """Ã‰criture autorisÃ©e si workspace ouvert."""
         conn = _mock_conn_sealed("in_analysis")
-        user = _make_user(user_id="1", role="supply_chain")
+        user = _make_user(user_id=1, role="supply_chain")
         ws_id = uuid.uuid4()
 
         result = await guard(conn, user, ws_id, "evaluation.write")
@@ -178,15 +178,15 @@ class TestGuardSealed:
     @pytest.mark.parametrize("permission", sorted(WRITE_PERMISSIONS))
     @pytest.mark.asyncio
     async def test_all_v52_writes_blocked_when_sealed(self, permission):
-        """Toutes les WRITE_PERMISSIONS V5.2 sont bloquées sur workspace scellé — 409.
+        """Toutes les WRITE_PERMISSIONS V5.2 sont bloquÃ©es sur workspace scellÃ© â€” 409.
 
-        Utilise guard.WRITE_PERMISSIONS (V5.2 canon) et committee_chair → supply_chain
-        qui possède toutes ces permissions.
+        Utilise guard.WRITE_PERMISSIONS (V5.2 canon) et committee_chair â†’ supply_chain
+        qui possÃ¨de toutes ces permissions.
         """
         from fastapi import HTTPException
 
         conn = _mock_conn_sealed("sealed", member_role="committee_chair")
-        user = _make_user(user_id="1", role="supply_chain")
+        user = _make_user(user_id=1, role="supply_chain")
         ws_id = uuid.uuid4()
 
         with pytest.raises(HTTPException) as exc_info:
@@ -195,26 +195,26 @@ class TestGuardSealed:
 
 
 class TestRbacObserverNoWorkspaceId:
-    """RBAC tenant-level fallback — observer sans workspace_id (BUG-P3-07).
+    """RBAC tenant-level fallback â€” observer sans workspace_id (BUG-P3-07).
 
     Valide la logique du router agent.py : quand workspace_id est absent,
-    un rôle 'observer' sans 'agent.query' doit recevoir 403.
+    un rÃ´le 'observer' sans 'agent.query' doit recevoir 403.
     """
 
     def test_observer_lacks_agent_query_permission(self):
-        """Le rôle 'observer' ne doit pas avoir 'agent.query' dans ROLE_PERMISSIONS."""
+        """Le rÃ´le 'observer' ne doit pas avoir 'agent.query' dans ROLE_PERMISSIONS."""
         observer_perms = ROLE_PERMISSIONS.get("observer", frozenset())
         assert (
             "agent.query" not in observer_perms
-        ), "Le rôle observer ne doit pas avoir agent.query sans workspace_id"
+        ), "Le rÃ´le observer ne doit pas avoir agent.query sans workspace_id"
 
     def test_admin_has_system_admin_permission(self):
-        """Le rôle 'admin' doit avoir 'system.admin' (lui permettant de passer)."""
+        """Le rÃ´le 'admin' doit avoir 'system.admin' (lui permettant de passer)."""
         admin_perms = ROLE_PERMISSIONS.get("admin", frozenset())
         assert "system.admin" in admin_perms or "agent.query" in admin_perms
 
     def test_agent_query_permission_present_for_authorized_roles(self):
-        """Au moins un rôle (non-observer) possède 'agent.query'."""
+        """Au moins un rÃ´le (non-observer) possÃ¨de 'agent.query'."""
         roles_with_agent_query = [
             role
             for role, perms in ROLE_PERMISSIONS.items()
