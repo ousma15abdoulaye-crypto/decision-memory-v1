@@ -42,6 +42,11 @@ async def ocr_with_mistral(file_path: str | Path) -> dict:
     path = Path(file_path)
     ext = path.suffix.lower()
     api_key = os.environ.get("MISTRAL_API_KEY", "")
+    ssl_verify = os.environ.get("MISTRAL_SSL_VERIFY", "1").strip() not in {
+        "0",
+        "false",
+        "no",
+    }
 
     if not api_key:
         logger.warning("[OCR-MISTRAL] MISTRAL_API_KEY absent — fallback Azure.")
@@ -65,54 +70,46 @@ async def ocr_with_mistral(file_path: str | Path) -> dict:
             }
             media_type = media_map.get(ext, "image/jpeg")
             b64_data = _encode_file_b64(path)
-            content = [
-                {
-                    "type": "image_url",
-                    "image_url": f"data:{media_type};base64,{b64_data}",
-                }
-            ]
+            document = {
+                "type": "image_url",
+                "image_url": f"data:{media_type};base64,{b64_data}",
+            }
         else:
             b64_data = _encode_file_b64(path)
-            content = [
-                {
-                    "type": "document_url",
-                    "document_url": f"data:application/pdf;base64,{b64_data}",
-                }
-            ]
+            document = {
+                "type": "document_url",
+                "document_url": f"data:application/pdf;base64,{b64_data}",
+            }
 
         payload = {
             "model": MISTRAL_OCR_MODEL,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": content
-                    + [
-                        {
-                            "type": "text",
-                            "text": (
-                                "Extrais tout le texte de ce document. "
-                                "Retourne le texte brut sans formatage."
-                            ),
-                        }
-                    ],
-                }
-            ],
-            "max_tokens": 4096,
+            "document": document,
         }
 
-        async with httpx.AsyncClient(timeout=OCR_TIMEOUT_S) as client:
+        if not ssl_verify:
+            logger.warning("[OCR-MISTRAL] SSL verify disabled via MISTRAL_SSL_VERIFY=0")
+        async with httpx.AsyncClient(
+            timeout=OCR_TIMEOUT_S, verify=ssl_verify
+        ) as client:
             resp = await client.post(
-                "https://api.mistral.ai/v1/chat/completions",
+                "https://api.mistral.ai/v1/ocr",
                 headers={
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                 },
                 json=payload,
             )
+            if resp.status_code >= 400:
+                logger.error(
+                    "[OCR-MISTRAL] HTTP %s body=%s",
+                    resp.status_code,
+                    (resp.text or "")[:2000],
+                )
             resp.raise_for_status()
             data = resp.json()
 
-        raw_text = data["choices"][0]["message"]["content"] or ""
+        pages = data.get("pages", [])
+        raw_text = "\n".join([page.get("markdown", "") for page in pages]) or ""
         return {
             "raw_text": raw_text,
             "confidence": 0.85,
@@ -121,12 +118,15 @@ async def ocr_with_mistral(file_path: str | Path) -> dict:
         }
 
     except Exception as exc:
-        logger.error("[OCR-MISTRAL] Erreur sur %s : %s", path.name, exc)
+        msg = str(exc)
+        if not msg:
+            msg = exc.__class__.__name__
+        logger.error("[OCR-MISTRAL] Erreur sur %s : %s", path.name, msg)
         return {
             "raw_text": "",
             "confidence": 0.0,
             "ocr_engine": "mistral_ocr_3",
-            "error": str(exc),
+            "error": msg,
         }
 
 

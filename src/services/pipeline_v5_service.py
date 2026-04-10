@@ -75,11 +75,63 @@ def _tf(
     return TracedField(value=value, confidence=confidence, evidence=evidence or [])
 
 
+def _detect_framework_from_corpus(text: str) -> tuple[ProcurementFramework, float]:
+    """Détection heuristique framework depuis corpus ITT/DAO.
+
+    Returns: (framework, confidence)
+    """
+    text_lower = text.lower()
+
+    # DGMP Mali markers
+    dgmp_markers = [
+        "direction générale des marchés publics",
+        "dgmp",
+        "république du mali",
+        "code des marchés publics",
+        "armp mali",
+        "décret n°",
+    ]
+    dgmp_count = sum(1 for m in dgmp_markers if m in text_lower)
+
+    # SCI markers
+    sci_markers = [
+        "save the children",
+        "sci procurement",
+        "humanitarian procurement",
+        "donor compliance",
+    ]
+    sci_count = sum(1 for m in sci_markers if m in text_lower)
+
+    if dgmp_count >= 2:
+        return ProcurementFramework.DGMP_MALI, 0.8
+    elif dgmp_count == 1:
+        return ProcurementFramework.DGMP_MALI, 0.6
+    elif sci_count >= 2:
+        return ProcurementFramework.SCI, 0.8
+    elif sci_count == 1:
+        return ProcurementFramework.SCI, 0.6
+    else:
+        return ProcurementFramework.UNKNOWN, 0.6
+
+
 def build_pipeline_v5_minimal_m12(*, corpus_text: str) -> M12Output:
-    """M12 minimal pour enchaîner M13 (H1 via ITT + texte corpus)."""
+    """M12 bootstrap pour M13 — détection framework + corpus complet.
+
+    FIX BUG 1: framework_detected maintenant inféré du corpus (DGMP vs SCI).
+    M13 peut résoudre procedure_type si framework != UNKNOWN.
+    """
     text = corpus_text[:500_000] if corpus_text else ""
+    framework, fw_conf = _detect_framework_from_corpus(text)
+
+    logger.info(
+        "[PIPELINE-V5] M12 build — framework=%s confidence=%.1f corpus_len=%d",
+        framework.value,
+        fw_conf,
+        len(text),
+    )
+
     rec = ProcedureRecognition(
-        framework_detected=_tf(ProcurementFramework.UNKNOWN),
+        framework_detected=_tf(framework, fw_conf),
         procurement_family=_tf(ProcurementFamily.GOODS),
         procurement_family_sub=_tf(ProcurementFamilySub.GENERIC),
         document_kind=_tf(DocumentKindParent.ITT),
@@ -100,11 +152,11 @@ def build_pipeline_v5_minimal_m12(*, corpus_text: str) -> M12Output:
         visit_required=_tf("NOT_APPLICABLE", 1.0),
         sample_required=_tf("NOT_APPLICABLE", 1.0),
         humanitarian_context=_tf("NOT_APPLICABLE", 1.0),
-        recognition_source=_tf("pipeline_v5"),
+        recognition_source=_tf("pipeline_v5_heuristic"),
         review_status=_tf("review_required", 0.6),
     )
     validity = DocumentValidity(
-        document_validity_status=_tf("NOT_ASSESSED", 0.6, ["pipeline_v5_minimal"]),
+        document_validity_status=_tf("NOT_ASSESSED", 0.6, ["pipeline_v5_bootstrap"]),
     )
     conformity = DocumentConformitySignal(
         offer_composition_hint=_tf("ABSENT", 0.6),
@@ -119,8 +171,8 @@ def build_pipeline_v5_minimal_m12(*, corpus_text: str) -> M12Output:
     )
     hh: M12Handoffs = build_handoffs(
         DocumentKindParent.ITT,
-        ProcurementFramework.UNKNOWN,
-        0.6,
+        framework,
+        fw_conf,
         ProcurementFamily.GOODS,
         ProcurementFamilySub.GENERIC,
         [],
@@ -132,7 +184,7 @@ def build_pipeline_v5_minimal_m12(*, corpus_text: str) -> M12Output:
         confidence_ceiling=1.0,
         corpus_size_at_processing=len(text),
         processing_timestamp=datetime.now(UTC).isoformat(),
-        pass_sequence=["pipeline_v5"],
+        pass_sequence=["pipeline_v5_heuristic"],
     )
     return M12Output(
         procedure_recognition=rec,

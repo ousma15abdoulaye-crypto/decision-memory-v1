@@ -64,3 +64,24 @@ markers = [
     "db_integrity: marks tests requiring DB integrity (triggers, migrations)",
     "asyncio: asyncio test (pytest-asyncio)",
 ]
+
+[tool.coverage.run]
+omit = [
+    "test_*.py",
+    "investigate_db.py",
+    "*/tests/*",
+    "*/.venv/*",
+    "*/venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
