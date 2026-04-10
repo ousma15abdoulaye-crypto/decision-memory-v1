@@ -26,6 +26,110 @@ def _is_rls_denied(exc: BaseException) -> bool:
     return "row-level security" in msg or "violates row-level security" in msg
 
 
+def _build_assessment_matrix_from_report(
+    payload: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    """Transforme EvaluationReport en matrice bundle×critère pour M16 bridge.
+
+    Format sortie: {bundle_id: {criterion_key: {score, confidence, justification}}}
+
+    Cette matrice est exploitable par populate_assessments_from_m14() qui attend
+    une structure {bundle_id: {criterion_key: cell_data}}.
+    """
+    matrix: dict[str, dict[str, Any]] = {}
+
+    offer_evals = payload.get("offer_evaluations") or []
+    for offer in offer_evals:
+        if not isinstance(offer, dict):
+            continue
+
+        # offer_document_id = bundle_id dans le contexte pipeline V5
+        bundle_id = str(offer.get("offer_document_id", ""))
+        if not bundle_id:
+            continue
+
+        bundle_matrix: dict[str, Any] = {}
+
+        # Extraction des scores techniques
+        tech_score = offer.get("technical_score")
+        if isinstance(tech_score, dict):
+            criteria_scores = tech_score.get("criteria_scores") or []
+            for crit in criteria_scores:
+                if not isinstance(crit, dict):
+                    continue
+
+                crit_name = str(crit.get("criteria_name", "unknown"))
+                awarded = crit.get("awarded_score")
+                max_score = crit.get("max_score")
+                justif = crit.get("justification", "")
+                conf = crit.get("confidence", 0.6)
+
+                # Construction cell_json compatible M16
+                bundle_matrix[crit_name] = {
+                    "score": awarded,
+                    "max_score": max_score,
+                    "justification": justif,
+                    "confidence": conf,
+                    "source": "m14",
+                }
+
+        # Extraction éligibilité (peut devenir critère éliminatoire)
+        eligibility = offer.get("eligibility_results") or []
+        for check in eligibility:
+            if not isinstance(check, dict):
+                continue
+            if not check.get("is_eliminatory"):
+                continue
+
+            check_id = str(check.get("check_id", ""))
+            check_name = str(check.get("check_name", "eligibility"))
+            result = check.get("result", "INDETERMINATE")
+            conf = check.get("confidence", 0.6)
+
+            # Score binaire : PASS=1, FAIL=0, autre=0.5
+            if result == "PASS":
+                score_val = 1.0
+            elif result == "FAIL":
+                score_val = 0.0
+            else:
+                score_val = 0.5
+
+            key = check_id if check_id else check_name
+            bundle_matrix[key] = {
+                "score": score_val,
+                "max_score": 1.0,
+                "justification": f"Eligibility: {result}",
+                "confidence": conf,
+                "source": "m14",
+                "check_type": "eligibility",
+            }
+
+        # Extraction analyse prix (optionnel)
+        price_analysis = offer.get("price_analysis")
+        if isinstance(price_analysis, dict):
+            total_price = price_analysis.get("total_price_declared")
+            if total_price is not None:
+                bundle_matrix["price_total"] = {
+                    "score": total_price,
+                    "max_score": None,
+                    "justification": f"Currency: {price_analysis.get('currency', 'unknown')}",
+                    "confidence": price_analysis.get("confidence", 0.6),
+                    "source": "m14",
+                    "check_type": "price",
+                }
+
+        if bundle_matrix:
+            matrix[bundle_id] = bundle_matrix
+
+    logger.info(
+        "[M14-REPO] assessment_matrix built — %d bundles, %d total criteria",
+        len(matrix),
+        sum(len(v) for v in matrix.values()),
+    )
+
+    return matrix
+
+
 class M14EvaluationRepository:
     """CRUD sur evaluation_documents (migration 056)."""
 
@@ -110,6 +214,9 @@ class M14EvaluationRepository:
             )
             return None
 
+        # FIX M16 BRIDGE: Transformer payload en assessment_matrix exploitable
+        assessment_matrix = _build_assessment_matrix_from_report(payload)
+
         for attempt in range(_MAX_INSERT_RETRIES):
             try:
                 with get_connection() as conn:
@@ -131,7 +238,7 @@ class M14EvaluationRepository:
                             CAST(:workspace_id AS uuid),
                             CAST(:committee_id AS uuid),
                             :ver,
-                            :payload,
+                            :matrix,
                             'draft'
                         )
                         RETURNING id::text AS id
@@ -140,7 +247,7 @@ class M14EvaluationRepository:
                             "workspace_id": workspace_id,
                             "committee_id": cid,
                             "ver": ver,
-                            "payload": Json(payload),
+                            "matrix": Json(assessment_matrix),
                         },
                     )
                     out = conn.fetchone()
