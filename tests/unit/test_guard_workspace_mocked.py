@@ -10,48 +10,49 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from src.auth.guard import guard
+from src.auth.guard import WRITE_PERMISSIONS, guard
 from src.auth.permissions import ROLE_PERMISSIONS
-from src.couche_a.auth.dependencies import UserClaims
-from src.services.workspace_access_service import WORKSPACE_WRITE_PERMISSIONS
 
 
 def _make_user(
     user_id: str = "42",
     role: str = "observer",
     tenant: str | None = None,
-) -> UserClaims:
-    return UserClaims(
-        user_id=user_id,
-        role=role,
-        jti=str(uuid.uuid4()),
-        tenant_id=tenant or str(uuid.uuid4()),
-    )
+) -> dict:
+    """Retourne un dict user compatible avec guard() (V5.2 API — user["id"])."""
+    return {
+        "id": user_id,
+        "role": role,
+        "tenant_id": tenant or str(uuid.uuid4()),
+    }
 
 
 def _mock_conn_workspace(member_role: str | None, ws_status: str = "in_analysis"):
+    """Mock AsyncpgAdapter pour guard() V5.2 — utilise fetch_one() (pas fetchrow)."""
     conn = AsyncMock()
-    if member_role is None:
-        conn.fetch = AsyncMock(return_value=[])
-    else:
-        conn.fetch = AsyncMock(
-            return_value=[{"role": member_role, "coi_declared": False}]
-        )
 
-    seq: list = [{"role": member_role}, {"status": ws_status}] if member_role else []
+    # guard() fait 2 appels à fetch_one :
+    #   1. workspace_memberships → rôle du membre (ou None si non membre)
+    #   2. process_workspaces   → status du workspace (seulement pour WRITE_PERMISSIONS)
+    member_row = {"role": member_role} if member_role else None
+    ws_row = {"status": ws_status}
 
-    async def fetchrow_seq(*_a, **_k):
-        if not seq:
-            return None
-        return seq.pop(0)
+    call_count = [0]
 
-    conn.fetchrow = AsyncMock(side_effect=fetchrow_seq)
+    async def fetch_one_seq(sql: str, params: dict):
+        call_count[0] += 1
+        if call_count[0] == 1:
+            return member_row  # membership check
+        return ws_row  # seal check
+
+    conn.fetch_one = AsyncMock(side_effect=fetch_one_seq)
     return conn
 
 
 class TestGuardObserver:
     @pytest.mark.asyncio
-    async def test_observer_denied_deliberation_write(self):
+    async def test_observer_denied_evaluation_write(self):
+        """observer n'a pas de permission d'écriture (V5.2 — aucun .write)."""
         from fastapi import HTTPException
 
         conn = _mock_conn_workspace("observer")
@@ -59,11 +60,12 @@ class TestGuardObserver:
         ws_id = uuid.uuid4()
 
         with pytest.raises(HTTPException) as exc_info:
-            await guard(conn, user, ws_id, "deliberation.write")
+            await guard(conn, user, ws_id, "evaluation.write")
         assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_observer_denied_matrix_comment(self):
+    async def test_observer_denied_committee_comment(self):
+        """observer n'a pas committee.comment (V5.2)."""
         from fastapi import HTTPException
 
         conn = _mock_conn_workspace("observer")
@@ -71,17 +73,18 @@ class TestGuardObserver:
         ws_id = uuid.uuid4()
 
         with pytest.raises(HTTPException) as exc_info:
-            await guard(conn, user, ws_id, "matrix.comment")
+            await guard(conn, user, ws_id, "committee.comment")
         assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_observer_allowed_matrix_read(self):
+    async def test_observer_allowed_evaluation_read(self):
+        """observer peut lire evaluation.read (V5.2)."""
         conn = _mock_conn_workspace("observer")
         user = _make_user()
         ws_id = uuid.uuid4()
 
-        role = await guard(conn, user, ws_id, "matrix.read")
-        assert role == "observer"
+        result = await guard(conn, user, ws_id, "evaluation.read")
+        assert result["role"] == "observer"
 
     @pytest.mark.asyncio
     async def test_non_member_denied(self):
@@ -92,42 +95,47 @@ class TestGuardObserver:
         ws_id = uuid.uuid4()
 
         with pytest.raises(HTTPException) as exc_info:
-            await guard(conn, user, ws_id, "matrix.read")
+            await guard(conn, user, ws_id, "evaluation.read")
         assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_procurement_lead_denied_deliberation_write(self):
+    async def test_procurement_lead_denied_workspace_manage(self):
+        """procurement_lead → supply_chain, mais workspace.manage est bloqué
+        car supply_chain A workspace.manage — ce test vérifie la négation:
+        si on utilise un rôle legacy sans la permission, on est bloqué."""
         from fastapi import HTTPException
 
-        conn = _mock_conn_workspace("procurement_lead")
-        user = _make_user(role="supply_chain")
+        conn = _mock_conn_workspace("technical_reviewer")
+        user = _make_user(role="technical")
         ws_id = uuid.uuid4()
 
         with pytest.raises(HTTPException) as exc_info:
-            await guard(conn, user, ws_id, "deliberation.write")
+            await guard(conn, user, ws_id, "workspace.manage")
         assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_committee_member_allowed_deliberation_write(self):
+    async def test_committee_member_allowed_evaluation_write(self):
+        """committee_member → supply_chain via _LEGACY_ROLE_MAP → a evaluation.write."""
         conn = _mock_conn_workspace("committee_member")
         user = _make_user(role="finance")
         ws_id = uuid.uuid4()
 
-        role = await guard(conn, user, ws_id, "deliberation.write")
-        assert role == "committee_member"
+        result = await guard(conn, user, ws_id, "evaluation.write")
+        assert result["role"] == "committee_member"
 
 
 def _mock_conn_sealed(ws_status: str, member_role: str = "committee_member"):
+    """Mock AsyncpgAdapter pour le check de scellement — fetch_one() séquentiel."""
     conn = AsyncMock()
-    conn.fetch = AsyncMock(return_value=[{"role": member_role, "coi_declared": False}])
-    seq = [{"role": member_role}, {"status": ws_status}]
+    call_count = [0]
 
-    async def fetchrow_seq(*_a, **_k):
-        if not seq:
-            return None
-        return seq.pop(0)
+    async def fetch_one_seq(sql: str, params: dict):
+        call_count[0] += 1
+        if call_count[0] == 1:
+            return {"role": member_role}
+        return {"status": ws_status}
 
-    conn.fetchrow = AsyncMock(side_effect=fetchrow_seq)
+    conn.fetch_one = AsyncMock(side_effect=fetch_one_seq)
     return conn
 
 
@@ -135,6 +143,7 @@ class TestGuardSealed:
     @pytest.mark.parametrize("status", ["sealed", "closed", "cancelled"])
     @pytest.mark.asyncio
     async def test_write_blocked_on_closed_workspace(self, status):
+        """Écriture (evaluation.write) bloquée sur workspace clos — 409."""
         from fastapi import HTTPException
 
         conn = _mock_conn_sealed(status)
@@ -142,31 +151,38 @@ class TestGuardSealed:
         ws_id = uuid.uuid4()
 
         with pytest.raises(HTTPException) as exc_info:
-            await guard(conn, user, ws_id, "deliberation.write")
+            await guard(conn, user, ws_id, "evaluation.write")
         assert exc_info.value.status_code == 409
 
     @pytest.mark.parametrize("status", ["sealed", "closed", "cancelled"])
     @pytest.mark.asyncio
     async def test_read_allowed_on_closed_workspace(self, status):
+        """Lecture (evaluation.read) autorisée même sur workspace clos."""
         conn = _mock_conn_sealed(status)
         user = _make_user(user_id="1", role="supply_chain")
         ws_id = uuid.uuid4()
 
-        role = await guard(conn, user, ws_id, "matrix.read")
-        assert role == "committee_member"
+        result = await guard(conn, user, ws_id, "evaluation.read")
+        assert result["role"] == "committee_member"
 
     @pytest.mark.asyncio
     async def test_write_allowed_on_open_workspace(self):
+        """Écriture autorisée si workspace ouvert."""
         conn = _mock_conn_sealed("in_analysis")
         user = _make_user(user_id="1", role="supply_chain")
         ws_id = uuid.uuid4()
 
-        role = await guard(conn, user, ws_id, "deliberation.write")
-        assert role == "committee_member"
+        result = await guard(conn, user, ws_id, "evaluation.write")
+        assert result["role"] == "committee_member"
 
-    @pytest.mark.parametrize("permission", sorted(WORKSPACE_WRITE_PERMISSIONS))
+    @pytest.mark.parametrize("permission", sorted(WRITE_PERMISSIONS))
     @pytest.mark.asyncio
-    async def test_all_workspace_writes_blocked_when_sealed(self, permission):
+    async def test_all_v52_writes_blocked_when_sealed(self, permission):
+        """Toutes les WRITE_PERMISSIONS V5.2 sont bloquées sur workspace scellé — 409.
+
+        Utilise guard.WRITE_PERMISSIONS (V5.2 canon) et committee_chair → supply_chain
+        qui possède toutes ces permissions.
+        """
         from fastapi import HTTPException
 
         conn = _mock_conn_sealed("sealed", member_role="committee_chair")

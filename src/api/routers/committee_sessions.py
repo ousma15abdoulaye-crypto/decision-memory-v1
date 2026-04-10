@@ -43,6 +43,7 @@ from src.couche_a.auth.workspace_access import (
 )
 from src.db import db_execute, db_execute_one, get_connection
 from src.services.pv_builder import build_pv_snapshot
+from src.services.seal_checks import run_all_seal_checks
 from src.utils.json_utils import safe_json_dumps
 
 logger = logging.getLogger(__name__)
@@ -324,7 +325,7 @@ def seal_committee_session(
     Calcule le seal_hash SHA-256 du snapshot PV.
     Après scellement : aucune modification possible.
     """
-    require_workspace_permission(workspace_id, user, "committee.manage")
+    require_workspace_permission(workspace_id, user, "committee.seal")
 
     user_id = int(user.user_id)
 
@@ -380,6 +381,19 @@ def seal_committee_session(
                 status_code=http_status.HTTP_409_CONFLICT,
                 detail=exc.reason,
             ) from exc
+
+        # Pré-vérifications scellement (INV-W01, INV-W03, INV-W04, INV-FLAG)
+        check_result = run_all_seal_checks(conn, workspace_id)
+        if not check_result.passed:
+            raise HTTPException(
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "error": "seal_preconditions_failed",
+                    "message": "Pré-conditions de scellement non remplies.",
+                    "errors": check_result.errors,
+                    "warnings": check_result.warnings,
+                },
+            )
 
         # Tenant résolu avant snapshot PV / hash (même source que CDE — pas de chaîne vide
         # dans le snapshot, aligné RÈGLE-W01).

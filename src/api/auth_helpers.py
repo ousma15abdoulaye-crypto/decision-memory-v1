@@ -18,7 +18,6 @@ Note DETTE-M1-04 : create_user utilise role_id INTEGER (legacy).
 from __future__ import annotations
 
 import logging
-import os
 from datetime import datetime
 
 import bcrypt as _bcrypt
@@ -136,7 +135,9 @@ def _default_tenant_id_text(conn) -> str:
 
     Si aucun tenant actif : ``RuntimeError`` (pas de fallback silencieux).
     """
-    raw = (os.environ.get("DEFAULT_TENANT_CODE") or "sci_mali").strip() or "sci_mali"
+    from src.core.config import get_settings
+
+    raw = get_settings().DEFAULT_TENANT_CODE.strip() or "sci_mali"
     row = db_execute_one(
         conn,
         """

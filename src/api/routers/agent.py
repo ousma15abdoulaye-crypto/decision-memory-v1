@@ -93,10 +93,12 @@ async def agent_prompt(
         ) as raw_conn:
             conn = AsyncpgAdapter(raw_conn)
             if payload.workspace_id:
+                # guard() attend AsyncpgAdapter (pas la connexion brute)
+                # et un dict {"id": int} (pas UserClaims).
                 await guard(
-                    raw_conn,
-                    current_user,
-                    str(payload.workspace_id),
+                    conn,
+                    {"id": int(current_user.user_id)},
+                    payload.workspace_id,
                     "agent.query",
                 )
             else:
@@ -137,14 +139,17 @@ async def agent_prompt(
             async def event_generator():  # type: ignore[return]
                 assistant_content = ""
                 try:
-                    raw_stream = handler(
-                        query=payload.query,
-                        workspace_id=payload.workspace_id,
-                        user=user_dict,
-                        db=conn,
-                        context=context,
-                        trace=trace,
-                    )
+                    handler_kwargs: dict[str, Any] = {
+                        "query": payload.query,
+                        "workspace_id": payload.workspace_id,
+                        "user": user_dict,
+                        "db": conn,
+                        "context": context,
+                        "trace": trace,
+                    }
+                    if intent.intent_class == IntentClass.MARKET_QUERY:
+                        handler_kwargs["intent_confidence"] = intent.confidence
+                    raw_stream = handler(**handler_kwargs)
                     async for event in filter_token_stream(raw_stream, trace):
                         if event.get("type") == "token" and event.get("content"):
                             assistant_content += event["content"]

@@ -11,8 +11,9 @@ Dégradation gracieuse si Langfuse n'est pas configuré :
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any
+
+from src.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -60,8 +61,9 @@ _langfuse: Any = None
 
 def _build_langfuse() -> Any:
     """Construit le client Langfuse ou un no-op si non configuré."""
-    public_key = os.environ.get("LANGFUSE_PUBLIC_KEY", "").strip()
-    secret_key = os.environ.get("LANGFUSE_SECRET_KEY", "").strip()
+    s = get_settings()
+    public_key = s.LANGFUSE_PUBLIC_KEY.strip()
+    secret_key = s.LANGFUSE_SECRET_KEY.strip()
 
     if not public_key or not secret_key:
         logger.info("[Langfuse] Clés absentes — traçage désactivé (mode no-op).")
@@ -70,7 +72,7 @@ def _build_langfuse() -> Any:
     try:
         from langfuse import Langfuse  # type: ignore[import-untyped]
 
-        host = os.environ.get("LANGFUSE_HOST", "https://cloud.langfuse.com")
+        host = s.LANGFUSE_HOST
         client = Langfuse(
             public_key=public_key,
             secret_key=secret_key,

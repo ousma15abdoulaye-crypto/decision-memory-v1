@@ -246,6 +246,13 @@ def annotate_market_item(
     user: Annotated[UserClaims, Depends(get_current_user)],
 ):
     """Annote un item marché (label humain sur la qualité du signal)."""
+    tenant_id = user.tenant_id
+    if not tenant_id:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="tenant_id requis.",
+        )
+
     with get_connection() as conn:
         existing = db_execute_one(
             conn,
@@ -260,9 +267,10 @@ def annotate_market_item(
         )
 
     logger.info(
-        "[MARKET] Annotation item=%s user=%s annotation=%s conf=%s",
+        "[MARKET] Annotation item=%s user=%s tenant=%s annotation=%s conf=%s",
         item_key,
         user.user_id,
+        tenant_id,
         payload.annotation[:50],
         payload.confidence,
     )

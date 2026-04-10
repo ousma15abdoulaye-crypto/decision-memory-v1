@@ -4,20 +4,17 @@ Connexion DB centralisée.
 Constitution V3.3.2 §3 : pas d'ORM, requêtes paramétrées.
 """
 
-import os
 from contextlib import contextmanager
 
 import psycopg
-from dotenv import load_dotenv
 from psycopg.rows import dict_row
 
+from src.core.config import get_settings
 from src.db.tenant_context import (
     get_rls_is_admin,
     get_rls_tenant_id,
     get_rls_user_id,
 )
-
-load_dotenv()
 
 
 def _apply_rls_session_settings(cur) -> None:
@@ -66,7 +63,7 @@ def get_db_cursor():
     Commit automatique si pas d'exception.
     Rollback automatique si exception.
     """
-    database_url = os.environ.get("DATABASE_URL", "")
+    database_url = get_settings().DATABASE_URL
     if not database_url or not database_url.strip():
         raise RuntimeError("DATABASE_URL manquant.")
     if "sqlite" in database_url.lower():

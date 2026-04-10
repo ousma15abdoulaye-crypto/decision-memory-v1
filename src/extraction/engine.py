@@ -155,7 +155,9 @@ def _validate_storage_uri(storage_uri: str) -> str:
     if not os.path.exists(storage_uri):
         raise FileNotFoundError(f"Document introuvable : {storage_uri}")
     real_uri = os.path.realpath(storage_uri)
-    allowed_base = os.environ.get("STORAGE_BASE_PATH", "")
+    from src.core.config import get_settings
+
+    allowed_base = get_settings().STORAGE_BASE_PATH
     if not allowed_base:
         import logging as _log
 
@@ -446,10 +448,13 @@ def _mistral_httpx_verify() -> bool | str:
     - ``MISTRAL_SSL_CA_BUNDLE`` → chemin vers un bundle PEM CA (prioritaire si fichier présent).
     - Sinon ``True`` (défaut httpx / magasins système).
     """
-    raw = (os.environ.get("MISTRAL_HTTPX_VERIFY_SSL") or "").strip().lower()
+    from src.core.config import get_settings
+
+    _s = get_settings()
+    raw = _s.MISTRAL_HTTPX_VERIFY_SSL.strip().lower()
     if raw in ("0", "false", "no", "off"):
         return False
-    ca = (os.environ.get("MISTRAL_SSL_CA_BUNDLE") or "").strip()
+    ca = _s.MISTRAL_SSL_CA_BUNDLE.strip()
     if ca and os.path.isfile(ca):
         return ca
     return True
@@ -482,7 +487,9 @@ def _extract_mistral_ocr(storage_uri: str) -> tuple[str, dict]:
 
     # Détection MIME sans charger le fichier entier en RAM
     mime = _detect_mime_from_header(storage_uri)
-    azure_endpoint = os.environ.get("AZURE_FORM_RECOGNIZER_ENDPOINT", "")
+    from src.core.config import get_settings as _get_s
+
+    azure_endpoint = _get_s().AZURE_FORM_RECOGNIZER_ENDPOINT
 
     if not any(mime.startswith(p) for p in _MISTRAL_OCR_SUPPORTED_MIMES):
         if azure_endpoint:
@@ -569,8 +576,11 @@ def _detect_mime_from_header(storage_uri: str) -> str:
 
 def _extract_azure_ocr_fallback(storage_uri: str, mime: str) -> tuple[str, dict]:
     """Fallback Azure Form Recognizer — stream, pas de bytes en RAM."""
-    endpoint = os.environ.get("AZURE_FORM_RECOGNIZER_ENDPOINT", "")
-    key = os.environ.get("AZURE_FORM_RECOGNIZER_KEY", "")
+    from src.core.config import get_settings
+
+    _s = get_settings()
+    endpoint = _s.AZURE_FORM_RECOGNIZER_ENDPOINT
+    key = _s.AZURE_FORM_RECOGNIZER_KEY
     if not endpoint or not key:
         raise _OcrConfigError(
             "[OCR] Azure fallback non configuré "

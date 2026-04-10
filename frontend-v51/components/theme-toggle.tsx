@@ -21,7 +21,7 @@ export function ThemeToggle() {
       className="h-8 px-2 text-xs"
       onClick={() => setTheme(next)}
       data-testid="theme-toggle"
-      aria-label="Basculer thème clair / sombre"
+      aria-label={`Passer au thème ${resolvedTheme === "dark" ? "clair" : "sombre"}`}
     >
       {label}
     </Button>

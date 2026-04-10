@@ -39,8 +39,14 @@ class ApiClient {
 
     const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
     if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new ApiError(res.status, body.detail || body.message || res.statusText);
+      const body = await res.json().catch(() => ({})) as Record<string, unknown>;
+      const message =
+        typeof body.detail === "string"
+          ? body.detail
+          : typeof body.message === "string"
+            ? body.message
+            : res.statusText;
+      throw new ApiError(res.status, message, body);
     }
     return res.json();
   }
@@ -115,8 +121,10 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public readonly body: Record<string, unknown> = {},
   ) {
     super(message);
+    this.name = "ApiError";
   }
 }
 

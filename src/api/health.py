@@ -7,7 +7,7 @@ import logging
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
-from src.core.config import APP_VERSION, INVARIANTS, STATIC_DIR
+from src.core.config import APP_VERSION, INVARIANTS, STATIC_DIR, get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -37,13 +37,12 @@ def health():
     redis_checked = False
     redis_ok = False
     try:
-        import os
-
-        if os.environ.get("REDIS_URL", "").strip():
+        _redis_url = get_settings().REDIS_URL.strip()
+        if _redis_url:
             import redis as redis_lib
 
             r = redis_lib.from_url(
-                os.environ["REDIS_URL"], decode_responses=True, socket_connect_timeout=1
+                _redis_url, decode_responses=True, socket_connect_timeout=1
             )
             redis_ok = bool(r.ping())
             redis_checked = True
@@ -90,16 +89,12 @@ def health():
     # OCR engines
     ocr_engines: list[str] = []
     try:
-        import os as _os
-
-        if _os.environ.get("MISTRAL_API_KEY", "").strip():
+        _s = get_settings()
+        if _s.MISTRAL_API_KEY.strip():
             ocr_engines.append("mistral_ocr")
-        if (
-            _os.environ.get("LLAMADMS", "").strip()
-            or _os.environ.get("LLAMA_CLOUD_API_KEY", "").strip()
-        ):
+        if _s.LLAMADMS.strip() or _s.LLAMA_CLOUD_API_KEY.strip():
             ocr_engines.append("llamaparse")
-        if _os.environ.get("AZURE_FORM_RECOGNIZER_ENDPOINT", "").strip():
+        if _s.AZURE_FORM_RECOGNIZER_ENDPOINT.strip():
             ocr_engines.append("azure")
         ocr_engines.extend(["native_pdf", "excel_parser", "docx_parser"])
     except Exception:

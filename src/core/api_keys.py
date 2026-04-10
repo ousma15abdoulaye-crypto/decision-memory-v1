@@ -1,7 +1,7 @@
 """
 src/core/api_keys.py — Lazy API-key helpers.
 
-Keys are read from environment variables ONLY when a tool actually calls
+Keys are read from Settings ONLY when a tool actually calls
 get_llama_cloud_api_key() or get_mistral_api_key().  Nothing is imported or
 validated at module-load time, so the app starts normally even if the keys
 are absent.
@@ -14,7 +14,7 @@ Environment variables (set in .env / .env.local — never commit real keys):
 
 from __future__ import annotations
 
-import os
+from src.core.config import get_settings
 
 
 class APIKeyMissingError(RuntimeError):
@@ -24,13 +24,11 @@ class APIKeyMissingError(RuntimeError):
 def get_llama_cloud_api_key() -> str:
     """Return the LlamaParse / LlamaCloud API key.
 
-    Résolution alignée mercuriale / Railway : **LLAMADMS** d’abord, puis
-    **LLAMA_CLOUD_API_KEY**. Lazy-load à l’appel uniquement.
+    Résolution alignée mercuriale / Railway : **LLAMADMS** d'abord, puis
+    **LLAMA_CLOUD_API_KEY**. Lazy-load à l'appel uniquement.
     """
-    key = (
-        os.environ.get("LLAMADMS", "").strip()
-        or os.environ.get("LLAMA_CLOUD_API_KEY", "").strip()
-    )
+    s = get_settings()
+    key = s.LLAMADMS.strip() or s.LLAMA_CLOUD_API_KEY.strip()
     if not key:
         raise APIKeyMissingError(
             "No Llama Cloud API key: set LLAMADMS (Railway / entreprise) or "
@@ -43,10 +41,10 @@ def get_llama_cloud_api_key() -> str:
 def get_mistral_api_key() -> str:
     """Return the Mistral AI API key.
 
-    Reads MISTRAL_API_KEY from the environment at call time.
+    Reads MISTRAL_API_KEY from Settings at call time.
     Raises APIKeyMissingError if the variable is not set or is empty.
     """
-    key = os.environ.get("MISTRAL_API_KEY", "").strip()
+    key = get_settings().MISTRAL_API_KEY.strip()
     if not key:
         raise APIKeyMissingError(
             "MISTRAL_API_KEY is not set. "
