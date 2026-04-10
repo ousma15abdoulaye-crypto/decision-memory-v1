@@ -250,6 +250,25 @@ def create_workspace(
         db_execute(
             conn,
             """
+            INSERT INTO workspace_memberships (
+                workspace_id, tenant_id, user_id, role, granted_by
+            )
+            VALUES (
+                :ws, :tid, :uid, :role, :uid
+            )
+            ON CONFLICT (workspace_id, user_id, role) DO NOTHING
+            """,
+            {
+                "ws": ws_id,
+                "tid": tenant_id,
+                "uid": user_id,
+                "role": "supply_chain",
+            },
+        )
+
+        db_execute(
+            conn,
+            """
             INSERT INTO workspace_events
                 (workspace_id, tenant_id, event_type, actor_id, actor_type, payload)
             VALUES
@@ -260,6 +279,28 @@ def create_workspace(
                 "tid": tenant_id,
                 "uid": user_id,
                 "p": json.dumps({"reference_code": payload.reference_code}),
+            },
+        )
+
+        db_execute(
+            conn,
+            """
+            INSERT INTO workspace_events
+                (workspace_id, tenant_id, event_type, actor_id, actor_type, payload)
+            VALUES
+                (:ws, :tid, 'MEMBER_INVITED', :uid, 'user', :p)
+            """,
+            {
+                "ws": ws_id,
+                "tid": tenant_id,
+                "uid": user_id,
+                "p": json.dumps(
+                    {
+                        "user_id": user_id,
+                        "role": "supply_chain",
+                        "auto": True,
+                    }
+                ),
             },
         )
 

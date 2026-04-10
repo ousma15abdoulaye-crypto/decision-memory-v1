@@ -48,7 +48,11 @@ export default function WorkspacePage() {
     enabled: !!id,
   });
 
-  if (wsLoading || cogLoading) {
+  const workspaceFailed = wsError != null;
+
+  // Si le détail workspace est déjà en échec, ne pas bloquer l’UI sur l’état cognitif
+  // (sinon bandeau d’erreur sans Assistant DMS — régression UX fréquente en 403 terrain).
+  if ((wsLoading || cogLoading) && !workspaceFailed) {
     return (
       <div className="flex h-64 items-center justify-center">
         <div
@@ -59,22 +63,36 @@ export default function WorkspacePage() {
     );
   }
 
-  if (wsError) {
+  if (workspaceFailed) {
     const msg =
       wsError instanceof Error ? wsError.message : "Erreur inconnue.";
     const isAuth = msg.includes("401") || msg.includes("403");
     return (
-      <div className="rounded-md bg-red-50 p-6 text-red-700 dark:bg-red-950 dark:text-red-300">
-        <p className="font-medium">Impossible de charger ce workspace.</p>
-        <p className="mt-1 text-sm">{msg}</p>
-        {isAuth && (
-          <p className="mt-2 text-sm">
-            Votre session a peut-être expiré.{" "}
-            <a href="/login" className="underline">
-              Reconnectez-vous.
-            </a>
-          </p>
-        )}
+      <div className="space-y-6 p-6">
+        <div
+          role="alert"
+          className="rounded-md bg-red-50 p-6 text-red-700 dark:bg-red-950 dark:text-red-300"
+        >
+          <p className="font-medium">Impossible de charger ce workspace.</p>
+          <p className="mt-1 text-sm">{msg}</p>
+          {isAuth && (
+            <p className="mt-2 text-sm">
+              Votre session a peut-être expiré.{" "}
+              <a href="/login" className="underline">
+                Reconnectez-vous.
+              </a>
+            </p>
+          )}
+        </div>
+        {id ? (
+          <ErrorBoundary>
+            <p className="text-xs text-[var(--foreground-muted)]">
+              L&apos;assistant DMS reste disponible ci-dessous (contexte dossier via
+              l&apos;URL). Les réponses dépendent des permissions API sur ce workspace.
+            </p>
+            <AgentConsole workspaceId={id} />
+          </ErrorBoundary>
+        ) : null}
       </div>
     );
   }
