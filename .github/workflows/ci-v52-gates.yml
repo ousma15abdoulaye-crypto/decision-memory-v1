@@ -256,7 +256,7 @@ jobs:
       - name: "Enable dm_app LOGIN (RLS tests)"
         run: |
           psql -h localhost -U postgres -d dmstest -c \
-            "ALTER ROLE dm_app WITH LOGIN PASSWORD 'dm_app_ci_test';" || true
+            "ALTER ROLE dm_app WITH LOGIN PASSWORD 'dm_app_ci_test';"
       - name: "Tests intégration V5.2"
         env:
           TESTING: "true"

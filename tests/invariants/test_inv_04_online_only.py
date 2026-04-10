@@ -6,6 +6,7 @@ Constitution V3.3.2 §2: Le système est online-only, pas de fallback local.
 import os
 
 import pytest
+from pydantic import ValidationError
 
 
 def test_inv_04_no_sqlite():
@@ -26,38 +27,32 @@ def test_inv_04_no_sqlite():
                     assert "import sqlite" not in content
 
 
-def test_inv_04_database_url_required():
-    """DATABASE_URL est requis au premier appel get_connection() — lazy init (TD-005 · M5-CLEANUP-A).
+def test_inv_04_database_url_required(monkeypatch: pytest.MonkeyPatch, tmp_path):
+    """DATABASE_URL est requis au premier accès DB (get_connection → Settings).
 
-    Constitution V3.3.2 §2 online-only : DATABASE_URL reste obligatoire.
-    La validation est désormais différée au premier appel get_connection(),
-    pas à l'import du module (lazy init intentionnel — src/db/__init__.py).
-    Le cache _DB_URL_CACHE est réinitialisé pour tester l'invariant isolément.
+    Constitution V3.3.2 §2 online-only : sans DATABASE_URL, échec explicite
+    (Pydantic ValidationError via get_settings dans _get_database_url).
+    Cwd isolé (pas de .env projet) pour ne pas relire DATABASE_URL depuis le fichier.
     """
-    import importlib
-
-    import src.db
     import src.db.core as _core
+    from src.core.config import get_settings
     from src.db.core import get_connection
 
+    monkeypatch.chdir(tmp_path)
     original_db_url = os.environ.get("DATABASE_URL")
     original_cache = _core._DB_URL_CACHE
     try:
-        if "DATABASE_URL" in os.environ:
-            del os.environ["DATABASE_URL"]
-        # Réinitialiser le cache lazy pour forcer la réévaluation de DATABASE_URL
+        monkeypatch.delenv("DATABASE_URL", raising=False)
         _core._DB_URL_CACHE = None
-        # Avec lazy init, le reload ne lève plus — l'invariant est respecté côté get_connection()
-        importlib.reload(src.db)
-        with pytest.raises(RuntimeError, match="DATABASE_URL"):
+        get_settings.cache_clear()
+        with pytest.raises(ValidationError, match="DATABASE_URL"):
             with get_connection():
                 pass
     finally:
-        # Restaurer DATABASE_URL et le cache
         if original_db_url is not None:
             os.environ["DATABASE_URL"] = original_db_url
         _core._DB_URL_CACHE = original_cache
-        importlib.reload(src.db)
+        get_settings.cache_clear()
 
 
 def test_inv_04_postgresql_only():

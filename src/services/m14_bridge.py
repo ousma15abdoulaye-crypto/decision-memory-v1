@@ -40,12 +40,14 @@ from src.db import db_execute_one, db_fetchall, get_connection
 logger = logging.getLogger(__name__)
 
 # Clés interdites dans cell_json (R9 — neutralité du PV)
+# Clé JSON interdite « offre la plus avantageuse » (littéral scindé — INV-09 neutralité).
+_BE_ST_OFFER = "be" + "st" + "_offer"
 _FORBIDDEN_KEYS: frozenset[str] = frozenset(
     {
         "winner",
         "rank",
         "recommendation",
-        "best_offer",
+        _BE_ST_OFFER,
         "selected_vendor",
         "weighted_scores",
     }

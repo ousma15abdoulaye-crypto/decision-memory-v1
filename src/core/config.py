@@ -36,7 +36,8 @@ class Settings(BaseSettings):
         min_length=32,
         validation_alias=AliasChoices("SECRET_KEY", "JWT_SECRET"),
     )
-    MISTRAL_API_KEY: str
+    # Défaut vide : lecture lazy via get_mistral_api_key() → APIKeyMissingError si absent en prod.
+    MISTRAL_API_KEY: str = ""
 
     # --- REDIS ---
     REDIS_URL: str = "redis://localhost:6379"
