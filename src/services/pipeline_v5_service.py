@@ -148,7 +148,7 @@ def extract_offers_from_bundles(workspace_id: str, case_id: str) -> int:
     """
     Pour chaque supplier_bundle : concatène ``bundle_documents.raw_text``,
     appelle ``extract_offer_content_async`` + ``persist_tdr_result_to_db``.
-    ``artifact_id`` = ``bundle_id`` (idempotent sur ``offer_extractions``).
+    ``bundle_id`` = ``supplier_bundles.id`` (idempotent sur ``offer_extractions``).
     """
     with get_connection() as conn:
         rows = db_fetchall(
@@ -293,7 +293,7 @@ def run_pipeline_v5(
             com = db_execute_one(
                 conn,
                 """
-                SELECT c.id::text AS id FROM committees c
+                SELECT c.committee_id::text AS id FROM committees c
                 INNER JOIN process_workspaces w
                   ON w.legacy_case_id = c.case_id
                 WHERE w.id = CAST(:wid AS uuid)
@@ -359,7 +359,7 @@ def run_pipeline_v5(
         offers_rows = db_fetchall(
             conn,
             """
-            SELECT artifact_id::text AS artifact_id, supplier_name,
+            SELECT bundle_id::text AS bundle_id, supplier_name,
                    extracted_data_json
             FROM offer_extractions
             WHERE workspace_id = CAST(:wid AS uuid)
@@ -372,7 +372,7 @@ def run_pipeline_v5(
     for r in offers_rows:
         offers.append(
             {
-                "document_id": r["artifact_id"],
+                "document_id": r["bundle_id"],
                 "supplier_name": r.get("supplier_name"),
                 "process_role": "responds_to_bid",
             }

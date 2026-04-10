@@ -57,7 +57,7 @@ def _offer_extraction_column_flags(conn) -> tuple[bool, bool]:
 def tdr_result_to_offer_extraction_row(
     result: TDRExtractionResult,
     case_id: str,
-    artifact_id: str,
+    bundle_id: str,
 ) -> dict[str, str]:
     """
     Mapper explicite TDRExtractionResult → payload ``offer_extractions``.
@@ -162,7 +162,7 @@ def tdr_result_to_offer_extraction_row(
     return {
         "id": str(uuid.uuid4()),
         "cid": case_id,
-        "aid": artifact_id,
+        "bid": bundle_id,
         "supplier": str(supplier_name),
         "extracted": json.dumps(extracted_payload, ensure_ascii=False),
         "missing": json.dumps(missing_unique, ensure_ascii=False),
@@ -173,7 +173,7 @@ def tdr_result_to_offer_extraction_row(
 def persist_tdr_result_to_db(
     result: TDRExtractionResult,
     case_id: str,
-    artifact_id: str,
+    bundle_id: str,
     *,
     workspace_id: str | None = None,
 ) -> None:
@@ -184,9 +184,9 @@ def persist_tdr_result_to_db(
     Si ``workspace_id`` est absent, résolution via ``process_workspaces.legacy_case_id``.
 
     PRE-FLIGHT repo (alembic ``002_add_couche_a``) : pas de UNIQUE sur
-    ``artifact_id`` → upsert applicatif.
+    ``bundle_id`` → upsert applicatif.
     """
-    row = tdr_result_to_offer_extraction_row(result, case_id, artifact_id)
+    row = tdr_result_to_offer_extraction_row(result, case_id, bundle_id)
     wid = workspace_id or _resolve_workspace_id_for_case(case_id)
     with get_connection() as conn:
         has_ws, has_case = _offer_extraction_column_flags(conn)
@@ -194,11 +194,11 @@ def persist_tdr_result_to_db(
             conn,
             """
             SELECT id FROM public.offer_extractions
-            WHERE artifact_id = :aid
+            WHERE bundle_id = :bid
             ORDER BY created_at DESC
             LIMIT 1
             """,
-            {"aid": artifact_id},
+            {"bid": bundle_id},
         )
         if existing:
             db_execute(
@@ -218,8 +218,8 @@ def persist_tdr_result_to_db(
                 },
             )
             logger.info(
-                "[BRIDGE] Mis à jour — artifact_id=%s supplier=%s",
-                artifact_id,
+                "[BRIDGE] Mis à jour — bundle_id=%s supplier=%s",
+                bundle_id,
                 row["supplier"],
             )
             return
@@ -235,14 +235,14 @@ def persist_tdr_result_to_db(
                 conn,
                 """
                 INSERT INTO public.offer_extractions
-                  (id, workspace_id, artifact_id, supplier_name,
+                  (id, workspace_id, bundle_id, supplier_name,
                    extracted_data_json, missing_fields_json, created_at)
-                VALUES (:id, CAST(:wid AS uuid), :aid, :supplier, :extracted, :missing, :ts)
+                VALUES (:id, CAST(:wid AS uuid), :bid, :supplier, :extracted, :missing, :ts)
                 """,
                 {
                     "id": row["id"],
                     "wid": wid,
-                    "aid": artifact_id,
+                    "bid": bundle_id,
                     "supplier": row["supplier"],
                     "extracted": row["extracted"],
                     "missing": row["missing"],
@@ -250,8 +250,8 @@ def persist_tdr_result_to_db(
                 },
             )
             logger.info(
-                "[BRIDGE] Inséré (workspace_id) — artifact_id=%s supplier=%s",
-                artifact_id,
+                "[BRIDGE] Inséré (workspace_id) — bundle_id=%s supplier=%s",
+                bundle_id,
                 row["supplier"],
             )
         elif has_case:
@@ -259,15 +259,15 @@ def persist_tdr_result_to_db(
                 conn,
                 """
                 INSERT INTO public.offer_extractions
-                  (id, case_id, artifact_id, supplier_name,
+                  (id, case_id, bundle_id, supplier_name,
                    extracted_data_json, missing_fields_json, created_at)
-                VALUES (:id, :cid, :aid, :supplier, :extracted, :missing, :ts)
+                VALUES (:id, :cid, :bid, :supplier, :extracted, :missing, :ts)
                 """,
                 row,
             )
             logger.info(
-                "[BRIDGE] Inséré (case_id legacy) — artifact_id=%s supplier=%s",
-                artifact_id,
+                "[BRIDGE] Inséré (case_id legacy) — bundle_id=%s supplier=%s",
+                bundle_id,
                 row["supplier"],
             )
         else:
