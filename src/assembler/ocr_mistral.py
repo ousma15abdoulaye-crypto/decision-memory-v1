@@ -88,7 +88,9 @@ async def ocr_with_mistral(file_path: str | Path) -> dict:
 
         if not ssl_verify:
             logger.warning("[OCR-MISTRAL] SSL verify disabled via MISTRAL_SSL_VERIFY=0")
-        async with httpx.AsyncClient(timeout=OCR_TIMEOUT_S, verify=ssl_verify) as client:
+        async with httpx.AsyncClient(
+            timeout=OCR_TIMEOUT_S, verify=ssl_verify
+        ) as client:
             resp = await client.post(
                 "https://api.mistral.ai/v1/ocr",
                 headers={
