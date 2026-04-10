@@ -172,9 +172,13 @@ def list_price_bundle_values(conn: Any, workspace_id: str) -> list[dict[str, Any
     return db_fetchall(
         conn,
         """
-        SELECT id::text AS id, price_line_id::text AS price_line_id,
+        SELECT id::text AS id,
+               price_line_id::text AS price_line_id,
                bundle_id::text AS bundle_id,
-               amount::text AS amount, currency
+               amount::text AS amount,
+               currency,
+               market_delta_pct::text AS market_delta_pct,
+               market_delta_computed_at
         FROM price_line_bundle_values
         WHERE workspace_id = CAST(:wid AS uuid)
         ORDER BY price_line_id, bundle_id

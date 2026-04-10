@@ -8,7 +8,6 @@ Helpers: get_connection, db_execute, db_fetchall, init_db_schema.
 from __future__ import annotations
 
 import logging
-import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
@@ -26,7 +25,9 @@ def _get_database_url() -> str:
     Lit DATABASE_URL. Crash explicite si absent.
     Constitution §9 : échec explicite > silence.
     """
-    url = os.environ.get("DATABASE_URL")
+    from src.core.config import get_settings
+
+    url = get_settings().DATABASE_URL
     if not url or not url.strip():
         raise RuntimeError(
             "DATABASE_URL manquant. PostgreSQL requis — Constitution INV-4."
@@ -175,6 +176,11 @@ def get_connection() -> Iterator[_ConnectionWrapper]:
     if uid:
         wrapper.execute(
             "SELECT set_config('app.user_id', :uid, true)",
+            {"uid": uid},
+        )
+        # P1.2 — app.current_user : lu par trg_fn_assessment_auto_history
+        wrapper.execute(
+            "SELECT set_config('app.current_user', :uid, true)",
             {"uid": uid},
         )
     try:

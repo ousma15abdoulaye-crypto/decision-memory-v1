@@ -1,4 +1,4 @@
-"""Pool de connexions asyncpg — DMS V4.2.0.
+"""Pool de connexions asyncpg — DMS V4.2.0 / V5.2.
 
 Utilisé exclusivement par les nouvelles routes workspace (W1/W2/W3),
 le WebSocket, et le LangGraph AsyncPostgresSaver.
@@ -8,13 +8,15 @@ Allocation : 8 connexions asyncpg / 100 Railway Pro.
 
 RLS : SELECT set_config('app.tenant_id', $1, true) — aligné sur src/db/core.py.
       set_config(is_local=true) = scope transaction, réinitialisé auto (RÈGLE-W01).
+
+P1.4 : app.current_user ajouté (via contextvar get_rls_user_id) pour alimenter
+       trg_fn_assessment_auto_history (P1.2). Aligné sur src/db/core.py.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import re
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -28,7 +30,9 @@ _async_pool_lock: asyncio.Lock | None = None
 
 def _get_database_url() -> str:
     """Normalise et valide DATABASE_URL — aligné sur src/db/core.py INV-4."""
-    url = os.environ.get("DATABASE_URL", "").strip()
+    from src.core.config import get_settings
+
+    url = get_settings().DATABASE_URL.strip()
     if not url:
         raise RuntimeError(
             "Constitution INV-4 — DATABASE_URL manquant pour la connexion PostgreSQL."
@@ -166,6 +170,9 @@ async def acquire_with_rls(
     évitant toute fuite de tenant entre requêtes sur le pool.
 
     tenant_id provient exclusivement du JWT décodé (jamais query/body).
+    user_id est lu depuis le contextvar get_rls_user_id() — posé par le
+    middleware tenant (src/middleware/tenant.py) — pour alimenter
+    app.current_user (requis par trg_fn_assessment_auto_history, P1.2).
 
     Args:
         tenant_id: UUID tenant extrait du JWT.
@@ -189,4 +196,20 @@ async def acquire_with_rls(
             )
             if is_admin:
                 await conn.execute("SELECT set_config('app.is_admin', 'true', true)")
+            # P1.4 — app.current_user : requis par trg_fn_assessment_auto_history.
+            # Lecture depuis le contextvar posé par TenantContextMiddleware.
+            # Aligné sur src/db/core.py (même source, même is_local=true).
+            try:
+                from src.db.tenant_context import get_rls_user_id
+
+                uid = get_rls_user_id()
+                if uid:
+                    await conn.execute(
+                        "SELECT set_config('app.user_id', $1, true)", str(uid)
+                    )
+                    await conn.execute(
+                        "SELECT set_config('app.current_user', $1, true)", str(uid)
+                    )
+            except Exception:
+                pass  # Dégradé : user_id absent ; changed_by_uuid = NULL dans trigger
             yield conn

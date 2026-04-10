@@ -1,23 +1,153 @@
 @import "tailwindcss";
 
+/* ── DMS Design Tokens ─────────────────────────────────────────────── */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surface */
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --border: #e2e8f0;
+
+  /* Foreground */
+  --foreground: #0f172a;
+  --foreground-muted: #64748b;
+  --foreground-subtle: #94a3b8;
+
+  /* Brand */
+  --brand: #2563eb;
+  --brand-hover: #1d4ed8;
+  --brand-muted: #eff6ff;
+
+  /* Semantic signals (Canon DMS) */
+  --signal-green:  #16a34a;
+  --signal-green-bg: #f0fdf4;
+  --signal-yellow: #d97706;
+  --signal-yellow-bg: #fffbeb;
+  --signal-red:    #dc2626;
+  --signal-red-bg: #fef2f2;
+
+  /* Confidence regime (couleurs identiques aux signaux) */
+  --regime-green:  var(--signal-green);
+  --regime-yellow: var(--signal-yellow);
+  --regime-red:    var(--signal-red);
+
+  /* Typography */
+  --font-sans: var(--font-geist-sans, system-ui, sans-serif);
+  --font-mono: var(--font-geist-mono, "Cascadia Code", monospace);
+
+  /* Radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
 }
 
 .dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  --background: #0f172a;
+  --surface: #1e293b;
+  --surface-raised: #1e293b;
+  --border: #334155;
+
+  --foreground: #f1f5f9;
+  --foreground-muted: #94a3b8;
+  --foreground-subtle: #64748b;
+
+  --brand: #3b82f6;
+  --brand-hover: #2563eb;
+  --brand-muted: #1e3a5f;
+
+  --signal-green-bg: #052e16;
+  --signal-yellow-bg: #1c1100;
+  --signal-red-bg: #1c0a0a;
+}
+
+/* ── Base ──────────────────────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Signal badges (réutilisés dans toute l'UI) ──────────────────── */
+
+.signal-green  { background-color: var(--signal-green-bg);  color: var(--signal-green); }
+.signal-yellow { background-color: var(--signal-yellow-bg); color: var(--signal-yellow); }
+.signal-red    { background-color: var(--signal-red-bg);    color: var(--signal-red); }
+
+/* ── Focus ring global (WCAG 2.4.7) ─────────────────────────────── */
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Scrollbar discrète (Webkit) ────────────────────────────────── */
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--foreground-subtle); }
+
+/* ── Transitions de page ─────────────────────────────────────────── */
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes statePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+  50%      { box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
+}
+
+main > section,
+main > div,
+main > .space-y-6,
+main > .space-y-8 {
+  animation: fadeInUp 0.18s ease-out both;
+}
+
+.cognitive-state-changed {
+  animation: statePulse 1s ease-in-out 2;
+}
+
+/* ── Respect prefers-reduced-motion (WCAG 2.3.3) ─────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── cmdk — thème DMS ──────────────────────────────────────────────── */
+
+[cmdk-item] {
+  outline: none;
+}
+
+[cmdk-item][data-selected="true"] {
+  background-color: var(--brand-muted);
+  color: var(--brand);
 }

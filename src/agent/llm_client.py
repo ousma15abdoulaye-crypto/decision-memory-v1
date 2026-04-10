@@ -7,9 +7,10 @@ Dégradation gracieuse si MISTRAL_API_KEY ou SDK absents.
 from __future__ import annotations
 
 import logging
-import os
 from collections.abc import AsyncGenerator
 from typing import Any
+
+from src.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ def _get_client() -> Any:
     if _client is not None:
         return _client
 
-    api_key = os.environ.get("MISTRAL_API_KEY")
+    api_key = get_settings().MISTRAL_API_KEY
     if not api_key:
         logger.warning("MISTRAL_API_KEY non définie — llm_client en mode fallback.")
         _fallback = True

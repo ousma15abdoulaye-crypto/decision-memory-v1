@@ -14,7 +14,6 @@ Note : src/db/core.py utilise encore psycopg.connect() direct.
 from __future__ import annotations
 
 import logging
-import os
 import threading
 
 logger = logging.getLogger(__name__)
@@ -25,7 +24,9 @@ _pool_lock = threading.Lock()
 
 def _get_database_url() -> str:
     """Normalise et valide DATABASE_URL — aligné sur src/db/core.py INV-4."""
-    url = os.environ.get("DATABASE_URL", "").strip()
+    from src.core.config import get_settings
+
+    url = get_settings().DATABASE_URL.strip()
     if not url:
         raise RuntimeError(
             "Constitution INV-4 — DATABASE_URL manquant pour la connexion PostgreSQL."

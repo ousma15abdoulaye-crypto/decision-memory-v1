@@ -6,13 +6,11 @@ ADR-M1-001 · ADR-M1-002.
 
 from __future__ import annotations
 
-import os
 import uuid as _uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 
 import psycopg
-from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -29,7 +27,9 @@ _default_tenant_uuid_cache: str | None = None
 
 def _default_tenant_code() -> str:
     """Code métier dans ``tenants.code`` (surcharge : ``DEFAULT_TENANT_CODE``)."""
-    code = (os.environ.get("DEFAULT_TENANT_CODE") or "sci_mali").strip()
+    from src.core.config import get_settings
+
+    code = get_settings().DEFAULT_TENANT_CODE.strip()
     return code or "sci_mali"
 
 
@@ -110,8 +110,9 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    load_dotenv()
-    database_url = os.environ.get("DATABASE_URL")
+    from src.core.config import get_settings
+
+    database_url = get_settings().DATABASE_URL
     if not database_url or not str(database_url).strip():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -173,18 +174,14 @@ def get_current_user_from_token(token: str) -> UserClaims:
     Raises:
         ValueError: token absent, invalide ou expiré.
     """
-    import os
-
     import psycopg
-    from dotenv import load_dotenv
 
     if not token:
         raise ValueError("Token manquant.")
 
-    load_dotenv()
-    url = os.environ.get("DATABASE_URL", "").replace(
-        "postgresql+psycopg://", "postgresql://"
-    )
+    from src.core.config import get_settings
+
+    url = get_settings().DATABASE_URL.replace("postgresql+psycopg://", "postgresql://")
     conn = psycopg.connect(url, autocommit=True)
     try:
         payload = verify_token(token, "access", conn)

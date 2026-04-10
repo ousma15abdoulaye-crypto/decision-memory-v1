@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const WS_ID = "aaaaaaaa-bbbb-4ccc-dddd-eeeeeeeeeeee";
 
-/** Cookie attendu par `proxy.ts` : JWT minimal avec `exp` futur (signature non vérifiée). */
+/** Cookie attendu par `middleware.ts` : JWT minimal avec `exp` futur (signature non vérifiée). */
 function e2eDmsToken(): string {
   const exp = Math.floor(Date.now() / 1000) + 86_400;
   const payload = Buffer.from(JSON.stringify({ exp })).toString("base64url");

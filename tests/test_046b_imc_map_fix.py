@@ -133,6 +133,8 @@ VALID_ALEMBIC_HEADS = (
     "092_workspace_access_model_v2",
     # Canon V5.1.0 §5.4 / O6 — journal métier assessment_history
     "093_v51_assessment_history",
+    # DMS V5.2 — market delta price_line_bundle_values (PR V52)
+    "v52_p2_001_price_line_market_delta",
 )
 
 

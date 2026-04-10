@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
 from typing import Any
 
 import numpy as np
@@ -29,7 +28,9 @@ def _get_client() -> Any:
     if _client is not None:
         return _client
 
-    api_key = os.environ.get("MISTRAL_API_KEY")
+    from src.core.config import get_settings
+
+    api_key = get_settings().MISTRAL_API_KEY
     if not api_key:
         logger.warning(
             "MISTRAL_API_KEY non définie — embedding_client en mode fallback aléatoire."

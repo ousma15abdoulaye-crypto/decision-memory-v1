@@ -27,6 +27,7 @@ async def mql_stream_handler(
     db: Any,
     context: MQLContext,
     trace: Any,
+    intent_confidence: float = 0.0,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """Handler MARKET_QUERY — exécute MQL puis stream la réponse LLM."""
     yield {"type": "tool_call", "tool": "query_market", "status": "running"}
@@ -106,7 +107,7 @@ async def mql_stream_handler(
             "ws": workspace_id,
             "uid": user["id"],
             "query": query,
-            "conf": mql_result.confidence,
+            "conf": intent_confidence,
             "template": mql_result.template_used,
             "src_count": len(mql_result.sources),
             "latency": mql_result.latency_ms,
@@ -143,10 +144,10 @@ async def workspace_status_handler(
         yield {"type": "done", "usage": {}}
         return
 
-    from src.api.cognitive_helpers import load_cognitive_facts
+    from src.api.cognitive_helpers import async_load_cognitive_facts
     from src.cognitive.cognitive_state import compute_cognitive_state_result
 
-    facts = load_cognitive_facts(db, ws)
+    facts = await async_load_cognitive_facts(db, ws)
     cog = compute_cognitive_state_result(facts)
 
     bundles = await db.fetch_all(

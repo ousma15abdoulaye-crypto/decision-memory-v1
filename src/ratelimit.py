@@ -10,10 +10,11 @@ DÉCOUVERTE AUDIT 2026-03-17 :
   Tous les @limiter.limit() dans auth_router.py et routers.py
   étaient des no-ops depuis le début du projet.
   Cette ligne est supprimée. Le limiter natif reprend son rôle.
+
+V5.2 : Variables d'environnement lues via get_settings() (Pydantic Settings).
 """
 
 import logging
-import os
 from urllib.parse import urlparse
 
 from fastapi import FastAPI
@@ -21,31 +22,39 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
+from src.core.config import get_settings
+
 logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────
 # STORAGE — Redis prod / memory test
 # ─────────────────────────────────────────────────────────────
 
-_REDIS_URL = os.environ.get("REDIS_URL", "")
-_TESTING = os.environ.get("TESTING", "false").lower() == "true"
 
-# Backward-compat : tests/conftest + test_upload_security importent TESTING
-TESTING = _TESTING
+def _resolve_storage() -> tuple[str, bool]:
+    """Résout le backend de stockage et le flag TESTING depuis Settings."""
+    s = get_settings()
+    is_testing = s.TESTING
+    redis_url = s.REDIS_URL.strip()
 
-if _TESTING:
-    _storage = "memory://"
-    logger.debug("[RATELIMIT] Mode test — memory://")
-elif _REDIS_URL:
-    _storage = _REDIS_URL
-    logger.info("[RATELIMIT] Redis — production mode")
-else:
-    _storage = "memory://"
+    if is_testing:
+        logger.debug("[RATELIMIT] Mode test — memory://")
+        return "memory://", True
+    if redis_url:
+        logger.info("[RATELIMIT] Redis — production mode")
+        return redis_url, False
+
     logger.warning(
         "[RATELIMIT] REDIS_URL absent — fallback memory://. "
         "Rate limiting non persistant entre restarts. "
         "Configurer REDIS_URL en production (Railway Dashboard)."
     )
+    return "memory://", False
+
+
+_storage, _TESTING = _resolve_storage()
+
+TESTING = _TESTING
 
 # ─────────────────────────────────────────────────────────────
 # LIMITER — natif slowapi — NE PAS RÉASSIGNER .limit
@@ -59,49 +68,36 @@ limiter = Limiter(
 )
 
 if _TESTING:
-    # En mode TESTING, on rend limiter.limit no-op pour éviter que
-    # les limites par IP (get_remote_address) soient mutualisées
-    # entre tous les tests et provoquent des 429 aléatoires en CI.
+
     def _noop_limit(*limit_args, **limit_kwargs):
         def decorator(func):
             return func
 
         return decorator
 
-    # Désactivation effec­tive des décorateurs @limiter.limit / @route_limit
     limiter.limit = _noop_limit  # type: ignore[attr-defined]
-    # Attribut indicatif (ne change rien au comportement slowapi)
     limiter.enabled = False  # type: ignore[attr-defined]
     logger.warning(
         "[RATELIMIT] TESTING=True — décorateurs @limiter.limit désactivés (no-op)"
     )
-
-# SUPPRIMÉ — était un no-op qui écrasait limiter.limit :
-# limiter.limit = conditional_limit  ← LIGNE SUPPRIMÉE
 
 # ─────────────────────────────────────────────────────────────
 # CONSTANTES LIMITES PAR CRITICITÉ — FIGÉES
 # GO CTO obligatoire avant modification
 # ─────────────────────────────────────────────────────────────
 
-LIMIT_AUTH = "10/minute"  # auth — cible brute-force
-LIMIT_UPLOAD = "20/minute"  # upload — CPU intensif
-LIMIT_SCORING = "30/minute"  # scoring — calcul intensif
-LIMIT_READ = "60/minute"  # lecture standard
-LIMIT_EXPORT = "5/minute"  # export — fichiers lourds
-LIMIT_ANNOTATION = "10/minute"  # annotation — coût API LLM
+LIMIT_AUTH = "10/minute"
+LIMIT_UPLOAD = "20/minute"
+LIMIT_SCORING = "30/minute"
+LIMIT_READ = "60/minute"
+LIMIT_EXPORT = "5/minute"
+LIMIT_ANNOTATION = "10/minute"
 
 
 def route_limit(rate: str):
     """
     Décorateur rate limiting par route.
     Alias propre de limiter.limit() pour lisibilité.
-
-    Usage :
-        @router.post("/upload")
-        @route_limit(LIMIT_UPLOAD)
-        async def upload(request: Request, ...):
-            ...
     """
     return limiter.limit(rate)
 
@@ -132,7 +128,6 @@ def _describe_storage(storage: str) -> str:
     try:
         parsed = urlparse(storage)
     except Exception:
-        # En cas de format inattendu, on loggue uniquement que le backend est inconnu.
         return "backend=unknown"
 
     if not parsed.scheme:

@@ -205,6 +205,14 @@ def test_source_case_id_is_text(conn):
 MIGRATION_SKIP_FROM = "043"
 
 
+def _alembic_numeric_prefix(ver: str | None) -> int | None:
+    """Numéro de tête style 042_ / 043_ ; None si head non numérique (ex. v52_…)."""
+    if not ver:
+        return None
+    m = re.match(r"^(\d+)", str(ver))
+    return int(m.group(1)) if m else None
+
+
 def test_no_market_signals_created_by_m8(conn):
     """
     M8 ne doit pas avoir cree market_signals.
@@ -216,18 +224,15 @@ def test_no_market_signals_created_by_m8(conn):
     r = cur.fetchone()
     assert r is not None, "alembic_version vide"
     ver = r["version_num"]
-    try:
-        prefix = str(ver).split("_")[0] if ver else ""
-        m = re.match(r"^(\d+)", prefix)
-        current_num = int(m.group(1)) if m else 0
-    except (ValueError, TypeError):
-        current_num = 0
+    current_num = _alembic_numeric_prefix(ver)
     try:
         skip_from = int(MIGRATION_SKIP_FROM.split("_")[0])
     except (ValueError, IndexError):
         skip_from = 43
-    if current_num >= skip_from:
-        pytest.skip(f"Migration {ver} >= {MIGRATION_SKIP_FROM} — test M8 skippé")
+    if current_num is None or current_num >= skip_from:
+        pytest.skip(
+            f"Migration {ver} — head non M8 ou >= {MIGRATION_SKIP_FROM} (test M8 skippé)"
+        )
     assert ver == "042_market_surveys", f"head inattendu : {ver}"
 
 
@@ -240,18 +245,15 @@ def test_no_price_series_view(conn):
     cur.execute("SELECT version_num FROM alembic_version LIMIT 1")
     r = cur.fetchone()
     ver = r.get("version_num") if r else None
-    try:
-        prefix = str(ver).split("_")[0] if ver else ""
-        m = re.match(r"^(\d+)", prefix)
-        current_num = int(m.group(1)) if m else 0
-    except (ValueError, TypeError):
-        current_num = 0
+    current_num = _alembic_numeric_prefix(ver)
     try:
         skip_from = int(MIGRATION_SKIP_FROM.split("_")[0])
     except (ValueError, IndexError):
         skip_from = 43
-    if current_num >= skip_from:
-        pytest.skip(f"Migration {ver} >= {MIGRATION_SKIP_FROM} — price_series attendue")
+    if current_num is None or current_num >= skip_from:
+        pytest.skip(
+            f"Migration {ver} — head non M8 ou >= {MIGRATION_SKIP_FROM} — price_series OK"
+        )
     cur.execute(
         """
         SELECT COUNT(*) AS n

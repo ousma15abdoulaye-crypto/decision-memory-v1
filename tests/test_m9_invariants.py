@@ -314,12 +314,12 @@ class TestDB:
         r = cur.fetchone()
         assert r is not None
         ver = r["version_num"]
-        try:
-            prefix = str(ver).split("_")[0] if ver else ""
-            m = re.match(r"^(\d+)", prefix)
-            num = int(m.group(1)) if m else 0
-        except (ValueError, TypeError):
-            num = 0
+        m = re.match(r"^(\d+)", str(ver))
+        if not m:
+            pytest.skip(
+                f"Head {ver} — chaîne non numérique (V5.2+), invariant numérique >=043 N/A"
+            )
+        num = int(m.group(1))
         assert num >= 43, f"head inattendu : {ver} (attendu >= 043)"
 
     def test_market_signals_legacy_intact(self, conn):

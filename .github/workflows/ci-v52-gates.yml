@@ -1,0 +1,267 @@
+name: DMS V5.2 — Gates Invariants
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, "fix/v52-*", "feat/v52-*"]
+
+env:
+  DATABASE_URL: "postgresql+psycopg://postgres:testpass@localhost:5432/dmstest"
+  REDIS_URL: "redis://localhost:6379/0"
+  SECRET_KEY: "ci-test-secret-key-minimum-32-chars"
+  MISTRAL_API_KEY: "test-key-ci"
+  LANGFUSE_PUBLIC_KEY: "pk-lf-test"
+  LANGFUSE_SECRET_KEY: "sk-lf-test"
+  LANGFUSE_HOST: "http://localhost:3000"
+  TESTING: "true"
+  PGPASSWORD: "testpass"
+  PYTHONPATH: ${{ github.workspace }}
+
+jobs:
+  # ─── JOB 1 — Backend : lint + tests unitaires ───────────────────────────────
+  backend-quality:
+    name: "Backend — Ruff + Black + 208 tests unitaires"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: |
+          pip install -r requirements.txt
+          pip install "ruff" "black==26.1.0"
+
+      - name: "Ruff check"
+        run: python -m ruff check src tests services
+
+      - name: "Black check"
+        run: python -m black --check src tests services
+
+      - name: "Tests unitaires"
+        env:
+          TESTING: "true"
+        run: pytest tests/unit/ -q --tb=short
+
+  # ─── JOB 2 — Frontend : types + tsc + build ────────────────────────────────
+  frontend-build:
+    name: "Frontend — OpenAPI types + tsc + next build"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-v51
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+        working-directory: .
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend-v51/package-lock.json
+
+      - run: npm ci
+
+      - name: "INV-F01 — types/api.ts non-stub (>= 100 lignes)"
+        run: |
+          LINES=$(wc -l < types/api.ts)
+          if [ "$LINES" -lt 100 ]; then
+            echo "FAIL: types/api.ts = $LINES lignes (stub vide)"
+            exit 1
+          fi
+          echo "OK: types/api.ts = $LINES lignes"
+
+      - name: "TypeScript — 0 erreur"
+        run: npx tsc --noEmit
+
+      - name: "Next.js build — 0 erreur"
+        run: npm run build
+
+      - name: "Dépendances fantômes absentes"
+        run: |
+          for pkg in framer-motion react-hook-form; do
+            if grep -q "\"$pkg\"" package.json; then
+              echo "FAIL: dépendance fantôme détectée : $pkg"
+              exit 1
+            fi
+          done
+          echo "OK: aucune dépendance fantôme"
+
+  # ─── JOB 3 — DB V5.2 : migrations + triggers + RLS + colonnes ───────────────
+  db-v52-invariants:
+    name: "DB — Triggers V5.2 + RLS + colonnes"
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: dmstest
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: "Alembic — single head"
+        run: |
+          HEAD_COUNT=$(alembic heads | wc -l)
+          [ "$HEAD_COUNT" -eq 1 ] || {
+            echo "FAIL: $HEAD_COUNT alembic heads détectées (merge migration requis)"
+            exit 1
+          }
+          echo "OK: single alembic head"
+
+      - name: "Alembic upgrade head"
+        run: alembic upgrade head
+
+      - name: "INV-W05/S03/S04 — 3 triggers V5.2 présents"
+        run: |
+          python - <<'EOF'
+          import psycopg
+          conn = psycopg.connect("postgresql://postgres:testpass@localhost:5432/dmstest")
+          cur = conn.cursor()
+          cur.execute("""
+            SELECT trigger_name FROM information_schema.triggers
+            WHERE trigger_name IN (
+              'trg_pv_snapshot_immutable',
+              'trg_assessment_history_append_only',
+              'trg_assessment_auto_history'
+            )
+          """)
+          found = {r[0] for r in cur.fetchall()}
+          expected = {
+            'trg_pv_snapshot_immutable',
+            'trg_assessment_history_append_only',
+            'trg_assessment_auto_history',
+          }
+          missing = expected - found
+          if missing:
+            print(f"FAIL: triggers manquants: {missing}")
+            raise SystemExit(1)
+          print(f"OK: {len(found)}/3 triggers V5.2 présents")
+          EOF
+
+      - name: "INV-S01 — RLS enabled+forced ≥ 25 tables"
+        run: |
+          python - <<'EOF'
+          import psycopg
+          conn = psycopg.connect("postgresql://postgres:testpass@localhost:5432/dmstest")
+          cur = conn.cursor()
+          cur.execute("""
+            SELECT COUNT(*) FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'public' AND c.relkind = 'r'
+              AND c.relrowsecurity = true AND c.relforcerowsecurity = true
+          """)
+          count = cur.fetchone()[0]
+          if count < 25:
+            print(f"FAIL: seulement {count} tables RLS+FORCE (attendu >= 25)")
+            raise SystemExit(1)
+          print(f"OK: {count} tables avec RLS enabled+forced")
+          EOF
+
+      - name: "R3 — Colonnes market_delta_pct présentes"
+        run: |
+          python - <<'EOF'
+          import psycopg
+          conn = psycopg.connect("postgresql://postgres:testpass@localhost:5432/dmstest")
+          cur = conn.cursor()
+          cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'price_line_bundle_values'
+              AND column_name IN ('market_delta_pct', 'market_delta_computed_at')
+          """)
+          found = {r[0] for r in cur.fetchall()}
+          expected = {'market_delta_pct', 'market_delta_computed_at'}
+          if found != expected:
+            print(f"FAIL: colonnes manquantes: {expected - found}")
+            raise SystemExit(1)
+          print(f"OK: colonnes market_delta présentes")
+          EOF
+
+  # ─── JOB 4 — Permissions matrix 18×6 ──────────────────────────────────────
+  permissions-matrix:
+    name: "RBAC — Permissions matrix 18×6"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: "INV-RBAC — 18 permissions, 6 rôles, admin = ALL"
+        env:
+          TESTING: "true"
+        run: |
+          python - <<'EOF'
+          from src.auth.permissions import ROLE_PERMISSIONS, ALL_PERMISSIONS
+          assert len(ALL_PERMISSIONS) == 18, \
+            f"Attendu 18 permissions, obtenu {len(ALL_PERMISSIONS)}: {ALL_PERMISSIONS}"
+          assert len(ROLE_PERMISSIONS) == 6, \
+            f"Attendu 6 rôles, obtenu {len(ROLE_PERMISSIONS)}: {list(ROLE_PERMISSIONS)}"
+          assert ROLE_PERMISSIONS['admin'] == ALL_PERMISSIONS, \
+            "admin doit avoir TOUTES les permissions"
+          assert 'system.admin' not in ROLE_PERMISSIONS.get('observer', set()), \
+            "observer ne peut pas avoir system.admin"
+          assert 'market.write' in ROLE_PERMISSIONS.get('supply_chain', set()), \
+            "supply_chain doit avoir market.write"
+          print(f"OK: {len(ALL_PERMISSIONS)} permissions × {len(ROLE_PERMISSIONS)} rôles validés")
+          EOF
+
+  # ─── JOB 5 — Tests intégration V5.2 ────────────────────────────────────────
+  integration-v52:
+    name: "Tests intégration — Seal flow + M14 bridge + Agent guardrail"
+    runs-on: ubuntu-latest
+    needs: [db-v52-invariants]
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: dmstest
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: alembic upgrade head
+      - name: "Enable dm_app LOGIN (RLS tests)"
+        run: |
+          psql -h localhost -U postgres -d dmstest -c \
+            "ALTER ROLE dm_app WITH LOGIN PASSWORD 'dm_app_ci_test';"
+      - name: "Tests intégration V5.2"
+        env:
+          TESTING: "true"
+        run: |
+          pytest tests/integration/test_seal_flow_v52.py \
+                 tests/integration/test_m14_bridge_flow.py \
+                 tests/integration/test_agent_guardrail.py \
+                 -v --tb=short

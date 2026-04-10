@@ -14,7 +14,6 @@ Terrain Mali : Redis peut être down → fallback no-op obligatoire.
 from __future__ import annotations
 
 import logging
-import os
 import time
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -121,9 +120,9 @@ class RedisRateLimitMiddleware(BaseHTTPMiddleware):
 
     def __init__(self, app, redis_url: str | None = None) -> None:
         super().__init__(app)
-        self._redis_url = redis_url or os.environ.get(
-            "REDIS_URL", "redis://localhost:6379/0"
-        )
+        from src.core.config import get_settings
+
+        self._redis_url = redis_url or get_settings().REDIS_URL
         self._redis = None
         self._redis_unavailable = False
 
@@ -139,8 +138,11 @@ class RedisRateLimitMiddleware(BaseHTTPMiddleware):
             self._redis.ping()
             return self._redis
         except Exception as exc:
-            _prod = os.environ.get("RAILWAY_ENVIRONMENT") == "production" or (
-                os.environ.get("ENV", "").lower() == "production"
+            from src.core.config import get_settings
+
+            _s = get_settings()
+            _prod = _s.RAILWAY_ENVIRONMENT == "production" or (
+                _s.ENV.lower() == "production"
             )
             if _prod:
                 logger.error(
@@ -203,7 +205,9 @@ class RedisRateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         # CI / pytest : Redis actif + milliers de requêtes TestClient → 429 massifs
         # sans bypass (même IP, fenêtre 60s). TESTING=true est posé dans tests/conftest.
-        if os.environ.get("TESTING", "false").lower() == "true":
+        from src.core.config import get_settings
+
+        if get_settings().TESTING:
             return await call_next(request)
 
         ip = request.client.host if request.client else "unknown"

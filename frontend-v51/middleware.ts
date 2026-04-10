@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 /**
- * Garde UX (middleware Next.js 16) : on lit seulement le payload JWT (exp). La signature n'est pas
+ * Garde UX (edge) : on lit seulement le payload JWT (exp). La signature n'est pas
  * vérifiée ici — l'API FastAPI reste la barrière d'authentification réelle.
+ *
+ * Next.js 16 affiche un avertissement « middleware → proxy ». Ne pas ajouter un second
+ * fichier `proxy.ts` qui réexporte ce module : le build échoue si les deux coexistent.
+ * Une migration future vers `proxy.ts` seule doit déplacer toute la logique (sans doublon).
  */
 const PUBLIC = ["/login", "/api/auth", "/_next", "/favicon"];
 

@@ -85,6 +85,8 @@ class PriceLineBundleValueOut(BaseModel):
     bundle_id: str
     amount: str | None = None
     currency: str = "XOF"
+    market_delta_pct: float | None = None
+    price_signal: str | None = None
 
 
 class M16EvaluationFrameOut(BaseModel):

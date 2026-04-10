@@ -491,8 +491,8 @@ def test_dm_app_cannot_select_other_tenant_m13_correction_log(db_conn):
 
 def test_dm_app_cannot_select_other_tenant_evaluation_documents(db_conn):
     """RLS sur evaluation_documents : tenant A ne voit pas tenant B."""
-    tid_a = f"rls-eval-a-{uuid.uuid4().hex[:8]}"
-    tid_b = f"rls-eval-b-{uuid.uuid4().hex[:8]}"
+    code_a = f"rls-eval-a-{uuid.uuid4().hex[:8]}"
+    code_b = f"rls-eval-b-{uuid.uuid4().hex[:8]}"
     case_a = str(uuid.uuid4())
     case_b = str(uuid.uuid4())
     now = datetime.now(UTC).isoformat()
@@ -500,6 +500,8 @@ def test_dm_app_cannot_select_other_tenant_evaluation_documents(db_conn):
     ws_b = None
 
     with db_conn.cursor() as cur:
+        tid_a = _ensure_tenant_uuid(cur, code_a)
+        tid_b = _ensure_tenant_uuid(cur, code_b)
         _insert_case(cur, case_a, tid_a, now)
         _insert_case(cur, case_b, tid_b, now)
         cur.execute(
@@ -520,8 +522,8 @@ def test_dm_app_cannot_select_other_tenant_evaluation_documents(db_conn):
         )
         cmt_b = cur.fetchone()
         cmt_b_id = cmt_b[0] if isinstance(cmt_b, tuple) else cmt_b["committee_id"]
-        ws_a = _insert_workspace_for_case(cur, case_a, tid_a)
-        ws_b = _insert_workspace_for_case(cur, case_b, tid_b)
+        ws_a = _insert_workspace_for_case(cur, case_a, code_a)
+        ws_b = _insert_workspace_for_case(cur, case_b, code_b)
         cur.execute(
             """
             INSERT INTO public.evaluation_documents
@@ -537,6 +539,10 @@ def test_dm_app_cannot_select_other_tenant_evaluation_documents(db_conn):
         with _rls_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT set_config('app.tenant_id', %s, true)", (tid_a,))
+                cur.execute(
+                    "SELECT set_config('app.current_tenant', %s, true)",
+                    (tid_a,),
+                )
                 cur.execute(
                     "SELECT id FROM public.evaluation_documents WHERE workspace_id = %s",
                     (ws_b,),

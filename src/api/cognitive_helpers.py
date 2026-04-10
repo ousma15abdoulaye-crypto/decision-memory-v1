@@ -133,6 +133,73 @@ def confidence_summary_for_workspace(conn, workspace_id: str) -> dict[str, Any]:
     }
 
 
+async def async_load_cognitive_facts(db: Any, workspace_row: Any) -> CognitiveFacts:
+    """Version async de load_cognitive_facts — pour AsyncpgAdapter.
+
+    Utilisée par workspace_status_handler (agent) qui opère sur le pool
+    asyncpg. Les appels sync db_execute_one() seraient incompatibles avec
+    AsyncpgAdapter (execute/fetchone sync absents).
+    """
+    wid = str(workspace_row["id"])
+    st = workspace_row.get("status") or "draft"
+
+    # has_source_package
+    try:
+        r = await db.fetch_val(
+            "SELECT EXISTS(SELECT 1 FROM source_package_documents "
+            "WHERE workspace_id = :ws) AS e",
+            {"ws": wid},
+        )
+        has_sp = bool(r)
+    except Exception as exc:
+        logger.debug("[cognitive-async] has_source_package fallback: %s", exc)
+        has_sp = False
+
+    # bundle_stats
+    try:
+        r = await db.fetch_one(
+            "SELECT COUNT(*)::int AS n, "
+            "COALESCE(BOOL_AND(qualification_status = 'qualified'), TRUE) AS all_q "
+            "FROM supplier_bundles WHERE workspace_id = :ws",
+            {"ws": wid},
+        )
+        if not r:
+            n, all_q = 0, True
+        else:
+            n, all_q = int(r["n"]), bool(r["all_q"])
+    except Exception as exc:
+        logger.debug("[cognitive-async] bundle_stats fallback: %s", exc)
+        try:
+            r = await db.fetch_one(
+                "SELECT COUNT(*)::int AS n, "
+                "COALESCE(BOOL_AND(bundle_status = 'complete'), TRUE) AS all_q "
+                "FROM supplier_bundles WHERE workspace_id = :ws",
+                {"ws": wid},
+            )
+            n, all_q = (int(r["n"]), bool(r["all_q"])) if r else (0, True)
+        except Exception:
+            n, all_q = 0, True
+
+    # evaluation_frame_complete
+    try:
+        r = await db.fetch_one(
+            "SELECT scores_matrix FROM evaluation_documents "
+            "WHERE workspace_id = :ws ORDER BY created_at DESC LIMIT 1",
+            {"ws": wid},
+        )
+        ef = bool(r and r.get("scores_matrix"))
+    except Exception:
+        ef = False
+
+    return CognitiveFacts(
+        workspace_status=st,
+        has_source_package=has_sp,
+        bundle_count=n,
+        bundles_all_qualified=all_q,
+        evaluation_frame_complete=ef,
+    )
+
+
 def map_committee_session_row(row: dict[str, Any] | None) -> dict[str, Any]:
     if not row:
         return {

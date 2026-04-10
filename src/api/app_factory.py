@@ -8,7 +8,6 @@ sans ``create_app(deployment_mode=…)``. Les deux réutilisent les mêmes hooks
 from __future__ import annotations
 
 import logging
-import os
 from contextlib import asynccontextmanager
 from typing import Literal
 
@@ -17,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from src.api.dms_v51_mount import mount_v51_workspace_http_and_ws
-from src.core.config import APP_TITLE, APP_VERSION, STATIC_DIR
+from src.core.config import APP_TITLE, APP_VERSION, STATIC_DIR, get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +69,9 @@ OPENAPI_RAILWAY_DESCRIPTION = (
 async def railway_lifespan(_app: FastAPI):
     """Lifespan production (Railway) — migrations optionnelles, schéma DB, fermeture pools."""
     _logger = logging.getLogger(__name__)
-    _run_mig = os.environ.get("RUN_MIGRATIONS_ON_STARTUP", "").lower() == "true"
-    _is_testing = os.environ.get("TESTING", "false").lower() == "true"
+    _s = get_settings()
+    _run_mig = _s.RUN_MIGRATIONS_ON_STARTUP
+    _is_testing = _s.TESTING
     if _run_mig and not _is_testing:
         import subprocess
         import sys
@@ -179,7 +179,7 @@ _DEFAULT_CORS_ORIGINS: tuple[str, ...] = (
 
 def _cors_allow_origins() -> list[str]:
     """Liste d'origines autorisées — E-27 : aucun item ``*`` ; préférer ``CORS_ORIGINS`` en prod."""
-    raw = (os.environ.get("CORS_ORIGINS") or "").strip()
+    raw = get_settings().CORS_ORIGINS.strip()
     if not raw:
         return list(_DEFAULT_CORS_ORIGINS)
     origins = [o.strip() for o in raw.split(",") if o.strip()]
@@ -550,7 +550,7 @@ def create_modular_app() -> FastAPI:
                 "[startup] Routers optionnels inactifs (milestone non ouvert) : %s",
                 inactive,
             )
-        _is_testing = os.environ.get("TESTING", "false").lower() == "true"
+        _is_testing = get_settings().TESTING
         if not _is_testing:
             try:
                 from src.agent.semantic_router import warm_centroids

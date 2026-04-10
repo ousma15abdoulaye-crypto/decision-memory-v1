@@ -123,6 +123,7 @@ class TestWritePermissions:
             "evaluation.write",
             "committee.comment",
             "committee.seal",
+            "market.write",  # ajouté P2 (correction permissions budget_holder)
         }
         assert WRITE_PERMISSIONS == expected
 

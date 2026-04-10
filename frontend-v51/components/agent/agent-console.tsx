@@ -18,19 +18,90 @@ interface Message {
   sources?: SSEEvent["sources"];
 }
 
+const SUGGESTED_QUERIES = [
+  "Prix du ciment à Bamako ce mois ?",
+  "Quelles sont les règles ECHO pour ce marché ?",
+  "Où en est ce dossier ?",
+];
+
+function MessageBubble({ msg }: { msg: Message }) {
+  const isUser = msg.role === "user";
+  const isSystem = msg.role === "system";
+
+  if (isSystem) {
+    return (
+      <div
+        role="alert"
+        className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
+      >
+        {msg.content}
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex gap-2 ${isUser ? "justify-end" : "justify-start"}`}>
+      {!isUser && (
+        <div
+          aria-hidden="true"
+          className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--brand)] text-[10px] font-bold text-white"
+        >
+          A
+        </div>
+      )}
+      <div
+        className={`max-w-[80%] rounded-xl px-3 py-2 text-sm leading-relaxed ${
+          isUser
+            ? "bg-[var(--brand)] text-white"
+            : "bg-gray-100 text-[var(--foreground)] dark:bg-gray-800"
+        }`}
+      >
+        <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+        {msg.sources && msg.sources.length > 0 && (
+          <div className="mt-2 border-t border-white/20 pt-2 text-[11px] opacity-80 dark:border-gray-700">
+            <span className="font-medium">Sources :</span>{" "}
+            {msg.sources.map((s, j) => (
+              <span key={j}>
+                {s.name}
+                {s.is_official && (
+                  <span className="ml-0.5 text-green-400" title="Source officielle" aria-label="officielle">
+                    ✓
+                  </span>
+                )}
+                {j < msg.sources!.length - 1 && ", "}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      {isUser && (
+        <div
+          aria-hidden="true"
+          className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-bold text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+        >
+          U
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AgentConsole({ workspaceId }: { workspaceId: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [guardrailBlock, setGuardrailBlock] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    return () => {
-      streamAbortRef.current?.abort();
-    };
+    return () => { streamAbortRef.current?.abort(); };
   }, []);
+
+  useEffect(() => {
+    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const sendPrompt = useCallback(
     async (query: string) => {
@@ -45,19 +116,15 @@ export function AgentConsole({ workspaceId }: { workspaceId: string }) {
       try {
         const res = await api.rawPost(
           "/api/agent/prompt",
-          {
-            query,
-            workspace_id: workspaceId,
-          },
+          { query, workspace_id: workspaceId },
           { signal: ac.signal },
         );
 
         if (res.status === 422) {
-          const body = await res.json();
+          const body = await res.json() as { detail?: { message?: string }; message?: string };
           setGuardrailBlock(
-            body.detail?.message || body.message || "Requête bloquée par le guardrail INV-W06.",
+            body.detail?.message ?? body.message ?? "Requête bloquée par le guardrail INV-W06.",
           );
-          ac.abort();
           setStreaming(false);
           return;
         }
@@ -88,7 +155,6 @@ export function AgentConsole({ workspaceId }: { workspaceId: string }) {
         let buffer = "";
         let assistantContent = "";
         let currentSources: SSEEvent["sources"] | undefined;
-
         const decoder = new TextDecoder();
 
         while (true) {
@@ -108,6 +174,10 @@ export function AgentConsole({ workspaceId }: { workspaceId: string }) {
             try {
               const event: SSEEvent = JSON.parse(line);
 
+              if (event.type === "sources") {
+                currentSources = event.sources;
+              }
+
               if (event.type === "token" && event.content) {
                 assistantContent += event.content;
                 setMessages((prev) => {
@@ -125,32 +195,19 @@ export function AgentConsole({ workspaceId }: { workspaceId: string }) {
                   ];
                 });
               }
-
-              if (event.type === "sources") {
-                currentSources = event.sources;
-              }
-            } catch {
-              // skip malformed events
-            }
+            } catch { /* skip malformed */ }
           }
         }
       } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") {
-          return;
-        }
+        if (err instanceof Error && err.name === "AbortError") return;
         setMessages((prev) => [
           ...prev,
-          {
-            role: "system",
-            content: `Erreur : ${err instanceof Error ? err.message : "inconnue"}`,
-          },
+          { role: "system", content: `Erreur : ${err instanceof Error ? err.message : "inconnue"}` },
         ]);
       } finally {
-        if (streamAbortRef.current === ac) {
-          streamAbortRef.current = null;
-        }
+        if (streamAbortRef.current === ac) streamAbortRef.current = null;
         setStreaming(false);
-        scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+        inputRef.current?.focus();
       }
     },
     [workspaceId],
@@ -164,66 +221,100 @@ export function AgentConsole({ workspaceId }: { workspaceId: string }) {
     sendPrompt(q);
   }
 
+  const isEmpty = messages.length === 0 && !guardrailBlock;
+
   return (
-    <div className="rounded-lg border dark:border-gray-800">
-      <div className="border-b px-4 py-2 dark:border-gray-800">
-        <h3 className="text-sm font-medium">Assistant DMS</h3>
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
+        <div className="flex items-center gap-2">
+          <div className="h-2 w-2 rounded-full bg-green-500" aria-hidden="true" />
+          <h3 className="text-sm font-semibold text-[var(--foreground)]">Assistant DMS</h3>
+        </div>
+        {messages.length > 0 && (
+          <button
+            onClick={() => { setMessages([]); setGuardrailBlock(null); }}
+            className="text-xs text-[var(--foreground-subtle)] hover:text-[var(--foreground-muted)]"
+          >
+            Effacer
+          </button>
+        )}
       </div>
 
-      <div className="h-80 overflow-y-auto p-4 space-y-3 text-sm">
-        {messages.map((m, i) => (
-          <div
-            key={i}
-            className={`rounded-lg p-3 ${
-              m.role === "user"
-                ? "ml-8 bg-blue-50 dark:bg-blue-950"
-                : m.role === "system"
-                  ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
-                  : "mr-8 bg-gray-100 dark:bg-gray-800"
-            }`}
-          >
-            <div className="whitespace-pre-wrap">{m.content}</div>
-            {m.sources && m.sources.length > 0 && (
-              <div className="mt-2 border-t pt-2 text-xs text-gray-500 dark:border-gray-700">
-                Sources :{" "}
-                {m.sources.map((s, j) => (
-                  <span key={j}>
-                    {s.name}
-                    {s.is_official && " ✓"}
-                    {j < m.sources!.length - 1 && ", "}
-                  </span>
-                ))}
+      {/* Messages */}
+      <div className="h-80 overflow-y-auto p-4">
+        {isEmpty ? (
+          <div className="flex h-full flex-col items-center justify-center gap-4">
+            <p className="text-sm text-[var(--foreground-muted)]">
+              Posez une question sur les marchés ou ce dossier.
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {SUGGESTED_QUERIES.map((q) => (
+                <button
+                  key={q}
+                  onClick={() => sendPrompt(q)}
+                  className="rounded-full border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--foreground-muted)] hover:border-[var(--brand)] hover:text-[var(--brand)] transition-colors"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {messages.map((m, i) => (
+              <MessageBubble key={i} msg={m} />
+            ))}
+            {streaming && (
+              <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
+                <span className="flex gap-1">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--brand)] [animation-delay:0ms]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--brand)] [animation-delay:150ms]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--brand)] [animation-delay:300ms]" />
+                </span>
+                Génération…
+              </div>
+            )}
+            {guardrailBlock && (
+              <div
+                role="alert"
+                className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
+              >
+                <span className="font-semibold">Guardrail INV-W06 —</span> {guardrailBlock}
               </div>
             )}
           </div>
-        ))}
-
-        {guardrailBlock && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
-            <strong>Guardrail INV-W06</strong> — {guardrailBlock}
-          </div>
         )}
-
         <div ref={scrollRef} />
       </div>
 
+      {/* Input */}
       <form
         onSubmit={handleSubmit}
-        className="flex items-center gap-2 border-t p-3 dark:border-gray-800"
+        className="flex items-center gap-2 border-t border-[var(--border)] p-3"
       >
         <input
+          ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Posez une question sur les marchés..."
+          placeholder="Posez une question…"
           disabled={streaming}
-          className="flex-1 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700"
+          className="flex-1 rounded-lg border border-[var(--border)] bg-transparent px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] disabled:opacity-60"
+          aria-label="Message pour l'assistant DMS"
         />
         <button
           type="submit"
           disabled={streaming || !input.trim()}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--brand-hover)] disabled:opacity-50 transition-colors"
+          aria-label="Envoyer"
         >
-          {streaming ? "..." : "Envoyer"}
+          {streaming ? (
+            <span aria-hidden="true" className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white" />
+            </span>
+          ) : (
+            "↑"
+          )}
         </button>
       </form>
     </div>

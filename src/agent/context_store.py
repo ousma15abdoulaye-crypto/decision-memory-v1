@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -34,9 +33,9 @@ async def _get_redis() -> Any:
         try:
             import redis.asyncio as aioredis
 
-            _redis = aioredis.from_url(
-                os.environ.get("REDIS_URL", "redis://localhost:6379")
-            )
+            from src.core.config import get_settings
+
+            _redis = aioredis.from_url(get_settings().REDIS_URL)
         except ImportError:
             logger.warning("redis.asyncio non disponible — context store en mémoire.")
             return None

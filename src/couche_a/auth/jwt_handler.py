@@ -12,7 +12,6 @@ Refresh TTL : JWT_REFRESH_TTL_DAYS   (défaut 7)
 
 from __future__ import annotations
 
-import os
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -20,25 +19,21 @@ from typing import Any
 import psycopg
 from jose import JWTError, jwt
 
+from src.core.config import get_settings
+
 VALID_ROLES = frozenset({"admin", "manager", "buyer", "viewer", "auditor"})
 
 
 def _secret_key() -> str:
-    key = os.environ.get("SECRET_KEY") or os.environ.get("JWT_SECRET")
-    if not key:
-        raise ValueError(
-            "SECRET_KEY absent de l'environnement. "
-            "Définir SECRET_KEY avant de démarrer l'application."
-        )
-    return key
+    return get_settings().SECRET_KEY
 
 
 def _access_ttl() -> int:
-    return int(os.environ.get("JWT_ACCESS_TTL_MINUTES", 30))
+    return get_settings().JWT_ACCESS_TTL_MINUTES
 
 
 def _refresh_ttl() -> int:
-    return int(os.environ.get("JWT_REFRESH_TTL_DAYS", 7))
+    return get_settings().JWT_REFRESH_TTL_DAYS
 
 
 ALGORITHM = "HS256"

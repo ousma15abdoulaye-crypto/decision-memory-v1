@@ -1,18 +1,27 @@
-"""Routes M16 — comparatif contradictoire (cadre, backfill, délibération)."""
+"""Routes M16 — comparatif contradictoire (cadre, backfill, délibération, prix).
+
+Inclut les routes d'écriture price_line (Option B enterprise) :
+  POST …/m16/price-lines              : créer une ligne comparatif
+  POST …/m16/price-lines/{id}/values  : saisir un prix fournisseur (auto-refresh delta)
+  POST …/m16/refresh-market-deltas    : recalcul batch delta marché (admin)
+"""
 
 from __future__ import annotations
 
+import uuid
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import status as http_status
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel, Field
 
 from src.api.guards.m16_guards import m16_guard
 from src.api.pagination import PaginationParams, paginated_response
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.couche_a.auth.workspace_access import require_workspace_access
-from src.db import db_execute_one, get_connection
+from src.db import db_execute, db_execute_one, get_connection
 from src.schemas.m16 import (
     CriterionAssessmentOut,
     DeliberationMessageCreate,
@@ -28,8 +37,11 @@ from src.schemas.m16 import (
 )
 from src.services import m16_deliberation_service, m16_evaluation_service
 from src.services.comparative_table_model import build_comparative_table_model
+from src.services.m14_bridge import BridgeResult, populate_assessments_from_m14
 from src.services.m16_backfill import initialize_criterion_assessments_from_m14
 from src.services.m16_frame_payload import enrich_assessments_for_frame
+from src.services.market_delta import persist_market_deltas_for_workspace
+from src.services.signal_engine import compute_price_signal
 from src.utils.jinja_filters import build_jinja_env
 
 router = APIRouter(prefix="/api/workspaces", tags=["m16-comparative"])
@@ -41,6 +53,26 @@ def _iso(dt: object | None) -> str | None:
     if hasattr(dt, "isoformat"):
         return dt.isoformat()
     return str(dt)
+
+
+def _price_bundle_value_out(r: dict[str, Any]) -> PriceLineBundleValueOut:
+    """Construit PriceLineBundleValueOut depuis une ligne DB (Option B — delta en base)."""
+    raw_delta = r.get("market_delta_pct")
+    delta: float | None = None
+    if raw_delta is not None:
+        try:
+            delta = float(raw_delta)
+        except (TypeError, ValueError):
+            pass
+    return PriceLineBundleValueOut(
+        id=str(r["id"]),
+        price_line_id=str(r.get("price_line_id")),
+        bundle_id=str(r.get("bundle_id")),
+        amount=r.get("amount"),
+        currency=str(r.get("currency") or "XOF"),
+        market_delta_pct=delta,
+        price_signal=compute_price_signal(market_delta_pct=delta),
+    )
 
 
 def _assessment_out_from_row(
@@ -131,6 +163,44 @@ def m16_list_assessments(
             _assessment_out_from_row(workspace_id, {**r, "cell_json": cj}),
         )
     return paginated_response(items=out, total=total, params=params, key="assessments")
+
+
+@router.post("/{workspace_id}/m16/sync-from-m14")
+def m16_sync_from_m14(
+    workspace_id: str,
+    user: UserClaims = Depends(get_current_user),
+):
+    """Synchronise criterion_assessments depuis evaluation_documents.scores_matrix.
+
+    Version enterprise du bridge M14→M16 (Rupture R1) :
+      - Crée les assessments manquants (source = "m14")
+      - Met à jour les assessments sans score (cell_json->>'score' IS NULL)
+      - Ignore les assessments avec score posé par l'évaluateur (RÈGLE-R1)
+
+    Retourne un BridgeResult avec created / updated / skipped et les listes
+    d'éléments non mappés pour diagnostics.
+    """
+    m16_guard(
+        workspace_id,
+        user,
+        min_cognitive="E3",
+        permission="evaluation.write",
+        block_write_if_sealed=True,
+    )
+    try:
+        result: BridgeResult = populate_assessments_from_m14(workspace_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {
+        "workspace_id": result.workspace_id,
+        "evaluation_document_id": result.evaluation_document_id,
+        "created": result.created,
+        "updated": result.updated,
+        "skipped": result.skipped,
+        "unmapped_bundles": result.unmapped_bundles,
+        "unmapped_criteria": result.unmapped_criteria,
+        "errors": result.errors,
+    }
 
 
 @router.post(
@@ -258,16 +328,7 @@ def m16_evaluation_frame(
             )
             for r in price_lines
         ],
-        price_values=[
-            PriceLineBundleValueOut(
-                id=r["id"],
-                price_line_id=str(r.get("price_line_id")),
-                bundle_id=str(r.get("bundle_id")),
-                amount=r.get("amount"),
-                currency=str(r.get("currency") or "XOF"),
-            )
-            for r in price_vals
-        ],
+        price_values=[_price_bundle_value_out(r) for r in price_vals],
         bundle_weighted_totals=bundle_weighted_totals,
         weight_validation=weight_validation,
     )
@@ -530,6 +591,202 @@ def m16_post_message(
         body=str(row.get("body") or ""),
         created_at=_iso(row.get("created_at")),
     )
+
+
+# ── Routes write price-lines (Option B enterprise) ────────────────────────────
+
+
+class PriceLineCreatePayload(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    line_code: str = Field(..., min_length=1, max_length=64)
+    label: str = Field(..., min_length=1, max_length=255)
+    unit: str | None = None
+
+
+class PriceLineBundleValueCreatePayload(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    bundle_id: str = Field(..., description="UUID du bundle fournisseur")
+    amount: str = Field(..., description="Montant numérique en string (ex: '125000')")
+    currency: str = Field(default="XOF", max_length=8)
+
+
+def _bg_refresh_delta(workspace_id: str) -> None:
+    """Background task : recalcule le delta marché pour le workspace."""
+    with get_connection() as conn:
+        persist_market_deltas_for_workspace(conn, workspace_id)
+
+
+@router.post(
+    "/{workspace_id}/m16/price-lines",
+    status_code=http_status.HTTP_201_CREATED,
+)
+def m16_create_price_line(
+    workspace_id: str,
+    payload: PriceLineCreatePayload,
+    user: UserClaims = Depends(get_current_user),
+):
+    """Crée une ligne de comparatif prix pour ce workspace."""
+    m16_guard(
+        workspace_id,
+        user,
+        min_cognitive="E3",
+        permission="evaluation.write",
+        block_write_if_sealed=True,
+    )
+    with get_connection() as conn:
+        ws = m16_evaluation_service.resolve_workspace_tenant(conn, workspace_id)
+        if not ws:
+            raise HTTPException(status_code=404, detail="Workspace introuvable")
+        tenant_id = str(ws["tenant_id"])
+
+        existing = db_execute_one(
+            conn,
+            """
+            SELECT id FROM price_line_comparisons
+            WHERE workspace_id = CAST(:ws AS uuid)
+              AND line_code = :code
+            """,
+            {"ws": workspace_id, "code": payload.line_code},
+        )
+        if existing:
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail=f"line_code {payload.line_code!r} déjà existant.",
+            )
+
+        line_id = str(uuid.uuid4())
+        db_execute(
+            conn,
+            """
+            INSERT INTO price_line_comparisons
+                (id, workspace_id, tenant_id, line_code, label, unit)
+            VALUES (CAST(:id AS uuid), CAST(:ws AS uuid), CAST(:tid AS uuid),
+                    :code, :label, :unit)
+            """,
+            {
+                "id": line_id,
+                "ws": workspace_id,
+                "tid": tenant_id,
+                "code": payload.line_code,
+                "label": payload.label,
+                "unit": payload.unit,
+            },
+        )
+
+    return {
+        "id": line_id,
+        "workspace_id": workspace_id,
+        "line_code": payload.line_code,
+        "label": payload.label,
+        "unit": payload.unit,
+    }
+
+
+@router.post(
+    "/{workspace_id}/m16/price-lines/{line_id}/values",
+    status_code=http_status.HTTP_201_CREATED,
+)
+def m16_create_price_bundle_value(
+    workspace_id: str,
+    line_id: str,
+    payload: PriceLineBundleValueCreatePayload,
+    background_tasks: BackgroundTasks,
+    user: UserClaims = Depends(get_current_user),
+):
+    """Saisit le prix d'un fournisseur pour une ligne comparatif.
+
+    Déclenche automatiquement le recalcul market_delta_pct en background.
+    """
+    m16_guard(
+        workspace_id,
+        user,
+        min_cognitive="E3",
+        permission="evaluation.write",
+        block_write_if_sealed=True,
+    )
+    with get_connection() as conn:
+        line = db_execute_one(
+            conn,
+            """
+            SELECT id, tenant_id FROM price_line_comparisons
+            WHERE id = CAST(:lid AS uuid) AND workspace_id = CAST(:ws AS uuid)
+            """,
+            {"lid": line_id, "ws": workspace_id},
+        )
+        if not line:
+            raise HTTPException(status_code=404, detail="Ligne prix introuvable.")
+
+        tenant_id = str(line["tenant_id"])
+
+        # Upsert : un seul montant par (price_line_id × bundle_id)
+        value_id = str(uuid.uuid4())
+        db_execute(
+            conn,
+            """
+            INSERT INTO price_line_bundle_values
+                (id, price_line_id, bundle_id, workspace_id, tenant_id,
+                 amount, currency)
+            VALUES (CAST(:id AS uuid), CAST(:lid AS uuid), CAST(:bid AS uuid),
+                    CAST(:ws AS uuid), CAST(:tid AS uuid), :amount, :currency)
+            ON CONFLICT (price_line_id, bundle_id)
+            DO UPDATE SET amount   = EXCLUDED.amount,
+                          currency = EXCLUDED.currency,
+                          market_delta_pct        = NULL,
+                          market_delta_computed_at = NULL
+            """,
+            {
+                "id": value_id,
+                "lid": line_id,
+                "bid": payload.bundle_id,
+                "ws": workspace_id,
+                "tid": tenant_id,
+                "amount": payload.amount,
+                "currency": payload.currency,
+            },
+        )
+
+    # Auto-refresh delta en background (non bloquant)
+    background_tasks.add_task(_bg_refresh_delta, workspace_id)
+
+    return {
+        "workspace_id": workspace_id,
+        "price_line_id": line_id,
+        "bundle_id": payload.bundle_id,
+        "amount": payload.amount,
+        "currency": payload.currency,
+        "market_delta_status": "pending_refresh",
+    }
+
+
+@router.post("/{workspace_id}/m16/refresh-market-deltas")
+def m16_refresh_market_deltas(
+    workspace_id: str,
+    user: UserClaims = Depends(get_current_user),
+):
+    """Recalcule market_delta_pct pour toutes les lignes prix du workspace.
+
+    Appel synchrone — prévu pour admin ou suite à une MAJ des signaux marché.
+    Retourne le compte mis à jour / sans signal.
+    """
+    m16_guard(
+        workspace_id,
+        user,
+        min_cognitive="E3",
+        permission="evaluation.write",
+    )
+    with get_connection() as conn:
+        res = persist_market_deltas_for_workspace(conn, workspace_id)
+
+    return {
+        "workspace_id": workspace_id,
+        "zone_id": res.zone_id,
+        "total": res.total,
+        "updated": res.updated,
+        "no_signal": res.no_signal,
+        "errors": res.errors,
+    }
 
 
 @router.get(
