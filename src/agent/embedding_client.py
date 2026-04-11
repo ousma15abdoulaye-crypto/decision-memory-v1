@@ -23,6 +23,13 @@ _client: Any = None
 _fallback = False
 
 
+def reset_embedding_client_state() -> None:
+    """Réinitialise le client Mistral en mémoire (tests, workers, après erreur API)."""
+    global _client, _fallback
+    _client = None
+    _fallback = False
+
+
 def _get_client() -> Any:
     """Lazy init du client Mistral. Retourne None si API key absente."""
     global _client, _fallback
@@ -95,13 +102,25 @@ async def get_embedding(text: str, dim: int = 1024) -> np.ndarray:
     déterministe basé sur les tokens (hashing trick), pas un tirage aléatoire
     par phrase — pour que le routeur sémantique reste cohérent en dev/CI.
     """
+    global _client, _fallback
+
     client = _get_client()
 
     if client is None or _fallback:
         return _lexical_hash_embedding(text, dim=dim)
 
-    response = await client.embeddings.create_async(
-        model="mistral-embed",
-        inputs=[text],
-    )
-    return np.array(response.data[0].embedding, dtype=np.float32)
+    try:
+        response = await client.embeddings.create_async(
+            model="mistral-embed",
+            inputs=[text],
+        )
+        return np.array(response.data[0].embedding, dtype=np.float32)
+    except Exception as exc:
+        # CI / clés invalides : éviter 401 en cascade et « Event loop is closed » (httpx cleanup).
+        logger.warning(
+            "Mistral embedding indisponible (%s) — bascule fallback lexical déterministe",
+            type(exc).__name__,
+        )
+        _client = None
+        _fallback = True
+        return _lexical_hash_embedding(text, dim=dim)

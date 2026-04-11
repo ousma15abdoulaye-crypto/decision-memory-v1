@@ -119,7 +119,13 @@ def upgrade() -> None:
 
             ALTER TABLE public.analysis_summaries
                 ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES public.tenants(id);
+            -- INV-AS3 / ADR-0015 : trigger append-only bloque UPDATE ; désactivation
+            -- temporaire pour backfill tenant_id (migration uniquement).
+            ALTER TABLE public.analysis_summaries
+                DISABLE TRIGGER trg_analysis_summaries_append_only;
             UPDATE public.analysis_summaries SET tenant_id = v_default WHERE tenant_id IS NULL;
+            ALTER TABLE public.analysis_summaries
+                ENABLE TRIGGER trg_analysis_summaries_append_only;
             ALTER TABLE public.analysis_summaries ALTER COLUMN tenant_id SET NOT NULL;
         END
         $body$;

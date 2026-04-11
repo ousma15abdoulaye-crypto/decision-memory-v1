@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 
+from src.agent.embedding_client import reset_embedding_client_state
 from src.agent.semantic_router import (
     INTENT_EXAMPLES,
     IntentClass,
@@ -40,6 +41,7 @@ class TestIntentClassEnum:
 
 class TestClassifyIntent:
     def setup_method(self):
+        reset_embedding_client_state()
         reset_centroid_cache()
 
     def test_returns_intent_result(self):
@@ -78,6 +80,7 @@ class TestWarmCentroids:
     """Tests warm_centroids() — pré-calcul au démarrage (BUG-P1-01)."""
 
     def setup_method(self):
+        reset_embedding_client_state()
         reset_centroid_cache()
 
     def test_warm_centroids_fills_cache(self):

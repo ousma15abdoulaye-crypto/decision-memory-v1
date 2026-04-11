@@ -11,6 +11,18 @@ from main import app
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 
 
+def _validation_errors_from_422(payload: dict) -> list:
+    """Normalise le corps 422 FastAPI/Pydantic (liste plate ou enveloppe dict)."""
+    d = payload.get("detail")
+    if isinstance(d, list):
+        return d
+    if isinstance(d, dict):
+        inner = d.get("detail")
+        if isinstance(inner, list):
+            return inner
+    return []
+
+
 @pytest.fixture
 def _agent_user_override():
     app.dependency_overrides[get_current_user] = lambda: UserClaims(
@@ -33,11 +45,12 @@ def test_agent_prompt_empty_body_422_missing_query(_agent_user_override) -> None
     client = TestClient(app)
     r = client.post("/api/agent/prompt", json={})
     assert r.status_code == 422
-    detail = r.json().get("detail")
-    assert isinstance(detail, list)
+    data = r.json()
+    errors = _validation_errors_from_422(data)
+    assert errors, f"422 sans liste d'erreurs exploitable: {data}"
     assert any(
         isinstance(x, dict)
         and "msg" in x
         and "required" in str(x.get("msg", "")).lower()
-        for x in detail
+        for x in errors
     )

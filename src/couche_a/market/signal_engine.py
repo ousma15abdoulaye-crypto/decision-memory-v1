@@ -22,6 +22,8 @@ import logging
 import psycopg
 from psycopg.rows import dict_row
 
+from src.db.connection import apply_rls_session_vars_to_connection
+
 from .formula_v11 import (
     FORMULA_VERSION,
     ContextSnapshot,
@@ -51,7 +53,14 @@ class SignalEngine:
         self.formula = FormulaV11()
 
     def _conn(self) -> psycopg.Connection:
-        return psycopg.connect(self.db_url, row_factory=dict_row)
+        """Connexion avec GUCs RLS alignés sur ``tenant_context`` (SCRIPTS-RLS-01).
+
+        ``transaction_local=False`` : survive aux ``COMMIT`` intermédiaires (ex. ``persist_signal``).
+        Les scripts batch doivent appeler ``set_rls_is_admin(True)`` ou poser un tenant avant usage.
+        """
+        conn = psycopg.connect(self.db_url, row_factory=dict_row)
+        apply_rls_session_vars_to_connection(conn, transaction_local=False)
+        return conn
 
     def get_context(
         self,
