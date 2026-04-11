@@ -16,7 +16,8 @@
 | Signaux M9 | `tenant_id` sur `market_signals_v2` |
 | Couche A héritée | `tenant_id` UUID sur `offers`, `extractions`, `analysis_summaries` (backfill **conservateur** : tenant par défaut — voir §4) |
 | Isolation | `ENABLE ROW LEVEL SECURITY`, `FORCE ROW LEVEL SECURITY`, politique `*_tenant_uuid_isolation` (`app.current_tenant::uuid` + `app.is_admin`) |
-| `score_history` | Trigger `trg_score_history_append_only` si absent et si `public.fn_reject_mutation` existe |
+| `score_history` | Trigger `trg_score_history_append_only` si absent et si `public.fn_reject_mutation` existe (souvent déjà créé par **059**) |
+| `downgrade` 094 | Ne supprime **pas** ce trigger : il appartient à la chaîne **059**, pas à 094 |
 
 ### `095_tenant_id_default_offers_extractions`
 

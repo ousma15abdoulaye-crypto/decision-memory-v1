@@ -12,7 +12,7 @@ Tables :
 Politique : tenant_id = current_setting('app.current_tenant', true)::uuid
            OR COALESCE(current_setting('app.is_admin', true), '') = 'true'
 
-Backfill : premier tenant par ordre de code ; puis défaut sci_mali si présent.
+Backfill : priorité au tenant ``sci_mali`` si présent ; sinon premier tenant par ordre de ``code``.
 
 Revision ID: 094_security_market_mercurial_tenant_rls
 Revises: 6ce2036bd346
@@ -201,9 +201,8 @@ def downgrade() -> None:
         op.execute(f"ALTER TABLE public.{tbl} NO FORCE ROW LEVEL SECURITY;")
         op.execute(f"ALTER TABLE public.{tbl} DISABLE ROW LEVEL SECURITY;")
 
-    op.execute(
-        "DROP TRIGGER IF EXISTS trg_score_history_append_only ON public.score_history;"
-    )
+    # Ne pas DROP trg_score_history_append_only : créé par 059_m14_score_history_elimination_log
+    # si fn_reject_mutation existe ; 094 ne fait qu'un CREATE IF NOT EXISTS côté upgrade.
 
     op.execute("ALTER TABLE public.analysis_summaries DROP COLUMN IF EXISTS tenant_id;")
     op.execute("ALTER TABLE public.extractions DROP COLUMN IF EXISTS tenant_id;")

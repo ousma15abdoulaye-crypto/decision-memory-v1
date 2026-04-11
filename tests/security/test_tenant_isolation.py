@@ -1,7 +1,8 @@
 """Tests isolation tenant — tables marché / mercuriale (post-migration 094).
 
 Exige DB live + migrations à jour (``094_security_market_mercurial_tenant_rls``).
-Politique : ``tenant_id = current_setting('app.current_tenant')::uuid``.
+Politique : ``tenant_id = current_setting('app.current_tenant', true)::uuid``,
+avec contournement admin via ``app.is_admin`` (aligné sur la policy SQL).
 """
 
 from __future__ import annotations
