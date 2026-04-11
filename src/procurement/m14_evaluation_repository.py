@@ -140,8 +140,9 @@ def _apply_scores_matrix_dao_fallback(
     Sans grille bundle×critère, ``populate_assessments_from_m14`` ne peut pas
     INSERT (cas fréquent : pipeline V5 + M12 bootstrap sans ``scoring_structure``).
 
-    On ajoute uniquement les couples manquants : clés = ``critere_nom`` issus de
-    ``dao_criteria`` pour le workspace, pour chaque ``offer_document_id`` du rapport.
+    On ajoute uniquement les couples manquants : clés = ``dao_criteria.id`` (texte
+    UUID), comme attendu par ``m14_bridge.populate_assessments_from_m14`` /
+    ``resolve_criterion_id_sync`` — pas les libellés ``critere_nom``.
     """
     offer_evals = payload.get("offer_evaluations") or []
     bundle_ids: list[str] = []
@@ -159,28 +160,22 @@ def _apply_scores_matrix_dao_fallback(
         rows = db_fetchall(
             conn,
             """
-            SELECT critere_nom FROM dao_criteria
+            SELECT id::text AS id, critere_nom
+            FROM dao_criteria
             WHERE workspace_id = CAST(:wid AS uuid)
-              AND critere_nom IS NOT NULL
-              AND trim(critere_nom) <> ''
-            ORDER BY ordre_affichage NULLS LAST, critere_nom
+            ORDER BY ordre_affichage NULLS LAST, critere_nom NULLS LAST, id
             """,
             {"wid": workspace_id},
         )
-    names = [str(r["critere_nom"]).strip() for r in rows if r.get("critere_nom")]
-    if not names:
+    criterion_ids = [str(r["id"]).strip() for r in rows if r.get("id")]
+    if not criterion_ids:
         return matrix
 
     out: dict[str, dict[str, Any]] = {k: dict(v) for k, v in matrix.items()}
-    neutral = {
-        "score": 0.6,
-        "max_score": 1.0,
-        "justification": (
-            "M14 shell — scoring_structure absent ou vide ; "
-            "cellule bootstrap pour le bridge DAO (pipeline V5)."
-        ),
-        "confidence": 0.6,
-        "source": "m14",
+    id_to_label = {
+        str(r["id"]).strip(): str(r.get("critere_nom") or "").strip()
+        for r in rows
+        if r.get("id")
     }
 
     for bid in bundle_ids:
@@ -188,9 +183,22 @@ def _apply_scores_matrix_dao_fallback(
         if not isinstance(existing, dict):
             existing = {}
         merged = dict(existing)
-        for name in names:
-            if name not in merged:
-                merged[name] = dict(neutral)
+        for dao_id in criterion_ids:
+            if dao_id not in merged:
+                label = id_to_label.get(dao_id, "")
+                justification = (
+                    "M14 shell — scoring_structure absent ou vide ; "
+                    "cellule bootstrap pour le bridge DAO (pipeline V5)."
+                )
+                if label:
+                    justification = f"{justification} (critère: {label})"
+                merged[dao_id] = {
+                    "score": 0.6,
+                    "max_score": 1.0,
+                    "justification": justification,
+                    "confidence": 0.6,
+                    "source": "m14",
+                }
         if merged:
             out[bid] = merged
 
