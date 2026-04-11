@@ -29,6 +29,8 @@ except ImportError:
     pass
 
 from src.couche_a.market.signal_engine import SignalEngine
+from src.db.connection import apply_rls_session_vars_to_connection
+from src.db.tenant_context import set_rls_is_admin
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -60,8 +62,10 @@ def main():
     args = p.parse_args()
 
     db = env()
+    set_rls_is_admin(True)
     eng = SignalEngine(db, allow_railway=True)
     con = psycopg.connect(db, row_factory=dict_row)
+    apply_rls_session_vars_to_connection(con, transaction_local=False)
     cur = con.cursor()
     mon = datetime.now().month
 

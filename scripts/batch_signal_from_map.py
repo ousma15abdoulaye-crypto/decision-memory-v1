@@ -187,6 +187,8 @@ def main() -> int:
         from psycopg.rows import dict_row
 
         from src.couche_a.market.signal_engine import SignalEngine
+        from src.db.connection import apply_rls_session_vars_to_connection
+        from src.db.tenant_context import set_rls_is_admin
     except ImportError as exc:
         print(f"{RED}[ERR]{RESET} Import manquant : {exc}", file=sys.stderr)
         return 1
@@ -196,7 +198,10 @@ def main() -> int:
         f"  DB : {db_url.split('@')[-1].split('/')[0] if '@' in db_url else db_url[:40]}"
     )
 
+    # SCRIPTS-RLS-01 : GUCs session (survit aux COMMIT de persist_signal) + moteur aligné
+    set_rls_is_admin(True)
     conn = psycopg.connect(db_url, row_factory=dict_row)
+    apply_rls_session_vars_to_connection(conn, transaction_local=False)
     cur = conn.cursor()
     engine = SignalEngine(db_url, allow_railway=True)
 
