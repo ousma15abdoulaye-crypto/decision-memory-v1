@@ -7,16 +7,18 @@ ADR-M1-001 · ADR-M1-002.
 from __future__ import annotations
 
 import uuid as _uuid
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from typing import Any
 
 import psycopg
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from src.core.config import get_settings
 from src.couche_a.auth.jwt_handler import verify_token
 from src.couche_a.auth.rbac import ROLES
-from src.db.tenant_context import set_db_tenant_id, set_rls_is_admin
+from src.db.tenant_context import set_db_tenant_id, set_rls_is_admin, set_rls_user_id
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -91,6 +93,55 @@ class UserClaims:
     is_superuser: bool = False
 
 
+def _apply_verified_payload_to_context_and_claims(
+    conn: psycopg.Connection,
+    payload: Mapping[str, Any],
+) -> UserClaims:
+    """À partir d'un payload JWT déjà vérifié : rôle, tenant UUID RLS, contextvars.
+
+    Partagé entre ``get_current_user`` (HTTP) et ``get_current_user_from_token``
+    (WebSocket) pour éviter la dérive HTTP vs WS.
+    """
+    role = payload.get("role", "")
+    if role not in ROLES:
+        raise ValueError(f"Rôle non reconnu : '{role}'.")
+
+    sub = payload.get("sub")
+    if sub is None or str(sub).strip() == "":
+        raise ValueError("Token sans subject (sub).")
+    sub_str = str(sub)
+
+    tid = payload.get("tenant_id")
+    if not tid:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT tenant_id FROM user_tenants WHERE user_id = %s",
+                (int(sub_str),),
+            )
+            r = cur.fetchone()
+        tid = r[0] if r else None
+    else:
+        tid = str(tid)
+
+    tid = _resolve_tenant_uuid_for_rls(tid, conn)
+
+    set_db_tenant_id(tid)
+    set_rls_is_admin(role == "admin")
+    set_rls_user_id(sub_str)
+
+    jti = payload.get("jti")
+    if not jti:
+        raise ValueError("Token sans jti.")
+
+    return UserClaims(
+        user_id=sub_str,
+        role=role,
+        jti=str(jti),
+        tenant_id=tid,
+        is_superuser=(role == "admin"),
+    )
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
 ) -> UserClaims:
@@ -110,8 +161,6 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    from src.core.config import get_settings
-
     database_url = get_settings().DATABASE_URL
     if not database_url or not str(database_url).strip():
         raise HTTPException(
@@ -130,37 +179,14 @@ def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             ) from exc
 
-        role = payload.get("role", "")
-        if role not in ROLES:
+        try:
+            return _apply_verified_payload_to_context_and_claims(conn, payload)
+        except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Rôle non reconnu : '{role}'",
+                detail=str(exc),
                 headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        tid = payload.get("tenant_id")
-        if not tid:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT tenant_id FROM user_tenants WHERE user_id = %s",
-                    (int(payload["sub"]),),
-                )
-                r = cur.fetchone()
-            tid = r[0] if r else None
-        else:
-            tid = str(tid)
-
-        tid = _resolve_tenant_uuid_for_rls(tid, conn)
-
-        set_db_tenant_id(tid)
-        set_rls_is_admin(role == "admin")
-
-        return UserClaims(
-            user_id=payload["sub"],
-            role=role,
-            jti=payload["jti"],
-            tenant_id=tid,
-        )
+            ) from exc
     finally:
         conn.close()
 
@@ -169,36 +195,35 @@ def get_current_user_from_token(token: str) -> UserClaims:
     """Valide un token JWT brut (hors contexte FastAPI dependency).
 
     Utilisé par les handlers WebSocket qui reçoivent le token en query param.
-    Ne peut pas vérifier la révocation (pas de connexion DB fournie).
+    Aligné sur ``get_current_user`` : résolution ``tenant_id`` → UUID RLS
+    (``_resolve_tenant_uuid_for_rls``) et pose du contexte
+    ``set_db_tenant_id`` / ``set_rls_is_admin`` / ``set_rls_user_id`` pour que
+    ``get_connection()`` applique les mêmes GUC que les routes HTTP.
+
+    Sans cette étape, un JWT legacy ``tenant-<id>`` provoque un 403 WebSocket
+    (« workspace appartient à un autre tenant ») alors que les GET HTTP passent.
 
     Raises:
         ValueError: token absent, invalide ou expiré.
+        RuntimeError: ``DATABASE_URL`` manquante ou vide (erreur configuration).
     """
-    import psycopg
-
     if not token:
         raise ValueError("Token manquant.")
 
-    from src.core.config import get_settings
-
-    url = get_settings().DATABASE_URL.replace("postgresql+psycopg://", "postgresql://")
+    database_url = get_settings().DATABASE_URL
+    if not database_url or not str(database_url).strip():
+        raise RuntimeError("Configuration invalide : DATABASE_URL n'est pas définie.")
+    url = str(database_url).replace("postgresql+psycopg://", "postgresql://")
     conn = psycopg.connect(url, autocommit=True)
     try:
-        payload = verify_token(token, "access", conn)
+        try:
+            payload = verify_token(token, "access", conn)
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
+
+        return _apply_verified_payload_to_context_and_claims(conn, payload)
     finally:
         conn.close()
-
-    role = payload.get("role", "")
-    if role not in ROLES:
-        raise ValueError(f"Rôle non reconnu : '{role}'.")
-
-    return UserClaims(
-        user_id=payload["sub"],
-        role=role,
-        jti=payload["jti"],
-        tenant_id=str(payload.get("tenant_id") or ""),
-        is_superuser=(role == "admin"),
-    )
 
 
 def require_role(*roles: str) -> Callable:

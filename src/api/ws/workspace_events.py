@@ -50,6 +50,14 @@ async def workspace_events_ws(
     """
     try:
         user: UserClaims = get_current_user_from_token(token or "")
+    except RuntimeError as exc:
+        logger.error("[WS] configuration serveur workspace=%s : %s", workspace_id, exc)
+        await websocket.close(code=1011, reason="Erreur configuration serveur.")
+        return
+    except ValueError as exc:
+        logger.warning("[WS] JWT invalide workspace=%s : %s", workspace_id, exc)
+        await websocket.close(code=4401, reason="JWT invalide ou expiré.")
+        return
     except Exception as exc:
         logger.warning("[WS] JWT invalide workspace=%s : %s", workspace_id, exc)
         await websocket.close(code=4401, reason="JWT invalide ou expiré.")
