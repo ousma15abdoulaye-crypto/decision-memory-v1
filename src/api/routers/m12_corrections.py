@@ -88,7 +88,15 @@ def list_recent_m12_corrections(
 ):
     _require_audit_access(user)
     lim = max(1, min(limit, 500))
-    writer = M12CorrectionWriter()
-    with get_connection() as conn:
-        rows = writer.get_recent(conn, lim)
-    return {"items": rows, "count": len(rows)}
+    logger.warning(
+        "Blocked non-tenant-scoped access to recent m12 corrections user=%s limit=%s",
+        user.user_id,
+        lim,
+    )
+    raise HTTPException(
+        status_code=http_status.HTTP_501_NOT_IMPLEMENTED,
+        detail=(
+            "La consultation des corrections récentes n'est pas disponible tant qu'un "
+            "filtrage tenant-safe n'est pas implémenté."
+        ),
+    )
