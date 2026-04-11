@@ -20,6 +20,9 @@
 | `GET /api/dashboard` | `get_current_user` + filtre `tenant_id` | Pas de `workspace_id` ; liste tous les workspaces du tenant. |
 | `POST /api/agent/prompt` | `get_current_user` ; si `workspace_id` → `guard(..., "agent.query")` | Stream SSE. |
 | `POST /api/mql/stream` | `get_current_user` + rôle `mql.internal` ou `system.admin` | N’utilise pas `execute_mql_query` mocké dans les tests d’intégration réels. |
+| `POST /api/m12/corrections` | `get_current_user` + `audit.read` / `mql.internal` / `system.admin` | Append ``m12_correction_log`` (M-CTO-V53-G). |
+| `GET /api/m12/corrections/recent` | idem | Lecture audit. |
+| `GET /api/workspaces/{id}/event-timeline` | `require_workspace_access` | Journal ``workspace_events`` (M-CTO-V53-F). |
 | `GET /api/workspaces/{id}/members` | `require_workspace_permission(..., "matrix.read")` | |
 | `POST /api/workspaces/{id}/members` | `require_workspace_permission(..., "member.invite")` | 409 si membership actif. |
 | `DELETE /api/workspaces/{id}/members/{user_id}` | `require_workspace_permission(..., "member.revoke")` | Interdit auto-révocation. |

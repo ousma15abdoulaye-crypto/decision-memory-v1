@@ -361,10 +361,26 @@ def run_pipeline_v5(
         n_ext = extract_offers_from_bundles(workspace_id, case_id)
         out.step_1_offers_extracted = n_ext
         if n_ext < 1:
-            out.error = "zero_offer_extractions"
-            out.stopped_at = "step_extract"
-            out.duration_seconds = time.perf_counter() - t0
-            return out
+            with get_connection() as conn_sb:
+                nb = db_execute_one(
+                    conn_sb,
+                    """
+                    SELECT COUNT(*)::int AS n
+                    FROM supplier_bundles
+                    WHERE workspace_id = CAST(:wid AS uuid)
+                    """,
+                    {"wid": workspace_id},
+                )
+            if not nb or nb.get("n", 0) < 1:
+                out.error = "zero_offer_extractions"
+                out.stopped_at = "step_extract"
+                out.duration_seconds = time.perf_counter() - t0
+                return out
+            logger.warning(
+                "[PIPELINE-V5] aucune offer_extraction — poursuite M14 via bundles "
+                "workspace=%s",
+                workspace_id,
+            )
 
         with get_connection() as conn2:
             corpus_parts = db_fetchall(
@@ -407,28 +423,15 @@ def run_pipeline_v5(
         logger.exception("[PIPELINE-V5] M13: %s", exc)
         return out
 
-    with get_connection() as conn:
-        offers_rows = db_fetchall(
-            conn,
-            """
-            SELECT bundle_id::text AS bundle_id, supplier_name,
-                   extracted_data_json
-            FROM offer_extractions
-            WHERE workspace_id = CAST(:wid AS uuid)
-            ORDER BY created_at DESC
-            """,
-            {"wid": workspace_id},
-        )
+    from src.procurement.m14_workspace_assembler import build_m14_offers_for_workspace
 
-    offers: list[dict[str, Any]] = []
-    for r in offers_rows:
-        offers.append(
-            {
-                "document_id": r["bundle_id"],
-                "supplier_name": r.get("supplier_name"),
-                "process_role": "responds_to_bid",
-            }
-        )
+    with get_connection() as conn:
+        offers = build_m14_offers_for_workspace(conn, workspace_id)
+    if not offers:
+        out.error = "zero_m14_offers"
+        out.stopped_at = "step_m14_offers"
+        out.duration_seconds = time.perf_counter() - t0
+        return out
 
     h2 = (
         m12.handoffs.atomic_capability_skeleton.model_dump(mode="json")

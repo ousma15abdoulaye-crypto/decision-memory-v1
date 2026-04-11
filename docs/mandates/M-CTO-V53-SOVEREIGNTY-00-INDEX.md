@@ -1,6 +1,6 @@
 # M-CTO-V53-SOVEREIGNTY — Index des mandats exécutables
 
-**Mise à jour :** 2026-04-11 — Phase **A** livrée (`V53_WRITERS_READERS_MATRIX.md`, `ADR-V53-MARKET-READ-MODEL.md`). Phase **B** en cours sur `feat/M-CTO-V53-execution`.
+**Mise à jour :** 2026-04-11 — Phases **A–J** livrées sur `feat/M-CTO-V53-execution` (voir commits). MRD / CONTEXT_ANCHOR : **`V53_CLOSEOUT_PENDING_MRD.md`** (AO).
 
 Ordre d’exécution : **A → B → C → E → D → F → G → H → I → J**.
 

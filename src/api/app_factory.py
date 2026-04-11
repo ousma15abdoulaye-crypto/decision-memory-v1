@@ -131,6 +131,7 @@ def _register_common_routers(
         )
         from src.api.routers.documents import router as committee_documents_router
         from src.api.routers.market import router as market_router
+        from src.api.routers.m12_corrections import router as m12_corrections_router
         from src.api.routers.pipeline_v5 import router as pipeline_v5_router
         from src.api.routers.workspaces import router as workspaces_router
         from src.auth_router import router as auth_router
@@ -145,11 +146,13 @@ def _register_common_routers(
         app.include_router(committee_sessions_router)
         app.include_router(committee_documents_router)
         app.include_router(market_router)
+        app.include_router(m12_corrections_router)
         return
 
     # entry == "railway"
     from src.api import analysis, cases, documents, health
     from src.api.api_auth_router import router as api_auth_router
+    from src.api.routers.m12_corrections import router as m12_corrections_router
     from src.api.routers.pipeline_v5 import router as pipeline_v5_router
     from src.api.routes.extractions import router as extraction_router
     from src.api.routes.regulatory_profile import router as regulatory_profile_router
@@ -172,6 +175,7 @@ def _register_common_routers(
     app.include_router(committee_router)
     app.include_router(scoring_api.router)
     app.include_router(criteria_router)
+    app.include_router(m12_corrections_router)
 
 
 _DEFAULT_CORS_ORIGINS: tuple[str, ...] = (
