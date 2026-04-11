@@ -38,14 +38,16 @@ export function M14SyncButton({ workspaceId }: { workspaceId: string }) {
     <div className="space-y-3">
       <div className="flex items-center gap-3">
         <button
+          type="button"
+          data-m14-sync
           onClick={handleSync}
           disabled={loading}
           className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium text-[var(--foreground)] hover:bg-gray-50 disabled:opacity-50 dark:hover:bg-gray-800"
         >
-          {loading ? "Synchronisationâ€¦" : "Sync scores M14 â†’ M16"}
+          {loading ? "Synchronisation…" : "Sync scores M14 → M16"}
         </button>
         <span className="text-xs text-[var(--foreground-muted)]">
-          PrÃ©-remplit les assessments depuis les scores M14 calculÃ©s
+          Pré-remplit les assessments depuis les scores M14 calculés
         </span>
       </div>
 
@@ -57,24 +59,26 @@ export function M14SyncButton({ workspaceId }: { workspaceId: string }) {
 
       {result && (
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 text-sm">
-          <p className="font-semibold text-[var(--foreground)]">Synchronisation terminÃ©e</p>
+          <p className="font-semibold text-[var(--foreground)]">
+            Synchronisation terminée
+          </p>
           <div className="mt-2 grid grid-cols-3 gap-3 text-center">
             <div className="rounded-md bg-green-50 p-2 dark:bg-green-950">
               <div className="text-lg font-bold text-green-700 dark:text-green-300">{result.created}</div>
-              <div className="text-xs text-green-600 dark:text-green-400">CrÃ©Ã©s</div>
+              <div className="text-xs text-green-600 dark:text-green-400">Créés</div>
             </div>
             <div className="rounded-md bg-blue-50 p-2 dark:bg-blue-950">
               <div className="text-lg font-bold text-blue-700 dark:text-blue-300">{result.updated}</div>
-              <div className="text-xs text-blue-600 dark:text-blue-400">Mis Ã  jour</div>
+              <div className="text-xs text-blue-600 dark:text-blue-400">Mis à jour</div>
             </div>
             <div className="rounded-md bg-gray-50 p-2 dark:bg-gray-900">
               <div className="text-lg font-bold text-[var(--foreground-muted)]">{result.skipped}</div>
-              <div className="text-xs text-[var(--foreground-subtle)]">IgnorÃ©s</div>
+              <div className="text-xs text-[var(--foreground-subtle)]">Ignorés</div>
             </div>
           </div>
           {result.unmapped_bundles.length > 0 && (
             <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-              {result.unmapped_bundles.length} offre(s) non mappÃ©e(s) â€”{" "}
+              {result.unmapped_bundles.length} offre(s) non mappée(s) —{" "}
               <span className="font-mono">{result.unmapped_bundles.slice(0, 2).join(", ")}</span>
               {result.unmapped_bundles.length > 2 && ` +${result.unmapped_bundles.length - 2}`}
             </p>

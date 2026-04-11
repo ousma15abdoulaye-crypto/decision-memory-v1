@@ -143,7 +143,14 @@ export function CommandPalette({
                   className="text-[var(--brand)] hover:underline"
                   onClick={() => {
                     close();
-                    router.push(`?agent=${encodeURIComponent(search)}`);
+                    const q = encodeURIComponent(search);
+                    if (currentWorkspaceId) {
+                      router.push(
+                        `/workspaces/${currentWorkspaceId}?agent=${q}`,
+                      );
+                    } else {
+                      router.push(`/dashboard?agent=${q}`);
+                    }
                   }}
                 >
                   Poser à l&apos;assistant : &ldquo;{search}&rdquo;
