@@ -39,7 +39,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from src.db import db_execute, db_fetchall
+from src.db import db_execute, db_execute_one, db_fetchall
 from src.services.market_signal_lookup import (
     lookup_market_price_seasonal_adj,
     normalize_label_to_item_slug,

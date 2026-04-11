@@ -17,7 +17,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from src.auth.permissions import ROLE_PERMISSIONS
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.db import get_connection
-from src.procurement.m12_correction_writer import M12CorrectionEntry, M12CorrectionWriter
+from src.procurement.m12_correction_writer import (
+    M12CorrectionEntry,
+    M12CorrectionWriter,
+)
 
 logger = logging.getLogger(__name__)
 

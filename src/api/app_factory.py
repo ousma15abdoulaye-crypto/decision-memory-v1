@@ -130,8 +130,8 @@ def _register_common_routers(
             router as committee_sessions_router,
         )
         from src.api.routers.documents import router as committee_documents_router
-        from src.api.routers.market import router as market_router
         from src.api.routers.m12_corrections import router as m12_corrections_router
+        from src.api.routers.market import router as market_router
         from src.api.routers.pipeline_v5 import router as pipeline_v5_router
         from src.api.routers.workspaces import router as workspaces_router
         from src.auth_router import router as auth_router
