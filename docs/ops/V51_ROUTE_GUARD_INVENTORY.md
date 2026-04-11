@@ -9,7 +9,7 @@
 | `get_current_user` | `src/couche_a/auth/dependencies.py` | JWT obligatoire (sauf routes publiques). |
 | `require_workspace_access` | `src/couche_a/auth/workspace_access.py` | Tenant + accès au workspace (lecture / membership). |
 | `require_workspace_permission` | idem | Permission métier (`matrix.read`, `member.invite`, …). |
-| `guard` (async) | `src/auth/guard.py` | Membership + permission + **blocage écriture si workspace scellé/clos** (asyncpg + RLS). |
+| `guard` (async) | `src/auth/guard.py` | Membership + permission + **blocage écriture si workspace scellé/clos** (asyncpg + RLS). **M-CTO-V53-C** : `WORKSPACE_ACCESS_JWT_FALLBACK` n’autorise **pas** les permissions d’écriture (`WRITE_PERMISSIONS` dans `guard.py`) sans membership DB. |
 | `require_case_access_dep` | `src/couche_a/auth/case_access.py` | Routes case-scoped (`/api/cases/...`). |
 | RBAC JWT `ROLE_PERMISSIONS` | `src/auth/permissions.py` | Ex. `mql.internal` sur `POST /api/mql/stream`. |
 

@@ -14,6 +14,9 @@ INV-PROJ-02 : Idempotent — chaque event ne doit être projeté qu'une fois.
 INV-PROJ-03 : En cas d'erreur partielle, l'event est marqué failed
                avec le message d'erreur ; le worker continue.
 
+ADR-V53 : les INSERT ``vendor_market_signals`` sont une **projection mémoire
+fournisseur** ; le prix de référence agrégé M9 reste ``market_signals_v2``.
+
 Référence : Plan V4.2.0 Phase 5b — ARQ projector Couche B
 """
 

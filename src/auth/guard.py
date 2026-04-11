@@ -96,6 +96,8 @@ async def guard(
     if not member:
         # Pilote terrain : même logique que ``require_workspace_access`` — pas de ligne
         # membership mais JWT legacy mappé V5.2 avec la permission métier demandée.
+        # Les écritures sensibles (WRITE_PERMISSIONS) sont refusées sur ce chemin :
+        # le pilote ne remplace pas ``user_tenant_roles`` / membership pour M16 seal, etc.
         if get_settings().WORKSPACE_ACCESS_JWT_FALLBACK:
             from src.auth.permissions import ROLE_PERMISSIONS
             from src.couche_a.auth.rbac import ROLES as JWT_LEGACY_ROLES
@@ -106,7 +108,17 @@ async def guard(
                 v52 = legacy_jwt_to_v52_role(jwt_role)
                 if v52:
                     role_perms_fb = ROLE_PERMISSIONS.get(v52, frozenset())
-                    if "system.admin" in role_perms_fb or permission in role_perms_fb:
+                    can = "system.admin" in role_perms_fb or permission in role_perms_fb
+                    if can and permission in WRITE_PERMISSIONS:
+                        logger.warning(
+                            "guard JWT_FALLBACK DENY_WRITE user_id=%s workspace_id=%s "
+                            "permission=%s jwt_role=%s — membership DB requis pour écriture",
+                            user["id"],
+                            workspace_id,
+                            permission,
+                            jwt_role,
+                        )
+                    elif can:
                         logger.warning(
                             "guard JWT_FALLBACK user_id=%s workspace_id=%s permission=%s "
                             "jwt_role=%s v52=%s",

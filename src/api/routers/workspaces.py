@@ -598,21 +598,77 @@ def get_evaluation_frame(
         except Exception:
             elim = []
 
-        signals = db_fetchall(
-            conn,
-            """
-            SELECT id, signal_type, payload, generated_at
-            FROM vendor_market_signals
-            WHERE source_workspace_id = :ws
-            ORDER BY generated_at DESC
-            LIMIT 20
-            """,
-            {"ws": workspace_id},
-        )
+        # ADR-V53 : agrégat M9 (market_signals_v2) prioritaire si zone_id + lignes ;
+        # sinon projection vendor_market_signals (voir docs/adr/ADR-V53-MARKET-READ-MODEL.md).
+        zone_id_frame = ws.get("zone_id")
+        raw_signals: list[dict] = []
+        if zone_id_frame:
+            msv2_rows = db_fetchall(
+                conn,
+                """
+                SELECT id, alert_level, residual_pct, item_id, zone_id, price_avg,
+                       signal_quality, updated_at, created_at
+                FROM market_signals_v2
+                WHERE zone_id = :zid
+                ORDER BY
+                  CASE COALESCE(alert_level, 'NORMAL')
+                    WHEN 'CRITICAL' THEN 1
+                    WHEN 'WARNING' THEN 2
+                    WHEN 'WATCH' THEN 3
+                    WHEN 'CONTEXT_NORMAL' THEN 4
+                    WHEN 'SEASONAL_NORMAL' THEN 5
+                    WHEN 'NORMAL' THEN 6
+                    ELSE 9
+                  END,
+                  ABS(COALESCE(residual_pct, 0)) DESC
+                LIMIT 20
+                """,
+                {"zid": str(zone_id_frame)},
+            )
+            for row in msv2_rows:
+                ts = row.get("updated_at") or row.get("created_at")
+                raw_signals.append(
+                    {
+                        "id": row.get("id"),
+                        "signal_type": f"msv2_{row.get('alert_level') or 'NORMAL'}",
+                        "payload": {
+                            "context_match": 1.0,
+                            "data_points": 5.0,
+                            "threshold_min": 0.0,
+                            "item_id": row.get("item_id"),
+                            "zone_id": row.get("zone_id"),
+                            "price_avg": (
+                                str(row.get("price_avg"))
+                                if row.get("price_avg") is not None
+                                else None
+                            ),
+                            "signal_quality": row.get("signal_quality"),
+                            "residual_pct": (
+                                float(row["residual_pct"])
+                                if row.get("residual_pct") is not None
+                                else None
+                            ),
+                            "source_table": "market_signals_v2",
+                        },
+                        "generated_at": ts,
+                    }
+                )
+        if not raw_signals:
+            raw_signals = db_fetchall(
+                conn,
+                """
+                SELECT id, signal_type, payload, generated_at
+                FROM vendor_market_signals
+                WHERE source_workspace_id = :ws
+                ORDER BY generated_at DESC
+                LIMIT 20
+                """,
+                {"ws": workspace_id},
+            )
         tenant_for_frame = str(ws.get("tenant_id") or "")
         if tenant_for_frame:
             market_signals = process_market_signals_for_frame(
-                conn, tenant_for_frame, workspace_id, signals
+                conn, tenant_for_frame, workspace_id, raw_signals
             )
         else:
             market_signals = []

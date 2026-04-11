@@ -13,6 +13,25 @@ async def select_template(query: str, params: MQLParams) -> str:
     """Sélectionne le template SQL approprié (logique déterministe, pas de LLM)."""
     query_lower = query.lower()
 
+    # ADR-V53 : agrégat M9 (market_signals_v2) — avant enquêtes / campagnes.
+    if any(
+        kw in query_lower
+        for kw in (
+            "signal agrégé",
+            "signal agrege",
+            "référence marché",
+            "reference marche",
+            "prix de référence marché",
+            "prix de reference marche",
+            "mercuriale agrégée",
+            "mercuriale agrege",
+            " m9 ",
+            "market_signals",
+            "formule m9",
+        )
+    ):
+        return "T7_MSV2_REFERENCE"
+
     if any(
         kw in query_lower for kw in ["source", "campagne", "inventaire", "disponible"]
     ):

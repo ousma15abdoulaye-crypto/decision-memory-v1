@@ -195,6 +195,36 @@ MQL_TEMPLATES: dict[str, dict] = {
               )
         """,
     },
+    "T7_MSV2_REFERENCE": {
+        "name": "Prix de référence agrégé (market_signals_v2 / M9)",
+        "sql": """
+            SELECT
+                ms.item_id AS article_label,
+                ms.zone_id AS zone,
+                ms.price_seasonal_adj AS reference_price_adj,
+                ms.price_avg AS price_avg,
+                ms.signal_quality,
+                ms.alert_level,
+                ms.residual_pct,
+                COALESCE(ms.updated_at, ms.created_at) AS observed_at,
+                'market_signals_v2' AS campaign_name,
+                'aggregated_signal' AS source_type,
+                'DMS M9 aggregate' AS publisher,
+                (COALESCE(ms.updated_at, ms.created_at))::date AS published_date,
+                (ms.signal_quality IN ('strong', 'moderate', 'propagated')) AS is_official
+            FROM market_signals_v2 ms
+            WHERE ms.signal_quality IN ('strong', 'moderate', 'propagated')
+              AND char_length(CAST(:tenant_id AS text)) >= 0
+              AND EXISTS (
+                  SELECT 1
+                  FROM unnest(CAST(:zones AS text[])) AS z(pat)
+                  WHERE ms.zone_id ILIKE ('%' || pat || '%')
+              )
+              AND ms.item_id ILIKE :article_pattern
+            ORDER BY observed_at DESC
+            LIMIT :max_results
+        """,
+    },
     "T6_CAMPAIGN_INVENTORY": {
         "name": "Inventaire des campagnes disponibles",
         "sql": f"""
