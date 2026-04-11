@@ -53,8 +53,6 @@ def build_m13_regulatory_profile_persist_payload(
         }
     ]
 
-    hooks_json = hooks.model_dump(mode="json")
-
     return {
         "schema_version": _SCHEMA_VERSION,
         "case_id": case_id,
@@ -67,11 +65,5 @@ def build_m13_regulatory_profile_persist_payload(
             "rules_applied": rules_applied,
         },
         "m13": out.model_dump(mode="json"),
-        "m13b": hooks_json,
-        "policy_sources": hooks_json["policy_sources"],
-        "framework_conflicts": hooks_json["framework_conflicts"],
-        "control_objectives": hooks_json["control_objectives"],
-        "derogations": hooks_json["derogations"],
-        "audit_assertions": hooks_json["audit_assertions"],
-        "normative_evidence": hooks_json["normative_evidence"],
+        "m13b": hooks.model_dump(mode="json"),
     }

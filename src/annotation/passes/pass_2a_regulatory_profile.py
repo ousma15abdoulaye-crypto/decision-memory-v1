@@ -17,10 +17,7 @@ from src.annotation.pass_output import (
     PassError,
     PassRunStatus,
 )
-from src.procurement.compliance_models_m13 import (
-    M13RegulatoryResolutionError,
-    legacy_compliance_report_from_m13,
-)
+from src.procurement.compliance_models_m13 import legacy_compliance_report_from_m13
 from src.procurement.m12_reconstruct import build_m12_output_from_pass_outputs
 from src.procurement.m13_engine import RegulatoryComplianceEngine
 from src.procurement.m13_regulatory_profile_repository import (
@@ -81,11 +78,6 @@ def run_pass_2a_regulatory_profile(
         status = PassRunStatus.SUCCESS
     except ValidationError as exc:
         errors.append(PassError(code="PASS_2A_M12_INVALID", message=str(exc)[:500]))
-        output_data = {}
-        status = PassRunStatus.FAILED
-    except M13RegulatoryResolutionError as exc:
-        msg = str(exc)[:500]
-        errors.append(PassError(code="PASS_2A_REGULATORY_UNRESOLVED", message=msg))
         output_data = {}
         status = PassRunStatus.FAILED
     except Exception as exc:

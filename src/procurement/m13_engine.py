@@ -17,8 +17,6 @@ from src.procurement.compliance_models_m13 import (
     M13Meta,
     M13Output,
     M13RegulatoryComplianceReport,
-    M13RegulatoryResolutionError,
-    RegulatoryProcedureType,
 )
 from src.procurement.derogation_assessor import DerogationAssessor
 from src.procurement.document_ontology import ProcurementFramework
@@ -74,13 +72,6 @@ class RegulatoryComplianceEngine:
         m12_gates = m12.document_conformity_signal.gates
 
         regime = self.resolver.resolve(skeleton, recognition)
-        if regime.procedure_type == RegulatoryProcedureType.UNKNOWN:
-            raise M13RegulatoryResolutionError(
-                "M13: procedure_type unresolved (UNKNOWN) — "
-                f"skeleton_framework={skeleton.framework_detected}, "
-                f"resolved_framework={regime.framework.value}. "
-                "Vérifier H1 / YAML / montant devise."
-            )
         requirements = self.instantiator.instantiate(regime)
         validity_rules = requirements.document_validity_rules
 

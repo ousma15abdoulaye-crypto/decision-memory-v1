@@ -25,7 +25,6 @@ from src.procurement.document_ontology import (
     DocumentLayer,
     DocumentStage,
     ProcedureType,
-    ProcurementFamily,
 )
 from src.procurement.document_type_recognizer import recognize_document_type
 from src.procurement.family_detector import FamilyDetector
@@ -87,23 +86,15 @@ def _get_fam_detector() -> FamilyDetector:
     return _fam_detector
 
 
-def _dgmp_threshold_family_key(family: ProcurementFamily) -> str:
-    """Aligné sur ``RegimeResolver`` : travaux → YAML ``works``, sinon ``goods``."""
-    return "works" if family == ProcurementFamily.WORKS else "goods"
-
-
 def _resolve_procedure_type(
-    framework: object,
+    framework: str,
     estimated_value: float | None,
     currency: str | None,
     cap_fn,
-    procurement_family: ProcurementFamily,
 ) -> TracedField:
     """Determine procedure_type via DGMP thresholds si applicable."""
-    fw_s = str(framework).lower() if framework is not None else ""
-    if fw_s and "dgmp" in fw_s:
-        fk = _dgmp_threshold_family_key(procurement_family)
-        dgmp = determine_dgmp_procedure_tier(estimated_value, currency, family_key=fk)
+    if framework and "dgmp" in framework.lower():
+        dgmp = determine_dgmp_procedure_tier(estimated_value, currency)
         if dgmp.procedure_tier != "unknown":
             return TracedField(
                 value=dgmp.procedure_tier,
@@ -368,11 +359,7 @@ def run_pass_1a_core_recognition(
                 evidence=[f"derived_from={type_result.primary_kind.value}"],
             ),
             procedure_type=_resolve_procedure_type(
-                fw_decision.framework,
-                est_val,
-                currency,
-                _cap,
-                fam_decision.family,
+                fw_decision.framework, est_val, currency, _cap
             ),
             procedure_reference_detected=TracedField(
                 value=proc_ref,

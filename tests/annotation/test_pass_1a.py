@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import uuid
-from unittest.mock import patch
 
 from src.annotation.pass_output import PassRunStatus
 from src.annotation.passes.pass_1a_core_recognition import (
     run_pass_1a_core_recognition,
 )
-from src.procurement.procedure_rules_dgmp_mali import determine_dgmp_procedure_tier
 
 
 class TestPass1A:
@@ -100,34 +98,3 @@ class TestPass1A:
             filename="test_document.pdf",
         )
         assert out.metadata.get("filename") == "test_document.pdf"
-
-    def test_dgmp_procedure_tier_uses_works_yaml_when_family_works(self) -> None:
-        captured: list[str] = []
-
-        def _spy(
-            estimated_value: float | None,
-            currency: str | None,
-            *,
-            family_key: str = "goods",
-        ):
-            captured.append(family_key)
-            return determine_dgmp_procedure_tier(
-                estimated_value, currency, family_key=family_key
-            )
-
-        text = (
-            "CODE DES MARCHÉS\n"
-            "Travaux de construction\n"
-            "montant estimé: 30 000 000 FCFA\n"
-        )
-        with patch(
-            "src.annotation.passes.pass_1a_core_recognition.determine_dgmp_procedure_tier",
-            side_effect=_spy,
-        ):
-            out = run_pass_1a_core_recognition(
-                normalized_text=text,
-                document_id="test-doc-dgmp-works",
-                run_id=uuid.uuid4(),
-            )
-        assert out.status in (PassRunStatus.SUCCESS, PassRunStatus.DEGRADED)
-        assert "works" in captured
