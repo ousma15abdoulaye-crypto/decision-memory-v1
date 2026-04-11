@@ -77,25 +77,26 @@ class ApiClient {
     }
   }
 
-  private async request<T>(
+  /** GET/POST/PATCH JSON et variantes : auth Bearer + fetch ; erreurs réseau → message utilisateur. */
+  private async fetchAuth(
     path: string,
     options: RequestInit = {},
-  ): Promise<T> {
+  ): Promise<Response> {
     const token = this.getToken();
-    const headers = this.mergeHeaders(
-      { "Content-Type": "application/json" },
-      options.headers,
-    );
-    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const base: Record<string, string> = {};
+    if (token) base["Authorization"] = `Bearer ${token}`;
+    const headers = this.mergeHeaders(base, options.headers);
 
-    let res: Response;
     try {
-      res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+      return await fetch(`${API_BASE}${path}`, { ...options, headers });
     } catch (e) {
       rethrowIfNetworkFailure(e);
     }
+  }
+
+  private async parseOkJson<T>(res: Response): Promise<T> {
     if (!res.ok) {
-      const body = await res.json().catch(() => ({})) as Record<string, unknown>;
+      const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       const message =
         typeof body.detail === "string"
           ? body.detail
@@ -104,7 +105,19 @@ class ApiClient {
             : res.statusText;
       throw new ApiError(res.status, message, body);
     }
-    return res.json();
+    return res.json() as Promise<T>;
+  }
+
+  private async request<T>(
+    path: string,
+    options: RequestInit = {},
+  ): Promise<T> {
+    const headers = this.mergeHeaders(
+      { "Content-Type": "application/json" },
+      options.headers,
+    );
+    const res = await this.fetchAuth(path, { ...options, headers });
+    return this.parseOkJson<T>(res);
   }
 
   get<T>(path: string) {
@@ -123,6 +136,25 @@ class ApiClient {
       method: "PATCH",
       body: JSON.stringify(body),
     });
+  }
+
+  /**
+   * POST multipart (ex. upload ZIP) — ne fixe pas Content-Type (boundary FormData géré par le navigateur).
+   */
+  async postMultipart<T>(path: string, formData: FormData): Promise<T> {
+    const res = await this.fetchAuth(path, {
+      method: "POST",
+      body: formData,
+    });
+    return this.parseOkJson<T>(res);
+  }
+
+  /**
+   * POST sans corps JSON (ex. run-pipeline avec query string uniquement).
+   */
+  async postEmpty<T>(path: string): Promise<T> {
+    const res = await this.fetchAuth(path, { method: "POST" });
+    return this.parseOkJson<T>(res);
   }
 
   /** Téléchargement binaire (PDF, XLSX) — ne parse pas le corps en JSON. */

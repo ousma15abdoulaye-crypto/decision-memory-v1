@@ -62,6 +62,12 @@ export function SealButton({ workspaceId, canSeal, isSealed }: SealButtonProps) 
 
   return (
     <div className="space-y-3">
+      <p className="max-w-md text-xs text-[var(--foreground-muted)]">
+        Le scellement applique la transition de statut du processus via l&apos;API
+        workspace (PATCH <span className="font-mono">/status</span>). Ce n&apos;est pas
+        un assistant « session comité » séparé ; voir{" "}
+        <span className="font-medium">docs/ops/WORKSPACE_SEAL_COMMITTEE_UX.md</span>.
+      </p>
       {/* Precondition errors panel (422) */}
       {preconditionErrors && (
         <div
