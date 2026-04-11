@@ -24,6 +24,12 @@ def _make_trace():
     return trace
 
 
+def _settings_pre_llm_off() -> MagicMock:
+    s = MagicMock()
+    s.AGENT_INV_W06_PRE_LLM_BLOCK = False
+    return s
+
+
 class TestGuardrailResult:
     def test_not_blocked_for_market_query(self):
         reset_centroid_cache()
@@ -33,27 +39,39 @@ class TestGuardrailResult:
             "Quel est le prix du ciment à Bamako ?",
             "ciment prix Bamako",
         ):
-            result = _run(check_recommendation_guardrail(q, trace))
+            with patch(
+                "src.agent.guardrail.get_settings",
+                return_value=_settings_pre_llm_off(),
+            ):
+                result = _run(check_recommendation_guardrail(q, trace))
             assert isinstance(result, GuardrailResult)
             assert result.blocked is False, f"unexpected block for: {q!r}"
 
     def test_returns_guardrail_result(self):
         reset_centroid_cache()
         trace = _make_trace()
-        result = _run(
-            check_recommendation_guardrail("Quel est le prix du riz ?", trace)
-        )
+        with patch(
+            "src.agent.guardrail.get_settings",
+            return_value=_settings_pre_llm_off(),
+        ):
+            result = _run(
+                check_recommendation_guardrail("Quel est le prix du riz ?", trace)
+            )
         assert isinstance(result, GuardrailResult)
         assert result.reason == ""
 
     def test_recommendation_detected_structure(self):
         reset_centroid_cache()
         trace = _make_trace()
-        result = _run(
-            check_recommendation_guardrail(
-                "Recommandez-moi le meilleur fournisseur", trace
+        with patch(
+            "src.agent.guardrail.get_settings",
+            return_value=_settings_pre_llm_off(),
+        ):
+            result = _run(
+                check_recommendation_guardrail(
+                    "Recommandez-moi le meilleur fournisseur", trace
+                )
             )
-        )
         assert isinstance(result, GuardrailResult)
         assert isinstance(result.confidence, float)
 

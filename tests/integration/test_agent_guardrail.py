@@ -40,6 +40,13 @@ def _settings_pre_llm_block_enabled() -> MagicMock:
     return s
 
 
+def _settings_pre_llm_block_disabled() -> MagicMock:
+    """Forcer pré-LLM désactivé (indépendant de .env / .env.local)."""
+    s = MagicMock()
+    s.AGENT_INV_W06_PRE_LLM_BLOCK = False
+    return s
+
+
 class TestGuardrailINVW06:
     """Pré-LLM INV-W06 : actif seulement si AGENT_INV_W06_PRE_LLM_BLOCK."""
 
@@ -92,36 +99,50 @@ class TestGuardrailINVW06:
         assert not result.blocked
 
     def test_guardrail_allows_market_query(self) -> None:
-        """Pré-LLM désactivé par défaut : aucun blocage."""
+        """Pré-LLM off : patch explicite (ne pas dépendre d'un flag true dans .env.local)."""
         from src.agent.guardrail import check_recommendation_guardrail
 
-        result = asyncio.run(
-            check_recommendation_guardrail("Prix du ciment a Mopti ?", _mock_trace())
-        )
+        with patch(
+            "src.agent.guardrail.get_settings",
+            return_value=_settings_pre_llm_block_disabled(),
+        ):
+            result = asyncio.run(
+                check_recommendation_guardrail(
+                    "Prix du ciment a Mopti ?", _mock_trace()
+                )
+            )
 
         assert not result.blocked
 
     def test_guardrail_allows_process_info(self) -> None:
-        """Pré-LLM désactivé par défaut : aucun blocage."""
+        """Pré-LLM off : patch explicite (hermétique à la config locale)."""
         from src.agent.guardrail import check_recommendation_guardrail
 
-        result = asyncio.run(
-            check_recommendation_guardrail(
-                "Quels sont les seuils ECHO ?", _mock_trace()
+        with patch(
+            "src.agent.guardrail.get_settings",
+            return_value=_settings_pre_llm_block_disabled(),
+        ):
+            result = asyncio.run(
+                check_recommendation_guardrail(
+                    "Quels sont les seuils ECHO ?", _mock_trace()
+                )
             )
-        )
 
         assert not result.blocked
 
     def test_guardrail_allows_workspace_status(self) -> None:
-        """Pré-LLM désactivé par défaut : aucun blocage."""
+        """Pré-LLM off : patch explicite (hermétique à la config locale)."""
         from src.agent.guardrail import check_recommendation_guardrail
 
-        result = asyncio.run(
-            check_recommendation_guardrail(
-                "Ou en est le dossier RFQ-001 ?", _mock_trace()
+        with patch(
+            "src.agent.guardrail.get_settings",
+            return_value=_settings_pre_llm_block_disabled(),
+        ):
+            result = asyncio.run(
+                check_recommendation_guardrail(
+                    "Ou en est le dossier RFQ-001 ?", _mock_trace()
+                )
             )
-        )
 
         assert not result.blocked
 
