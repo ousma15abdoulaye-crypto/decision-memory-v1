@@ -1,7 +1,7 @@
 """075 - Fix offer_extractions FK to bundle_documents
 
 Revision ID: 075_fix_offer_extractions_artifact_fk
-Revises: 074_drop_case_id_set_workspace_not_null
+Revises: 076_evaluation_documents_workspace_unique
 Create Date: 2026-04-10
 
 Le pipeline V5 passe bundle_documents.id comme artifact_id, mais la FK pointe
@@ -20,7 +20,7 @@ from __future__ import annotations
 from alembic import op
 
 revision = "075_fix_offer_extractions_artifact_fk"
-down_revision = "074_drop_case_id_set_workspace_not_null"
+down_revision = "076_evaluation_documents_workspace_unique"
 branch_labels = None
 depends_on = None
 
