@@ -2290,7 +2290,7 @@ Corridor **workspace-first** exploitable depuis le navigateur : dépôt **ZIP** 
 - **`frontend-v51/app/workspaces/[id]/page.tsx`** : montage du panneau d’ingestion.
 - **`frontend-v51/components/deliberation/seal-button.tsx`** : rappel que le scellement UI passe par **PATCH `/api/workspaces/{id}/status`** ; lien conceptuel vers **`docs/ops/WORKSPACE_SEAL_COMMITTEE_UX.md`**.
 - **Documentation** : **`docs/ops/FRONTEND_V51_WORKSPACE_INGESTION_API_CONTRACT.md`** (contrats, timeouts **`run-pipeline`**, déploiement **`NEXT_PUBLIC_API_URL`** / **CORS**) ; **`docs/ops/WORKSPACE_SEAL_COMMITTEE_UX.md`**.
-- **E2E** : **`frontend-v51/e2e/README.md`** (portée mock vs API réelle) ; **`comparative-matrix.spec.ts`** mock **`GET …/bundles`** ; **`real-api-smoke.spec.ts`** opt-in **`E2E_REAL_API=1`**.
+- **E2E** : **`frontend-v51/e2e/README.md`** (portée mock vs API réelle) ; **`frontend-v51/e2e/comparative-matrix.spec.ts`** mock **`GET …/bundles`** ; **`frontend-v51/e2e/real-api-smoke.spec.ts`** opt-in **`E2E_REAL_API=1`**.
 
 ### Risques produit (inchangés côté API)
 
