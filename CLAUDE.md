@@ -66,7 +66,7 @@ wc et cat absents — utiliser Get-Content + Measure-Object
 - Fichier hors liste → STOP + signaler CTO immédiatement (RÈGLE-ORG-07)
 - 1 mandat = 1 branche = 1 PR (RÈGLE-01)
 - Jamais travailler sur main
-- Merge = humain uniquement (RÈGLE-ORG-10)
+- **Merge vers `main` (ordre CTO)** : les **agents** exécutent **`.cursor/rules/dms-agent-mandate-protocol.mdc`** — **surveiller la PR** jusqu’à **CI vert**, traiter **Copilot / revue** et re-pousser, vérifier **`alembic heads` = une seule ligne** (**STOP-1** sinon), puis **merger** ; apply **Railway / prod** = runbook + GO CTO (non contourné par le merge Git).
 
 ## SIGNAUX STOP UNIVERSELS
 STOP-1 : alembic heads > 1 ligne
