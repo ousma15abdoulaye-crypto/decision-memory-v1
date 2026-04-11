@@ -194,6 +194,25 @@ def extract_offer_content(
         )
 
 
+def _annotation_failure_is_retriable(result: TDRExtractionResult) -> bool:
+    """True si l'échec vient du réseau / timeout / 5xx — candidat à un retry HTTP."""
+    if result.extraction_ok:
+        return False
+    er = (result.error_reason or "").strip()
+    if er == "backend_timeout":
+        return True
+    if er.startswith("connection_"):
+        return True
+    if er.startswith("http_") and er in (
+        "http_502",
+        "http_503",
+        "http_504",
+        "http_429",
+    ):
+        return True
+    return False
+
+
 async def extract_offer_content_async(
     document_id: str,
     text: str,
@@ -211,10 +230,25 @@ async def extract_offer_content_async(
             tier=Tier.T4_OFFLINE,
         )
 
-    return await call_annotation_backend(
+    delay_sec = 1.0
+    last: TDRExtractionResult | None = None
+    for attempt in range(3):
+        last = await call_annotation_backend(
+            document_id=document_id,
+            text=text,
+            document_role=document_role,
+        )
+        if last.extraction_ok or not _annotation_failure_is_retriable(last):
+            return last
+        if attempt < 2:
+            await asyncio.sleep(delay_sec)
+            delay_sec *= 2.0
+
+    return make_fallback_result(
         document_id=document_id,
-        text=text,
         document_role=document_role,
+        error_reason="annotation_backend_max_retries_exceeded",
+        tier=tier,
     )
 
 
