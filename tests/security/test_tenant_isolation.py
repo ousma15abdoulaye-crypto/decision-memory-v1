@@ -159,6 +159,7 @@ def test_mercurials_rls_insert_other_tenant_denied(db_transaction):
         if not gz:
             pytest.skip("No geo_master")
         zid = gz["id"]
+        cur.execute("SAVEPOINT sec_merc_rls_try")
         try:
             cur.execute(
                 """
@@ -170,6 +171,7 @@ def test_mercurials_rls_insert_other_tenant_denied(db_transaction):
                 (src_id, zid, TENANT_A),
             )
         except psycopg.Error as e:
+            cur.execute("ROLLBACK TO SAVEPOINT sec_merc_rls_try")
             msg = str(e).lower()
             assert (
                 "row-level security" in msg
@@ -177,6 +179,7 @@ def test_mercurials_rls_insert_other_tenant_denied(db_transaction):
                 or (e.diag is not None and e.diag.sqlstate == "42501")
             ), e
         else:
+            cur.execute("ROLLBACK TO SAVEPOINT sec_merc_rls_try")
             pytest.fail(
                 "INSERT cross-tenant aurait dû être refusé par RLS (WITH CHECK)"
             )

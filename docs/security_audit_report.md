@@ -101,7 +101,7 @@ WHERE schemaname = 'public' AND tablename = '<table>';
 
 | Livrable | Chemin |
 |----------|--------|
-| Migration Alembic | `alembic/versions/094_security_market_mercurial_tenant_rls.py` |
+| Migrations Alembic | `094_security_market_mercurial_tenant_rls.py` + `095_tenant_id_default_offers_extractions.py` (DEFAULT `tenant_id` pour fixtures / INSERT sans colonne) |
 | Scripts SQL idempotents | `scripts/security/*.sql` |
 | Procédure ops | `docs/ops/SECURITY_HARDENING.md` |
 | Tests | `tests/security/test_tenant_isolation.py` |

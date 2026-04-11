@@ -5,7 +5,9 @@
 
 ---
 
-## 1. Failles traitées par la migration `094_security_market_mercurial_tenant_rls`
+## 1. Migrations `094` + `095`
+
+### `094_security_market_mercurial_tenant_rls`
 
 | Zone | Mesure |
 |------|--------|
@@ -15,6 +17,12 @@
 | Couche A héritée | `tenant_id` UUID sur `offers`, `extractions`, `analysis_summaries` (backfill **conservateur** : tenant par défaut — voir §4) |
 | Isolation | `ENABLE ROW LEVEL SECURITY`, `FORCE ROW LEVEL SECURITY`, politique `*_tenant_uuid_isolation` (`app.current_tenant::uuid` + `app.is_admin`) |
 | `score_history` | Trigger `trg_score_history_append_only` si absent et si `public.fn_reject_mutation` existe |
+
+### `095_tenant_id_default_offers_extractions`
+
+- Fonction **`public.dms_default_tenant_id()`** : `sci_mali` sinon premier `tenants` par `code`.
+- **DEFAULT** sur `tenant_id` pour : `offers`, `extractions`, `analysis_summaries`, `mercuriale_sources`, `mercurials`.
+- Évite les **NotNullViolation** sur les fixtures de tests / INSERT sans `tenant_id` tout en conservant le RLS sur les lignes.
 
 ---
 
