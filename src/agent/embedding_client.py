@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
+import traceback
 from typing import Any
 
 import numpy as np
@@ -45,10 +46,14 @@ def _get_client() -> Any:
 
         _client = Mistral(api_key=api_key)
         return _client
-    except ImportError:
+    except Exception as exc:  # noqa: BLE001
         logger.warning(
-            "mistralai non installé — embedding_client en mode fallback "
-            "lexical déterministe (sans API Mistral)."
+            "mistralai indisponible — embedding_client en mode fallback "
+            "lexical déterministe (sans API Mistral). "
+            "Cause : %s: %s\n%s",
+            type(exc).__name__,
+            exc,
+            traceback.format_exc(),
         )
         _fallback = True
         return None
