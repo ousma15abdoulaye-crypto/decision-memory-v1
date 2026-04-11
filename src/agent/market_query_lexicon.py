@@ -13,12 +13,16 @@ import unicodedata
 
 # Demande explicite de donnée de prix / coût (référence marché, pas « qui gagner »)
 _PRICE_HINT = re.compile(
+    r"(?:"
     r"\b("
     r"prix|tarif|tarifs|"
     r"co[uû]t|cout|coute|coûte|"
     r"combien|"
-    r"xof|cfa|fcfa|euro|eur|€"
-    r")\b",
+    r"xof|cfa|fcfa|euro|eur"
+    r")\b"
+    r"|"
+    r"(?<!\w)€(?!\w)"
+    r")",
     re.IGNORECASE,
 )
 
