@@ -168,6 +168,13 @@ export function AgentConsole({
   const inputRef = useRef<HTMLInputElement>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
   const consumedInitialRef = useRef<string | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!sessionIdRef.current) {
+      sessionIdRef.current = crypto.randomUUID();
+    }
+  }, []);
 
   useEffect(() => {
     return () => { streamAbortRef.current?.abort(); };
@@ -194,9 +201,10 @@ export function AgentConsole({
         // Clés redondantes : le backend accepte query | message | prompt (AliasChoices).
         // Certaines couches (proxy, extensions) ont été vues envoyer un corps vide ; au
         // minimum une de ces clés doit survivre pour éviter le 422 Pydantic « Field required ».
-        const body: { query: string; message: string; workspace_id?: string } = {
+        const body: { query: string; message: string; workspace_id?: string; session_id?: string } = {
           query: text,
           message: text,
+          session_id: sessionIdRef.current ?? undefined,
         };
         if (workspaceId && workspaceId !== "undefined") {
           body.workspace_id = workspaceId;
