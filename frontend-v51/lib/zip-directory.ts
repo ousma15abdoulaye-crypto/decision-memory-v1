@@ -1,7 +1,14 @@
 import { zip } from "fflate";
 
-/** Limite conservative : tout le dossier est lu en mémoire navigateur avant envoi. */
-export const MAX_FOLDER_ZIP_BYTES = 400 * 1024 * 1024;
+/** Plafond backend `src/assembler/zip_validator.py` (MAX_ZIP_SIZE_MB=100). */
+export const MAX_SERVER_ZIP_BYTES = 100 * 1024 * 1024;
+/** Le pic RAM inclut buffers source + buffer ZIP + overhead JS (≈2x ou plus). */
+const BROWSER_ZIP_RAM_SAFETY_FACTOR = 2;
+const MAX_BROWSER_ZIP_RAM_BYTES = 400 * 1024 * 1024;
+/** Taille totale des fichiers source tolérée avant compression locale. */
+export const MAX_FOLDER_SOURCE_BYTES = Math.floor(
+  MAX_BROWSER_ZIP_RAM_BYTES / BROWSER_ZIP_RAM_SAFETY_FACTOR,
+);
 
 function sanitizeZipBasename(name: string): string {
   const s = name.replace(/[^\w\-.]+/g, "_").replace(/^_|_$/g, "");
@@ -41,9 +48,9 @@ export async function fileListToSupplierZipFile(
     throw new Error("Aucun fichier exploitable dans ce dossier.");
   }
 
-  if (totalSize > MAX_FOLDER_ZIP_BYTES) {
+  if (totalSize > MAX_FOLDER_SOURCE_BYTES) {
     throw new Error(
-      `Le dossier dépasse environ ${Math.round(MAX_FOLDER_ZIP_BYTES / (1024 * 1024))} Mo (navigateur). Compressez en ZIP sur votre poste et utilisez l’envoi fichier.`,
+      `Le dossier dépasse environ ${Math.round(MAX_FOLDER_SOURCE_BYTES / (1024 * 1024))} Mo de fichiers source pour une compression locale sûre. Compressez en ZIP sur votre poste et utilisez l’envoi fichier.`,
     );
   }
 
@@ -70,6 +77,12 @@ export async function fileListToSupplierZipFile(
       resolve(out);
     });
   });
+
+  if (zipped.byteLength > MAX_SERVER_ZIP_BYTES) {
+    throw new Error(
+      `ZIP final trop volumineux (${Math.round(zipped.byteLength / (1024 * 1024))} Mo). Limite serveur : ${Math.round(MAX_SERVER_ZIP_BYTES / (1024 * 1024))} Mo.`,
+    );
+  }
 
   const blob = new Blob([zipped as unknown as BlobPart], {
     type: "application/zip",

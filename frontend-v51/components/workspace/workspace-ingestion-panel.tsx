@@ -9,7 +9,10 @@ import {
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api-client";
-import { fileListToSupplierZipFile } from "@/lib/zip-directory";
+import {
+  fileListToSupplierZipFile,
+  MAX_SERVER_ZIP_BYTES,
+} from "@/lib/zip-directory";
 
 interface SupplierBundleRow {
   id: string;
@@ -95,6 +98,11 @@ export function WorkspaceIngestionPanel({
       setZippingFolder(false);
     },
     mutationFn: async (file: File) => {
+      if (file.size > MAX_SERVER_ZIP_BYTES) {
+        throw new Error(
+          `ZIP trop volumineux (${Math.round(file.size / (1024 * 1024))} Mo). Limite serveur : ${Math.round(MAX_SERVER_ZIP_BYTES / (1024 * 1024))} Mo.`,
+        );
+      }
       const fd = new FormData();
       fd.append("file", file);
       return api.postMultipart<UploadZipResponse>(
@@ -113,7 +121,9 @@ export function WorkspaceIngestionPanel({
     },
     onError: (err) => {
       setUploadMsg(
-        err instanceof ApiError ? err.message : "Échec de l’envoi du ZIP.",
+        err instanceof ApiError || err instanceof Error
+          ? err.message
+          : "Échec de l’envoi du ZIP.",
       );
     },
     onSettled: () => {
@@ -177,7 +187,9 @@ export function WorkspaceIngestionPanel({
           L’API n’accepte qu’un fichier <strong className="text-[var(--foreground)]">.zip</strong>{" "}
           (pas un dossier brut). Choisissez un ZIP déjà prêt, ou un{" "}
           <strong className="text-[var(--foreground)]">dossier</strong> : le
-          navigateur crée le ZIP localement puis l’envoie.
+          navigateur crée le ZIP localement puis l’envoie. Le ZIP envoyé doit
+          rester ≤ <strong className="text-[var(--foreground)]">{Math.round(MAX_SERVER_ZIP_BYTES / (1024 * 1024))} MB</strong>{" "}
+          (limite serveur).
         </p>
         <p>
           <strong className="text-[var(--foreground)]">Pass -1 (ingestion)</strong> : la
