@@ -24,24 +24,49 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # 1. DROP la FK vers bundle_documents
     op.execute("""
-        ALTER TABLE offer_extractions
-        DROP CONSTRAINT IF EXISTS offer_extractions_artifact_id_fkey
-    """)
+        DO $body$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name = 'offer_extractions'
+            ) THEN
+                RETURN;
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'offer_extractions'
+                  AND column_name = 'bundle_id'
+            ) THEN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'offer_extractions_bundle_id_fkey'
+                ) THEN
+                    ALTER TABLE offer_extractions
+                    ADD CONSTRAINT offer_extractions_bundle_id_fkey
+                    FOREIGN KEY (bundle_id) REFERENCES supplier_bundles(id)
+                    ON DELETE CASCADE;
+                END IF;
+                RETURN;
+            END IF;
 
-    # 2. Renommer artifact_id -> bundle_id
-    op.execute("""
-        ALTER TABLE offer_extractions
-        RENAME COLUMN artifact_id TO bundle_id
-    """)
+            ALTER TABLE offer_extractions
+            DROP CONSTRAINT IF EXISTS offer_extractions_artifact_id_fkey;
 
-    # 3. Ajouter FK vers supplier_bundles
-    op.execute("""
-        ALTER TABLE offer_extractions
-        ADD CONSTRAINT offer_extractions_bundle_id_fkey
-        FOREIGN KEY (bundle_id) REFERENCES supplier_bundles(id)
-        ON DELETE CASCADE
+            ALTER TABLE offer_extractions
+            RENAME COLUMN artifact_id TO bundle_id;
+
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'offer_extractions_bundle_id_fkey'
+            ) THEN
+                ALTER TABLE offer_extractions
+                ADD CONSTRAINT offer_extractions_bundle_id_fkey
+                FOREIGN KEY (bundle_id) REFERENCES supplier_bundles(id)
+                ON DELETE CASCADE;
+            END IF;
+        END
+        $body$;
     """)
 
 
