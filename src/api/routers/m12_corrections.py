@@ -7,20 +7,17 @@ Permissions : ``audit.read``, ``mql.internal`` ou ``system.admin`` (matrice V5.2
 from __future__ import annotations
 
 import logging
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
-from typing import Literal
-
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.auth.permissions import ROLE_PERMISSIONS
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.db import get_connection
 from src.procurement.m12_correction_writer import (
-    M12_CORRECTION_TYPES,
     M12CorrectionEntry,
     M12CorrectionWriter,
 )
