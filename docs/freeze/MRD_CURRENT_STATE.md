@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-04-09 — **Railway prod = dépôt** : head **093** ; **PR #357** **mergée** main **75a66239** (frontend NL + E2E + MQL/asyncpg) — **0** migration nouvelle → **pas** d’apply Railway pour #357 ; apply **090→093** déjà référencé (`with_railway_env` + `apply_railway_migrations_safe.py --apply`) ; dry-run : `docs/ops/ALEMBIC_DRYRUN_090_to_093.sql`
+# Derniere mise a jour : 2026-04-11 — **Dépôt Alembic head = 095** (`095_tenant_id_default_offers_extractions`) ; **PR #366** + **#367** mergées main (**4edc0dc**, **70c3921**) — RLS + `tenant_id` tables marché/mercuriale/signaux/offres + suivi Copilot ; **Railway prod** : état **093** documenté 2026-04-09 — **apply prod 093→095 = GO CTO** (post-check `docs/ops/SECURITY_HARDENING.md`) ; trace **CONTEXT_ANCHOR** § **ADDENDUM 2026-04-11 — SÉCURITÉ RLS 094–095**
 
 ---
 
@@ -30,13 +30,13 @@ freeze_hashes_doc     : docs/freeze/FREEZE_HASHES.md
 
 ## ETAT COURANT
 
-last_completed        : V4.2.0 Workspace-First (PRs #319–#323) + **V4.3.1 BLOC5** (PR #329) + **M16** (PRs #340, #342) + **due diligence** (PR #344) + **DMS V5.1.0** (PR #345) + **auth workspace v2** (PR #351) + **V5.1 enterprise suite** (PR #352) + **093 assessment_history** (PR #353) + **apply Railway 090→093** + **PR #357** (frontend NL + CI MQL/E2E, `app_factory`, MQL 042, asyncpg binds) — **prod Railway = dépôt head 093**
-last_completed_at     : 2026-04-09
-last_merge_commit     : 75a66239 (main — PR #357 : feat(v51) NL frontend E2E CI ; merge commit)
+last_completed        : V4.2.0 Workspace-First (PRs #319–#323) + **V4.3.1 BLOC5** (PR #329) + **M16** (PRs #340, #342) + **due diligence** (PR #344) + **DMS V5.1.0** (PR #345) + **auth workspace v2** (PR #351) + **V5.1 enterprise suite** (PR #352) + **093 assessment_history** (PR #353) + **apply Railway 090→093** + **PR #357** + **sécurité multi-tenant schéma** (PR **#366**/**#367**, Alembic **094–095**) — **dépôt head 095** ; **prod Railway** **093→095** **pending CTO**
+last_completed_at     : 2026-04-11
+last_merge_commit     : 70c3921 (main — PR #367 merge ; précédent jalons sécurité #366 **4edc0dc**)
 last_tag              : v4.1.0-m12-done (V4.2.0 / V4.3.1 tags pending CTO)
 next_milestone        : Bascule `ANNOTATION_USE_PASS_ORCHESTRATOR=1` (fenêtre hors annotation) + pilote SCI Mali + runbook parity `RELEASE_MAIN_APP_PARITY_CHECKLIST.md`
-next_status           : **Alembic prod aligné dépôt (093)** — 2026-04-09 ; **PR #357 mergée** (aucun delta Alembic) ; wiring V5.1 suite #352/#357 ; REGLE-23 **OK** ; orchestrateur Pass **pas** basculé prod
-blocked_on            : (1) runbook parity `docs/ops/RELEASE_MAIN_APP_PARITY_CHECKLIST.md` ; (2) ~~**090→093 Railway**~~ **fait** 2026-04-09 (`apply_railway_migrations_safe.py --apply`) ; ~~080→090~~ **fait** ; (3) ~~sync annotations~~ **fait** ; (4) `ANNOTATION_USE_PASS_ORCHESTRATOR=1` ; (5) vendors — `scripts/README_VENDOR_IMPORT.md`
+next_status           : **Dépôt head 095** — 2026-04-11 ; **prod Railway** : vérifier / appliquer **093→095** sous mandat CTO (**RÈGLE-ANCHOR-06**) + post-check sécurité
+blocked_on            : (1) runbook parity `docs/ops/RELEASE_MAIN_APP_PARITY_CHECKLIST.md` ; (2) ~~**090→093 Railway**~~ **fait** 2026-04-09 ; **093→095 Railway** **à planifier CTO** (migrations **094–095**) ; (3) ~~sync annotations~~ **fait** ; (4) `ANNOTATION_USE_PASS_ORCHESTRATOR=1` ; (5) vendors — `scripts/README_VENDOR_IMPORT.md`
 m13_prerequisites     : M12 Phase 3 PR #289 mergé ; ADR-M13-001 + Pass 2A + config/regulatory PR #292 ; migration 057 appliquée prod 2026-04-02 — persistance m13_* opérationnelle côté schéma ; secrets DB = .env.railway.local + with_railway_env.py (RAILWAY_LOCAL_ENV.md) ; **PR #331** : `with_railway_env` aligne `DATABASE_URL` sur `RAILWAY_DATABASE_URL` (opt-out `WITH_RAILWAY_ENV_PRESERVE_DATABASE_URL=1`)
 m14_deliverables      : PR #295 (moteur + API) + PR #297 (dual-app, 059, linking, save_m14_audit, CI, gel) ; ADR-M14-001 + DMS-M14-ARCH-RECONCILIATION ; docs ops Railway (RAILWAY_LOCAL_ENV, with_railway_env)
 vendors_ops_2026_04   : PR #330 préflight schéma + `--check-migration-compat` ; PR #332 tranche 661 vs 103 ; import ETL M4 Railway **lot 103 lignes** (2026-04-05) — `scripts/README_VENDOR_IMPORT.md`
@@ -77,16 +77,17 @@ branch_courante       : main
 | **V5.1 enterprise suite** | DONE | (à taguer CTO) | 55e16c41 | 2026-04-09 | PR #352 — comments API, `workspace_stack`, OpenAPI CI, E2E, garde-fous CI |
 | **V5.1 assessment_history (093)** | DONE | (à taguer CTO) | 595e4a77 | 2026-04-09 | PR #353 — table + RLS ; **apply Railway 090→093** OK 2026-04-09 |
 | **V5.1 NL frontend + CI (#357)** | DONE | (à taguer CTO) | 75a66239 | 2026-04-09 | PR #357 — `frontend-v51` E2E, proxy Next, `app_factory`, MQL 042 + asyncpg `::`, tests intégration ; **sans** migration Alembic |
+| **Sécurité RLS tenant (094–095)** | DONE (dépôt) | (à taguer CTO) | 4edc0dc / 70c3921 | 2026-04-11 | PR #366 — `094`+`095`, scripts `scripts/security/`, tests `tests/security/`, docs audit + `SECURITY_HARDENING` ; PR #367 — downgrade 094 / doc Copilot |
 
 ---
 
-## ÉTAT ALEMBIC — MIS À JOUR 2026-04-09 (dépôt **093** ; **Railway prod 093** — aligné)
+## ÉTAT ALEMBIC — MIS À JOUR 2026-04-11 (dépôt **095** ; **Railway prod** = **093** au dernier enregistrement 2026-04-09 — **delta 094–095 à appliquer CTO**)
 
-local_alembic_head       : 093_v51_assessment_history
-railway_alembic_head     : **093_v51_assessment_history** (apply **091 → 092 → 093** le **2026-04-09** — `python scripts/with_railway_env.py python scripts/apply_railway_migrations_safe.py --apply` ; pré-état **090**) ; **dry-run SQL** (audit hors exécution) : `docs/ops/ALEMBIC_DRYRUN_090_to_093.sql` ; partiel **090→092** : `docs/ops/ALEMBIC_DRYRUN_090_to_092.sql`
-migrations_pending_railway: **aucune** vs dépôt **093** (prod alignée)
-last_sync_railway        : 2026-04-09 — **090→093** (091, 092, 093) — `apply_railway_migrations_safe.py --apply` + `with_railway_env.py` ; historique **081→090** : `docs/ops/RAILWAY_MIGRATION_V51_001_REPORT.md` (2026-04-08)
-last_updated             : 2026-04-09
+local_alembic_head       : 095_tenant_id_default_offers_extractions
+railway_alembic_head     : **093_v51_assessment_history** (dernier apply documenté **2026-04-09** — **091 → 092 → 093**) ; **094 → 095** : **non appliqué prod** dans ce fichier avant **GO CTO** — dry-run / procédure : `docs/ops/SECURITY_HARDENING.md` + `alembic upgrade head --sql` hors exécution prod sans mandat
+migrations_pending_railway: **094_security_market_mercurial_tenant_rls** + **095_tenant_id_default_offers_extractions** vs prod **093** (à confirmer par probe CTO)
+last_sync_railway        : 2026-04-09 — **090→093** ; **2026-04-11** — dépôt avance **095** (PR #366/#367 mergées)
+last_updated             : 2026-04-11
 updated_by               : apply_railway_migrations_safe.py + python scripts/with_railway_env.py (PR #331 : `DATABASE_URL` ← `RAILWAY_DATABASE_URL` si défini)
 audit_ref                : docs/audits/AUDIT_CTO_SENIOR_2026-03-17.md
 railway_sync_governance  : docs/adr/ADR-RAILWAY-ALEMBIC-SYNC-GOVERNANCE.md
