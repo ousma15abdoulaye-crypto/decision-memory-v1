@@ -314,7 +314,11 @@ class TestDB:
         r = cur.fetchone()
         assert r is not None
         ver = r["version_num"]
-        m = re.match(r"^(\d+)", str(ver))
+        s = str(ver)
+        # Merge Alembic 12 hex — schéma strictement post-M9
+        if re.fullmatch(r"(?i)[0-9a-f]{12}", s):
+            return
+        m = re.match(r"^(\d+)", s)
         if not m:
             pytest.skip(
                 f"Head {ver} — chaîne non numérique (V5.2+), invariant numérique >=043 N/A"
