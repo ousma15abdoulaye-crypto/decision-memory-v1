@@ -1,6 +1,6 @@
 -- Renommage préventif des tables hors périmètre DMS (Label Studio / Django / etc.).
 -- EXÉCUTER UNIQUEMENT après inventaire sur LA base cible (pg_tables).
--- Idempotent : ALTER IF EXISTS n'existe pas en PG — utiliser DO $$.
+-- Idempotent : boucle DO $$ sur la liste cible + EXECUTE format(..., 'ALTER TABLE IF EXISTS ... RENAME TO ...').
 
 DO $body$
 DECLARE
