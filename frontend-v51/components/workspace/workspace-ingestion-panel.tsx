@@ -99,12 +99,14 @@ export function WorkspaceIngestionPanel({
         queryKey: ["cognitive-state", workspaceId],
       });
       void queryClient.invalidateQueries({ queryKey: ["workspace", workspaceId] });
-      if (fileInputRef.current) fileInputRef.current.value = "";
     },
     onError: (err) => {
       setUploadMsg(
         err instanceof ApiError ? err.message : "Échec de l’envoi du ZIP.",
       );
+    },
+    onSettled: () => {
+      if (fileInputRef.current) fileInputRef.current.value = "";
     },
   });
 
