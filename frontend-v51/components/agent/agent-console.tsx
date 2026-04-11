@@ -44,9 +44,20 @@ function parseAgentPrompt422Body(raw: unknown): {
   }
 
   if (Array.isArray(d)) {
+    const locPart = (x: unknown) =>
+      typeof x === "string" || typeof x === "number" ? String(x) : "";
     const parts = d
       .filter((e): e is Record<string, unknown> => e != null && typeof e === "object")
-      .map((e) => (typeof e.msg === "string" ? e.msg : null))
+      .map((e) => {
+        const locRaw = e.loc;
+        const loc =
+          Array.isArray(locRaw)
+            ? locRaw.map(locPart).filter(Boolean).join(".")
+            : "";
+        const msg = typeof e.msg === "string" ? e.msg : "";
+        if (loc && msg) return `${loc}: ${msg}`;
+        return msg || loc || null;
+      })
       .filter((m): m is string => m != null);
     const msg =
       parts.length > 0
@@ -168,17 +179,28 @@ export function AgentConsole({
 
   const sendPrompt = useCallback(
     async (query: string) => {
+      const text = typeof query === "string" ? query.trim() : "";
+      if (!text) return;
+
       streamAbortRef.current?.abort();
       const ac = new AbortController();
       streamAbortRef.current = ac;
 
       setPromptBlock(null);
-      setMessages((prev) => [...prev, { role: "user", content: query }]);
+      setMessages((prev) => [...prev, { role: "user", content: text }]);
       setStreaming(true);
 
       try {
-        const body: Record<string, unknown> = { query };
-        if (workspaceId) body.workspace_id = workspaceId;
+        // Clés redondantes : le backend accepte query | message | prompt (AliasChoices).
+        // Certaines couches (proxy, extensions) ont été vues envoyer un corps vide ; au
+        // minimum une de ces clés doit survivre pour éviter le 422 Pydantic « Field required ».
+        const body: { query: string; message: string; workspace_id?: string } = {
+          query: text,
+          message: text,
+        };
+        if (workspaceId && workspaceId !== "undefined") {
+          body.workspace_id = workspaceId;
+        }
 
         const res = await api.rawPost("/api/agent/prompt", body, {
           signal: ac.signal,
