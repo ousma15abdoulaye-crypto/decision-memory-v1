@@ -11,3 +11,7 @@
 ## Prochaine étape (hors V53-G minimal)
 
 Mandat dédié : câbler `RAGService` + corpus + métriques, **ou** retirer l’extension pgvector des déploiements sans usage.
+
+## Preuve CI
+
+Script `scripts/check_v53_no_rag_import_in_src.py` — échoue si un fichier sous `src/` (hors `src/memory/rag_service.py`) importe `rag_service`. Job GitHub Actions : `v53-sovereignty-gate` dans `.github/workflows/ci-v52-gates.yml`.

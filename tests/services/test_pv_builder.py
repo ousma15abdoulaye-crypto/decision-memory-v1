@@ -118,6 +118,8 @@ def test_pv_builder_has_9_blocks_and_kill_list_absent(monkeypatch) -> None:
         "committee",
         "deliberation",
         "evaluation",
+        "m14_proof",
+        "m13_proof",
         "market_signals",
         "source_package",
         "decision",

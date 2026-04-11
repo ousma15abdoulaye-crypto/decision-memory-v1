@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from datetime import UTC, datetime
 from typing import Any
 
@@ -13,8 +14,11 @@ from src.services.m16_projection import (
 )
 from src.utils.json_utils import safe_json_dumps
 
+logger = logging.getLogger(__name__)
+
 # Aligné mandat industrialisation — incrémenter si structure snapshot change.
-SNAPSHOT_SCHEMA_VERSION = "1.1"
+# 1.2 — blocs M14/M13 preuve (score_history, decision_snapshots, blueprint M13).
+SNAPSHOT_SCHEMA_VERSION = "1.2"
 RENDER_TEMPLATE_VERSION = "pv-1.0"
 
 _KILL_LIST = {
@@ -25,6 +29,112 @@ _KILL_LIST = {
     "selected_vendor",
     "weighted_scores",
 }
+
+
+def _strip_kill_keys_deep(obj: Any) -> Any:
+    """Retire récursivement les clés INV-W06 d'un arbre JSON (M13 payload)."""
+    if isinstance(obj, dict):
+        return {
+            str(k): _strip_kill_keys_deep(v)
+            for k, v in obj.items()
+            if str(k) not in _KILL_LIST
+        }
+    if isinstance(obj, list):
+        return [_strip_kill_keys_deep(v) for v in obj]
+    return obj
+
+
+def _serialize_rows_datetimes(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        item = dict(r)
+        for k, v in list(item.items()):
+            if hasattr(v, "isoformat"):
+                item[k] = v.isoformat()
+        out.append(item)
+    return out
+
+
+def _fetch_m14_m13_proof_block(
+    conn: Any, workspace_id: str, legacy_case_id: str | None
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Données d'audit M14 / M13 pour le PV scellé (ADR-V53 complément).
+
+    Requêtes best-effort : colonne ou table absente → listes vides / None.
+    """
+    score_rows: list[dict[str, Any]] = []
+    try:
+        score_rows = db_fetchall(
+            conn,
+            """
+            SELECT offer_document_id, criterion_key, score_value, max_score,
+                   confidence, scored_by, created_at
+            FROM score_history
+            WHERE workspace_id = CAST(:ws AS uuid)
+            ORDER BY created_at DESC NULLS LAST
+            LIMIT 200
+            """,
+            {"ws": workspace_id},
+        )
+    except Exception as exc:
+        logger.debug("[pv_builder] score_history skip: %s", exc)
+
+    decision_rows: list[dict[str, Any]] = []
+    m13_latest: dict[str, Any] | None = None
+    if legacy_case_id:
+        try:
+            decision_rows = db_fetchall(
+                conn,
+                """
+                SELECT snapshot_id, decision_at, zone, currency, item_id,
+                       supplier_name_raw, snapshot_hash, created_at
+                FROM decision_snapshots
+                WHERE case_id = :cid
+                ORDER BY decision_at DESC NULLS LAST
+                LIMIT 50
+                """,
+                {"cid": str(legacy_case_id)},
+            )
+        except Exception as exc:
+            logger.debug("[pv_builder] decision_snapshots skip: %s", exc)
+
+        try:
+            one = db_execute_one(
+                conn,
+                """
+                SELECT version, payload, created_at
+                FROM m13_regulatory_profile_versions
+                WHERE case_id = :cid
+                ORDER BY version DESC
+                LIMIT 1
+                """,
+                {"cid": str(legacy_case_id)},
+            )
+            if one:
+                raw_pl = one.get("payload")
+                safe_pl = (
+                    _strip_kill_keys_deep(raw_pl)
+                    if isinstance(raw_pl, (dict, list))
+                    else raw_pl
+                )
+                m13_latest = {
+                    "version": one.get("version"),
+                    "payload": safe_pl,
+                    "created_at": (
+                        one["created_at"].isoformat()
+                        if one.get("created_at") is not None
+                        else None
+                    ),
+                }
+        except Exception as exc:
+            logger.debug("[pv_builder] m13_regulatory_profile_versions skip: %s", exc)
+
+    m14_block: dict[str, Any] = {
+        "score_history": _serialize_rows_datetimes(score_rows),
+        "decision_snapshots": _serialize_rows_datetimes(decision_rows),
+    }
+    m13_block: dict[str, Any] = {"regulatory_profile_latest": m13_latest}
+    return m14_block, m13_block
 
 
 def _sanitize_scores_matrix(data: Any) -> Any:
@@ -75,6 +185,8 @@ def validate_pv_snapshot(snapshot: dict[str, Any]) -> None:
         "committee",
         "deliberation",
         "evaluation",
+        "m14_proof",
+        "m13_proof",
         "decision",
         "meta",
     )
@@ -112,6 +224,17 @@ def validate_pv_snapshot(snapshot: dict[str, Any]) -> None:
     sm = ev.get("scores_matrix")
     if not isinstance(sm, dict):
         raise ValueError("evaluation.scores_matrix doit être un objet")
+
+    m14p = snapshot["m14_proof"]
+    for sub in ("score_history", "decision_snapshots"):
+        if sub not in m14p or not isinstance(m14p[sub], list):
+            raise ValueError(f"snapshot incomplet: m14_proof.{sub} doit être une liste")
+
+    m13p = snapshot["m13_proof"]
+    if "regulatory_profile_latest" not in m13p:
+        raise ValueError(
+            "snapshot incomplet: m13_proof.regulatory_profile_latest manquant"
+        )
 
 
 def _confidence_from_bundle_docs(conn, workspace_id: str) -> dict[str, float]:
@@ -455,6 +578,11 @@ def build_pv_snapshot(
             }
         )
 
+    legacy_case = ws.get("legacy_case_id")
+    m14_proof, m13_proof = _fetch_m14_m13_proof_block(
+        conn, workspace_id, str(legacy_case) if legacy_case else None
+    )
+
     source_rows = db_fetchall(
         conn,
         """
@@ -505,6 +633,8 @@ def build_pv_snapshot(
         },
         "deliberation": {"total_events": len(events), "events": events},
         "evaluation": eval_block,
+        "m14_proof": m14_proof,
+        "m13_proof": m13_proof,
         "market_signals": market_signals,
         "source_package": source_docs,
         "decision": {
