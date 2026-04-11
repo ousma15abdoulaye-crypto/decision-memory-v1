@@ -68,6 +68,10 @@ def apply_rls_session_vars_to_connection(
     `get_current_user` / `require_case_access_dep` ont posé le contexte requête.
 
     Scripts batch multi-commits : passer ``transaction_local=False`` (mandat SCRIPTS-RLS-01).
+
+    Avec ``transaction_local=False``, les GUC restent sur la connexion jusqu’à fermeture :
+    n’utiliser que sur des connexions **dédiées** au job (pas de réutilisation multi-identité
+    sur un même socket sans politique de reset explicite).
     """
     with conn.cursor() as cur:
         _apply_rls_session_settings(cur, transaction_local=transaction_local)

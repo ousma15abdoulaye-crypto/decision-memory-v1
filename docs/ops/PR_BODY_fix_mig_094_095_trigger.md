@@ -33,3 +33,10 @@ La migration **095** reste inchangée dans cette PR (déjà sur `main`) ; le nom
 
 - `docs/ops/SECURITY_HARDENING.md` (bloc 2026-04-11 + §7).
 - Politiques RLS 094 : `app.current_tenant` / `app.is_admin`.
+
+## Suivi revue (Copilot + CI)
+
+- **CI** : clé `MISTRAL_API_KEY` présente mais invalide en CI → les tests `test_semantic_router` appelaient l’API (401). Correctif : `get_embedding` bascule en fallback lexical et réinitialise le client ; `reset_embedding_client_state()` en `setup_method` des tests.
+- **GUC session / fuite d’identité** : `transaction_local=False` est réservé aux scripts batch / `SignalEngine` qui ouvrent une **connexion dédiée** par processus (pas de pool partagé). Les routes HTTP gardent le défaut transactionnel. Une évolution « RESET explicite entre contextes » reste un chantier si un jour la même connexion psycopg sert plusieurs identités.
+- **Tests RLS `transaction_local`** : à ajouter dans un follow-up (db de test + `set_config`), hors hotfix CI.
+- **Tableau Markdown** : lignes au format standard `| col | col |` (séparateur `|---|`).
