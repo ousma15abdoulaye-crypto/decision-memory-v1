@@ -19,11 +19,11 @@
 
 | ID | Rupture | Impact | Statut | Phase correction |
 |---|---|---|---|---|
-| **R1** | `criterion_assessments.cell_json` rempli manuellement, pas depuis M14 | Les utilisateurs refont le travail de M14. Risque d'erreur humaine dans le PV | ✅ ⚠️ | P2.5b-R1 |
-| **R3** | `market_delta_pct` M16 non calculé depuis `market_signals_v2` | Signal prix toujours jaune → expert aveugle sur anomalies prix | ✅ ⚠️ | P2.5b-R3 |
+| **R1** | `criterion_assessments.cell_json` rempli manuellement, pas depuis M14 | Les utilisateurs refont le travail de M14. Risque d'erreur humaine dans le PV | ✅ | P2.5b-R1 + **M-V52-A** tests synthétiques `test_v52_r1_r3_synthetic.py` |
+| **R3** | `market_delta_pct` M16 non calculé depuis `market_signals_v2` | Signal prix toujours jaune → expert aveugle sur anomalies prix | ✅ | P2.5b-R3 + **M-V52-A** (idem) ; correctif SQL `set_limit(REAL)` dans `src/services/market_signal_lookup.py` |
 | **R10** | `quorum_service` + `weight_validator` existaient mais jamais appelés au seal | Scellement possible sans quorum ni validation poids → PV non conforme | ✅ | P2.5b-R10 |
 
-*⚠️ = Implémentation validée en code. Test live en attente de données (price_line_bundle_values et evaluation_documents vides en Railway).*
+*Les scénarios **Railway** riches en données restent une preuve complémentaire ; les tests **M-V52-A** couvrent la chaîne sur DB de test migrée (`geo_master`, `procurement_dict_items`, `pg_trgm`).*
 
 ---
 

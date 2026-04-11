@@ -3,7 +3,7 @@
 # Mis a jour uniquement par AO.
 # Exception : agent autorise sous mandat explicite AO
 # avec validation finale AO avant merge.
-# Derniere mise a jour : 2026-04-11 — **Dépôt Alembic head = 095** (`095_tenant_id_default_offers_extractions`) ; **PR #366** + **#367** mergées main (**4edc0dc**, **70c3921**) — RLS + `tenant_id` tables marché/mercuriale/signaux/offres + suivi Copilot ; **Railway prod** : état **093** documenté 2026-04-09 — **apply prod 093→095 = GO CTO** (post-check `docs/ops/SECURITY_HARDENING.md`) ; trace **CONTEXT_ANCHOR** § **ADDENDUM 2026-04-11 — SÉCURITÉ RLS 094–095**
+# Derniere mise a jour : 2026-04-11 — **Dépôt Alembic head = 095** (`095_tenant_id_default_offers_extractions`) ; **PR #366** + **#367** mergées main (**4edc0dc**, **70c3921**) — RLS + `tenant_id` ; **M-V52-A** — preuves synthétiques **R1/R3** (`tests/integration/test_v52_r1_r3_synthetic.py`, `market_signal_lookup` REAL/`pg_trgm`) ; **Railway prod** : état **093** documenté 2026-04-09 — **apply prod 093→095 = GO CTO** (post-check `docs/ops/SECURITY_HARDENING.md`) ; trace **CONTEXT_ANCHOR** + **`docs/mandates/M-V52-CHAIN-CLOSEOUT.md`**
 
 ---
 

@@ -17,6 +17,30 @@ def test_normalize_label_to_item_slug() -> None:
     assert normalize_label_to_item_slug("  ") == ""
 
 
+def test_lookup_market_price_no_row_returns_none() -> None:
+    conn = MagicMock()
+    with patch("src.services.market_signal_lookup.db_execute_one", return_value=None):
+        assert lookup_market_price_seasonal_adj(conn, "riz_25kg", "MLI-BKO") is None
+
+
+def test_lookup_market_price_null_column_returns_none() -> None:
+    conn = MagicMock()
+    with patch(
+        "src.services.market_signal_lookup.db_execute_one",
+        return_value={"price_seasonal_adj": None},
+    ):
+        assert lookup_market_price_seasonal_adj(conn, "riz_25kg", "MLI-BKO") is None
+
+
+def test_lookup_market_price_invalid_decimal_returns_none() -> None:
+    conn = MagicMock()
+    with patch(
+        "src.services.market_signal_lookup.db_execute_one",
+        return_value={"price_seasonal_adj": object()},
+    ):
+        assert lookup_market_price_seasonal_adj(conn, "riz_25kg", "MLI-BKO") is None
+
+
 def test_lookup_market_price_uses_expected_threshold() -> None:
     conn = MagicMock()
     captured: dict = {}
