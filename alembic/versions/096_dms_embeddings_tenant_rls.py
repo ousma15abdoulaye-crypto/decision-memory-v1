@@ -39,9 +39,20 @@ def upgrade() -> None:
             ALTER TABLE public.dms_embeddings
                 DROP CONSTRAINT IF EXISTS dms_embeddings_source_table_source_pk_chunk_index_key;
 
-            ALTER TABLE public.dms_embeddings
-                ADD CONSTRAINT dms_embeddings_tenant_source_chunk_uniq
-                UNIQUE (tenant_id, source_table, source_pk, chunk_index);
+            -- Idempotent : évite DuplicateTable si upgrade rejoué (ex. workers pytest / DB partagée).
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_constraint c
+                JOIN pg_class t ON c.conrelid = t.oid
+                JOIN pg_namespace n ON t.relnamespace = n.oid
+                WHERE n.nspname = 'public'
+                  AND t.relname = 'dms_embeddings'
+                  AND c.conname = 'dms_embeddings_tenant_source_chunk_uniq'
+            ) THEN
+                ALTER TABLE public.dms_embeddings
+                    ADD CONSTRAINT dms_embeddings_tenant_source_chunk_uniq
+                    UNIQUE (tenant_id, source_table, source_pk, chunk_index);
+            END IF;
 
             ALTER TABLE public.dms_embeddings
                 ALTER COLUMN tenant_id SET DEFAULT public.dms_default_tenant_id();
