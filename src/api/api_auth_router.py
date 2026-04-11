@@ -5,11 +5,18 @@ Préfixe : ``/api/auth`` — enregistrer via ``app.include_router`` **sans** pre
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from src.api.auth_helpers import authenticate_user, resolve_tenant_uuid_for_jwt
-from src.couche_a.auth.jwt_handler import create_access_token, create_refresh_token
+from src.couche_a.auth.dependencies import UserClaims, get_current_user
+from src.couche_a.auth.jwt_handler import (
+    create_access_token,
+    create_refresh_token,
+    create_ws_token,
+)
 from src.ratelimit import limiter
 
 router = APIRouter(prefix="/api/auth", tags=["auth-v2"])
@@ -86,3 +93,33 @@ async def login_json(request: Request, body: LoginRequest):
             tenant_id=tenant_id,
         ),
     )
+
+
+class WsTokenResponse(BaseModel):
+    token: str
+
+
+@router.post("/ws-token", response_model=WsTokenResponse)
+@limiter.limit("20/minute")
+async def get_ws_token(
+    request: Request,
+    current_user: Annotated[UserClaims, Depends(get_current_user)],
+) -> WsTokenResponse:
+    """Émet un token WebSocket longue durée (type='ws', TTL 24 h).
+
+    Requiert un Bearer access token valide. Retourne un JWT dédié aux
+    connexions WebSocket, évitant les déconnexions dues à l'expiration
+    du token d'accès standard (30 min).
+    """
+    try:
+        ws_token = create_ws_token(
+            current_user.user_id,
+            current_user.role,
+            current_user.tenant_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        ) from exc
+    return WsTokenResponse(token=ws_token)

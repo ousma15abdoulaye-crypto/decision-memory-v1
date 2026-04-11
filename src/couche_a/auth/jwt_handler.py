@@ -93,6 +93,25 @@ def create_refresh_token(user_id: str, role: str, tenant_id: str | None = None) 
     return jwt.encode(claims, _secret_key(), algorithm=ALGORITHM)
 
 
+_WS_TOKEN_TTL_HOURS = 24
+
+
+def create_ws_token(user_id: str, role: str, tenant_id: str | None = None) -> str:
+    """Émet un token WebSocket longue durée (type='ws', TTL 24 h).
+
+    Destiné à l'endpoint POST /api/auth/ws-token — permet des connexions
+    WebSocket persistantes sans être limité par le TTL de l'access token (30 min).
+
+    Raises:
+        ValueError: rôle non reconnu ou SECRET_KEY absent.
+    """
+    _validate_role(role)
+    claims = _build_claims(
+        user_id, role, "ws", timedelta(hours=_WS_TOKEN_TTL_HOURS), tenant_id
+    )
+    return jwt.encode(claims, _secret_key(), algorithm=ALGORITHM)
+
+
 def verify_token(
     token: str,
     expected_type: str,

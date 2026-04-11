@@ -216,10 +216,17 @@ def get_current_user_from_token(token: str) -> UserClaims:
     url = str(database_url).replace("postgresql+psycopg://", "postgresql://")
     conn = psycopg.connect(url, autocommit=True)
     try:
-        try:
-            payload = verify_token(token, "access", conn)
-        except ValueError as exc:
-            raise ValueError(str(exc)) from exc
+        # Accept both regular access tokens and long-lived WebSocket tokens (type="ws").
+        payload: dict | None = None
+        last_exc: ValueError | None = None
+        for token_type in ("ws", "access"):
+            try:
+                payload = verify_token(token, token_type, conn)
+                break
+            except ValueError as exc:
+                last_exc = exc
+        if payload is None:
+            raise ValueError(str(last_exc)) from last_exc
 
         return _apply_verified_payload_to_context_and_claims(conn, payload)
     finally:
