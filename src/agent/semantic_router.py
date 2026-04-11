@@ -6,6 +6,8 @@ Classification d'intent par similarité cosinus avec centroïdes pré-calculés.
 
 INV-A03 : routing sémantique, pas regex.
 Seuils : sim >= 0.75 pour classification, >= 0.85 pour RECOMMENDATION.
+Si le meilleur score est RECOMMENDATION mais MARKET_QUERY est proche (écart
+<= 0.02), on privilégie MARKET_QUERY pour les questions prix / marché référence.
 """
 
 from __future__ import annotations
@@ -44,6 +46,10 @@ INTENT_EXAMPLES: dict[IntentClass, list[str]] = {
         "Quels fournisseurs livrent du matériel médical ?",
         "Tendance prix du gasoil T1 2026",
         "Sources de prix disponibles pour le ciment",
+        "Prix du ciment à Bamako",
+        "Quel prix pour le ciment à Bamako ?",
+        "Ciment prix référence Bamako",
+        "Tarif ciment en ville",
     ],
     IntentClass.WORKSPACE_STATUS: [
         "Où en est le dossier RFQ-2026-041 ?",
@@ -101,6 +107,9 @@ def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
 
+_MARKET_VS_REC_TIE_DELTA = 0.02
+
+
 async def classify_intent(query: str) -> IntentResult:
     """Classifie l'intent d'une requête par similarité cosinus (INV-A03).
 
@@ -114,14 +123,23 @@ async def classify_intent(query: str) -> IntentResult:
     query_embedding = await get_embedding(query)
     query_norm = query_embedding / np.linalg.norm(query_embedding)
 
-    best_class = IntentClass.OUT_OF_SCOPE
-    best_sim = 0.0
-
+    sims: dict[IntentClass, float] = {}
     for intent_class, centroid in _centroid_cache.items():
-        sim = _cosine_similarity(query_norm, centroid)
-        if sim > best_sim:
-            best_sim = sim
-            best_class = intent_class
+        sims[intent_class] = _cosine_similarity(query_norm, centroid)
+
+    best_class = max(sims, key=sims.get)
+    best_sim = sims[best_class]
+
+    m_sim = sims.get(IntentClass.MARKET_QUERY, 0.0)
+    r_sim = sims.get(IntentClass.RECOMMENDATION, 0.0)
+    if (
+        best_class == IntentClass.RECOMMENDATION
+        and r_sim >= 0.85
+        and m_sim >= 0.75
+        and (r_sim - m_sim) <= _MARKET_VS_REC_TIE_DELTA
+    ):
+        best_class = IntentClass.MARKET_QUERY
+        best_sim = m_sim
 
     if best_class == IntentClass.RECOMMENDATION and best_sim >= 0.85:
         return IntentResult(

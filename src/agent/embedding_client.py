@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 from typing import Any
 
 import numpy as np
@@ -51,21 +52,46 @@ def _get_client() -> Any:
         return None
 
 
+def _lexical_hash_embedding(text: str, dim: int = 1024) -> np.ndarray:
+    """Embedding déterministe hors API — sac de mots via hashing trick.
+
+    Les anciens vecteurs « aléatoires par phrase » décorrélaient totalement
+    les requêtes proches (« prix du ciment à Bamako » vs exemples marché),
+    ce qui faisait classer RECOMMENDATION au hasard et déclenchait INV-W06.
+    Ici, les tokens partagés renforcent la similarité cosinus entre questions
+    de prix / zone et les INTENT_EXAMPLES MARKET_QUERY.
+    """
+    vec = np.zeros(dim, dtype=np.float32)
+    low = text.lower()
+    tokens = re.findall(r"[a-zàâäéèêëïîôùûçœæ0-9]+", low)
+    if not tokens:
+        digest = hashlib.sha256(low.encode("utf-8")).digest()
+        idx = int.from_bytes(digest[:2], "big") % dim
+        vec[idx] = 1.0
+    else:
+        for tok in tokens:
+            digest = hashlib.sha256(tok.encode("utf-8")).digest()
+            for i in range(0, min(len(digest) - 1, 16), 2):
+                idx = int.from_bytes(digest[i : i + 2], "big") % dim
+                vec[idx] += 1.0
+    norm = float(np.linalg.norm(vec))
+    if norm < 1e-9:
+        vec[0] = 1.0
+        norm = 1.0
+    return vec / norm
+
+
 async def get_embedding(text: str, dim: int = 1024) -> np.ndarray:
     """Retourne le vecteur d'embedding pour un texte donné.
 
     En mode fallback (pas d'API key ou SDK), retourne un vecteur
-    déterministe basé sur le hash du texte (reproductible pour tests).
+    déterministe basé sur les tokens (hashing trick), pas un tirage aléatoire
+    par phrase — pour que le routeur sémantique reste cohérent en dev/CI.
     """
     client = _get_client()
 
     if client is None or _fallback:
-        stable_hash = int.from_bytes(
-            hashlib.sha256(text.encode("utf-8")).digest()[:4], "big"
-        )
-        rng = np.random.RandomState(stable_hash % (2**31))
-        vec = rng.randn(dim).astype(np.float32)
-        return vec / np.linalg.norm(vec)
+        return _lexical_hash_embedding(text, dim=dim)
 
     response = await client.embeddings.create_async(
         model="mistral-embed",

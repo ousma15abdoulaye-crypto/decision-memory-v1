@@ -55,6 +55,11 @@ class TestClassifyIntent:
             IntentClass.OUT_OF_SCOPE,
         )
 
+    def test_bamako_cement_not_recommendation(self):
+        """Prix référence ≠ recommandation fournisseur (guardrail INV-W06)."""
+        result = _run(classify_intent("prix du ciment à Bamako"))
+        assert result.intent_class != IntentClass.RECOMMENDATION
+
     def test_recommendation_query_flagged(self):
         result = _run(
             classify_intent("Quel fournisseur est le meilleur pour ce marché ?")

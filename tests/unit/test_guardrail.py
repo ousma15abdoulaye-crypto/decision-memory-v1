@@ -28,9 +28,14 @@ class TestGuardrailResult:
     def test_not_blocked_for_market_query(self):
         reset_centroid_cache()
         trace = _make_trace()
-        result = _run(check_recommendation_guardrail("prix du ciment à Bamako", trace))
-        assert isinstance(result, GuardrailResult)
-        assert result.blocked is False
+        for q in (
+            "prix du ciment à Bamako",
+            "Quel est le prix du ciment à Bamako ?",
+            "ciment prix Bamako",
+        ):
+            result = _run(check_recommendation_guardrail(q, trace))
+            assert isinstance(result, GuardrailResult)
+            assert result.blocked is False, f"unexpected block for: {q!r}"
 
     def test_returns_guardrail_result(self):
         reset_centroid_cache()
