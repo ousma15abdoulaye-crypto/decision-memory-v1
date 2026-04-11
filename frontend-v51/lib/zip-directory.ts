@@ -78,6 +78,7 @@ export async function fileListToSupplierZipFile(
     });
   });
 
+  // La taille ZIP réelle n'est connue qu'après compression locale.
   if (zipped.byteLength > MAX_SERVER_ZIP_BYTES) {
     throw new Error(
       `ZIP final trop volumineux (${Math.round(zipped.byteLength / (1024 * 1024))} Mo). Limite serveur : ${Math.round(MAX_SERVER_ZIP_BYTES / (1024 * 1024))} Mo.`,

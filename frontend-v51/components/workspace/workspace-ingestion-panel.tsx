@@ -121,9 +121,11 @@ export function WorkspaceIngestionPanel({
     },
     onError: (err) => {
       setUploadMsg(
-        err instanceof ApiError || err instanceof Error
+        err instanceof ApiError
           ? err.message
-          : "Échec de l’envoi du ZIP.",
+          : err instanceof Error
+            ? err.message
+            : "Échec de l’envoi du ZIP.",
       );
     },
     onSettled: () => {
@@ -188,7 +190,7 @@ export function WorkspaceIngestionPanel({
           (pas un dossier brut). Choisissez un ZIP déjà prêt, ou un{" "}
           <strong className="text-[var(--foreground)]">dossier</strong> : le
           navigateur crée le ZIP localement puis l’envoie. Le ZIP envoyé doit
-          rester ≤ <strong className="text-[var(--foreground)]">{Math.round(MAX_SERVER_ZIP_BYTES / (1024 * 1024))} MB</strong>{" "}
+          rester ≤ <strong className="text-[var(--foreground)]">{Math.round(MAX_SERVER_ZIP_BYTES / (1024 * 1024))} Mo</strong>{" "}
           (limite serveur).
         </p>
         <p>
