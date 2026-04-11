@@ -22,11 +22,6 @@ from src.services.market_delta import persist_market_deltas_for_workspace
 from src.services.market_signal_lookup import normalize_label_to_item_slug
 
 
-def _require_database_url() -> None:
-    if not os.environ.get("DATABASE_URL"):
-        pytest.skip("DATABASE_URL non défini")
-
-
 def _connect_admin() -> tuple[_ConnectionWrapper, psycopg.Connection]:
     url = os.environ["DATABASE_URL"].replace("postgresql+psycopg://", "postgresql://")
     raw = psycopg.connect(url, row_factory=psycopg.rows.dict_row)
@@ -48,9 +43,6 @@ def _cleanup_v52_synthetic(
     crit_id: str | None,
     plc_id: str | None,
     plbv_id: str | None,
-    msv2_delete: bool,
-    item_id: str | None,
-    zone_id: str | None,
 ) -> None:
     for tbl, col, val in [
         ("criterion_assessments", "workspace_id", ws_id),
@@ -67,6 +59,14 @@ def _cleanup_v52_synthetic(
             )
         except Exception:  # noqa: BLE001
             pass
+    # Avant tenants : FK 094 (market_signals_v2.tenant_id → tenants)
+    try:
+        wrap.execute(
+            "DELETE FROM market_signals_v2 WHERE tenant_id = CAST(:t AS uuid)",
+            {"t": tenant_id},
+        )
+    except Exception:  # noqa: BLE001
+        pass
     if committee_id:
         try:
             wrap.execute(
@@ -86,24 +86,12 @@ def _cleanup_v52_synthetic(
         )
     except Exception:  # noqa: BLE001
         pass
-    if msv2_delete and item_id and zone_id:
-        try:
-            wrap.execute(
-                """
-                DELETE FROM market_signals_v2
-                WHERE item_id = :i AND zone_id = :z
-                """,
-                {"i": item_id, "z": zone_id},
-            )
-        except Exception:  # noqa: BLE001
-            pass
 
 
 @pytest.mark.db
 class TestV52R1BridgeSynthetic:
     def test_r1_bridge_populates_criterion_assessments_from_scores_matrix(self) -> None:
         """R1 : scores_matrix M14 → cell_json avec source m14."""
-        _require_database_url()
         wrap, raw = _connect_admin()
 
         tenant_id = str(uuid.uuid4())
@@ -225,9 +213,6 @@ class TestV52R1BridgeSynthetic:
                 crit_id=crit_id,
                 plc_id=None,
                 plbv_id=None,
-                msv2_delete=False,
-                item_id=None,
-                zone_id=None,
             )
             raw.close()
 
@@ -236,7 +221,6 @@ class TestV52R1BridgeSynthetic:
 class TestV52R3MarketDeltaSynthetic:
     def test_r3_persist_market_delta_pct(self) -> None:
         """R3 : price_line_bundle_values.market_delta_pct aligné sur market_signals_v2."""
-        _require_database_url()
         wrap, raw = _connect_admin()
 
         wrap.execute(
@@ -328,13 +312,16 @@ class TestV52R3MarketDeltaSynthetic:
                 (item_id, zone_id, tenant_id, price_seasonal_adj,
                  signal_quality, formula_version)
             VALUES (:iid, :zid, CAST(:tid AS uuid), :price, 'strong', '1.1')
-            ON CONFLICT (item_id, zone_id) DO UPDATE SET
-                price_seasonal_adj = EXCLUDED.price_seasonal_adj,
-                signal_quality = EXCLUDED.signal_quality,
-                tenant_id = EXCLUDED.tenant_id
+            ON CONFLICT (item_id, zone_id) DO NOTHING
+            RETURNING id
             """,
             {"iid": item_id, "zid": zone_id, "tid": tenant_id, "price": market_price},
         )
+        if wrap.fetchone() is None:
+            pytest.skip(
+                "market_signals_v2 a déjà une ligne (item_id, zone_id) — "
+                "pas d'UPSERT pour éviter d'écraser des données partagées"
+            )
 
         wrap.execute(
             """
@@ -392,9 +379,6 @@ class TestV52R3MarketDeltaSynthetic:
                 crit_id=None,
                 plc_id=plc_id,
                 plbv_id=plbv_id,
-                msv2_delete=True,
-                item_id=item_id,
-                zone_id=zone_id,
             )
             raw.close()
 
