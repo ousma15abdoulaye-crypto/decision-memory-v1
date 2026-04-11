@@ -2295,7 +2295,7 @@ Corridor **workspace-first** exploitable depuis le navigateur : dépôt **ZIP** 
 ### Risques produit (inchangés côté API)
 
 - **`run-pipeline`** reste **synchrone** côté HTTP : surveiller **timeouts** proxy / client en prod.
-- Pass -1 : réponse **200 accepted** ne signifie pas fin de traitement — l’UI s’appuie sur bundles / cognitif.
+- Pass -1 : réponse **HTTP 200** (payload JSON **`status=accepted`**) ne signifie pas fin de traitement — l’UI s’appuie sur bundles / cognitif.
 
 ### CI
 
