@@ -114,7 +114,7 @@ def _fetch_m14_m13_proof_block(
                 raw_pl = one.get("payload")
                 safe_pl = (
                     _strip_kill_keys_deep(raw_pl)
-                    if isinstance(raw_pl, (dict, list))
+                    if isinstance(raw_pl, dict | list)
                     else raw_pl
                 )
                 m13_latest = {
