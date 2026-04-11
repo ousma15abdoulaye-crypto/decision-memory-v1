@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type InputHTMLAttributes,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api-client";
+import { fileListToSupplierZipFile } from "@/lib/zip-directory";
 
 interface SupplierBundleRow {
   id: string;
@@ -50,9 +57,12 @@ export function WorkspaceIngestionPanel({
 }) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const headingId = useId();
   const zipInputId = useId();
+  const folderInputId = useId();
   const [passOnePending, setPassOnePending] = useState(false);
+  const [zippingFolder, setZippingFolder] = useState(false);
   const [forceM14, setForceM14] = useState(false);
   const [uploadMsg, setUploadMsg] = useState<string | null>(null);
   const [pipelineSummary, setPipelineSummary] = useState<string | null>(null);
@@ -82,6 +92,7 @@ export function WorkspaceIngestionPanel({
   const uploadMutation = useMutation({
     onMutate: () => {
       setUploadMsg(null);
+      setZippingFolder(false);
     },
     mutationFn: async (file: File) => {
       const fd = new FormData();
@@ -107,6 +118,7 @@ export function WorkspaceIngestionPanel({
     },
     onSettled: () => {
       if (fileInputRef.current) fileInputRef.current.value = "";
+      if (folderInputRef.current) folderInputRef.current.value = "";
     },
   });
 
@@ -147,6 +159,7 @@ export function WorkspaceIngestionPanel({
   });
 
   const bundles = bundlesQuery.data?.bundles ?? [];
+  const uploadBusy = uploadMutation.isPending || zippingFolder;
 
   return (
     <section
@@ -159,28 +172,44 @@ export function WorkspaceIngestionPanel({
       >
         Ingestion et pipeline
       </h3>
-      <p className="mb-4 text-xs text-[var(--foreground-muted)]">
-        Envoyez une archive ZIP fournisseurs (Pass -1 asynchrone). Une fois des
-        bundles présents, lancez le pipeline V5 (M13/M14/bridge) — l’appel peut
-        être long selon la taille du dossier (timeouts proxy possibles en
-        production).
-      </p>
+      <div className="mb-4 space-y-2 text-xs text-[var(--foreground-muted)]">
+        <p>
+          L’API n’accepte qu’un fichier <strong className="text-[var(--foreground)]">.zip</strong>{" "}
+          (pas un dossier brut). Choisissez un ZIP déjà prêt, ou un{" "}
+          <strong className="text-[var(--foreground)]">dossier</strong> : le
+          navigateur crée le ZIP localement puis l’envoie.
+        </p>
+        <p>
+          <strong className="text-[var(--foreground)]">Pass -1 (ingestion)</strong> : la
+          réponse HTTP est immédiate ; l’assemblage des bundles tourne en{" "}
+          <strong className="text-[var(--foreground)]">arrière-plan</strong> (plusieurs
+          minutes possibles — la liste ci-dessous se met à jour automatiquement).
+        </p>
+        <p>
+          <strong className="text-[var(--foreground)]">Pipeline V5</strong> : le bouton
+          « Lancer le pipeline » appelle une route{" "}
+          <strong className="text-[var(--foreground)]">synchrone</strong> : le
+          navigateur attend la fin du traitement. Gros dossiers → durée longue et
+          risque de <strong className="text-[var(--foreground)]">timeout</strong>{" "}
+          (proxy / hébergeur) en production.
+        </p>
+      </div>
 
       {!blocked && (
-        <div className="mb-4 flex flex-wrap items-end gap-3">
+        <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
           <div className="min-w-0 flex-1">
             <label
               htmlFor={zipInputId}
               className="mb-1 block text-xs font-medium text-[var(--foreground-muted)]"
             >
-              Archive ZIP
+              Fichier ZIP
             </label>
             <input
               id={zipInputId}
               ref={fileInputRef}
               type="file"
               accept=".zip,application/zip"
-              disabled={uploadMutation.isPending}
+              disabled={uploadBusy}
               className="block w-full max-w-md text-sm text-[var(--foreground)] file:mr-3 file:rounded-md file:border file:border-[var(--border)] file:bg-[var(--surface)] file:px-3 file:py-1.5 file:text-sm"
               onChange={(e) => {
                 const f = e.target.files?.[0];
@@ -188,7 +217,60 @@ export function WorkspaceIngestionPanel({
               }}
             />
           </div>
+          <div className="flex flex-col gap-1">
+            <span
+              id={folderInputId}
+              className="mb-1 block text-xs font-medium text-[var(--foreground-muted)]"
+            >
+              Ou dossier fournisseurs
+            </span>
+            <input
+              ref={folderInputRef}
+              type="file"
+              className="sr-only"
+              multiple
+              disabled={uploadBusy}
+              aria-labelledby={folderInputId}
+              {...({ webkitdirectory: "" } as InputHTMLAttributes<HTMLInputElement>)}
+              onChange={async (e) => {
+                const list = e.target.files;
+                if (!list?.length) return;
+                setUploadMsg(null);
+                setZippingFolder(true);
+                try {
+                  const zipFile = await fileListToSupplierZipFile(list);
+                  uploadMutation.mutate(zipFile);
+                } catch (err) {
+                  const msg =
+                    err instanceof Error
+                      ? err.message
+                      : "Échec de la compression du dossier.";
+                  setUploadMsg(msg);
+                  setZippingFolder(false);
+                } finally {
+                  if (folderInputRef.current) folderInputRef.current.value = "";
+                }
+              }}
+            />
+            <button
+              type="button"
+              disabled={uploadBusy}
+              onClick={() => folderInputRef.current?.click()}
+              className="w-fit rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-gray-800"
+            >
+              Choisir un dossier…
+            </button>
+          </div>
         </div>
+      )}
+
+      {zippingFolder && (
+        <p
+          role="status"
+          className="mb-3 text-xs text-[var(--foreground-muted)]"
+        >
+          Compression du dossier en ZIP (local, peut prendre du temps)…
+        </p>
       )}
 
       {uploadMsg && (
