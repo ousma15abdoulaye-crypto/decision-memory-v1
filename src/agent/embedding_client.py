@@ -42,7 +42,7 @@ def _get_client() -> Any:
         return None
 
     try:
-        from mistralai import Mistral
+        from mistralai.client import Mistral
 
         _client = Mistral(api_key=api_key)
         return _client
