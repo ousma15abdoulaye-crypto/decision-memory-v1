@@ -34,18 +34,18 @@ delta_pct = (montant_fournisseur - prix_marché) / prix_marché  (signé)
 from __future__ import annotations
 
 import logging
-import re
-import unicodedata
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
 from src.db import db_execute, db_execute_one, db_fetchall
+from src.services.market_signal_lookup import (
+    lookup_market_price_seasonal_adj,
+    normalize_label_to_item_slug,
+)
 
 logger = logging.getLogger(__name__)
-
-_ITEM_SIMILARITY_THRESHOLD = 0.55
 
 
 # ── Types ──────────────────────────────────────────────────────────────────────
@@ -61,61 +61,6 @@ class MarketDeltaPersistResult:
     updated: int = 0
     no_signal: int = 0
     errors: list[str] = field(default_factory=list)
-
-
-# ── Normalisation label ────────────────────────────────────────────────────────
-
-
-def _normalize_label(label: str) -> str:
-    """Normalise un label article en slug compatible avec market_signals_v2.item_id.
-
-    NFD → ASCII, lowercase, non-alphanumérique → '_', strip underscores bord.
-    Exemple : "Stylo Bic (bleu)" → "stylo_bic_bleu"
-    """
-    nfkd = unicodedata.normalize("NFKD", label)
-    ascii_str = nfkd.encode("ascii", errors="ignore").decode("ascii")
-    slug = re.sub(r"[^a-z0-9]+", "_", ascii_str.lower().strip())
-    return slug.strip("_")
-
-
-# ── Lookup marché (SQL) ────────────────────────────────────────────────────────
-
-
-def _lookup_market_price(conn: Any, item_slug: str, zone_id: str) -> Decimal | None:
-    """Cherche le prix de référence dans market_signals_v2.
-
-    Passe 1 : exact slug match (item_id = :slug).
-    Passe 2 : similarity pg_trgm > _ITEM_SIMILARITY_THRESHOLD.
-    Retourne price_seasonal_adj du meilleur signal disponible.
-    """
-    row = db_execute_one(
-        conn,
-        """
-        SELECT price_seasonal_adj
-        FROM market_signals_v2
-        WHERE zone_id = :zone
-          AND signal_quality IN ('strong', 'moderate', 'propagated')
-          AND (
-              item_id = :slug
-              OR (set_limit(:threshold) IS NOT NULL AND similarity(item_id, :slug) > :threshold)
-          )
-        ORDER BY
-            CASE WHEN item_id = :slug THEN 0 ELSE 1 END,
-            similarity(item_id, :slug) DESC
-        LIMIT 1
-        """,
-        {
-            "zone": zone_id,
-            "slug": item_slug,
-            "threshold": float(_ITEM_SIMILARITY_THRESHOLD),
-        },
-    )
-    if row and row.get("price_seasonal_adj") is not None:
-        try:
-            return Decimal(str(row["price_seasonal_adj"]))
-        except Exception:
-            pass
-    return None
 
 
 # ── Persistance ────────────────────────────────────────────────────────────────
@@ -194,7 +139,7 @@ def persist_market_deltas_for_workspace(
             result.no_signal += 1
             continue
 
-        slug = _normalize_label(label)
+        slug = normalize_label_to_item_slug(label)
         if not slug:
             result.no_signal += 1
             continue
@@ -202,7 +147,7 @@ def persist_market_deltas_for_workspace(
         if slug in slug_cache:
             market_price = slug_cache[slug]
         else:
-            market_price = _lookup_market_price(conn, slug, zone_id)
+            market_price = lookup_market_price_seasonal_adj(conn, slug, zone_id)
             slug_cache[slug] = market_price
 
         if market_price is None or market_price == 0:

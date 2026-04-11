@@ -35,6 +35,7 @@ from fastapi import (
     File,
     Form,
     HTTPException,
+    Query,
     UploadFile,
 )
 from fastapi import status as http_status
@@ -598,21 +599,77 @@ def get_evaluation_frame(
         except Exception:
             elim = []
 
-        signals = db_fetchall(
-            conn,
-            """
-            SELECT id, signal_type, payload, generated_at
-            FROM vendor_market_signals
-            WHERE source_workspace_id = :ws
-            ORDER BY generated_at DESC
-            LIMIT 20
-            """,
-            {"ws": workspace_id},
-        )
+        # ADR-V53 : agrégat M9 (market_signals_v2) prioritaire si zone_id + lignes ;
+        # sinon projection vendor_market_signals (voir docs/adr/ADR-V53-MARKET-READ-MODEL.md).
+        zone_id_frame = ws.get("zone_id")
+        raw_signals: list[dict] = []
+        if zone_id_frame:
+            msv2_rows = db_fetchall(
+                conn,
+                """
+                SELECT id, alert_level, residual_pct, item_id, zone_id, price_avg,
+                       signal_quality, updated_at, created_at
+                FROM market_signals_v2
+                WHERE zone_id = :zid
+                ORDER BY
+                  CASE COALESCE(alert_level, 'NORMAL')
+                    WHEN 'CRITICAL' THEN 1
+                    WHEN 'WARNING' THEN 2
+                    WHEN 'WATCH' THEN 3
+                    WHEN 'CONTEXT_NORMAL' THEN 4
+                    WHEN 'SEASONAL_NORMAL' THEN 5
+                    WHEN 'NORMAL' THEN 6
+                    ELSE 9
+                  END,
+                  ABS(COALESCE(residual_pct, 0)) DESC
+                LIMIT 20
+                """,
+                {"zid": str(zone_id_frame)},
+            )
+            for row in msv2_rows:
+                ts = row.get("updated_at") or row.get("created_at")
+                raw_signals.append(
+                    {
+                        "id": row.get("id"),
+                        "signal_type": f"msv2_{row.get('alert_level') or 'NORMAL'}",
+                        "payload": {
+                            "context_match": 1.0,
+                            "data_points": 5.0,
+                            "threshold_min": 0.0,
+                            "item_id": row.get("item_id"),
+                            "zone_id": row.get("zone_id"),
+                            "price_avg": (
+                                str(row.get("price_avg"))
+                                if row.get("price_avg") is not None
+                                else None
+                            ),
+                            "signal_quality": row.get("signal_quality"),
+                            "residual_pct": (
+                                float(row["residual_pct"])
+                                if row.get("residual_pct") is not None
+                                else None
+                            ),
+                            "source_table": "market_signals_v2",
+                        },
+                        "generated_at": ts,
+                    }
+                )
+        if not raw_signals:
+            raw_signals = db_fetchall(
+                conn,
+                """
+                SELECT id, signal_type, payload, generated_at
+                FROM vendor_market_signals
+                WHERE source_workspace_id = :ws
+                ORDER BY generated_at DESC
+                LIMIT 20
+                """,
+                {"ws": workspace_id},
+            )
         tenant_for_frame = str(ws.get("tenant_id") or "")
         if tenant_for_frame:
             market_signals = process_market_signals_for_frame(
-                conn, tenant_for_frame, workspace_id, signals
+                conn, tenant_for_frame, workspace_id, raw_signals
             )
         else:
             market_signals = []
@@ -818,6 +875,45 @@ async def post_source_package(
         "doc_type_detected": doc_type,
         "sha256": sha,
     }
+
+
+@router.get("/{workspace_id}/event-timeline")
+def get_workspace_event_timeline(
+    workspace_id: str,
+    user: Annotated[UserClaims, Depends(get_current_user)],
+    limit: int = Query(default=50, ge=1, le=200),
+):
+    """Journal append-only du workspace (``workspace_events``) — M-CTO-V53-F.
+
+    RLS tenant via ``get_connection`` (GUC ``app.tenant_id``). Pas d’exposition
+    cross-tenant si policy ``we_tenant_isolation`` est active.
+    """
+    require_workspace_access(workspace_id, user)
+    with get_connection() as conn:
+        rows = db_fetchall(
+            conn,
+            """
+            SELECT id, event_type, actor_id, payload, emitted_at
+            FROM workspace_events
+            WHERE workspace_id = CAST(:ws AS uuid)
+            ORDER BY emitted_at DESC, id DESC
+            LIMIT :lim
+            """,
+            {"ws": workspace_id, "lim": limit},
+        )
+    events = []
+    for r in rows:
+        emitted = r.get("emitted_at")
+        events.append(
+            {
+                "id": r.get("id"),
+                "event_type": r.get("event_type"),
+                "actor_id": r.get("actor_id"),
+                "payload": r.get("payload"),
+                "emitted_at": emitted.isoformat() if emitted is not None else None,
+            }
+        )
+    return {"workspace_id": workspace_id, "events": events, "count": len(events)}
 
 
 @router.post("/{workspace_id}/upload-zip")

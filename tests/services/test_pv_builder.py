@@ -92,9 +92,9 @@ def test_pv_builder_has_9_blocks_and_kill_list_absent(monkeypatch) -> None:
             ]
         if "GROUP BY bundle_id" in sql:
             return [{"bundle_id": "bundle-1", "mn": 0.8}]
-        if "FROM vendor_market_signals" in sql:
-            return []
         if "FROM market_signals_v2" in sql:
+            return []
+        if "FROM vendor_market_signals" in sql:
             return []
         if "FROM source_package_documents" in sql:
             return []
@@ -209,8 +209,8 @@ def _pv_fetchall_common(_conn, sql: str, _params):
     return None
 
 
-def test_pv_builder_msv2_fallback_source_type_and_mapping(monkeypatch) -> None:
-    """VMS vide + zone_id → lignes MSv2 avec source_type msv2_fallback."""
+def test_pv_builder_msv2_primary_source_type_and_mapping(monkeypatch) -> None:
+    """ADR-V53 : zone_id + MSv2 → source_type msv2_primary (priorité sur VMS)."""
 
     ts = datetime(2026, 4, 6, 12, 0, 0, tzinfo=UTC)
 
@@ -218,8 +218,6 @@ def test_pv_builder_msv2_fallback_source_type_and_mapping(monkeypatch) -> None:
         out = _pv_fetchall_common(_conn, sql, _params)
         if out is not None:
             return out
-        if "FROM vendor_market_signals" in sql:
-            return []
         if "FROM market_signals_v2" in sql:
             return [
                 {
@@ -233,6 +231,8 @@ def test_pv_builder_msv2_fallback_source_type_and_mapping(monkeypatch) -> None:
                     "created_at": ts,
                 }
             ]
+        if "FROM vendor_market_signals" in sql:
+            raise AssertionError("VMS must not be queried when MSv2 has rows")
         return []
 
     monkeypatch.setattr(pv_builder, "db_execute_one", _base_fake_one())
@@ -247,7 +247,7 @@ def test_pv_builder_msv2_fallback_source_type_and_mapping(monkeypatch) -> None:
     )
     assert len(snapshot["market_signals"]) == 1
     m = snapshot["market_signals"][0]
-    assert m["source_type"] == "msv2_fallback"
+    assert m["source_type"] == "msv2_primary"
     assert m["signal_type"] == "WARNING"
     assert m["relevance_score"] == 12.5
     assert m["data_points"]["item_id"] == "ITEM-1"
@@ -256,7 +256,7 @@ def test_pv_builder_msv2_fallback_source_type_and_mapping(monkeypatch) -> None:
 
 
 def test_pv_builder_vendor_market_signals_sets_source_type_vms(monkeypatch) -> None:
-    """VMS non vide → source_type vms (pas d’appel MSv2 nécessaire dans ce stub)."""
+    """ADR-V53 : sans lignes MSv2 pour la zone → repli VMS, source_type vms."""
 
     ts = datetime(2026, 4, 6, 14, 0, 0, tzinfo=UTC)
     vms_row = {
@@ -269,10 +269,10 @@ def test_pv_builder_vendor_market_signals_sets_source_type_vms(monkeypatch) -> N
         out = _pv_fetchall_common(_conn, sql, _params)
         if out is not None:
             return out
+        if "FROM market_signals_v2" in sql:
+            return []
         if "FROM vendor_market_signals" in sql:
             return [vms_row]
-        if "FROM market_signals_v2" in sql:
-            raise AssertionError("MSv2 must not be queried when VMS has rows")
         return []
 
     monkeypatch.setattr(pv_builder, "db_execute_one", _base_fake_one())

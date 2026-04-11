@@ -65,6 +65,16 @@ def _build_langfuse() -> Any:
     public_key = s.LANGFUSE_PUBLIC_KEY.strip()
     secret_key = s.LANGFUSE_SECRET_KEY.strip()
 
+    if (
+        not s.TESTING
+        and bool(getattr(s, "LANGFUSE_REQUIRED_FOR_LLM", False))
+        and (not public_key or not secret_key)
+    ):
+        raise RuntimeError(
+            "LANGFUSE_REQUIRED_FOR_LLM=true mais LANGFUSE_PUBLIC_KEY / "
+            "LANGFUSE_SECRET_KEY manquants — traçage LLM obligatoire (M-CTO-V53-H)."
+        )
+
     if not public_key or not secret_key:
         logger.info("[Langfuse] Clés absentes — traçage désactivé (mode no-op).")
         return _NullLangfuse()

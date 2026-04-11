@@ -9,7 +9,7 @@
 | `get_current_user` | `src/couche_a/auth/dependencies.py` | JWT obligatoire (sauf routes publiques). |
 | `require_workspace_access` | `src/couche_a/auth/workspace_access.py` | Tenant + accès au workspace (lecture / membership). |
 | `require_workspace_permission` | idem | Permission métier (`matrix.read`, `member.invite`, …). |
-| `guard` (async) | `src/auth/guard.py` | Membership + permission + **blocage écriture si workspace scellé/clos** (asyncpg + RLS). |
+| `guard` (async) | `src/auth/guard.py` | Membership + permission + **blocage écriture si workspace scellé/clos** (asyncpg + RLS). **M-CTO-V53-C** : `WORKSPACE_ACCESS_JWT_FALLBACK` n’autorise **pas** les permissions d’écriture (`WRITE_PERMISSIONS` dans `guard.py`) sans membership DB. |
 | `require_case_access_dep` | `src/couche_a/auth/case_access.py` | Routes case-scoped (`/api/cases/...`). |
 | RBAC JWT `ROLE_PERMISSIONS` | `src/auth/permissions.py` | Ex. `mql.internal` sur `POST /api/mql/stream`. |
 
@@ -20,6 +20,9 @@
 | `GET /api/dashboard` | `get_current_user` + filtre `tenant_id` | Pas de `workspace_id` ; liste tous les workspaces du tenant. |
 | `POST /api/agent/prompt` | `get_current_user` ; si `workspace_id` → `guard(..., "agent.query")` | Stream SSE. |
 | `POST /api/mql/stream` | `get_current_user` + rôle `mql.internal` ou `system.admin` | N’utilise pas `execute_mql_query` mocké dans les tests d’intégration réels. |
+| `POST /api/m12/corrections` | `get_current_user` + `audit.read` / `mql.internal` / `system.admin` | Append ``m12_correction_log`` (M-CTO-V53-G). |
+| `GET /api/m12/corrections/recent` | idem | Lecture audit. |
+| `GET /api/workspaces/{id}/event-timeline` | `require_workspace_access` | Journal ``workspace_events`` (M-CTO-V53-F). |
 | `GET /api/workspaces/{id}/members` | `require_workspace_permission(..., "matrix.read")` | |
 | `POST /api/workspaces/{id}/members` | `require_workspace_permission(..., "member.invite")` | 409 si membership actif. |
 | `DELETE /api/workspaces/{id}/members/{user_id}` | `require_workspace_permission(..., "member.revoke")` | Interdit auto-révocation. |

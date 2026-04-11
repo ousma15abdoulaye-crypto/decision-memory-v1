@@ -371,48 +371,51 @@ def build_pv_snapshot(
     if "m16" in ev_block:
         eval_block["m16"] = ev_block["m16"]
 
-    signals_rows = db_fetchall(
-        conn,
-        """
-        SELECT signal_type, payload, generated_at
-        FROM vendor_market_signals
-        WHERE source_workspace_id = :wid
-        ORDER BY generated_at DESC
-        LIMIT 20
-        """,
-        {"wid": workspace_id},
-    )
-    used_msv2_fallback = False
+    # ADR-V53 : agrégat M9 (market_signals_v2) en priorité si zone_id + lignes ;
+    # repli vendor_market_signals (projection post-seal / contexte fournisseur).
+    zone_for_msv2 = ws.get("zone_id")
+    signals_rows = []
+    signals_from_msv2 = False
+    if zone_for_msv2:
+        signals_rows = db_fetchall(
+            conn,
+            """
+            SELECT alert_level, residual_pct, item_id, zone_id, price_avg,
+                   signal_quality, updated_at, created_at
+            FROM market_signals_v2
+            WHERE zone_id = :zid
+            ORDER BY
+              CASE COALESCE(alert_level, 'NORMAL')
+                WHEN 'CRITICAL' THEN 1
+                WHEN 'WARNING' THEN 2
+                WHEN 'WATCH' THEN 3
+                WHEN 'CONTEXT_NORMAL' THEN 4
+                WHEN 'SEASONAL_NORMAL' THEN 5
+                WHEN 'NORMAL' THEN 6
+                ELSE 9
+              END,
+              ABS(COALESCE(residual_pct, 0)) DESC
+            LIMIT 20
+            """,
+            {"zid": str(zone_for_msv2)},
+        )
+        signals_from_msv2 = bool(signals_rows)
     if not signals_rows:
-        zone_for_msv2 = ws.get("zone_id")
-        if zone_for_msv2:
-            signals_rows = db_fetchall(
-                conn,
-                """
-                SELECT alert_level, residual_pct, item_id, zone_id, price_avg,
-                       signal_quality, updated_at, created_at
-                FROM market_signals_v2
-                WHERE zone_id = :zid
-                ORDER BY
-                  CASE COALESCE(alert_level, 'NORMAL')
-                    WHEN 'CRITICAL' THEN 1
-                    WHEN 'WARNING' THEN 2
-                    WHEN 'WATCH' THEN 3
-                    WHEN 'CONTEXT_NORMAL' THEN 4
-                    WHEN 'SEASONAL_NORMAL' THEN 5
-                    WHEN 'NORMAL' THEN 6
-                    ELSE 9
-                  END,
-                  ABS(COALESCE(residual_pct, 0)) DESC
-                LIMIT 10
-                """,
-                {"zid": str(zone_for_msv2)},
-            )
-            used_msv2_fallback = bool(signals_rows)
+        signals_rows = db_fetchall(
+            conn,
+            """
+            SELECT signal_type, payload, generated_at
+            FROM vendor_market_signals
+            WHERE source_workspace_id = :wid
+            ORDER BY generated_at DESC
+            LIMIT 20
+            """,
+            {"wid": workspace_id},
+        )
 
     market_signals: list[dict[str, Any]] = []
     for s in signals_rows:
-        if used_msv2_fallback:
+        if signals_from_msv2:
             ts = s.get("updated_at") or s.get("created_at")
             market_signals.append(
                 {
@@ -433,7 +436,7 @@ def build_pv_snapshot(
                         "signal_quality": s.get("signal_quality"),
                     },
                     "surfaced_at": (ts.isoformat() if ts is not None else None),
-                    "source_type": "msv2_fallback",
+                    "source_type": "msv2_primary",
                 }
             )
             continue

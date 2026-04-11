@@ -2,6 +2,9 @@
 
 Insère des signaux ``price_anchor_update`` pour chaque bundle ``qualified`` —
 indépendamment de ``is_retained``.
+
+ADR-V53 : écriture ``vendor_market_signals`` = projection contexte vendeur ;
+l’agrégat M9 pour écarts prix reste ``market_signals_v2``.
 """
 
 from __future__ import annotations

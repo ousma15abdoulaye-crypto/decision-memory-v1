@@ -11,6 +11,9 @@ Routes SANS workspace_id — zone W2 indépendante (INV-R6 adapté) :
 Référence : docs/freeze/DMS_V4.2.0_ADDENDUM.md §VII routes W2
 INV-W06 : aucun champ winner/rank/recommendation dans les réponses.
 RÈGLE-W01 : tenant_id extrait du JWT uniquement.
+
+Lecture marché agrégée : ``market_signals_v2`` (ADR-V53). Signaux par fournisseur :
+``vendor_market_signals`` (projection post-seal / contexte vendeur).
 """
 
 from __future__ import annotations
@@ -131,7 +134,10 @@ def vendor_signals(
     vendor_id: str,
     user: Annotated[UserClaims, Depends(get_current_user)],
 ):
-    """Signaux marché liés à un fournisseur spécifique."""
+    """Signaux liés à un fournisseur (table ``vendor_market_signals`` — projection ADR-V53).
+
+    Ne remplace pas le prix de référence agrégé M9 (``market_signals_v2``).
+    """
     tenant_id = user.tenant_id
     if not tenant_id:
         raise HTTPException(
