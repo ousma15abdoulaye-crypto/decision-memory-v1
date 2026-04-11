@@ -43,6 +43,12 @@ _DENSE_SEARCH_SQL = """
 """
 
 
+def _row_as_dict(row: Any) -> dict[str, Any]:
+    if isinstance(row, dict):
+        return row
+    return {str(k): row[k] for k in row.keys()}
+
+
 def _sparse_dot_product(
     query_sparse: dict[str, float], doc_sparse: dict[str, float]
 ) -> float:
@@ -63,6 +69,78 @@ def _hybrid_score(
 ) -> float:
     """Weighted combination: alpha * dense + (1-alpha) * sparse."""
     return alpha * dense_sim + (1.0 - alpha) * sparse_sim
+
+
+def _rerank_from_dense_rows(
+    rows: list[dict[str, Any]],
+    query: str,
+    query_sparse: dict[str, float],
+    limit: int,
+    reranker: Reranker,
+) -> list[dict[str, Any]]:
+    candidates: list[dict[str, Any]] = []
+    for r in rows:
+        dense_sim = float(r.get("dense_similarity", 0.0) or 0.0)
+        raw_sparse = r.get("embedding_sparse") or {}
+        if isinstance(raw_sparse, str):
+            try:
+                raw_sparse = json.loads(raw_sparse)
+            except Exception:
+                raw_sparse = {}
+        doc_sparse: dict[str, float] = {str(k): float(v) for k, v in raw_sparse.items()}
+        sparse_sim = _sparse_dot_product(query_sparse, doc_sparse)
+        sparse_sim_norm = min(sparse_sim / 5.0, 1.0) if sparse_sim > 0 else 0.0
+        hybrid = _hybrid_score(dense_sim, sparse_sim_norm)
+        candidates.append(
+            {
+                "id": str(r.get("id", "")),
+                "text": str(r.get("chunk_text", "")),
+                "dense_similarity": dense_sim,
+                "sparse_similarity": sparse_sim_norm,
+                "hybrid_score": hybrid,
+            }
+        )
+    candidates.sort(key=lambda x: x["hybrid_score"], reverse=True)
+    top_candidates = candidates[:limit]
+    passages = [c["text"] for c in top_candidates]
+    reranked = reranker.rerank(query, passages, top_k=limit)
+    return [
+        {
+            "text": rr.text,
+            "score": rr.score,
+            "original_rank": rr.original_rank,
+            "hybrid_score": (
+                top_candidates[rr.original_rank]["hybrid_score"]
+                if rr.original_rank < len(top_candidates)
+                else 0.0
+            ),
+        }
+        for rr in reranked
+    ]
+
+
+async def find_similar_hybrid_async(
+    db: Any,
+    query: str,
+    limit: int = 10,
+    *,
+    embedding_service: EmbeddingService | None = None,
+    reranker: Reranker | None = None,
+) -> list[dict[str, Any]]:
+    """Même pipeline que ``RAGService.find_similar_hybrid`` via ``AsyncpgAdapter``.
+
+    Utilise ``EmbeddingService`` (BGE-M3 ou stub) — pas les embeddings Mistral du routeur.
+    """
+    emb_svc = embedding_service or EmbeddingService()
+    rr = reranker or Reranker()
+    emb = emb_svc.embed_query(query)
+    vec_str = "[" + ",".join(str(v) for v in emb.dense) + "]"
+    rows_raw = await db.fetch_all(
+        _DENSE_SEARCH_SQL,
+        {"query_vec": vec_str, "limit": limit * _DENSE_CANDIDATE_MULTIPLIER},
+    )
+    rows = [_row_as_dict(r) for r in rows_raw]
+    return _rerank_from_dense_rows(rows, query, emb.sparse, limit, rr)
 
 
 class RAGService:
@@ -96,59 +174,7 @@ class RAGService:
             {"query_vec": vec_str, "limit": limit * _DENSE_CANDIDATE_MULTIPLIER},
         )
         rows = conn.fetchall()
-
-        # Rescore with hybrid fusion
-        candidates: list[dict[str, Any]] = []
-        for r in rows:
-            dense_sim = float(r.get("dense_similarity", 0.0) or 0.0)
-
-            # Parse sparse from JSONB (may be dict already or JSON string)
-            raw_sparse = r.get("embedding_sparse") or {}
-            if isinstance(raw_sparse, str):
-                try:
-                    raw_sparse = json.loads(raw_sparse)
-                except Exception:
-                    raw_sparse = {}
-            doc_sparse: dict[str, float] = {
-                str(k): float(v) for k, v in raw_sparse.items()
-            }
-
-            sparse_sim = _sparse_dot_product(query_sparse, doc_sparse)
-            # Normalize sparse (typical range 0-5, cap at 1.0)
-            sparse_sim_norm = min(sparse_sim / 5.0, 1.0) if sparse_sim > 0 else 0.0
-
-            hybrid = _hybrid_score(dense_sim, sparse_sim_norm)
-            candidates.append(
-                {
-                    "id": str(r.get("id", "")),
-                    "text": str(r.get("chunk_text", "")),
-                    "dense_similarity": dense_sim,
-                    "sparse_similarity": sparse_sim_norm,
-                    "hybrid_score": hybrid,
-                }
-            )
-
-        # Sort by hybrid score
-        candidates.sort(key=lambda x: x["hybrid_score"], reverse=True)
-        top_candidates = candidates[:limit]
-
-        # Cross-encoder rerank
-        passages = [c["text"] for c in top_candidates]
-        reranked = self._reranker.rerank(query, passages, top_k=limit)
-
-        return [
-            {
-                "text": rr.text,
-                "score": rr.score,
-                "original_rank": rr.original_rank,
-                "hybrid_score": (
-                    top_candidates[rr.original_rank]["hybrid_score"]
-                    if rr.original_rank < len(top_candidates)
-                    else 0.0
-                ),
-            }
-            for rr in reranked
-        ]
+        return _rerank_from_dense_rows(rows, query, query_sparse, limit, self._reranker)
 
     def answer_with_context(self, query: str, context_limit: int = 5) -> RAGResult:
         results = self.find_similar_hybrid(query, limit=context_limit * 2)

@@ -140,6 +140,7 @@ VALID_ALEMBIC_HEADS = (
     # Sécurité multi-tenant — RLS marché / mercuriale / offres (PR #366)
     "094_security_market_mercurial_tenant_rls",
     "095_tenant_id_default_offers_extractions",
+    "096_dms_embeddings_tenant_rls",
 )
 
 

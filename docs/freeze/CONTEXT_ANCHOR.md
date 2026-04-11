@@ -2303,3 +2303,24 @@ Corridor **workspace-first** exploitable depuis le navigateur : dépôt **ZIP** 
 - Tous les checks **GitHub** associés à la PR **#387** étaient **SUCCESS** avant merge squash sur **`main`** (incl. **`frontend_v51_e2e`**, gates V5.1 / V5.2 pertinents).
 
 ---
+
+## ADDENDUM 2026-04-11 — RAG CORPUS M12 (INGEST + RLS + AGENT)
+
+### Objet
+
+Chaîne reproductible : export **m12-v2** (JSONL) → **`scripts/ingest_embeddings.py`** → **`public.dms_embeddings`** ; retrieval hybride via **`find_similar_hybrid_async`** ( **`EmbeddingService`** BGE-M3 ou stub — aligné ingest ) ; intent agent **`document_corpus`** sous feature flag **`AGENT_RAG_ENABLED`** (défaut **false**).
+
+### Schéma / sécurité
+
+- Alembic **`096_dms_embeddings_tenant_rls`** : colonne **`tenant_id`** (NOT NULL, FK **`public.tenants`**, DEFAULT **`dms_default_tenant_id()`**), contrainte **UNIQUE** **`(tenant_id, source_table, source_pk, chunk_index)`**, RLS **FORCE** + policy **`dms_embeddings_tenant_uuid_isolation`** (même principe que **094** : **`app.current_tenant`** / **`app.is_admin`**).
+
+### Fichiers livrés (référence dépôt)
+
+- **`scripts/ingest_embeddings.py`**, **`src/memory/rag_service.py`** (`find_similar_hybrid_async`), **`src/agent/semantic_router.py`** (`IntentClass.DOCUMENT_CORPUS`), **`src/agent/handlers.py`** (`rag_corpus_stream_handler`, handler désactivé), **`src/api/routers/agent.py`**, **`src/core/config.py`** (`AGENT_RAG_ENABLED`), **`docs/ops/rag_ingest_runbook.md`**, tests **`tests/memory/test_rag_find_similar_async.py`**, **`tests/scripts/test_ingest_embeddings_cli.py`**, fixture **`tests/fixtures/m12_rag_ingest_sample.jsonl`**.
+
+### Gouvernance Alembic
+
+- **`alembic heads`** : inclure **`096_dms_embeddings_tenant_rls`** dans **`VALID_ALEMBIC_HEADS`** (`tests/test_046b_imc_map_fix.py`).
+- Apply prod : **GO CTO** + post-check `count(*)` sur **`dms_embeddings`**.
+
+---

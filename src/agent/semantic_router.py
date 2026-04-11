@@ -1,7 +1,7 @@
 """Semantic Router — Canon V5.1.0 Section 7.3.
 
 Classification d'intent par similarité cosinus avec centroïdes pré-calculés.
-5 IntentClass : MARKET_QUERY, WORKSPACE_STATUS, PROCESS_INFO,
+6 IntentClass : MARKET_QUERY, WORKSPACE_STATUS, PROCESS_INFO, DOCUMENT_CORPUS,
                 RECOMMENDATION (INV-W06 guardrail), OUT_OF_SCOPE.
 
 INV-A03 : routing sémantique, pas regex.
@@ -26,6 +26,7 @@ class IntentClass(StrEnum):
     MARKET_QUERY = "market_query"
     WORKSPACE_STATUS = "workspace_status"
     PROCESS_INFO = "process_info"
+    DOCUMENT_CORPUS = "document_corpus"
     RECOMMENDATION = "recommendation"
     OUT_OF_SCOPE = "out_of_scope"
 
@@ -67,6 +68,13 @@ INTENT_EXAMPLES: dict[IntentClass, list[str]] = {
         "Combien de membres minimum pour un comité ?",
         "Quels documents sont éliminatoires ?",
         "Quel est le délai réglementaire pour un appel d'offres ?",
+    ],
+    IntentClass.DOCUMENT_CORPUS: [
+        "Que dit le corpus annoté sur les délais de remise des offres ?",
+        "Résume les extraits annotés concernant les garanties bancaires.",
+        "Quelles clauses administratives figurent dans les documents indexés ?",
+        "Extraits du dossier annoté sur les pièces à fournir.",
+        "Contenu documentaire du corpus M12 relatif aux pénalités.",
     ],
     IntentClass.RECOMMENDATION: [
         "Quel fournisseur est le meilleur ?",

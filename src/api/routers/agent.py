@@ -22,6 +22,8 @@ from src.agent.guardrail import check_recommendation_guardrail
 from src.agent.handlers import (
     mql_stream_handler,
     process_info_handler,
+    rag_corpus_disabled_stream_handler,
+    rag_corpus_stream_handler,
     static_refusal_handler,
     workspace_status_handler,
 )
@@ -30,6 +32,7 @@ from src.agent.output_filter import filter_token_stream
 from src.agent.semantic_router import IntentClass, classify_intent
 from src.auth.guard import guard
 from src.auth.permissions import ROLE_PERMISSIONS
+from src.core.config import get_settings
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.db.async_pool import AsyncpgAdapter, acquire_with_rls
 from src.ratelimit import LIMIT_ANNOTATION, limiter
@@ -206,6 +209,12 @@ async def agent_prompt(
                 handler = workspace_status_handler
             elif intent.intent_class == IntentClass.PROCESS_INFO:
                 handler = process_info_handler
+            elif intent.intent_class == IntentClass.DOCUMENT_CORPUS:
+                handler = (
+                    rag_corpus_stream_handler
+                    if get_settings().AGENT_RAG_ENABLED
+                    else rag_corpus_disabled_stream_handler
+                )
             else:
                 handler = static_refusal_handler
 

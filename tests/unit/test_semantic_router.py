@@ -25,14 +25,15 @@ def _run(coro):
 
 
 class TestIntentClassEnum:
-    def test_five_classes(self):
-        assert len(IntentClass) == 5
+    def test_six_classes(self):
+        assert len(IntentClass) == 6
 
     def test_values(self):
         expected = {
             "market_query",
             "workspace_status",
             "process_info",
+            "document_corpus",
             "recommendation",
             "out_of_scope",
         }

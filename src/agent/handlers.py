@@ -1,9 +1,10 @@
 """Agent Handlers — Canon V5.1.0 Section 7.5.
 
-4 handlers couvrant les IntentClass :
+Handlers par IntentClass :
 - MARKET_QUERY  -> mql_stream_handler (exécute MQL puis LLM en SSE)
 - WORKSPACE_STATUS -> workspace_status_handler
 - PROCESS_INFO  -> process_info_handler
+- DOCUMENT_CORPUS -> rag_corpus_stream_handler (si ``AGENT_RAG_ENABLED``)
 - OUT_OF_SCOPE  -> static_refusal_handler
 - RECOMMENDATION -> bloqué par guardrail (jamais atteint ici)
 """
@@ -17,6 +18,7 @@ from uuid import UUID
 from src.agent.circuit_breaker import get_model_with_breaker
 from src.agent.context_store import MQLContext
 from src.agent.llm_client import stream_mistral
+from src.memory.rag_service import find_similar_hybrid_async
 from src.mql.engine import execute_mql_query
 
 
@@ -233,6 +235,85 @@ async def process_info_handler(
     yield {"type": "done", "usage": {"model": model}}
 
 
+async def rag_corpus_disabled_stream_handler(
+    query: str,
+    workspace_id: UUID | None,
+    user: dict[str, Any],
+    db: Any,
+    context: MQLContext,
+    trace: Any,
+) -> AsyncGenerator[dict[str, Any], None]:
+    """RAG désactivé (``AGENT_RAG_ENABLED=false``) — message explicite."""
+    _ = (query, workspace_id, user, db, context, trace)
+    yield {
+        "type": "token",
+        "content": (
+            "La recherche sur le corpus documentaire annoté (RAG) est désactivée sur "
+            "cette instance. Demandez l'activation de la variable AGENT_RAG_ENABLED."
+        ),
+    }
+    yield {"type": "done", "usage": {}}
+
+
+async def rag_corpus_stream_handler(
+    query: str,
+    workspace_id: UUID | None,
+    user: dict[str, Any],
+    db: Any,
+    context: MQLContext,
+    trace: Any,
+) -> AsyncGenerator[dict[str, Any], None]:
+    """Handler DOCUMENT_CORPUS — retrieval dms_embeddings + LLM (BGE-M3 / stub pour query)."""
+    _ = workspace_id, user
+    rag_span = trace.span(name="rag_retrieval", input={"query_chars": len(query)})
+    passages = await find_similar_hybrid_async(db, query, limit=8)
+    rag_span.end(output={"passages": len(passages)})
+
+    yield {"type": "tool_call", "tool": "rag_corpus_search", "status": "complete"}
+    yield {
+        "type": "sources",
+        "sources": [
+            {
+                "name": f"corpus_chunk_{i + 1}",
+                "source_type": "dms_embeddings",
+                "is_official": False,
+            }
+            for i, _ in enumerate(passages[:8])
+        ],
+        "has_official_source": False,
+    }
+
+    if not passages:
+        yield {
+            "type": "token",
+            "content": (
+                "Aucun extrait indexé ne correspond à cette question dans le corpus "
+                "pour votre organisation."
+            ),
+        }
+        yield {"type": "done", "usage": {}}
+        return
+
+    model = await get_model_with_breaker()
+    llm_span = trace.span(name="llm_rag_corpus", input={"model": model})
+    block = "\n\n".join(
+        f"[{i + 1}] {p['text'][:2500]}" for i, p in enumerate(passages[:6])
+    )
+    system = (
+        "Tu es l'assistant DMS. Réponds en français à partir des extraits du corpus annoté.\n"
+        "RÈGLES : ne recommande aucun fournisseur ; ne désigne aucun gagnant ; "
+        "ne tranche pas entre offres. Cite les passages par [n].\n\n"
+        f"EXTRAITS :\n{block}"
+    )
+    messages = context.build_messages(system, query)
+
+    async for token in stream_mistral(model, messages, llm_span):
+        yield {"type": "token", "content": token}
+
+    llm_span.end()
+    yield {"type": "done", "usage": {"model": model}}
+
+
 async def static_refusal_handler(
     query: str,
     workspace_id: UUID | None,
@@ -252,6 +333,7 @@ async def static_refusal_handler(
             "• Les prix de marché (ciment, fournitures, carburant...)\n"
             "• L'état de vos workspaces en cours\n"
             "• Les procédures réglementaires (DGMP, ECHO, SCI)\n"
+            "• Le corpus documentaire annoté (si RAG activé par l'administrateur)\n"
         ),
     }
     trace.update(tags=["out_of_scope"])
