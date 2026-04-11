@@ -14,7 +14,7 @@ from typing import Any
 import psycopg.errors
 from psycopg.types.json import Json
 
-from src.db.core import get_connection
+from src.db.core import db_fetchall, get_connection
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +130,81 @@ def _build_assessment_matrix_from_report(
     return matrix
 
 
+def _apply_scores_matrix_dao_fallback(
+    workspace_id: str,
+    matrix: dict[str, dict[str, Any]],
+    payload: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    """Complète ``scores_matrix`` quand M14 n'a émis aucune cellule critère.
+
+    Sans grille bundle×critère, ``populate_assessments_from_m14`` ne peut pas
+    INSERT (cas fréquent : pipeline V5 + M12 bootstrap sans ``scoring_structure``).
+
+    On ajoute uniquement les couples manquants : clés = ``dao_criteria.id`` (texte
+    UUID), comme attendu par ``m14_bridge.populate_assessments_from_m14`` /
+    ``resolve_criterion_id_sync`` — pas les libellés ``critere_nom``.
+    """
+    offer_evals = payload.get("offer_evaluations") or []
+    bundle_ids: list[str] = []
+    for offer in offer_evals:
+        if not isinstance(offer, dict):
+            continue
+        bid = str(offer.get("offer_document_id") or "").strip()
+        if bid:
+            bundle_ids.append(bid)
+    bundle_ids = list(dict.fromkeys(bundle_ids))
+    if not bundle_ids:
+        return matrix
+
+    with get_connection() as conn:
+        rows = db_fetchall(
+            conn,
+            """
+            SELECT id::text AS id, critere_nom
+            FROM dao_criteria
+            WHERE workspace_id = CAST(:wid AS uuid)
+            ORDER BY ordre_affichage NULLS LAST, critere_nom NULLS LAST, id
+            """,
+            {"wid": workspace_id},
+        )
+    criterion_ids = [str(r["id"]).strip() for r in rows if r.get("id")]
+    if not criterion_ids:
+        return matrix
+
+    out: dict[str, dict[str, Any]] = {k: dict(v) for k, v in matrix.items()}
+    id_to_label = {
+        str(r["id"]).strip(): str(r.get("critere_nom") or "").strip()
+        for r in rows
+        if r.get("id")
+    }
+
+    for bid in bundle_ids:
+        existing = out.get(bid)
+        if not isinstance(existing, dict):
+            existing = {}
+        merged = dict(existing)
+        for dao_id in criterion_ids:
+            if dao_id not in merged:
+                label = id_to_label.get(dao_id, "")
+                justification = (
+                    "M14 shell — scoring_structure absent ou vide ; "
+                    "cellule bootstrap pour le bridge DAO (pipeline V5)."
+                )
+                if label:
+                    justification = f"{justification} (critère: {label})"
+                merged[dao_id] = {
+                    "score": 0.6,
+                    "max_score": 1.0,
+                    "justification": justification,
+                    "confidence": 0.6,
+                    "source": "m14",
+                }
+        if merged:
+            out[bid] = merged
+
+    return out
+
+
 class M14EvaluationRepository:
     """CRUD sur evaluation_documents (migration 056)."""
 
@@ -216,6 +291,9 @@ class M14EvaluationRepository:
 
         # FIX M16 BRIDGE: Transformer payload en assessment_matrix exploitable
         assessment_matrix = _build_assessment_matrix_from_report(payload)
+        assessment_matrix = _apply_scores_matrix_dao_fallback(
+            workspace_id, assessment_matrix, payload
+        )
 
         for attempt in range(_MAX_INSERT_RETRIES):
             try:

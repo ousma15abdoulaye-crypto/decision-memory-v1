@@ -7,6 +7,7 @@ Connexion synchrone ``get_connection`` (RLS tenant). Pas de nouveau moteur d’e
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import logging
 import time
 from datetime import UTC, datetime
@@ -49,6 +50,25 @@ from src.procurement.procedure_models import (
 from src.services.m14_bridge import populate_assessments_from_m14
 
 logger = logging.getLogger(__name__)
+
+
+def _run_coro_blocking(coro):
+    """Exécute une coroutine depuis du code sync.
+
+    Si une boucle asyncio tourne déjà (ex. ``pytest-asyncio``), ``asyncio.run``
+    lève *cannot be called from a running event loop* — on isole alors un
+    thread avec sa propre boucle.
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+
+    def _in_thread():
+        return asyncio.run(coro)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(_in_thread).result()
 
 
 class PipelineV5Result(BaseModel):
@@ -263,7 +283,7 @@ def extract_offers_from_bundles(workspace_id: str, case_id: str) -> int:
         )
 
         try:
-            result = asyncio.run(
+            result = _run_coro_blocking(
                 extract_offer_content_async(
                     document_id=bundle_id,
                     text=text,
