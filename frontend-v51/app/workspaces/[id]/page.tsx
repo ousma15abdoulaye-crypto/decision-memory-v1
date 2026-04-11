@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useParams } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import { useCognitiveState } from "@/lib/hooks/use-cognitive-state";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
@@ -37,8 +37,10 @@ const PROCESS_TYPE_LABEL: Record<string, string> = {
   gre_a_gre: "Gré à gré",
 };
 
-export default function WorkspacePage() {
+function WorkspacePageContent() {
   const { id } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const agentFromUrl = searchParams.get("agent");
   const { data: cog, isLoading: cogLoading } = useCognitiveState(id);
   const [showComment, setShowComment] = useState(false);
 
@@ -90,7 +92,10 @@ export default function WorkspacePage() {
               L&apos;assistant DMS reste disponible ci-dessous (contexte dossier via
               l&apos;URL). Les réponses dépendent des permissions API sur ce workspace.
             </p>
-            <AgentConsole workspaceId={id} />
+            <AgentConsole
+              workspaceId={id}
+              initialPrompt={agentFromUrl ?? undefined}
+            />
           </ErrorBoundary>
         ) : null}
       </div>
@@ -248,7 +253,10 @@ export default function WorkspacePage() {
 
         {/* ── Agent console ─────────────────────────────────────── */}
         <ErrorBoundary>
-          <AgentConsole workspaceId={id} />
+          <AgentConsole
+            workspaceId={id}
+            initialPrompt={agentFromUrl ?? undefined}
+          />
         </ErrorBoundary>
 
         {/* ── Comment dialog ────────────────────────────────────── */}
@@ -260,5 +268,22 @@ export default function WorkspacePage() {
         )}
       </div>
     </ErrorBoundary>
+  );
+}
+
+export default function WorkspacePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-64 items-center justify-center">
+          <div
+            className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--brand)] border-t-transparent"
+            aria-label="Chargement"
+          />
+        </div>
+      }
+    >
+      <WorkspacePageContent />
+    </Suspense>
   );
 }

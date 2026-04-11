@@ -1,7 +1,7 @@
 """077 - Fix bridge trigger functions after 074 dropped case_id from score_history/elimination_log
 
 Revision ID: 077_fix_bridge_triggers_workspace_id
-Revises: 076_evaluation_documents_workspace_unique
+Revises: 076_fix_offer_extractions_fk_to_bundles
 Create Date: 2026-04-04
 
 Migration 074 dropped case_id CASCADE from score_history and elimination_log.
@@ -21,7 +21,7 @@ from __future__ import annotations
 from alembic import op
 
 revision = "077_fix_bridge_triggers_workspace_id"
-down_revision = "076_evaluation_documents_workspace_unique"
+down_revision = "076_fix_offer_extractions_fk_to_bundles"
 branch_labels = None
 depends_on = None
 

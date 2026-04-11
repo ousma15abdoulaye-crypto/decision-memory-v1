@@ -135,6 +135,8 @@ VALID_ALEMBIC_HEADS = (
     "093_v51_assessment_history",
     # DMS V5.2 — market delta price_line_bundle_values (PR V52)
     "v52_p2_001_price_line_market_delta",
+    # No-op après v52_p2 (graphe Alembic linearisé — même id conservé pour déploiements)
+    "6ce2036bd346",
 )
 
 

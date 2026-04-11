@@ -1,9 +1,12 @@
 "use client";
 
+import { Suspense, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api-client";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { CreateWorkspaceDialog } from "@/components/workspace/create-workspace-dialog";
+import { AgentConsole } from "@/components/agent/agent-console";
 
 interface DashboardWorkspace {
   id: string;
@@ -135,8 +138,11 @@ function PhaseStats({ stats }: { stats: Record<string, number> }) {
   );
 }
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const agentFromUrl = searchParams.get("agent");
+  const [createOpen, setCreateOpen] = useState(false);
   const { data, isLoading, error } = useQuery({
     queryKey: ["dashboard"],
     queryFn: () => api.get<DashboardResponse>("/api/dashboard"),
@@ -173,7 +179,7 @@ export default function DashboardPage() {
     <ErrorBoundary>
       <div className="space-y-8 p-6">
         {/* Header */}
-        <div className="flex items-end justify-between gap-4">
+        <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-[var(--foreground)]">Tableau de bord</h1>
             <p className="mt-1 text-sm text-[var(--foreground-muted)]">
@@ -187,6 +193,13 @@ export default function DashboardPage() {
               )}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[var(--brand-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]"
+          >
+            Nouveau processus
+          </button>
         </div>
 
         {/* Phase stats */}
@@ -205,9 +218,18 @@ export default function DashboardPage() {
             Processus ({workspaces.length})
           </h2>
           {workspaces.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-[var(--border)] p-8 text-center text-sm text-[var(--foreground-muted)]">
-              Aucun processus accessible.
-            </p>
+            <div className="rounded-xl border border-dashed border-[var(--border)] p-8 text-center">
+              <p className="text-sm text-[var(--foreground-muted)]">
+                Aucun processus accessible.
+              </p>
+              <button
+                type="button"
+                onClick={() => setCreateOpen(true)}
+                className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground)] hover:border-[var(--brand)] hover:text-[var(--brand)]"
+              >
+                Créer un premier processus
+              </button>
+            </div>
           ) : (
             <div className="space-y-3">
               {workspaces.map((ws) => (
@@ -220,7 +242,33 @@ export default function DashboardPage() {
             </div>
           )}
         </section>
+
+        <section aria-label="Assistant DMS" className="pt-4">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--foreground-muted)]">
+            Assistant DMS
+          </h2>
+          <AgentConsole initialPrompt={agentFromUrl ?? undefined} />
+        </section>
+
+        <CreateWorkspaceDialog open={createOpen} onOpenChange={setCreateOpen} />
       </div>
     </ErrorBoundary>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-64 items-center justify-center p-6">
+          <div
+            className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--brand)] border-t-transparent"
+            aria-label="Chargement"
+          />
+        </div>
+      }
+    >
+      <DashboardPageContent />
+    </Suspense>
   );
 }

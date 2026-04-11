@@ -206,10 +206,18 @@ MIGRATION_SKIP_FROM = "043"
 
 
 def _alembic_numeric_prefix(ver: str | None) -> int | None:
-    """Numéro de tête style 042_ / 043_ ; None si head non numérique (ex. v52_…)."""
+    """Numéro de tête style 042_ / 043_ ; None si head non numérique.
+
+    Les révisions Alembic « merge » en hexadécimal 12 caractères (ex. 6ce2036bd346)
+    ne doivent pas être lues comme préfixe numérique (sinon « 6 » < 043 et les skips M8
+    ne s’appliquent pas).
+    """
     if not ver:
         return None
-    m = re.match(r"^(\d+)", str(ver))
+    s = str(ver)
+    if re.fullmatch(r"(?i)[0-9a-f]{12}", s):
+        return None
+    m = re.match(r"^(\d+)", s)
     return int(m.group(1)) if m else None
 
 

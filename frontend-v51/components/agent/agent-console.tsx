@@ -86,7 +86,15 @@ function MessageBubble({ msg }: { msg: Message }) {
   );
 }
 
-export function AgentConsole({ workspaceId }: { workspaceId: string }) {
+export function AgentConsole({
+  workspaceId,
+  initialPrompt,
+}: {
+  /** Si absent, l’agent répond sans contexte dossier (questions générales / marchés). */
+  workspaceId?: string;
+  /** Déclenche un premier envoi une fois (ex. lien `?agent=` depuis la palette). */
+  initialPrompt?: string | null;
+}) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -94,6 +102,7 @@ export function AgentConsole({ workspaceId }: { workspaceId: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
+  const consumedInitialRef = useRef<string | null>(null);
 
   useEffect(() => {
     return () => { streamAbortRef.current?.abort(); };
@@ -114,11 +123,12 @@ export function AgentConsole({ workspaceId }: { workspaceId: string }) {
       setStreaming(true);
 
       try {
-        const res = await api.rawPost(
-          "/api/agent/prompt",
-          { query, workspace_id: workspaceId },
-          { signal: ac.signal },
-        );
+        const body: Record<string, unknown> = { query };
+        if (workspaceId) body.workspace_id = workspaceId;
+
+        const res = await api.rawPost("/api/agent/prompt", body, {
+          signal: ac.signal,
+        });
 
         if (res.status === 422) {
           const body = await res.json() as { detail?: { message?: string }; message?: string };
@@ -213,6 +223,14 @@ export function AgentConsole({ workspaceId }: { workspaceId: string }) {
     [workspaceId],
   );
 
+  useEffect(() => {
+    const q = initialPrompt?.trim();
+    if (!q) return;
+    if (consumedInitialRef.current === q) return;
+    consumedInitialRef.current = q;
+    void sendPrompt(q);
+  }, [initialPrompt, sendPrompt]);
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const q = input.trim();
@@ -229,7 +247,14 @@ export function AgentConsole({ workspaceId }: { workspaceId: string }) {
       <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
         <div className="flex items-center gap-2">
           <div className="h-2 w-2 rounded-full bg-green-500" aria-hidden="true" />
-          <h3 className="text-sm font-semibold text-[var(--foreground)]">Assistant DMS</h3>
+          <h3 className="text-sm font-semibold text-[var(--foreground)]">
+            Assistant DMS
+            {!workspaceId && (
+              <span className="ml-2 font-normal text-[var(--foreground-muted)]">
+                (sans dossier)
+              </span>
+            )}
+          </h3>
         </div>
         {messages.length > 0 && (
           <button
@@ -246,7 +271,9 @@ export function AgentConsole({ workspaceId }: { workspaceId: string }) {
         {isEmpty ? (
           <div className="flex h-full flex-col items-center justify-center gap-4">
             <p className="text-sm text-[var(--foreground-muted)]">
-              Posez une question sur les marchés ou ce dossier.
+              {workspaceId
+                ? "Posez une question sur les marchés ou ce dossier."
+                : "Posez une question générale (marchés, règles). Ouvrez un processus pour le contexte dossier."}
             </p>
             <div className="flex flex-wrap justify-center gap-2">
               {SUGGESTED_QUERIES.map((q) => (
