@@ -15,6 +15,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+from src.core.config import get_settings
 from src.couche_a.extraction.criterion import _OFFER_TYPE_TO_ROLE
 from src.couche_a.extraction.offer_pipeline import extract_offer_content_async
 from src.couche_a.extraction.persistence import persist_tdr_result_to_db
@@ -58,17 +59,26 @@ def _run_coro_blocking(coro):
     Si une boucle asyncio tourne déjà (ex. ``pytest-asyncio``), ``asyncio.run``
     lève *cannot be called from a running event loop* — on isole alors un
     thread avec sa propre boucle.
+
+    Budget temps : ``ANNOTATION_TIMEOUT`` + 30 s (aligné extraction HTTP + marge).
     """
+    timeout_sec = float(get_settings().ANNOTATION_TIMEOUT) + 30.0
+
+    async def _with_timeout():
+        return await asyncio.wait_for(coro, timeout=timeout_sec)
+
     try:
         asyncio.get_running_loop()
     except RuntimeError:
-        return asyncio.run(coro)
+        return asyncio.run(_with_timeout())
 
     def _in_thread():
-        return asyncio.run(coro)
+        return asyncio.run(_with_timeout())
 
+    # Même plafond côté thread + petite marge pour teardown de la boucle.
+    thread_cap = timeout_sec + 5.0
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-        return pool.submit(_in_thread).result()
+        return pool.submit(_in_thread).result(timeout=thread_cap)
 
 
 class PipelineV5Result(BaseModel):
@@ -499,11 +509,19 @@ def run_pipeline_v5(
         repo_m14 = M14EvaluationRepository()
         engine_m14 = EvaluationEngine(repository=repo_m14)
         try:
-            report = engine_m14.evaluate(inp)
-            saved = repo_m14.save_evaluation(
-                case_id=case_id, payload=report.model_dump(mode="json")
-            )
-            out.step_4_m14_eval_doc_id = saved
+            engine_m14.evaluate(inp)
+            with get_connection() as conn:
+                row = db_execute_one(
+                    conn,
+                    """
+                    SELECT id::text AS id FROM evaluation_documents
+                    WHERE workspace_id = CAST(:wid AS uuid)
+                    ORDER BY version DESC, created_at DESC
+                    LIMIT 1
+                    """,
+                    {"wid": workspace_id},
+                )
+            out.step_4_m14_eval_doc_id = row["id"] if row else None
         except Exception as exc:
             out.error = f"m14_failed:{exc}"[:500]
             out.stopped_at = "step_m14"
