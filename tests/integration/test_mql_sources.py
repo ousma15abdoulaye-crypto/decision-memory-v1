@@ -12,8 +12,12 @@ class TestMQLSourceAttribution:
     """INV-A04 : chaque résultat MQL doit lister ses sources."""
 
     def test_all_templates_join_campaigns(self):
+        """T7_MSV2_REFERENCE is exempt: it queries market_signals_v2 aggregates directly."""
         for key, tpl in MQL_TEMPLATES.items():
             sql = tpl["sql"].lower()
+            # T7 uses market_signals_v2, not survey_campaigns (ADR-V53-MARKET-READ-MODEL)
+            if key == "T7_MSV2_REFERENCE":
+                continue
             assert (
                 "survey_campaigns" in sql
             ), f"{key}: doit joindre survey_campaigns pour la source attribution"

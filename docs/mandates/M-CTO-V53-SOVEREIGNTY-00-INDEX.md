@@ -1,12 +1,12 @@
 # M-CTO-V53-SOVEREIGNTY — Index des mandats exécutables (unification sources de vérité)
 
-**Statut :** INDEX — à valider CTO avant exécution.  
-**Autorité :** `docs/freeze/DMS_V4.1.0_FREEZE.md` → `docs/freeze/CONTEXT_ANCHOR.md` → mandats CTO → `docs/freeze/DMS_V4.2.0_ADDENDUM.md` → `docs/freeze/DMS_CANON_V5.1.0_FREEZE.md` → registres V5.2 (`docs/audit/RUPTURES_V52.md`, `V52_RECONSTRUCTION_COMPLETE.md`).  
+**Statut :** INDEX — à valider CTO avant exécution.
+**Autorité :** `docs/freeze/DMS_V4.1.0_FREEZE.md` → `docs/freeze/CONTEXT_ANCHOR.md` → mandats CTO → `docs/freeze/DMS_V4.2.0_ADDENDUM.md` → `docs/freeze/DMS_CANON_V5.1.0_FREEZE.md` → registres V5.2 (`docs/audit/RUPTURES_V52.md`, `docs/audit/V52_RECONSTRUCTION_COMPLETE.md`).
 **Règle périmètre :** chaque mandat ne modifie **que** les fichiers listés dans sa section **ALLOWLIST**. Tout fichier non listé → **STOP** (RÈGLE-ANCHOR-08 / `dms-core`).
 
 ---
 
-## 1. Convention d’exécution (alignée dépôt)
+## 1. Convention d'exécution (alignée dépôt)
 
 | Élément | Valeur |
 |--------|--------|
@@ -19,13 +19,13 @@
 
 ---
 
-## 2. Ordre d’exécution (une seule ligne critique)
+## 2. Ordre d'exécution (une seule ligne critique)
 
 ```
 A → B → C → E → D → F → G → H → I → J
 ```
 
-**Justification courte :** E (historique M16 unique) avant D (PV enrichi) évite d’intégrer dans le snapshot des données encore doubles.
+**Justification courte :** E (historique M16 unique) avant D (PV enrichi) évite d'intégrer dans le snapshot des données encore doubles.
 
 ---
 

@@ -17,12 +17,12 @@ TENANT = UUID("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
 
 
 class TestMQLTemplates:
-    """Vérifie les 6 templates T1-T6 présents et bien formés."""
+    """Vérifie les templates MQL (T1–T6 enquêtes + T7 agrégat M9 ADR-V53)."""
 
     def test_six_templates_exist(self):
         from src.mql.templates import MQL_TEMPLATES
 
-        assert len(MQL_TEMPLATES) == 6
+        assert len(MQL_TEMPLATES) == 7
         expected = {
             "T1_PRICE_MEDIAN",
             "T2_PRICE_TREND",
@@ -30,6 +30,7 @@ class TestMQLTemplates:
             "T4_ZONE_COMPARISON",
             "T5_ANOMALY_DETECTION",
             "T6_CAMPAIGN_INVENTORY",
+            "T7_MSV2_REFERENCE",
         }
         assert set(MQL_TEMPLATES.keys()) == expected
 
@@ -110,7 +111,17 @@ class TestParamExtractor:
 
 
 class TestTemplateSelector:
-    """Tests template_selector.py — sélection déterministe T1-T6."""
+    """Tests template_selector.py — sélection déterministe T1–T7."""
+
+    def test_msv2_reference_aggregate_keywords(self):
+        from src.mql.template_selector import select_template
+        from src.mql.templates import MQLParams
+
+        p = MQLParams(tenant_id=TENANT)
+        r = asyncio.run(
+            select_template("référence marché agrégée M9 pour le ciment", p)
+        )
+        assert r == "T7_MSV2_REFERENCE"
 
     def test_campaign_inventory(self):
         from src.mql.template_selector import select_template

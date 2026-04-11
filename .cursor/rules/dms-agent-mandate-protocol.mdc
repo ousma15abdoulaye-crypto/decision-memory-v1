@@ -1,0 +1,79 @@
+---
+description: Protocole obligatoire agent — freeze, CONTEXT ANCHOR, branche, PR, merge (ordre CTO)
+alwaysApply: true
+---
+
+# DMS — Protocole mandat agent (obligatoire)
+
+**Portée** : toute session agent (Cursor cloud, CLI local, ou autre), **avant la première modification** de fichier et **à la clôture** du mandat.
+
+**Hiérarchie** : en cas de conflit, priment `CLAUDE.md`, `docs/freeze/CONTEXT_ANCHOR.md` (RÈGLE-ANCHOR-10), mandats CTO, puis cette règle.
+
+---
+
+## 1. Avant toute modification (pré-vol bloquant)
+
+L’agent **ne modifie aucun fichier** tant que les lectures ci-dessous ne sont pas faites (résumé court des points pertinents pour le mandat dans la réponse ou les notes de session).
+
+| Ordre | Document | Obligation |
+|------|----------|------------|
+| 1 | **`CLAUDE.md`** (racine) | Lecture intégrale |
+| 2 | **`docs/freeze/CONTEXT_ANCHOR.md`** | Lecture intégrale des **E-01 à E-67** + **bloc d’en-tête / addendums** (bannière + RÈGLE-ANCHOR-01 …). Pour cibler un sujet : `grep` dans ce fichier (Railway, RLS, workspace, Alembic, etc.) |
+| 3 | **`docs/freeze/MRD_CURRENT_STATE.md`** | Lecture (état MRD courant gelé) |
+| 4 | **`docs/freeze/DMS_V4.1.0_FREEZE.md`** | **Lecture seule** — **immuable** sans processus ADR / GO CTO ; jamais modifier pour « simplifier » |
+| 5 | Si mandat annotation / pipeline refonte | **`docs/freeze/PIPELINE_REFONTE_FREEZE.md`** (ne prime pas sur 1–3) |
+
+**Vérité local vs prod** : avant toute requête SQL ou validation sur des UUID « métier », consulter l’anchor et références (`docs/audit/DMS_LOCAL_VS_RAILWAY_TRUTH.md` si présent) : Postgres **Docker local** n’est en général **pas** une réplica Railway ; `RAILWAY_DATABASE_URL` vit dans **`.env.railway.local`** (hors dépôt).
+
+**Branche Git** : `git branch --show-current` — si **`main`** (ou branche non liée au mandat) → **`git checkout -b <type>/<slug-mandat>`** avant le premier commit. **Interdit** d’empiler le mandat sur une branche existante sans instruction CTO explicite.
+
+**État repo** : `git status` — signaler les fichiers hors périmètre / non suivis.
+
+---
+
+## 2. Pendant le mandat
+
+- **Périmètre fermé** : ne modifier que les chemins listés dans le mandat (sinon STOP + CTO), comme `dms-core.mdc`.
+- **Fichiers gelés** : `schema_validator.py`, `DMS_V4.1.0_FREEZE.md`, migrations existantes — **intouchables** sans mandat dédié (voir CLAUDE / anchor).
+
+---
+
+## 3. Fin de mandat (clôture)
+
+### 3.1 `CONTEXT_ANCHOR` — mise à jour
+
+- **RÈGLE-ANCHOR-01** : **ajouts uniquement** — pas de raccourcissement, pas de suppression de sections.
+- Si le mandat change la **vérité opposable** (merge, milestone, migration appliquée en prod documentée, décision d’architecture, incident E-xx) : **addendum obligatoire** dans `docs/freeze/CONTEXT_ANCHOR.md` (format déjà défini dans le document : date, faits, références PR/commit).
+- Si le mandat est **strictement lecture / pas de changement de vérité** : le **corps** de l’anchor peut rester inchangé ; l’agent **trace** dans la **description de PR** : `Anchor: aucun addendum (session lecture seule / hors périmètre vérité opposable).`
+
+### 3.2 Pull Request, revue Copilot, CI, merge (ordre CTO — actif)
+
+**Autorité** : ordre CTO (Abdoulaye Ousmane) — les **agents Cursor** ont **l’obligation** de boucler la PR jusqu’au merge lorsque le mandat le requiert, sous les garde-fous ci-dessous.
+
+1. **Pousser** la branche sur `origin`, ouvrir (ou mettre à jour) une **PR** (description : objectif, preuves, risques, anchor si besoin).
+2. **Surveiller la PR** : suivre les exécutions **CI** jusqu’à **vert** ; relire les **commentaires Copilot** et les **threads de revue** ; **corriger** tout retour pertinent dans la même branche ; **re-pousser** et **itérer** jusqu’à CI vert et revue traitée (pas d’abandon après le premier push).
+3. **Alembic — respect du head (bloquant avant merge)** :
+   - Exécuter **`alembic heads`** : **exactement une ligne** (**STOP-1** / `CLAUDE.md` si plusieurs heads — **ne pas merger** tant que non résolu).
+   - La PR ne doit **pas** modifier des révisions déjà fusionnées sous `alembic/versions/` ; toute nouvelle migration = **fichier séquentiel** conforme mandat Alembic / anchor.
+   - Si la PR ne touche pas aux migrations : vérifier quand même qu’elle n’introduit pas de désalignement (pas de suppression de migration, pas de conflit de révisions).
+4. **Merge** : une fois **CI vert**, **retours Copilot / revue** adressés, et **Alembic** conforme (point **3** + tableau **§3.3**), l’**agent merge** la PR vers **`main`** (squash ou merge commit selon convention équipe / GitHub du dépôt).  
+   - **Railway / prod** : le merge Git **ne remplace pas** un **GO CTO** pour `alembic upgrade` sur Railway ; documenter dans la PR ou l’addendum anchor si une apply prod est encore requise.
+
+### 3.3 Vérification migration (rappel express)
+
+| Contrôle | Attendu |
+|----------|---------|
+| `alembic heads` | **1** head |
+| Fichiers `alembic/versions/` dans la PR | Uniquement **ajouts** cohérents (pas de rewrite d’historique) |
+| Mandat sans migration | Aucun changement dangereux sous `alembic/` |
+
+---
+
+## 4. Rappel express (checklist)
+
+- [ ] CLAUDE.md lu  
+- [ ] CONTEXT_ANCHOR (E-01–E-67 + en-tête / règles anchor) lu ou grep ciblé  
+- [ ] MRD_CURRENT_STATE.md lu  
+- [ ] DMS_V4.1.0_FREEZE.md au moins parcouru si le mandat touche le domaine métier gelé  
+- [ ] Branche dédiée créée si on était sur `main`  
+- [ ] Fin : PR + **surveillance** CI + **Copilot / revue** corrigés ; `alembic heads` **OK** ; anchor addendum si vérité changée ; **merge par l’agent** une fois tout vert (ordre CTO)

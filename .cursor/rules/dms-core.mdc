@@ -7,10 +7,16 @@ alwaysApply: true
 # DMS Core Rules
 
 ## Avant tout mandat
-1. Lire CLAUDE.md intégralement
-2. Lire docs/freeze/CONTEXT_ANCHOR.md — E-01 à E-67
-3. Vérifier git branch — refuser main
-4. git status — signaler fichiers non committés
+**Protocole détaillé (obligatoire, cloud ou local)** : **`.cursor/rules/dms-agent-mandate-protocol.mdc`** — lecture freeze, MRD, anchor, branche dédiée, fin de mandat (PR surveillée, Copilot, CI vert, **head Alembic**, **merge par l’agent**).
+
+Résumé minimal :
+1. Lire **CLAUDE.md** intégralement
+2. Lire **docs/freeze/CONTEXT_ANCHOR.md** — **E-01 à E-67** + en-tête / RÈGLE-ANCHOR (grep ciblé si besoin)
+3. Lire **docs/freeze/MRD_CURRENT_STATE.md**
+4. **Ne pas modifier** **docs/freeze/DMS_V4.1.0_FREEZE.md** (lecture seule ; immuable sans GO CTO)
+5. **Branche** : si sur **main** → `git checkout -b …` avant travail ; **1 mandat = 1 branche**
+6. **git status** — signaler fichiers non committés / hors périmètre
+7. **Fin de mandat** : PR, **surveiller** CI jusqu’au vert, **Copilot / revue** → corrections ; **`alembic heads`** = **une seule** ligne avant merge (**STOP-1** si échec) ; **addendum CONTEXT_ANCHOR** si vérité opposable change (AJOUT seulement, RÈGLE-ANCHOR-01) ; **merge vers `main` par l’agent** une fois garde-fous OK (voir `dms-agent-mandate-protocol.mdc`, ordre CTO).
 
 ## Périmètre fermé
 Modifier uniquement les fichiers listés dans le mandat.
@@ -37,6 +43,7 @@ Avant **tout** `git commit` qui inclut au moins un `.py` sous **`src/`**, **`tes
 3. Commit **100 % hors** ces dossiers Python (ex. uniquement `docs/**`, `.cursor/rules`, `scripts/**` seul) : pas d’obligation ; dès qu’un `.py` sous `src/`, `tests/` ou `services/` est dans le commit, appliquer §1–2. Si le mandat modifie **`scripts/**/*.py`** : lancer aussi `ruff check` / `black --check` sur les fichiers concernés (même si hors périmètre CI par défaut).
 
 ## Git
-1 branche par mandat — jamais main.
+1 branche par mandat — jamais travailler directement sur `main` pour le développement du mandat.
 **Format des commits :** `docs/CONTRIBUTING.md` — convention **`<type>(<milestone>): <description>`** (ADR-0003 §3.2). Ne pas utiliser un autre format sans ADR / validation CTO.
-Merge = humain uniquement.
+
+**Merge** : l’**agent** merge la PR après **CI vert**, retours **Copilot / revue** traités, et **`alembic heads`** = **exactement une** ligne (pas de merge si plusieurs heads — `CLAUDE.md` STOP-1). Apply **Railway / prod** = runbook + GO CTO ; le merge Git ne dispense pas des règles anchor Railway.

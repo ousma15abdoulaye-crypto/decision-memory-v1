@@ -31,7 +31,7 @@ Si **`true`** : après vérification **404 workspace** + **alignement tenant**, 
 ## Limites (à connaître avant prod)
 
 - **`require_rbac_permission`** (ex. routes M16 avec `permission="evaluation.write"`) continue d’exiger une ligne **`user_tenant_roles`** + permission en base. Le fallback **ne** couvre **pas** ces chemins : pour des tests d’écriture M16 complets, il faut des rôles RBAC provisionnés ou désactiver temporairement ces routes.
-- **`guard()`** (agent avec `workspace_id`, uploads, etc.) : si fallback actif, passer **`role`** dans le dict `user` (voir `agent.py`) ; la permission métier est vérifiée sur la matrice V5.2 du rôle projeté.
+- **`guard()`** (agent avec `workspace_id`, uploads, etc.) : si fallback actif, passer **`role`** dans le dict `user` (voir `agent.py`) ; la permission métier est vérifiée sur la matrice V5.2 du rôle projeté. **M-CTO-V53-C** : les permissions listées dans `WRITE_PERMISSIONS` (`guard.py` — écriture / scellement / upload / marché write) **ne** sont **pas** accordées via JWT fallback : une ligne `workspace_memberships` (ou chemin RBAC DB équivalent) reste obligatoire.
 
 ## Code
 

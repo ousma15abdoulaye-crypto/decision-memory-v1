@@ -131,3 +131,4 @@ Pour le détail des chemins OpenAPI, voir [`ANNEX_A_openapi.json`](ANNEX_A_opena
 
 - Jalon J1 **partiel** vs canon MS Workspace : voir [`docs/audits/GAP_MATRIX_V431_J1_J17_AND_INVARIANTS.md`](../../audits/GAP_MATRIX_V431_J1_J17_AND_INVARIANTS.md).
 - Pas de route dédiée `GET /cognitive-state` isolée : l’état est renvoyé dans `GET /workspaces/{id}` et `PATCH .../status`.
+- **M-CTO-V53-I (ADR-V53-COGNITIVE-MATRIX-SCOPE)** : absence d’une matrice 17×6 exécutable sur toutes les routes — documentée comme dette consciente jusqu’à mandat d’implémentation.

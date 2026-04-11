@@ -316,12 +316,19 @@ def list_validated_notes_for_assessment(
 
 
 def count_assessment_history(conn: Any, assessment_id: str) -> int:
+    """Compte les lignes des deux journaux M16 (ADR-V53 / E18 — timeline unifiée)."""
     row = db_execute_one(
         conn,
         """
-        SELECT COUNT(*)::int AS n
-        FROM criterion_assessment_history
-        WHERE criterion_assessment_id = CAST(:aid AS uuid)
+        SELECT (
+            (SELECT COUNT(*)::bigint
+             FROM assessment_history
+             WHERE criterion_assessment_id = CAST(:aid AS uuid))
+            +
+            (SELECT COUNT(*)::bigint
+             FROM criterion_assessment_history
+             WHERE criterion_assessment_id = CAST(:aid AS uuid))
+        )::int AS n
         """,
         {"aid": assessment_id},
     )
@@ -331,15 +338,40 @@ def count_assessment_history(conn: Any, assessment_id: str) -> int:
 def list_assessment_history_paged(
     conn: Any, assessment_id: str, *, limit: int, offset: int
 ) -> list[dict[str, Any]]:
+    """Historique fusionné assessment_history + criterion_assessment_history (ADR-V53)."""
     return db_fetchall(
         conn,
         """
-        SELECT id, criterion_assessment_id::text AS criterion_assessment_id,
-               workspace_id::text AS workspace_id,
-               changed_at, actor_id, old_status, new_status, payload
-        FROM criterion_assessment_history
-        WHERE criterion_assessment_id = CAST(:aid AS uuid)
-        ORDER BY changed_at, id
+        SELECT id, criterion_assessment_id, workspace_id,
+               changed_at, actor_id, old_status, new_status, payload, history_source
+        FROM (
+            SELECT ah.id::text AS id,
+                   ah.criterion_assessment_id::text AS criterion_assessment_id,
+                   ah.workspace_id::text AS workspace_id,
+                   ah.created_at AS changed_at,
+                   ah.changed_by AS actor_id,
+                   NULL::text AS old_status,
+                   NULL::text AS new_status,
+                   ah.change_metadata AS payload,
+                   'assessment_history'::text AS history_source
+            FROM assessment_history ah
+            WHERE ah.criterion_assessment_id = CAST(:aid AS uuid)
+
+            UNION ALL
+
+            SELECT cah.id::text AS id,
+                   cah.criterion_assessment_id::text AS criterion_assessment_id,
+                   cah.workspace_id::text AS workspace_id,
+                   cah.changed_at,
+                   cah.actor_id,
+                   cah.old_status,
+                   cah.new_status,
+                   cah.payload,
+                   'criterion_assessment_history'::text AS history_source
+            FROM criterion_assessment_history cah
+            WHERE cah.criterion_assessment_id = CAST(:aid AS uuid)
+        ) merged
+        ORDER BY merged.changed_at ASC, merged.id ASC
         LIMIT :lim OFFSET :off
         """,
         {"aid": assessment_id, "lim": limit, "off": offset},

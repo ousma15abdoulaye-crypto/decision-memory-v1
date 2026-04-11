@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     LANGFUSE_PUBLIC_KEY: str = ""
     LANGFUSE_SECRET_KEY: str = ""
     LANGFUSE_HOST: str = "https://cloud.langfuse.com"
+    # Si true (hors TESTING) : clés Langfuse obligatoires — sinon échec au premier get_langfuse().
+    LANGFUSE_REQUIRED_FOR_LLM: bool = False
 
     # --- CORS ---
     CORS_ORIGINS: str = ""

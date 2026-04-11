@@ -8,7 +8,7 @@
 
 ## 1. Objectif
 
-Fermer **E18** (`V52_RECONSTRUCTION_COMPLETE.md`) : **une** timeline d’audit des changements de scores M16 côté API/PV, avec stratégie **additive** (pas de perte de données).
+Fermer **E18** (`docs/audit/V52_RECONSTRUCTION_COMPLETE.md`) : **une** timeline d'audit des changements de scores M16 côté API/PV, avec stratégie **additive** (pas de perte de données).
 
 **Décision architecturale** : à trancher dans un ADR créé dans ce mandat :
 
