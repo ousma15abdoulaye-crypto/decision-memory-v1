@@ -23,6 +23,48 @@ def _is_rls_denied(exc: BaseException) -> bool:
 class M13RegulatoryProfileRepository:
     """Insert / lecture du dernier profil réglementaire par case."""
 
+    def get_latest(self, case_id: str) -> dict[str, Any] | None:
+        """Dernière version (MAX(version)) pour ``case_id`` ; ``payload`` ou None."""
+        try:
+            with get_connection() as conn:
+                conn.execute(
+                    """
+                    SELECT payload
+                    FROM public.m13_regulatory_profile_versions
+                    WHERE case_id = :cid
+                    ORDER BY version DESC
+                    LIMIT 1
+                    """,
+                    {"cid": case_id},
+                )
+                row = conn.fetchone()
+                if not row or row.get("payload") is None:
+                    return None
+                p = row["payload"]
+                if isinstance(p, dict):
+                    return dict(p)
+                logger.warning(
+                    "m13_regulatory_profile get_latest returned non-dict payload for case_id=%s: %s",
+                    case_id,
+                    type(p).__name__,
+                )
+                return None
+        except Exception as exc:
+            if _is_rls_denied(exc):
+                logger.error(
+                    "m13_regulatory_profile get_latest RLS denied "
+                    "(check app.tenant_id / case_id=%s): %s",
+                    case_id,
+                    exc,
+                )
+            else:
+                logger.warning(
+                    "m13_regulatory_profile get_latest failed for case_id=%s: %s",
+                    case_id,
+                    exc,
+                )
+            return None
+
     def save_payload(
         self,
         *,

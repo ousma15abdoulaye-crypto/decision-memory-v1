@@ -31,7 +31,7 @@ def build_m13_regulatory_profile_persist_payload(
     case_id: str,
     document_id: str,
 ) -> dict[str, Any]:
-    """Construit le dict persisté : M13 complet + index consultable + hooks M13B vides."""
+    """Construit le dict persisté : M13 complet + index (seuils + hooks M13B vides sous ``profile_index``)."""
     regime = out.report.regime
     tier = regime.threshold_tier
     src = tier.source
@@ -53,6 +53,8 @@ def build_m13_regulatory_profile_persist_payload(
         }
     ]
 
+    hooks_json = hooks.model_dump(mode="json")
+
     return {
         "schema_version": _SCHEMA_VERSION,
         "case_id": case_id,
@@ -63,7 +65,7 @@ def build_m13_regulatory_profile_persist_payload(
             "framework_version": "regulatory_yaml_bundle_v1",
             "procedure_type": regime.procedure_type.value,
             "rules_applied": rules_applied,
+            "m13b": hooks_json,
         },
         "m13": out.model_dump(mode="json"),
-        "m13b": hooks.model_dump(mode="json"),
     }
