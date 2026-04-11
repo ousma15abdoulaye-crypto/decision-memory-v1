@@ -81,6 +81,29 @@ class TestGuardrailResult:
         assert result.blocked is True
         assert result.confidence >= 0.85
 
+    def test_price_query_not_blocked_even_if_embedding_says_recommendation(self):
+        """Heuristique prix avant embeddings — faux positif Mistral corrigé."""
+        from unittest.mock import patch
+
+        from src.agent.semantic_router import IntentResult
+
+        fake_result = IntentResult(
+            intent_class=IntentClass.RECOMMENDATION,
+            confidence=0.95,
+        )
+        reset_centroid_cache()
+        trace = _make_trace()
+        with patch(
+            "src.agent.guardrail.classify_intent",
+            return_value=fake_result,
+        ):
+            result = _run(
+                check_recommendation_guardrail(
+                    "Prix du ciment à Bamako ce mois ?", trace
+                )
+            )
+        assert result.blocked is False
+
     def test_recommendation_not_blocked_below_threshold(self):
         """INV-W06: sim < 0.85 on RECOMMENDATION should NOT block."""
         from unittest.mock import patch

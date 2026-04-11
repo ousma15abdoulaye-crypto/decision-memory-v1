@@ -7,7 +7,8 @@ Classification d'intent par similarité cosinus avec centroïdes pré-calculés.
 INV-A03 : routing sémantique, pas regex.
 Seuils : sim >= 0.75 pour classification, >= 0.85 pour RECOMMENDATION.
 Si le meilleur score est RECOMMENDATION mais MARKET_QUERY est proche (écart
-<= 0.02), on privilégie MARKET_QUERY pour les questions prix / marché référence.
+<= 0.08), on privilégie MARKET_QUERY. Le guardrail applique en outre un passage
+lexical prix avant les embeddings (voir ``market_query_lexicon``).
 """
 
 from __future__ import annotations
@@ -107,7 +108,9 @@ def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
 
-_MARKET_VS_REC_TIE_DELTA = 0.02
+# Avec mistral-embed, l'écart marché vs recommandation dépasse souvent 0.02 ;
+# garder un filet si l'embedding classe encore RECOMMENDATION en tête.
+_MARKET_VS_REC_TIE_DELTA = 0.08
 
 
 async def classify_intent(query: str) -> IntentResult:

@@ -3,8 +3,8 @@
 Client Mistral pour embeddings vectoriels (mistral-embed).
 Utilisé par le semantic router pour classifier les intents.
 
-Dégradation gracieuse : si MISTRAL_API_KEY absente ou numpy non installé,
-retourne un vecteur aléatoire normalisé (pour dev/test).
+Dégradation gracieuse : si MISTRAL_API_KEY absente ou SDK absent,
+retourne un embedding lexical déterministe (hashing trick) pour dev/CI.
 """
 
 from __future__ import annotations
