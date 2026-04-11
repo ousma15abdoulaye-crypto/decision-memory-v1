@@ -41,7 +41,14 @@ class M13RegulatoryProfileRepository:
                 if not row or row.get("payload") is None:
                     return None
                 p = row["payload"]
-                return dict(p) if isinstance(p, dict) else p
+                if isinstance(p, dict):
+                    return dict(p)
+                logger.warning(
+                    "m13_regulatory_profile get_latest returned non-dict payload for case_id=%s: %s",
+                    case_id,
+                    type(p).__name__,
+                )
+                return None
         except Exception as exc:
             logger.warning("m13_regulatory_profile get_latest failed: %s", exc)
             return None
