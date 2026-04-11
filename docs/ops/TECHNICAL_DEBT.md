@@ -8,4 +8,4 @@ Liste courte des écarts volontaires par rapport au canon documenté, avec crit�
 
 **Non régressé par cette dette :** filtrage de sortie (`src/agent/output_filter.py`), interdiction winner/rank dans les payloads API / PV / M16, contraintes DB — invariant INV-W06 hors ce garde-fou pré-LLM.
 
-**Références :** `src/agent/guardrail.py`, `src/core/config.py`, `docs/ops/INV_W06_ASSISTANT_BLOCKED_INVESTIGATION.md`.
+**Références :** `src/agent/guardrail.py`, `src/core/config.py`, `docs/ops/INV_W06_ASSISTANT_BLOCKED_INVESTIGATION.md`, synthèse chaîne complète des blocages : `docs/ops/AGENT_BLOCKING_INVESTIGATION.md`.
