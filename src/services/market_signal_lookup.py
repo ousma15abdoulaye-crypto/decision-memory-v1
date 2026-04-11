@@ -54,7 +54,10 @@ def lookup_market_price_seasonal_adj(
           AND signal_quality IN ('strong', 'moderate', 'propagated')
           AND (
               item_id = :slug
-              OR (set_limit(:threshold) IS NOT NULL AND similarity(item_id, :slug) > :threshold)
+              OR (
+                  set_limit(CAST(:threshold AS REAL)) IS NOT NULL
+                  AND similarity(item_id, :slug) > CAST(:threshold AS REAL)
+              )
           )
         ORDER BY
             CASE WHEN item_id = :slug THEN 0 ELSE 1 END,

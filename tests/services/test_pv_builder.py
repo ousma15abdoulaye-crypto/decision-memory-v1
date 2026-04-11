@@ -208,6 +208,22 @@ def _pv_fetchall_common(_conn, sql: str, _params):
         return [{"bundle_id": "bundle-1", "mn": 0.8}]
     if "FROM source_package_documents" in sql:
         return []
+    if "FROM score_history" in sql:
+        return [
+            {
+                "offer_document_id": "doc-1",
+                "criterion_key": "k1",
+                "score_value": 8.0,
+                "max_score": 10.0,
+                "confidence": 0.8,
+                "scored_by": "system:m14",
+                "created_at": None,
+            }
+        ]
+    if "FROM decision_snapshots" in sql:
+        return []
+    if "FROM m13_regulatory_profile_versions" in sql:
+        return []
     return None
 
 
@@ -255,6 +271,33 @@ def test_pv_builder_msv2_primary_source_type_and_mapping(monkeypatch) -> None:
     assert m["data_points"]["item_id"] == "ITEM-1"
     assert m["data_points"]["zone_id"] == "MLI-MOPTI"
     assert m["surfaced_at"] == ts.isoformat()
+
+
+def test_pv_builder_m14_proof_includes_stubbed_score_history(monkeypatch) -> None:
+    """M-V52 chaîne PV : bloc m14_proof reçoit les lignes score_history (stub DB)."""
+
+    def fake_all(_conn, sql: str, _params):
+        out = _pv_fetchall_common(_conn, sql, _params)
+        if out is not None:
+            return out
+        if "FROM market_signals_v2" in sql:
+            return []
+        if "FROM vendor_market_signals" in sql:
+            return []
+        return []
+
+    monkeypatch.setattr(pv_builder, "db_execute_one", _base_fake_one())
+    monkeypatch.setattr(pv_builder, "db_fetchall", fake_all)
+
+    snapshot, _ = pv_builder.build_pv_snapshot(
+        conn=object(),
+        workspace_id="ws-1",
+        session_id="sid-1",
+        user_id=10,
+        seal_comment="ok",
+    )
+    assert len(snapshot["m14_proof"]["score_history"]) == 1
+    assert snapshot["m14_proof"]["score_history"][0]["criterion_key"] == "k1"
 
 
 def test_pv_builder_vendor_market_signals_sets_source_type_vms(monkeypatch) -> None:
