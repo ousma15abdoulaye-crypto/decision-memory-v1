@@ -60,7 +60,7 @@ def _fetch_m14_m13_proof_block(
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Données d'audit M14 / M13 pour le PV scellé (ADR-V53 complément).
 
-    Requêtes best-effort : colonne ou table absente → listes vides / None.
+    Requêtes tolérantes aux absences de schéma : colonne ou table absente → listes vides / None.
     """
     score_rows: list[dict[str, Any]] = []
     try:
