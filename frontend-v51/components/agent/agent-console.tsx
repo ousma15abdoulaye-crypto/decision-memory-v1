@@ -18,6 +18,57 @@ interface Message {
   sources?: SSEEvent["sources"];
 }
 
+/** POST /api/agent/prompt : 422 guardrail (detail objet) ou validation Pydantic (detail tableau). */
+function parseAgentPrompt422Body(raw: unknown): {
+  isInvW06: boolean;
+  message: string;
+} {
+  if (!raw || typeof raw !== "object") {
+    return {
+      isInvW06: false,
+      message:
+        "Réponse 422 inattendue du serveur. Vérifiez la console réseau ou contactez l’administrateur.",
+    };
+  }
+  const b = raw as Record<string, unknown>;
+  const d = b.detail;
+
+  if (d && typeof d === "object" && !Array.isArray(d)) {
+    const obj = d as Record<string, unknown>;
+    if (obj.error === "guardrail_inv_w06" && typeof obj.message === "string") {
+      return { isInvW06: true, message: obj.message };
+    }
+    if (typeof obj.message === "string") {
+      return { isInvW06: false, message: obj.message };
+    }
+  }
+
+  if (Array.isArray(d)) {
+    const parts = d
+      .filter((e): e is Record<string, unknown> => e != null && typeof e === "object")
+      .map((e) => (typeof e.msg === "string" ? e.msg : null))
+      .filter((m): m is string => m != null);
+    const msg =
+      parts.length > 0
+        ? parts.join(" ")
+        : "Requête invalide (champs manquants ou format incorrect).";
+    return { isInvW06: false, message: msg };
+  }
+
+  if (typeof d === "string") {
+    return { isInvW06: false, message: d };
+  }
+  if (typeof b.message === "string") {
+    return { isInvW06: false, message: b.message };
+  }
+
+  return {
+    isInvW06: false,
+    message:
+      "Erreur 422 sans détail lisible. Ouvrez l’onglet Réseau du navigateur pour le corps de la réponse.",
+  };
+}
+
 const SUGGESTED_QUERIES = [
   "Prix du ciment à Bamako ce mois ?",
   "Quelles sont les règles ECHO pour ce marché ?",
@@ -98,7 +149,10 @@ export function AgentConsole({
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
-  const [guardrailBlock, setGuardrailBlock] = useState<string | null>(null);
+  const [promptBlock, setPromptBlock] = useState<{
+    isInvW06: boolean;
+    message: string;
+  } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
@@ -118,7 +172,7 @@ export function AgentConsole({
       const ac = new AbortController();
       streamAbortRef.current = ac;
 
-      setGuardrailBlock(null);
+      setPromptBlock(null);
       setMessages((prev) => [...prev, { role: "user", content: query }]);
       setStreaming(true);
 
@@ -131,10 +185,13 @@ export function AgentConsole({
         });
 
         if (res.status === 422) {
-          const body = await res.json() as { detail?: { message?: string }; message?: string };
-          setGuardrailBlock(
-            body.detail?.message ?? body.message ?? "Requête bloquée par le guardrail INV-W06.",
-          );
+          let raw: unknown;
+          try {
+            raw = await res.json();
+          } catch {
+            raw = null;
+          }
+          setPromptBlock(parseAgentPrompt422Body(raw));
           setStreaming(false);
           return;
         }
@@ -239,7 +296,7 @@ export function AgentConsole({
     sendPrompt(q);
   }
 
-  const isEmpty = messages.length === 0 && !guardrailBlock;
+  const isEmpty = messages.length === 0 && !promptBlock;
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
@@ -258,7 +315,7 @@ export function AgentConsole({
         </div>
         {messages.length > 0 && (
           <button
-            onClick={() => { setMessages([]); setGuardrailBlock(null); }}
+            onClick={() => { setMessages([]); setPromptBlock(null); }}
             className="text-xs text-[var(--foreground-subtle)] hover:text-[var(--foreground-muted)]"
           >
             Effacer
@@ -302,12 +359,17 @@ export function AgentConsole({
                 Génération…
               </div>
             )}
-            {guardrailBlock && (
+            {promptBlock && (
               <div
                 role="alert"
                 className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
               >
-                <span className="font-semibold">Guardrail INV-W06 —</span> {guardrailBlock}
+                {promptBlock.isInvW06 ? (
+                  <span className="font-semibold">Guardrail INV-W06 — </span>
+                ) : (
+                  <span className="font-semibold">Requête non traitée (422) — </span>
+                )}
+                {promptBlock.message}
               </div>
             )}
           </div>
