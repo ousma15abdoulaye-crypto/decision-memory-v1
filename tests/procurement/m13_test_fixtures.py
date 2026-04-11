@@ -28,6 +28,19 @@ def _tf(value: object, confidence: float = 0.9) -> TracedField:
     return TracedField(value=value, confidence=confidence, evidence=[])
 
 
+def minimal_procedure_recognition_dgmp_goods(
+    *,
+    estimated_value: float = 20_000_000.0,
+    currency: str = "XOF",
+) -> ProcedureRecognition:
+    base = minimal_procedure_recognition_sci_goods(
+        estimated_value=estimated_value, currency=currency
+    )
+    return base.model_copy(
+        update={"framework_detected": _tf(ProcurementFramework.DGMP_MALI)}
+    )
+
+
 def minimal_procedure_recognition_sci_goods(
     *, estimated_value: float | None = 100_000.0, currency: str = "USD"
 ) -> ProcedureRecognition:
@@ -66,6 +79,8 @@ def minimal_m12_output_with_h1(
     estimated_value: float | None = 100_000.0,
 ) -> M12Output:
     rec = minimal_procedure_recognition_sci_goods(estimated_value=estimated_value)
+    if framework != ProcurementFramework.SCI:
+        rec = rec.model_copy(update={"framework_detected": _tf(framework)})
     validity = DocumentValidity(
         document_validity_status=_tf("valid"),
     )
@@ -95,6 +110,53 @@ def minimal_m12_output_with_h1(
     )
     handoffs = M12Handoffs(regulatory_profile_skeleton=skeleton)
 
+    meta = M12Meta(
+        mode="bootstrap",
+        confidence_ceiling=1.0,
+        corpus_size_at_processing=0,
+        processing_timestamp=datetime.now(UTC).isoformat(),
+        pass_sequence=["1a", "1b", "1c", "1d"],
+    )
+    return M12Output(
+        procedure_recognition=rec,
+        document_validity=validity,
+        document_conformity_signal=conformity,
+        process_linking=linking,
+        handoffs=handoffs,
+        m12_meta=meta,
+    )
+
+
+def minimal_m12_output_dgmp_mali_goods(
+    *,
+    framework_confidence: float = 0.9,
+    estimated_value: float = 20_000_000.0,
+    currency: str = "XOF",
+) -> M12Output:
+    """M12 minimal DGMP Mali + montant dans le palier simplified (YAML biens)."""
+    rec = minimal_procedure_recognition_dgmp_goods(
+        estimated_value=estimated_value, currency=currency
+    )
+    validity = DocumentValidity(
+        document_validity_status=_tf("valid"),
+    )
+    conformity = DocumentConformitySignal(
+        offer_composition_hint=_tf("single_offer"),
+        document_conformity_status=_tf("conform"),
+        document_scope=_tf("single"),
+        gates=[],
+    )
+    linking = ProcessLinking(
+        process_role=_tf(ProcessRole.DEFINES_NEED.value),
+        procedure_end_marker=_tf(False),
+        linked_parent_hint=[],
+    )
+    skeleton = RegulatoryProfileSkeleton(
+        framework_detected=ProcurementFramework.DGMP_MALI,
+        framework_confidence=framework_confidence,
+        dgmp_signals_detected=["threshold_referenced"],
+    )
+    handoffs = M12Handoffs(regulatory_profile_skeleton=skeleton)
     meta = M12Meta(
         mode="bootstrap",
         confidence_ceiling=1.0,

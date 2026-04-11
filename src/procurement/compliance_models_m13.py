@@ -20,6 +20,10 @@ from src.procurement.document_ontology import ProcurementFamily, ProcurementFram
 from src.procurement.m13_confidence import M13Confidence
 
 
+class M13RegulatoryResolutionError(RuntimeError):
+    """M13 refuse de persister lorsque le régime reste non résolu (ex. UNKNOWN)."""
+
+
 @unique
 class RegulatoryProcedureType(StrEnum):
     OPEN_NATIONAL = "open_national"

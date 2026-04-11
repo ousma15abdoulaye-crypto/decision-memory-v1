@@ -21,7 +21,30 @@ def _is_rls_denied(exc: BaseException) -> bool:
 
 
 class M13RegulatoryProfileRepository:
-    """Insert / lecture du dernier profil réglementaire par case."""
+    """INSERT versionné ; lecture du dernier profil via ``get_latest``."""
+
+    def get_latest(self, case_id: str) -> dict[str, Any] | None:
+        """Payload JSONB de la version MAX pour ``case_id``, ou None."""
+        try:
+            with get_connection() as conn:
+                conn.execute(
+                    """
+                    SELECT payload
+                    FROM public.m13_regulatory_profile_versions
+                    WHERE case_id = :cid
+                    ORDER BY version DESC
+                    LIMIT 1
+                    """,
+                    {"cid": case_id},
+                )
+                row = conn.fetchone()
+                if not row or row.get("payload") is None:
+                    return None
+                p = row["payload"]
+                return dict(p) if isinstance(p, dict) else p
+        except Exception as exc:
+            logger.warning("m13_regulatory_profile get_latest failed: %s", exc)
+            return None
 
     def save_payload(
         self,
