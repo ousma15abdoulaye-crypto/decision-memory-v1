@@ -9,12 +9,13 @@ POST /agent/prompt — point d'entrée unique.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationError
 
 from src.agent.context_store import get_context, save_context
 from src.agent.guardrail import check_recommendation_guardrail
@@ -34,6 +35,7 @@ from src.db.async_pool import AsyncpgAdapter, acquire_with_rls
 from src.ratelimit import LIMIT_ANNOTATION, limiter
 
 router = APIRouter(prefix="/api", tags=["agent-v51"])
+logger = logging.getLogger(__name__)
 
 
 class AgentPromptRequest(BaseModel):
@@ -64,7 +66,6 @@ class AgentPromptRequest(BaseModel):
 @router.post("/agent/prompt")
 @limiter.limit(LIMIT_ANNOTATION)
 async def agent_prompt(
-    payload: AgentPromptRequest,
     request: Request,
     current_user: UserClaims = Depends(get_current_user),
 ) -> Any:
@@ -73,10 +74,55 @@ async def agent_prompt(
     Retourne un stream SSE. JSON 422 guardrail uniquement si
     ``AGENT_INV_W06_PRE_LLM_BLOCK`` est activé et qu'une recommandation est détectée.
 
-    ``payload`` est déclaré **avant** ``request`` : le corps JSON doit être résolu
-    en premier (évite des 422 « Field required » sur ``query`` si le stream corps
-    était consommé ou mal ordonné avec SlowAPI + Request).
+    Le corps JSON est lu manuellement depuis ``request`` afin de pouvoir logger
+    le payload brut *avant* la validation Pydantic — ce qui permet de diagnostiquer
+    les 422 « Field required » sans perdre le corps de la requête.
     """
+    # --- 1. Log raw request body before Pydantic validation ---
+    try:
+        raw_body = await request.body()
+        raw_text = raw_body.decode("utf-8", errors="replace")
+        logger.debug(
+            "[agent_prompt] raw request body (%d bytes): %s",
+            len(raw_body),
+            raw_text,
+        )
+    except Exception as read_exc:
+        logger.warning("[agent_prompt] could not read raw request body: %s", read_exc)
+        raw_body = b""
+        raw_text = ""
+
+    # --- 2. Parse and validate with Pydantic, logging any validation errors ---
+    try:
+        body_data = json.loads(raw_body) if raw_body else {}
+        payload = AgentPromptRequest.model_validate(body_data)
+        logger.debug(
+            "[agent_prompt] parsed payload — query=%r workspace_id=%s session_id=%s",
+            payload.query,
+            payload.workspace_id,
+            payload.session_id,
+        )
+    except json.JSONDecodeError as json_exc:
+        logger.error(
+            "[agent_prompt] JSON decode error — body=%r error=%s",
+            raw_text,
+            json_exc,
+        )
+        raise HTTPException(422, f"Corps JSON invalide : {json_exc}") from json_exc
+    except ValidationError as val_exc:
+        logger.error(
+            "[agent_prompt] Pydantic validation error — body=%r errors=%s",
+            raw_text,
+            val_exc.errors(),
+        )
+        raise HTTPException(
+            422,
+            {
+                "detail": val_exc.errors(),
+                "body": raw_text,
+            },
+        ) from val_exc
+
     langfuse = get_langfuse()
     trace = langfuse.trace(
         name="agent_prompt",
