@@ -1,3 +1,10 @@
+/**
+ * Tests **UX** de la matrice comparative (filtres, clavier, zoom).
+ *
+ * Toutes les routes `/api/workspaces/**` sont **mockées** (pas de chaîne réelle
+ * login → DB → pipeline). Ne constitue **pas** une preuve produit bout-en-bout.
+ * Voir `e2e/README.md` et `real-api-smoke.spec.ts` (opt-in).
+ */
 import { expect, test } from "@playwright/test";
 
 const WS_ID = "aaaaaaaa-bbbb-4ccc-dddd-eeeeeeeeeeee";
@@ -105,6 +112,12 @@ test.describe("Matrice comparative (NL-01 / NL-08 / NL-09)", () => {
       }
       if (path.includes("/evaluation-frame")) {
         await route.fulfill(fulfillJson(mockEvalFrame));
+        return;
+      }
+      if (path.includes("/bundles")) {
+        await route.fulfill(
+          fulfillJson({ workspace_id: WS_ID, bundles: [] }),
+        );
         return;
       }
       await route.fulfill({ status: 404, body: "{}" });

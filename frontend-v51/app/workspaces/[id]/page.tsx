@@ -13,6 +13,7 @@ import { PvExportButtons } from "@/components/workspace/pv-export-buttons";
 import { PdfDrilldownPlaceholder } from "@/components/workspace/pdf-drilldown-placeholder";
 import { WorkspaceEventsBridge } from "@/components/workspace/workspace-events-bridge";
 import { M14SyncButton } from "@/components/workspace/m14-sync-button";
+import { WorkspaceIngestionPanel } from "@/components/workspace/workspace-ingestion-panel";
 import { ErrorBoundary } from "@/components/error-boundary";
 
 interface WorkspaceDetail {
@@ -221,6 +222,14 @@ function WorkspacePageContent() {
             </ul>
           </div>
         )}
+
+        {/* ── Ingestion ZIP / bundles / pipeline V5 ─────────────── */}
+        {!workspaceFailed && id ? (
+          <WorkspaceIngestionPanel
+            workspaceId={id}
+            workspaceStatus={ws?.status}
+          />
+        ) : null}
 
         {/* ── Real-time events ───────────────────────────────────── */}
         <WorkspaceEventsBridge workspaceId={id} />

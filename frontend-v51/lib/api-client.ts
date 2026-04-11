@@ -125,6 +125,64 @@ class ApiClient {
     });
   }
 
+  /**
+   * POST multipart (ex. upload ZIP) — ne fixe pas Content-Type (boundary FormData géré par le navigateur).
+   */
+  async postMultipart<T>(path: string, formData: FormData): Promise<T> {
+    const token = this.getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+    } catch (e) {
+      rethrowIfNetworkFailure(e);
+    }
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      const message =
+        typeof body.detail === "string"
+          ? body.detail
+          : typeof body.message === "string"
+            ? body.message
+            : res.statusText;
+      throw new ApiError(res.status, message, body);
+    }
+    return res.json() as Promise<T>;
+  }
+
+  /**
+   * POST sans corps JSON (ex. run-pipeline avec query string uniquement).
+   */
+  async postEmpty<T>(path: string): Promise<T> {
+    const token = this.getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}${path}`, { method: "POST", headers });
+    } catch (e) {
+      rethrowIfNetworkFailure(e);
+    }
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      const message =
+        typeof body.detail === "string"
+          ? body.detail
+          : typeof body.message === "string"
+            ? body.message
+            : res.statusText;
+      throw new ApiError(res.status, message, body);
+    }
+    return res.json() as Promise<T>;
+  }
+
   /** Téléchargement binaire (PDF, XLSX) — ne parse pas le corps en JSON. */
   async downloadBlob(
     path: string,
