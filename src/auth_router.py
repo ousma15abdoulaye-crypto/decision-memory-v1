@@ -26,9 +26,16 @@ from src.ratelimit import limiter
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 _ROLE_MAPPING = {
+    # Legacy V4.x roles → V4.1.0 JWT roles
     "admin": "admin",
     "procurement_officer": "buyer",
     "viewer": "viewer",
+    # V5.2 roles — pass through directly (src/auth/permissions.py ROLE_PERMISSIONS)
+    "supply_chain": "supply_chain",
+    "finance": "finance",
+    "technical": "technical",
+    "budget_holder": "budget_holder",
+    "observer": "observer",
 }
 
 
