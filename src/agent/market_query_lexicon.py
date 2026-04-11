@@ -11,7 +11,8 @@ from __future__ import annotations
 import re
 import unicodedata
 
-# Demande explicite de donnée de prix / coût (référence marché, pas « qui gagner »)
+# Demande explicite de donnée de prix / coût (référence marché, pas « qui gagner »).
+# Symbole € : hors \b...\b (les bords de mot ne s'appliquent pas à €).
 _PRICE_HINT = re.compile(
     r"(?:"
     r"\b("

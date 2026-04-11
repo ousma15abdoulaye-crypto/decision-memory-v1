@@ -16,6 +16,13 @@ class TestLooksLikeFactualMarketPriceQuery:
         assert looks_like_factual_market_price_query("Tarif gasoil Bamako")
         assert looks_like_factual_market_price_query("Combien coûte le ciment")
 
+    def test_currency_symbols(self):
+        assert looks_like_factual_market_price_query(
+            "Le ciment est à combien € à Bamako ?"
+        )
+        assert looks_like_factual_market_price_query("Prix du riz en FCFA à Mopti")
+        assert looks_like_factual_market_price_query("Ciment 5000 XOF le sac ?")
+
     def test_not_price_only_location(self):
         assert not looks_like_factual_market_price_query("Quelle est la météo à Bamako")
 

@@ -34,7 +34,8 @@ def _get_client() -> Any:
     api_key = get_settings().MISTRAL_API_KEY
     if not api_key:
         logger.warning(
-            "MISTRAL_API_KEY non définie — embedding_client en mode fallback aléatoire."
+            "MISTRAL_API_KEY non définie — embedding_client en mode fallback "
+            "lexical déterministe (sans API Mistral)."
         )
         _fallback = True
         return None
@@ -46,7 +47,8 @@ def _get_client() -> Any:
         return _client
     except ImportError:
         logger.warning(
-            "mistralai non installé — embedding_client en mode fallback aléatoire."
+            "mistralai non installé — embedding_client en mode fallback "
+            "lexical déterministe (sans API Mistral)."
         )
         _fallback = True
         return None
