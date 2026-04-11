@@ -5,6 +5,9 @@ INVARIANTS (V2 Plan):
 - review_required ALWAYS True
 - find_similar_hybrid(): dense cosine + sparse BM25-style fusion (GAP-10)
 - EmbeddingService + Reranker + DeterministicRetrieval as fallback
+
+Observabilité (RAG) : ne pas journaliser le texte des chunks dans Langfuse ; préférer
+``query_length``, ``k``, ``hit_count``, ``chunk_ids``, scores agrégés, durées.
 """
 
 from __future__ import annotations
@@ -41,6 +44,25 @@ _DENSE_SEARCH_SQL = """
     ORDER BY embedding_dense <=> :query_vec::vector
     LIMIT :limit
 """
+
+_TENANT_ID_COLUMN_CHECK_SQL = """
+    SELECT 1 AS ok
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'dms_embeddings'
+      AND column_name = 'tenant_id'
+    LIMIT 1
+"""
+
+
+async def dms_embeddings_tenant_isolation_ready(db: Any) -> bool:
+    """True si migration **096** appliquée (colonne ``tenant_id`` sur ``dms_embeddings``).
+
+    Le handler agent RAG doit refuser de s'exécuter si cette colonne est absente
+    (règle binaire prod multi-tenant).
+    """
+    row = await db.fetch_one(_TENANT_ID_COLUMN_CHECK_SQL, {})
+    return row is not None
 
 
 def _row_as_dict(row: Any) -> dict[str, Any]:
@@ -104,19 +126,23 @@ def _rerank_from_dense_rows(
     top_candidates = candidates[:limit]
     passages = [c["text"] for c in top_candidates]
     reranked = reranker.rerank(query, passages, top_k=limit)
-    return [
-        {
-            "text": rr.text,
-            "score": rr.score,
-            "original_rank": rr.original_rank,
-            "hybrid_score": (
-                top_candidates[rr.original_rank]["hybrid_score"]
-                if rr.original_rank < len(top_candidates)
-                else 0.0
-            ),
-        }
-        for rr in reranked
-    ]
+    out: list[dict[str, Any]] = []
+    for rr in reranked:
+        slot = (
+            top_candidates[rr.original_rank]
+            if rr.original_rank < len(top_candidates)
+            else None
+        )
+        out.append(
+            {
+                "id": str(slot["id"]) if slot else "",
+                "text": rr.text,
+                "score": rr.score,
+                "original_rank": rr.original_rank,
+                "hybrid_score": float(slot["hybrid_score"]) if slot else 0.0,
+            }
+        )
+    return out
 
 
 async def find_similar_hybrid_async(

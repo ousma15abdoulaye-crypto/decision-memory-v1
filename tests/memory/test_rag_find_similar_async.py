@@ -34,3 +34,4 @@ async def test_find_similar_hybrid_async_returns_texts() -> None:
     assert len(out) >= 1
     assert "text" in out[0]
     assert out[0]["text"]
+    assert "id" in out[0] and out[0]["id"] == "1"

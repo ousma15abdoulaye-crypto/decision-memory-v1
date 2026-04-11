@@ -4,7 +4,7 @@ Handlers par IntentClass :
 - MARKET_QUERY  -> mql_stream_handler (exécute MQL puis LLM en SSE)
 - WORKSPACE_STATUS -> workspace_status_handler
 - PROCESS_INFO  -> process_info_handler
-- DOCUMENT_CORPUS -> rag_corpus_stream_handler (si ``AGENT_RAG_ENABLED``)
+- DOCUMENT_CORPUS -> rag_corpus_stream_handler (si ``AGENT_RAG_ENABLED`` **et** schéma 096)
 - OUT_OF_SCOPE  -> static_refusal_handler
 - RECOMMENDATION -> bloqué par guardrail (jamais atteint ici)
 """
@@ -18,7 +18,10 @@ from uuid import UUID
 from src.agent.circuit_breaker import get_model_with_breaker
 from src.agent.context_store import MQLContext
 from src.agent.llm_client import stream_mistral
-from src.memory.rag_service import find_similar_hybrid_async
+from src.memory.rag_service import (
+    dms_embeddings_tenant_isolation_ready,
+    find_similar_hybrid_async,
+)
 from src.mql.engine import execute_mql_query
 
 
@@ -263,22 +266,57 @@ async def rag_corpus_stream_handler(
     context: MQLContext,
     trace: Any,
 ) -> AsyncGenerator[dict[str, Any], None]:
-    """Handler DOCUMENT_CORPUS — retrieval dms_embeddings + LLM (BGE-M3 / stub pour query)."""
+    """Handler DOCUMENT_CORPUS — contrat corpus documentaire uniquement.
+
+    **Autorisé** : contenu documentaire, références de procédure, présence/absence
+    dans les extraits, reformulation descriptive, synthèse factuelle des passages.
+
+    **Interdit** (RÈGLE-09) : recommandation fournisseur, classement, « meilleure offre »,
+    conclusion attributive, conseil de décision.
+
+    Observabilité : pas de texte de chunk dans les spans Langfuse du retrieval
+    (métadonnées : longueur requête, k, hit_count, ids, scores agrégés).
+    """
     _ = workspace_id, user
-    rag_span = trace.span(name="rag_retrieval", input={"query_chars": len(query)})
-    passages = await find_similar_hybrid_async(db, query, limit=8)
-    rag_span.end(output={"passages": len(passages)})
+    _rag_k = 8
+
+    if not await dms_embeddings_tenant_isolation_ready(db):
+        yield {
+            "type": "token",
+            "content": (
+                "Le RAG corpus est indisponible : la base ne contient pas encore "
+                "l'isolation tenant sur les embeddings (migration Alembic 096). "
+                "Contactez l'équipe plateforme."
+            ),
+        }
+        yield {"type": "done", "usage": {}}
+        return
+
+    rag_span = trace.span(
+        name="rag_retrieval",
+        input={"query_length": len(query), "k": _rag_k},
+    )
+    passages = await find_similar_hybrid_async(db, query, limit=_rag_k)
+    _ids = [str(p.get("id", "")) for p in passages if p.get("id")]
+    _hyb = [float(p.get("hybrid_score", 0.0)) for p in passages]
+    rag_span.end(
+        output={
+            "hit_count": len(passages),
+            "chunk_ids": _ids[:_rag_k],
+            "top_hybrid_scores": [round(x, 4) for x in _hyb[:3]],
+        }
+    )
 
     yield {"type": "tool_call", "tool": "rag_corpus_search", "status": "complete"}
     yield {
         "type": "sources",
         "sources": [
             {
-                "name": f"corpus_chunk_{i + 1}",
+                "name": f"dms_embeddings:{p.get('id', i)}",
                 "source_type": "dms_embeddings",
                 "is_official": False,
             }
-            for i, _ in enumerate(passages[:8])
+            for i, p in enumerate(passages[:_rag_k])
         ],
         "has_official_source": False,
     }
@@ -295,14 +333,21 @@ async def rag_corpus_stream_handler(
         return
 
     model = await get_model_with_breaker()
-    llm_span = trace.span(name="llm_rag_corpus", input={"model": model})
+    llm_span = trace.span(
+        name="llm_rag_corpus",
+        input={"model": model, "context_chunk_count": min(6, len(passages))},
+    )
     block = "\n\n".join(
         f"[{i + 1}] {p['text'][:2500]}" for i, p in enumerate(passages[:6])
     )
     system = (
-        "Tu es l'assistant DMS. Réponds en français à partir des extraits du corpus annoté.\n"
-        "RÈGLES : ne recommande aucun fournisseur ; ne désigne aucun gagnant ; "
-        "ne tranche pas entre offres. Cite les passages par [n].\n\n"
+        "Tu es l'assistant DMS — mode corpus documentaire uniquement.\n\n"
+        "TU PEUX : décrire le contenu des extraits ; indiquer présence/absence "
+        "d'une formulation ; résumer factuellement ; renvoyer à une procédure telle "
+        "qu'elle apparaît dans les passages ; citer par [n].\n\n"
+        "TU NE DOIS PAS : recommander un fournisseur ; classer ou noter des offres ; "
+        "désigner une « meilleure offre » ou un gagnant ; tirer une conclusion de "
+        "décision d'achat ; conseiller quoi choisir ; arbitrer entre soumissionnaires.\n\n"
         f"EXTRAITS :\n{block}"
     )
     messages = context.build_messages(system, query)
@@ -310,7 +355,7 @@ async def rag_corpus_stream_handler(
     async for token in stream_mistral(model, messages, llm_span):
         yield {"type": "token", "content": token}
 
-    llm_span.end()
+    llm_span.end(output={"streamed": True})
     yield {"type": "done", "usage": {"model": model}}
 
 

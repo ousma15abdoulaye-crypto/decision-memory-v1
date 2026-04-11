@@ -2323,4 +2323,12 @@ Chaîne reproductible : export **m12-v2** (JSONL) → **`scripts/ingest_embeddin
 - **`alembic heads`** : inclure **`096_dms_embeddings_tenant_rls`** dans **`VALID_ALEMBIC_HEADS`** (`tests/test_046b_imc_map_fix.py`).
 - Apply prod : **GO CTO** + post-check `count(*)` sur **`dms_embeddings`**.
 
+### Renforcement GO entreprise (durcissement mandat RAG 2026-04-11)
+
+- **T1a** (ingest + retrieval + tests) vs **T1b** (handler agent sous flag) : critères distincts ; **`docs/ops/rag_ingest_runbook.md`**.
+- **Identité chunks** : `source_table` = `m12_corpus_line` ; `source_pk` = `stable_source_pk(stable_m12_corpus_line_id(line))` ; `chunk_index` ordinal (doc **`scripts/ingest_embeddings.py`**).
+- **Prod** : handler RAG refusé sans colonne **`tenant_id`** sur **`dms_embeddings`** (**`dms_embeddings_tenant_isolation_ready`** dans **`src/memory/rag_service.py`**).
+- **Handler** : contrat documentaire explicite + spans retrieval **sans** texte de chunk (**`src/agent/handlers.py`**).
+- **D4.5** : validation retrieval seule **avant** **`AGENT_RAG_ENABLED`**.
+
 ---

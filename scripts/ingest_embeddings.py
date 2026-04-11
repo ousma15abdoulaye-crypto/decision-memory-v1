@@ -3,6 +3,16 @@ Ingestion batch : export JSONL M12-v2 -> chunks -> embeddings (BGE-M3 ou stub) -
 
 Aligné ADR-H3 / CONTEXT_ANCHOR. Exige PostgreSQL + migration 096 (tenant_id + RLS).
 
+Convention identité chunks (non négociable — audit / upsert / dédup) :
+
+- ``source_table`` : littéral fixe ``"m12_corpus_line"`` (constante ``_SOURCE_TABLE``).
+- ``source_pk`` : entier dérivé **uniquement** par ``stable_source_pk(lid)`` où
+  ``lid = stable_m12_corpus_line_id(line)`` (priorité hash de contenu, triple tâche LS,
+  puis empreinte JSON stable — voir ``stable_m12_corpus_line_id`` importé depuis
+  ``src.annotation.m12_export_io``).
+- ``chunk_index`` : ordinal **0-based** du chunk produit par le découpeur sémantique
+  sur la ligne.
+
 Usage:
   python scripts/ingest_embeddings.py --input data/annotations/foo.jsonl --tenant-id <UUID>
   python scripts/ingest_embeddings.py --input tests/fixtures/m12_rag_ingest_sample.jsonl \\
