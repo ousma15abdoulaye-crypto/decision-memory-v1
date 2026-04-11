@@ -5,6 +5,7 @@ from __future__ import annotations
 from src.services.comparative_table_model import (
     build_comparative_table_model_from_snapshot,
 )
+from src.services.pv_builder import SNAPSHOT_SCHEMA_VERSION
 
 
 def test_comparative_model_from_snapshot_carries_m16() -> None:
@@ -32,8 +33,10 @@ def test_comparative_model_from_snapshot_carries_m16() -> None:
                 "price_values": [],
             },
         },
+        "m14_proof": {"score_history": [], "decision_snapshots": []},
+        "m13_proof": {"regulatory_profile_latest": None},
         "meta": {
-            "snapshot_schema_version": "1.1",
+            "snapshot_schema_version": SNAPSHOT_SCHEMA_VERSION,
             "render_template_version": "pv-1.0",
             "generated_from_session_id": "sid",
             "workspace_id": "w1",

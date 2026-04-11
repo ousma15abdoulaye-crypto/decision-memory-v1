@@ -12,7 +12,8 @@
 |----------|--------|
 | Tests unitaires ciblés V53 | `tests/unit/test_market_signal_lookup.py`, `test_guard.py`, `test_langfuse_policy.py`, `tests/procurement/test_m14_workspace_assembler.py`, `tests/api/test_workspace_timeline.py` |
 | Règle JWT fallback écriture | `src/auth/guard.py` + `tests/unit/test_guard.py` |
+| Gate RAG (pas d’import prod) | `scripts/check_v53_no_rag_import_in_src.py` — job `v53-sovereignty-gate` dans `ci-v52-gates.yml` (branches `cursor/*` incluses) |
 
 ## Hors scope immédiat
 
-- Grep CI bloquant sur `RAGService` : reporté tant que l’option B (doc `V53_RAG_DECISION.md`) est active sans retrait de code.
+- Branchement `RAGService` dans `process_info_handler` : option B dans `V53_RAG_DECISION.md` ; la gate assure l’absence d’import fantôme sous `src/`.

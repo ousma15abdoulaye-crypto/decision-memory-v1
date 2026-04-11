@@ -4,7 +4,11 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, "fix/v52-*", "feat/v52-*"]
+    branches:
+      - main
+      - "fix/v52-*"
+      - "feat/v52-*"
+      - "cursor/*"
 
 env:
   DATABASE_URL: "postgresql+psycopg://postgres:testpass@localhost:5432/dmstest"
@@ -19,6 +23,18 @@ env:
   PYTHONPATH: ${{ github.workspace }}
 
 jobs:
+  # ─── JOB 0 — V53 : pas d'import rag_service dans src/ (hors rag_service.py) ─
+  v53-sovereignty-gate:
+    name: "V53 — no RAG import in src (except memory/rag_service.py)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: "V53 gate script"
+        run: python scripts/check_v53_no_rag_import_in_src.py
+
   # ─── JOB 1 — Backend : lint + tests unitaires ───────────────────────────────
   backend-quality:
     name: "Backend — Ruff + Black + 208 tests unitaires"

@@ -20,6 +20,8 @@ def test_validate_pv_snapshot_rejects_forbidden_key_in_scores() -> None:
             "bundles": [],
             "scores_matrix": {"b1": {"rank": 1}},
         },
+        "m14_proof": {"score_history": [], "decision_snapshots": []},
+        "m13_proof": {"regulatory_profile_latest": None},
         "decision": {"sealed_by": "1", "sealed_at": "2026-01-01T00:00:00+00:00"},
         "meta": {
             "snapshot_schema_version": SNAPSHOT_SCHEMA_VERSION,
@@ -40,8 +42,10 @@ def test_build_comparative_table_model_from_snapshot_trace() -> None:
             "bundles": [{"id": "b1", "supplier_name_display": "S"}],
             "scores_matrix": {"b1": {"c1": {"score": 1, "value": 1}}},
         },
+        "m14_proof": {"score_history": [], "decision_snapshots": []},
+        "m13_proof": {"regulatory_profile_latest": None},
         "meta": {
-            "snapshot_schema_version": "1.1",
+            "snapshot_schema_version": SNAPSHOT_SCHEMA_VERSION,
             "render_template_version": "pv-1.0",
             "generated_from_session_id": "sid-x",
             "workspace_id": "w1",
