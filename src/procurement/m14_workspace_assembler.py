@@ -14,7 +14,9 @@ from typing import Any
 from src.db import db_fetchall
 
 
-def build_m14_offers_for_workspace(conn: Any, workspace_id: str) -> list[dict[str, Any]]:
+def build_m14_offers_for_workspace(
+    conn: Any, workspace_id: str
+) -> list[dict[str, Any]]:
     """Construit la liste ``offers`` pour ``M14EvaluationInput`` (workspace-scoped)."""
     rows = db_fetchall(
         conn,
