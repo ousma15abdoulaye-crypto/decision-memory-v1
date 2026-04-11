@@ -50,7 +50,19 @@ class M13RegulatoryProfileRepository:
                 )
                 return None
         except Exception as exc:
-            logger.warning("m13_regulatory_profile get_latest failed: %s", exc)
+            if _is_rls_denied(exc):
+                logger.error(
+                    "m13_regulatory_profile get_latest RLS denied "
+                    "(check app.tenant_id / case_id=%s): %s",
+                    case_id,
+                    exc,
+                )
+            else:
+                logger.warning(
+                    "m13_regulatory_profile get_latest failed for case_id=%s: %s",
+                    case_id,
+                    exc,
+                )
             return None
 
     def save_payload(
