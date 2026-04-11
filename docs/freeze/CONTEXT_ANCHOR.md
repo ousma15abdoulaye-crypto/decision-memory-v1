@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-08 — Mandat **DMS-MIGRATION-PROD-V51-001** (GO AO, RÈGLE-ANCHOR-06) : Railway PostgreSQL **090** (`090_v51_extraction_jobs_langfuse_trace`) — aligné dépôt ; **pré-état réel 080** (pas 079) — appliqué **081→090** (10 révisions) ; pre-check + post-check : `scripts/railway_migration_precheck_v51_001.py`, `scripts/railway_migration_postcheck_v51_001.py` ; rapport `docs/ops/RAILWAY_MIGRATION_V51_001_REPORT.md` ; backup Railway Dashboard Phase 1 **confirmé AO** : **1,4 Go**, **2026-04-08 15h12** ; **2026-04-09** — PR **#357** mergée (`75a66239`, NL/E2E/MQL/RLS test) — **E-99** + § **ADDENDUM 2026-04-09 — PR #357** ; **2026-04-10** — **V5.2** config centralisée — **E-100** + § **ADDENDUM 2026-04-10 — V5.2 CONFIG** ; **2026-04-10** — **JWT workspace pilote** — commit **cdbc2752** **`WORKSPACE_ACCESS_JWT_FALLBACK`** — push **origin** `refactor/v52-pydantic-settings` — § **ADDENDUM 2026-04-10 — JWT WORKSPACE PILOTE** ║
+║  Dernière mise à jour : 2026-04-11 — Mandat **DMS-MIGRATION-PROD-V51-001** (GO AO, RÈGLE-ANCHOR-06) : Railway PostgreSQL **090** (`090_v51_extraction_jobs_langfuse_trace`) — aligné dépôt ; **pré-état réel 080** (pas 079) — appliqué **081→090** (10 révisions) ; pre-check + post-check : `scripts/railway_migration_precheck_v51_001.py`, `scripts/railway_migration_postcheck_v51_001.py` ; rapport `docs/ops/RAILWAY_MIGRATION_V51_001_REPORT.md` ; backup Railway Dashboard Phase 1 **confirmé AO** : **1,4 Go**, **2026-04-08 15h12** ; **2026-04-09** — PR **#357** mergée (`75a66239`, NL/E2E/MQL/RLS test) — **E-99** + § **ADDENDUM 2026-04-09 — PR #357** ; **2026-04-10** — **V5.2** config centralisée — **E-100** + § **ADDENDUM 2026-04-10 — V5.2 CONFIG** ; **2026-04-10** — **JWT workspace pilote** — commit **cdbc2752** **`WORKSPACE_ACCESS_JWT_FALLBACK`** — push **origin** `refactor/v52-pydantic-settings` — § **ADDENDUM 2026-04-10 — JWT WORKSPACE PILOTE** ; **2026-04-11** — **sécurité multi-tenant (PR #366 + #367)** : Alembic **094** + **095** ; RLS **FORCE** + `tenant_id` (marché, mercuriale, signaux, offres, extractions, analyses, campagnes) ; **`dms_default_tenant_id()`** ; **`tests/security/test_tenant_isolation.py`** ; **`docs/security_audit_report.md`**, **`docs/ops/SECURITY_HARDENING.md`** ; whitelist **`VALID_ALEMBIC_HEADS`** **094+095** ; **E-101** ; **apply Railway 093→095 = GO CTO** (post-check prod) ; § **ADDENDUM 2026-04-11 — SÉCURITÉ RLS 094–095** ║
 ║  Addendum 2026-04-08 : Phase 1 **DMS-MIGRATION-PROD-V51-001** — preuve backup prod (PostgreSQL Railway) : taille **1,4 Go**, horodatage **2026-04-08 15h12** (saisie AO / CTO) ║
 ║  Addendum 2026-04-08 : PR #344 MERGÉ main 0b952668 — **due diligence + refactoring** : (1) `src/couche_a/extraction.py` → package `src/couche_a/extraction/` avec ré-exports publics + `httpx` (patches tests) ; (2) pipeline A découpé `service.py` + `steps.py` + `service_utils.py` + `cas_builder.py`, scoring/ScoringEngine **conservés dans** `service.py` (compat monkeypatch tests), GUARD-OPS-01 hash recalculé ; (3) `src/annotation/orchestrator.py` **fichier unique** (split package annulé — tests M12), **sans BOM UTF-8** ; (4) CI : workflow `ci-typecheck-mypy.yml` (informationnel), étape BLE001 Ruff sur `src/` seulement, `fail_under` couverture **68%** + `.milestones/M-TESTS.done`, pipefail exit codes ; (5) dette documentée `docs/audit/ALEMBIC_STATE_2026-04-08.md`, inventaire `scripts/README.md`, gel `DMS_CANON_V5.1.0_FREEZE.md` ; **hors périmètre / gel** : `services/annotation-backend/backend.py` non découpé (gel annotation + mandat CTO) ; squash Alembic / single-head **documenté, non exécuté** ║
 ║  Addendum 2026-04-08 : PR #345 MERGÉ main f0a8379c — Canon V5.1.0 (4 voies, due diligence, `frontend-v51`, MQL, Langfuse, garde-fous, migrations **087–090**) ; correctifs CI : `pytest-asyncio`, rôle RLS `dms_rls_nobypass`, `asyncio.run` (tests), whitelist heads **087–090** dans `tests/test_046b_imc_map_fix.py`, docstring `pv_builder` (INV-09) ; INV-F01 : `actions/setup-node@v4` + `npm ci` + `npx tsc --noEmit` sous `frontend-v51` (workflow `.github/workflows/dms_invariants_v51.yml`) ; **Railway prod** : migrations **081→090** appliquées sous mandat DMS-MIGRATION-PROD-V51-001 (pré-état **080**) ║
@@ -16,6 +16,8 @@
 ║  Addendum 2026-04-09 : PR #357 **MERGÉ main 75a66239** — `feat/v51-nl-frontend-e2e-ci` : **MQL + asyncpg** — `src/db/async_pool.py` `_NAMED_PARAM_RE` `(?<!:):([a-zA-Z_]\w*)` (évite `KeyError :text` sur `::text` / `::numeric`) ; `src/db/cursor_adapter.py` même principe ; `src/mql/engine.py` : `tenant_id` en **str** pour `CAST(:tenant_id AS text)` (évite `DataError` UUID) ; `src/mql/templates.py` aligné **042** + filtre `org_id` ; **E2E** `frontend-v51/e2e/comparative-matrix.spec.ts` : `path` dans `route`, grille + `columnheader`, cookie `dms_token` / proxy Next 16 ; **RLS** `tests/db/test_v51_assessment_history_rls.py` : UUID factices (pas `''` / `set_config` NULL→`''`) ; merge **main** pré-merge : conflits résolus spec + test ; **CI** vert (Coverage, lint-and-test, invariants, `frontend_v51_e2e`) ; **E-99** ; détail **§ ADDENDUM 2026-04-09 — PR #357** ; **sans** nouveau `alembic/versions/` — head prod **093** ║
 ║  Addendum 2026-04-10 : **V5.2 — configuration centralisée** — `src/core/config.py` : classe `Settings` (**pydantic-settings** `BaseSettings`), `get_settings()` décoré **`@lru_cache`** ; variables **requises** au chargement : `DATABASE_URL` (schéma `postgresql://` ou `postgres://`), `SECRET_KEY` (**≥ 32** caractères ; alias **`JWT_SECRET`** accepté si `SECRET_KEY` absent — validator `mode="before"`), `MISTRAL_API_KEY` ; dépendance **`pydantic-settings>=2`** dans `requirements.txt` ; **phase 1** migrée vers `get_settings()` : `src/agent/*` (llm, embed, context Redis, Langfuse), `src/db/*` (connection, core, pools), `src/api/app_factory.py`, `health.py`, `auth_helpers.py`, `src/couche_a/auth/*`, `src/ratelimit.py`, `src/core/api_keys.py`, `src/couche_a/llm_router.py`, `src/extraction/engine.py` ; **exceptions documentées** : `engine._ensure_ssl_certs()` lit / pose `os.environ` (`SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`, `setdefault` certifi) pour compatibilité TLS sous-processus ; **`tests/conftest.py`** : `setdefault` `MISTRAL_API_KEY` factice CI + fixture **autouse** `get_settings.cache_clear()` isolation ; tests **`tests/unit/test_settings.py`** ; **résiduel** `os.environ.get` dans d’autres modules `src/` (annotation, assembler, workers, memory, procurement, routers optionnels) = **phase 2** hors mandat V5.2-001 ; réf. audit **`docs/audit/AUDIT_V52_PYDANTIC_SETTINGS.md`** ; branche cible **`refactor/v52-pydantic-settings`** (PR / merge CTO) ; **E-100** ║
 ║  Addendum 2026-04-10 : **pilote terrain — accès workspace sans membership DB** — commit **`cdbc2752`** sur branche **`refactor/v52-pydantic-settings`** ; push **`origin/refactor/v52-pydantic-settings`** (action agent session) ; flag **`WORKSPACE_ACCESS_JWT_FALLBACK`** / alias **`DMS_WORKSPACE_ACCESS_JWT_FALLBACK`** (**défaut false**) dans **`Settings`** ; si **true** : après alignement tenant, JWT legacy (`rbac.ROLES`) mappé V5.2 → **`require_workspace_access`** + **`guard()`** (dict `user` avec **`role`**) sans `workspace_memberships` ; logs **WARNING** `JWT_FALLBACK` / `guard JWT_FALLBACK` ; **`require_rbac_permission`** (M16 écriture) **non** couvert ; runbook **`docs/ops/WORKSPACE_ACCESS_JWT_FALLBACK_TERRAIN.md`** ; tests **`tests/unit/test_workspace_access_jwt_fallback.py`** ; `.env.local.example` ║
+║  Addendum 2026-04-11 : PR **#366** MERGÉ main **4edc0dc** — mandat audit sécurité schéma : **`094_security_market_mercurial_tenant_rls`** (`tenant_id` UUID NOT NULL + FK **`public.tenants`** + RLS + **`FORCE ROW LEVEL SECURITY`** + policy `app.current_tenant` / `app.is_admin` ; trigger append-only **`score_history`** si absent et **`fn_reject_mutation`** existe) ; **`095_tenant_id_default_offers_extractions`** (`dms_default_tenant_id()`, DEFAULT sur colonnes pour compat fixtures) ; scripts **`scripts/security/*.sql`** ; **`tests/security/test_tenant_isolation.py`** ; **`docs/security_audit_report.md`**, **`docs/ops/SECURITY_HARDENING.md`** ; **`.gitignore`** exception `!scripts/security/*.sql` ; **`tests/test_046b_imc_map_fix.py`** heads **094+095** ; CI vert ║
+║  Addendum 2026-04-11 : PR **#367** MERGÉ main **70c3921** — suivi revue Copilot : docstring backfill **094** aligné implémentation ; docstring tests isolation RLS ; commentaire **`scripts/security/deprecate_orphan_tables.sql`** ; **`downgrade()`** **094** ne supprime plus **`trg_score_history_append_only`** (créé par migration **059**, pas propriété exclusive de 094) ║
 ║  Addendum 2026-04-07 : PR #342 MERGÉ main 42ace370 — M16 hardening (INV-weights, guards cognitifs, signal_engine, frontend committee/evaluation, tests DB/e2e) + correctifs revue Copilot (`dao_criteria` : `critere_nom`/`ponderation` ; `require_rbac_permission` pour éviter double `require_workspace_access` dans `m16_guard`) ; dépôt Alembic head **086** (`086_m16_force_row_level_security`) incl. **085** index cadre ; apply **080→086** Railway **en attente** tant que prod **079** (dry-run documenté : `DATABASE_URL=postgresql+psycopg://… alembic upgrade 079_bloc5_confidence_qualification_signal_log:head --sql`) ║
 ║  Addendum 2026-04-04 : PR #321 V4.2.0 Phase 3 — CI rouge — handover détaillé fin doc ║
 ║  Addendum 2026-04-05 : PR #324 MERGÉ main 107d05a2 — BLOC3 fix HTTP 500 W1/W2 + tenant RLS + market + ETL vendors ║
@@ -630,6 +632,20 @@
 ║         **`os.environ`** uniquement pour cas documentés (ex. SSL      ║
 ║         subprocess, scripts hors `src/`). Détail § ADDENDUM 2026-04-10║
 ║         — V5.2 CONFIG.                                                ║
+║  E-101 **RLS tenant UUID tables marché / mercuriale / offres**        ║
+║         (2026-04-11, PR #366/#367) : (1) Nouvelles policies lisent     ║
+║         **`current_setting('app.current_tenant', true)::uuid`** —    ║
+║         le code doit poser **`app.current_tenant`** (pas seulement    ║
+║         **`app.tenant_id`**) pour les rôles applicatifs sous RLS.     ║
+║         (2) **`downgrade` 094** : ne pas retirer un trigger append-only║
+║         créé par **059** ; documenter propriété migration. (3) Requêtes ║
+║         d’audit SQL : aligner noms colonnes schéma (**070** :         ║
+║         **`vendor_name_raw`**, **`bundle_status`**, **`filename`**,    ║
+║         **`file_type`**) — requêtes playbook obsolètes → **UndefinedColumn**.║
+║         (4) **`m13_regulatory_profile_versions`** (057) : pas de        ║
+║         **`document_id`** en colonne ; **`criterion_assessments`** (082)║
+║         : pas de colonne **`score`** hors **`cell_json`**. Détail §   ║
+║         **ADDENDUM 2026-04-11 — SÉCURITÉ RLS 094–095**.               ║
 ║                                                                      ║
 ║  ADR-015  Line items chirurgical — docs/adr/ADR-015_*.md            ║
 ║           Date : 2026-03-16 — Statut : ACCEPTÉ — v3.0.1d           ║
@@ -2168,6 +2184,10 @@ Modules **`src/`** qui appellent encore **`os.environ.get`** sans passer par **`
 
 Reprend le bloc **E-100** dans l’encadré ASCII en tête de ce document : variables **required** manquantes en CI, cache **`lru_cache`** non vidé après **monkeypatch**, **`SECRET_KEY`** trop court, et discipline **`get_settings()`** vs **`os.environ`** sous **`src/`**.
 
+### ERREUR CAPITALISÉE — E-101 (2026-04-11) — RLS 094 / PLAYBOOKS SQL / TRIGGERS
+
+Reprend le bloc **E-101** dans l’encadré ASCII : **`app.current_tenant`** pour policies **094** ; **`downgrade` 094** et trigger **059** ; colonnes schéma **070** / **057** / **082** vs requêtes d’audit obsolètes.
+
 ---
 
 ## ADDENDUM 2026-04-10 — JWT WORKSPACE PILOTE (`WORKSPACE_ACCESS_JWT_FALLBACK`)
@@ -2196,5 +2216,40 @@ Les routes qui appellent **`require_rbac_permission`** (ex. écritures M16) rest
 
 - Encadré ASCII tête de fichier : ligne **Dernière mise à jour** + addendum **JWT workspace pilote** ; section GIT ; addendum détaillé dans le bloc ASCII (liste addenda).
 - Ce paragraphe **ADDENDUM** : trace explicite commit / push / branche pour **RÈGLE-ANCHOR-02** (fin de session).
+
+---
+
+## ADDENDUM 2026-04-11 — SÉCURITÉ MULTI-TENANT (ALEMBIC 094–095, PR #366 + #367)
+
+### Objet
+
+Réponse mandat **audit sécurité schéma** (isolation tenant) + correctifs revue automatisée : chaîne **094** puis **095** ; documentation **`docs/security_audit_report.md`**, **`docs/ops/SECURITY_HARDENING.md`** ; tests **`tests/security/test_tenant_isolation.py`**.
+
+### Migrations (dépôt)
+
+- **`094_security_market_mercurial_tenant_rls`** : colonnes **`tenant_id`** UUID NOT NULL + FK **`public.tenants`** ; backfill priorité **`sci_mali`** sinon premier **`tenants`** par **`code`** ; **ENABLE RLS** + **FORCE ROW LEVEL SECURITY** ; policy **`tenant_id = current_setting('app.current_tenant', true)::uuid`** OU **`app.is_admin=true`** ; tables : campagnes/enquêtes marché, mercuriale, **`market_signals_v2`**, **`offers`**, **`extractions`**, **`analysis_summaries`**, etc. ; trigger append-only **`score_history`** si manquant et **`public.fn_reject_mutation`** existe.
+- **`095_tenant_id_default_offers_extractions`** : fonction **`public.dms_default_tenant_id()`** ; **DEFAULT** sur **`tenant_id`** pour **`offers`**, **`extractions`**, **`analysis_summaries`**, **`mercuriale_sources`**, **`mercurials`** (compat INSERT sans colonne / fixtures CI).
+
+### PR #367 (merge **70c3921**)
+
+- **`downgrade()`** de **094** : **ne plus** **`DROP TRIGGER`** sur **`trg_score_history_append_only`** (trigger historiquement créé par **059_m14_score_history_elimination_log**).
+- Docstrings / commentaires SQL alignés (Copilot).
+
+### ERREUR CAPITALISÉE — E-101 (2026-04-11)
+
+Reprend le bloc **E-101** dans l’encadré ASCII : **`app.current_tenant`** vs **`app.tenant_id`** pour policies **094** ; ownership trigger **059** vs **094** ; requêtes playbook vs schéma **070** / **057** / **082**.
+
+### État prod Railway (MRD)
+
+- **Dépôt / `alembic heads`** : **`095_tenant_id_default_offers_extractions`**.
+- **Apply prod** **093 → 095** : **GO CTO** uniquement (**RÈGLE-ANCHOR-06**) ; post-check mandat sécurité / runbook **`docs/ops/SECURITY_HARDENING.md`**.
+
+### Mandat observation pipeline (sans fichier)
+
+- Session **chirurgie interne** (workspace **`f1a6edfb-ac50-4301-a1a9-7a80053c632a`**, case **`28b05d85-62f1-4101-aaec-96bac40905cd`**) : preuve SQL **non obtenue** en environnement agent (**PostgreSQL connection refused**) ; grep code confirme consommation **`market_signals_v2`** dans **`pv_builder`**, **`market_delta`**, contexte **`h3_market_context`** dans **`pipeline_v5_service`**.
+
+### Mise à jour MRD
+
+- **`docs/freeze/MRD_CURRENT_STATE.md`** : section **ÉTAT ALEMBIC** et **`last_merge_commit`** mises à jour **2026-04-11** (alignement dépôt **095** ; prod **093→095** pending CTO).
 
 ---
