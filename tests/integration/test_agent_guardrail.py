@@ -34,16 +34,29 @@ def _intent(intent_class, confidence: float):  # type: ignore[no-untyped-def]
 # ─── Tests guardrail ──────────────────────────────────────────────────────────
 
 
+def _settings_pre_llm_block_enabled() -> MagicMock:
+    s = MagicMock()
+    s.AGENT_INV_W06_PRE_LLM_BLOCK = True
+    return s
+
+
 class TestGuardrailINVW06:
-    """Le guardrail INV-W06 bloque les requêtes de recommandation ≥ 0.85."""
+    """Pré-LLM INV-W06 : actif seulement si AGENT_INV_W06_PRE_LLM_BLOCK."""
 
     def test_guardrail_blocks_recommendation_high_confidence(self) -> None:
         """check_recommendation_guardrail bloque RECOMMENDATION à confidence ≥ 0.85."""
         from src.agent.guardrail import IntentClass, check_recommendation_guardrail
 
         intent = _intent(IntentClass.RECOMMENDATION, 0.92)
-        with patch(
-            "src.agent.guardrail.classify_intent", new=AsyncMock(return_value=intent)
+        with (
+            patch(
+                "src.agent.guardrail.classify_intent",
+                new=AsyncMock(return_value=intent),
+            ),
+            patch(
+                "src.agent.guardrail.get_settings",
+                return_value=_settings_pre_llm_block_enabled(),
+            ),
         ):
             result = asyncio.run(
                 check_recommendation_guardrail(
@@ -60,8 +73,15 @@ class TestGuardrailINVW06:
         from src.agent.guardrail import IntentClass, check_recommendation_guardrail
 
         intent = _intent(IntentClass.RECOMMENDATION, 0.70)
-        with patch(
-            "src.agent.guardrail.classify_intent", new=AsyncMock(return_value=intent)
+        with (
+            patch(
+                "src.agent.guardrail.classify_intent",
+                new=AsyncMock(return_value=intent),
+            ),
+            patch(
+                "src.agent.guardrail.get_settings",
+                return_value=_settings_pre_llm_block_enabled(),
+            ),
         ):
             result = asyncio.run(
                 check_recommendation_guardrail(
@@ -72,50 +92,36 @@ class TestGuardrailINVW06:
         assert not result.blocked
 
     def test_guardrail_allows_market_query(self) -> None:
-        """MARKET_QUERY jamais bloqué."""
-        from src.agent.guardrail import IntentClass, check_recommendation_guardrail
+        """Pré-LLM désactivé par défaut : aucun blocage."""
+        from src.agent.guardrail import check_recommendation_guardrail
 
-        intent = _intent(IntentClass.MARKET_QUERY, 0.92)
-        with patch(
-            "src.agent.guardrail.classify_intent", new=AsyncMock(return_value=intent)
-        ):
-            result = asyncio.run(
-                check_recommendation_guardrail(
-                    "Prix du ciment a Mopti ?", _mock_trace()
-                )
-            )
+        result = asyncio.run(
+            check_recommendation_guardrail("Prix du ciment a Mopti ?", _mock_trace())
+        )
 
         assert not result.blocked
 
     def test_guardrail_allows_process_info(self) -> None:
-        """PROCESS_INFO jamais bloqué."""
-        from src.agent.guardrail import IntentClass, check_recommendation_guardrail
+        """Pré-LLM désactivé par défaut : aucun blocage."""
+        from src.agent.guardrail import check_recommendation_guardrail
 
-        intent = _intent(IntentClass.PROCESS_INFO, 0.85)
-        with patch(
-            "src.agent.guardrail.classify_intent", new=AsyncMock(return_value=intent)
-        ):
-            result = asyncio.run(
-                check_recommendation_guardrail(
-                    "Quels sont les seuils ECHO ?", _mock_trace()
-                )
+        result = asyncio.run(
+            check_recommendation_guardrail(
+                "Quels sont les seuils ECHO ?", _mock_trace()
             )
+        )
 
         assert not result.blocked
 
     def test_guardrail_allows_workspace_status(self) -> None:
-        """WORKSPACE_STATUS jamais bloqué."""
-        from src.agent.guardrail import IntentClass, check_recommendation_guardrail
+        """Pré-LLM désactivé par défaut : aucun blocage."""
+        from src.agent.guardrail import check_recommendation_guardrail
 
-        intent = _intent(IntentClass.WORKSPACE_STATUS, 0.90)
-        with patch(
-            "src.agent.guardrail.classify_intent", new=AsyncMock(return_value=intent)
-        ):
-            result = asyncio.run(
-                check_recommendation_guardrail(
-                    "Ou en est le dossier RFQ-001 ?", _mock_trace()
-                )
+        result = asyncio.run(
+            check_recommendation_guardrail(
+                "Ou en est le dossier RFQ-001 ?", _mock_trace()
             )
+        )
 
         assert not result.blocked
 

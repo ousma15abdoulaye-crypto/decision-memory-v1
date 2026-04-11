@@ -2,7 +2,7 @@
 
 POST /agent/prompt — point d'entrée unique.
 - Semantic Router -> 4 handlers SSE
-- Guardrail INV-W06 -> 422 si RECOMMENDATION détectée
+- Guardrail pré-LLM INV-W06 -> 422 si ``AGENT_INV_W06_PRE_LLM_BLOCK=true`` (défaut : off)
 - Langfuse tracing (INV-A01) sur chaque prompt
 """
 
@@ -51,7 +51,8 @@ async def agent_prompt(
 ) -> Any:
     """Point d'entrée unique de l'agent conversationnel.
 
-    Retourne un stream SSE pour toutes les réponses sauf guardrail (JSON 422).
+    Retourne un stream SSE. JSON 422 guardrail uniquement si
+    ``AGENT_INV_W06_PRE_LLM_BLOCK`` est activé et qu'une recommandation est détectée.
     """
     langfuse = get_langfuse()
     trace = langfuse.trace(
