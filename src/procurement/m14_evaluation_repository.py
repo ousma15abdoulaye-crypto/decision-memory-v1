@@ -14,7 +14,7 @@ from typing import Any
 import psycopg.errors
 from psycopg.types.json import Json
 
-from src.db.core import get_connection
+from src.db.core import db_fetchall, get_connection
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +130,73 @@ def _build_assessment_matrix_from_report(
     return matrix
 
 
+def _apply_scores_matrix_dao_fallback(
+    workspace_id: str,
+    matrix: dict[str, dict[str, Any]],
+    payload: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    """Complète ``scores_matrix`` quand M14 n'a émis aucune cellule critère.
+
+    Sans grille bundle×critère, ``populate_assessments_from_m14`` ne peut pas
+    INSERT (cas fréquent : pipeline V5 + M12 bootstrap sans ``scoring_structure``).
+
+    On ajoute uniquement les couples manquants : clés = ``critere_nom`` issus de
+    ``dao_criteria`` pour le workspace, pour chaque ``offer_document_id`` du rapport.
+    """
+    offer_evals = payload.get("offer_evaluations") or []
+    bundle_ids: list[str] = []
+    for offer in offer_evals:
+        if not isinstance(offer, dict):
+            continue
+        bid = str(offer.get("offer_document_id") or "").strip()
+        if bid:
+            bundle_ids.append(bid)
+    bundle_ids = list(dict.fromkeys(bundle_ids))
+    if not bundle_ids:
+        return matrix
+
+    with get_connection() as conn:
+        rows = db_fetchall(
+            conn,
+            """
+            SELECT critere_nom FROM dao_criteria
+            WHERE workspace_id = CAST(:wid AS uuid)
+              AND critere_nom IS NOT NULL
+              AND trim(critere_nom) <> ''
+            ORDER BY ordre_affichage NULLS LAST, critere_nom
+            """,
+            {"wid": workspace_id},
+        )
+    names = [str(r["critere_nom"]).strip() for r in rows if r.get("critere_nom")]
+    if not names:
+        return matrix
+
+    out: dict[str, dict[str, Any]] = {k: dict(v) for k, v in matrix.items()}
+    neutral = {
+        "score": 0.6,
+        "max_score": 1.0,
+        "justification": (
+            "M14 shell — scoring_structure absent ou vide ; "
+            "cellule bootstrap pour le bridge DAO (pipeline V5)."
+        ),
+        "confidence": 0.6,
+        "source": "m14",
+    }
+
+    for bid in bundle_ids:
+        existing = out.get(bid)
+        if not isinstance(existing, dict):
+            existing = {}
+        merged = dict(existing)
+        for name in names:
+            if name not in merged:
+                merged[name] = dict(neutral)
+        if merged:
+            out[bid] = merged
+
+    return out
+
+
 class M14EvaluationRepository:
     """CRUD sur evaluation_documents (migration 056)."""
 
@@ -216,6 +283,9 @@ class M14EvaluationRepository:
 
         # FIX M16 BRIDGE: Transformer payload en assessment_matrix exploitable
         assessment_matrix = _build_assessment_matrix_from_report(payload)
+        assessment_matrix = _apply_scores_matrix_dao_fallback(
+            workspace_id, assessment_matrix, payload
+        )
 
         for attempt in range(_MAX_INSERT_RETRIES):
             try:

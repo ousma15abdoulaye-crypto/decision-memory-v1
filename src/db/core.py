@@ -60,8 +60,12 @@ def _normalize_url(url: str) -> str:
 
 
 def _sql_to_psycopg_style(sql: str, params: dict[str, Any]) -> str:
-    """Convert :name placeholders to %(name)s for psycopg."""
-    for key in params:
+    """Convert :name placeholders to %(name)s for psycopg.
+
+    Clés triées par longueur décroissante : sinon ``:id`` remplace le préfixe
+    de ``:idx`` et produit du SQL invalide (ex. ``%(id)sx``).
+    """
+    for key in sorted(params, key=len, reverse=True):
         sql = sql.replace(":" + key, "%(" + key + ")s")
     return sql
 
