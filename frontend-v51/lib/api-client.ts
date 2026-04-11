@@ -170,11 +170,23 @@ class ApiClient {
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
     try {
+      const payload =
+        typeof body === "string"
+          ? body
+          : JSON.stringify(
+              body === null || body === undefined
+                ? {}
+                : Object.fromEntries(
+                    Object.entries(body as Record<string, unknown>).filter(
+                      ([, v]) => v !== undefined,
+                    ),
+                  ),
+            );
       return await fetch(`${API_BASE}${path}`, {
         ...init,
         method: "POST",
         headers,
-        body: JSON.stringify(body),
+        body: payload,
       });
     } catch (e) {
       rethrowIfNetworkFailure(e);

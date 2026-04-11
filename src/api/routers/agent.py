@@ -14,7 +14,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from src.agent.context_store import get_context, save_context
 from src.agent.guardrail import check_recommendation_guardrail
@@ -37,22 +37,45 @@ router = APIRouter(prefix="/api", tags=["agent-v51"])
 
 
 class AgentPromptRequest(BaseModel):
-    query: str
-    workspace_id: UUID | None = None
-    session_id: str | None = None
+    """Corps POST /api/agent/prompt.
+
+    Clé canonique : ``query``. Alias acceptés pour clients mal branchés :
+    ``message``, ``prompt`` (même sémantique). ``workspaceId`` / ``sessionId`` en camelCase.
+    """
+
+    model_config = ConfigDict(populate_by_name=True, str_strip_whitespace=True)
+
+    query: str = Field(
+        ...,
+        min_length=1,
+        validation_alias=AliasChoices("query", "message", "prompt"),
+        description="Question utilisateur (texte non vide)",
+    )
+    workspace_id: UUID | None = Field(
+        default=None,
+        validation_alias=AliasChoices("workspace_id", "workspaceId"),
+    )
+    session_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("session_id", "sessionId"),
+    )
 
 
 @router.post("/agent/prompt")
 @limiter.limit(LIMIT_ANNOTATION)
 async def agent_prompt(
-    request: Request,
     payload: AgentPromptRequest,
+    request: Request,
     current_user: UserClaims = Depends(get_current_user),
 ) -> Any:
     """Point d'entrée unique de l'agent conversationnel.
 
     Retourne un stream SSE. JSON 422 guardrail uniquement si
     ``AGENT_INV_W06_PRE_LLM_BLOCK`` est activé et qu'une recommandation est détectée.
+
+    ``payload`` est déclaré **avant** ``request`` : le corps JSON doit être résolu
+    en premier (évite des 422 « Field required » sur ``query`` si le stream corps
+    était consommé ou mal ordonné avec SlowAPI + Request).
     """
     langfuse = get_langfuse()
     trace = langfuse.trace(

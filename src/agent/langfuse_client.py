@@ -88,6 +88,12 @@ def _build_langfuse() -> Any:
             secret_key=secret_key,
             host=host,
         )
+        if not callable(getattr(client, "trace", None)):
+            logger.warning(
+                "[Langfuse] SDK sans API trace() (incompatible avec ce dépôt) — "
+                "traçage no-op. Attendu : langfuse>=2.60,<3 (voir requirements.txt)."
+            )
+            return _NullLangfuse()
         logger.info("[Langfuse] Client initialisé (host=%s).", host)
         return client
     except ImportError:

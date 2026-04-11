@@ -58,7 +58,9 @@ certifi>=2024.2.2
 arq==0.26.1
 
 # === VIVANT V2 — H3 LLM Observability (ADR-H3-LANGFUSE-001) ===
-langfuse>=2.0.0
+# Pin <3 : le code DMS utilise l'API Langfuse v2 (client.trace()). Les versions 3.x/4.x
+# l'ont retirée — pip installait alors une SDK incompatible → AttributeError sur /api/agent/prompt.
+langfuse>=2.60.0,<3
 
 # === VIVANT V2 — H3 Local Embeddings BGE-M3 (ADR-H3-BGE-M3-001) ===
 # FlagEmbedding: local BGE-M3 + BGE-reranker-v2-m3, 0 external API calls
