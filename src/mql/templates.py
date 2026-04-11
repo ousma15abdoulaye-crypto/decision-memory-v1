@@ -214,7 +214,7 @@ MQL_TEMPLATES: dict[str, dict] = {
                 (ms.signal_quality IN ('strong', 'moderate', 'propagated')) AS is_official
             FROM market_signals_v2 ms
             WHERE ms.signal_quality IN ('strong', 'moderate', 'propagated')
-              AND char_length(CAST(:tenant_id AS text)) >= 0
+              AND ms.tenant_id = CAST(:tenant_id AS uuid)
               AND EXISTS (
                   SELECT 1
                   FROM unnest(CAST(:zones AS text[])) AS z(pat)

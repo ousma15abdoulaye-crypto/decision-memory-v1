@@ -12,12 +12,15 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.auth.permissions import ROLE_PERMISSIONS
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.db import get_connection
 from src.procurement.m12_correction_writer import (
+    M12_CORRECTION_TYPES,
     M12CorrectionEntry,
     M12CorrectionWriter,
 )
@@ -45,7 +48,16 @@ class M12CorrectionCreateBody(BaseModel):
 
     document_id: str = Field(..., min_length=1)
     run_id: UUID
-    correction_type: str
+    correction_type: Literal[
+        "framework",
+        "family",
+        "document_kind",
+        "subtype",
+        "validity",
+        "conformity",
+        "process_link",
+        "other",
+    ]
     field_corrected: str = Field(..., min_length=1)
     original_value: dict = Field(default_factory=dict)
     corrected_value: dict = Field(default_factory=dict)
@@ -59,19 +71,34 @@ def append_m12_correction(
     user: Annotated[UserClaims, Depends(get_current_user)],
 ):
     _require_audit_access(user)
-    entry = M12CorrectionEntry(
-        document_id=payload.document_id,
-        run_id=payload.run_id,
-        correction_type=payload.correction_type,
-        field_corrected=payload.field_corrected,
-        original_value=payload.original_value,
-        corrected_value=payload.corrected_value,
-        corrected_by=payload.corrected_by,
-        correction_note=payload.correction_note,
-    )
-    writer = M12CorrectionWriter()
+
+    # Sécurité tenant : vérifier que document_id appartient au tenant utilisateur (RLS appliqué)
     with get_connection() as conn:
+        conn.execute(
+            "SELECT id FROM documents WHERE id = :doc_id",
+            {"doc_id": payload.document_id},
+        )
+        doc_row = conn.fetchone()
+        if doc_row is None:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail=f"Document {payload.document_id} introuvable ou hors périmètre tenant.",
+            )
+
+        # Document accessible : créer la correction
+        entry = M12CorrectionEntry(
+            document_id=payload.document_id,
+            run_id=payload.run_id,
+            correction_type=payload.correction_type,
+            field_corrected=payload.field_corrected,
+            original_value=payload.original_value,
+            corrected_value=payload.corrected_value,
+            corrected_by=payload.corrected_by,
+            correction_note=payload.correction_note,
+        )
+        writer = M12CorrectionWriter()
         new_id = writer.write(conn, entry)
+
     logger.info(
         "m12_correction appended id=%s document_id=%s user=%s",
         new_id,
