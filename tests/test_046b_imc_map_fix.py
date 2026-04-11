@@ -137,6 +137,9 @@ VALID_ALEMBIC_HEADS = (
     "v52_p2_001_price_line_market_delta",
     # No-op après v52_p2 (graphe Alembic linearisé — même id conservé pour déploiements)
     "6ce2036bd346",
+    # Sécurité multi-tenant — RLS marché / mercuriale / offres (PR #366)
+    "094_security_market_mercurial_tenant_rls",
+    "095_tenant_id_default_offers_extractions",
 )
 
 
