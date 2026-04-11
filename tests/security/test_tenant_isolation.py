@@ -151,14 +151,15 @@ def test_mercurials_rls_insert_other_tenant_denied(db_transaction):
         (src_id, f"sha256-{src_id[:20]}", TENANT_A),
     )
 
+    cur.execute("SELECT id FROM geo_master LIMIT 1")
+    gz = cur.fetchone()
+    if not gz:
+        pytest.skip("No geo_master")
+    zid = gz["id"]
+
     try:
         _set_subject(cur)
         _set_tenant(cur, TENANT_B)
-        cur.execute("SELECT id FROM geo_master LIMIT 1")
-        gz = cur.fetchone()
-        if not gz:
-            pytest.skip("No geo_master")
-        zid = gz["id"]
         cur.execute("SAVEPOINT sec_merc_rls_try")
         try:
             cur.execute(
