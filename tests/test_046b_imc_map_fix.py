@@ -141,6 +141,8 @@ VALID_ALEMBIC_HEADS = (
     "094_security_market_mercurial_tenant_rls",
     "095_tenant_id_default_offers_extractions",
     "096_dms_embeddings_tenant_rls",
+    # M12 / agent — rôle supply_chain utilisateur test (CI-friendly si user absent)
+    "097_fix_test_user_role_supply_chain",
 )
 
 
