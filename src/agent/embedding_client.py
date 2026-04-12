@@ -124,3 +124,35 @@ async def get_embedding(text: str, dim: int = 1024) -> np.ndarray:
         _client = None
         _fallback = True
         return _lexical_hash_embedding(text, dim=dim)
+
+
+async def get_embeddings_batch(texts: list[str], dim: int = 1024) -> list[np.ndarray]:
+    """Embeddings pour plusieurs textes en un appel API Mistral quand possible.
+
+    Réduit fortement le bruit réseau et le temps de warm des centroïdes (une requête
+    par classe d'intent au lieu d'une par exemple).
+    """
+    global _client, _fallback
+
+    if not texts:
+        return []
+
+    client = _get_client()
+
+    if client is None or _fallback:
+        return [_lexical_hash_embedding(t, dim=dim) for t in texts]
+
+    try:
+        response = await client.embeddings.create_async(
+            model="mistral-embed",
+            inputs=texts,
+        )
+        return [np.array(d.embedding, dtype=np.float32) for d in response.data]
+    except Exception as exc:
+        logger.warning(
+            "Mistral embeddings batch indisponible (%s) — fallback lexical par texte",
+            type(exc).__name__,
+        )
+        _client = None
+        _fallback = True
+        return [_lexical_hash_embedding(t, dim=dim) for t in texts]
