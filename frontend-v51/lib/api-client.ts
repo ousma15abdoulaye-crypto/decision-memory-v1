@@ -131,6 +131,35 @@ class ApiClient {
     });
   }
 
+  /**
+   * POST JSON **sans** en-tête Authorization (fetch direct, pas ``fetchAuth``).
+   *
+   * Cas d’usage : ``POST /api/auth/login`` — un JWT encore présent dans le
+   * stockage persisté ne doit pas être renvoyé sur la requête de connexion.
+   *
+   * Côté serveur, le corps est lu par ``get_login_credentials`` dans
+   * ``src/api/api_auth_router.py`` (JSON, form ou multipart) ; les tests
+   * ``tests/test_api_auth_workspace_access.py`` couvrent notamment le JSON
+   * ``{ "email", "password" }`` (le champ ``email`` accepte aussi un nom
+   * d’utilisateur).
+   */
+  async postJsonUnauthenticated<T>(path: string, body: unknown): Promise<T> {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      rethrowIfNetworkFailure(e);
+    }
+    return this.parseOkJson<T>(res);
+  }
+
   patch<T>(path: string, body: unknown) {
     return this.request<T>(path, {
       method: "PATCH",
