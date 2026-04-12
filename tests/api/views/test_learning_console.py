@@ -6,12 +6,12 @@ import pytest
 from pydantic import ValidationError
 
 from src.api.views.learning_console import (
-    approve_rule,
+    approve_rule_core,
     get_candidate_rules,
     get_learning_console,
     get_patterns,
     get_ragas_history,
-    reject_rule,
+    reject_rule_core,
 )
 from src.api.views.learning_console_models import (
     CandidateRuleSummary,
@@ -21,7 +21,6 @@ from src.api.views.learning_console_models import (
     RAGASHistoryEntry,
     RuleActionResponse,
 )
-from src.couche_a.auth.dependencies import UserClaims
 
 
 class TestGetLearningConsole:
@@ -48,24 +47,14 @@ class TestGetCandidateRules:
 
 
 class TestApproveRejectRule:
-    @staticmethod
-    def _viewer() -> UserClaims:
-        """Claims explicites : appels directs hors FastAPI (pas d'injection Depends)."""
-        return UserClaims(
-            user_id="1",
-            role="admin",
-            jti="test-jti-learning-console",
-            tenant_id=None,
-        )
-
     def test_approve(self) -> None:
-        result = approve_rule("rule-1", current_user=self._viewer())
+        result = approve_rule_core("rule-1", "system")
         assert isinstance(result, RuleActionResponse)
         assert result.new_status == "approved"
         assert result.rule_id == "rule-1"
 
     def test_reject(self) -> None:
-        result = reject_rule("rule-2", current_user=self._viewer())
+        result = reject_rule_core("rule-2", "system")
         assert result.new_status == "rejected"
 
 
