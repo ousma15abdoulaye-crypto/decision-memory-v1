@@ -19,6 +19,7 @@ from fastapi import HTTPException, status
 from src.auth.permissions import has_permission
 from src.core.config import get_settings
 from src.couche_a.auth.dependencies import UserClaims
+from src.couche_a.auth.pilot_access import is_pilot_terrain_user_claims
 from src.couche_a.auth.rbac import ROLES as JWT_LEGACY_ROLES
 from src.db import db_execute_one, get_connection
 from src.services.workspace_access_service import WorkspaceAccessService
@@ -81,6 +82,14 @@ def require_workspace_access(workspace_id: str, user: UserClaims) -> None:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Workspace {workspace_id!r} non trouvé.",
         )
+
+    if is_pilot_terrain_user_claims(user):
+        logger.warning(
+            "workspace.access PILOT_TERRAIN_BYPASS user_id=%s workspace_id=%s",
+            user.user_id,
+            workspace_id,
+        )
+        return
 
     if user.role == "admin":
         logger.info(
@@ -169,6 +178,14 @@ def require_rbac_permission(user: UserClaims, permission: str) -> None:
     if user.role == "admin":
         return
 
+    if is_pilot_terrain_user_claims(user):
+        logger.warning(
+            "require_rbac_permission PILOT_TERRAIN_BYPASS user_id=%s permission=%s",
+            user.user_id,
+            permission,
+        )
+        return
+
     user_id = int(user.user_id)
     with get_connection() as conn:
         perm_check = db_execute_one(
@@ -201,6 +218,14 @@ def require_workspace_comment_permission(workspace_id: str, user: UserClaims) ->
     """
     require_workspace_access(workspace_id, user)
     if user.role == "admin":
+        return
+    if is_pilot_terrain_user_claims(user):
+        logger.warning(
+            "require_workspace_comment_permission PILOT_TERRAIN_BYPASS user_id=%s "
+            "workspace_id=%s",
+            user.user_id,
+            workspace_id,
+        )
         return
     user_id = int(user.user_id)
     tid = user.tenant_id
@@ -241,6 +266,15 @@ def require_workspace_permission(
     """
     require_workspace_access(workspace_id, user)
     if user.role == "admin":
+        return
+    if is_pilot_terrain_user_claims(user):
+        logger.warning(
+            "require_workspace_permission PILOT_TERRAIN_BYPASS user_id=%s "
+            "workspace_id=%s permission=%s",
+            user.user_id,
+            workspace_id,
+            permission,
+        )
         return
     tid = user.tenant_id
     if not tid:

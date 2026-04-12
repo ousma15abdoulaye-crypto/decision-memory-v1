@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-11 — **Railway prod (dernier enregistrement MRD)** : head **093** (`093_v51_assessment_history`, apply **091→092→093** 2026-04-09) ; **dépôt `alembic heads`** : **096** (`096_dms_embeddings_tenant_rls`) — **PR #391** merge **`68c00042`** (RAG M12) ; **base locale** : **`096`** appliquée **2026-04-11** (`alembic upgrade head`) ; **apply prod 093→096** (migrations **094–096**) **= GO CTO** (**RÈGLE-ANCHOR-06**, post-check `docs/ops/SECURITY_HARDENING.md` + runbook **`docs/ops/rag_ingest_runbook.md`** pour **096**) ; **2026-04-11** — **sécurité multi-tenant (PR #366 + #367)** : Alembic **094** + **095** ; RLS **FORCE** + `tenant_id` ; **`dms_default_tenant_id()`** ; **`tests/security/test_tenant_isolation.py`** ; **`docs/security_audit_report.md`**, **`docs/ops/SECURITY_HARDENING.md`** ; whitelist **`VALID_ALEMBIC_HEADS`** **094+095+096** ; **E-101** ; § **ADDENDUM 2026-04-11 — SÉCURITÉ RLS 094–095** ; **contexte historique Phase 1** — mandat **DMS-MIGRATION-PROD-V51-001** (GO AO) : **pré-état réel 080** (pas 079) → **081→090** (10 révisions) dont **`090_v51_extraction_jobs_langfuse_trace`** ; pre-check + post-check : `scripts/railway_migration_precheck_v51_001.py`, `scripts/railway_migration_postcheck_v51_001.py` ; rapport `docs/ops/RAILWAY_MIGRATION_V51_001_REPORT.md` ; backup Railway Dashboard Phase 1 **confirmé AO** : **1,4 Go**, **2026-04-08 15h12** ; **2026-04-09** — PR **#357** mergée (`75a66239`) — **E-99** + § **ADDENDUM 2026-04-09 — PR #357** ; **2026-04-10** — **V5.2** — **E-100** + § **ADDENDUM 2026-04-10 — V5.2 CONFIG** ; **2026-04-10** — **JWT pilote** — **cdbc2752** **`WORKSPACE_ACCESS_JWT_FALLBACK`** — § **ADDENDUM 2026-04-10 — JWT WORKSPACE PILOTE** ; **2026-04-11** — **PR #379** MERGÉ main **00689c1a** — M13 persistance : **`get_latest`**, **`profile_index.m13b`**, **`M13_RETENTION_POLICY`**, **030-m13** ; § **ADDENDUM 2026-04-11 — PR #379 M13** ; **2026-04-11** — **PR #387** MERGÉ main **878f1d39** — **frontend-v51** corridor **ZIP → bundles → pipeline V5** (UI) ; § **ADDENDUM 2026-04-11 — PR #387** ; **2026-04-11** — **PR #390** MERGÉ main **64ca7f89** — **dossier → ZIP navigateur** (**`fflate`**, **`zip-directory.ts`**) + clarification **Pass -1** vs **pipeline V5** ; § **ADDENDUM 2026-04-11 — PR #390** ║
+║  Dernière mise à jour : 2026-04-11 — **Railway prod (dernier enregistrement MRD)** : head **093** (`093_v51_assessment_history`, apply **091→092→093** 2026-04-09) ; **dépôt `alembic heads`** : **096** (`096_dms_embeddings_tenant_rls`) — **PR #391** merge **`68c00042`** (RAG M12) ; **base locale** : **`096`** appliquée **2026-04-11** (`alembic upgrade head`) ; **apply prod 093→096** (migrations **094–096**) **= GO CTO** (**RÈGLE-ANCHOR-06**, post-check `docs/ops/SECURITY_HARDENING.md` + runbook **`docs/ops/rag_ingest_runbook.md`** pour **096**) ; **2026-04-11** — **sécurité multi-tenant (PR #366 + #367)** : Alembic **094** + **095** ; RLS **FORCE** + `tenant_id` ; **`dms_default_tenant_id()`** ; **`tests/security/test_tenant_isolation.py`** ; **`docs/security_audit_report.md`**, **`docs/ops/SECURITY_HARDENING.md`** ; whitelist **`VALID_ALEMBIC_HEADS`** **094+095+096** ; **E-101** ; § **ADDENDUM 2026-04-11 — SÉCURITÉ RLS 094–095** ; **contexte historique Phase 1** — mandat **DMS-MIGRATION-PROD-V51-001** (GO AO) : **pré-état réel 080** (pas 079) → **081→090** (10 révisions) dont **`090_v51_extraction_jobs_langfuse_trace`** ; pre-check + post-check : `scripts/railway_migration_precheck_v51_001.py`, `scripts/railway_migration_postcheck_v51_001.py` ; rapport `docs/ops/RAILWAY_MIGRATION_V51_001_REPORT.md` ; backup Railway Dashboard Phase 1 **confirmé AO** : **1,4 Go**, **2026-04-08 15h12** ; **2026-04-09** — PR **#357** mergée (`75a66239`) — **E-99** + § **ADDENDUM 2026-04-09 — PR #357** ; **2026-04-10** — **V5.2** — **E-100** + § **ADDENDUM 2026-04-10 — V5.2 CONFIG** ; **2026-04-10** — **JWT pilote** — **cdbc2752** **`WORKSPACE_ACCESS_JWT_FALLBACK`** — § **ADDENDUM 2026-04-10 — JWT WORKSPACE PILOTE** ; **2026-04-11** — **PR #379** MERGÉ main **00689c1a** — M13 persistance : **`get_latest`**, **`profile_index.m13b`**, **`M13_RETENTION_POLICY`**, **030-m13** ; § **ADDENDUM 2026-04-11 — PR #379 M13** ; **2026-04-11** — **PR #387** MERGÉ main **878f1d39** — **frontend-v51** corridor **ZIP → bundles → pipeline V5** (UI) ; § **ADDENDUM 2026-04-11 — PR #387** ; **2026-04-11** — **PR #390** MERGÉ main **64ca7f89** — **dossier → ZIP navigateur** (**`fflate`**, **`zip-directory.ts`**) + clarification **Pass -1** vs **pipeline V5** ; § **ADDENDUM 2026-04-11 — PR #390** ; **2026-04-11** — **E-102** + § **ADDENDUM 2026-04-11 — PILOTE TERRAIN `DMS_PILOT_*`** (PR **#394**, branche **`feat/M-V51-pilot-terrain-stress-anchor`**) ║
 ║  Addendum 2026-04-08 : Phase 1 **DMS-MIGRATION-PROD-V51-001** — preuve backup prod (PostgreSQL Railway) : taille **1,4 Go**, horodatage **2026-04-08 15h12** (saisie AO / CTO) ║
 ║  Addendum 2026-04-08 : PR #344 MERGÉ main 0b952668 — **due diligence + refactoring** : (1) `src/couche_a/extraction.py` → package `src/couche_a/extraction/` avec ré-exports publics + `httpx` (patches tests) ; (2) pipeline A découpé `service.py` + `steps.py` + `service_utils.py` + `cas_builder.py`, scoring/ScoringEngine **conservés dans** `service.py` (compat monkeypatch tests), GUARD-OPS-01 hash recalculé ; (3) `src/annotation/orchestrator.py` **fichier unique** (split package annulé — tests M12), **sans BOM UTF-8** ; (4) CI : workflow `ci-typecheck-mypy.yml` (informationnel), étape BLE001 Ruff sur `src/` seulement, `fail_under` couverture **68%** + `.milestones/M-TESTS.done`, pipefail exit codes ; (5) dette documentée `docs/audit/ALEMBIC_STATE_2026-04-08.md`, inventaire `scripts/README.md`, gel `DMS_CANON_V5.1.0_FREEZE.md` ; **hors périmètre / gel** : `services/annotation-backend/backend.py` non découpé (gel annotation + mandat CTO) ; squash Alembic / single-head **documenté, non exécuté** ║
 ║  Addendum 2026-04-08 : PR #345 MERGÉ main f0a8379c — Canon V5.1.0 (4 voies, due diligence, `frontend-v51`, MQL, Langfuse, garde-fous, migrations **087–090**) ; correctifs CI : `pytest-asyncio`, rôle RLS `dms_rls_nobypass`, `asyncio.run` (tests), whitelist heads **087–090** dans `tests/test_046b_imc_map_fix.py`, docstring `pv_builder` (INV-09) ; INV-F01 : `actions/setup-node@v4` + `npm ci` + `npx tsc --noEmit` sous `frontend-v51` (workflow `.github/workflows/dms_invariants_v51.yml`) ; **Railway prod** : migrations **081→090** appliquées sous mandat DMS-MIGRATION-PROD-V51-001 (pré-état **080**) ║
@@ -653,6 +653,22 @@
 ║         **`document_id`** en colonne ; **`criterion_assessments`** (082)║
 ║         : pas de colonne **`score`** hors **`cell_json`**. Détail §   ║
 ║         **ADDENDUM 2026-04-11 — SÉCURITÉ RLS 094–095**.               ║
+║  E-102 **Pilote terrain production / stress test (`DMS_PILOT_*`)**   ║
+║         (2026-04-11) : (1) **Compte pilote principal** pour tests     ║
+║         bout-en-bout et stress **avant prod stable** — désignation   ║
+║         **uniquement** via variables d’environnement (**`DMS_PILOT_` ║
+║         `TERRAIN_FULL_ACCESS`**, **`DMS_PILOT_USER_IDS`**, optionnel   ║
+║         **`DMS_PILOT_USER_EMAILS`**) — **jamais** d’email ni d’id     ║
+║         utilisateur **codés en dur** dans `src/` (agents / humains).  ║
+║         (2) Ne **pas** confondre avec un rôle métier ou un compte     ║
+║         « spécial » permanent : c’est un **opérateur de test terrain**,║
+║         **opt-in**, **désactivé par défaut** ; désactiver après campagne.║
+║         (3) **`WORKSPACE_ACCESS_JWT_FALLBACK`** reste distinct :      ║
+║         lecture workspace sans membership ; le pilote **`DMS_PILOT_`**║
+║         élargit les garde-fous documentés dans l’addendum dédié.    ║
+║         Réf. **`docs/ops/DMS_PILOT_TERRAIN_ENV.md`**, module          ║
+║         **`src/couche_a/auth/pilot_access.py`**. Détail § **ADDENDUM  ║
+║         2026-04-11 — PILOTE TERRAIN PRODUCTION / STRESS TEST**.       ║
 ║                                                                      ║
 ║  ADR-015  Line items chirurgical — docs/adr/ADR-015_*.md            ║
 ║           Date : 2026-03-16 — Statut : ACCEPTÉ — v3.0.1d           ║
@@ -2375,5 +2391,41 @@ Tracer la vérité opposable après merge squash **PR #391** sur **`main`** (**`
 
 - PR **#391** : https://github.com/ousma15abdoulaye-crypto/decision-memory-v1/pull/391 (état merged).
 - Runbook **096** / RAG : **`docs/ops/rag_ingest_runbook.md`**.
+
+---
+
+## ADDENDUM 2026-04-11 — PILOTE TERRAIN PRODUCTION / STRESS TEST (`DMS_PILOT_*`)
+
+### PR
+
+- **#394** : https://github.com/ousma15abdoulaye-crypto/decision-memory-v1/pull/394
+
+### Rôle opposable
+
+Le **pilote terrain** est le **compte utilisateur principal** désigné pour les **tests d’intégration réels**, les **parcours produit** et les **stress tests** sur l’environnement cible (ex. Railway), **jusqu’à** stabilisation prod — pas un second système parallèle ni un compte anonyme.
+
+### Interdiction de durcissement implicite dans le code
+
+- **Aucun** email, **aucun** `users.id`, **aucun** « nom du pilote » ne doit être **codé en dur** dans `src/`, `tests/` (sauf fixtures **génériques** sans identité réelle), ni dans les prompts / règles Cursor pour « toujours autoriser untel ».
+- L’identité du pilote est **exclusivement** portée par la configuration : **`DMS_PILOT_TERRAIN_FULL_ACCESS`**, **`DMS_PILOT_USER_IDS`**, **`DMS_PILOT_USER_EMAILS`** (voir **`docs/ops/DMS_PILOT_TERRAIN_ENV.md`**).
+- Les **agents IA** et contributeurs doivent traiter ce pilote comme **variable d’exploitation**, pas comme une **exception métier** figée dans le code : éviter toute PR qui « ajoute un if sur l’email X » ou « whitelist l’id 42 ».
+
+### Distinction avec `WORKSPACE_ACCESS_JWT_FALLBACK`
+
+- **`WORKSPACE_ACCESS_JWT_FALLBACK`** : accès **lecture** workspace pour JWT legacy **sans** ligne `workspace_memberships` (voir addendum **JWT WORKSPACE PILOTE**).
+- **`DMS_PILOT_*`** : mode **plus large** (garde-fous workspace, RBAC tenant, M16 cognitif/scellement, `guard`, cas documents, rôle FastAPI, agent INV-W06, RLS admin pour ce user) — **uniquement** pour les ids/emails explicitement listés et le flag actif.
+
+### Implémentation de référence
+
+- Module **`src/couche_a/auth/pilot_access.py`** ; intégrations **`workspace_access`**, **`guard`**, **`m16_guards`**, **`dependencies`** (JWT / `require_role`), **`case_access`**, **`agent`**.
+- **E-102** dans l’encadré ASCII : rappel anti-hardcode + non-confusion avec le fallback JWT.
+
+### Cycle de vie ops
+
+Activer pour la campagne de test ; **désactiver** le flag et vider les listes avant bascule prod « normale » (memberships / RBAC complets).
+
+### ERREUR CAPITALISÉE — E-102 (2026-04-11)
+
+Reprend le bloc **E-102** dans l’encadré ASCII : pilote = **config env** uniquement ; pas d’identité en dur ; distinction **`WORKSPACE_ACCESS_JWT_FALLBACK`** ; référence **`docs/ops/DMS_PILOT_TERRAIN_ENV.md`**.
 
 ---

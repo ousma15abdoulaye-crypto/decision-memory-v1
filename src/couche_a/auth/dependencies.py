@@ -126,7 +126,13 @@ def _apply_verified_payload_to_context_and_claims(
     tid = _resolve_tenant_uuid_for_rls(tid, conn)
 
     set_db_tenant_id(tid)
-    set_rls_is_admin(role == "admin")
+    try:
+        uid_int = int(sub_str)
+    except ValueError:
+        uid_int = -1
+    from src.couche_a.auth.pilot_access import is_pilot_terrain_user_id
+
+    set_rls_is_admin(role == "admin" or is_pilot_terrain_user_id(uid_int))
     set_rls_user_id(sub_str)
 
     jti = payload.get("jti")
@@ -242,6 +248,10 @@ def require_role(*roles: str) -> Callable:
     allowed = frozenset(roles)
 
     def _check(current_user: UserClaims = Depends(get_current_user)) -> UserClaims:
+        from src.couche_a.auth.pilot_access import is_pilot_terrain_user_claims
+
+        if is_pilot_terrain_user_claims(current_user):
+            return current_user
         if current_user.role not in allowed:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

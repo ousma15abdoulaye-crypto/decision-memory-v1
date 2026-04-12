@@ -7,7 +7,22 @@ audit_log permissions : réservé M1B.
 
 from __future__ import annotations
 
-ROLES: frozenset[str] = frozenset({"admin", "manager", "buyer", "viewer", "auditor"})
+ROLES: frozenset[str] = frozenset(
+    {
+        # V4.1.0 roles
+        "admin",
+        "manager",
+        "buyer",
+        "viewer",
+        "auditor",
+        # V5.2 roles (src/auth/permissions.py ROLE_PERMISSIONS)
+        "supply_chain",
+        "finance",
+        "technical",
+        "budget_holder",
+        "observer",
+    }
+)
 
 # Matrice de permissions
 # resource → set d'opérations autorisées

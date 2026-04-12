@@ -21,7 +21,22 @@ from jose import JWTError, jwt
 
 from src.core.config import get_settings
 
-VALID_ROLES = frozenset({"admin", "manager", "buyer", "viewer", "auditor"})
+VALID_ROLES = frozenset(
+    {
+        # V4.1.0 roles
+        "admin",
+        "manager",
+        "buyer",
+        "viewer",
+        "auditor",
+        # V5.2 roles (src/auth/permissions.py ROLE_PERMISSIONS)
+        "supply_chain",
+        "finance",
+        "technical",
+        "budget_holder",
+        "observer",
+    }
+)
 
 
 def _secret_key() -> str:

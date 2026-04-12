@@ -6,6 +6,7 @@ Utilise ``compute_cognitive_state`` (chaînes 'E0'…'E6') et ``load_cognitive_f
 
 from __future__ import annotations
 
+import logging
 from typing import Literal
 
 from fastapi import HTTPException, status
@@ -13,11 +14,14 @@ from fastapi import HTTPException, status
 from src.api.cognitive_helpers import load_cognitive_facts
 from src.cognitive.cognitive_state import compute_cognitive_state
 from src.couche_a.auth.dependencies import UserClaims
+from src.couche_a.auth.pilot_access import is_pilot_terrain_user_claims
 from src.couche_a.auth.workspace_access import (
     require_rbac_permission,
     require_workspace_access,
 )
 from src.db import db_execute_one, get_connection
+
+logger = logging.getLogger(__name__)
 
 StateId = Literal["E0", "E1", "E2", "E3", "E4", "E5", "E6"]
 
@@ -45,6 +49,14 @@ def m16_guard(
     block_write_if_sealed: bool = False,
 ) -> None:
     """Vérifie accès workspace, permission optionnelle, seuil cognitif, scellement."""
+    if is_pilot_terrain_user_claims(user):
+        logger.warning(
+            "m16_guard PILOT_TERRAIN_BYPASS user_id=%s workspace_id=%s",
+            user.user_id,
+            workspace_id,
+        )
+        return
+
     require_workspace_access(workspace_id, user)
     if permission:
         require_rbac_permission(user, permission)
