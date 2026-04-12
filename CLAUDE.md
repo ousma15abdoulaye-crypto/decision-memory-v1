@@ -16,6 +16,20 @@ En cas de conflit : l’autorité de rang supérieur **prime** ; l’agent **STO
 Conflit avec **`DMS_V4.1.0_FREEZE.md`** → STOP immédiat + GO CTO obligatoire.
 L’agent **ne tranche jamais** un conflit entre sources d’autorité.
 
+## DÉCISION CTO — PR : L’AGENT CRÉATEUR SUIT JUSQU’AU MERGE (OBLIGATOIRE)
+
+**Autorité** : **mandat CTO** (Abdoulaye Ousmane) — cette règle **prime** sur toute formulation historique du dépôt du type « merge réservé à l’humain seul » pour l’**exécution par agent** (Cursor, CLI, équivalent). La doc gelée ou les handovers anciens qui contredisent ce point sont **dépassés** pour l’outillage agent tant que le CTO ne révoque pas cette décision (voir aussi **`docs/ops/ADDENDUM_CTO_AGENT_MERGE_AUTHORITY.md`**).
+
+**Règle** : l’**agent / session qui a créé ou ouvert la PR** d’un mandat **ne considère pas le mandat terminé** après le premier `git push`. Il **doit** :
+
+1. **Surveiller** la PR (**CI** / GitHub Actions / gates requis) **jusqu’au vert** — analyser les logs, corriger, re-pousser ; **pas d’abandon** après un seul échec CI sans itération.
+2. **Récupérer et traiter** les commentaires **GitHub Copilot** et les **threads de revue** (humains) : lire, corriger le code ou répondre, re-pousser ; **itérer** jusqu’à ce que les retours bloquants soient traités et que la CI redevienne verte.
+3. Vérifier **Alembic** : **`alembic heads`** = **exactement une ligne** — sinon **STOP-1** ; **ne pas merger** tant que non résolu.
+4. **Merger** la PR vers **`main`** une fois **checks verts** et **revue / Copilot** traités dans les limites du mandat — via **`gh pr merge`** (ou équivalent) ; **sauf** instruction contraire explicite du CTO sur cette PR.
+5. **Railway / production** : le **merge Git ne remplace pas** un **GO CTO** pour `alembic upgrade` ou mutations prod (**RÈGLE-ANCHOR-06**, runbooks) ; le documenter en PR ou **CONTEXT_ANCHOR** si une action prod reste à faire.
+
+**Référence détaillée** : **`.cursor/rules/dms-agent-mandate-protocol.mdc`** (protocole complet début → fin de mandat).
+
 ## KILL LIST — REJET IMMÉDIAT
 - confidence hors {0.6, 0.8, 1.0}
 - confidence=0.0 dans squelette JSON prompt (E-65)
@@ -66,7 +80,7 @@ wc et cat absents — utiliser Get-Content + Measure-Object
 - Fichier hors liste → STOP + signaler CTO immédiatement (RÈGLE-ORG-07)
 - 1 mandat = 1 branche = 1 PR (RÈGLE-01)
 - Jamais travailler sur main
-- **Merge vers `main` (ordre CTO)** : les **agents** exécutent **`.cursor/rules/dms-agent-mandate-protocol.mdc`** — **surveiller la PR** jusqu’à **CI vert**, traiter **Copilot / revue** et re-pousser, vérifier **`alembic heads` = une seule ligne** (**STOP-1** sinon), puis **merger** ; apply **Railway / prod** = runbook + GO CTO (non contourné par le merge Git).
+- **PR → merge** : **§ DÉCISION CTO — PR** ci-dessus + **`.cursor/rules/dms-agent-mandate-protocol.mdc`** — l’**agent créateur** de la PR la **suit jusqu’au merge** (CI vert, **Copilot / revue**, **alembic heads** = 1 ligne) ; **Railway / prod** = runbook + GO CTO (non contourné par le merge Git).
 
 ## SIGNAUX STOP UNIVERSELS
 STOP-1 : alembic heads > 1 ligne

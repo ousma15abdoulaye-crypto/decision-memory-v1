@@ -124,7 +124,9 @@ async def bundle_node(state: PassMinusOneState) -> PassMinusOneState:
     bundles: dict[str, list[dict]] = {}
 
     for doc in state.get("raw_documents", []):
-        vendor = _extract_vendor_name(doc.get("raw_text", ""), doc.get("filename", ""))
+        vendor = resolve_bundle_vendor_key(
+            doc.get("raw_text", ""), doc.get("filename", "")
+        )
         if vendor not in bundles:
             bundles[vendor] = []
         bundles[vendor].append(doc)
@@ -216,6 +218,20 @@ def _classify_document_type(raw_text: str, filename: str) -> str:
     if "rib" in text_lower or "relevé d'identité" in text_lower:
         return "rib"
     return "other"
+
+
+def resolve_bundle_vendor_key(raw_text: str, zip_entry_filename: str) -> str:
+    """Clé de regroupement Pass -1 : dossier racine du ZIP si chemin multi-segments.
+
+    Convention pilote : ``FournisseurA/doc.docx`` → un bundle **FournisseurA** (stable,
+    aligné « N offres = N dossiers »). Fichiers à la racine du ZIP : heuristique
+    texte / nom de fichier inchangée (``_extract_vendor_name``).
+    """
+    name = (zip_entry_filename or "").replace("\\", "/").strip()
+    parts = [p for p in name.split("/") if p and p not in (".", "..")]
+    if len(parts) >= 2:
+        return parts[0][:80]
+    return _extract_vendor_name(raw_text, zip_entry_filename)
 
 
 def _extract_vendor_name(raw_text: str, filename: str) -> str:

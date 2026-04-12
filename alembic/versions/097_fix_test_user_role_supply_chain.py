@@ -126,8 +126,8 @@ def upgrade() -> None:
 
             IF v_role_name IS NULL THEN
                 RAISE NOTICE
-                    '097 SKIP — user % absent (CI ou DB sans seed) ; rôles rbac/legacy inchangés pour cet id',
-                    {_TARGET_USER_ID};
+                    '097 SKIP — user {_TARGET_USER_ID} absent (CI / DB fraîche) — '
+                    'aucune mise à jour rôle';
                 RETURN;
             END IF;
 

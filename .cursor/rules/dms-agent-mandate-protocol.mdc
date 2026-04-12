@@ -48,15 +48,16 @@ L’agent **ne modifie aucun fichier** tant que les lectures ci-dessous ne sont 
 
 ### 3.2 Pull Request, revue Copilot, CI, merge (ordre CTO — actif)
 
-**Autorité** : ordre CTO (Abdoulaye Ousmane) — les **agents Cursor** ont **l’obligation** de boucler la PR jusqu’au merge lorsque le mandat le requiert, sous les garde-fous ci-dessous.
+**Autorité** : **décision CTO** (Abdoulaye Ousmane) — **ordre opposable** : l’**agent / session qui a créé ou ouvert la PR** du mandat **est responsable de la suivre jusqu’au merge**. On ne « dépose » pas la PR pour que le CTO ou un autre agent la termine sans transfert explicite. Cette règle **prime** sur toute consigne historique « merge humain uniquement » pour l’exécution agent (voir **`CLAUDE.md`** § **DÉCISION CTO — PR** et **`docs/ops/ADDENDUM_CTO_AGENT_MERGE_AUTHORITY.md`**).
 
 1. **Pousser** la branche sur `origin`, ouvrir (ou mettre à jour) une **PR** (description : objectif, preuves, risques, anchor si besoin).
-2. **Surveiller la PR** : suivre les exécutions **CI** jusqu’à **vert** ; relire les **commentaires Copilot** et les **threads de revue** ; **corriger** tout retour pertinent dans la même branche ; **re-pousser** et **itérer** jusqu’à CI vert et revue traitée (pas d’abandon après le premier push).
-3. **Alembic — respect du head (bloquant avant merge)** :
+2. **Surveiller la PR** : suivre les exécutions **CI** jusqu’à **vert** (logs, itérations de correctifs) — **pas d’abandon** après le premier push ou le premier échec.
+3. **Copilot et revue** : **récupérer** systématiquement les commentaires **GitHub Copilot** et les **threads de revue** (interface PR ou `gh api` / `gh pr view`) ; **corriger** tout retour pertinent sur la **même branche** ; **re-pousser** ; **itérer** jusqu’à **CI vert** et **revue / Copilot** traités (réponses ou correctifs).
+4. **Alembic — respect du head (bloquant avant merge)** :
    - Exécuter **`alembic heads`** : **exactement une ligne** (**STOP-1** / `CLAUDE.md` si plusieurs heads — **ne pas merger** tant que non résolu).
    - La PR ne doit **pas** modifier des révisions déjà fusionnées sous `alembic/versions/` ; toute nouvelle migration = **fichier séquentiel** conforme mandat Alembic / anchor.
    - Si la PR ne touche pas aux migrations : vérifier quand même qu’elle n’introduit pas de désalignement (pas de suppression de migration, pas de conflit de révisions).
-4. **Merge** : une fois **CI vert**, **retours Copilot / revue** adressés, et **Alembic** conforme (point **3** + tableau **§3.3**), l’**agent merge** la PR vers **`main`** (squash ou merge commit selon convention équipe / GitHub du dépôt).  
+5. **Merge** : une fois **CI vert**, **Copilot / revue** traités, et **Alembic** conforme (point **4** + tableau **§3.3**), l’**agent créateur** **merge** la PR vers **`main`** (`gh pr merge` ou équivalent ; squash vs merge commit selon convention du dépôt).  
    - **Railway / prod** : le merge Git **ne remplace pas** un **GO CTO** pour `alembic upgrade` sur Railway ; documenter dans la PR ou l’addendum anchor si une apply prod est encore requise.
 
 ### 3.3 Vérification migration (rappel express)
@@ -76,4 +77,4 @@ L’agent **ne modifie aucun fichier** tant que les lectures ci-dessous ne sont 
 - [ ] MRD_CURRENT_STATE.md lu  
 - [ ] DMS_V4.1.0_FREEZE.md au moins parcouru si le mandat touche le domaine métier gelé  
 - [ ] Branche dédiée créée si on était sur `main`  
-- [ ] Fin : PR + **surveillance** CI + **Copilot / revue** corrigés ; `alembic heads` **OK** ; anchor addendum si vérité changée ; **merge par l’agent** une fois tout vert (ordre CTO)
+- [ ] Fin : PR + **surveillance** CI jusqu’au **vert** + **Copilot / revue** récupérés et corrigés ; `alembic heads` **OK** ; anchor addendum si vérité changée ; **merge par l’agent créateur** une fois tout vert (**ordre CTO**)

@@ -2,8 +2,7 @@
 """Liste les supplier_bundles d'un workspace (analyse « N offres vs M bundles »).
 
 Utile pour comprendre pourquoi le graphe Pass -1 produit plus de bundles que
-de dossiers fournisseurs (heuristique ``_extract_vendor_name`` sur texte / nom
-de fichier).
+de dossiers fournisseurs (heuristique ``resolve_bundle_vendor_key`` / ZIP).
 
 Usage ::
   python scripts/probe_workspace_bundles.py <workspace_uuid>
@@ -112,7 +111,8 @@ def main() -> int:
         v = (b.get("vendor_name_raw") or "")[:72]
         print(
             f"  idx={b.get('bundle_index')} docs={b.get('document_count')} "
-            f"complete={b.get('completeness_score')} hitl={b.get('hitl_required')}\n    {v!r}",
+            f"complete={b.get('completeness_score')} hitl={b.get('hitl_required')}\n"
+            f"    {v!r}",
             file=sys.stderr,
         )
     return 0

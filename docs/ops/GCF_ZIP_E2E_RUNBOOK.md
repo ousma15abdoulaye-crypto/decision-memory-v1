@@ -10,6 +10,8 @@
 | `scripts/probe_matrix_m14_m16.py` | Sonde SQL M14 vs M16 pour un `workspace_id` |
 | `scripts/probe_workspace_bundles.py` | Détail des `supplier_bundles` (P0 bundling : M bundles vs N offres) |
 
+**Gate pilote complet** (phases 0–4, SLO, checklist UI, CI manuel) : [`docs/ops/PIPELINE_PILOT_ENTERPRISE_GATE.md`](PIPELINE_PILOT_ENTERPRISE_GATE.md).
+
 ## Construction du ZIP
 
 ```bash
@@ -78,3 +80,5 @@ Toute mise en prod ou sur environnement partagé doit préciser : environnements
 ## P0 — Bundling (ex. 9 bundles pour 3 offres)
 
 Si le produit attend « une offre = un bundle », l’écart vient du regroupement actuel (lignes détectées dans le texte, préfixe de nom de fichier, graphe Pass -1). **Analyser** avec `probe_workspace_bundles.py` : `vendor_name_raw`, `bundle_index`, `document_count`, `completeness_score`, puis trancher bug vs règle implicite à documenter ou corriger.
+
+**Convention ZIP stable (pilote ≥ 9 bundles)** : placer chaque offre sous un **dossier racine** dans le ZIP, ex. `Fournisseur_X/document.docx`. Le Pass -1 regroupe alors par ce premier segment (`resolve_bundle_vendor_key` dans `src/assembler/graph.py`). Les fichiers à la racine du ZIP restent sur l’heuristique texte / préfixe de nom de fichier.
