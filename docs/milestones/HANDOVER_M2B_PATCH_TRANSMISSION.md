@@ -258,7 +258,7 @@ python -m pytest -rs tests/ 2>&1 | Select-String "SKIPPED"
 - Ne pas toucher auth_helpers.py ni auth_router.py hors mandat M1-04
 - Migrations : SQL brut op.execute() uniquement — zéro autogenerate
 - Prochaine migration ID : 040_
-- RÈGLE-ORG-10 : merge PR `main` → **agent** (`CLAUDE.md`) ; tags → pratique équipe
+- RÈGLE-ORG-10 : merge PR → `main` : **agent** (`CLAUDE.md`) ; tags → pratique équipe
 - ADR-0012 : pipeline_runs append-only — UPDATE/DELETE interdits
 - PROBE avant toute action DB (RÈGLE-ORG-08)
 ```
@@ -272,7 +272,7 @@ python -m pytest -rs tests/ 2>&1 | Select-String "SKIPPED"
 | RÈGLE-ORG-04 | DoD validé par l'humain uniquement |
 | RÈGLE-ORG-07 | Fichier hors périmètre → revert immédiat |
 | RÈGLE-ORG-08 | PROBE avant toute action DB |
-| RÈGLE-ORG-10 | Merge PR `main` → **agent** (`CLAUDE.md`) |
+| RÈGLE-ORG-10 | Merge PR → `main` : **agent** (`CLAUDE.md`) |
 | RÈGLE-12 | Migrations = SQL brut `op.execute()` uniquement — zéro autogenerate |
 | RÈGLE-09 | `winner` / `rank` / `recommendation` = INTERDITS hors comité humain |
 | ADR-0012 | `pipeline_runs` append-only — UPDATE/DELETE interdits |
