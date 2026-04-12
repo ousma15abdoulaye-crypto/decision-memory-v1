@@ -46,6 +46,16 @@ def test_api_auth_login_with_email():
     assert response.json()["user"]["username"] == "admin"
 
 
+def test_api_auth_login_accepts_username_key():
+    """Clients OAuth2 / formulaires qui envoient ``username`` au lieu de ``email`` → 200."""
+    response = client.post(
+        "/api/auth/login",
+        json={"username": "admin", "password": "admin123"},
+    )
+    assert response.status_code == 200
+    assert response.json()["user"]["username"] == "admin"
+
+
 def test_api_auth_login_wrong_password():
     """POST /api/auth/login — mauvais mot de passe → 401."""
     response = client.post(
