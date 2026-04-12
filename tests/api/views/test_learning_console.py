@@ -6,12 +6,12 @@ import pytest
 from pydantic import ValidationError
 
 from src.api.views.learning_console import (
-    approve_rule,
+    approve_rule_core,
     get_candidate_rules,
     get_learning_console,
     get_patterns,
     get_ragas_history,
-    reject_rule,
+    reject_rule_core,
 )
 from src.api.views.learning_console_models import (
     CandidateRuleSummary,
@@ -48,13 +48,13 @@ class TestGetCandidateRules:
 
 class TestApproveRejectRule:
     def test_approve(self) -> None:
-        result = approve_rule("rule-1")
+        result = approve_rule_core("rule-1", "system")
         assert isinstance(result, RuleActionResponse)
         assert result.new_status == "approved"
         assert result.rule_id == "rule-1"
 
     def test_reject(self) -> None:
-        result = reject_rule("rule-2")
+        result = reject_rule_core("rule-2", "system")
         assert result.new_status == "rejected"
 
 
