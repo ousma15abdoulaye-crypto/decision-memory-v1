@@ -216,11 +216,24 @@ def rotate_refresh_token(
     except (TypeError, ValueError):
         uid_int = None
     if uid_int is not None:
-        from src.api.auth_helpers import get_user_by_id, jwt_role_for_user_row
+        from src.api.auth_helpers import jwt_role_for_user_row
 
-        row = get_user_by_id(uid_int)
-        if row:
-            role = jwt_role_for_user_row(row)
+        with db_conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT u.is_superuser, r.name AS role_name
+                FROM users u
+                JOIN roles r ON r.id = u.role_id
+                WHERE u.id = %s
+                LIMIT 1
+                """,
+                (uid_int,),
+            )
+            db_row = cur.fetchone()
+        if db_row:
+            role = jwt_role_for_user_row(
+                {"is_superuser": db_row[0], "role_name": db_row[1]}
+            )
 
     tid = payload.get("tenant_id")
     if not tid:

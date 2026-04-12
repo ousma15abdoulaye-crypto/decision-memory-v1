@@ -123,6 +123,31 @@ def test_rotate_refresh_emits_new_tokens(db_conn):
         cur.execute("DELETE FROM token_blacklist WHERE token_jti = %s", (old_jti,))
 
 
+def test_rotate_refresh_reloads_role_from_db_numeric_sub(db_conn):
+    """sub numérique : le rôle du nouveau JWT reflète la DB (ex. is_superuser → admin)."""
+    with db_conn.cursor() as cur:
+        cur.execute("""
+            SELECT u.id::text
+            FROM users u
+            WHERE u.is_superuser = TRUE
+            LIMIT 1
+            """)
+        r = cur.fetchone()
+    if not r:
+        pytest.skip("aucun utilisateur is_superuser en base")
+    uid = r[0]
+    refresh = create_refresh_token(uid, "viewer")
+    new_access, new_refresh = rotate_refresh_token(refresh, db_conn)
+    old_jti = _jwt.get_unverified_claims(refresh)["jti"]
+    access_payload = _jwt.get_unverified_claims(new_access)
+    assert access_payload["sub"] == uid
+    assert access_payload["role"] == "admin"
+    refresh_payload = _jwt.get_unverified_claims(new_refresh)
+    assert refresh_payload["role"] == "admin"
+    with db_conn.cursor() as cur:
+        cur.execute("DELETE FROM token_blacklist WHERE token_jti = %s", (old_jti,))
+
+
 def test_rotate_blacklists_old_refresh_jti(db_conn):
     """Après rotation, l'ancien refresh jti est dans token_blacklist."""
     refresh = create_refresh_token("user-bl", "auditor")

@@ -1,8 +1,9 @@
-"""Test login admin principal (ousma15abdoulaye@gmail.com) / admin123 sur Railway prod."""
-import urllib.request
-import urllib.parse
-import json
+"""Test login admin via username=admin / admin123 sur /auth/token (Railway prod)."""
+
 import base64
+import json
+import urllib.parse
+import urllib.request
 
 BASE = "https://decision-memory-v1-production.up.railway.app"
 
