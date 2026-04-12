@@ -110,7 +110,9 @@ def upgrade() -> None:
         ON CONFLICT (user_id, tenant_id, role_id) DO NOTHING
     """)
 
-    # ── 5. Verification (FAIL-LOUD) ──────────────────────────────────────────
+    # ── 5. Verification (FAIL-LOUD only if target user exists) ───────────────
+    # CI / bases minimales : pas d’utilisateur {_TARGET_USER_ID} — les étapes 1–4
+    # sont des no-op ciblés ; on ne bloque pas ``alembic upgrade head``.
     op.execute(f"""
         DO $$
         DECLARE
@@ -123,8 +125,10 @@ def upgrade() -> None:
             WHERE u.id = {_TARGET_USER_ID};
 
             IF v_role_name IS NULL THEN
-                RAISE EXCEPTION
-                    '097 UPGRADE FAILED — user {_TARGET_USER_ID} not found';
+                RAISE NOTICE
+                    '097 SKIP — user % absent (CI ou DB sans seed) ; rôles rbac/legacy inchangés pour cet id',
+                    {_TARGET_USER_ID};
+                RETURN;
             END IF;
 
             IF v_role_name != '{_ROLE_NAME}' THEN

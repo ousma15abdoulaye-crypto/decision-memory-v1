@@ -10,7 +10,8 @@ Mode **opt-in**, **désactivé par défaut**. À utiliser uniquement pour valide
 |----------|-------------|-------------|
 | `DMS_PILOT_TERRAIN_FULL_ACCESS` | Pour activer | `true` / `1` pour activer le mode pilote. |
 | `DMS_PILOT_USER_IDS` | Recommandé | Liste d’identifiants `users.id` (JWT `sub`), séparés par virgule ou point-virgule. Ex. `12` ou `3, 5, 7`. |
-| `DMS_PILOT_USER_EMAILS` | Optionnel | Emails (minuscules conseillés), séparés par virgule. Résolus une fois au chargement vers des `users.id` (requête DB). |
+| `DMS_PILOT_USER_EMAILS` | Optionnel | Emails (minuscules conseillés), séparés par virgule. Résolus une fois au chargement vers des `users.id` (requête DB). Les échecs de résolution sont loggés **sans** exposer les emails (compteur uniquement). |
+| `DMS_PILOT_DEFAULT_TENANT_UUID` | Optionnel | UUID du tenant PostgreSQL pour `acquire_with_rls` quand le JWT pilote n’a pas de `tenant_id` : évite un `SELECT` synchrone sur `tenants` au premier appel agent. |
 
 **Règle de sécurité** : si le flag est activé mais **aucun** id n’est obtenu (listes vides ou emails inconnus), **aucun** utilisateur n’est pilote.
 

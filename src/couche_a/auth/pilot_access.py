@@ -7,6 +7,7 @@ Aucun email ou id codé en dur : ``DMS_PILOT_USER_IDS`` et/ou ``DMS_PILOT_USER_E
 from __future__ import annotations
 
 import logging
+import uuid
 
 from src.core.config import get_settings
 from src.couche_a.auth.dependencies import UserClaims
@@ -42,6 +43,7 @@ def _resolved_email_user_ids() -> set[int]:
         return set()
 
     found: set[int] = set()
+    unresolved = 0
     with get_connection() as conn:
         for em in emails:
             row = db_execute_one(
@@ -52,10 +54,13 @@ def _resolved_email_user_ids() -> set[int]:
             if row and row.get("id") is not None:
                 found.add(int(row["id"]))
             else:
-                logger.warning(
-                    "DMS_PILOT_USER_EMAILS: aucun utilisateur pour l’email %r",
-                    em,
-                )
+                unresolved += 1
+    if unresolved:
+        logger.warning(
+            "DMS_PILOT_USER_EMAILS: %s entrée(s) sans correspondance users.id "
+            "(emails non loggés — éviter PII en logs)",
+            unresolved,
+        )
     _resolved_email_ids = frozenset(found)
     return set(_resolved_email_ids)
 
@@ -87,10 +92,24 @@ def is_pilot_terrain_user_claims(user: UserClaims) -> bool:
 
 
 def default_tenant_uuid_for_pilot_rls() -> str:
-    """UUID texte du tenant ``DEFAULT_TENANT_CODE`` (pour RLS si JWT sans tenant_id)."""
+    """UUID texte du tenant pour RLS si JWT sans tenant_id (pilote uniquement).
+
+    Préférer ``DMS_PILOT_DEFAULT_TENANT_UUID`` en prod/async pour éviter un SELECT
+    synchrone au premier appel ; sinon résolution via ``DEFAULT_TENANT_CODE``.
+    """
     global _default_tenant_uuid_cache
     if _default_tenant_uuid_cache:
         return _default_tenant_uuid_cache
+    raw = get_settings().DMS_PILOT_DEFAULT_TENANT_UUID.strip()
+    if raw:
+        try:
+            validated = str(uuid.UUID(raw))
+        except ValueError as exc:
+            msg = "DMS_PILOT_DEFAULT_TENANT_UUID doit être un UUID valide."
+            logger.error("%s Reçu : %r", msg, raw[:36])
+            raise RuntimeError(msg) from exc
+        _default_tenant_uuid_cache = validated
+        return validated
     code = get_settings().DEFAULT_TENANT_CODE.strip() or "sci_mali"
     with get_connection() as conn:
         row = db_execute_one(

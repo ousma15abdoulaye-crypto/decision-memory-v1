@@ -57,3 +57,21 @@ async def test_jwt_fallback_denies_all_write_permissions(permission: str) -> Non
         with pytest.raises(HTTPException) as ei:
             await guard(conn, _user_buyer(uid=99), ws_id, permission)
         assert ei.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_pilot_terrain_bypasses_guard_without_db_membership() -> None:
+    """Mode ``DMS_PILOT_*`` : retour admin synthétique sans membership ni requêtes seal."""
+    conn = AsyncMock()
+    conn.fetch_one = AsyncMock()
+    ws_id = uuid.uuid4()
+
+    with patch("src.auth.guard.is_pilot_terrain_user_id", return_value=True):
+        out = await guard(
+            conn,
+            {"id": 42, "role": "viewer"},
+            ws_id,
+            "evaluation.write",
+        )
+    assert out == {"role": "admin"}
+    conn.fetch_one.assert_not_awaited()
