@@ -24,6 +24,7 @@
 ║  Addendum 2026-04-11 : PR **#390** MERGÉ main **64ca7f89** — **frontend-v51** : entrée **dossier fournisseurs** (`webkitdirectory` + **`multiple`**) → ZIP **côté client** (**`fflate`**, **`frontend-v51/lib/zip-directory.ts`**, plafond **`MAX_FOLDER_ZIP_BYTES`** ~**400 Mo**) puis même flux **`upload-zip`** ; aide UX **trois paragraphes** (contrat **`.zip`**, **Pass -1** arrière-plan **ARQ**, **pipeline V5** HTTP **synchrone** / timeouts proxy) ; dépendance **`fflate`** dans **`frontend-v51/package.json`** ; doc ops contrat mise à jour ; ajustements **Copilot** (guards taille / formulation) sur la même PR ; **sans** **`alembic/versions/`** ║
 ║  Addendum 2026-04-12 : PR **#396** MERGÉ main **9770aed9** — M12 **agent** Railway : **`embedding_client`** batch, **`semantic_router`**, logs httpx ; **`AGENT_SKIP_WARM_CENTROIDS`** ; **`src/observability/pipeline_v5_metrics.py`** (Prometheus opt-in **`DMS_PROMETHEUS_METRICS_ENABLE`**, labels **sans** `workspace_id`) ; Pass-1 **`DMS_PASS1_HEADLESS`** + **`observe_pass1_hitl_bypass`** ; **GET evaluation-frame** enrichi **M14** + **`dao_criteria`** ; Alembic **097** (rôle **`supply_chain`** user **100**, **NOTICE 097 SKIP** si absent) ; sondes **`probe_matrix_m14_m16`**, **`probe_workspace_bundles`** ; docs **`PIPELINE_PILOT_ENTERPRISE_GATE.md`**, **`GCF_ZIP_E2E_RUNBOOK.md`** ; tests **RBAC** / **`VALID_ALEMBIC_HEADS`** **097** ; **E-103** ; détail § **ADDENDUM 2026-04-12 — PR #396** ║
 ║  Addendum 2026-04-12 : PR **#398** MERGÉ main **dc975355** — **`jwt_role_for_user_row`** (`users.is_superuser` → JWT **`admin`**) ; rotation **refresh** : SELECT **`is_superuser`/`role_name`** sur **`db_conn`** ; Alembic **098** (admin principal email + seed **004**) ; **`tests/auth/test_jwt_handler.py`** **`test_rotate_refresh_reloads_role_from_db_numeric_sub`** ; **`VALID_ALEMBIC_HEADS`** **098** ; § **ADDENDUM 2026-04-12 — PR #398** ║
+║  Addendum 2026-04-12 : PR **#407** MERGÉ main **`464cfd10`** — hotfix **frontend-v51** login **422** : JSON **`password`** jamais **`undefined`** (`String(password ?? "")`, **`username`** + **`email`**) ; **rebuild frontend** requis ; § **ADDENDUM 2026-04-12 — PR #407** ║
 ║  Addendum 2026-04-07 : PR #342 MERGÉ main 42ace370 — M16 hardening (INV-weights, guards cognitifs, signal_engine, frontend committee/evaluation, tests DB/e2e) + correctifs revue Copilot (`dao_criteria` : `critere_nom`/`ponderation` ; `require_rbac_permission` pour éviter double `require_workspace_access` dans `m16_guard`) ; dépôt Alembic head **086** (`086_m16_force_row_level_security`) incl. **085** index cadre ; apply **080→086** Railway **en attente** tant que prod **079** (dry-run documenté : `DATABASE_URL=postgresql+psycopg://… alembic upgrade 079_bloc5_confidence_qualification_signal_log:head --sql`) ║
 ║  Addendum 2026-04-04 : PR #321 V4.2.0 Phase 3 — CI rouge — handover détaillé fin doc ║
 ║  Addendum 2026-04-05 : PR #324 MERGÉ main 107d05a2 — BLOC3 fix HTTP 500 W1/W2 + tenant RLS + market + ETL vendors ║
@@ -2470,5 +2471,30 @@ Aligner **JWT** et **workspace bypass** : `jwt_role_for_user_row()` ; rotation *
 - **ADR** **`docs/adrs/ADR-0017_comparative-matrix-vs-evaluation-projection.md`** : deux **rôles** non concurrents — **`GET …/comparative-matrix`** = matrice **produit / écran** (`comparative_matrix_service`) ; **`GET …/m16/comparative-table-model`** = projection **exports XLSX/PDF/PV** (`build_evaluation_projection` / `pv_builder`).
 - **Lecture DB** : ordre unique du dernier `evaluation_documents` par workspace — **`src/services/evaluation_document_query.py`** (`ORDER BY version DESC NULLS LAST, created_at DESC NULLS LAST`), réutilisé par frame, PV projection, bridge, pipeline V5, etc.
 - **Front** : `frontend-v51/types/consumed-paths.ts` documente que `comparative-table-model` n’est **pas** dans les chemins consommés par la grille UI.
+
+---
+
+## ADDENDUM 2026-04-12 — PR #407 MERGÉ (HOTFIX LOGIN 422 — JSON `password` JAMAIS `undefined`)
+
+### Git
+
+- **PR #407** : https://github.com/ousma15abdoulaye-crypto/decision-memory-v1/pull/407 — état **MERGED** **2026-04-12**.
+- **Merge commit `main`** : **`464cfd10ebc3310cc11c74bed0bfc452f5c30794`** (merge commit).
+
+### Objet
+
+**frontend-v51** — fichier seul **`frontend-v51/app/login/page.tsx`** : corps **`POST /api/auth/login`** avec **`password: String(password ?? "")`**, **`username: id`** en plus de **`email`** (même valeur que l’identifiant saisi), pour éviter que **`JSON.stringify`** omette la clé **`password`** quand la valeur est **`undefined`** → **422** côté **`get_login_credentials`** (champs requis absents / vides). **Ne pas revert** #399–#403 ; le correctif est **côté client** + **rebuild / redéploiement du frontend** obligatoire pour servir le nouveau bundle.
+
+### Smoke API (prod / staging)
+
+Remplacer **`BASE`** par l’URL **HTTPS** publique du service FastAPI (sans slash final). Identifiants **seed / tests** documentés dépôt (migration **004**, tests, **`scripts/_test_admin_login.py`**) : **`admin`** / **`admin123`** — en prod le mot de passe peut avoir été changé ; ne pas committer de secrets.
+
+```bash
+curl -sS -X POST -H "Content-Type: application/json" \
+  -d '{"email":"admin","username":"admin","password":"admin123"}' \
+  "BASE/api/auth/login"
+```
+
+Réponse attendue en succès : **HTTP 200** et JSON avec **`access_token`** (et **`refresh_token`** selon route).
 
 ---
