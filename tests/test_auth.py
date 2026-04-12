@@ -41,7 +41,7 @@ def test_login_json_with_admin_email():
     """Le champ JSON `email` accepte l'adresse email réelle (pas seulement username)."""
     response = client.post(
         "/auth/login",
-        json={"email": "admin@dms.local", "password": "admin123"},
+        json={"email": "ousma15abdoulaye@gmail.com", "password": "admin123"},
     )
     assert response.status_code == 200
     assert response.json()["user"]["username"] == "admin"
