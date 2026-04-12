@@ -99,12 +99,14 @@ def upgrade(engine: Optional[Engine] = None) -> None:
     # Hash généré avec: passlib.hash.bcrypt.hash("admin123")
     # Note: Fixed hash to correctly match "admin123"
     # Email = compte admin principal propriétaire (mandat projet).
-    # ON CONFLICT DO NOTHING preserves any existing password (e.g., if admin changed their password)
+    # ON CONFLICT DO NOTHING preserves any existing password (e.g., if admin changed their password).
+    # role_id is resolved by name (not hardcoded to 1) to survive IDENTITY sequence variations.
     _execute_sql(
         bind,
         f"""
         INSERT INTO users (email, username, hashed_password, full_name, is_active, is_superuser, role_id, created_at)
-        VALUES ('ousma15abdoulaye@gmail.com', 'admin', '$2b$12$n19PjDhu0vc01dy0LDWnZ.n8fX4z8tKiNGVwON4wTavaaGXOXFvDG', 'System Administrator', TRUE, TRUE, 1, '{timestamp}')
+        SELECT 'ousma15abdoulaye@gmail.com', 'admin', '$2b$12$n19PjDhu0vc01dy0LDWnZ.n8fX4z8tKiNGVwON4wTavaaGXOXFvDG', 'System Administrator', TRUE, TRUE, r.id, '{timestamp}'
+        FROM roles r WHERE r.name = 'admin' LIMIT 1
         ON CONFLICT (username) DO NOTHING
     """,
     )
