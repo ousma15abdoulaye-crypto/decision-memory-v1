@@ -5,7 +5,7 @@
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  CONTEXT ANCHOR — DMS v4.1                                          ║
-║  Dernière mise à jour : 2026-04-11 — **Railway prod (dernier enregistrement MRD)** : head **093** (`093_v51_assessment_history`, apply **091→092→093** 2026-04-09) ; **dépôt `alembic heads`** : **096** (`096_dms_embeddings_tenant_rls`) — **PR #391** merge **`68c00042`** (RAG M12) ; **base locale** : **`096`** appliquée **2026-04-11** (`alembic upgrade head`) ; **apply prod 093→096** (migrations **094–096**) **= GO CTO** (**RÈGLE-ANCHOR-06**, post-check `docs/ops/SECURITY_HARDENING.md` + runbook **`docs/ops/rag_ingest_runbook.md`** pour **096**) ; **2026-04-11** — **sécurité multi-tenant (PR #366 + #367)** : Alembic **094** + **095** ; RLS **FORCE** + `tenant_id` ; **`dms_default_tenant_id()`** ; **`tests/security/test_tenant_isolation.py`** ; **`docs/security_audit_report.md`**, **`docs/ops/SECURITY_HARDENING.md`** ; whitelist **`VALID_ALEMBIC_HEADS`** **094+095+096** ; **E-101** ; § **ADDENDUM 2026-04-11 — SÉCURITÉ RLS 094–095** ; **contexte historique Phase 1** — mandat **DMS-MIGRATION-PROD-V51-001** (GO AO) : **pré-état réel 080** (pas 079) → **081→090** (10 révisions) dont **`090_v51_extraction_jobs_langfuse_trace`** ; pre-check + post-check : `scripts/railway_migration_precheck_v51_001.py`, `scripts/railway_migration_postcheck_v51_001.py` ; rapport `docs/ops/RAILWAY_MIGRATION_V51_001_REPORT.md` ; backup Railway Dashboard Phase 1 **confirmé AO** : **1,4 Go**, **2026-04-08 15h12** ; **2026-04-09** — PR **#357** mergée (`75a66239`) — **E-99** + § **ADDENDUM 2026-04-09 — PR #357** ; **2026-04-10** — **V5.2** — **E-100** + § **ADDENDUM 2026-04-10 — V5.2 CONFIG** ; **2026-04-10** — **JWT pilote** — **cdbc2752** **`WORKSPACE_ACCESS_JWT_FALLBACK`** — § **ADDENDUM 2026-04-10 — JWT WORKSPACE PILOTE** ; **2026-04-11** — **PR #379** MERGÉ main **00689c1a** — M13 persistance : **`get_latest`**, **`profile_index.m13b`**, **`M13_RETENTION_POLICY`**, **030-m13** ; § **ADDENDUM 2026-04-11 — PR #379 M13** ; **2026-04-11** — **PR #387** MERGÉ main **878f1d39** — **frontend-v51** corridor **ZIP → bundles → pipeline V5** (UI) ; § **ADDENDUM 2026-04-11 — PR #387** ; **2026-04-11** — **PR #390** MERGÉ main **64ca7f89** — **dossier → ZIP navigateur** (**`fflate`**, **`zip-directory.ts`**) + clarification **Pass -1** vs **pipeline V5** ; § **ADDENDUM 2026-04-11 — PR #390** ║
+║  Dernière mise à jour : 2026-04-12 — **Railway prod (dernier enregistrement MRD)** : head **093** (`093_v51_assessment_history`, apply **091→092→093** 2026-04-09) — **apply prod →097** documenté **ADDENDUM 2026-04-12** (**GO CTO** / **`DMS_ALLOW_RAILWAY=1`**, **`scripts/apply_railway_migrations_safe.py --apply`**) ; **dépôt `alembic heads`** : **097** (`097_fix_test_user_role_supply_chain`) — **PR #396** MERGÉ **`9770aed9`** (M12 agent Railway + observabilité pipeline V5 + **097** CI-safe) ; **PR #391** merge **`68c00042`** (RAG M12, chaîne incl. **096**) ; **base locale** : **`097`** attendu après **`alembic upgrade head`** (session **2026-04-12**) ; **apply prod 093→096** (migrations **094–096**) **= GO CTO** (**RÈGLE-ANCHOR-06**, post-check `docs/ops/SECURITY_HARDENING.md` + runbook **`docs/ops/rag_ingest_runbook.md`** pour **096**) ; **2026-04-11** — **sécurité multi-tenant (PR #366 + #367)** : Alembic **094** + **095** ; RLS **FORCE** + `tenant_id` ; **`dms_default_tenant_id()`** ; **`tests/security/test_tenant_isolation.py`** ; **`docs/security_audit_report.md`**, **`docs/ops/SECURITY_HARDENING.md`** ; whitelist **`VALID_ALEMBIC_HEADS`** **094+095+096+097** ; **E-101** ; **E-103** ; § **ADDENDUM 2026-04-11 — SÉCURITÉ RLS 094–095** ; § **ADDENDUM 2026-04-12 — PR #396** ; **contexte historique Phase 1** — mandat **DMS-MIGRATION-PROD-V51-001** (GO AO) : **pré-état réel 080** (pas 079) → **081→090** (10 révisions) dont **`090_v51_extraction_jobs_langfuse_trace`** ; pre-check + post-check : `scripts/railway_migration_precheck_v51_001.py`, `scripts/railway_migration_postcheck_v51_001.py` ; rapport `docs/ops/RAILWAY_MIGRATION_V51_001_REPORT.md` ; backup Railway Dashboard Phase 1 **confirmé AO** : **1,4 Go**, **2026-04-08 15h12** ; **2026-04-09** — PR **#357** mergée (`75a66239`) — **E-99** + § **ADDENDUM 2026-04-09 — PR #357** ; **2026-04-10** — **V5.2** — **E-100** + § **ADDENDUM 2026-04-10 — V5.2 CONFIG** ; **2026-04-10** — **JWT pilote** — **cdbc2752** **`WORKSPACE_ACCESS_JWT_FALLBACK`** — § **ADDENDUM 2026-04-10 — JWT WORKSPACE PILOTE** ; **2026-04-11** — **PR #379** MERGÉ main **00689c1a** — M13 persistance : **`get_latest`**, **`profile_index.m13b`**, **`M13_RETENTION_POLICY`**, **030-m13** ; § **ADDENDUM 2026-04-11 — PR #379 M13** ; **2026-04-11** — **PR #387** MERGÉ main **878f1d39** — **frontend-v51** corridor **ZIP → bundles → pipeline V5** (UI) ; § **ADDENDUM 2026-04-11 — PR #387** ; **2026-04-11** — **PR #390** MERGÉ main **64ca7f89** — **dossier → ZIP navigateur** (**`fflate`**, **`zip-directory.ts`**) + clarification **Pass -1** vs **pipeline V5** ; § **ADDENDUM 2026-04-11 — PR #390** ║
 ║  Addendum 2026-04-08 : Phase 1 **DMS-MIGRATION-PROD-V51-001** — preuve backup prod (PostgreSQL Railway) : taille **1,4 Go**, horodatage **2026-04-08 15h12** (saisie AO / CTO) ║
 ║  Addendum 2026-04-08 : PR #344 MERGÉ main 0b952668 — **due diligence + refactoring** : (1) `src/couche_a/extraction.py` → package `src/couche_a/extraction/` avec ré-exports publics + `httpx` (patches tests) ; (2) pipeline A découpé `service.py` + `steps.py` + `service_utils.py` + `cas_builder.py`, scoring/ScoringEngine **conservés dans** `service.py` (compat monkeypatch tests), GUARD-OPS-01 hash recalculé ; (3) `src/annotation/orchestrator.py` **fichier unique** (split package annulé — tests M12), **sans BOM UTF-8** ; (4) CI : workflow `ci-typecheck-mypy.yml` (informationnel), étape BLE001 Ruff sur `src/` seulement, `fail_under` couverture **68%** + `.milestones/M-TESTS.done`, pipefail exit codes ; (5) dette documentée `docs/audit/ALEMBIC_STATE_2026-04-08.md`, inventaire `scripts/README.md`, gel `DMS_CANON_V5.1.0_FREEZE.md` ; **hors périmètre / gel** : `services/annotation-backend/backend.py` non découpé (gel annotation + mandat CTO) ; squash Alembic / single-head **documenté, non exécuté** ║
 ║  Addendum 2026-04-08 : PR #345 MERGÉ main f0a8379c — Canon V5.1.0 (4 voies, due diligence, `frontend-v51`, MQL, Langfuse, garde-fous, migrations **087–090**) ; correctifs CI : `pytest-asyncio`, rôle RLS `dms_rls_nobypass`, `asyncio.run` (tests), whitelist heads **087–090** dans `tests/test_046b_imc_map_fix.py`, docstring `pv_builder` (INV-09) ; INV-F01 : `actions/setup-node@v4` + `npm ci` + `npx tsc --noEmit` sous `frontend-v51` (workflow `.github/workflows/dms_invariants_v51.yml`) ; **Railway prod** : migrations **081→090** appliquées sous mandat DMS-MIGRATION-PROD-V51-001 (pré-état **080**) ║
@@ -22,6 +22,7 @@
 ║  Addendum 2026-04-11 : PR **#379** MERGÉ main **00689c1a** — M13 **`m13_regulatory_profile_versions`** : **`M13RegulatoryProfileRepository.get_latest(case_id)`** ; **`build_m13_regulatory_profile_persist_payload`** place les hooks **M13B** sous **`profile_index.m13b`** (requêtes JSONB : **`payload->'profile_index'->'m13b'`** ; ne plus supposer **`payload->'m13b'`** à la racine) ; **`docs/ops/M13_RETENTION_POLICY.md`** ; **`.cursor/rules/030-m13.mdc`** (périmètre mandat M13 ; dégradé visible ; pas d’exception bloquante M13 sur UNKNOWN par défaut) ║
 ║  Addendum 2026-04-11 : PR **#387** MERGÉ main **878f1d39** — **frontend-v51** : panneau **`WorkspaceIngestionPanel`** sur **`/workspaces/[id]`** — **`POST /api/workspaces/{id}/upload-zip`** (champ **`file`**, Pass -1 async) ; **`GET …/bundles`** (poll si **`assembling`** ou post-upload) ; **`POST …/run-pipeline`** + query **`force_m14`** ; **`frontend-v51/lib/api-client.ts`** : **`fetchAuth`**, **`parseOkJson`**, **`postMultipart`**, **`postEmpty`** ; **`seal-button`** : texte + doc **`WORKSPACE_SEAL_COMMITTEE_UX.md`** (vérité **PATCH `/status`**) ; ops **`FRONTEND_V51_WORKSPACE_INGESTION_API_CONTRACT.md`** ; E2E **`frontend-v51/e2e/README.md`**, mock **`/bundles`** dans **`frontend-v51/e2e/comparative-matrix.spec.ts`**, **`frontend-v51/e2e/real-api-smoke.spec.ts`** (**`E2E_REAL_API=1`**) ; correctifs revue Copilot (exemples JSON contrat, DRY client, **`onSettled`** reset file input) ; **sans** nouveau **`alembic/versions/`** ║
 ║  Addendum 2026-04-11 : PR **#390** MERGÉ main **64ca7f89** — **frontend-v51** : entrée **dossier fournisseurs** (`webkitdirectory` + **`multiple`**) → ZIP **côté client** (**`fflate`**, **`frontend-v51/lib/zip-directory.ts`**, plafond **`MAX_FOLDER_ZIP_BYTES`** ~**400 Mo**) puis même flux **`upload-zip`** ; aide UX **trois paragraphes** (contrat **`.zip`**, **Pass -1** arrière-plan **ARQ**, **pipeline V5** HTTP **synchrone** / timeouts proxy) ; dépendance **`fflate`** dans **`frontend-v51/package.json`** ; doc ops contrat mise à jour ; ajustements **Copilot** (guards taille / formulation) sur la même PR ; **sans** **`alembic/versions/`** ║
+║  Addendum 2026-04-12 : PR **#396** MERGÉ main **9770aed9** — M12 **agent** Railway : **`embedding_client`** batch, **`semantic_router`**, logs httpx ; **`AGENT_SKIP_WARM_CENTROIDS`** ; **`src/observability/pipeline_v5_metrics.py`** (Prometheus opt-in **`DMS_PROMETHEUS_METRICS_ENABLE`**, labels **sans** `workspace_id`) ; Pass-1 **`DMS_PASS1_HEADLESS`** + **`observe_pass1_hitl_bypass`** ; **GET evaluation-frame** enrichi **M14** + **`dao_criteria`** ; Alembic **097** (rôle **`supply_chain`** user **100**, **NOTICE 097 SKIP** si absent) ; sondes **`probe_matrix_m14_m16`**, **`probe_workspace_bundles`** ; docs **`PIPELINE_PILOT_ENTERPRISE_GATE.md`**, **`GCF_ZIP_E2E_RUNBOOK.md`** ; tests **RBAC** / **`VALID_ALEMBIC_HEADS`** **097** ; **E-103** ; détail § **ADDENDUM 2026-04-12 — PR #396** ║
 ║  Addendum 2026-04-07 : PR #342 MERGÉ main 42ace370 — M16 hardening (INV-weights, guards cognitifs, signal_engine, frontend committee/evaluation, tests DB/e2e) + correctifs revue Copilot (`dao_criteria` : `critere_nom`/`ponderation` ; `require_rbac_permission` pour éviter double `require_workspace_access` dans `m16_guard`) ; dépôt Alembic head **086** (`086_m16_force_row_level_security`) incl. **085** index cadre ; apply **080→086** Railway **en attente** tant que prod **079** (dry-run documenté : `DATABASE_URL=postgresql+psycopg://… alembic upgrade 079_bloc5_confidence_qualification_signal_log:head --sql`) ║
 ║  Addendum 2026-04-04 : PR #321 V4.2.0 Phase 3 — CI rouge — handover détaillé fin doc ║
 ║  Addendum 2026-04-05 : PR #324 MERGÉ main 107d05a2 — BLOC3 fix HTTP 500 W1/W2 + tenant RLS + market + ETL vendors ║
@@ -653,6 +654,20 @@
 ║         **`document_id`** en colonne ; **`criterion_assessments`** (082)║
 ║         : pas de colonne **`score`** hors **`cell_json`**. Détail §   ║
 ║         **ADDENDUM 2026-04-11 — SÉCURITÉ RLS 094–095**.               ║
+║  E-103 **PR #396 / 097 / métriques / critères** (2026-04-12) :      ║
+║         (1) **097** : vérification PL/pgSQL — si **users.id=100**    ║
+║         absent → **NOTICE 097 SKIP** + **RETURN** (CI / DB fraîche). ║
+║         (2) **Prometheus** pipeline V5 : **ne pas** étiqueter         ║
+║         **`workspace_id`** sur **Counter**/**Histogram** (cardinalité║
+║         UUID) — conserver **`workspace_id`** dans les **logs** uniquement.║
+║         (3) **`enrich_criteria_with_dao`** : **`seuil_elimination`** ║
+║         legacy = éliminatoire si **`is_eliminatory`** NULL, aligné   ║
+║         **`weight_validator`**. (4) Tests **`ROLES`** couche A +     ║
+║         **`VALID_ALEMBIC_HEADS`** incluent **097**. (5) **Railway** : ║
+║         apply **097** via **`scripts/apply_railway_migrations_safe.py`**║
+║         **`--apply`** (ou **`with_railway_env`**) sous **GO CTO** /  ║
+║         **`DMS_ALLOW_RAILWAY=1`** (**RÈGLE-ANCHOR-06**). Détail §     ║
+║         **ADDENDUM 2026-04-12 — PR #396**.                           ║
 ║                                                                      ║
 ║  ADR-015  Line items chirurgical — docs/adr/ADR-015_*.md            ║
 ║           Date : 2026-03-16 — Statut : ACCEPTÉ — v3.0.1d           ║
@@ -2375,5 +2390,37 @@ Tracer la vérité opposable après merge squash **PR #391** sur **`main`** (**`
 
 - PR **#391** : https://github.com/ousma15abdoulaye-crypto/decision-memory-v1/pull/391 (état merged).
 - Runbook **096** / RAG : **`docs/ops/rag_ingest_runbook.md`**.
+
+---
+
+## ADDENDUM 2026-04-12 — PR #396 MERGÉ (M12 AGENT RAILWAY + **097** + OBSERVABILITÉ)
+
+### Git
+
+- **PR #396** : https://github.com/ousma15abdoulaye-crypto/decision-memory-v1/pull/396 — état **MERGED** **2026-04-12**.
+- **Merge commit `main`** : **`9770aed9a8d02369f041a619c919fb3cd79a7daa`** (merge commit GitHub).
+
+### Objet
+
+Livrer **M12** côté **agent** déployé Railway : embeddings **batch**, routage **`semantic_router`**, garde-fous **403** explicites, variable **`AGENT_SKIP_WARM_CENTROIDS`** ; **observabilité** pipeline V5 (**`src/observability/pipeline_v5_metrics.py`**, endpoint **`/internal/observability/metrics`** derrière **`DMS_PROMETHEUS_METRICS_ENABLE`**) ; **Pass -1** headless **`DMS_PASS1_HEADLESS`** avec **`observe_pass1_hitl_bypass`** ; **evaluation-frame** (union critères M14, enrichissement **`dao_criteria`**, fournisseurs) ; **gate pilote** docs + sondes **`scripts/probe_matrix_m14_m16.py`**, **`scripts/probe_workspace_bundles.py`**.
+
+### Alembic **097** (`097_fix_test_user_role_supply_chain`)
+
+- Rôle legacy **`supply_chain`** + alignement **RBAC** **`user_tenant_roles`** pour **user id 100** (tests / terrain).
+- **CI** : si l’utilisateur **100** est **absent**, la migration **ne lève pas** — **`NOTICE`** **`097 SKIP`** et sortie anticipée du bloc de vérification.
+
+### Apply **Railway** (prod / staging PostgreSQL)
+
+- **Prérequis** : **GO CTO** ; **`DMS_ALLOW_RAILWAY=1`** où requis par la gouvernance (**RÈGLE-ANCHOR-06**) ; **`DATABASE_URL`** (ou script **`scripts/with_railway_env.py`** + secrets hébergeur).
+- **Commande type** : `python scripts/apply_railway_migrations_safe.py --apply` (dry-run sans **`--apply`**).
+- **Post-check** : `SELECT version_num FROM alembic_version;` attendu **`097_fix_test_user_role_supply_chain`** après enchaînement depuis l’état courant (souvent **096** → **097**).
+
+### ERREUR CAPITALISÉE — E-103 (2026-04-12)
+
+Reprend le bloc **E-103** dans l’encadré ASCII : **097** CI-safe ; **Prometheus** sans label **`workspace_id`** ; **`enrich_criteria_with_dao`** + **`seuil_elimination`** ; tests **RBAC** / **`VALID_ALEMBIC_HEADS`** ; apply Railway sous mandat.
+
+### État dépôt après merge
+
+- **`alembic heads`** : **`097_fix_test_user_role_supply_chain`** (révision **`096_dms_embeddings_tenant_rls`** ← **097**).
 
 ---
