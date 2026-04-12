@@ -27,7 +27,6 @@ import json
 import logging
 import os
 import uuid
-from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi import status as http_status
@@ -106,7 +105,7 @@ async def _enqueue_project_sealed_workspace_job(workspace_id: str) -> None:
 @router.get("/{workspace_id}/committee")
 def get_committee_session(
     workspace_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Retourne la session comité du workspace (1 session max par workspace)."""
     require_workspace_access(workspace_id, user)
@@ -143,7 +142,7 @@ class OpenSessionPayload(BaseModel):
 def open_committee_session(
     workspace_id: str,
     payload: OpenSessionPayload,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Crée et active la session comité pour ce workspace."""
     require_workspace_permission(workspace_id, user, "committee.manage")
@@ -221,7 +220,7 @@ class AddMemberPayload(BaseModel):
 def add_committee_member(
     workspace_id: str,
     payload: AddMemberPayload,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Ajoute un membre à la session comité."""
     require_workspace_permission(workspace_id, user, "committee.manage")
@@ -315,7 +314,7 @@ def seal_committee_session(
     workspace_id: str,
     payload: SealSessionPayload,
     background_tasks: BackgroundTasks,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Scelle la session comité (IRR — INV-W01, INV-W04).
 
@@ -406,7 +405,7 @@ def seal_workspace_o9_alias(
     workspace_id: str,
     payload: SealSessionPayload,
     background_tasks: BackgroundTasks,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Alias Canon O9 — même logique que ``POST …/committee/seal``."""
     return seal_committee_session(workspace_id, payload, background_tasks, user)

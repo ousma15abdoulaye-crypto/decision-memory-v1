@@ -8,7 +8,6 @@ import uuid
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -54,7 +53,7 @@ def extract_dao_criteria_structured(
 @router.post("/analyze")
 def analyze(
     payload: AnalyzeRequest,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """
     Main analysis pipeline:
@@ -282,7 +281,7 @@ def analyze(
 @router.post("/decide")
 def decide(
     payload: DecideRequest,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Record human decision and regenerate PV"""
     case_id = payload.case_id

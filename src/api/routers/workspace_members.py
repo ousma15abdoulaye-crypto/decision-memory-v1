@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
@@ -30,7 +29,7 @@ class WorkspaceMemberInvite(BaseModel):
 @router.get("/{workspace_id}/members")
 def list_workspace_members(
     workspace_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     require_workspace_permission(workspace_id, user, "matrix.read")
     tid = user.tenant_id
@@ -60,7 +59,7 @@ def list_workspace_members(
 def invite_workspace_member(
     workspace_id: str,
     payload: WorkspaceMemberInvite,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     require_workspace_permission(workspace_id, user, "member.invite")
     if payload.role not in _VALID_ROLES:
@@ -161,7 +160,7 @@ def invite_workspace_member(
 def revoke_workspace_member(
     workspace_id: str,
     member_user_id: int,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     require_workspace_permission(workspace_id, user, "member.revoke")
     tenant_id = user.tenant_id
