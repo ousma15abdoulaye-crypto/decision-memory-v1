@@ -14,7 +14,7 @@ Outil d'aide à la décision achats humanitaires pour Save the Children Mali.
 Opérateur unique : Abdoulaye Ousmane (CTO/Founder), Mopti, Mali.
 Stack : Python 3.11 · FastAPI · PostgreSQL 16 · Redis 7 · Railway · Alembic · psycopg v3 · pytest · ruff · black.
 
-### Règles d'or (mises à jour 2026-03-05)
+### Règles d'or (mises à jour 2026-03-05 ; complétées le 2026-04-12 pour la décision de merge agent AO/CTO)
 
 > **RÈGLE-ORG-04 / merge :** le **DoD** (prononcé « vert ») reste validé **humain** où le freeze l'exige ;
 > l'**exécution du merge Git** vers `main` est **agent** une fois les garde-fous `CLAUDE.md` + les 7 gates ci-dessous satisfaits.
