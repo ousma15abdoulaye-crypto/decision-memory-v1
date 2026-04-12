@@ -233,7 +233,7 @@ black --check src/ tests/
 | RÈGLE-ORG-04 | DoD validé par l'humain uniquement |
 | RÈGLE-ORG-07 | Fichier hors périmètre → revert immédiat |
 | RÈGLE-ORG-08 | PROBE avant toute action DB |
-| RÈGLE-ORG-10 | Merge PR `main` → **agent** (`CLAUDE.md`) ; tags jalons → souvent humain |
+| RÈGLE-ORG-10 | Merge PR → `main` : **agent** (`CLAUDE.md`) ; tags jalons → souvent humain |
 | RÈGLE-ORG-11 | Aucun nouveau import de `src/auth.py` |
 | RÈGLE-12 | Migrations = SQL brut `op.execute()` uniquement |
 
