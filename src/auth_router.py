@@ -17,6 +17,7 @@ from src.api.auth_helpers import (
     create_user,
     get_tenant_id_for_user,
     get_user_by_id,
+    jwt_role_for_user_row,
 )
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.couche_a.auth.jwt_handler import create_access_token
@@ -24,19 +25,6 @@ from src.db import db_execute_one, get_connection
 from src.ratelimit import limiter
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
-
-_ROLE_MAPPING = {
-    # Legacy V4.x roles → V4.1.0 JWT roles
-    "admin": "admin",
-    "procurement_officer": "buyer",
-    "viewer": "viewer",
-    # V5.2 roles — pass through directly (src/auth/permissions.py ROLE_PERMISSIONS)
-    "supply_chain": "supply_chain",
-    "finance": "finance",
-    "technical": "technical",
-    "budget_holder": "budget_holder",
-    "observer": "observer",
-}
 
 
 class Token(BaseModel):
@@ -87,8 +75,7 @@ def _tenant_for_jwt(user: dict) -> str:
 
 
 def _issue_access_token(user: dict) -> str:
-    role_raw = user.get("role_name", user.get("role", "viewer"))
-    role = _ROLE_MAPPING.get(role_raw, "viewer")
+    role = jwt_role_for_user_row(user)
     tenant_id = _tenant_for_jwt(user)
     return create_access_token(str(user["id"]), role, tenant_id)
 
