@@ -1,4 +1,10 @@
-"""Matrice comparative canonique : M16 si assessments, sinon frame M14."""
+"""Matrice comparative produit (UI) — ADR-0017 / CONTEXT_ANCHOR.
+
+``GET /comparative-matrix`` : base evaluation-frame ; ``source=m16`` si
+``criterion_assessments`` non vide (overlay), sinon ``m14``. Ce n'est pas la
+projection exports XLSX/PDF (voir ``build_evaluation_projection`` /
+``GET …/m16/comparative-table-model``).
+"""
 
 from __future__ import annotations
 

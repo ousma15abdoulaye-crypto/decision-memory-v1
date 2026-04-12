@@ -3,6 +3,9 @@
  * Tenir à jour en même temps que `app/`, `components/`, `lib/`.
  *
  * Voir `types/README.md` — ce fichier n’est pas le schéma OpenAPI complet.
+ *
+ * ADR-0017 : `GET …/m16/comparative-table-model` est volontairement absent —
+ * projection serveur (XLSX/PDF/PV), pas consommée par la grille écran.
  */
 export const CONSUMED_API_PATH_REGEXES = [
   String.raw`^/api/auth/login$`,

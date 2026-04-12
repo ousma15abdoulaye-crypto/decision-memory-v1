@@ -61,6 +61,9 @@ from src.couche_a.auth.workspace_access import (
 )
 from src.db import db_execute, db_execute_one, db_fetchall, get_connection
 from src.services.comparative_matrix_service import build_comparative_matrix_payload
+from src.services.evaluation_document_query import (
+    fetch_latest_evaluation_document_for_workspace,
+)
 from src.services.workspace_evaluation_frame_assembly import (
     build_evaluation_frame_payload,
 )
@@ -542,26 +545,20 @@ def get_evaluation(
     require_workspace_access(workspace_id, user)
 
     with get_connection() as conn:
-        eval_rows = db_fetchall(
+        eval_row = fetch_latest_evaluation_document_for_workspace(
             conn,
-            """
-            SELECT id, scores_matrix, created_at
-            FROM evaluation_documents
-            WHERE workspace_id = :ws
-            ORDER BY created_at DESC
-            LIMIT 1
-            """,
-            {"ws": workspace_id},
+            workspace_id,
+            columns="id, scores_matrix, created_at",
         )
 
-    if not eval_rows:
+    if not eval_row:
         return {
             "workspace_id": workspace_id,
             "evaluation": None,
             "status": "no_evaluation",
         }
 
-    row = eval_rows[0]
+    row = eval_row
     scores = row.get("scores_matrix") or {}
     for forbidden in (
         "winner",

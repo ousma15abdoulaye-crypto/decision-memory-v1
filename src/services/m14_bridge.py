@@ -36,6 +36,9 @@ from typing import Any
 from psycopg.types.json import Json
 
 from src.db import db_execute_one, db_fetchall, get_connection
+from src.services.evaluation_document_query import (
+    fetch_latest_evaluation_document_for_workspace,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -106,16 +109,10 @@ def _run_bridge(conn: Any, workspace_id: str) -> BridgeResult:
     tenant_id = str(ws["tenant_id"])
 
     # ── 2. Dernier evaluation_document ────────────────────────────────────
-    ed = db_execute_one(
+    ed = fetch_latest_evaluation_document_for_workspace(
         conn,
-        """
-        SELECT id::text AS id, scores_matrix
-        FROM evaluation_documents
-        WHERE workspace_id = CAST(:wid AS uuid)
-        ORDER BY version DESC, created_at DESC
-        LIMIT 1
-        """,
-        {"wid": workspace_id},
+        workspace_id,
+        columns="id::text AS id, scores_matrix",
     )
     result = BridgeResult(
         workspace_id=workspace_id,

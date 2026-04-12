@@ -1,4 +1,7 @@
-"""Modèle tableau comparatif — projection serveur uniquement (pas de gagnant)."""
+"""Projection tableau pour exports / cohérence PV (pas la grille UI).
+
+ADR-0017 : distinct de ``comparative_matrix_service`` (matrice canonique écran).
+"""
 
 from __future__ import annotations
 

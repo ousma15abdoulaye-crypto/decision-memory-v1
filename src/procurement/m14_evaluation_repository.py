@@ -369,7 +369,7 @@ class M14EvaluationRepository:
                            created_at
                     FROM public.evaluation_documents
                     WHERE workspace_id = CAST(:wid AS uuid)
-                    ORDER BY version DESC
+                    ORDER BY version DESC NULLS LAST, created_at DESC NULLS LAST
                     LIMIT 1
                     """,
                     {"wid": workspace_id},
