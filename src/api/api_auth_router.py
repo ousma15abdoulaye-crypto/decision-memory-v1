@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Annotated
 from urllib.parse import parse_qsl
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -226,7 +225,7 @@ class LoginResponse(BaseModel):
 @limiter.limit("5/minute")
 async def login_json(
     request: Request,
-    creds: Annotated[tuple[str, str], Depends(get_login_credentials)],
+    creds: tuple[str, str] = Depends(get_login_credentials),
 ):
     """Login — ``POST /api/auth/login`` (JSON, form-urlencoded ou multipart)."""
     login_id, password = creds
@@ -273,7 +272,7 @@ class WsTokenResponse(BaseModel):
 @limiter.limit("20/minute")
 async def get_ws_token(
     request: Request,
-    current_user: Annotated[UserClaims, Depends(get_current_user)],
+    current_user: UserClaims = Depends(get_current_user),
 ) -> WsTokenResponse:
     """Émet un token WebSocket longue durée (type='ws', TTL 24 h).
 
