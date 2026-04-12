@@ -25,10 +25,31 @@ L’agent **ne tranche jamais** un conflit entre sources d’autorité.
 1. **Surveiller** la PR (**CI** / GitHub Actions / gates requis) **jusqu’au vert** — analyser les logs, corriger, re-pousser ; **pas d’abandon** après un seul échec CI sans itération.
 2. **Récupérer et traiter** les commentaires **GitHub Copilot** et les **threads de revue** (humains) : lire, corriger le code ou répondre, re-pousser ; **itérer** jusqu’à ce que les retours bloquants soient traités et que la CI redevienne verte.
 3. Vérifier **Alembic** : **`alembic heads`** = **exactement une ligne** — sinon **STOP-1** ; **ne pas merger** tant que non résolu.
-4. **Merger** la PR vers **`main`** une fois **checks verts** et **revue / Copilot** traités dans les limites du mandat — via **`gh pr merge`** (ou équivalent) ; **sauf** instruction contraire explicite du CTO sur cette PR.
+4. **Merger** la PR vers **`main`** une fois **checks verts** (tous les checks requis) et **revue / Copilot** traités dans les limites du mandat — via **`gh pr merge`** **sans** **`--admin`** (voir **RÈGLE ABSOLUE — GOUVERNANCE GIT**). Toute exception = décision explicite du **responsable projet** documentée dans le **corps de la PR**.
 5. **Railway / production** : le **merge Git ne remplace pas** un **GO CTO** pour `alembic upgrade` ou mutations prod (**RÈGLE-ANCHOR-06**, runbooks) ; le documenter en PR ou **CONTEXT_ANCHOR** si une action prod reste à faire.
 
 **Référence détaillée** : **`.cursor/rules/dms-agent-mandate-protocol.mdc`** (protocole complet début → fin de mandat).
+
+## RÈGLE ABSOLUE — GOUVERNANCE GIT (non négociable)
+
+Tout travail agent suit ce flux **sans exception** :
+
+1. `git checkout -b <type>/<sujet-court>`
+2. Travail + commits atomiques sur cette branche
+3. `git push origin <branche>`
+4. `gh pr create` avec titre et description complets
+5. Attendre **CI verte** (tous les checks requis en succès)
+6. Lire et traiter les commentaires **Copilot** / **reviewers**
+7. `gh pr merge <number> --merge` **sans** `--admin`
+
+**INTERDIT** :
+
+- `git push origin main` (direct)
+- `gh pr merge --admin`
+- Merger sans CI verte
+- Merger sans avoir lu les commentaires Copilot (et traité les retours bloquants)
+
+Toute exception nécessite une décision explicite du **responsable projet** documentée dans le **corps de la PR**.
 
 ## KILL LIST — REJET IMMÉDIAT
 - confidence hors {0.6, 0.8, 1.0}
@@ -42,6 +63,8 @@ L’agent **ne tranche jamais** un conflit entre sources d’autorité.
 - winner / rank / recommendation / best_offer (RÈGLE-09 V4.1.0)
 - implémentation sans mandat CTO émis explicitement (E-67)
 - travail direct sur branche main
+- `git push origin main` (commits directs sur `main`) hors procédure exceptionnelle documentée
+- `gh pr merge --admin` ou merge avant CI verte (sauf exception responsable projet dans le corps de la PR)
 - fichier hors périmètre modifié sans GO CTO
 
 ## ERREURS CAPITALISÉES
