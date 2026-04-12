@@ -305,7 +305,7 @@ SELECT version_num FROM alembic_version;
 | RÈGLE-17 | Toute migration = 1 test minimum prouvant l'invariant visé |
 | RÈGLE-ORG-02 | Lire `docs/freeze/DMS_V4.1.0_FREEZE.md` EN ENTIER avant de commencer |
 | RÈGLE-ORG-04 | DoD = checklist validée par l'humain avant merge. Jamais par l'agent seul. |
-| RÈGLE-ORG-10 | **L'agent ne merge JAMAIS vers main** |
+| RÈGLE-ORG-10 | Merge PR vers `main` : **agent** après garde-fous (`CLAUDE.md`) |
 | RÈGLE-ORG-11 | Chemin ADR = `docs/adr/` (singulier · invariant) |
 
 ---

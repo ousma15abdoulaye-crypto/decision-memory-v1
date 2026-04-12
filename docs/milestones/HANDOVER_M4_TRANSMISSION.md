@@ -317,7 +317,7 @@ python -m black --check src tests
 3. NE PAS créer de GENERATED COLUMN PostgreSQL
 4. NE PAS faire MAX()+1 dans un contexte concurrent (TD-001)
 5. NE PAS ajouter de zone dans ZONE_TO_REGION sans validation CTO préalable
-6. L'agent ne merge jamais. L'agent ne pose jamais les tags.
+6. Merge PR vers `main` : **agent** après garde-fous (`CLAUDE.md`). Tags de jalon : pratique équipe (souvent humain).
 7. Tout correctif post-déploiement → NOUVELLE migration, jamais modifier l'existante
 ```
 

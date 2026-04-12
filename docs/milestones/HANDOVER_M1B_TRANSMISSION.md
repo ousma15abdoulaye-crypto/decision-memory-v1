@@ -21,8 +21,8 @@ Successeur : Agent M2 UNIFY SYSTEM
 | Suite existante | 544 passés (non-régression confirmée localement) |
 | ruff | 0 erreur |
 | black | 0 erreur |
-| PR GitHub | Ouverte — merge interdit sans DoD VERT humain |
-| Tag | `v4.1.0-m1b-done` — posé par l'humain uniquement (RÈGLE-ORG-10) |
+| PR GitHub | Ouverte — **merge** uniquement après DoD VERT humain + garde-fous CI/Alembic (`CLAUDE.md`) |
+| Tag | `v4.1.0-m1b-done` — posé par l'humain (jalon) ; merge PR vers `main` = **agent** si mandat le prévoit |
 
 ---
 
@@ -165,7 +165,7 @@ RÈGLES :
   - Inventaire complet des imports src/auth.py AVANT toute modification
   - Chaque endpoint legacy = 1 test de non-régression AVANT modification
   - Migration Alembic si changement schéma users (PK UUID, created_at TIMESTAMPTZ)
-  - RÈGLE-ORG-10 : merge main = humain uniquement
+  - RÈGLE-ORG-10 : merge PR `main` = **agent** après garde-fous (`CLAUDE.md`)
   - RÈGLE-ORG-11 : aucun nouveau code n'importe src/auth.py
 
 DETTE à résoudre en M2 :
@@ -233,7 +233,7 @@ black --check src/ tests/
 | RÈGLE-ORG-04 | DoD validé par l'humain uniquement |
 | RÈGLE-ORG-07 | Fichier hors périmètre → revert immédiat |
 | RÈGLE-ORG-08 | PROBE avant toute action DB |
-| RÈGLE-ORG-10 | Merge main + tags → humain uniquement |
+| RÈGLE-ORG-10 | Merge PR → `main` : **agent** (`CLAUDE.md`) ; tags jalons → souvent humain |
 | RÈGLE-ORG-11 | Aucun nouveau import de `src/auth.py` |
 | RÈGLE-12 | Migrations = SQL brut `op.execute()` uniquement |
 

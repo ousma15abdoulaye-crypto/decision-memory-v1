@@ -109,7 +109,7 @@ Le prédécesseur immédiat (session précédente) avait déjà complété **tou
 2. Vérifié l'absence de duplication de code introduite
 3. Lancé la validation complète (pytest 574 passed · ruff · black · alembic)
 4. Posé le commit, créé la PR#140, intégré la review Copilot, pushé la correction
-5. Posé le tag `v4.1.0-m2b-patch-done` sur `main` après merge humain
+5. Posé le tag `v4.1.0-m2b-patch-done` sur `main` après merge (agent — `CLAUDE.md`)
 
 ---
 
@@ -258,7 +258,7 @@ python -m pytest -rs tests/ 2>&1 | Select-String "SKIPPED"
 - Ne pas toucher auth_helpers.py ni auth_router.py hors mandat M1-04
 - Migrations : SQL brut op.execute() uniquement — zéro autogenerate
 - Prochaine migration ID : 040_
-- RÈGLE-ORG-10 : merge main + tags → humain uniquement
+- RÈGLE-ORG-10 : merge PR → `main` : **agent** (`CLAUDE.md`) ; tags → pratique équipe
 - ADR-0012 : pipeline_runs append-only — UPDATE/DELETE interdits
 - PROBE avant toute action DB (RÈGLE-ORG-08)
 ```
@@ -272,7 +272,7 @@ python -m pytest -rs tests/ 2>&1 | Select-String "SKIPPED"
 | RÈGLE-ORG-04 | DoD validé par l'humain uniquement |
 | RÈGLE-ORG-07 | Fichier hors périmètre → revert immédiat |
 | RÈGLE-ORG-08 | PROBE avant toute action DB |
-| RÈGLE-ORG-10 | Merge main + tags → humain uniquement |
+| RÈGLE-ORG-10 | Merge PR → `main` : **agent** (`CLAUDE.md`) |
 | RÈGLE-12 | Migrations = SQL brut `op.execute()` uniquement — zéro autogenerate |
 | RÈGLE-09 | `winner` / `rank` / `recommendation` = INTERDITS hors comité humain |
 | ADR-0012 | `pipeline_runs` append-only — UPDATE/DELETE interdits |

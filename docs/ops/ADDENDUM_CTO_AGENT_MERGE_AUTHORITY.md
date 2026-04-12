@@ -6,7 +6,7 @@
 
 ## Objet
 
-Autoriser les **agents Cursor** (et équivalents) à **merger** une PR vers `main` lorsque le mandat l’exige, **sous conditions strictes**. Cet addendum **remplace** pour l’outillage agent toute consigne historique du type « merge réservé à l’humain » (ex. ancienne RÈGLE-ORG-10 sur le merge) **dans la mesure** où les fichiers actifs du dépôt (`CLAUDE.md`, règles Cursor) sont alignés sur ce texte.
+Les **agents Cursor** (et équivalents) **mergent** les PR vers `main` lorsque le mandat l’exige, **sous les conditions strictes** ci-dessous. **RÈGLE-ORG-10** du Plan Directeur gelé et ce dépôt sont **alignés** sur cette politique (**merge = agent**).
 
 ## Responsabilité du créateur de la PR (ordre CTO — 2026-04-12)
 
@@ -22,10 +22,11 @@ L’**agent / session qui a créé ou ouvert la PR** pour un mandat **doit en as
 
 ## Fichiers de référence versionnés
 
+- `docs/ops/CTO_AO_ORDRE_MERGE_PR_MAIN_AGENT.md` — AO CTO (décision en une page)
 - `CLAUDE.md` — section merge (ordre CTO)
 - `.cursor/rules/dms-agent-mandate-protocol.mdc` — protocole détaillé
 - `.cursor/rules/dms-core.mdc` — rappel merge agent
 
-## Note sur la doc gelée historique
+## Note documentation historique
 
-Des documents plus anciens (`DMS_V4.1.0_FREEZE.md`, handovers) peuvent encore mentionner « agent ne merge pas » : **priorité aux fichiers listés ci-dessus** pour l’exécution agent jusqu’à alignement formel du freeze si le CTO l’ordonne dans un mandat dédié.
+Les handovers et rapports d’époque antérieure à l’alignement **RÈGLE-ORG-10** sont **non normatifs** pour le merge Git ; en cas de doute : **`CLAUDE.md`**, ce addendum, **`DMS_V4.1.0_FREEZE.md`** (RÈGLE-ORG-10).

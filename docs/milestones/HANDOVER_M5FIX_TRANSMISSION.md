@@ -330,7 +330,7 @@ SELECT COUNT(*) AS c FROM market_signals;
 | RÈGLE-FK | Toute FK vers/depuis `market_signals` → vérifier privilege `FOR KEY SHARE` |
 | RÈGLE-WIN | PowerShell : `&&` invalide · heredoc invalide · spawn peut avorter |
 | RÈGLE-ORG-02 | Lire `docs/freeze/DMS_V4.1.0_FREEZE.md` EN ENTIER avant de commencer |
-| RÈGLE-ORG-10 | **L'agent ne merge JAMAIS vers main** |
+| RÈGLE-ORG-10 | Merge PR → `main` : **agent** après garde-fous (`CLAUDE.md`) |
 
 ---
 
