@@ -5,21 +5,19 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/stores/auth";
 import { api } from "@/lib/api-client";
 
-/** Réponse POST /auth/login (alignée FastAPI `LoginJsonResponse`). */
+/** Réponse POST /api/auth/login (`LoginResponse` côté serveur). */
 interface LoginJsonResponse {
   user: {
     id: number;
     email: string;
     username: string;
-    full_name: string | null;
-    role_name: string;
-    is_active: boolean;
-    is_superuser: boolean;
-    tenant_id: string | null;
+    full_name: string;
+    role: string;
+    tenant_id: string;
   };
   access_token: string;
   token_type: string;
-  refresh_token: string | null;
+  refresh_token: string;
 }
 
 export default function LoginPage() {
@@ -36,7 +34,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await api.post<LoginJsonResponse>("/auth/login", {
+      const res = await api.post<LoginJsonResponse>("/api/auth/login", {
         email: loginId.trim(),
         password,
       });
@@ -47,11 +45,11 @@ export default function LoginPage() {
           id: u.id,
           email: u.email,
           full_name: u.full_name ?? "",
-          role: u.role_name,
+          role: u.role,
           tenant_id: u.tenant_id ?? "",
         },
         res.access_token,
-        res.refresh_token,
+        res.refresh_token ?? null,
       );
       router.push("/dashboard");
     } catch (err) {

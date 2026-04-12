@@ -29,6 +29,12 @@ export function SealButton({ workspaceId, canSeal, isSealed }: SealButtonProps) 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workspace", workspaceId] });
       queryClient.invalidateQueries({ queryKey: ["cognitive-state", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["comparative-matrix", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["evaluation-frame", workspaceId],
+      });
       setConfirm(false);
       setPreconditionErrors(null);
     },

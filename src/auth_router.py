@@ -18,10 +18,10 @@ from src.api.auth_helpers import (
     get_tenant_id_for_user,
     get_user_by_id,
     jwt_role_for_user_row,
+    resolve_tenant_uuid_for_jwt,
 )
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.couche_a.auth.jwt_handler import create_access_token
-from src.db import db_execute_one, get_connection
 from src.ratelimit import limiter
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -64,19 +64,9 @@ class LoginJsonResponse(BaseModel):
     refresh_token: str | None = None
 
 
-def _tenant_for_jwt(user: dict) -> str:
-    with get_connection() as conn:
-        trow = db_execute_one(
-            conn,
-            "SELECT tenant_id FROM user_tenants WHERE user_id = :id",
-            {"id": user["id"]},
-        )
-    return trow["tenant_id"] if trow else f"tenant-{user['id']}"
-
-
 def _issue_access_token(user: dict) -> str:
     role = jwt_role_for_user_row(user)
-    tenant_id = _tenant_for_jwt(user)
+    tenant_id = resolve_tenant_uuid_for_jwt(int(user["id"]))
     return create_access_token(str(user["id"]), role, tenant_id)
 
 
@@ -121,7 +111,10 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
 @router.post("/login", response_model=LoginJsonResponse)
 @limiter.limit("5/minute")
 async def login_json(request: Request, body: LoginJsonRequest):
-    """Login JSON — contrat frontend-v51 (user + access_token). Pas de refresh_token (phase 1)."""
+    """Login JSON — **legacy** ; préférer ``POST /api/auth/login`` (refresh + tenant UUID aligné).
+
+    Conservé pour compat outils et clients existants.
+    """
     user = authenticate_user(body.email.strip(), body.password)
     if not user:
         raise _unauthorized_login()

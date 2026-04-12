@@ -39,13 +39,21 @@ interface EvalFrame {
   criteria: EvalFrameCriteria[];
   suppliers?: { id: string; name: string }[];
   weighted_totals?: Record<string, number>;
+  source?: "m16" | "m14";
+  schema_version?: string;
 }
 
-function deriveSuppliers(data: EvalFrame): { id: string; name: string }[] {
-  if (data.suppliers?.length) return data.suppliers;
-  return Object.keys(data.scores_matrix || {})
+function deriveSuppliers(data: EvalFrame): {
+  list: { id: string; name: string }[];
+  partialNames: boolean;
+} {
+  if (data.suppliers?.length) {
+    return { list: data.suppliers, partialNames: false };
+  }
+  const list = Object.keys(data.scores_matrix || {})
     .filter((k) => UUID_LIKE.test(k))
     .map((id) => ({ id, name: `${id.slice(0, 8)}…` }));
+  return { list, partialNames: list.length > 0 };
 }
 
 function deriveCriteriaRows(
@@ -91,6 +99,7 @@ const SIGNAL_COLORS: Record<string, string> = {
   green: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
   yellow: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
   red: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+  bell: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200",
 };
 
 function rowMaxScore(
@@ -149,16 +158,17 @@ export function ComparativeTable({ workspaceId }: { workspaceId: string }) {
   const hScrollRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["evaluation-frame", workspaceId],
+    queryKey: ["comparative-matrix", workspaceId],
     queryFn: () =>
-      api.get<EvalFrame>(`/api/workspaces/${workspaceId}/evaluation-frame`),
+      api.get<EvalFrame>(`/api/workspaces/${workspaceId}/comparative-matrix`),
     enabled: !!workspaceId,
   });
 
-  const suppliers = useMemo(
-    () => (data ? deriveSuppliers(data) : []),
+  const supplierInfo = useMemo(
+    () => (data ? deriveSuppliers(data) : { list: [], partialNames: false }),
     [data],
   );
+  const suppliers = supplierInfo.list;
   const criteriaRows = useMemo(
     () => (data ? deriveCriteriaRows(data, suppliers.map((s) => s.id)) : []),
     [data, suppliers],
@@ -332,8 +342,33 @@ export function ComparativeTable({ workspaceId }: { workspaceId: string }) {
   const supplierName = (sid: string) =>
     suppliers.find((x) => x.id === sid)?.name ?? sid.slice(0, 8);
 
+  const sourceLabel =
+    data.source === "m16"
+      ? "M16"
+      : data.source === "m14"
+        ? "M14"
+        : "—";
+
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span
+          className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-2.5 py-0.5 text-xs font-medium text-[var(--foreground-muted)]"
+          data-testid="matrix-source-badge"
+        >
+          Source matrice : {sourceLabel}
+        </span>
+      </div>
+      {supplierInfo.partialNames && (
+        <div
+          role="status"
+          className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"
+          data-testid="matrix-suppliers-partial-banner"
+        >
+          Noms fournisseurs indisponibles — affichage partiel à partir des identifiants
+          (données incomplètes).
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="font-medium text-gray-700 dark:text-gray-300">
           Filtres

@@ -32,7 +32,13 @@ export function PvExportButtons({ workspaceId }: { workspaceId: string }) {
     } catch (e) {
       if (e instanceof ApiError) {
         if (e.status === 404) {
-          setErr("Aucune session scellée — export indisponible.");
+          setErr(
+            "Session comité introuvable — impossible d’exporter le PV (ouvrir/sceller le processus selon le parcours métier).",
+          );
+        } else if (e.status === 409) {
+          setErr(
+            "PV non disponible : la session comité n’est pas scellée ou le snapshot n’est pas prêt.",
+          );
         } else if (e.status === 403) {
           setErr("Accès refusé pour l’export PV.");
         } else {

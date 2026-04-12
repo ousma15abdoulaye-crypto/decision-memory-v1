@@ -27,6 +27,14 @@ test.describe("Smoke API réelle (opt-in)", () => {
 
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
 
+    const matrixPromise = page.waitForResponse(
+      (r) =>
+        r.url().includes(
+          `/api/workspaces/${workspaceId}/comparative-matrix`,
+        ) && r.ok(),
+      { timeout: 45_000 },
+    );
+
     await page.goto(`/workspaces/${workspaceId}`);
 
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible({
@@ -35,5 +43,8 @@ test.describe("Smoke API réelle (opt-in)", () => {
     await expect(
       page.getByRole("heading", { name: "Ingestion et pipeline" }),
     ).toBeVisible({ timeout: 15_000 });
+
+    const matrixRes = await matrixPromise;
+    expect(matrixRes.status()).toBe(200);
   });
 });

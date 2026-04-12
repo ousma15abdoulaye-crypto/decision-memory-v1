@@ -75,6 +75,8 @@ jobs:
           python scripts/check_openapi_types_non_stub.py frontend-v51/types/api.ts
           cd frontend-v51
           npx tsc --noEmit
+          cd ..
+          python scripts/check_frontend_api_surface.py
       - name: "Test 12 — INV-F06"
         run: pytest tests/integration/test_dashboard.py -v
 
