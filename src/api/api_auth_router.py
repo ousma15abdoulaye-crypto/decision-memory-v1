@@ -5,10 +5,13 @@ Préfixe : ``/api/auth`` — enregistrer via ``app.include_router`` **sans** pre
 
 from __future__ import annotations
 
+import json
+import logging
 from typing import Annotated
+from urllib.parse import parse_qsl
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from pydantic import BaseModel
 
 from src.api.auth_helpers import (
     authenticate_user,
@@ -24,19 +27,169 @@ from src.couche_a.auth.jwt_handler import (
 from src.ratelimit import limiter
 
 router = APIRouter(prefix="/api/auth", tags=["auth-v2"])
+logger = logging.getLogger(__name__)
+
+# Schéma OpenAPI — le corps est lu via ``get_login_credentials`` (pas de paramètre Body).
+_LOGIN_OPENAPI_EXTRA: dict = {
+    "requestBody": {
+        "required": True,
+        "description": (
+            "Au moins un des champs « email » ou « username », plus « password ». "
+            "Formats acceptés : JSON, application/x-www-form-urlencoded, multipart/form-data."
+        ),
+        "content": {
+            "application/json": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "email": {
+                            "type": "string",
+                            "description": "Email ou identifiant (si « username » absent).",
+                        },
+                        "username": {
+                            "type": "string",
+                            "description": "Nom d'utilisateur (si « email » absent).",
+                        },
+                        "password": {"type": "string", "format": "password"},
+                    },
+                },
+                "examples": {
+                    "par_email": {
+                        "summary": "JSON avec email",
+                        "value": {"email": "admin", "password": "••••••••"},
+                    },
+                    "par_username": {
+                        "summary": "JSON avec username",
+                        "value": {"username": "admin", "password": "••••••••"},
+                    },
+                },
+            },
+            "application/x-www-form-urlencoded": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "email": {"type": "string"},
+                        "username": {"type": "string"},
+                        "password": {"type": "string", "format": "password"},
+                    },
+                },
+            },
+            "multipart/form-data": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "email": {"type": "string"},
+                        "username": {"type": "string"},
+                        "password": {"type": "string", "format": "password"},
+                    },
+                },
+            },
+        },
+    },
+}
 
 
-class LoginRequest(BaseModel):
-    """Identifiant : adresse ou nom d'utilisateur (JSON ``email`` ou ``username``)."""
+async def get_login_credentials(request: Request) -> tuple[str, str]:
+    """Lit identifiant + mot de passe depuis JSON, form-urlencoded ou multipart.
 
-    model_config = ConfigDict(populate_by_name=True)
+    Évite les 422 « opaques » de Pydantic quand le client n'envoie pas exactement
+    ``application/json`` + champs ``email``/``username`` et ``password``.
+    """
+    ct_header = request.headers.get("content-type") or ""
+    ct_lower = ct_header.lower()
+    ct_main = ct_header.split(";")[0].strip().lower() if ct_header else ""
 
-    email: str = Field(
-        ...,
-        min_length=1,
-        validation_alias=AliasChoices("email", "username"),
-    )
-    password: str = Field(..., min_length=1)
+    login_id = ""
+    password = ""
+    raw: bytes = b""
+
+    if "multipart/form-data" in ct_lower:
+        form = await request.form()
+        email_val = form.get("email")
+        username_val = form.get("username")
+        login_id = (email_val.strip() if isinstance(email_val, str) else "") or (
+            username_val.strip() if isinstance(username_val, str) else ""
+        )
+        pw = form.get("password")
+        password = pw.strip() if isinstance(pw, str) else ""
+    elif ct_main == "application/x-www-form-urlencoded":
+        raw = await request.body()
+        if not raw.strip():
+            logger.warning(
+                "api_auth login: empty body content_type=%r",
+                ct_header,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Corps de requête vide.",
+            )
+        try:
+            txt = raw.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Encodage du corps invalide: {exc}",
+            ) from exc
+        pairs = dict(parse_qsl(txt, keep_blank_values=True))
+        login_id = (pairs.get("email") or pairs.get("username") or "").strip()
+        password = (pairs.get("password") or "").strip()
+    elif ct_main == "application/json" or ct_header == "":
+        raw = await request.body()
+        if not raw.strip():
+            logger.warning(
+                "api_auth login: empty body content_type=%r",
+                ct_header,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Corps de requête vide.",
+            )
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"JSON invalide: {exc}",
+            ) from exc
+        if not isinstance(payload, dict):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Le corps JSON doit être un objet.",
+            )
+        e = payload.get("email")
+        u = payload.get("username")
+        login_id = (e.strip() if isinstance(e, str) else "") or (
+            u.strip() if isinstance(u, str) else ""
+        )
+        pw = payload.get("password")
+        password = pw.strip() if isinstance(pw, str) else ""
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=(
+                "Content-Type non supporté. Utilisez application/json, "
+                "application/x-www-form-urlencoded ou multipart/form-data."
+            ),
+        )
+
+    if not login_id or not password:
+        logger.warning(
+            "api_auth login: missing credentials "
+            "(login_id empty=%s password empty=%s) content_type=%r body_len=%s",
+            not login_id,
+            not password,
+            ct_header,
+            len(raw) if raw else 0,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "Identifiant (champ « email » ou « username ») et « password » "
+                "requis, non vides."
+            ),
+        )
+
+    return login_id, password
 
 
 class LoginUserOut(BaseModel):
@@ -55,15 +208,23 @@ class LoginResponse(BaseModel):
     user: LoginUserOut
 
 
-@router.post("/login", response_model=LoginResponse)
+@router.post(
+    "/login",
+    response_model=LoginResponse,
+    openapi_extra=_LOGIN_OPENAPI_EXTRA,
+)
 @limiter.limit("5/minute")
-async def login_json(request: Request, body: LoginRequest):
-    """Login JSON — ``POST /api/auth/login`` (contrat frontend-v51)."""
-    user = authenticate_user(body.email.strip(), body.password)
+async def login_json(
+    request: Request,
+    creds: Annotated[tuple[str, str], Depends(get_login_credentials)],
+):
+    """Login — ``POST /api/auth/login`` (JSON, form-urlencoded ou multipart)."""
+    login_id, password = creds
+    user = authenticate_user(login_id, password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou mot de passe incorrect",
+            detail="Identifiant ou mot de passe incorrect",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

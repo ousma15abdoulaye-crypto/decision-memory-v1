@@ -47,13 +47,22 @@ def test_api_auth_login_with_email():
 
 
 def test_api_auth_login_accepts_username_key():
-    """Clients OAuth2 / formulaires qui envoient ``username`` au lieu de ``email`` → 200."""
+    """JSON avec clé ``username`` (style OAuth2) → 200."""
     response = client.post(
         "/api/auth/login",
         json={"username": "admin", "password": "admin123"},
     )
     assert response.status_code == 200
     assert response.json()["user"]["username"] == "admin"
+
+
+def test_api_auth_login_form_urlencoded():
+    """Corps application/x-www-form-urlencoded → 200."""
+    response = client.post(
+        "/api/auth/login",
+        data={"email": "admin", "password": "admin123"},
+    )
+    assert response.status_code == 200
 
 
 def test_api_auth_login_wrong_password():
@@ -63,6 +72,18 @@ def test_api_auth_login_wrong_password():
         json={"email": "admin", "password": "WrongPassword!"},
     )
     assert response.status_code == 401
+    assert response.json()["detail"] == "Identifiant ou mot de passe incorrect"
+
+
+def test_api_auth_login_unsupported_content_type():
+    """Content-Type non supporté (ex. text/plain) → 415."""
+    response = client.post(
+        "/api/auth/login",
+        content='{"email":"admin","password":"admin123"}',
+        headers={"Content-Type": "text/plain"},
+    )
+    assert response.status_code == 415
+    assert "application/json" in response.json()["detail"]
 
 
 def test_api_auth_login_jwt_role_admin():
