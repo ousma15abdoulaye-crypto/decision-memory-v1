@@ -14,12 +14,16 @@ lexical prix avant les embeddings (voir ``market_query_lexicon``).
 from __future__ import annotations
 
 import asyncio
+import logging
+import time
 from dataclasses import dataclass
 from enum import StrEnum
 
 import numpy as np
 
-from src.agent.embedding_client import get_embedding
+from src.agent.embedding_client import get_embedding, get_embeddings_batch
+
+logger = logging.getLogger(__name__)
 
 
 class IntentClass(StrEnum):
@@ -99,17 +103,23 @@ async def _ensure_centroids() -> None:
     async with _centroid_lock:
         if frozenset(_centroid_cache.keys()) == _EXPECTED_CENTROID_KEYS:
             return
+        t0 = time.perf_counter()
         local: dict[IntentClass, np.ndarray] = {}
         for intent_class, examples in INTENT_EXAMPLES.items():
-            embeddings = []
-            for example in examples:
-                emb = await get_embedding(example)
-                embeddings.append(emb)
-            centroid = np.mean(embeddings, axis=0)
+            embeddings = await get_embeddings_batch(examples)
+            stacked = np.stack(embeddings, axis=0)
+            centroid = np.mean(stacked, axis=0)
             centroid = centroid / np.linalg.norm(centroid)
             local[intent_class] = centroid
         _centroid_cache.clear()
         _centroid_cache.update(local)
+        elapsed_ms = (time.perf_counter() - t0) * 1000.0
+        logger.info(
+            "semantic_router: centroïdes calculés (%d classes, %d appels batch Mistral max) en %.0f ms",
+            len(local),
+            len(INTENT_EXAMPLES),
+            elapsed_ms,
+        )
 
 
 def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:

@@ -11,6 +11,7 @@ Dégradation gracieuse si Langfuse n'est pas configuré :
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 from src.core.config import get_settings
@@ -76,7 +77,20 @@ def _build_langfuse() -> Any:
         )
 
     if not public_key or not secret_key:
-        logger.info("[Langfuse] Clés absentes — traçage désactivé (mode no-op).")
+        # Diagnostic sans secret : distingue « variable absente du process » vs « vide / espaces »
+        # vs « une seule des deux clés ». Noms attendus : LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY
+        # (même service Railway que uvicorn — pas seulement un plugin / autre service).
+        raw_pk = os.getenv("LANGFUSE_PUBLIC_KEY")
+        raw_sk = os.getenv("LANGFUSE_SECRET_KEY")
+        logger.info(
+            "[Langfuse] Traçage désactivé (no-op) — longueurs après strip: "
+            "public=%d secret=%d | os.environ défini (brut): public=%s secret=%s | "
+            "attendu: LANGFUSE_PUBLIC_KEY + LANGFUSE_SECRET_KEY sur ce service.",
+            len(public_key),
+            len(secret_key),
+            raw_pk is not None,
+            raw_sk is not None,
+        )
         return _NullLangfuse()
 
     try:

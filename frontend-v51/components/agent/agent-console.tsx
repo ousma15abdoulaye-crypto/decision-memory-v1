@@ -230,18 +230,32 @@ export function AgentConsole({
           let detail = "";
           try {
             const body = await res.json();
-            detail = body.detail || body.message || "";
+            const raw = body.detail ?? body.message;
+            if (typeof raw === "string") {
+              detail = raw;
+            } else if (Array.isArray(raw)) {
+              detail = raw
+                .map((e: unknown) =>
+                  e && typeof e === "object" && "msg" in (e as object)
+                    ? String((e as { msg?: string }).msg ?? "")
+                    : "",
+                )
+                .filter(Boolean)
+                .join(" ");
+            }
           } catch {
             // ignore parse error
           }
-          const HTTP_ERRORS: Record<number, string> = {
+          const detailTrim = detail.trim();
+          const HTTP_FALLBACK: Record<number, string> = {
             401: "Session expirée. Reconnectez-vous.",
             403: "Accès refusé. Vérifiez vos permissions pour ce workspace.",
             429: "Trop de requêtes. Réessayez dans quelques secondes.",
           };
+          // Préférer le message API (ex. guard : membre / permission agent.query) au libellé générique.
           const human =
-            HTTP_ERRORS[res.status] ||
-            detail ||
+            detailTrim ||
+            HTTP_FALLBACK[res.status] ||
             `Erreur serveur (${res.status}). Réessayez ou contactez l'administrateur.`;
           throw new Error(human);
         }
