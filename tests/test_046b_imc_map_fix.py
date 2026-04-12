@@ -145,6 +145,8 @@ VALID_ALEMBIC_HEADS = (
     "097_fix_test_user_role_supply_chain",
     # Admin principal propriétaire — email + JWT superuser (PR #398)
     "098_primary_admin_email_owner_mandate",
+    # Rôles seed + admin login (PR login 422 / migration 099)
+    "099_fix_admin_roles_seed",
 )
 
 

@@ -224,12 +224,8 @@ def get_candidate_rules(status: str | None = None) -> list[CandidateRuleSummary]
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@router.post("/rules/{rule_id}/approve", response_model=RuleActionResponse)
-def approve_rule(
-    rule_id: str,
-    current_user: UserClaims | None = Depends(get_current_user),
-) -> RuleActionResponse:
-    user_id = current_user.user_id if current_user else "system"
+def approve_rule_core(rule_id: str, user_id: str) -> RuleActionResponse:
+    """Approuve une règle candidate (logique pure — tests sans stack FastAPI)."""
     try:
         with get_db_cursor() as cur:
             adapter = PsycopgCursorAdapter(cur)
@@ -253,12 +249,8 @@ def approve_rule(
     )
 
 
-@router.post("/rules/{rule_id}/reject", response_model=RuleActionResponse)
-def reject_rule(
-    rule_id: str,
-    current_user: UserClaims | None = Depends(get_current_user),
-) -> RuleActionResponse:
-    user_id = current_user.user_id if current_user else "system"
+def reject_rule_core(rule_id: str, user_id: str) -> RuleActionResponse:
+    """Rejette une règle candidate (logique pure — tests sans stack FastAPI)."""
     try:
         with get_db_cursor() as cur:
             adapter = PsycopgCursorAdapter(cur)
@@ -273,6 +265,22 @@ def reject_rule(
         new_status="rejected",
         message=f"Rule {rule_id} rejected by {user_id}",
     )
+
+
+@router.post("/rules/{rule_id}/approve", response_model=RuleActionResponse)
+def approve_rule(
+    rule_id: str,
+    current_user: UserClaims = Depends(get_current_user),
+) -> RuleActionResponse:
+    return approve_rule_core(rule_id, str(current_user.user_id))
+
+
+@router.post("/rules/{rule_id}/reject", response_model=RuleActionResponse)
+def reject_rule(
+    rule_id: str,
+    current_user: UserClaims = Depends(get_current_user),
+) -> RuleActionResponse:
+    return reject_rule_core(rule_id, str(current_user.user_id))
 
 
 @router.get("/ragas-history", response_model=list[RAGASHistoryEntry])
