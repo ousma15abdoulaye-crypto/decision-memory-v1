@@ -223,42 +223,45 @@ function WorkspacePageContent() {
           </div>
         )}
 
-        {/* ── Ingestion ZIP / bundles / pipeline V5 ─────────────── */}
-        {!workspaceFailed && id ? (
-          <WorkspaceIngestionPanel
-            workspaceId={id}
-            workspaceStatus={ws?.status}
-          />
-        ) : null}
+        {/* ── Corridor vital : ingestion → temps réel → PV → M16 → matrice ── */}
+        <section className="space-y-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
+            Corridor vital
+          </h2>
 
-        {/* ── Real-time events ───────────────────────────────────── */}
-        <WorkspaceEventsBridge workspaceId={id} />
+          {!workspaceFailed && id ? (
+            <WorkspaceIngestionPanel
+              workspaceId={id}
+              workspaceStatus={ws?.status}
+            />
+          ) : null}
 
-        {/* ── PV Export (sealed only) ────────────────────────────── */}
-        {isSealed && <PvExportButtons workspaceId={id} />}
+          <WorkspaceEventsBridge workspaceId={id} />
 
-        {/* ── M14 → M16 Sync (when not sealed) ──────────────────── */}
-        {!isSealed && !isCancelled && (
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
-            <h3 className="mb-3 text-sm font-semibold text-[var(--foreground)]">
-              Données M14 → Assessments M16
-            </h3>
-            <M14SyncButton workspaceId={id} />
-          </div>
-        )}
+          {isSealed && <PvExportButtons workspaceId={id} />}
 
-        {/* ── PDF drilldown ──────────────────────────────────────── */}
-        <PdfDrilldownPlaceholder />
+          {!isSealed && !isCancelled && (
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+              <h3 className="mb-3 text-sm font-semibold text-[var(--foreground)]">
+                Données M14 → Assessments M16
+              </h3>
+              <M14SyncButton workspaceId={id} />
+            </div>
+          )}
 
-        {/* ── Comparative table ─────────────────────────────────── */}
-        <ErrorBoundary>
-          <section>
-            <h2 className="mb-3 text-sm font-semibold text-[var(--foreground)]">
-              Matrice comparative
-            </h2>
-            <ComparativeTable workspaceId={id} />
-          </section>
-        </ErrorBoundary>
+          {process.env.NEXT_PUBLIC_FEATURE_PDF_DRILLDOWN === "1" ? (
+            <PdfDrilldownPlaceholder />
+          ) : null}
+
+          <ErrorBoundary>
+            <div>
+              <h3 className="mb-3 text-sm font-semibold text-[var(--foreground)]">
+                Matrice comparative
+              </h3>
+              <ComparativeTable workspaceId={id} />
+            </div>
+          </ErrorBoundary>
+        </section>
 
         {/* ── Agent console ─────────────────────────────────────── */}
         <ErrorBoundary>

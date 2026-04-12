@@ -40,7 +40,9 @@ const mockCognitive = {
 const sid1 = "11111111-1111-4111-8111-111111111111";
 const sid2 = "22222222-2222-4222-8222-222222222222";
 
-const mockEvalFrame = {
+const mockComparativeMatrix = {
+  schema_version: "comparative_matrix_v1",
+  source: "m14",
   scores_matrix: {
     [sid1]: {
       c1: { score: 8, confidence: 0.8, signal: "green" },
@@ -72,6 +74,15 @@ const mockEvalFrame = {
     { id: sid2, name: "Fournisseur B" },
   ],
   weighted_totals: { [sid1]: 5.2, [sid2]: 6.1 },
+  cognitive_state: "E5",
+  cognitive_state_detail: {},
+  committee_session: null,
+  elimination_flags: [],
+  market_signals: [],
+  dissents: [],
+  data_quality_score: 0.8,
+  low_confidence_bundles: [],
+  zones_of_clarification: [],
 };
 
 test.describe("Matrice comparative (NL-01 / NL-08 / NL-09)", () => {
@@ -110,8 +121,8 @@ test.describe("Matrice comparative (NL-01 / NL-08 / NL-09)", () => {
         await route.fulfill(fulfillJson(mockCognitive));
         return;
       }
-      if (path.includes("/evaluation-frame")) {
-        await route.fulfill(fulfillJson(mockEvalFrame));
+      if (path.includes("/comparative-matrix")) {
+        await route.fulfill(fulfillJson(mockComparativeMatrix));
         return;
       }
       if (path.includes("/bundles")) {

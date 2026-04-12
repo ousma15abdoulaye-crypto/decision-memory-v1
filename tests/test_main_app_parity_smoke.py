@@ -80,6 +80,9 @@ def test_main_openapi_includes_workspaces_committee_pv_prefixes() -> None:
         "committee/pv" in p for p in path_keys
     ), "OpenAPI doit exposer committee/pv (exports PV)"
     assert any(
+        "comparative-matrix" in p for p in path_keys
+    ), "OpenAPI doit exposer …/comparative-matrix (matrice canon M14/M16)"
+    assert any(
         "/members" in p and "/api/workspaces/" in p for p in path_keys
     ), "OpenAPI doit exposer …/members (Canon O4)"
     assert any(

@@ -3,7 +3,7 @@
 ## `comparative-matrix.spec.ts`
 
 - **Objectif** : valider le comportement **React** de la grille (accessibilité clavier, filtres, zoom).
-- **Données** : réponses HTTP **fictives** via `page.route("**/api/workspaces/**", …)`.
+- **Données** : réponses HTTP **fictives** via `page.route("**/api/workspaces/**", …)` (mock inclut `GET …/comparative-matrix`).
 - **Limite** : ne démontre **pas** l’alignement avec une base réelle ni le corridor ZIP → pipeline.
 
 ## `home.spec.ts`
@@ -18,4 +18,5 @@
   - `E2E_LOGIN_EMAIL`, `E2E_LOGIN_PASSWORD` : compte de test sur l’API ciblée par `NEXT_PUBLIC_API_URL` au build du front.
   - `E2E_WORKSPACE_ID` : UUID d’un workspace accessible par ce compte.
 - Prérequis : API joignable depuis la machine qui lance Playwright, CORS correct, front qui pointe vers cette API.
+- Le scénario attend une réponse **HTTP 200** sur `GET /api/workspaces/{E2E_WORKSPACE_ID}/comparative-matrix` (sans mock des routes workspace).
 - Installation navigateurs : `npx playwright install chromium` (en entreprise, erreur TLS → confier l’exécution aux jobs GitHub Actions ou ajuster les certificats racine).

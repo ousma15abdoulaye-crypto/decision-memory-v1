@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api-client";
 
 interface BridgeResult {
@@ -13,6 +14,7 @@ interface BridgeResult {
 }
 
 export function M14SyncButton({ workspaceId }: { workspaceId: string }) {
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<BridgeResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -27,6 +29,9 @@ export function M14SyncButton({ workspaceId }: { workspaceId: string }) {
         {},
       );
       setResult(res);
+      await queryClient.invalidateQueries({
+        queryKey: ["comparative-matrix", workspaceId],
+      });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Erreur lors de la synchronisation");
     } finally {

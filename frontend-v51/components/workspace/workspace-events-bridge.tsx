@@ -45,12 +45,14 @@ async function fetchWsToken(accessToken: string): Promise<string | null> {
  */
 export function WorkspaceEventsBridge({ workspaceId }: { workspaceId: string }) {
   const [showError, setShowError] = useState(false);
+  const [showWsTokenDegraded, setShowWsTokenDegraded] = useState(false);
   const [lastLine, setLastLine] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const retriesRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wsTokenRef = useRef<string | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const wsTokenFallbackWarnedRef = useRef(false);
 
   useEffect(() => {
     const accessToken = readAccessToken();
@@ -116,6 +118,10 @@ export function WorkspaceEventsBridge({ workspaceId }: { workspaceId: string }) 
     const initWsToken = async () => {
       const token = await fetchWsToken(accessToken);
       if (stopped) return;
+      if (!token && !wsTokenFallbackWarnedRef.current) {
+        wsTokenFallbackWarnedRef.current = true;
+        setShowWsTokenDegraded(true);
+      }
       // Fall back to the access token if the endpoint is unavailable.
       wsTokenRef.current = token ?? accessToken;
       connect();
@@ -151,19 +157,35 @@ export function WorkspaceEventsBridge({ workspaceId }: { workspaceId: string }) 
     };
   }, [workspaceId]);
 
-  if (!showError) return null;
+  if (!showError && !showWsTokenDegraded) return null;
 
   return (
-    <div
-      className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"
-      data-testid="workspace-ws-banner"
-    >
-      <span className="font-medium">Temps réel</span>
-      <span className="ml-2">déconnecté — reconnexion en cours…</span>
-      {lastLine && (
-        <pre className="mt-1 max-h-16 overflow-auto whitespace-pre-wrap break-all text-[10px] opacity-80">
-          {lastLine}
-        </pre>
+    <div className="space-y-2">
+      {showWsTokenDegraded && (
+        <div
+          className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100"
+          data-testid="workspace-ws-token-degraded"
+        >
+          <span className="font-medium">Temps réel</span>
+          <span className="ml-2">
+            jeton WebSocket indisponible — repli sur le jeton d&apos;accès (session plus
+            courte, reconnexions possibles).
+          </span>
+        </div>
+      )}
+      {showError && (
+        <div
+          className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"
+          data-testid="workspace-ws-banner"
+        >
+          <span className="font-medium">Temps réel</span>
+          <span className="ml-2">déconnecté — reconnexion en cours…</span>
+          {lastLine && (
+            <pre className="mt-1 max-h-16 overflow-auto whitespace-pre-wrap break-all text-[10px] opacity-80">
+              {lastLine}
+            </pre>
+          )}
+        </div>
       )}
     </div>
   );

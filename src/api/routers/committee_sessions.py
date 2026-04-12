@@ -27,7 +27,6 @@ import json
 import logging
 import os
 import uuid
-from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -42,9 +41,7 @@ from src.couche_a.auth.workspace_access import (
     require_workspace_permission,
 )
 from src.db import db_execute, db_execute_one, get_connection
-from src.services.pv_builder import build_pv_snapshot
-from src.services.seal_checks import run_all_seal_checks
-from src.utils.json_utils import safe_json_dumps
+from src.services.workspace_irr_seal_service import finalize_workspace_irr_seal
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/workspaces", tags=["committee-v420"])
@@ -382,150 +379,25 @@ def seal_committee_session(
                 detail=exc.reason,
             ) from exc
 
-        # Pré-vérifications scellement (INV-W01, INV-W03, INV-W04, INV-FLAG)
-        check_result = run_all_seal_checks(conn, workspace_id)
-        if not check_result.passed:
-            raise HTTPException(
-                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail={
-                    "error": "seal_preconditions_failed",
-                    "message": "Pré-conditions de scellement non remplies.",
-                    "errors": check_result.errors,
-                    "warnings": check_result.warnings,
-                },
-            )
-
-        # Tenant résolu avant snapshot PV / hash (même source que CDE — pas de chaîne vide
-        # dans le snapshot, aligné RÈGLE-W01).
-        raw_tid = session.get("tenant_id")
-        if raw_tid is None:
-            raw_tid = ws_row.get("tenant_id")
-        if not raw_tid:
-            logger.error(
-                "seal_committee_session: tenant_id introuvable session=%s workspace=%s",
-                session["id"],
-                workspace_id,
-            )
-            raise HTTPException(
-                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="tenant_id introuvable pour le journal de délibération",
-            )
-        tid_cde = str(raw_tid)
-
-        pv_snapshot, seal_hash = build_pv_snapshot(
-            conn=conn,
-            workspace_id=workspace_id,
-            session_id=str(session["id"]),
-            user_id=user_id,
-            seal_comment=payload.seal_comment,
-        )
-        pv_json = safe_json_dumps(pv_snapshot, sort_keys=True)
-        canonical_sealed_at = (pv_snapshot.get("decision") or {}).get("sealed_at")
-        if not canonical_sealed_at:
-            logger.error(
-                "seal_committee_session: decision.sealed_at absent du snapshot "
-                "session=%s workspace=%s",
-                session["id"],
-                workspace_id,
-            )
-            raise HTTPException(
-                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=(
-                    "Horodatage canonique de scellement introuvable dans le snapshot PV"
-                ),
-            )
-        try:
-            sealed_at = datetime.fromisoformat(
-                str(canonical_sealed_at).replace("Z", "+00:00")
-            ).astimezone(UTC)
-        except ValueError as exc:
-            logger.error(
-                "seal_committee_session: decision.sealed_at invalide session=%s "
-                "workspace=%s value=%r",
-                session["id"],
-                workspace_id,
-                canonical_sealed_at,
-            )
-            raise HTTPException(
-                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=(
-                    "Horodatage canonique de scellement invalide dans le snapshot PV"
-                ),
-            ) from exc
-
-        db_execute(
+        tid_events = _tenant_id_for_cde_writes(conn, workspace_id, user)
+        out = finalize_workspace_irr_seal(
             conn,
-            """
-            UPDATE committee_sessions
-            SET session_status = 'sealed',
-                sealed_at = :sealed_at,
-                sealed_by = :uid,
-                seal_hash = :hash,
-                pv_snapshot = :pv
-            WHERE id = :sid
-            """,
-            {
-                "sealed_at": sealed_at,
-                "uid": user_id,
-                "hash": seal_hash,
-                "pv": pv_json,
-                "sid": session["id"],
-            },
+            workspace_id,
+            user_id,
+            payload.seal_comment,
+            tid_events,
+            ws_row,
+            "committee_seal",
+            auto_create_session=False,
         )
 
-        db_execute(
-            conn,
-            """
-            INSERT INTO committee_deliberation_events
-                (session_id, workspace_id, tenant_id, actor_id, event_type, payload)
-            VALUES (:sid, :ws, :tid, :actor, 'session_sealed', :p)
-            """,
-            {
-                "sid": session["id"],
-                "ws": workspace_id,
-                "tid": tid_cde,
-                "actor": user_id,
-                "p": json.dumps({"seal_hash": seal_hash}),
-            },
-        )
-
-        db_execute(
-            conn,
-            """
-            UPDATE process_workspaces
-            SET status = 'sealed',
-                sealed_at = :sealed_at
-            WHERE id = :wid
-            """,
-            {"sealed_at": sealed_at, "wid": workspace_id},
-        )
-        db_execute(
-            conn,
-            """
-            INSERT INTO workspace_events
-                (workspace_id, tenant_id, event_type, actor_id, actor_type, payload)
-            VALUES (:ws, :tid, 'WORKSPACE_STATUS_CHANGED', :uid, 'user', :p)
-            """,
-            {
-                "ws": workspace_id,
-                "tid": tid_cde,
-                "uid": user_id,
-                "p": json.dumps(
-                    {
-                        "from": str(ws_row.get("status")),
-                        "to": "sealed",
-                        "via": "committee_seal",
-                    }
-                ),
-            },
-        )
-
-    background_tasks.add_task(_enqueue_project_sealed_workspace_job, workspace_id)
+    if not out.get("recovered"):
+        background_tasks.add_task(_enqueue_project_sealed_workspace_job, workspace_id)
 
     return {
-        "session_id": session["id"],
+        "session_id": out["session_id"],
         "status": "sealed",
-        "seal_hash": seal_hash,
+        "seal_hash": out["seal_hash"],
     }
 
 
