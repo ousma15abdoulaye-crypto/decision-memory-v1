@@ -131,6 +131,20 @@ async def run_pass_minus_1(
         dict avec keys: bundle_ids, workspace_id, error (si présent).
     """
     logger.info("[PASS-1] Démarrage workspace=%s zip=%s", workspace_id, zip_path)
+    zp = Path(zip_path)
+    if not zp.is_file():
+        err = (
+            "ZIP introuvable sur le système de fichiers du worker — vérifier un volume "
+            "Railway RWX monté au même chemin sur l'API et le worker, et UPLOADS_DIR "
+            "identique des deux côtés (ex. /data/uploads). Voir docs/ops/"
+            "RAILWAY_ARQ_WORKER_SERVICE.md."
+        )
+        logger.error("[PASS-1] %s path=%s", err, zip_path)
+        return {
+            "workspace_id": workspace_id,
+            "bundle_ids": [],
+            "error": err,
+        }
     try:
         from src.assembler.graph import build_pass_minus_one_graph
         from src.assembler.zip_validator import validate_zip
@@ -189,9 +203,9 @@ async def run_pass_minus_1(
         raise
     finally:
         try:
-            zp = Path(zip_path)
-            zp.unlink(missing_ok=True)
-            zip_dir = zp.parent
+            zp_unlink = Path(zip_path)
+            zp_unlink.unlink(missing_ok=True)
+            zip_dir = zp_unlink.parent
             if zip_dir.is_dir() and not any(zip_dir.iterdir()):
                 zip_dir.rmdir()
         except Exception:

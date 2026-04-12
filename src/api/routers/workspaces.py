@@ -789,6 +789,12 @@ async def upload_zip(
 
     Requiert permission bundle.upload.
     Retourne immédiatement — le traitement est asynchrone (ARQ).
+
+    Stockage : le fichier est écrit sous ``Settings.UPLOADS_DIR / workspace_id``.
+    Sur Railway avec API et worker sur **deux services**, monter le **même volume**
+    sur le **même chemin** (ex. ``/data`` → ``UPLOADS_DIR=/data/uploads``) sur les
+    deux services ; sinon le worker ne voit pas le fichier (voir
+    ``docs/ops/RAILWAY_ARQ_WORKER_SERVICE.md``).
     """
     require_workspace_permission(workspace_id, user, "bundle.upload")
 
@@ -808,6 +814,13 @@ async def upload_zip(
 
     with open(zip_path, "wb") as f:
         f.write(content)
+
+    logger.info(
+        "[W1] ZIP Pass-1 enregistré workspace=%s path=%s (UPLOADS_DIR=%s)",
+        workspace_id,
+        zip_path,
+        settings.UPLOADS_DIR,
+    )
 
     tenant_id = user.tenant_id or ""
 

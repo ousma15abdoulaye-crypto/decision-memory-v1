@@ -9,8 +9,12 @@ Environment:
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 try:
     from arq.connections import RedisSettings
@@ -25,6 +29,18 @@ from src.workers.arq_tasks import (
     index_event,
     run_pass_minus_1,
 )
+
+
+async def arq_worker_on_startup(ctx: dict) -> None:
+    """Prépare le répertoire Pass-1 (même ``UPLOADS_DIR`` que l'API, volume partagé)."""
+    try:
+        from src.core.config import get_settings
+
+        root = Path(get_settings().UPLOADS_DIR)
+        root.mkdir(parents=True, exist_ok=True)
+        logger.info("[ARQ] UPLOADS_DIR (Pass-1) prêt : %s", root.resolve())
+    except OSError as exc:
+        logger.warning("[ARQ] Création UPLOADS_DIR impossible : %s", exc)
 
 
 @dataclass(frozen=True)
@@ -53,6 +69,7 @@ def _make_redis_settings() -> RedisSettings | None:
 class WorkerSettings:
     """ARQ WorkerSettings — consumed by `arq src.workers.arq_config.WorkerSettings`."""
 
+    on_startup = arq_worker_on_startup
     functions = [
         index_event,
         detect_patterns,
