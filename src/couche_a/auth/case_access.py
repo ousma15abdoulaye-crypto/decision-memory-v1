@@ -6,14 +6,18 @@ Does not replace DB RLS; blocks obvious IDOR at the application layer.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import Depends, HTTPException
 
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
+from src.couche_a.auth.pilot_access import is_pilot_terrain_user_claims
 from src.db import db_execute_one, get_connection
 from src.db.connection import get_db_cursor
 from src.extraction.engine import get_document
+
+logger = logging.getLogger(__name__)
 
 
 def require_case_access_dep(
@@ -92,6 +96,14 @@ def require_case_access(case_id: str, user: UserClaims) -> None:
     if user.role == "admin":
         return
 
+    if is_pilot_terrain_user_claims(user):
+        logger.warning(
+            "case_access PILOT_TERRAIN_BYPASS user_id=%s case_id=%s",
+            user.user_id,
+            case_id,
+        )
+        return
+
     owner_id = row.get("owner_id")
     if owner_id is None or int(owner_id) != int(user.user_id):
         raise HTTPException(status_code=403, detail="You do not own this case")
@@ -115,6 +127,13 @@ def require_document_case_access(document_id: str, user: UserClaims) -> dict[str
 def require_case_tenant_org(case_id: str, org_id: str, user: UserClaims) -> None:
     """Vérifie accès au case et que org_id client == cases.tenant_id (anti-IDOR R7)."""
     require_case_access(case_id, user)
+    if is_pilot_terrain_user_claims(user):
+        logger.warning(
+            "case_tenant_org PILOT_TERRAIN_BYPASS user_id=%s case_id=%s",
+            user.user_id,
+            case_id,
+        )
+        return
     with get_connection() as conn:
         row = db_execute_one(
             conn,

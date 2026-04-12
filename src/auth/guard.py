@@ -21,6 +21,7 @@ from uuid import UUID
 from fastapi import HTTPException
 
 from src.core.config import get_settings
+from src.couche_a.auth.pilot_access import is_pilot_terrain_user_id
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +86,19 @@ async def guard(
         HTTPException 403: Non membre, permission refusée.
         HTTPException 409: Écriture tentée sur workspace clos.
     """
+    try:
+        uid = int(user.get("id"))
+    except (TypeError, ValueError):
+        uid = -1
+    if uid >= 0 and is_pilot_terrain_user_id(uid):
+        logger.warning(
+            "guard PILOT_TERRAIN_BYPASS user_id=%s workspace_id=%s permission=%s",
+            uid,
+            workspace_id,
+            permission,
+        )
+        return {"role": "admin"}
+
     # ── 1. Membership ─────────────────────────────────────────────────────
     # revoked_at IS NULL : exclut les membres révoqués (sécurité — spec oversight).
     member = await db.fetch_one(

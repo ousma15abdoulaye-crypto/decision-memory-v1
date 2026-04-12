@@ -102,6 +102,13 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Pilote terrain (tests bout-en-bout sans garde-fous RBAC / scellement / M16).
+    # Nécessite ``DMS_PILOT_USER_IDS`` et/ou ``DMS_PILOT_USER_EMAILS`` non vides
+    # une fois le flag activé ; sinon personne n’est considéré comme pilote.
+    DMS_PILOT_TERRAIN_FULL_ACCESS: bool = False
+    DMS_PILOT_USER_IDS: str = ""
+    DMS_PILOT_USER_EMAILS: str = ""
+
     # --- SSL / HTTPX ---
     SSL_CERT_FILE: str = ""
     REQUESTS_CA_BUNDLE: str = ""

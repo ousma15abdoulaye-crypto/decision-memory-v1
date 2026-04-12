@@ -34,6 +34,10 @@ from src.auth.guard import guard
 from src.auth.permissions import ROLE_PERMISSIONS
 from src.core.config import get_settings
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
+from src.couche_a.auth.pilot_access import (
+    is_pilot_terrain_user_claims,
+    rls_tenant_id_for_agent,
+)
 from src.db.async_pool import AsyncpgAdapter, acquire_with_rls
 from src.ratelimit import LIMIT_ANNOTATION, limiter
 
@@ -139,30 +143,48 @@ async def agent_prompt(
     )
 
     try:
-        guardrail_result = await check_recommendation_guardrail(payload.query, trace)
-        if guardrail_result.blocked:
-            trace.update(
-                output={"blocked": True, "reason": "guardrail_inv_w06"},
-                tags=["guardrail_inv_w06"],
+        if is_pilot_terrain_user_claims(current_user):
+            logger.warning(
+                "agent PILOT_TERRAIN_BYPASS guardrail_inv_w06 user_id=%s",
+                current_user.user_id,
             )
-            raise HTTPException(
-                422,
-                {
-                    "error": "guardrail_inv_w06",
-                    "message": (
-                        "DMS ne formule pas de recommandation. "
-                        "Reformulez votre question pour demander des données factuelles."
-                    ),
-                    "confidence": guardrail_result.confidence,
-                },
+        else:
+            guardrail_result = await check_recommendation_guardrail(
+                payload.query, trace
             )
+            if guardrail_result.blocked:
+                trace.update(
+                    output={"blocked": True, "reason": "guardrail_inv_w06"},
+                    tags=["guardrail_inv_w06"],
+                )
+                raise HTTPException(
+                    422,
+                    {
+                        "error": "guardrail_inv_w06",
+                        "message": (
+                            "DMS ne formule pas de recommandation. "
+                            "Reformulez votre question pour demander des données factuelles."
+                        ),
+                        "confidence": guardrail_result.confidence,
+                    },
+                )
 
-        if not current_user.tenant_id:
-            raise HTTPException(400, "tenant_id manquant dans le JWT.")
+        try:
+            rls_tenant = rls_tenant_id_for_agent(current_user)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(
+                500,
+                "Configuration tenant par défaut invalide pour le pilote terrain.",
+            ) from exc
 
         async with acquire_with_rls(
-            str(current_user.tenant_id),
-            is_admin=(current_user.role == "admin"),
+            rls_tenant,
+            is_admin=(
+                current_user.role == "admin"
+                or is_pilot_terrain_user_claims(current_user)
+            ),
         ) as raw_conn:
             conn = AsyncpgAdapter(raw_conn)
             if payload.workspace_id:
@@ -178,9 +200,21 @@ async def agent_prompt(
                     "agent.query",
                 )
             else:
-                role_perms = ROLE_PERMISSIONS.get(current_user.role or "", frozenset())
-                if "agent.query" not in role_perms and "system.admin" not in role_perms:
-                    raise HTTPException(403, "Permission agent.query requise.")
+                if not is_pilot_terrain_user_claims(current_user):
+                    role_perms = ROLE_PERMISSIONS.get(
+                        current_user.role or "", frozenset()
+                    )
+                    if (
+                        "agent.query" not in role_perms
+                        and "system.admin" not in role_perms
+                    ):
+                        raise HTTPException(
+                            403,
+                            "Permission agent.query requise sans workspace cible. "
+                            "Envoyez workspaceId dans le JSON pour le contrôle RBAC du "
+                            "workspace, ou utilisez un rôle disposant de agent.query ou "
+                            "system.admin.",
+                        )
 
             intent_span = trace.span(name="intent_classification")
             intent = await classify_intent(payload.query)

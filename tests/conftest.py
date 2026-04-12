@@ -58,9 +58,13 @@ if "DATABASE_URL" not in os.environ:
 @pytest.fixture(autouse=True)
 def _reset_settings_cache():
     """Reset le cache Settings entre chaque test pour isolation."""
+    from src.couche_a.auth.pilot_access import reset_pilot_access_cache_for_tests
+
     get_settings.cache_clear()
+    reset_pilot_access_cache_for_tests()
     yield
     get_settings.cache_clear()
+    reset_pilot_access_cache_for_tests()
 
 
 def _get_db_conn():
