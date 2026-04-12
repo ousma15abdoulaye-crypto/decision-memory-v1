@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from unittest.mock import MagicMock, patch
 
@@ -63,6 +64,32 @@ def test_api_auth_login_form_urlencoded():
         data={"email": "admin", "password": "admin123"},
     )
     assert response.status_code == 200
+
+
+def test_api_auth_login_missing_identifier_422_detail_string():
+    """Identifiant absent (ni email ni username) → 422 avec message métier (get_login_credentials)."""
+    response = client.post("/api/auth/login", json={"password": "x"})
+    assert response.status_code == 422
+    detail = response.json().get("detail")
+    assert isinstance(detail, str)
+    assert "email" in detail or "username" in detail
+
+
+def test_api_auth_login_empty_email_422():
+    """``email`` vide → login_id vide → 422."""
+    response = client.post("/api/auth/login", json={"email": "", "password": "x"})
+    assert response.status_code == 422
+
+
+def test_api_auth_login_422_logs_field_names_not_values(caplog):
+    """Observabilité : 422 credentials manquants → log field_names (clés JSON), pas les valeurs."""
+    with caplog.at_level(logging.WARNING):
+        response = client.post("/api/auth/login", json={"password": "secret"})
+    assert response.status_code == 422
+    joined = " ".join(r.message for r in caplog.records)
+    assert "api_auth login: missing credentials" in joined
+    assert "field_names=" in joined
+    assert "secret" not in joined
 
 
 def test_api_auth_login_wrong_password():

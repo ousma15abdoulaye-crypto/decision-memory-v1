@@ -102,9 +102,15 @@ async def get_login_credentials(request: Request) -> tuple[str, str]:
     login_id = ""
     password = ""
     raw: bytes = b""
+    # Noms de champs présents (jamais les valeurs) — diagnostic 422 en prod.
+    field_names_log: list[str] | None = None
 
     if "multipart/form-data" in ct_lower:
         form = await request.form()
+        try:
+            field_names_log = sorted(form.keys())
+        except Exception:
+            field_names_log = None
         email_val = form.get("email")
         username_val = form.get("username")
         login_id = (email_val.strip() if isinstance(email_val, str) else "") or (
@@ -131,6 +137,7 @@ async def get_login_credentials(request: Request) -> tuple[str, str]:
                 detail=f"Encodage du corps invalide: {exc}",
             ) from exc
         pairs = dict(parse_qsl(txt, keep_blank_values=True))
+        field_names_log = sorted(pairs.keys())
         login_id = (pairs.get("email") or pairs.get("username") or "").strip()
         password = (pairs.get("password") or "").strip()
     elif ct_main == "application/json" or ct_header == "":
@@ -156,6 +163,7 @@ async def get_login_credentials(request: Request) -> tuple[str, str]:
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Le corps JSON doit être un objet.",
             )
+        field_names_log = sorted(payload.keys())
         e = payload.get("email")
         u = payload.get("username")
         login_id = (e.strip() if isinstance(e, str) else "") or (
@@ -175,11 +183,13 @@ async def get_login_credentials(request: Request) -> tuple[str, str]:
     if not login_id or not password:
         logger.warning(
             "api_auth login: missing credentials "
-            "(login_id empty=%s password empty=%s) content_type=%r body_len=%s",
+            "(login_id empty=%s password empty=%s) content_type=%r body_len=%s "
+            "field_names=%r",
             not login_id,
             not password,
             ct_header,
             len(raw) if raw else 0,
+            field_names_log,
         )
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
