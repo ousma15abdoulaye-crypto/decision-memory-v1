@@ -11,10 +11,13 @@ HITL : bundle incomplet → interrupt() → reprise sans re-OCR.
 from __future__ import annotations
 
 import logging
+import os
 import tempfile
 import zipfile
 from pathlib import Path
 from typing import TypedDict
+
+from src.observability.pipeline_v5_metrics import observe_pass1_hitl_bypass
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +154,16 @@ async def bundle_node(state: PassMinusOneState) -> PassMinusOneState:
 async def hitl_check_node(state: PassMinusOneState) -> PassMinusOneState:
     """Nœud 4 : Interruption HITL si bundle incomplet."""
     if state.get("hitl_required") and not state.get("hitl_resolved"):
+        # E2E / CI headless : sans reprise humaine, ``interrupt()`` empêche ``finalize``
+        # → 0 bundle en base. Activer explicitement ``DMS_PASS1_HEADLESS=1`` uniquement
+        # pour scripts locaux ou jobs non interactifs (jamais par défaut en prod).
+        if os.environ.get("DMS_PASS1_HEADLESS", "").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        ):
+            observe_pass1_hitl_bypass(workspace_id=str(state.get("workspace_id", "")))
+            return {**state, "hitl_resolved": True}
         incomplete = [
             b for b in state.get("bundles_draft", []) if b.get("hitl_required")
         ]
