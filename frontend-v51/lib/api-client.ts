@@ -131,6 +131,33 @@ class ApiClient {
     });
   }
 
+  /**
+   * POST ``application/x-www-form-urlencoded`` **sans** en-tête Authorization.
+   * À utiliser pour ``/api/auth/login`` : un JWT périmé en localStorage ne doit
+   * pas être renvoyé sur la requête de connexion ; le format form est aligné
+   * sur les tests API (`test_api_auth_login_form_urlencoded`).
+   */
+  async postFormUnauthenticated<T>(
+    path: string,
+    fields: Record<string, string>,
+  ): Promise<T> {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/x-www-form-urlencoded",
+    };
+    const body = new URLSearchParams(fields).toString();
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        headers,
+        body,
+      });
+    } catch (e) {
+      rethrowIfNetworkFailure(e);
+    }
+    return this.parseOkJson<T>(res);
+  }
+
   patch<T>(path: string, body: unknown) {
     return this.request<T>(path, {
       method: "PATCH",

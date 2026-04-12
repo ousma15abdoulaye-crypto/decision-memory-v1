@@ -34,10 +34,15 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await api.post<LoginJsonResponse>("/api/auth/login", {
-        email: loginId.trim(),
-        password,
-      });
+      const id = loginId.trim();
+      const res = await api.postFormUnauthenticated<LoginJsonResponse>(
+        "/api/auth/login",
+        {
+          email: id,
+          username: id,
+          password,
+        },
+      );
 
       const u = res.user;
       setAuth(
