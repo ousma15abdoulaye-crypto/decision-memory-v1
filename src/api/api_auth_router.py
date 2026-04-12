@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from src.api.auth_helpers import (
     authenticate_user,
@@ -27,9 +27,15 @@ router = APIRouter(prefix="/api/auth", tags=["auth-v2"])
 
 
 class LoginRequest(BaseModel):
-    """Champ ``email`` : adresse ou nom d'utilisateur."""
+    """Identifiant : adresse ou nom d'utilisateur (JSON ``email`` ou ``username``)."""
 
-    email: str = Field(..., min_length=1)
+    model_config = ConfigDict(populate_by_name=True)
+
+    email: str = Field(
+        ...,
+        min_length=1,
+        validation_alias=AliasChoices("email", "username"),
+    )
     password: str = Field(..., min_length=1)
 
 
