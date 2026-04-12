@@ -682,7 +682,7 @@ def get_evaluation_frame(
             conn,
             """
             SELECT id::text AS id, critere_nom, ponderation,
-                   is_eliminatory IS TRUE AS is_eliminatory
+                   is_eliminatory, seuil_elimination
             FROM dao_criteria
             WHERE workspace_id = :ws
             ORDER BY created_at NULLS LAST, id

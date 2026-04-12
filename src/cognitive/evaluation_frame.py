@@ -121,7 +121,12 @@ def enrich_criteria_with_dao(
         if dao:
             base["critere_nom"] = dao.get("critere_nom")
             base["ponderation"] = dao.get("ponderation")
-            base["is_eliminatory"] = bool(dao.get("is_eliminatory"))
+            # Aligné weight_validator / INV-W03 : legacy seuil_elimination ⇒ éliminatoire.
+            ie = dao.get("is_eliminatory")
+            if ie is not None:
+                base["is_eliminatory"] = bool(ie)
+            else:
+                base["is_eliminatory"] = dao.get("seuil_elimination") is not None
         enriched.append(base)
     return enriched
 

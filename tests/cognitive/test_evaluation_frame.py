@@ -36,6 +36,21 @@ def test_extract_criteria_m14_union_second_level_keys() -> None:
     assert "bundle-1" not in keys
 
 
+def test_enrich_criteria_with_dao_legacy_seuil_elimination() -> None:
+    crit = [{"criterion_key": "c1", "present": True, "value_type": "m14_nested"}]
+    dao = [
+        {
+            "id": "c1",
+            "critere_nom": "Seuil",
+            "ponderation": 0.0,
+            "is_eliminatory": None,
+            "seuil_elimination": 0.5,
+        }
+    ]
+    out = enrich_criteria_with_dao(crit, dao)
+    assert out[0]["is_eliminatory"] is True
+
+
 def test_enrich_criteria_with_dao_merges_names() -> None:
     crit = [{"criterion_key": "c1", "present": True, "value_type": "m14_nested"}]
     dao = [
