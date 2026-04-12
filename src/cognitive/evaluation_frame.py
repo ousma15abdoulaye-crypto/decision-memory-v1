@@ -28,16 +28,62 @@ SURFACE_RELEVANCE_MIN = 0.6
 MAX_SURFACED_SIGNALS = 3
 
 
+def scores_matrix_is_m14_bundle_nested(scores_matrix: dict[str, Any] | None) -> bool:
+    """True si ``{ bundle_id: { criterion_id: { score|signal|confidence }}}`` (M14)."""
+    if not scores_matrix or not isinstance(scores_matrix, dict):
+        return False
+    for key, val in scores_matrix.items():
+        if not isinstance(key, str):
+            continue
+        if key in _FORBIDDEN_SCORE_KEYS or key.startswith("_"):
+            continue
+        if not isinstance(val, dict):
+            continue
+        for cell in val.values():
+            if isinstance(cell, dict) and any(
+                x in cell for x in ("score", "signal", "confidence")
+            ):
+                return True
+    return False
+
+
 def extract_criteria_from_scores_matrix(
     scores_matrix: dict[str, Any] | None,
 ) -> list[dict[str, Any]]:
-    """Dérive des entrées critère depuis les clés de premier niveau du scores_matrix.
+    """Dérive des entrées critère depuis ``scores_matrix``.
 
-    Aucune table ``evaluation_criteria`` requise : la matrice M14 est la source.
-    Les clés neutres interdites sont exclues.
+    Forme **M14** : niveau 1 = bundle_id, niveau 2 = critère — on union les clés
+    de niveau 2. Forme **legacy** : niveau 1 = clés critère (comportement historique).
     """
     if not scores_matrix or not isinstance(scores_matrix, dict):
         return []
+    if scores_matrix_is_m14_bundle_nested(scores_matrix):
+        crit_ids: set[str] = set()
+        for key, row in scores_matrix.items():
+            if not isinstance(key, str):
+                continue
+            if key in _FORBIDDEN_SCORE_KEYS or key.startswith("_"):
+                continue
+            if not isinstance(row, dict):
+                continue
+            for ck, cell in row.items():
+                if not isinstance(ck, str):
+                    continue
+                if ck in _FORBIDDEN_SCORE_KEYS or ck.startswith("_"):
+                    continue
+                if isinstance(cell, dict) and any(
+                    x in cell for x in ("score", "signal", "confidence")
+                ):
+                    crit_ids.add(ck)
+        return [
+            {
+                "criterion_key": ck,
+                "present": True,
+                "value_type": "m14_nested",
+            }
+            for ck in sorted(crit_ids)
+        ]
+
     out: list[dict[str, Any]] = []
     for key in scores_matrix:
         if not isinstance(key, str):
@@ -55,6 +101,29 @@ def extract_criteria_from_scores_matrix(
             }
         )
     return sorted(out, key=lambda x: x["criterion_key"])
+
+
+def enrich_criteria_with_dao(
+    criteria: list[dict[str, Any]],
+    dao_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Enrichit les lignes critère avec ``dao_criteria`` (nom, pondération, éliminatoire)."""
+    by_id: dict[str, dict[str, Any]] = {}
+    for r in dao_rows:
+        rid = r.get("id")
+        if rid is not None:
+            by_id[str(rid)] = r
+    enriched: list[dict[str, Any]] = []
+    for row in criteria:
+        ck = str(row.get("criterion_key") or "")
+        base = dict(row)
+        dao = by_id.get(ck)
+        if dao:
+            base["critere_nom"] = dao.get("critere_nom")
+            base["ponderation"] = dao.get("ponderation")
+            base["is_eliminatory"] = bool(dao.get("is_eliminatory"))
+        enriched.append(base)
+    return enriched
 
 
 def build_zones_of_clarification(

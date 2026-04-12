@@ -57,6 +57,7 @@ from src.cognitive.cognitive_state import (
 from src.cognitive.confidence_envelope import compute_frame_confidence
 from src.cognitive.evaluation_frame import (
     build_zones_of_clarification,
+    enrich_criteria_with_dao,
     extract_criteria_from_scores_matrix,
     process_market_signals_for_frame,
 )
@@ -677,6 +678,36 @@ def get_evaluation_frame(
         criteria = extract_criteria_from_scores_matrix(
             scores_matrix if isinstance(scores_matrix, dict) else {}
         )
+        dao_crit_rows = db_fetchall(
+            conn,
+            """
+            SELECT id::text AS id, critere_nom, ponderation,
+                   is_eliminatory IS TRUE AS is_eliminatory
+            FROM dao_criteria
+            WHERE workspace_id = :ws
+            ORDER BY created_at NULLS LAST, id
+            """,
+            {"ws": workspace_id},
+        )
+        criteria = enrich_criteria_with_dao(criteria, dao_crit_rows)
+
+        sb_rows = db_fetchall(
+            conn,
+            """
+            SELECT id::text AS id, vendor_name_raw
+            FROM supplier_bundles
+            WHERE workspace_id = :ws
+            ORDER BY bundle_index NULLS LAST, id
+            """,
+            {"ws": workspace_id},
+        )
+        suppliers = [
+            {
+                "id": r["id"],
+                "name": (r.get("vendor_name_raw") or r["id"] or "")[:500],
+            }
+            for r in sb_rows
+        ]
 
         dissents = db_fetchall(
             conn,
@@ -733,6 +764,7 @@ def get_evaluation_frame(
         "cognitive_state_detail": describe_cognitive_state(cognitive),
         "committee_session": committee_session,
         "criteria": criteria,
+        "suppliers": suppliers,
         "scores_matrix": scores_matrix,
         "elimination_flags": elim,
         "market_signals": market_signals,
