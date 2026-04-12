@@ -15,3 +15,7 @@ def configure_logging():
     # Niveau DEBUG pour resilience
     logging.getLogger("src.resilience").setLevel(logging.DEBUG)
     logging.getLogger("tenacity").setLevel(logging.INFO)
+
+    # Mistral SDK / httpx : chaque embedding loggait une ligne INFO (inondation Railway).
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)

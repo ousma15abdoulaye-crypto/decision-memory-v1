@@ -99,15 +99,20 @@ async def railway_lifespan(_app: FastAPI):
 
         init_db_schema()
     if not _is_testing:
-        try:
-            from src.agent.semantic_router import warm_centroids
-
-            await warm_centroids()
-            _logger.info("[lifespan] Centroïdes pré-calculés (warm_centroids OK).")
-        except Exception:
-            _logger.warning(
-                "[lifespan] warm_centroids échoué — sera calculé au premier appel agent."
+        if _s.AGENT_SKIP_WARM_CENTROIDS:
+            _logger.info(
+                "[lifespan] warm_centroids ignoré (AGENT_SKIP_WARM_CENTROIDS=true)."
             )
+        else:
+            try:
+                from src.agent.semantic_router import warm_centroids
+
+                await warm_centroids()
+                _logger.info("[lifespan] Centroïdes pré-calculés (warm_centroids OK).")
+            except Exception:
+                _logger.warning(
+                    "[lifespan] warm_centroids échoué — sera calculé au premier appel agent."
+                )
     yield
     try:
         from src.db.async_pool import close_async_pool
@@ -558,17 +563,25 @@ def create_modular_app() -> FastAPI:
                 "[startup] Routers optionnels inactifs (milestone non ouvert) : %s",
                 inactive,
             )
-        _is_testing = get_settings().TESTING
+        _settings = get_settings()
+        _is_testing = _settings.TESTING
         if not _is_testing:
-            try:
-                from src.agent.semantic_router import warm_centroids
-
-                await warm_centroids()
-                logger.info("[startup] Centroïdes pré-calculés (warm_centroids OK).")
-            except Exception:
-                logger.warning(
-                    "[startup] warm_centroids échoué — sera calculé au premier appel agent."
+            if _settings.AGENT_SKIP_WARM_CENTROIDS:
+                logger.info(
+                    "[startup] warm_centroids ignoré (AGENT_SKIP_WARM_CENTROIDS=true)."
                 )
+            else:
+                try:
+                    from src.agent.semantic_router import warm_centroids
+
+                    await warm_centroids()
+                    logger.info(
+                        "[startup] Centroïdes pré-calculés (warm_centroids OK)."
+                    )
+                except Exception:
+                    logger.warning(
+                        "[startup] warm_centroids échoué — sera calculé au premier appel agent."
+                    )
         yield
 
     app = FastAPI(

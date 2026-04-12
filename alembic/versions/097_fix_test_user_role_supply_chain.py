@@ -123,8 +123,10 @@ def upgrade() -> None:
             WHERE u.id = {_TARGET_USER_ID};
 
             IF v_role_name IS NULL THEN
-                RAISE EXCEPTION
-                    '097 UPGRADE FAILED — user {_TARGET_USER_ID} not found';
+                RAISE NOTICE
+                    '097 SKIP — user {_TARGET_USER_ID} absent (CI / DB fraîche) — '
+                    'aucune mise à jour rôle';
+                RETURN;
             END IF;
 
             IF v_role_name != '{_ROLE_NAME}' THEN

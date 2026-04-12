@@ -14,8 +14,21 @@ from src.couche_a.auth.rbac import ROLES, is_allowed
 
 
 def test_roles_set_complet():
-    """Les 5 rôles V4.1.0 sont définis."""
-    assert ROLES == frozenset({"admin", "manager", "buyer", "viewer", "auditor"})
+    """V4.1.0 (5 rôles) + extension V5.2 (ROLE_PERMISSIONS / agent)."""
+    assert ROLES == frozenset(
+        {
+            "admin",
+            "manager",
+            "buyer",
+            "viewer",
+            "auditor",
+            "supply_chain",
+            "finance",
+            "technical",
+            "budget_holder",
+            "observer",
+        }
+    )
 
 
 # ── Admin ─────────────────────────────────────────────────────────────────────

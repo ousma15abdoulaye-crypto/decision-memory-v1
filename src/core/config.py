@@ -91,6 +91,10 @@ class Settings(BaseSettings):
     # RAG corpus M12 (dms_embeddings + EmbeddingService BGE/stub). Désactivé par défaut.
     AGENT_RAG_ENABLED: bool = False
 
+    # Si true : ne pas pré-calculer les centroïdes au startup (premier /api/agent/prompt plus lent).
+    # Utile petites instances Railway ou pour réduire le pic Mistral au boot.
+    AGENT_SKIP_WARM_CENTROIDS: bool = False
+
     # Accès lecture workspace sans ligne ``workspace_memberships`` / RBAC tenant :
     # JWT legacy (admin, manager, buyer, viewer, auditor) mappé → rôle V5.2 avec
     # ``workspace.read``. DÉFAUT false — activer uniquement pilote / terrain Railway.

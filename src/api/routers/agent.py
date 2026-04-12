@@ -180,7 +180,12 @@ async def agent_prompt(
             else:
                 role_perms = ROLE_PERMISSIONS.get(current_user.role or "", frozenset())
                 if "agent.query" not in role_perms and "system.admin" not in role_perms:
-                    raise HTTPException(403, "Permission agent.query requise.")
+                    raise HTTPException(
+                        403,
+                        "Permission agent.query requise sans workspace cible. "
+                        "Envoyez workspaceId dans le JSON pour le contrôle RBAC du workspace, "
+                        "ou utilisez un rôle disposant de agent.query ou system.admin.",
+                    )
 
             intent_span = trace.span(name="intent_classification")
             intent = await classify_intent(payload.query)
