@@ -73,7 +73,7 @@ python -m pytest tests/cognitive/ tests/test_cognitive_helpers_unit.py tests/tes
 ## Phase 3 — Merge
 
 - [ ] Tous les checks **required** verts sur `main`.
-- [ ] Merge **humain** (pas d’auto-merge sauf politique équipe).
+- [ ] Merge PR vers `main` : **agent** après CI verte et garde-fous (`CLAUDE.md` § DÉCISION CTO — PR).
 - [ ] Tag / release si process produit l’exige.
 
 ---

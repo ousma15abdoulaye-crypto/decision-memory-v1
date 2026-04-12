@@ -294,7 +294,7 @@ railway_cli               : Railway CLI — lien projet local (.railway/ gitigno
 
 ## ANNOTATION-BACKEND — M12 PHASE 3 (orchestrateur /predict)
 
-  pr_integration         : PR #289 — branche feat/m12-phase3-backend-wiring → main (merge = humain) ; livrables code + doc gelée ici (E-82)
+  pr_integration         : PR #289 — branche feat/m12-phase3-backend-wiring → main (merge = agent — `CLAUDE.md` § DÉCISION CTO — PR) ; livrables code + doc gelée ici (E-82)
   statut_branchement     : implémenté — déploiement prod : ANNOTATION_USE_PASS_ORCHESTRATOR=0 par défaut jusqu’à validation ops ; puis bascule pilotée vers 1
   flags                  : ANNOTATION_USE_PASS_ORCHESTRATOR (défaut 0) ; ANNOTATION_USE_M12_SUBPASSES (aligner avec passes 1A–1D si activé) ; ANNOTATION_PIPELINE_RUNS_DIR (optionnel ; sinon tempfile — voir ENVIRONMENT.md)
   runtime_post_revue     : run_passes_0_to_1 via threadpool (async, ne bloque pas l’event loop) ; run_id uuid5 déterministe (doc + task + version pipeline v1) ; apply_railway_migrations_safe pending = ScriptDirectory.walk_revisions (merges Alembic) ; alembic_database_url IPv6 = host entre crochets dans netloc

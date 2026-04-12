@@ -16,9 +16,8 @@ Stack : Python 3.11 · FastAPI · PostgreSQL 16 · Redis 7 · Railway · Alembic
 
 ### Règles d'or (mises à jour 2026-03-05)
 
-> **RÈGLE-ORG-04 mise à jour :** Le CTO a accordé à l'agent le droit de merger et poser des tags
-> **sous conditions strictes** : les 7 gates binaires ci-dessous doivent être prouvées par outputs bruts.
-> En dehors de ces gates, RÈGLE-ORG-04 reste : l'humain seul prononce le merge.
+> **RÈGLE-ORG-04 / merge :** le **DoD** (prononcé « vert ») reste validé **humain** où le freeze l'exige ;
+> l'**exécution du merge Git** vers `main` est **agent** une fois les garde-fous `CLAUDE.md` + les 7 gates ci-dessous satisfaits.
 
 **Gates de merge autorisées (7/7 obligatoires) :**
 ```
@@ -31,7 +30,7 @@ Stack : Python 3.11 · FastAPI · PostgreSQL 16 · Redis 7 · Railway · Alembic
 7. Fichiers hors périmètre → 0
 ```
 
-**RÈGLE-ORG-10 :** L'agent ne merge vers main que si les 7 gates sont vérifiées ET que le CTO a explicitement autorisé le merge pour la session en cours.
+**RÈGLE-ORG-10 :** l'agent **merge** la PR vers `main` lorsque les garde-fous **`CLAUDE.md` § DÉCISION CTO — PR** sont satisfaits (CI verte, Copilot/revue, `alembic heads` unique). Les **7 gates** ci-dessus restent une checklist utile.
 
 ---
 
@@ -305,7 +304,7 @@ WHERE conrelid = 'nom_table'::regclass AND contype = 'c';
 | RÈGLE-ORG-02 | Lire `docs/freeze/DMS_V4.1.0_FREEZE.md` EN ENTIER avant de commencer |
 | RÈGLE-ORG-07 | Fichier hors périmètre modifié = revert immédiat |
 | RÈGLE-ORG-08 | Chaque mandat commence par PROBE (état réel avant modification) |
-| RÈGLE-ORG-10 | L'agent ne merge que si 7 gates vertes ET autorisation CTO explicite pour la session |
+| RÈGLE-ORG-10 | Merge PR vers `main` : **agent** après garde-fous (`CLAUDE.md` § DÉCISION CTO — PR) ; les 7 gates = checklist |
 
 ### Workaround réseau Windows (NOUVEAU — 2026-03-04)
 `git push` via HTTP/2 échoue aléatoirement avec `curl 52 Recv failure: Connection was reset`.

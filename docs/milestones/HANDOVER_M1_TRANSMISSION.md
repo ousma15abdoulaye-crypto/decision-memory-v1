@@ -5,7 +5,7 @@
 **Rédigé par :** Agent Claude Sonnet 4.6 (session complète)
 **Destinataire :** Agent successeur + CTO Abdoulaye Ousmane
 **Branche active :** `feat/m1-security-baseline`
-**Prérequis merge :** DoD M1 validé par l'humain (RÈGLE-ORG-04 / RÈGLE-ORG-10)
+**Prérequis merge :** DoD M1 validé par l'humain (RÈGLE-ORG-04) ; **exécution du merge Git** par **l'agent** après garde-fous (RÈGLE-ORG-10 alignée — `CLAUDE.md` § DÉCISION CTO — PR)
 
 ---
 
@@ -210,7 +210,7 @@ Colonnes ajoutées : `users.role TEXT NOT NULL DEFAULT 'viewer'` · `users.organ
 | PowerShell `&&` invalide | Syntaxe PowerShell | Séparer les commandes |
 | Quotes Python inline PowerShell | Guillemets imbriqués | Passer par fichier `.py` |
 | ruff/black non vérifiés avant push | Oubli CI | Toujours lancer avant commit |
-| **Merge vers main sans autorisation** | Mauvaise lecture mandat | RÈGLE-ORG-10 : **JAMAIS** sans feu vert humain |
+| **Merge vers main hors garde-fous** | Mauvaise lecture mandat | RÈGLE-ORG-10 + `CLAUDE.md` : CI, Alembic, revue/Copilot avant merge par l'agent |
 | `ADD COLUMN IF NOT EXISTS` avec NOT NULL | PostgreSQL ignore silencieusement si colonne existe | Utiliser multi-step : ADD → UPDATE → SET NOT NULL |
 
 ---
@@ -222,7 +222,7 @@ Colonnes ajoutées : `users.role TEXT NOT NULL DEFAULT 'viewer'` · `users.organ
 | RÈGLE-ORG-04 | DoD = checklist validée par l'humain. **Jamais par l'agent.** |
 | RÈGLE-ORG-07 | Fichier hors périmètre modifié → revert immédiat |
 | RÈGLE-ORG-08 | Chaque mandat commence par PROBE (état réel avant modification) |
-| **RÈGLE-ORG-10** | **L'agent ne merge JAMAIS vers main. L'humain seul merge.** |
+| **RÈGLE-ORG-10** | **Merge PR vers `main` : l'agent créateur du mandat après garde-fous** (`CLAUDE.md` § DÉCISION CTO — PR) |
 | RÈGLE-03 | CI rouge = STOP TOTAL |
 | RÈGLE-05 | Append-only sur toute table décisionnelle / audit / traçabilité |
 | RÈGLE-08 | PROBE-SQL-01 avant toute migration touchant une table existante |
@@ -265,7 +265,7 @@ Checklist à valider :
 ```
 git tag -a v4.1.0-m1-done <HEAD> -m "M1 Security Baseline complete"
 git push origin v4.1.0-m1-done
-# Merge → humain uniquement (RÈGLE-ORG-10)
+# Merge Git → agent (RÈGLE-ORG-10 + `CLAUDE.md`) après DoD vert ci-dessus
 ```
 
 ### M1B — Audit Log & Hash Chain (prochain mandat)

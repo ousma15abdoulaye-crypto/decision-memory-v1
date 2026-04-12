@@ -16,9 +16,9 @@ En cas de conflit : l’autorité de rang supérieur **prime** ; l’agent **STO
 Conflit avec **`DMS_V4.1.0_FREEZE.md`** → STOP immédiat + GO CTO obligatoire.
 L’agent **ne tranche jamais** un conflit entre sources d’autorité.
 
-## DÉCISION CTO — PR : L’AGENT CRÉATEUR SUIT JUSQU’AU MERGE (OBLIGATOIRE)
+## DÉCISION CTO — PR : MERGE = AGENT (OBLIGATOIRE)
 
-**Autorité** : **mandat CTO** (Abdoulaye Ousmane) — cette règle **prime** sur toute formulation historique du dépôt du type « merge réservé à l’humain seul » pour l’**exécution par agent** (Cursor, CLI, équivalent). La doc gelée ou les handovers anciens qui contredisent ce point sont **dépassés** pour l’outillage agent tant que le CTO ne révoque pas cette décision (voir aussi **`docs/ops/ADDENDUM_CTO_AGENT_MERGE_AUTHORITY.md`**).
+**Politique** : le **merge Git** d’une PR vers **`main`** est exécuté par **l’agent** (session qui porte le mandat et la PR) — **`gh pr merge`** (ou équivalent) — dès que les garde-fous ci-dessous sont OK. **Il n’existe pas** de règle « merge réservé à l’humain » pour l’outillage agent. Réf. **`docs/ops/CTO_AO_ORDRE_MERGE_PR_MAIN_AGENT.md`** (AO CTO, une page), **`docs/ops/ADDENDUM_CTO_AGENT_MERGE_AUTHORITY.md`**, **RÈGLE-ORG-10** dans **`docs/freeze/DMS_V4.1.0_FREEZE.md`**.
 
 **Règle** : l’**agent / session qui a créé ou ouvert la PR** d’un mandat **ne considère pas le mandat terminé** après le premier `git push`. Il **doit** :
 

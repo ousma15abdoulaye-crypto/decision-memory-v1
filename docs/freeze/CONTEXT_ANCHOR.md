@@ -1936,7 +1936,7 @@ python -m pytest tests/db_integrity/conftest.py  # non — lancer un test db_int
 2. Si **rouge** : extraire **`--log-failed`** ; priorité **(a)** `test_upgrade_downgrade`, **(b)** premier **`Migrations Alembic échouées`** dans db_integrity.
 3. Corriger **une cause à la fois** ; relancer **ruff + black** sur `src tests services` avant commit (règle `.cursor/rules/dms-core.mdc`).
 4. Étendre **`VALID_ALEMBIC_HEADS`** si nouveau head au-delà de 076.
-5. Quand **CI verte** sur #321 : merge selon processus humain (RÈGLE-ORG-10), puis enchaîner **rebase des branches PR #322 / #323** sur `main` et répéter.
+5. Quand **CI verte** sur #321 : **merge par l’agent** créateur de la PR (ordre CTO — `CLAUDE.md` § DÉCISION CTO — PR, RÈGLE-ORG-10 alignée), puis enchaîner **rebase des branches PR #322 / #323** sur `main` et répéter.
 6. Mettre à jour **`docs/freeze/MRD_CURRENT_STATE.md`** et **reprendre la section GIT en tête de ce anchor** (nouveau HEAD `main`) — **ajout** en fin de section GIT si politique anchor = append-only strict.
 
 ---

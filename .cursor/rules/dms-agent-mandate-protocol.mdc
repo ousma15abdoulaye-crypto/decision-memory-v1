@@ -48,7 +48,7 @@ L’agent **ne modifie aucun fichier** tant que les lectures ci-dessous ne sont 
 
 ### 3.2 Pull Request, revue Copilot, CI, merge (ordre CTO — actif)
 
-**Autorité** : **décision CTO** (Abdoulaye Ousmane) — **ordre opposable** : l’**agent / session qui a créé ou ouvert la PR** du mandat **est responsable de la suivre jusqu’au merge**. On ne « dépose » pas la PR pour que le CTO ou un autre agent la termine sans transfert explicite. Cette règle **prime** sur toute consigne historique « merge humain uniquement » pour l’exécution agent (voir **`CLAUDE.md`** § **DÉCISION CTO — PR** et **`docs/ops/ADDENDUM_CTO_AGENT_MERGE_AUTHORITY.md`**).
+**Autorité** : **décision CTO** (Abdoulaye Ousmane) — **ordre opposable** : l’**agent / session qui a créé ou ouvert la PR** du mandat **est responsable de la suivre jusqu’au merge** (**merge = agent**). On ne « dépose » pas la PR pour que le CTO ou un autre agent la termine sans transfert explicite (voir **`CLAUDE.md`** § **DÉCISION CTO — PR** et **`docs/ops/ADDENDUM_CTO_AGENT_MERGE_AUTHORITY.md`**).
 
 1. **Pousser** la branche sur `origin`, ouvrir (ou mettre à jour) une **PR** (description : objectif, preuves, risques, anchor si besoin).
 2. **Surveiller la PR** : suivre les exécutions **CI** jusqu’à **vert** (logs, itérations de correctifs) — **pas d’abandon** après le premier push ou le premier échec.

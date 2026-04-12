@@ -327,7 +327,7 @@ python scripts/_smoke_m2.py https://decision-memory-v1-production.up.railway.app
 | RÈGLE-ORG-04 | DoD validé par l'humain uniquement |
 | RÈGLE-ORG-07 | Fichier hors périmètre → revert immédiat |
 | RÈGLE-ORG-08 | PROBE avant toute action DB |
-| RÈGLE-ORG-10 | Merge main + tags → humain uniquement |
+| RÈGLE-ORG-10 | Merge PR `main` → **agent** après garde-fous (`CLAUDE.md`) |
 | RÈGLE-12 | Migrations = SQL brut `op.execute()` uniquement — zéro autogenerate |
 | RÈGLE-09 | `winner` / `rank` / `recommendation` = INTERDITS hors comité humain |
 

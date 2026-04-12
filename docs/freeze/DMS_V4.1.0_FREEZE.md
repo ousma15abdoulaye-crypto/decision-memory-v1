@@ -160,8 +160,10 @@ RÈGLE-ORG-08  Chaque mandat commence par PROBE (état réel du système avant t
 RÈGLE-ORG-09  Mandats versionnés dans .mandats/
               Jamais modifiés après exécution
               Correctif → .mandats/M{N}fix{issue}.md
-RÈGLE-ORG-10  L'agent ne merge jamais
-              L'humain seul merge après DoD vert
+RÈGLE-ORG-10  Merge PR vers `main` : l'agent créateur du mandat / de la PR exécute
+              le merge après garde-fous (CI verte, revue/Copilot, `alembic heads`
+              = une ligne) — `CLAUDE.md` § DÉCISION CTO — PR et
+              `docs/ops/ADDENDUM_CTO_AGENT_MERGE_AUTHORITY.md`.
 RÈGLE-ORG-11  Chemin ADR = docs/adr/ (singulier, invariant)
               Jamais docs/adrs/
 
