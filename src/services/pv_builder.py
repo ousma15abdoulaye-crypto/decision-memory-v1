@@ -8,6 +8,9 @@ from datetime import UTC, datetime
 from typing import Any
 
 from src.db import db_execute_one, db_fetchall
+from src.services.evaluation_document_query import (
+    fetch_latest_evaluation_document_for_workspace,
+)
 from src.services.m16_projection import (
     fetch_m16_evaluation_extras,
     workspace_has_m16_rows,
@@ -280,9 +283,11 @@ def _extract_criteria_from_scores(
 
 
 def build_evaluation_projection(conn, workspace_id: str) -> dict[str, Any]:
-    """Projection comparative / PV — critères, bundles, scores (sanitisés).
+    """Projection serveur pour exports tableau (XLSX / PDF / PV scellé).
 
-    Source unique de vérité pour le tableau comparatif côté serveur (hors seal).
+    La matrice canonique produit (écran) est servie par
+    GET /comparative-matrix (comparative_matrix_service.py).
+    Ref : CONTEXT_ANCHOR.md addendum 2026-04-11 / ADR-V51-M16-UI-SCOPE-ROADMAP.
     """
     criteria_rows = db_fetchall(
         conn,
@@ -307,16 +312,10 @@ def build_evaluation_projection(conn, workspace_id: str) -> dict[str, Any]:
     )
     confidence_by_bundle = _confidence_from_bundle_docs(conn, workspace_id)
 
-    latest_eval = db_execute_one(
+    latest_eval = fetch_latest_evaluation_document_for_workspace(
         conn,
-        """
-        SELECT scores_matrix
-        FROM evaluation_documents
-        WHERE workspace_id = :wid
-        ORDER BY created_at DESC
-        LIMIT 1
-        """,
-        {"wid": workspace_id},
+        workspace_id,
+        columns="scores_matrix",
     )
     raw_scores = latest_eval.get("scores_matrix") if latest_eval else {}
     if not isinstance(raw_scores, dict):

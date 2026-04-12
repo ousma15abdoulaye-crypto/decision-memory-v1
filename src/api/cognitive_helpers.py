@@ -11,6 +11,10 @@ from src.cognitive.confidence_envelope import (
     regime_from_overall,
 )
 from src.db import db_execute_one
+from src.services.evaluation_document_query import (
+    LATEST_EVALUATION_DOCUMENT_ORDER_CLAUSE,
+    fetch_latest_evaluation_document_for_workspace,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -68,16 +72,10 @@ def bundle_stats(conn, workspace_id: str) -> tuple[int, bool]:
 
 def evaluation_frame_complete(conn, workspace_id: str) -> bool:
     try:
-        r = db_execute_one(
+        r = fetch_latest_evaluation_document_for_workspace(
             conn,
-            """
-            SELECT scores_matrix
-            FROM evaluation_documents
-            WHERE workspace_id = :ws
-            ORDER BY created_at DESC
-            LIMIT 1
-            """,
-            {"ws": workspace_id},
+            workspace_id,
+            columns="scores_matrix",
         )
         if not r:
             return False
@@ -184,7 +182,8 @@ async def async_load_cognitive_facts(db: Any, workspace_row: Any) -> CognitiveFa
     try:
         r = await db.fetch_one(
             "SELECT scores_matrix FROM evaluation_documents "
-            "WHERE workspace_id = :ws ORDER BY created_at DESC LIMIT 1",
+            "WHERE workspace_id = CAST(:ws AS uuid) "
+            f"{LATEST_EVALUATION_DOCUMENT_ORDER_CLAUSE} LIMIT 1",
             {"ws": wid},
         )
         ef = bool(r and r.get("scores_matrix"))

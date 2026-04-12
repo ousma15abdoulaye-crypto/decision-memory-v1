@@ -8,6 +8,9 @@ from typing import Any
 from psycopg.types.json import Json
 
 from src.db import db_execute_one, db_fetchall, get_connection
+from src.services.evaluation_document_query import (
+    fetch_latest_evaluation_document_for_workspace,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,16 +51,10 @@ def initialize_criterion_assessments_from_m14(workspace_id: str) -> dict[str, An
             raise ValueError(f"Workspace introuvable: {workspace_id}")
         tenant_id = str(ws["tenant_id"])
 
-        ed = db_execute_one(
+        ed = fetch_latest_evaluation_document_for_workspace(
             conn,
-            """
-            SELECT id::text AS id, scores_matrix
-            FROM evaluation_documents
-            WHERE workspace_id = CAST(:wid AS uuid)
-            ORDER BY version DESC, created_at DESC
-            LIMIT 1
-            """,
-            {"wid": workspace_id},
+            workspace_id,
+            columns="id::text AS id, scores_matrix",
         )
         if not ed:
             logger.info(

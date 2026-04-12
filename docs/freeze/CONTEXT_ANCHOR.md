@@ -2464,3 +2464,11 @@ Aligner **JWT** et **workspace bypass** : `jwt_role_for_user_row()` ; rotation *
 - **`docs/ops/WORKSPACE_SEAL_COMMITTEE_UX.md`**.
 
 ---
+
+## ADDENDUM 2026-04-12 — ADR-0017 (matrice UI vs projection tableau)
+
+- **ADR** **`docs/adrs/ADR-0017_comparative-matrix-vs-evaluation-projection.md`** : deux **rôles** non concurrents — **`GET …/comparative-matrix`** = matrice **produit / écran** (`comparative_matrix_service`) ; **`GET …/m16/comparative-table-model`** = projection **exports XLSX/PDF/PV** (`build_evaluation_projection` / `pv_builder`).
+- **Lecture DB** : ordre unique du dernier `evaluation_documents` par workspace — **`src/services/evaluation_document_query.py`** (`ORDER BY version DESC NULLS LAST, created_at DESC NULLS LAST`), réutilisé par frame, PV projection, bridge, pipeline V5, etc.
+- **Front** : `frontend-v51/types/consumed-paths.ts` documente que `comparative-table-model` n’est **pas** dans les chemins consommés par la grille UI.
+
+---

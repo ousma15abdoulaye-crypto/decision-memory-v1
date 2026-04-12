@@ -48,9 +48,34 @@ from src.procurement.procedure_models import (
     ProcessLinking,
     TracedField,
 )
+from src.services.evaluation_document_query import (
+    fetch_latest_evaluation_document_for_workspace,
+)
 from src.services.m14_bridge import populate_assessments_from_m14
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_m13_processing_timestamp(iso_ts: str) -> datetime | None:
+    """Parse ``M13Meta.processing_timestamp`` (ISO) pour comparaison avec ``created_at`` DB."""
+    s = (iso_ts or "").strip()
+    if not s:
+        return None
+    try:
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
+
+
+def _evaluation_document_created_at_utc(created_at: Any) -> datetime | None:
+    if created_at is None or not isinstance(created_at, datetime):
+        return None
+    if created_at.tzinfo is None:
+        return created_at.replace(tzinfo=UTC)
+    return created_at.astimezone(UTC)
 
 
 def _run_coro_blocking(coro):
@@ -487,23 +512,34 @@ def run_pipeline_v5(
 
     skip_m14 = False
     if not force_m14:
+        # ADR-0012-P0 / ADR-0017 : skip seulement si le dernier evaluation_document est
+        # au moins aussi récent que l'exécution M13 de *ce* run.
+        m13_ts = _parse_m13_processing_timestamp(
+            m13_out.report.m13_meta.processing_timestamp
+        )
         with get_connection() as conn:
-            existing = db_execute_one(
+            latest_eval = fetch_latest_evaluation_document_for_workspace(
                 conn,
-                """
-                SELECT id::text AS id FROM evaluation_documents
-                WHERE workspace_id = CAST(:wid AS uuid)
-                LIMIT 1
-                """,
-                {"wid": workspace_id},
+                workspace_id,
+                columns="id::text AS id, created_at",
             )
-            if existing:
+        if latest_eval and m13_ts is not None:
+            eval_ca = _evaluation_document_created_at_utc(latest_eval.get("created_at"))
+            if eval_ca is not None and eval_ca >= m13_ts:
                 skip_m14 = True
-                out.step_4_m14_eval_doc_id = existing["id"]
+                out.step_4_m14_eval_doc_id = latest_eval["id"]
                 logger.info(
-                    "[PIPELINE-V5] skip M14 evaluate (document exists) wid=%s",
+                    "[PIPELINE-V5] skip M14 evaluate (eval fresh vs M13) wid=%s "
+                    "eval_created_at=%s m13_processing_ts=%s",
                     workspace_id,
+                    eval_ca.isoformat(),
+                    m13_ts.isoformat(),
                 )
+        elif latest_eval and m13_ts is None:
+            logger.info(
+                "[PIPELINE-V5] M13 processing_timestamp absent — run M14 wid=%s",
+                workspace_id,
+            )
 
     if not skip_m14:
         repo_m14 = M14EvaluationRepository()
@@ -511,15 +547,10 @@ def run_pipeline_v5(
         try:
             engine_m14.evaluate(inp)
             with get_connection() as conn:
-                row = db_execute_one(
+                row = fetch_latest_evaluation_document_for_workspace(
                     conn,
-                    """
-                    SELECT id::text AS id FROM evaluation_documents
-                    WHERE workspace_id = CAST(:wid AS uuid)
-                    ORDER BY version DESC, created_at DESC
-                    LIMIT 1
-                    """,
-                    {"wid": workspace_id},
+                    workspace_id,
+                    columns="id::text AS id",
                 )
             out.step_4_m14_eval_doc_id = row["id"] if row else None
         except Exception as exc:

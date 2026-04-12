@@ -17,6 +17,9 @@ from src.cognitive.evaluation_frame import (
     process_market_signals_for_frame,
 )
 from src.db import db_execute_one, db_fetchall
+from src.services.evaluation_document_query import (
+    fetch_latest_evaluation_document_for_workspace,
+)
 
 
 def build_evaluation_frame_payload(conn: Any, workspace_id: str) -> dict[str, Any]:
@@ -43,18 +46,12 @@ def build_evaluation_frame_payload(conn: Any, workspace_id: str) -> dict[str, An
     )
     committee_session = map_committee_session_row(sess)
 
-    eval_rows = db_fetchall(
+    eval_row = fetch_latest_evaluation_document_for_workspace(
         conn,
-        """
-        SELECT scores_matrix, created_at
-        FROM evaluation_documents
-        WHERE workspace_id = :ws
-        ORDER BY created_at DESC
-        LIMIT 1
-        """,
-        {"ws": workspace_id},
+        workspace_id,
+        columns="scores_matrix, created_at",
     )
-    scores_matrix = (eval_rows[0].get("scores_matrix") if eval_rows else {}) or {}
+    scores_matrix = (eval_row.get("scores_matrix") if eval_row else {}) or {}
     for forbidden in (
         "winner",
         "rank",

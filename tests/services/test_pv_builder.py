@@ -8,6 +8,16 @@ from src.services import pv_builder
 from src.services.document_service import _canonical_hash
 
 
+def _patch_db_execute_one(monkeypatch: pytest.MonkeyPatch, fake_one) -> None:
+    """Patch ``db_execute_one`` là où le PV lit ``evaluation_documents`` (pv_builder et ADR-0017 query)."""
+    monkeypatch.setattr(pv_builder, "db_execute_one", fake_one)
+    try:
+        from src.services import evaluation_document_query as edq
+    except ImportError:
+        return
+    monkeypatch.setattr(edq, "db_execute_one", fake_one)
+
+
 @pytest.fixture(autouse=True)
 def _stub_m16_extras(monkeypatch: pytest.MonkeyPatch) -> None:
     """Les tests passent un faux ``conn`` ; M16 requiert un wrapper psycopg réel."""
@@ -29,41 +39,6 @@ def _stub_m16_extras(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_pv_builder_has_9_blocks_and_kill_list_absent(monkeypatch) -> None:
-    def fake_one(_conn, sql: str, _params):
-        if "FROM process_workspaces" in sql:
-            return {
-                "id": "ws-1",
-                "reference_code": "REF-1",
-                "title": "Test",
-                "process_type": "devis_simple",
-                "zone": "MLI",
-                "zone_id": "MLI-MOPTI",
-                "category": "med",
-                "estimated_value": 1000,
-                "currency": "XOF",
-                "humanitarian_context": True,
-                "tenant_id": "tenant-1",
-                "status": "in_deliberation",
-            }
-        if "FROM committee_sessions" in sql:
-            return {
-                "id": "sid-1",
-                "workspace_id": "ws-1",
-                "tenant_id": "tenant-1",
-                "session_status": "active",
-                "min_members": 3,
-            }
-        if "FROM evaluation_documents" in sql:
-            return {
-                "scores_matrix": {
-                    "bundle-1": {
-                        "quality": {"score": 8, "value": 8},
-                        "winner": "forbidden",
-                    }
-                }
-            }
-        return None
-
     def fake_all(_conn, sql: str, _params):
         if "committee_session_members" in sql:
             return [
@@ -100,7 +75,7 @@ def test_pv_builder_has_9_blocks_and_kill_list_absent(monkeypatch) -> None:
             return []
         return []
 
-    monkeypatch.setattr(pv_builder, "db_execute_one", fake_one)
+    _patch_db_execute_one(monkeypatch, _base_fake_one())
     monkeypatch.setattr(pv_builder, "db_fetchall", fake_all)
 
     snapshot, seal_hash = pv_builder.build_pv_snapshot(
@@ -253,7 +228,7 @@ def test_pv_builder_msv2_primary_source_type_and_mapping(monkeypatch) -> None:
             raise AssertionError("VMS must not be queried when MSv2 has rows")
         return []
 
-    monkeypatch.setattr(pv_builder, "db_execute_one", _base_fake_one())
+    _patch_db_execute_one(monkeypatch, _base_fake_one())
     monkeypatch.setattr(pv_builder, "db_fetchall", fake_all)
 
     snapshot, _ = pv_builder.build_pv_snapshot(
@@ -286,7 +261,7 @@ def test_pv_builder_m14_proof_includes_stubbed_score_history(monkeypatch) -> Non
             return []
         return []
 
-    monkeypatch.setattr(pv_builder, "db_execute_one", _base_fake_one())
+    _patch_db_execute_one(monkeypatch, _base_fake_one())
     monkeypatch.setattr(pv_builder, "db_fetchall", fake_all)
 
     snapshot, _ = pv_builder.build_pv_snapshot(
@@ -320,7 +295,7 @@ def test_pv_builder_vendor_market_signals_sets_source_type_vms(monkeypatch) -> N
             return [vms_row]
         return []
 
-    monkeypatch.setattr(pv_builder, "db_execute_one", _base_fake_one())
+    _patch_db_execute_one(monkeypatch, _base_fake_one())
     monkeypatch.setattr(pv_builder, "db_fetchall", fake_all)
 
     snapshot, _ = pv_builder.build_pv_snapshot(
