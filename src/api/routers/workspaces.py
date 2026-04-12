@@ -799,6 +799,7 @@ async def upload_zip(
         )
 
     settings = get_settings()
+    # ZIP temporaire : nettoyage après Pass-1 dans ``run_pass_minus_1`` (``arq_tasks`` finally).
     upload_dir = Path(settings.UPLOADS_DIR) / workspace_id
     upload_dir.mkdir(parents=True, exist_ok=True)
     safe_name = Path(file.filename or "upload.zip").name

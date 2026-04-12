@@ -65,12 +65,11 @@ class Settings(BaseSettings):
     ENV: str = ""
     DEFAULT_TENANT_CODE: str = "sci_mali"
 
-    # --- STORAGE (volume partagé API + worker ARQ, ex. Railway /data/uploads) ---
-    UPLOADS_DIR: str = Field(
-        default_factory=lambda: str(
-            Path(__file__).resolve().parent.parent.parent / "data" / "uploads"
-        ),
-    )
+    # --- STORAGE (ZIP Pass-1 : API écrit, worker ARQ lit le même chemin) ---
+    # Défaut /tmp/uploads : writable sans volume dédié (évite PermissionError Railway sur /data).
+    # Si le worker ARQ est un autre service Railway, /tmp n'est PAS partagé : monter le même
+    # volume RWX sur API + worker et définir UPLOADS_DIR identique (ex. /data/uploads).
+    UPLOADS_DIR: str = Field(default="/tmp/uploads")
 
     # --- OCR / LLM ---
     AZURE_FORM_RECOGNIZER_ENDPOINT: str = ""
