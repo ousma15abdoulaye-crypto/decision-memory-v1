@@ -7,7 +7,6 @@ ADR-0002 §2.5 (SLA deux classes). ADR-0007 (corrections append-only).
 
 import hashlib
 import json
-from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -115,7 +114,7 @@ def _content_hash(data: dict) -> str:
 )
 def trigger_extraction(
     document_id: str,
-    doc: Annotated[dict, Depends(require_document_case_access_row_dep)],
+    doc: dict = Depends(require_document_case_access_row_dep),
 ) -> ExtractionResponse:
     """
     Lance l'extraction d'un document.
@@ -172,7 +171,7 @@ def trigger_extraction(
     summary="Statut d'un job d'extraction OCR (SLA-B)",
 )
 def get_job_status(
-    job: Annotated[dict, Depends(require_extraction_job_document_access_dep)],
+    job: dict = Depends(require_extraction_job_document_access_dep),
 ) -> JobStatusResponse:
     """
     Retourne le statut courant d'un job d'extraction asynchrone.
@@ -199,7 +198,7 @@ def get_job_status(
 )
 def get_extraction_result(
     document_id: str,
-    _access: Annotated[UserClaims, Depends(require_document_case_access_dep)],
+    _access: UserClaims = Depends(require_document_case_access_dep),
 ) -> ExtractionResultResponse:
     """
     Retourne le résultat d'extraction le plus récent.
@@ -273,7 +272,7 @@ def get_extraction_result(
 )
 def get_effective_data(
     document_id: str,
-    _access: Annotated[UserClaims, Depends(require_document_case_access_dep)],
+    _access: UserClaims = Depends(require_document_case_access_dep),
 ) -> EffectiveDataResponse:
     """
     Retourne structured_data_effective + content_hash.
@@ -327,7 +326,7 @@ def get_effective_data(
 async def post_correction(
     document_id: str,
     body: CorrectionCreate,
-    current_user: Annotated[UserClaims, Depends(require_document_case_access_dep)],
+    current_user: UserClaims = Depends(require_document_case_access_dep),
 ) -> CorrectionResponse:
     """
     Enregistre une correction append-only.
@@ -404,7 +403,7 @@ async def post_correction(
 )
 def get_corrections_history(
     document_id: str,
-    _access: Annotated[UserClaims, Depends(require_document_case_access_dep)],
+    _access: UserClaims = Depends(require_document_case_access_dep),
 ) -> list[dict]:
     """Historique des corrections pour le document (extraction_corrections_history)."""
     with get_db_cursor() as cur:

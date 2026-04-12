@@ -4,8 +4,6 @@ M13 — Regulatory Profile API (lecture métadonnées ; exécution via pipeline 
 
 from __future__ import annotations
 
-from typing import Annotated
-
 from fastapi import APIRouter, Depends
 
 from src.annotation.orchestrator import use_pass_2a
@@ -16,7 +14,7 @@ router = APIRouter(prefix="/api/m13", tags=["m13-regulatory"])
 
 @router.get("/status")
 def m13_status(
-    _user: Annotated[UserClaims, Depends(get_current_user)],
+    _user: UserClaims = Depends(get_current_user),
 ) -> dict[str, str | bool]:
     """Indique si Pass 2A est activé côté configuration."""
     return {

@@ -26,7 +26,6 @@ import os
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated
 
 from fastapi import (
     APIRouter,
@@ -145,7 +144,7 @@ def _permission_for_status_transition(target_status: str) -> str:
 
 @router.get("")
 def list_workspaces(
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
     status: str | None = None,
     limit: int = 20,
     offset: int = 0,
@@ -201,7 +200,7 @@ def list_workspaces(
 @router.post("", status_code=http_status.HTTP_201_CREATED)
 def create_workspace(
     payload: WorkspaceCreate,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Crée un nouveau workspace (requiert permission workspace.create)."""
     tenant_id = user.tenant_id
@@ -317,7 +316,7 @@ def patch_workspace_status(
     workspace_id: str,
     payload: WorkspaceStatusPatch,
     background_tasks: BackgroundTasks,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Transition de statut `process_workspaces` avec `validate_transition` (BLOC5 C.3).
 
@@ -475,7 +474,7 @@ def patch_workspace_status(
 @router.get("/{workspace_id}")
 def get_workspace(
     workspace_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Retourne le détail d'un workspace."""
     require_workspace_access(workspace_id, user)
@@ -511,7 +510,7 @@ def get_workspace(
 @router.get("/{workspace_id}/bundles")
 def list_bundles(
     workspace_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Retourne les bundles fournisseurs assemblés dans ce workspace."""
     require_workspace_access(workspace_id, user)
@@ -536,7 +535,7 @@ def list_bundles(
 @router.get("/{workspace_id}/evaluation")
 def get_evaluation(
     workspace_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Retourne le résultat d'évaluation M14 pour ce workspace.
 
@@ -575,7 +574,7 @@ def get_evaluation(
 @router.get("/{workspace_id}/evaluation-frame")
 def get_evaluation_frame(
     workspace_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Assemblage EvaluationFrame serveur (SPEC BLOC5 B.4) — INV-W06 appliqué."""
 
@@ -592,7 +591,7 @@ def get_evaluation_frame(
 @router.get("/{workspace_id}/comparative-matrix")
 def get_comparative_matrix(
     workspace_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Matrice comparative : source ``m16`` ou ``m14`` décidée côté serveur."""
 
@@ -609,7 +608,7 @@ def get_comparative_matrix(
 @router.get("/{workspace_id}/cognitive-state")
 def get_cognitive_state(
     workspace_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Projection cognitive E0→E6 enrichie (Canon V5.1.0 Section O3).
 
@@ -647,7 +646,7 @@ def get_cognitive_state(
 @router.post("/{workspace_id}/source-package")
 async def post_source_package(
     workspace_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
     file: UploadFile = File(...),
     doc_type: str = Form("other"),
 ):
@@ -743,7 +742,7 @@ async def post_source_package(
 @router.get("/{workspace_id}/event-timeline")
 def get_workspace_event_timeline(
     workspace_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
     limit: int = Query(default=50, ge=1, le=200),
 ):
     """Journal append-only du workspace (``workspace_events``) — M-CTO-V53-F.
@@ -782,9 +781,9 @@ def get_workspace_event_timeline(
 @router.post("/{workspace_id}/upload-zip")
 async def upload_zip(
     workspace_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    user: UserClaims = Depends(get_current_user),
 ):
     """Upload un ZIP fournisseurs et lance le Pass -1 en arrière-plan.
 
