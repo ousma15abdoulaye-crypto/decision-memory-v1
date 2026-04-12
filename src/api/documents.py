@@ -4,7 +4,6 @@ Document upload, download, and memory endpoints.
 
 import json
 from pathlib import Path
-from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
@@ -26,7 +25,7 @@ router = APIRouter(prefix="/api", tags=["documents"])
 def upload(
     case_id: str,
     kind: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
     file: UploadFile = File(...),
 ):
     """Upload document for a case (DAO, offer, template)."""
@@ -56,7 +55,7 @@ def upload(
 def download_latest(
     case_id: str,
     kind: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Download latest generated artifact"""
     require_case_access(case_id, user)
@@ -83,7 +82,7 @@ def download_latest(
 @router.get("/memory/{case_id}")
 def memory(
     case_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Retrieve all memory entries for a case"""
     require_case_access(case_id, user)
@@ -94,7 +93,7 @@ def memory(
 def search_memory(
     case_id: str,
     q: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Search memory entries by keyword"""
     require_case_access(case_id, user)

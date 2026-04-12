@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 from collections import Counter
-from typing import Annotated, Any
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
@@ -37,7 +37,7 @@ _URGENCY_ORDER = {
 
 @router.get("")
 def get_dashboard(
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Vue pilotage multi-workspace (Canon O0 — INV-F06).
 

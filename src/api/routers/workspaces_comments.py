@@ -5,8 +5,6 @@
 
 from __future__ import annotations
 
-from typing import Annotated
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, model_validator
 
@@ -111,7 +109,7 @@ def _verify_assessment_in_workspace(
 def post_workspace_comment(
     workspace_id: str,
     payload: WorkspaceCommentCreate,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Crée un commentaire / flag CDE (deliberation_messages + assessment_comments)."""
     require_workspace_comment_permission(workspace_id, user)

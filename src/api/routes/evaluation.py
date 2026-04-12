@@ -7,8 +7,6 @@ Typed response models (GAP-3 / GAP-4 hardening).
 
 from __future__ import annotations
 
-from typing import Annotated
-
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
@@ -30,7 +28,7 @@ router = APIRouter(prefix="/api/m14", tags=["m14-evaluation"])
     responses={401: {"description": "Token manquant ou invalide"}},
 )
 def m14_status(
-    _user: Annotated[UserClaims, Depends(get_current_user)],
+    _user: UserClaims = Depends(get_current_user),
 ) -> M14StatusResponse:
     """Indique que le module M14 est disponible."""
     return M14StatusResponse(
@@ -49,7 +47,7 @@ def m14_status(
 )
 def m14_evaluate(
     body: M14EvaluationInput,
-    _user: Annotated[UserClaims, Depends(get_current_user)],
+    _user: UserClaims = Depends(get_current_user),
 ) -> EvaluationReport:
     """Lance l'évaluation comparative pour un case.
 
@@ -71,7 +69,7 @@ def m14_evaluate(
 )
 def m14_get_evaluation(
     case_id: str,
-    _user: Annotated[UserClaims, Depends(get_current_user)],
+    _user: UserClaims = Depends(get_current_user),
 ) -> EvaluationDocumentEnvelope:
     """Lit la dernière évaluation pour un case."""
     repo = M14EvaluationRepository()

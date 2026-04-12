@@ -19,7 +19,6 @@ Lecture marché agrégée : ``market_signals_v2`` (ADR-V53). Signaux par fournis
 from __future__ import annotations
 
 import logging
-from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
@@ -34,7 +33,7 @@ router = APIRouter(prefix="/api/market", tags=["market-intelligence-v420"])
 
 @router.get("/overview")
 def market_overview(
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
     limit: int = 50,
 ):
     """Aperçu global : signaux marché récents + items à fort drift.
@@ -91,7 +90,7 @@ def market_overview(
 @router.get("/items/{item_key}/history")
 def item_price_history(
     item_key: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
     limit: int = 12,
 ):
     """Historique des prix pour un item (par item_key, ex: 'riz-25kg-importé').
@@ -132,7 +131,7 @@ def item_price_history(
 @router.get("/vendors/{vendor_id}/signals")
 def vendor_signals(
     vendor_id: str,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Signaux liés à un fournisseur (table ``vendor_market_signals`` — projection ADR-V53).
 
@@ -163,7 +162,7 @@ def vendor_signals(
 
 @router.get("/watchlist")
 def get_watchlist(
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Retourne la liste de surveillance du tenant courant."""
     tenant_id = user.tenant_id
@@ -198,7 +197,7 @@ class WatchlistItemCreate(BaseModel):
 @router.post("/watchlist", status_code=http_status.HTTP_201_CREATED)
 def add_watchlist_item(
     payload: WatchlistItemCreate,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Ajoute un item ou fournisseur à la liste de surveillance."""
     tenant_id = user.tenant_id
@@ -249,7 +248,7 @@ class MarketAnnotation(BaseModel):
 def annotate_market_item(
     item_key: str,
     payload: MarketAnnotation,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Annote un item marché (label humain sur la qualité du signal)."""
     tenant_id = user.tenant_id

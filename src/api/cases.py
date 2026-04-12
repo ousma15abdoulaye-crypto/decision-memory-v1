@@ -8,7 +8,6 @@ require_case_access sur GET détail). L’org_id côté API critères = tenant d
 
 import uuid
 from datetime import UTC, datetime
-from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
@@ -27,7 +26,7 @@ router = APIRouter(prefix="/api/cases", tags=["cases"])
 async def create_case(
     request: Request,
     payload: CaseCreate,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Crée nouveau case (requiert authentification)."""
     case_type = payload.case_type.strip().upper()
@@ -79,7 +78,7 @@ async def create_case(
 @limiter.limit("50/minute")
 def list_cases(
     request: Request,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     """Liste les cases : admin = tous ; sinon même tenant JWT que l’utilisateur et owner_id = user."""
     with get_connection() as conn:
@@ -103,7 +102,7 @@ def list_cases(
 @router.get("/{case_id}")
 def get_case(
     case_id: str,
-    user: Annotated[UserClaims, Depends(require_case_access_dep)],
+    user: UserClaims = Depends(require_case_access_dep),
 ):
     with get_connection() as conn:
         c = db_execute_one(conn, "SELECT * FROM cases WHERE id=:id", {"id": case_id})

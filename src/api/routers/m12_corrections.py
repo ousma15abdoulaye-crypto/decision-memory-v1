@@ -7,7 +7,7 @@ Permissions : ``audit.read``, ``mql.internal`` ou ``system.admin`` (matrice V5.2
 from __future__ import annotations
 
 import logging
-from typing import Annotated, Literal
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -65,7 +65,7 @@ class M12CorrectionCreateBody(BaseModel):
 @router.post("/corrections", status_code=http_status.HTTP_201_CREATED)
 def append_m12_correction(
     payload: M12CorrectionCreateBody,
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
 ):
     _require_audit_access(user)
 
@@ -107,7 +107,7 @@ def append_m12_correction(
 
 @router.get("/corrections/recent")
 def list_recent_m12_corrections(
-    user: Annotated[UserClaims, Depends(get_current_user)],
+    user: UserClaims = Depends(get_current_user),
     limit: int = 50,
 ):
     _require_audit_access(user)
