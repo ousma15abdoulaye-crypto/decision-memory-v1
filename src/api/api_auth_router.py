@@ -10,7 +10,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
-from src.api.auth_helpers import authenticate_user, resolve_tenant_uuid_for_jwt
+from src.api.auth_helpers import (
+    authenticate_user,
+    jwt_role_for_user_row,
+    resolve_tenant_uuid_for_jwt,
+)
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.couche_a.auth.jwt_handler import (
     create_access_token,
@@ -20,12 +24,6 @@ from src.couche_a.auth.jwt_handler import (
 from src.ratelimit import limiter
 
 router = APIRouter(prefix="/api/auth", tags=["auth-v2"])
-
-_ROLE_MAPPING = {
-    "admin": "admin",
-    "procurement_officer": "buyer",
-    "viewer": "viewer",
-}
 
 
 class LoginRequest(BaseModel):
@@ -51,11 +49,6 @@ class LoginResponse(BaseModel):
     user: LoginUserOut
 
 
-def _jwt_role_from_user(user: dict) -> str:
-    role_raw = user.get("role_name", user.get("role", "viewer"))
-    return _ROLE_MAPPING.get(role_raw, "viewer")
-
-
 @router.post("/login", response_model=LoginResponse)
 @limiter.limit("5/minute")
 async def login_json(request: Request, body: LoginRequest):
@@ -68,7 +61,7 @@ async def login_json(request: Request, body: LoginRequest):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    role = _jwt_role_from_user(user)
+    role = jwt_role_for_user_row(user)
     tenant_id = resolve_tenant_uuid_for_jwt(int(user["id"]))
     uid = str(user["id"])
     try:

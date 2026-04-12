@@ -1,4 +1,4 @@
-"""Test login admin@dms.local / admin123 sur Railway prod."""
+"""Test login admin principal (ousma15abdoulaye@gmail.com) / admin123 sur Railway prod."""
 import urllib.request
 import urllib.parse
 import json

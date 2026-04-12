@@ -37,10 +37,10 @@ def test_api_auth_login_success():
 
 
 def test_api_auth_login_with_email():
-    """Login /api/auth/login par email admin@dms.local."""
+    """Login /api/auth/login par email admin principal (seed / migration 098)."""
     response = client.post(
         "/api/auth/login",
-        json={"email": "admin@dms.local", "password": "admin123"},
+        json={"email": "ousma15abdoulaye@gmail.com", "password": "admin123"},
     )
     assert response.status_code == 200
     assert response.json()["user"]["username"] == "admin"

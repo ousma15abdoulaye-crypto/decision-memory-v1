@@ -211,6 +211,17 @@ def rotate_refresh_token(
 
     user_id = payload["sub"]
     role = payload["role"]
+    try:
+        uid_int = int(user_id)
+    except (TypeError, ValueError):
+        uid_int = None
+    if uid_int is not None:
+        from src.api.auth_helpers import get_user_by_id, jwt_role_for_user_row
+
+        row = get_user_by_id(uid_int)
+        if row:
+            role = jwt_role_for_user_row(row)
+
     tid = payload.get("tenant_id")
     if not tid:
         tid = None
