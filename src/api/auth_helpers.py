@@ -105,6 +105,35 @@ def get_user_by_id(user_id: int) -> dict | None:
         )
 
 
+# Aligné sur ``_ROLE_MAPPING`` historique (auth_router) + rôles V5.2 pour JWT.
+JWT_ROLE_FROM_DB_NAME: dict[str, str] = {
+    "admin": "admin",
+    "procurement_officer": "buyer",
+    "viewer": "viewer",
+    "supply_chain": "supply_chain",
+    "finance": "finance",
+    "technical": "technical",
+    "budget_holder": "budget_holder",
+    "observer": "observer",
+}
+
+
+def jwt_role_for_user_row(user: dict) -> str:
+    """Rôle encodé dans le JWT (access / refresh / ws).
+
+    Les comptes ``users.is_superuser`` reçoivent ``admin`` : même bypass que
+    ``require_workspace_access`` / ``require_workspace_permission`` / RLS admin.
+    """
+    if user.get("is_superuser"):
+        return "admin"
+    raw = user.get("role_name", user.get("role", "viewer"))
+    if isinstance(raw, str):
+        role_raw = raw.strip() or "viewer"
+    else:
+        role_raw = "viewer"
+    return JWT_ROLE_FROM_DB_NAME.get(role_raw, "viewer")
+
+
 def authenticate_user(username: str, password: str) -> dict | None:
     user = get_user_by_login(username)
     if not user:
