@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.api.views.learning_console_models import (
@@ -227,9 +229,9 @@ def get_candidate_rules(status: str | None = None) -> list[CandidateRuleSummary]
 @router.post("/rules/{rule_id}/approve", response_model=RuleActionResponse)
 def approve_rule(
     rule_id: str,
-    current_user: UserClaims | None = Depends(get_current_user),
+    current_user: Annotated[UserClaims, Depends(get_current_user)],
 ) -> RuleActionResponse:
-    user_id = current_user.user_id if current_user else "system"
+    user_id = current_user.user_id
     try:
         with get_db_cursor() as cur:
             adapter = PsycopgCursorAdapter(cur)
@@ -256,9 +258,9 @@ def approve_rule(
 @router.post("/rules/{rule_id}/reject", response_model=RuleActionResponse)
 def reject_rule(
     rule_id: str,
-    current_user: UserClaims | None = Depends(get_current_user),
+    current_user: Annotated[UserClaims, Depends(get_current_user)],
 ) -> RuleActionResponse:
-    user_id = current_user.user_id if current_user else "system"
+    user_id = current_user.user_id
     try:
         with get_db_cursor() as cur:
             adapter = PsycopgCursorAdapter(cur)
