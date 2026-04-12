@@ -8,6 +8,7 @@ import cleanly — stubs are never called in production.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -186,3 +187,12 @@ async def run_pass_minus_1(
     except Exception as exc:
         logger.error("[PASS-1] Erreur workspace=%s : %s", workspace_id, exc)
         raise
+    finally:
+        try:
+            zp = Path(zip_path)
+            zp.unlink(missing_ok=True)
+            zip_dir = zp.parent
+            if zip_dir.is_dir() and not any(zip_dir.iterdir()):
+                zip_dir.rmdir()
+        except Exception:
+            pass
