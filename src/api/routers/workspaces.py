@@ -23,9 +23,9 @@ import hashlib
 import json
 import logging
 import os
-import tempfile
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import (
@@ -53,6 +53,7 @@ from src.cognitive.cognitive_state import (
     describe_cognitive_state,
     validate_transition,
 )
+from src.core.config import get_settings
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.couche_a.auth.workspace_access import (
     require_workspace_access,
@@ -801,8 +802,11 @@ async def upload_zip(
             detail="Fichier .zip requis.",
         )
 
-    tmp_dir = tempfile.mkdtemp(prefix="dms_zip_upload_")
-    zip_path = os.path.join(tmp_dir, file.filename)
+    settings = get_settings()
+    upload_dir = Path(settings.UPLOADS_DIR) / workspace_id
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    safe_name = Path(file.filename or "upload.zip").name
+    zip_path = str(upload_dir / f"{uuid.uuid4().hex}_{safe_name}")
     content = await file.read()
 
     with open(zip_path, "wb") as f:

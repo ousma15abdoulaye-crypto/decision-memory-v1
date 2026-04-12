@@ -65,6 +65,13 @@ class Settings(BaseSettings):
     ENV: str = ""
     DEFAULT_TENANT_CODE: str = "sci_mali"
 
+    # --- STORAGE (volume partagé API + worker ARQ, ex. Railway /data/uploads) ---
+    UPLOADS_DIR: str = Field(
+        default_factory=lambda: str(
+            Path(__file__).resolve().parent.parent.parent / "data" / "uploads"
+        ),
+    )
+
     # --- OCR / LLM ---
     AZURE_FORM_RECOGNIZER_ENDPOINT: str = ""
     AZURE_FORM_RECOGNIZER_KEY: str = ""
