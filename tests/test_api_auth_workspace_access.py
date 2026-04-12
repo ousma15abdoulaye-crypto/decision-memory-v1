@@ -72,6 +72,18 @@ def test_api_auth_login_wrong_password():
         json={"email": "admin", "password": "WrongPassword!"},
     )
     assert response.status_code == 401
+    assert response.json()["detail"] == "Identifiant ou mot de passe incorrect"
+
+
+def test_api_auth_login_unsupported_content_type():
+    """Content-Type non supporté (ex. text/plain) → 415."""
+    response = client.post(
+        "/api/auth/login",
+        content='{"email":"admin","password":"admin123"}',
+        headers={"Content-Type": "text/plain"},
+    )
+    assert response.status_code == 415
+    assert "application/json" in response.json()["detail"]
 
 
 def test_api_auth_login_jwt_role_admin():

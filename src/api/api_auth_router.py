@@ -29,6 +29,65 @@ from src.ratelimit import limiter
 router = APIRouter(prefix="/api/auth", tags=["auth-v2"])
 logger = logging.getLogger(__name__)
 
+# Schéma OpenAPI — le corps est lu via ``get_login_credentials`` (pas de paramètre Body).
+_LOGIN_OPENAPI_EXTRA: dict = {
+    "requestBody": {
+        "required": True,
+        "description": (
+            "Au moins un des champs « email » ou « username », plus « password ». "
+            "Formats acceptés : JSON, application/x-www-form-urlencoded, multipart/form-data."
+        ),
+        "content": {
+            "application/json": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "email": {
+                            "type": "string",
+                            "description": "Email ou identifiant (si « username » absent).",
+                        },
+                        "username": {
+                            "type": "string",
+                            "description": "Nom d'utilisateur (si « email » absent).",
+                        },
+                        "password": {"type": "string", "format": "password"},
+                    },
+                },
+                "examples": {
+                    "par_email": {
+                        "summary": "JSON avec email",
+                        "value": {"email": "admin", "password": "••••••••"},
+                    },
+                    "par_username": {
+                        "summary": "JSON avec username",
+                        "value": {"username": "admin", "password": "••••••••"},
+                    },
+                },
+            },
+            "application/x-www-form-urlencoded": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "email": {"type": "string"},
+                        "username": {"type": "string"},
+                        "password": {"type": "string", "format": "password"},
+                    },
+                },
+            },
+            "multipart/form-data": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "email": {"type": "string"},
+                        "username": {"type": "string"},
+                        "password": {"type": "string", "format": "password"},
+                    },
+                },
+            },
+        },
+    },
+}
+
 
 async def get_login_credentials(request: Request) -> tuple[str, str]:
     """Lit identifiant + mot de passe depuis JSON, form-urlencoded ou multipart.
@@ -38,6 +97,7 @@ async def get_login_credentials(request: Request) -> tuple[str, str]:
     """
     ct_header = request.headers.get("content-type") or ""
     ct_lower = ct_header.lower()
+    ct_main = ct_header.split(";")[0].strip().lower() if ct_header else ""
 
     login_id = ""
     password = ""
@@ -45,10 +105,14 @@ async def get_login_credentials(request: Request) -> tuple[str, str]:
 
     if "multipart/form-data" in ct_lower:
         form = await request.form()
-        login_id = str(form.get("email") or form.get("username") or "").strip()
+        email_val = form.get("email")
+        username_val = form.get("username")
+        login_id = (email_val.strip() if isinstance(email_val, str) else "") or (
+            username_val.strip() if isinstance(username_val, str) else ""
+        )
         pw = form.get("password")
-        password = str(pw).strip() if pw is not None else ""
-    else:
+        password = pw.strip() if isinstance(pw, str) else ""
+    elif ct_main == "application/x-www-form-urlencoded":
         raw = await request.body()
         if not raw.strip():
             logger.warning(
@@ -59,47 +123,63 @@ async def get_login_credentials(request: Request) -> tuple[str, str]:
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Corps de requête vide.",
             )
-
-        if "application/x-www-form-urlencoded" in ct_lower:
-            try:
-                txt = raw.decode("utf-8")
-            except UnicodeDecodeError as exc:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"Encodage du corps invalide: {exc}",
-                ) from exc
-            pairs = dict(parse_qsl(txt, keep_blank_values=True))
-            login_id = (pairs.get("email") or pairs.get("username") or "").strip()
-            password = (pairs.get("password") or "").strip()
-        else:
-            try:
-                payload = json.loads(raw.decode("utf-8"))
-            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"JSON invalide: {exc}",
-                ) from exc
-            if not isinstance(payload, dict):
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="Le corps JSON doit être un objet.",
-                )
-            e = payload.get("email")
-            u = payload.get("username")
-            login_id = (e.strip() if isinstance(e, str) else "") or (
-                u.strip() if isinstance(u, str) else ""
+        try:
+            txt = raw.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Encodage du corps invalide: {exc}",
+            ) from exc
+        pairs = dict(parse_qsl(txt, keep_blank_values=True))
+        login_id = (pairs.get("email") or pairs.get("username") or "").strip()
+        password = (pairs.get("password") or "").strip()
+    elif ct_main == "application/json" or ct_header == "":
+        raw = await request.body()
+        if not raw.strip():
+            logger.warning(
+                "api_auth login: empty body content_type=%r",
+                ct_header,
             )
-            pw = payload.get("password")
-            password = pw.strip() if isinstance(pw, str) else ""
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Corps de requête vide.",
+            )
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"JSON invalide: {exc}",
+            ) from exc
+        if not isinstance(payload, dict):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Le corps JSON doit être un objet.",
+            )
+        e = payload.get("email")
+        u = payload.get("username")
+        login_id = (e.strip() if isinstance(e, str) else "") or (
+            u.strip() if isinstance(u, str) else ""
+        )
+        pw = payload.get("password")
+        password = pw.strip() if isinstance(pw, str) else ""
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=(
+                "Content-Type non supporté. Utilisez application/json, "
+                "application/x-www-form-urlencoded ou multipart/form-data."
+            ),
+        )
 
     if not login_id or not password:
         logger.warning(
             "api_auth login: missing credentials "
-            "(login_id empty=%s password empty=%s) content_type=%r body_prefix=%r",
+            "(login_id empty=%s password empty=%s) content_type=%r body_len=%s",
             not login_id,
             not password,
             ct_header,
-            raw[:120] if raw else b"",
+            len(raw) if raw else 0,
         )
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -128,7 +208,11 @@ class LoginResponse(BaseModel):
     user: LoginUserOut
 
 
-@router.post("/login", response_model=LoginResponse)
+@router.post(
+    "/login",
+    response_model=LoginResponse,
+    openapi_extra=_LOGIN_OPENAPI_EXTRA,
+)
 @limiter.limit("5/minute")
 async def login_json(
     request: Request,
@@ -140,7 +224,7 @@ async def login_json(
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou mot de passe incorrect",
+            detail="Identifiant ou mot de passe incorrect",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
