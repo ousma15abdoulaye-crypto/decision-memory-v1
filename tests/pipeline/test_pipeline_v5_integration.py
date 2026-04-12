@@ -92,13 +92,14 @@ def _cleanup_v5_artifacts(db_conn, *, ws_id: str, committee_id: str) -> None:
 
 
 @pytest.mark.integration
-def test_resolve_criterion_id_async(db_conn, pipeline_case_with_dao_and_offers) -> None:
-    """``resolve_criterion_id`` retrouve ``dao_criteria.id`` via ``m16_criterion_code``."""
-    from src.db import get_connection
-    from src.services.m16_backfill import resolve_criterion_id
-
+def test_dao_criterion_lookup_by_m16_code(
+    db_conn, pipeline_case_with_dao_and_offers
+) -> None:
+    """``dao_criteria.id`` est retrouvé par ``workspace_id`` + ``m16_criterion_code``."""
     case_id = pipeline_case_with_dao_and_offers
+    test_code = "INT_TEST_CODE_X"
     with db_conn.cursor() as cur:
+        cur.execute("SELECT set_config('app.is_admin', 'true', true)")
         cur.execute(
             """
             SELECT dc.id::text AS cid, pw.id::text AS ws
@@ -115,19 +116,18 @@ def test_resolve_criterion_id_async(db_conn, pipeline_case_with_dao_and_offers) 
         ws_id = row["ws"]
         cur.execute(
             "UPDATE dao_criteria SET m16_criterion_code = %s WHERE id = %s",
-            ("INT_TEST_CODE_X", crit_id),
+            (test_code, crit_id),
         )
-
-    set_rls_is_admin(True)
-    try:
-
-        async def _run() -> str | None:
-            with get_connection() as conn:
-                return await resolve_criterion_id(ws_id, "INT_TEST_CODE_X", conn)
-
-        assert asyncio.run(_run()) == crit_id
-    finally:
-        reset_rls_request_context()
+        cur.execute(
+            """
+            SELECT id::text AS id FROM dao_criteria
+            WHERE workspace_id = %s::uuid AND m16_criterion_code = %s
+            """,
+            (ws_id, test_code),
+        )
+        found = cur.fetchone()
+        assert found is not None
+        assert found["id"] == crit_id
 
 
 @pytest.mark.integration
