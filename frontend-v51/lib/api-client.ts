@@ -132,25 +132,27 @@ class ApiClient {
   }
 
   /**
-   * POST ``application/x-www-form-urlencoded`` **sans** en-tête Authorization.
-   * À utiliser pour ``/api/auth/login`` : un JWT périmé en localStorage ne doit
-   * pas être renvoyé sur la requête de connexion ; le format form est aligné
-   * sur les tests API (`test_api_auth_login_form_urlencoded`).
+   * POST JSON **sans** en-tête Authorization (fetch direct, pas ``fetchAuth``).
+   *
+   * Cas d’usage : ``POST /api/auth/login`` — un JWT encore présent dans le
+   * stockage persisté ne doit pas être renvoyé sur la requête de connexion.
+   *
+   * Côté serveur, le corps est lu par ``get_login_credentials`` dans
+   * ``src/api/api_auth_router.py`` (JSON, form ou multipart) ; les tests
+   * ``tests/test_api_auth_workspace_access.py`` couvrent notamment le JSON
+   * ``{ "email", "password" }`` (le champ ``email`` accepte aussi un nom
+   * d’utilisateur).
    */
-  async postFormUnauthenticated<T>(
-    path: string,
-    fields: Record<string, string>,
-  ): Promise<T> {
+  async postJsonUnauthenticated<T>(path: string, body: unknown): Promise<T> {
     const headers: Record<string, string> = {
-      "Content-Type": "application/x-www-form-urlencoded",
+      "Content-Type": "application/json",
     };
-    const body = new URLSearchParams(fields).toString();
     let res: Response;
     try {
       res = await fetch(`${API_BASE}${path}`, {
         method: "POST",
         headers,
-        body,
+        body: JSON.stringify(body),
       });
     } catch (e) {
       rethrowIfNetworkFailure(e);

@@ -35,13 +35,9 @@ export default function LoginPage() {
 
     try {
       const id = loginId.trim();
-      const res = await api.postFormUnauthenticated<LoginJsonResponse>(
+      const res = await api.postJsonUnauthenticated<LoginJsonResponse>(
         "/api/auth/login",
-        {
-          email: id,
-          username: id,
-          password,
-        },
+        { email: id, password },
       );
 
       const u = res.user;
