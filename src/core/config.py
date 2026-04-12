@@ -66,10 +66,10 @@ class Settings(BaseSettings):
     DEFAULT_TENANT_CODE: str = "sci_mali"
 
     # --- STORAGE (ZIP Pass-1 : API écrit, worker ARQ lit le même chemin) ---
-    # Défaut /tmp/uploads : writable sans volume dédié (évite PermissionError Railway sur /data).
-    # Si le worker ARQ est un autre service Railway, /tmp n'est PAS partagé : monter le même
-    # volume RWX sur API + worker et définir UPLOADS_DIR identique (ex. /data/uploads).
-    UPLOADS_DIR: str = Field(default="/tmp/uploads")
+    # Défaut /data/uploads : chemin type volume Railway monté RWX sur l'API ET le worker ARQ.
+    # Sans volume partagé, /tmp n'est pas commun entre deux services — le job ne verrait pas le ZIP.
+    # En local sans /data accessible : définir UPLOADS_DIR=/tmp/uploads ou ./data/uploads dans .env.
+    UPLOADS_DIR: str = Field(default="/data/uploads")
 
     # --- OCR / LLM ---
     AZURE_FORM_RECOGNIZER_ENDPOINT: str = ""

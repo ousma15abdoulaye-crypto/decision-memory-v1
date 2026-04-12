@@ -44,6 +44,7 @@ known-first-party = ["src", "prompts", "config"]
 [tool.ruff.lint.per-file-ignores]
 "main.py" = ["E402"]  # load_dotenv + configure_logging avant imports applicatifs (bootstrap prod)
 "services/annotation-backend/backend.py" = ["E402"]  # sys.path monorepo avant imports prompts / src
+"src/workers/arq_config.py" = ["E402"]  # RedisSettings import conditionnel avant imports src.workers.*
 "__init__.py" = ["F401"]  # Allow unused imports in __init__.py
 "tests/**/*.py" = ["E501"]  # Allow long lines in tests
 "src/business/templates.py" = ["N806"]  # Constants in functions (ORANGE_FILL, REVUE_MANUELLE)
