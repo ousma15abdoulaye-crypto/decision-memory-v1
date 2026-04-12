@@ -35,9 +35,15 @@ export default function LoginPage() {
 
     try {
       const id = loginId.trim();
+      // JSON.stringify omet les clés à valeur `undefined` : sans ça, le backend
+      // reçoit un corps sans `password` → 422. Toujours envoyer des chaînes.
       const res = await api.postJsonUnauthenticated<LoginJsonResponse>(
         "/api/auth/login",
-        { email: id, password },
+        {
+          email: id,
+          username: id,
+          password: String(password ?? ""),
+        },
       );
 
       const u = res.user;
