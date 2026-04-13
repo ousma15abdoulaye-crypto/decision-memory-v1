@@ -54,6 +54,9 @@ pyyaml>=6.0
 # certifi : bundle CA Mozilla pour contourner les proxies d'entreprise sur les appels Mistral OCR
 certifi>=2024.2.2
 
+# === ZIP Pass-1 — Cloudflare R2 (S3-compatible, API + worker ARQ) ===
+boto3>=1.34.0,<2
+
 # === VIVANT V2 — H2 Background workers (ADR-H2-ARQ-001) ===
 arq==0.26.1
 

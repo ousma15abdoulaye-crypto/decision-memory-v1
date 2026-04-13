@@ -32,15 +32,27 @@ from src.workers.arq_tasks import (
 
 
 async def arq_worker_on_startup(ctx: dict) -> None:
-    """Prépare le répertoire Pass-1 (même ``UPLOADS_DIR`` que l'API, volume partagé)."""
-    try:
-        from src.core.config import get_settings
+    """Vérifie R2 si configuré ; sinon assure ``UPLOADS_DIR`` (repli filesystem)."""
+    from src.core.config import get_settings, make_r2_s3_client
 
-        root = Path(get_settings().UPLOADS_DIR)
-        root.mkdir(parents=True, exist_ok=True)
-        logger.info("[ARQ] UPLOADS_DIR (Pass-1) prêt : %s", root.resolve())
-    except OSError as exc:
-        logger.warning("[ARQ] Création UPLOADS_DIR impossible : %s", exc)
+    s = get_settings()
+    if s.r2_object_storage_configured():
+        try:
+            client = make_r2_s3_client()
+            client.head_bucket(Bucket=s.R2_BUCKET_NAME)
+            logger.info("[ARQ] R2 bucket accessible : %s", s.R2_BUCKET_NAME)
+        except Exception as exc:
+            logger.error("[ARQ] R2 inaccessible : %s", exc)
+            raise
+    else:
+        try:
+            root = Path(s.UPLOADS_DIR)
+            root.mkdir(parents=True, exist_ok=True)
+            logger.info(
+                "[ARQ] UPLOADS_DIR (Pass-1, repli sans R2) : %s", root.resolve()
+            )
+        except OSError as exc:
+            logger.warning("[ARQ] Création UPLOADS_DIR impossible : %s", exc)
 
 
 @dataclass(frozen=True)

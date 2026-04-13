@@ -52,7 +52,7 @@ from src.cognitive.cognitive_state import (
     describe_cognitive_state,
     validate_transition,
 )
-from src.core.config import get_settings
+from src.core.config import get_settings, make_r2_s3_client
 from src.couche_a.auth.dependencies import UserClaims, get_current_user
 from src.couche_a.auth.workspace_access import (
     require_workspace_access,
@@ -790,11 +790,9 @@ async def upload_zip(
     Requiert permission bundle.upload.
     Retourne immédiatement — le traitement est asynchrone (ARQ).
 
-    Stockage : le fichier est écrit sous ``Settings.UPLOADS_DIR / workspace_id``.
-    Sur Railway avec API et worker sur **deux services**, monter le **même volume**
-    sur le **même chemin** (ex. ``/data`` → ``UPLOADS_DIR=/data/uploads``) sur les
-    deux services ; sinon le worker ne voit pas le fichier (voir
-    ``docs/ops/RAILWAY_ARQ_WORKER_SERVICE.md``).
+    Stockage : **Cloudflare R2** (S3-compatible) si ``R2_*`` est configuré — clé
+    enregistrée sur ``process_workspaces`` pour le worker ARQ. Sinon repli
+    filesystem sous ``UPLOADS_DIR`` (dev local sans R2).
     """
     require_workspace_permission(workspace_id, user, "bundle.upload")
 
@@ -805,22 +803,45 @@ async def upload_zip(
         )
 
     settings = get_settings()
-    # ZIP temporaire : nettoyage après Pass-1 dans ``run_pass_minus_1`` (``arq_tasks`` finally).
-    upload_dir = Path(settings.UPLOADS_DIR) / workspace_id
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    safe_name = Path(file.filename or "upload.zip").name
-    zip_path = str(upload_dir / f"{uuid.uuid4().hex}_{safe_name}")
     content = await file.read()
+    safe_name = Path(file.filename or "upload.zip").name
+    zip_path = ""
 
-    with open(zip_path, "wb") as f:
-        f.write(content)
-
-    logger.info(
-        "[W1] ZIP Pass-1 enregistré workspace=%s path=%s (UPLOADS_DIR=%s)",
-        workspace_id,
-        zip_path,
-        settings.UPLOADS_DIR,
-    )
+    if settings.r2_object_storage_configured():
+        s3 = make_r2_s3_client()
+        key = f"{workspace_id}/{uuid.uuid4()}_{safe_name}"
+        s3.put_object(
+            Bucket=settings.R2_BUCKET_NAME,
+            Key=key,
+            Body=content,
+            ContentType="application/zip",
+        )
+        with get_connection() as conn:
+            db_execute(
+                conn,
+                """
+                UPDATE process_workspaces
+                SET zip_r2_key = :r2k, zip_filename = :zfn
+                WHERE id = CAST(:wid AS uuid)
+                """,
+                {"r2k": key, "zfn": safe_name, "wid": workspace_id},
+            )
+            conn.commit()
+        logger.info(
+            "[W1] ZIP Pass-1 enregistré sur R2 workspace=%s key=%s", workspace_id, key
+        )
+    else:
+        upload_dir = Path(settings.UPLOADS_DIR) / workspace_id
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        zip_path = str(upload_dir / f"{uuid.uuid4().hex}_{safe_name}")
+        with open(zip_path, "wb") as f:
+            f.write(content)
+        logger.info(
+            "[W1] ZIP Pass-1 enregistré workspace=%s path=%s (UPLOADS_DIR=%s, R2 désactivé)",
+            workspace_id,
+            zip_path,
+            settings.UPLOADS_DIR,
+        )
 
     tenant_id = user.tenant_id or ""
 
