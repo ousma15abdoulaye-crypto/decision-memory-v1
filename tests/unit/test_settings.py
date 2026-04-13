@@ -5,6 +5,9 @@ Vérifie le fail-fast, les validators, et l'isolation cache.
 
 from __future__ import annotations
 
+import sys
+from types import SimpleNamespace
+
 import pytest
 from pydantic import ValidationError
 
@@ -178,7 +181,9 @@ def test_make_r2_s3_client_strips_trailing_slash_on_endpoint(monkeypatch):
         captured.update(kwargs)
         return object()
 
-    monkeypatch.setattr("boto3.client", fake_client)
+    # CI n’installe pas toujours boto3 ; éviter ``monkeypatch.setattr("boto3.client", ...)``
+    # qui force un import réel du paquet.
+    monkeypatch.setitem(sys.modules, "boto3", SimpleNamespace(client=fake_client))
     get_settings.cache_clear()
     make_r2_s3_client()
     assert captured["endpoint_url"] == "https://x.r2.cloudflarestorage.com"
