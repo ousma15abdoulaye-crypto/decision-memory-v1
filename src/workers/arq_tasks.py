@@ -8,6 +8,8 @@ import cleanly — stubs are never called in production.
 from __future__ import annotations
 
 import logging
+import shutil
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -113,43 +115,112 @@ async def run_pass_minus_1(
     ctx: dict[str, Any],
     workspace_id: str,
     tenant_id: str,
-    zip_path: str,
+    zip_path: str = "",
+    zip_r2_key: str = "",
 ) -> dict:
     """Exécute le Pass -1 (ZIP → bundles fournisseurs) via LangGraph.
 
+    Sources du ZIP :
+    - Si ``zip_path`` pointe vers un fichier local existant (tests / repli API
+      filesystem), ce chemin est utilisé.
+    - Sinon clé R2 : argument ``zip_r2_key`` si fourni, sinon
+      ``process_workspaces.zip_r2_key``.
+
+    Contexte RLS posé pour toute la fonction (graphe / INSERT bundles) ;
+    ``reset_rls_request_context`` uniquement en ``finally``.
+
     Rejouable (idempotent) : bundle_documents a UNIQUE(workspace_id, sha256).
-    Utilise un ``thread_id`` LangGraph pour l'exécution mais ne configure pas
-    de backend de checkpoint persistant (à ajouter dans un chantier dédié).
-
-    Args:
-        ctx: Contexte ARQ (injecté automatiquement).
-        workspace_id: UUID du workspace cible.
-        tenant_id: UUID du tenant.
-        zip_path: Chemin local vers le fichier ZIP.
-
-    Returns:
-        dict avec keys: bundle_ids, workspace_id, error (si présent).
     """
-    logger.info("[PASS-1] Démarrage workspace=%s zip=%s", workspace_id, zip_path)
-    zp = Path(zip_path)
-    if not zp.is_file():
-        err = (
-            "ZIP introuvable sur le système de fichiers du worker — vérifier un volume "
-            "Railway RWX monté au même chemin sur l'API et le worker, et UPLOADS_DIR "
-            "identique des deux côtés (ex. /data/uploads). Voir docs/ops/"
-            "RAILWAY_ARQ_WORKER_SERVICE.md."
-        )
-        logger.error("[PASS-1] %s path=%s", err, zip_path)
-        return {
-            "workspace_id": workspace_id,
-            "bundle_ids": [],
-            "error": err,
-        }
-    try:
-        from src.assembler.graph import build_pass_minus_one_graph
-        from src.assembler.zip_validator import validate_zip
+    from src.assembler.graph import build_pass_minus_one_graph
+    from src.assembler.zip_validator import validate_zip
+    from src.core.config import get_settings, make_r2_s3_client
+    from src.db import db_execute_one, get_connection
+    from src.db.tenant_context import (
+        reset_rls_request_context,
+        set_db_tenant_id,
+        set_rls_is_admin,
+    )
 
-        validation = validate_zip(zip_path)
+    set_db_tenant_id(str(tenant_id))
+    set_rls_is_admin(True)
+
+    resolved_zip: str | None = None
+    cleanup_path: str | None = None
+
+    zp_in = Path(zip_path) if zip_path else None
+    if zp_in and zp_in.is_file():
+        resolved_zip = str(zp_in.resolve())
+        ups_root = Path(get_settings().UPLOADS_DIR).resolve()
+        try:
+            rp = Path(resolved_zip).resolve()
+            if rp == ups_root or ups_root in rp.parents:
+                cleanup_path = resolved_zip
+        except (OSError, ValueError):
+            pass
+        logger.info(
+            "[PASS-1] ZIP local workspace=%s path=%s", workspace_id, resolved_zip
+        )
+    else:
+        r2_key = (zip_r2_key or "").strip()
+        if not r2_key:
+            with get_connection() as conn:
+                row = db_execute_one(
+                    conn,
+                    """
+                    SELECT zip_r2_key, zip_filename
+                    FROM process_workspaces
+                    WHERE id = CAST(:wid AS uuid)
+                    """,
+                    {"wid": workspace_id},
+                )
+            r2_key = ((row or {}).get("zip_r2_key") or "").strip()
+
+        if not r2_key:
+            err = (
+                f"[PASS-1] ZIP introuvable : pas de zip_r2_key en base pour workspace "
+                f"{workspace_id}. Effectuer un upload ZIP depuis l'API (R2 ou UPLOADS_DIR)."
+            )
+            logger.error("%s", err)
+            reset_rls_request_context()
+            return {"workspace_id": workspace_id, "bundle_ids": [], "error": err}
+
+        if not get_settings().r2_object_storage_configured():
+            err = (
+                "[PASS-1] zip_r2_key présent en base mais R2 non configuré sur le worker "
+                "(R2_ENDPOINT_URL / clés)."
+            )
+            logger.error("%s", err)
+            reset_rls_request_context()
+            return {"workspace_id": workspace_id, "bundle_ids": [], "error": err}
+
+        s3 = make_r2_s3_client()
+        s = get_settings()
+        obj = s3.get_object(Bucket=s.R2_BUCKET_NAME, Key=str(r2_key))
+        body = obj["Body"]
+        tmp = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+        tmp.close()
+        try:
+            with open(tmp.name, "wb") as out_f:
+                shutil.copyfileobj(body, out_f, length=1024 * 1024)
+        finally:
+            try:
+                body.close()
+            except Exception:
+                pass
+        resolved_zip = tmp.name
+        cleanup_path = tmp.name
+        nbytes = Path(resolved_zip).stat().st_size
+        logger.info(
+            "[PASS-1] ZIP R2 workspace=%s key=%s bytes=%d",
+            workspace_id,
+            r2_key,
+            nbytes,
+        )
+
+    assert resolved_zip is not None
+
+    try:
+        validation = validate_zip(resolved_zip)
         if not validation.is_valid:
             logger.error(
                 "[PASS-1] ZIP invalide workspace=%s : %s",
@@ -173,7 +244,7 @@ async def run_pass_minus_1(
         initial_state = {
             "workspace_id": workspace_id,
             "tenant_id": tenant_id,
-            "zip_path": zip_path,
+            "zip_path": resolved_zip,
             "extract_dir": "",
             "raw_documents": [],
             "bundles_draft": [],
@@ -202,11 +273,24 @@ async def run_pass_minus_1(
         logger.error("[PASS-1] Erreur workspace=%s : %s", workspace_id, exc)
         raise
     finally:
-        try:
-            zp_unlink = Path(zip_path)
-            zp_unlink.unlink(missing_ok=True)
-            zip_dir = zp_unlink.parent
-            if zip_dir.is_dir() and not any(zip_dir.iterdir()):
-                zip_dir.rmdir()
-        except Exception:
+        reset_rls_request_context()
+        if not cleanup_path:
             pass
+        else:
+            try:
+                zp_unlink = Path(cleanup_path)
+                zp_unlink.unlink(missing_ok=True)
+                zip_dir = zp_unlink.parent
+                ups_root = Path(get_settings().UPLOADS_DIR).resolve()
+                try:
+                    zr = zip_dir.resolve()
+                    if (
+                        zip_dir.is_dir()
+                        and (ups_root in zr.parents or zr == ups_root)
+                        and not any(zip_dir.iterdir())
+                    ):
+                        zip_dir.rmdir()
+                except OSError:
+                    pass
+            except Exception:
+                pass

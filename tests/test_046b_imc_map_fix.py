@@ -147,6 +147,8 @@ VALID_ALEMBIC_HEADS = (
     "098_primary_admin_email_owner_mandate",
     # Rôles seed + admin login (migration 099, post-098)
     "099_fix_admin_roles_seed",
+    # ZIP Pass-1 R2 — colonnes zip_r2_key / zip_filename sur process_workspaces
+    "100_process_workspaces_zip_r2",
 )
 
 
