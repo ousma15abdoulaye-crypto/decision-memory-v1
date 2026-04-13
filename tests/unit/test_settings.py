@@ -8,7 +8,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from src.core.config import Settings, get_settings
+from src.core.config import Settings, get_settings, make_r2_s3_client
 
 # Variables qui peuvent fuir depuis l'OS / .env.local et corrompre les défauts
 _ISOLATE = [
@@ -21,6 +21,14 @@ _ISOLATE = [
     "REDIS_URL",
     "DMS_API_MISTRAL",
     "MISTRAL_HTTPX_VERIFY_SSL",
+    "R2_ENDPOINT_URL",
+    "R2_ACCESS_KEY_ID",
+    "R2_SECRET_KEY",
+    "R2_BUCKET_NAME",
+    "S3_ENDPOINT",
+    "S3_ACCESS_KEY_ID",
+    "S3_SECRET_ACCESS_KEY",
+    "S3_BUCKET",
 ]
 
 
@@ -112,3 +120,65 @@ def test_settings_defaults(monkeypatch):
     assert s.JWT_REFRESH_TTL_DAYS == 7
     assert s.DEFAULT_TENANT_CODE == "sci_mali"
     assert s.LANGFUSE_HOST == "https://cloud.langfuse.com"
+    assert s.AGENT_RAG_ENABLED is False
+
+
+def test_settings_r2_s3_env_aliases_resolve(monkeypatch):
+    """Variables ``S3_*`` remplissent les champs R2 (AliasChoices)."""
+    _base_env(
+        monkeypatch,
+        S3_ENDPOINT="https://acct.r2.cloudflarestorage.com",
+        S3_ACCESS_KEY_ID="access-key",
+        S3_SECRET_ACCESS_KEY="secret-key",
+        S3_BUCKET="my-bucket",
+    )
+    get_settings.cache_clear()
+    s = Settings()
+    assert s.R2_ENDPOINT_URL == "https://acct.r2.cloudflarestorage.com"
+    assert s.R2_ACCESS_KEY_ID == "access-key"
+    assert s.R2_SECRET_KEY == "secret-key"
+    assert s.R2_BUCKET_NAME == "my-bucket"
+
+
+def test_settings_r2_object_storage_configured_via_s3_alias(monkeypatch):
+    """r2_object_storage_configured() True quand les trois secrets sont via S3_*."""
+    _base_env(
+        monkeypatch,
+        S3_ENDPOINT="https://x.r2.cloudflarestorage.com",
+        S3_ACCESS_KEY_ID="k",
+        S3_SECRET_ACCESS_KEY="s",
+    )
+    get_settings.cache_clear()
+    s = Settings()
+    assert s.r2_object_storage_configured() is True
+
+
+def test_settings_r2_object_storage_configured_false_if_incomplete(monkeypatch):
+    """Endpoint seul → pas de stockage R2 actif."""
+    _base_env(
+        monkeypatch,
+        S3_ENDPOINT="https://x.r2.cloudflarestorage.com",
+    )
+    get_settings.cache_clear()
+    s = Settings()
+    assert s.r2_object_storage_configured() is False
+
+
+def test_make_r2_s3_client_strips_trailing_slash_on_endpoint(monkeypatch):
+    """Endpoint Railway avec slash final → normalisé pour boto3."""
+    _base_env(
+        monkeypatch,
+        R2_ENDPOINT_URL="https://x.r2.cloudflarestorage.com/",
+        R2_ACCESS_KEY_ID="k",
+        R2_SECRET_KEY="s",
+    )
+    captured: dict = {}
+
+    def fake_client(_service: str, **kwargs: object) -> object:
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr("boto3.client", fake_client)
+    get_settings.cache_clear()
+    make_r2_s3_client()
+    assert captured["endpoint_url"] == "https://x.r2.cloudflarestorage.com"
