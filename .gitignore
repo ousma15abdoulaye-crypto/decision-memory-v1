@@ -114,6 +114,11 @@ data/**/*.csv
 data/**/*.json
 # Manifest figé OCR bridge (reconstruit depuis le freeze MD — pas de secrets)
 !data/ingest/test_mistral_output/skipped.json
+# Corpus M12 — JSONL volumineux hors git ; manifest seul versionné (mandat clôture)
+!data/annotations/corpus_manifest.json
+data/annotations/*.jsonl
+data/annotations/corpus_m12_backup_*.jsonl
+data/embeddings/
 data/**/*.zip
 # Cache LlamaCloud/extraction — artefacts générés, ne pas versionner
 data/imports/m5/cache/

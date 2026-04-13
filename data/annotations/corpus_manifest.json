@@ -1,0 +1,23 @@
+{
+  "generated_at": "2026-04-13T22:20:42.065059+00:00",
+  "manifest_closure_updated_at": "2026-04-14T00:00:00+00:00",
+  "total_lines": 116,
+  "annotated_validated_count": 116,
+  "export_ok_true": 111,
+  "export_ok_false": 5,
+  "jsonl_path": "data/annotations/ls_m12_export_latest.jsonl",
+  "r2_backup_prefix": "corpus-backups/m12/",
+  "default_tenant_code": "sci_mali",
+  "default_tenant_id": "0daf2d94-93dc-4d56-a8b9-84a2a4b17bbe",
+  "dms_embeddings_count_local": 5079,
+  "dms_embeddings_count_prod": null,
+  "prod_ingestion_note": "Non exécuté depuis cette session : Railway GraphQL/API indisponible (réseau). À lancer sur une machine avec accès : railway run python scripts/ingest_embeddings.py --input data/annotations/ls_m12_export_latest.jsonl --tenant-id 0daf2d94-93dc-4d56-a8b9-84a2a4b17bbe puis SELECT COUNT(*) sur la DB prod.",
+  "rag_activated_at": null,
+  "rag_activated_prod": false,
+  "note": "JSONL volumineux non versionné — stats ici ; sauvegardes locales corpus_m12_backup_*.jsonl ; R2 corpus-backups/m12/ à faire avec les mêmes creds que Railway.",
+  "r2_backup_last": {
+    "ok": false,
+    "error": "ConnectionClosedError",
+    "message": "Connection was closed before we received a valid response from endpoint URL: \"https://test.r2.cloudflarestorage.com/my-bucket/corpus-backups/m12/corpus_m12_20260413_222043.jsonl\"."
+  }
+}
