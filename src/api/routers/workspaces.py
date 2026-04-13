@@ -806,6 +806,7 @@ async def upload_zip(
     content = await file.read()
     safe_name = Path(file.filename or "upload.zip").name
     zip_path = ""
+    zip_r2_key_for_job = ""
 
     if settings.r2_object_storage_configured():
         s3 = make_r2_s3_client()
@@ -816,6 +817,7 @@ async def upload_zip(
             Body=content,
             ContentType="application/zip",
         )
+        zip_r2_key_for_job = key
         with get_connection() as conn:
             db_execute(
                 conn,
@@ -850,6 +852,7 @@ async def upload_zip(
         workspace_id=workspace_id,
         tenant_id=tenant_id,
         zip_path=zip_path,
+        zip_r2_key=zip_r2_key_for_job,
     )
 
     return {
@@ -860,7 +863,10 @@ async def upload_zip(
 
 
 async def _enqueue_pass_minus_one(
-    workspace_id: str, tenant_id: str, zip_path: str
+    workspace_id: str,
+    tenant_id: str,
+    zip_path: str,
+    zip_r2_key: str = "",
 ) -> None:
     """Enqueue le job Pass -1 dans ARQ."""
     try:
@@ -873,6 +879,7 @@ async def _enqueue_pass_minus_one(
             workspace_id=workspace_id,
             tenant_id=tenant_id,
             zip_path=zip_path,
+            zip_r2_key=zip_r2_key,
         )
         await pool.close()
         logger.info("[W1] Pass-1 enqueued workspace=%s", workspace_id)

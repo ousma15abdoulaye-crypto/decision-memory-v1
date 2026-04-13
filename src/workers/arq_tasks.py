@@ -8,6 +8,7 @@ import cleanly — stubs are never called in production.
 from __future__ import annotations
 
 import logging
+import shutil
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -115,14 +116,18 @@ async def run_pass_minus_1(
     workspace_id: str,
     tenant_id: str,
     zip_path: str = "",
+    zip_r2_key: str = "",
 ) -> dict:
     """Exécute le Pass -1 (ZIP → bundles fournisseurs) via LangGraph.
 
     Sources du ZIP :
     - Si ``zip_path`` pointe vers un fichier local existant (tests / repli API
       filesystem), ce chemin est utilisé.
-    - Sinon lecture de ``process_workspaces.zip_r2_key`` + téléchargement R2
-      (Cloudflare S3-compatible).
+    - Sinon clé R2 : argument ``zip_r2_key`` si fourni, sinon
+      ``process_workspaces.zip_r2_key``.
+
+    Contexte RLS posé pour toute la fonction (graphe / INSERT bundles) ;
+    ``reset_rls_request_context`` uniquement en ``finally``.
 
     Rejouable (idempotent) : bundle_documents a UNIQUE(workspace_id, sha256).
     """
@@ -135,6 +140,9 @@ async def run_pass_minus_1(
         set_db_tenant_id,
         set_rls_is_admin,
     )
+
+    set_db_tenant_id(str(tenant_id))
+    set_rls_is_admin(True)
 
     resolved_zip: str | None = None
     cleanup_path: str | None = None
@@ -153,10 +161,8 @@ async def run_pass_minus_1(
             "[PASS-1] ZIP local workspace=%s path=%s", workspace_id, resolved_zip
         )
     else:
-        set_db_tenant_id(str(tenant_id))
-        set_rls_is_admin(True)
-        row = None
-        try:
+        r2_key = (zip_r2_key or "").strip()
+        if not r2_key:
             with get_connection() as conn:
                 row = db_execute_one(
                     conn,
@@ -167,16 +173,15 @@ async def run_pass_minus_1(
                     """,
                     {"wid": workspace_id},
                 )
-        finally:
-            reset_rls_request_context()
+            r2_key = ((row or {}).get("zip_r2_key") or "").strip()
 
-        r2_key = (row or {}).get("zip_r2_key") if row else None
         if not r2_key:
             err = (
                 f"[PASS-1] ZIP introuvable : pas de zip_r2_key en base pour workspace "
-                f"{workspace_id}. Effectuer un upload ZIP depuis l’API (R2 ou UPLOADS_DIR)."
+                f"{workspace_id}. Effectuer un upload ZIP depuis l'API (R2 ou UPLOADS_DIR)."
             )
             logger.error("%s", err)
+            reset_rls_request_context()
             return {"workspace_id": workspace_id, "bundle_ids": [], "error": err}
 
         if not get_settings().r2_object_storage_configured():
@@ -185,22 +190,31 @@ async def run_pass_minus_1(
                 "(R2_ENDPOINT_URL / clés)."
             )
             logger.error("%s", err)
+            reset_rls_request_context()
             return {"workspace_id": workspace_id, "bundle_ids": [], "error": err}
 
         s3 = make_r2_s3_client()
         s = get_settings()
         obj = s3.get_object(Bucket=s.R2_BUCKET_NAME, Key=str(r2_key))
-        body = obj["Body"].read()
+        body = obj["Body"]
         tmp = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
-        tmp.write(body)
         tmp.close()
+        try:
+            with open(tmp.name, "wb") as out_f:
+                shutil.copyfileobj(body, out_f, length=1024 * 1024)
+        finally:
+            try:
+                body.close()
+            except Exception:
+                pass
         resolved_zip = tmp.name
         cleanup_path = tmp.name
+        nbytes = Path(resolved_zip).stat().st_size
         logger.info(
             "[PASS-1] ZIP R2 workspace=%s key=%s bytes=%d",
             workspace_id,
             r2_key,
-            len(body),
+            nbytes,
         )
 
     assert resolved_zip is not None
@@ -259,6 +273,7 @@ async def run_pass_minus_1(
         logger.error("[PASS-1] Erreur workspace=%s : %s", workspace_id, exc)
         raise
     finally:
+        reset_rls_request_context()
         if not cleanup_path:
             pass
         else:
