@@ -38,7 +38,13 @@ from fastapi import (
     UploadFile,
 )
 from fastapi import status as http_status
+from psycopg import errors as pg_errors
 from pydantic import BaseModel, field_validator
+
+try:
+    from botocore.exceptions import ClientError as BotoClientError
+except ImportError:  # pragma: no cover — boto3 optionnel hors chemin R2
+    BotoClientError = type("BotoClientError", (Exception,), {})
 
 from src.api.cognitive_helpers import (
     confidence_summary_for_workspace,
@@ -808,42 +814,77 @@ async def upload_zip(
     zip_path = ""
     zip_r2_key_for_job = ""
 
-    if settings.r2_object_storage_configured():
-        s3 = make_r2_s3_client()
-        key = f"{workspace_id}/{uuid.uuid4()}_{safe_name}"
-        s3.put_object(
-            Bucket=settings.R2_BUCKET_NAME,
-            Key=key,
-            Body=content,
-            ContentType="application/zip",
-        )
-        zip_r2_key_for_job = key
-        with get_connection() as conn:
-            db_execute(
-                conn,
-                """
-                UPDATE process_workspaces
-                SET zip_r2_key = :r2k, zip_filename = :zfn
-                WHERE id = CAST(:wid AS uuid)
-                """,
-                {"r2k": key, "zfn": safe_name, "wid": workspace_id},
+    try:
+        if settings.r2_object_storage_configured():
+            try:
+                s3 = make_r2_s3_client()
+                key = f"{workspace_id}/{uuid.uuid4()}_{safe_name}"
+                s3.put_object(
+                    Bucket=settings.R2_BUCKET_NAME,
+                    Key=key,
+                    Body=content,
+                    ContentType="application/zip",
+                )
+                zip_r2_key_for_job = key
+                with get_connection() as conn:
+                    db_execute(
+                        conn,
+                        """
+                        UPDATE process_workspaces
+                        SET zip_r2_key = :r2k, zip_filename = :zfn
+                        WHERE id = CAST(:wid AS uuid)
+                        """,
+                        {"r2k": key, "zfn": safe_name, "wid": workspace_id},
+                    )
+                logger.info(
+                    "[W1] ZIP Pass-1 enregistré sur R2 workspace=%s key=%s",
+                    workspace_id,
+                    key,
+                )
+            except BotoClientError:
+                logger.exception(
+                    "[W1] R2 put_object échec workspace=%s bucket=%s",
+                    workspace_id,
+                    settings.R2_BUCKET_NAME,
+                )
+                raise HTTPException(
+                    status_code=http_status.HTTP_502_BAD_GATEWAY,
+                    detail=(
+                        "Échec envoi du ZIP vers le stockage objet (R2). "
+                        "Vérifier S3_ENDPOINT, clés, nom du bucket et droits d’écriture."
+                    ),
+                ) from None
+            except pg_errors.UndefinedColumn:
+                logger.exception(
+                    "[W1] Colonnes zip_r2_key / zip_filename absentes workspace=%s",
+                    workspace_id,
+                )
+                raise HTTPException(
+                    status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=(
+                        "Base non à jour : appliquer la migration Alembic "
+                        "100_process_workspaces_zip_r2 sur cette instance "
+                        "(colonnes process_workspaces.zip_r2_key, zip_filename)."
+                    ),
+                ) from None
+        else:
+            upload_dir = Path(settings.UPLOADS_DIR) / workspace_id
+            upload_dir.mkdir(parents=True, exist_ok=True)
+            zip_path = str(upload_dir / f"{uuid.uuid4().hex}_{safe_name}")
+            with open(zip_path, "wb") as f:
+                f.write(content)
+            logger.info(
+                "[W1] ZIP Pass-1 enregistré workspace=%s path=%s (UPLOADS_DIR=%s, R2 désactivé)",
+                workspace_id,
+                zip_path,
+                settings.UPLOADS_DIR,
             )
-            conn.commit()
-        logger.info(
-            "[W1] ZIP Pass-1 enregistré sur R2 workspace=%s key=%s", workspace_id, key
-        )
-    else:
-        upload_dir = Path(settings.UPLOADS_DIR) / workspace_id
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        zip_path = str(upload_dir / f"{uuid.uuid4().hex}_{safe_name}")
-        with open(zip_path, "wb") as f:
-            f.write(content)
-        logger.info(
-            "[W1] ZIP Pass-1 enregistré workspace=%s path=%s (UPLOADS_DIR=%s, R2 désactivé)",
-            workspace_id,
-            zip_path,
-            settings.UPLOADS_DIR,
-        )
+    except OSError as exc:
+        logger.exception("[W1] Écriture disque ZIP workspace=%s", workspace_id)
+        raise HTTPException(
+            status_code=http_status.HTTP_507_INSUFFICIENT_STORAGE,
+            detail=f"Impossible d’enregistrer le ZIP sur le volume : {exc}",
+        ) from exc
 
     tenant_id = user.tenant_id or ""
 
