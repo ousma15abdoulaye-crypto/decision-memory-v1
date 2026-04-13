@@ -71,6 +71,26 @@ class Settings(BaseSettings):
     # En local sans /data accessible : définir UPLOADS_DIR=/tmp/uploads ou ./data/uploads dans .env.
     UPLOADS_DIR: str = Field(default="/data/uploads")
 
+    # --- R2 / S3 (ZIP Pass-1 partagé API ↔ worker ARQ, Railway sans volume commun) ---
+    # Si les trois premiers champs sont renseignés, l’upload ZIP utilise R2 ; sinon repli filesystem (UPLOADS_DIR).
+    # Alias ``S3_*`` : mêmes noms que dans ``.env.example`` (lignes S3_*) et déploiements Railway R2.
+    R2_ENDPOINT_URL: str = Field(
+        default="",
+        validation_alias=AliasChoices("R2_ENDPOINT_URL", "S3_ENDPOINT"),
+    )
+    R2_ACCESS_KEY_ID: str = Field(
+        default="",
+        validation_alias=AliasChoices("R2_ACCESS_KEY_ID", "S3_ACCESS_KEY_ID"),
+    )
+    R2_SECRET_KEY: str = Field(
+        default="",
+        validation_alias=AliasChoices("R2_SECRET_KEY", "S3_SECRET_ACCESS_KEY"),
+    )
+    R2_BUCKET_NAME: str = Field(
+        default="dms-uploads",
+        validation_alias=AliasChoices("R2_BUCKET_NAME", "S3_BUCKET"),
+    )
+
     # --- OCR / LLM ---
     AZURE_FORM_RECOGNIZER_ENDPOINT: str = ""
     AZURE_FORM_RECOGNIZER_KEY: str = ""
@@ -153,6 +173,31 @@ class Settings(BaseSettings):
         if not raw:
             return []
         return [o.strip() for o in raw.split(",") if o.strip()]
+
+    def r2_object_storage_configured(self) -> bool:
+        """True si les credentials R2 sont présents (upload ZIP → bucket partagé)."""
+        return bool(
+            self.R2_ENDPOINT_URL.strip()
+            and self.R2_ACCESS_KEY_ID.strip()
+            and self.R2_SECRET_KEY.strip()
+        )
+
+
+def make_r2_s3_client():
+    """Client S3-compatible (Cloudflare R2). Leverage ``get_settings()`` à l’appel."""
+    import boto3
+
+    s = get_settings()
+    if not s.r2_object_storage_configured():
+        raise RuntimeError("R2 non configuré (R2_ENDPOINT_URL / clés manquantes).")
+    endpoint = s.R2_ENDPOINT_URL.strip().rstrip("/")
+    return boto3.client(
+        "s3",
+        endpoint_url=endpoint,
+        aws_access_key_id=s.R2_ACCESS_KEY_ID.strip(),
+        aws_secret_access_key=s.R2_SECRET_KEY.strip(),
+        region_name="auto",
+    )
 
 
 # ---------------------------------------------------------------------------
