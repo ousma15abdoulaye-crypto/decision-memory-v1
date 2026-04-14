@@ -479,7 +479,7 @@ def _upsert_assessment(
         return "updated"
 
     # Confirme via SELECT si rowcount n'est pas fiable
-    existing = conn.execute(
+    conn.execute(
         """
         SELECT cell_json->>'score' AS score
         FROM criterion_assessments
@@ -492,7 +492,8 @@ def _upsert_assessment(
             "bundle_id": bundle_id,
             "criterion_key": criterion_key,
         },
-    ).fetchone()
+    )
+    existing = conn.fetchone()
 
     if existing and existing.get("score") is not None:
         return "skipped"
