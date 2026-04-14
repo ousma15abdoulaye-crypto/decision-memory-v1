@@ -54,6 +54,148 @@ _FORBIDDEN_KEYS: frozenset[str] = frozenset(
 )
 
 
+def _norm_crit_label(s: str) -> str:
+    return " ".join((s or "").strip().lower().split())
+
+
+def _build_dao_criterion_lookups(
+    crit_rows: list[dict[str, Any]],
+) -> tuple[frozenset[str], dict[str, str], dict[str, str]]:
+    """``dao_ids``, map nom normalisé → id, map code M16 → id."""
+    dao_ids: set[str] = set()
+    by_norm_name: dict[str, str] = {}
+    by_code: dict[str, str] = {}
+    for r in crit_rows:
+        rid = r.get("id")
+        if not rid:
+            continue
+        sid = str(rid)
+        dao_ids.add(sid)
+        nom = r.get("critere_nom")
+        if isinstance(nom, str) and nom.strip():
+            by_norm_name.setdefault(_norm_crit_label(nom), sid)
+        code = r.get("m16_criterion_code")
+        if code is not None and str(code).strip():
+            by_code[str(code).strip().lower()] = sid
+    return frozenset(dao_ids), by_norm_name, by_code
+
+
+def _technical_cell_key(
+    criteria_name: str,
+    *,
+    by_norm_name: dict[str, str],
+    by_code: dict[str, str],
+) -> tuple[str, str | None]:
+    """Retourne (clé pour ``criterion_key``, ``dao_criterion_id``)."""
+    name = (criteria_name or "").strip()
+    nk = _norm_crit_label(name)
+    if nk and nk in by_norm_name:
+        dao = by_norm_name[nk]
+        if dao:
+            return dao, dao
+    lc = name.strip().lower()
+    if lc and lc in by_code:
+        dao = by_code[lc]
+        if dao:
+            return dao, dao
+    slug = (nk or "unnamed").replace(" ", "_")[:120]
+    return f"m14:technical:{slug}", None
+
+
+def _flatten_evaluation_report_scores_matrix(
+    report: dict[str, Any],
+    *,
+    by_norm_name: dict[str, str],
+    by_code: dict[str, str],
+) -> dict[str, dict[str, Any]]:
+    """Transforme un ``EvaluationReport`` sérialisé en matrice bundle → critère → cellule."""
+    out: dict[str, dict[str, Any]] = {}
+    oev = report.get("offer_evaluations")
+    if not isinstance(oev, list):
+        return out
+    for raw_oe in oev:
+        if not isinstance(raw_oe, dict):
+            continue
+        bid = str(raw_oe.get("offer_document_id") or "").strip()
+        if not bid:
+            continue
+        per = out.setdefault(bid, {})
+
+        ts = raw_oe.get("technical_score")
+        if isinstance(ts, dict):
+            for cs in ts.get("criteria_scores") or []:
+                if not isinstance(cs, dict):
+                    continue
+                cname = str(cs.get("criteria_name") or "")
+                ck, _ = _technical_cell_key(
+                    cname, by_norm_name=by_norm_name, by_code=by_code
+                )
+                awarded = cs.get("awarded_score")
+                per[ck] = {
+                    "score": awarded,
+                    "max_score": cs.get("max_score"),
+                    "weight_percent": cs.get("weight_percent"),
+                    "justification": cs.get("justification"),
+                    "confidence": cs.get("confidence"),
+                    "m14_component": "technical_criterion",
+                    "criteria_name": cname,
+                }
+
+        pa = raw_oe.get("price_analysis")
+        if isinstance(pa, dict) and (
+            pa.get("total_price_declared") is not None or pa.get("currency")
+        ):
+            per["m14:price"] = {
+                "score": pa.get("total_price_declared"),
+                "currency": pa.get("currency"),
+                "price_basis": pa.get("price_basis"),
+                "currency_mismatch_alert": pa.get("currency_mismatch_alert"),
+                "confidence": pa.get("confidence"),
+                "m14_component": "price_analysis",
+            }
+
+        ca = raw_oe.get("completion_analysis")
+        if isinstance(ca, dict):
+            per["m14:completion"] = {
+                "score": ca.get("completeness_ratio"),
+                "expected_sections": ca.get("expected_sections"),
+                "missing_sections": ca.get("missing_sections"),
+                "confidence": ca.get("confidence"),
+                "m14_component": "completion",
+            }
+
+        for group_key, comp in (
+            ("eligibility", raw_oe.get("eligibility_results")),
+            ("compliance", raw_oe.get("compliance_results")),
+        ):
+            if not isinstance(comp, list):
+                continue
+            for item in comp:
+                if not isinstance(item, dict):
+                    continue
+                cid = str(item.get("check_id") or "").strip() or "unknown"
+                cell_key = f"m14:{group_key}:{cid}"
+                res = item.get("result")
+                score_val: float | None
+                if res == "PASS":
+                    score_val = 1.0
+                elif res in ("FAIL",):
+                    score_val = 0.0
+                else:
+                    score_val = 0.5
+                per[cell_key] = {
+                    "score": score_val,
+                    "result": res,
+                    "check_name": item.get("check_name"),
+                    "is_eliminatory": item.get("is_eliminatory"),
+                    "evidence": item.get("evidence"),
+                    "confidence": item.get("confidence"),
+                    "m14_component": group_key,
+                }
+
+    return out
+
+
 # ── Types ──────────────────────────────────────────────────────────────────────
 
 
@@ -127,8 +269,8 @@ def _run_bridge(conn: Any, workspace_id: str) -> BridgeResult:
         )
         return result
 
-    matrix = ed.get("scores_matrix")
-    if not isinstance(matrix, dict) or not matrix:
+    matrix_raw = ed.get("scores_matrix")
+    if not isinstance(matrix_raw, dict) or not matrix_raw:
         logger.info(
             "[M14-BRIDGE] scores_matrix vide pour workspace=%s eval_doc=%s",
             workspace_id,
@@ -149,11 +291,31 @@ def _run_bridge(conn: Any, workspace_id: str) -> BridgeResult:
 
     crit_rows = db_fetchall(
         conn,
-        "SELECT id::text AS id FROM dao_criteria "
-        "WHERE workspace_id = CAST(:wid AS uuid)",
+        """
+        SELECT id::text AS id, critere_nom, m16_criterion_code::text AS m16_criterion_code
+        FROM dao_criteria
+        WHERE workspace_id = CAST(:wid AS uuid)
+        """,
         {"wid": workspace_id},
     )
-    dao_crit_ids: frozenset[str] = frozenset(r["id"] for r in crit_rows)
+    dao_crit_ids, by_norm_name, by_code = _build_dao_criterion_lookups(crit_rows)
+
+    matrix: dict[str, Any] = matrix_raw
+    oev = matrix_raw.get("offer_evaluations")
+    if isinstance(oev, list) and len(oev) > 0:
+        flattened = _flatten_evaluation_report_scores_matrix(
+            matrix_raw,
+            by_norm_name=by_norm_name,
+            by_code=by_code,
+        )
+        if flattened:
+            matrix = flattened
+            logger.info(
+                "[M14-BRIDGE] scores_matrix normalisé depuis EvaluationReport "
+                "(offer_evaluations=%d → bundles=%d)",
+                len(oev),
+                len(flattened),
+            )
 
     # ── 4. Boucle sur la matrice ──────────────────────────────────────────
     unmapped_bundles: list[str] = []
@@ -184,7 +346,11 @@ def _run_bridge(conn: Any, workspace_id: str) -> BridgeResult:
             dao_id: str | None = (
                 criterion_key if criterion_key in dao_crit_ids else None
             )
-            if dao_id is None and criterion_key:
+            if (
+                dao_id is None
+                and criterion_key
+                and not str(criterion_key).startswith("m14:")
+            ):
                 unmapped_criteria.append(criterion_key)
 
             try:

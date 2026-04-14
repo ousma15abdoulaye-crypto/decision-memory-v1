@@ -51,6 +51,18 @@ from src.services.m14_bridge import populate_assessments_from_m14
 logger = logging.getLogger(__name__)
 
 
+def procurement_framework_from_tenant_code(code: str | None) -> ProcurementFramework:
+    """Résout le cadre réglementaire M13 à partir de ``tenants.code``.
+
+    Jamais ``UNKNOWN`` : défaut production pilote = Mali (DGMP).
+    """
+    c = (code or "").strip().lower()
+    if c == "sci":
+        return ProcurementFramework.SCI
+    # Tenant pilote et inconnus → règles marchés publics Mali (dossier ``dgmp_mali/``).
+    return ProcurementFramework.DGMP_MALI
+
+
 class PipelineV5Result(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -75,11 +87,15 @@ def _tf(
     return TracedField(value=value, confidence=confidence, evidence=evidence or [])
 
 
-def build_pipeline_v5_minimal_m12(*, corpus_text: str) -> M12Output:
+def build_pipeline_v5_minimal_m12(
+    *, corpus_text: str, procurement_framework: ProcurementFramework
+) -> M12Output:
     """M12 minimal pour enchaîner M13 (H1 via ITT + texte corpus)."""
     text = corpus_text[:500_000] if corpus_text else ""
+    fw = procurement_framework
+    fw_conf = 0.8
     rec = ProcedureRecognition(
-        framework_detected=_tf(ProcurementFramework.UNKNOWN),
+        framework_detected=_tf(fw, fw_conf),
         procurement_family=_tf(ProcurementFamily.GOODS),
         procurement_family_sub=_tf(ProcurementFamilySub.GENERIC),
         document_kind=_tf(DocumentKindParent.ITT),
@@ -119,8 +135,8 @@ def build_pipeline_v5_minimal_m12(*, corpus_text: str) -> M12Output:
     )
     hh: M12Handoffs = build_handoffs(
         DocumentKindParent.ITT,
-        ProcurementFramework.UNKNOWN,
-        0.6,
+        fw,
+        fw_conf,
         ProcurementFamily.GOODS,
         ProcurementFamilySub.GENERIC,
         [],
@@ -237,15 +253,18 @@ def run_pipeline_v5(
 ) -> PipelineV5Result:
     t0 = time.perf_counter()
     out = PipelineV5Result(workspace_id=workspace_id)
+    fw_value = ProcurementFramework.DGMP_MALI
 
     try:
         with get_connection() as conn:
             ws = db_execute_one(
                 conn,
                 """
-                SELECT id::text AS id, legacy_case_id::text AS legacy_case_id
-                FROM process_workspaces
-                WHERE id = CAST(:wid AS uuid)
+                SELECT w.id::text AS id, w.legacy_case_id::text AS legacy_case_id,
+                       lower(t.code::text) AS tenant_code
+                FROM process_workspaces w
+                JOIN tenants t ON t.id = w.tenant_id
+                WHERE w.id = CAST(:wid AS uuid)
                 """,
                 {"wid": workspace_id},
             )
@@ -254,6 +273,7 @@ def run_pipeline_v5(
                 out.stopped_at = "precheck_workspace"
                 return out
 
+            fw_value = procurement_framework_from_tenant_code(ws.get("tenant_code"))
             case_id = ws.get("legacy_case_id")
             out.case_id = case_id
             if not case_id:
@@ -338,7 +358,9 @@ def run_pipeline_v5(
         logger.exception("[PIPELINE-V5] fatal: %s", exc)
         return out
 
-    m12 = build_pipeline_v5_minimal_m12(corpus_text=corpus_text)
+    m12 = build_pipeline_v5_minimal_m12(
+        corpus_text=corpus_text, procurement_framework=fw_value
+    )
     out.step_2_m12_reconstructed = True
 
     doc_id = f"pipeline_v5:{workspace_id}"
