@@ -149,6 +149,12 @@ VALID_ALEMBIC_HEADS = (
     "099_fix_admin_roles_seed",
     # ZIP Pass-1 R2 — colonnes zip_r2_key / zip_filename sur process_workspaces
     "100_process_workspaces_zip_r2",
+    # Phase 1 — offer_extractions FK bundles + stub 098 + merge graphe (PR Phase 1)
+    "075_fix_offer_extractions_artifact_fk",
+    "076_fix_offer_extractions_fk_to_bundles",
+    "098_primary_admin_email_owner_mandate_stub",
+    "f7198e64fb16",
+    "e7df16ec18ee",
 )
 
 

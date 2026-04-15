@@ -63,6 +63,7 @@ markers = [
     "smoke: marks tests as smoke tests",
     "db: marks tests requiring live PostgreSQL (RLS / isolation)",
     "db_integrity: marks tests requiring DB integrity (triggers, migrations)",
+    "integration: marks API / bridge integration tests (PostgreSQL)",
     "asyncio: asyncio test (pytest-asyncio)",
 ]
 
@@ -81,7 +82,7 @@ exclude_lines = [
     "def __repr__",
     "raise AssertionError",
     "raise NotImplementedError",
-    "if __name__ == .__main__.:",
+    "if __name__ == '__main__':",
     "if TYPE_CHECKING:",
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",

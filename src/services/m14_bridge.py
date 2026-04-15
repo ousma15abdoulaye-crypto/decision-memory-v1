@@ -30,17 +30,20 @@ Le champ "source" permet à l'UI de distinguer les scores M14 des scores manuels
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
 from psycopg.types.json import Json
 
 from src.db import db_execute_one, db_fetchall, get_connection
-from src.services.evaluation_document_query import (
-    fetch_latest_evaluation_document_for_workspace,
-)
 
 logger = logging.getLogger(__name__)
+
+_UUID_CRIT = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
 
 # Clés interdites dans cell_json (R9 — neutralité du PV)
 # Clé JSON interdite « offre la plus avantageuse » (littéral scindé — INV-09 neutralité).
@@ -57,6 +60,198 @@ _FORBIDDEN_KEYS: frozenset[str] = frozenset(
 )
 
 
+def matrix_participant_bundle_ids(matrix_raw: dict[str, Any]) -> frozenset[str] | None:
+    """IDs autorisés pour persistance matrice ; ``None`` = pas de filtre (documents legacy).
+
+    Liste vide explicite → jeu vide (aucun bundle ne reçoit d'assessment).
+    """
+    if "matrix_participants" not in matrix_raw:
+        return None
+    mp = matrix_raw.get("matrix_participants")
+    if not isinstance(mp, list):
+        return None
+    ids: set[str] = set()
+    for it in mp:
+        if isinstance(it, dict) and it.get("bundle_id"):
+            ids.add(str(it["bundle_id"]))
+    return frozenset(ids)
+
+
+def scoring_criterion_key_is_forbidden(criterion_key: str) -> bool:
+    """Clés interdites dans ``criterion_assessments`` (scoring pur — CTO D-01 / Gate D)."""
+    ck = (criterion_key or "").strip()
+    if not ck:
+        return True
+    low = ck.lower()
+    if ck in _FORBIDDEN_KEYS or low in {x.lower() for x in _FORBIDDEN_KEYS}:
+        return True
+    if low.startswith("m14:eligibility:") or low.startswith("m14:compliance:"):
+        return True
+    if low.startswith("m14:technical:"):
+        return True
+    if low in ("m14:price", "m14:completion"):
+        return True
+    if "dgmp" in low:
+        return True
+    if low.startswith("reg_only_"):
+        return True
+    return False
+
+
+def _delete_stale_scoring_rows(conn: Any, workspace_id: str) -> int:
+    """Supprime les lignes scoring invalides (CTO D-05) — patterns Gate D/E.
+
+    psycopg3 : ne pas mettre de ``%`` littéraux dans le SQL (confusion avec les
+    placeholders) — motifs LIKE / ILIKE passés en paramètres bindés (D-09).
+    """
+    like_patterns = (
+        "m14:eligibility:%",
+        "m14:compliance:%",
+        "m14:technical:%",
+        "reg_only_%",
+    )
+    n = 0
+    for pat in like_patterns:
+        conn.execute(
+            """
+            DELETE FROM criterion_assessments
+            WHERE workspace_id = CAST(:wid AS uuid)
+              AND criterion_key LIKE :pat
+            RETURNING id
+            """,
+            {"wid": workspace_id, "pat": pat},
+        )
+        rows = conn.fetchall()
+        n += len(rows) if rows else 0
+    conn.execute(
+        """
+        DELETE FROM criterion_assessments
+        WHERE workspace_id = CAST(:wid AS uuid)
+          AND criterion_key ILIKE :pat
+        RETURNING id
+        """,
+        {"wid": workspace_id, "pat": "%dgmp%"},
+    )
+    rows = conn.fetchall()
+    n += len(rows) if rows else 0
+    conn.execute(
+        """
+        DELETE FROM criterion_assessments
+        WHERE workspace_id = CAST(:wid AS uuid)
+          AND criterion_key IN ('m14:price', 'm14:completion')
+        RETURNING id
+        """,
+        {"wid": workspace_id},
+    )
+    rows = conn.fetchall()
+    n += len(rows) if rows else 0
+    if n:
+        logger.warning(
+            "[M14-BRIDGE] DELETE scoring invalide workspace=%s rows=%d (patterns interdits)",
+            workspace_id,
+            n,
+        )
+    return n
+
+
+def _norm_crit_label(s: str) -> str:
+    return " ".join((s or "").strip().lower().split())
+
+
+def _build_dao_criterion_lookups(
+    crit_rows: list[dict[str, Any]],
+) -> tuple[frozenset[str], dict[str, str], dict[str, str]]:
+    """``dao_ids``, map nom normalisé → id, map code M16 → id."""
+    dao_ids: set[str] = set()
+    by_norm_name: dict[str, str] = {}
+    by_code: dict[str, str] = {}
+    for r in crit_rows:
+        rid = r.get("id")
+        if not rid:
+            continue
+        sid = str(rid)
+        dao_ids.add(sid)
+        nom = r.get("critere_nom")
+        if isinstance(nom, str) and nom.strip():
+            by_norm_name.setdefault(_norm_crit_label(nom), sid)
+        code = r.get("m16_criterion_code")
+        if code is not None and str(code).strip():
+            by_code[str(code).strip().lower()] = sid
+    return frozenset(dao_ids), by_norm_name, by_code
+
+
+def _technical_cell_key(
+    criteria_name: str,
+    *,
+    by_norm_name: dict[str, str],
+    by_code: dict[str, str],
+) -> tuple[str | None, str | None]:
+    """Retourne (``criterion_key`` = UUID dao, ``dao_criterion_id``) ou (None, None).
+
+    Pas de clé ``m14:technical:*`` : scoring matrice = UUID dao uniquement (Gate E).
+    """
+    name = (criteria_name or "").strip()
+    nk = _norm_crit_label(name)
+    if nk and nk in by_norm_name:
+        dao = by_norm_name[nk]
+        if dao:
+            return dao, dao
+    lc = name.strip().lower()
+    if lc and lc in by_code:
+        dao = by_code[lc]
+        if dao:
+            return dao, dao
+    return None, None
+
+
+def _flatten_evaluation_report_scores_matrix(
+    report: dict[str, Any],
+    *,
+    by_norm_name: dict[str, str],
+    by_code: dict[str, str],
+) -> dict[str, dict[str, Any]]:
+    """Transforme un ``EvaluationReport`` sérialisé en matrice bundle → critère → cellule."""
+    out: dict[str, dict[str, Any]] = {}
+    oev = report.get("offer_evaluations")
+    if not isinstance(oev, list):
+        return out
+    for raw_oe in oev:
+        if not isinstance(raw_oe, dict):
+            continue
+        bid = str(raw_oe.get("offer_document_id") or "").strip()
+        if not bid:
+            continue
+        per = out.setdefault(bid, {})
+
+        ts = raw_oe.get("technical_score")
+        if isinstance(ts, dict):
+            for cs in ts.get("criteria_scores") or []:
+                if not isinstance(cs, dict):
+                    continue
+                cname = str(cs.get("criteria_name") or "")
+                ck, _dao = _technical_cell_key(
+                    cname, by_norm_name=by_norm_name, by_code=by_code
+                )
+                if ck is None:
+                    continue
+                awarded = cs.get("awarded_score")
+                per[ck] = {
+                    "score": awarded,
+                    "max_score": cs.get("max_score"),
+                    "weight_percent": cs.get("weight_percent"),
+                    "justification": cs.get("justification"),
+                    "confidence": cs.get("confidence"),
+                    "m14_component": "technical_criterion",
+                    "criteria_name": cname,
+                }
+
+        # Éligibilité / conformité / prix / complétude : restent dans
+        # ``evaluation_documents.scores_matrix`` (JSON brut). Pas de ligne
+        # ``criterion_assessments`` — CTO D-01.
+
+    return out
+
+
 # ── Types ──────────────────────────────────────────────────────────────────────
 
 
@@ -69,6 +264,9 @@ class BridgeResult:
     created: int = 0
     updated: int = 0
     skipped: int = 0
+    deleted_stale_rows: int = 0
+    skipped_invalid_key: int = 0
+    skipped_not_matrix_participant: int = 0
     unmapped_bundles: list[str] = field(default_factory=list)
     unmapped_criteria: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
@@ -108,24 +306,30 @@ def _run_bridge(conn: Any, workspace_id: str) -> BridgeResult:
         raise ValueError(f"Workspace introuvable : {workspace_id}")
     tenant_id = str(ws["tenant_id"])
 
+    result = BridgeResult(workspace_id=workspace_id, evaluation_document_id=None)
+    result.deleted_stale_rows = _delete_stale_scoring_rows(conn, workspace_id)
+
     # ── 2. Dernier evaluation_document ────────────────────────────────────
-    ed = fetch_latest_evaluation_document_for_workspace(
+    ed = db_execute_one(
         conn,
-        workspace_id,
-        columns="id::text AS id, scores_matrix",
+        """
+        SELECT id::text AS id, scores_matrix
+        FROM evaluation_documents
+        WHERE workspace_id = CAST(:wid AS uuid)
+        ORDER BY version DESC, created_at DESC
+        LIMIT 1
+        """,
+        {"wid": workspace_id},
     )
-    result = BridgeResult(
-        workspace_id=workspace_id,
-        evaluation_document_id=ed["id"] if ed else None,
-    )
+    result.evaluation_document_id = ed["id"] if ed else None
     if not ed:
         logger.info(
             "[M14-BRIDGE] Aucune evaluation_documents pour workspace=%s", workspace_id
         )
         return result
 
-    matrix = ed.get("scores_matrix")
-    if not isinstance(matrix, dict) or not matrix:
+    matrix_raw = ed.get("scores_matrix")
+    if not isinstance(matrix_raw, dict) or not matrix_raw:
         logger.info(
             "[M14-BRIDGE] scores_matrix vide pour workspace=%s eval_doc=%s",
             workspace_id,
@@ -146,20 +350,44 @@ def _run_bridge(conn: Any, workspace_id: str) -> BridgeResult:
 
     crit_rows = db_fetchall(
         conn,
-        "SELECT id::text AS id FROM dao_criteria "
-        "WHERE workspace_id = CAST(:wid AS uuid)",
+        """
+        SELECT id::text AS id, critere_nom, m16_criterion_code::text AS m16_criterion_code
+        FROM dao_criteria
+        WHERE workspace_id = CAST(:wid AS uuid)
+        """,
         {"wid": workspace_id},
     )
-    dao_crit_ids: frozenset[str] = frozenset(r["id"] for r in crit_rows)
+    dao_crit_ids, by_norm_name, by_code = _build_dao_criterion_lookups(crit_rows)
+
+    matrix: dict[str, Any] = matrix_raw
+    oev = matrix_raw.get("offer_evaluations")
+    if isinstance(oev, list) and len(oev) > 0:
+        flattened = _flatten_evaluation_report_scores_matrix(
+            matrix_raw,
+            by_norm_name=by_norm_name,
+            by_code=by_code,
+        )
+        if flattened:
+            matrix = flattened
+            logger.info(
+                "[M14-BRIDGE] scores_matrix normalisé depuis EvaluationReport "
+                "(offer_evaluations=%d → bundles=%d)",
+                len(oev),
+                len(flattened),
+            )
 
     # ── 4. Boucle sur la matrice ──────────────────────────────────────────
     unmapped_bundles: list[str] = []
     unmapped_criteria: list[str] = []
+    matrix_allow = matrix_participant_bundle_ids(matrix_raw)
 
     for bundle_key, per_bundle in matrix.items():
         bid = str(bundle_key)
         if bid not in bundle_ids:
             unmapped_bundles.append(bid)
+            continue
+        if matrix_allow is not None and bid not in matrix_allow:
+            result.skipped_not_matrix_participant += 1
             continue
         if not isinstance(per_bundle, dict):
             continue
@@ -167,6 +395,9 @@ def _run_bridge(conn: Any, workspace_id: str) -> BridgeResult:
         for ck, cell_raw in per_bundle.items():
             criterion_key = str(ck)
             if criterion_key in _FORBIDDEN_KEYS:
+                continue
+            if scoring_criterion_key_is_forbidden(criterion_key):
+                result.skipped_invalid_key += 1
                 continue
 
             # Construit cell_json enrichi du tag source M14
@@ -181,8 +412,18 @@ def _run_bridge(conn: Any, workspace_id: str) -> BridgeResult:
             dao_id: str | None = (
                 criterion_key if criterion_key in dao_crit_ids else None
             )
-            if dao_id is None and criterion_key:
-                unmapped_criteria.append(criterion_key)
+            if dao_id is None:
+                result.skipped_invalid_key += 1
+                if _UUID_CRIT.match(criterion_key):
+                    unmapped_criteria.append(criterion_key)
+                logger.info(
+                    "[M14-BRIDGE] skip sans dao_criterion_id workspace=%s bundle=%s "
+                    "criterion_key=%s",
+                    workspace_id,
+                    bid,
+                    criterion_key,
+                )
+                continue
 
             try:
                 op = _upsert_assessment(
@@ -211,12 +452,16 @@ def _run_bridge(conn: Any, workspace_id: str) -> BridgeResult:
 
     logger.info(
         "[M14-BRIDGE] workspace=%s eval_doc=%s → created=%d updated=%d "
-        "skipped=%d unmapped_bundles=%d unmapped_crit=%d",
+        "skipped=%d deleted_stale=%d skipped_invalid_key=%d "
+        "skipped_not_matrix=%d unmapped_bundles=%d unmapped_crit=%d",
         workspace_id,
         eval_doc_id,
         result.created,
         result.updated,
         result.skipped,
+        result.deleted_stale_rows,
+        result.skipped_invalid_key,
+        result.skipped_not_matrix_participant,
         len(result.unmapped_bundles),
         len(result.unmapped_criteria),
     )
@@ -241,6 +486,14 @@ def _upsert_assessment(
         "updated"  si UPDATE (cell_json NULL ou score NULL) a réussi
         "skipped"  si assessment existe avec un score déjà posé par l'évaluateur
     """
+    if not dao_criterion_id:
+        logger.warning(
+            "[M14-BRIDGE] refuse upsert sans dao_criterion_id bundle=%s key=%s",
+            bundle_id,
+            criterion_key,
+        )
+        return "skipped"
+
     # ── Tentative INSERT ──────────────────────────────────────────────────
     conn.execute(
         """
@@ -310,7 +563,7 @@ def _upsert_assessment(
         return "updated"
 
     # Confirme via SELECT si rowcount n'est pas fiable
-    existing = conn.execute(
+    conn.execute(
         """
         SELECT cell_json->>'score' AS score
         FROM criterion_assessments
@@ -323,7 +576,8 @@ def _upsert_assessment(
             "bundle_id": bundle_id,
             "criterion_key": criterion_key,
         },
-    ).fetchone()
+    )
+    existing = conn.fetchone()
 
     if existing and existing.get("score") is not None:
         return "skipped"

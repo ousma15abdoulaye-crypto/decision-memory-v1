@@ -7,19 +7,23 @@ Connexion synchrone ``get_connection`` (RLS tenant). Pas de nouveau moteur d’e
 from __future__ import annotations
 
 import asyncio
-import concurrent.futures
 import logging
 import time
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from src.core.config import get_settings
 from src.couche_a.extraction.criterion import _OFFER_TYPE_TO_ROLE
 from src.couche_a.extraction.offer_pipeline import extract_offer_content_async
 from src.couche_a.extraction.persistence import persist_tdr_result_to_db
+from src.couche_a.extraction_models import Tier, make_fallback_result
 from src.db import db_execute_one, db_fetchall, get_connection
+from src.procurement.bundle_scoring_role import (
+    ScoringRole,
+    classify_bundle_scoring_role,
+)
 from src.procurement.document_ontology import (
     DocumentKindParent,
     DocumentLayer,
@@ -36,7 +40,7 @@ from src.procurement.m13_regulatory_profile_repository import (
     M13RegulatoryProfileRepository,
 )
 from src.procurement.m14_engine import EvaluationEngine
-from src.procurement.m14_evaluation_models import M14EvaluationInput
+from src.procurement.m14_evaluation_models import EvaluationReport, M14EvaluationInput
 from src.procurement.m14_evaluation_repository import M14EvaluationRepository
 from src.procurement.procedure_models import (
     DocumentConformitySignal,
@@ -48,62 +52,21 @@ from src.procurement.procedure_models import (
     ProcessLinking,
     TracedField,
 )
-from src.services.evaluation_document_query import (
-    fetch_latest_evaluation_document_for_workspace,
-)
 from src.services.m14_bridge import populate_assessments_from_m14
 
 logger = logging.getLogger(__name__)
 
 
-def _parse_m13_processing_timestamp(iso_ts: str) -> datetime | None:
-    """Parse ``M13Meta.processing_timestamp`` (ISO) pour comparaison avec ``created_at`` DB."""
-    s = (iso_ts or "").strip()
-    if not s:
-        return None
-    try:
-        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=UTC)
-    return dt.astimezone(UTC)
+def procurement_framework_from_tenant_code(code: str | None) -> ProcurementFramework:
+    """Résout le cadre hôte M13 à partir de ``tenants.code`` (Gate A — plan directeur).
 
-
-def _evaluation_document_created_at_utc(created_at: Any) -> datetime | None:
-    if created_at is None or not isinstance(created_at, datetime):
-        return None
-    if created_at.tzinfo is None:
-        return created_at.replace(tzinfo=UTC)
-    return created_at.astimezone(UTC)
-
-
-def _run_coro_blocking(coro):
-    """Exécute une coroutine depuis du code sync.
-
-    Si une boucle asyncio tourne déjà (ex. ``pytest-asyncio``), ``asyncio.run``
-    lève *cannot be called from a running event loop* — on isole alors un
-    thread avec sa propre boucle.
-
-    Budget temps : ``ANNOTATION_TIMEOUT`` + 30 s (aligné extraction HTTP + marge).
+    Pilote SCI : ``sci_mali`` / ``sci_niger`` / ``sci`` → SCI. Pas de repli silencieux
+    vers DGMP ; tenant non reconnu → ``UNKNOWN`` (FAIL LOUD pipeline).
     """
-    timeout_sec = float(get_settings().ANNOTATION_TIMEOUT) + 30.0
-
-    async def _with_timeout():
-        return await asyncio.wait_for(coro, timeout=timeout_sec)
-
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.run(_with_timeout())
-
-    def _in_thread():
-        return asyncio.run(_with_timeout())
-
-    # Même plafond côté thread + petite marge pour teardown de la boucle.
-    thread_cap = timeout_sec + 5.0
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-        return pool.submit(_in_thread).result(timeout=thread_cap)
+    c = (code or "").strip().lower()
+    if c in ("sci", "sci_mali", "sci_niger"):
+        return ProcurementFramework.SCI
+    return ProcurementFramework.UNKNOWN
 
 
 class PipelineV5Result(BaseModel):
@@ -120,6 +83,7 @@ class PipelineV5Result(BaseModel):
     step_4_m14_eval_doc_id: str | None = None
     step_5_assessments_created: int = 0
     duration_seconds: float = 0.0
+    procedure_resolution_status: str | None = None
 
 
 def _tf(
@@ -130,63 +94,15 @@ def _tf(
     return TracedField(value=value, confidence=confidence, evidence=evidence or [])
 
 
-def _detect_framework_from_corpus(text: str) -> tuple[ProcurementFramework, float]:
-    """Détection heuristique framework depuis corpus ITT/DAO.
-
-    Returns: (framework, confidence)
-    """
-    text_lower = text.lower()
-
-    # DGMP Mali markers
-    dgmp_markers = [
-        "direction générale des marchés publics",
-        "dgmp",
-        "république du mali",
-        "code des marchés publics",
-        "armp mali",
-        "décret n°",
-    ]
-    dgmp_count = sum(1 for m in dgmp_markers if m in text_lower)
-
-    # SCI markers
-    sci_markers = [
-        "save the children",
-        "sci procurement",
-        "humanitarian procurement",
-        "donor compliance",
-    ]
-    sci_count = sum(1 for m in sci_markers if m in text_lower)
-
-    if dgmp_count >= 2:
-        return ProcurementFramework.DGMP_MALI, 0.8
-    elif dgmp_count == 1:
-        return ProcurementFramework.DGMP_MALI, 0.6
-    elif sci_count >= 2:
-        return ProcurementFramework.SCI, 0.8
-    elif sci_count == 1:
-        return ProcurementFramework.SCI, 0.6
-    else:
-        return ProcurementFramework.UNKNOWN, 0.6
-
-
-def build_pipeline_v5_minimal_m12(*, corpus_text: str) -> M12Output:
-    """M12 bootstrap pour M13 — détection framework + corpus complet.
-
-    FIX BUG 1: framework_detected maintenant inféré du corpus (DGMP vs SCI).
-    M13 peut résoudre procedure_type si framework != UNKNOWN.
-    """
+def build_pipeline_v5_minimal_m12(
+    *, corpus_text: str, procurement_framework: ProcurementFramework
+) -> M12Output:
+    """M12 minimal pour enchaîner M13 (H1 via ITT + texte corpus)."""
     text = corpus_text[:500_000] if corpus_text else ""
-    framework, fw_conf = _detect_framework_from_corpus(text)
-
-    logger.info(
-        "[PIPELINE-V5] M12 build — framework=%s confidence=%.1f corpus_len=%d",
-        framework.value,
-        fw_conf,
-        len(text),
-    )
-
+    fw = procurement_framework
+    fw_conf = 0.8
     rec = ProcedureRecognition(
-        framework_detected=_tf(framework, fw_conf),
+        framework_detected=_tf(fw, fw_conf),
         procurement_family=_tf(ProcurementFamily.GOODS),
         procurement_family_sub=_tf(ProcurementFamilySub.GENERIC),
         document_kind=_tf(DocumentKindParent.ITT),
@@ -207,11 +123,11 @@ def build_pipeline_v5_minimal_m12(*, corpus_text: str) -> M12Output:
         visit_required=_tf("NOT_APPLICABLE", 1.0),
         sample_required=_tf("NOT_APPLICABLE", 1.0),
         humanitarian_context=_tf("NOT_APPLICABLE", 1.0),
-        recognition_source=_tf("pipeline_v5_heuristic"),
+        recognition_source=_tf("pipeline_v5"),
         review_status=_tf("review_required", 0.6),
     )
     validity = DocumentValidity(
-        document_validity_status=_tf("NOT_ASSESSED", 0.6, ["pipeline_v5_bootstrap"]),
+        document_validity_status=_tf("NOT_ASSESSED", 0.6, ["pipeline_v5_minimal"]),
     )
     conformity = DocumentConformitySignal(
         offer_composition_hint=_tf("ABSENT", 0.6),
@@ -226,7 +142,7 @@ def build_pipeline_v5_minimal_m12(*, corpus_text: str) -> M12Output:
     )
     hh: M12Handoffs = build_handoffs(
         DocumentKindParent.ITT,
-        framework,
+        fw,
         fw_conf,
         ProcurementFamily.GOODS,
         ProcurementFamilySub.GENERIC,
@@ -239,7 +155,7 @@ def build_pipeline_v5_minimal_m12(*, corpus_text: str) -> M12Output:
         confidence_ceiling=1.0,
         corpus_size_at_processing=len(text),
         processing_timestamp=datetime.now(UTC).isoformat(),
-        pass_sequence=["pipeline_v5_heuristic"],
+        pass_sequence=["pipeline_v5"],
     )
     return M12Output(
         procedure_recognition=rec,
@@ -251,11 +167,140 @@ def build_pipeline_v5_minimal_m12(*, corpus_text: str) -> M12Output:
     )
 
 
-def extract_offers_from_bundles(workspace_id: str, case_id: str) -> int:
+def build_matrix_participants_and_excluded(
+    report: EvaluationReport,
+    *,
+    bundle_roles: dict[str, ScoringRole],
+    vendor_by_bundle: dict[str, str],
+    extract_failed_bundles: frozenset[str],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Gate C (CTO D-06) — vérité matrice vs archive M14 brute (sans toucher m14_engine).
+
+    ``matrix_participants`` : bundles éligibles pour ``criterion_assessments``.
+    ``excluded_from_matrix`` : inéligibles / indéterminés / SCORABLE hors run M14.
+    """
+    matrix_participants: list[dict[str, Any]] = []
+    excluded_from_matrix: list[dict[str, Any]] = []
+
+    for oe in report.offer_evaluations:
+        bid = str(oe.offer_document_id)
+        supplier = (oe.supplier_name or vendor_by_bundle.get(bid) or "").strip()
+        elig = oe.is_eligible
+        if elig is True:
+            matrix_participants.append(
+                {
+                    "bundle_id": bid,
+                    "supplier_name": supplier,
+                    "is_eligible": True,
+                }
+            )
+            continue
+        failed_checks: list[str] = []
+        for chk in oe.eligibility_results or []:
+            if getattr(chk, "result", None) == "FAIL":
+                failed_checks.append(
+                    f"{getattr(chk, 'check_id', '')}:{getattr(chk, 'check_name', '')}"
+                )
+        if elig is False:
+            reason = "ineligible"
+        elif elig is None:
+            reason = "eligibility_indeterminate"
+        else:
+            reason = "eligibility_unknown"
+        excluded_from_matrix.append(
+            {
+                "bundle_id": bid,
+                "supplier_name": supplier,
+                "reason": reason,
+                "failed_eligibility_checks": failed_checks,
+            }
+        )
+
+    evaluated_ids = {str(oe.offer_document_id) for oe in report.offer_evaluations}
+    for bid, role in bundle_roles.items():
+        if bid in evaluated_ids:
+            continue
+        if role != ScoringRole.SCORABLE:
+            continue
+        reason = (
+            "extraction_failed"
+            if bid in extract_failed_bundles
+            else "not_in_m14_offer_list"
+        )
+        excluded_from_matrix.append(
+            {
+                "bundle_id": bid,
+                "supplier_name": (vendor_by_bundle.get(bid) or "").strip(),
+                "reason": reason,
+            }
+        )
+
+    return matrix_participants, excluded_from_matrix
+
+
+def _vendor_name_by_bundle(workspace_id: str) -> dict[str, str]:
+    with get_connection() as conn:
+        rows = db_fetchall(
+            conn,
+            """
+            SELECT id::text AS id, vendor_name_raw
+            FROM supplier_bundles
+            WHERE workspace_id = CAST(:wid AS uuid)
+            """,
+            {"wid": workspace_id},
+        )
+    return {str(r["id"]): str(r.get("vendor_name_raw") or "") for r in rows or []}
+
+
+def _bundle_scoring_roles_for_workspace(workspace_id: str) -> dict[str, ScoringRole]:
+    """Rôle scoring runtime par ``supplier_bundles.id`` (CTO D-03, sans migration)."""
+    with get_connection() as conn:
+        rows = db_fetchall(
+            conn,
+            """
+            SELECT sb.id::text AS bundle_id, sb.vendor_name_raw,
+                   COALESCE(
+                       array_agg(bd.doc_type::text)
+                       FILTER (WHERE bd.doc_type IS NOT NULL),
+                       ARRAY[]::text[]
+                   ) AS doc_types
+            FROM supplier_bundles sb
+            LEFT JOIN bundle_documents bd ON bd.bundle_id = sb.id
+            WHERE sb.workspace_id = CAST(:wid AS uuid)
+            GROUP BY sb.id, sb.vendor_name_raw
+            """,
+            {"wid": workspace_id},
+        )
+    out: dict[str, ScoringRole] = {}
+    for r in rows or []:
+        bid = r.get("bundle_id")
+        if not bid:
+            continue
+        raw = r.get("doc_types")
+        if raw is None:
+            dtypes: frozenset[str] = frozenset()
+        elif isinstance(raw, list):
+            dtypes = frozenset(str(x) for x in raw if x)
+        else:
+            dtypes = frozenset()
+        out[str(bid)] = classify_bundle_scoring_role(
+            vendor_name_raw=str(r.get("vendor_name_raw") or ""),
+            doc_types=dtypes,
+        )
+    return out
+
+
+def extract_offers_from_bundles(
+    workspace_id: str, case_id: str
+) -> tuple[int, frozenset[str]]:
     """
     Pour chaque supplier_bundle : concatène ``bundle_documents.raw_text``,
     appelle ``extract_offer_content_async`` + ``persist_tdr_result_to_db``.
     ``bundle_id`` = ``supplier_bundles.id`` (idempotent sur ``offer_extractions``).
+
+    Returns:
+        (nombre d'extractions persistées, bundle_ids SCORABLE où Mistral a échoué
+        sans persistance fallback).
     """
     with get_connection() as conn:
         rows = db_fetchall(
@@ -278,8 +323,15 @@ def extract_offers_from_bundles(workspace_id: str, case_id: str) -> int:
             continue
         entry = by_bundle.setdefault(
             bid,
-            {"vendor_name": r.get("vendor_name") or "", "chunks": []},
+            {
+                "vendor_name": r.get("vendor_name") or "",
+                "chunks": [],
+                "doc_types": set(),
+            },
         )
+        dt = r.get("doc_type")
+        if dt:
+            entry["doc_types"].add(str(dt))
         raw = r.get("raw_text")
         if isinstance(raw, str) and raw.strip():
             entry["chunks"].append(raw.strip())
@@ -291,7 +343,20 @@ def extract_offers_from_bundles(workspace_id: str, case_id: str) -> int:
             entry["offer_doc_type"] = r["doc_type"]
 
     n_ok = 0
+    failed_scorable: set[str] = set()
     for bundle_id, data in by_bundle.items():
+        role = classify_bundle_scoring_role(
+            vendor_name_raw=str(data.get("vendor_name") or ""),
+            doc_types=frozenset(data.get("doc_types") or ()),
+        )
+        if role != ScoringRole.SCORABLE:
+            logger.info(
+                "[PIPELINE-V5] skip extraction scoring_role=%s bundle_id=%s",
+                role,
+                bundle_id,
+            )
+            continue
+
         text = "\n\n".join(data["chunks"])
         if not text.strip():
             logger.warning(
@@ -318,7 +383,7 @@ def extract_offers_from_bundles(workspace_id: str, case_id: str) -> int:
         )
 
         try:
-            result = _run_coro_blocking(
+            result = asyncio.run(
                 extract_offer_content_async(
                     document_id=bundle_id,
                     text=text,
@@ -333,8 +398,42 @@ def extract_offers_from_bundles(workspace_id: str, case_id: str) -> int:
             logger.exception(
                 "[PIPELINE-V5] extract KO bundle_id=%s : %s", bundle_id, exc
             )
+            vendor_fallback = str(data.get("vendor_name") or "").strip()
+            if vendor_fallback:
+                try:
+                    fb = make_fallback_result(
+                        bundle_id,
+                        role,
+                        f"extract_exception:{str(exc)[:200]}",
+                        tier=Tier.T4_OFFLINE,
+                    )
+                    fb = replace(
+                        fb,
+                        raw_annotation={
+                            "identifiants": {
+                                "supplier_name_raw": vendor_fallback,
+                                "supplier_name_normalized": vendor_fallback,
+                            }
+                        },
+                    )
+                    persist_tdr_result_to_db(
+                        fb, case_id, bundle_id, workspace_id=workspace_id
+                    )
+                    n_ok += 1
+                    logger.warning(
+                        "[PIPELINE-V5] P1.6 fallback vendor_name_raw bundle_id=%s",
+                        bundle_id,
+                    )
+                except Exception:
+                    logger.exception(
+                        "[PIPELINE-V5] P1.6 fallback persist KO bundle_id=%s",
+                        bundle_id,
+                    )
+                    failed_scorable.add(bundle_id)
+            else:
+                failed_scorable.add(bundle_id)
 
-    return n_ok
+    return n_ok, frozenset(failed_scorable)
 
 
 def run_pipeline_v5(
@@ -344,21 +443,32 @@ def run_pipeline_v5(
 ) -> PipelineV5Result:
     t0 = time.perf_counter()
     out = PipelineV5Result(workspace_id=workspace_id)
+    fw_value: ProcurementFramework = ProcurementFramework.UNKNOWN
+    extract_failed_bundles: frozenset[str] = frozenset()
 
     try:
         with get_connection() as conn:
             ws = db_execute_one(
                 conn,
                 """
-                SELECT id::text AS id, legacy_case_id::text AS legacy_case_id
-                FROM process_workspaces
-                WHERE id = CAST(:wid AS uuid)
+                SELECT w.id::text AS id, w.legacy_case_id::text AS legacy_case_id,
+                       lower(t.code::text) AS tenant_code
+                FROM process_workspaces w
+                JOIN tenants t ON t.id = w.tenant_id
+                WHERE w.id = CAST(:wid AS uuid)
                 """,
                 {"wid": workspace_id},
             )
             if not ws:
                 out.error = "workspace_not_found"
                 out.stopped_at = "precheck_workspace"
+                return out
+
+            fw_value = procurement_framework_from_tenant_code(ws.get("tenant_code"))
+            if fw_value == ProcurementFramework.UNKNOWN:
+                out.error = "tenant_framework_unknown"
+                out.stopped_at = "precheck_framework"
+                out.duration_seconds = time.perf_counter() - t0
                 return out
 
             case_id = ws.get("legacy_case_id")
@@ -413,29 +523,15 @@ def run_pipeline_v5(
                 out.stopped_at = "precheck_committee"
                 return out
 
-        n_ext = extract_offers_from_bundles(workspace_id, case_id)
+        n_ext, extract_failed_bundles = extract_offers_from_bundles(
+            workspace_id, case_id
+        )
         out.step_1_offers_extracted = n_ext
         if n_ext < 1:
-            with get_connection() as conn_sb:
-                nb = db_execute_one(
-                    conn_sb,
-                    """
-                    SELECT COUNT(*)::int AS n
-                    FROM supplier_bundles
-                    WHERE workspace_id = CAST(:wid AS uuid)
-                    """,
-                    {"wid": workspace_id},
-                )
-            if not nb or nb.get("n", 0) < 1:
-                out.error = "zero_offer_extractions"
-                out.stopped_at = "step_extract"
-                out.duration_seconds = time.perf_counter() - t0
-                return out
-            logger.warning(
-                "[PIPELINE-V5] aucune offer_extraction — poursuite M14 via bundles "
-                "workspace=%s",
-                workspace_id,
-            )
+            out.error = "zero_offer_extractions"
+            out.stopped_at = "step_extract"
+            out.duration_seconds = time.perf_counter() - t0
+            return out
 
         with get_connection() as conn2:
             corpus_parts = db_fetchall(
@@ -461,7 +557,9 @@ def run_pipeline_v5(
         logger.exception("[PIPELINE-V5] fatal: %s", exc)
         return out
 
-    m12 = build_pipeline_v5_minimal_m12(corpus_text=corpus_text)
+    m12 = build_pipeline_v5_minimal_m12(
+        corpus_text=corpus_text, procurement_framework=fw_value
+    )
     out.step_2_m12_reconstructed = True
 
     doc_id = f"pipeline_v5:{workspace_id}"
@@ -471,6 +569,10 @@ def run_pipeline_v5(
     try:
         m13_out = engine_m13.process_m12(case_id=case_id, document_id=doc_id, m12=m12)
         out.step_3_m13_procedure_type = m13_out.report.regime.procedure_type.value
+        out.procedure_resolution_status = (
+            f"{m13_out.report.regime.framework.value}"
+            f":{m13_out.report.regime.procedure_type.value}"
+        )
     except Exception as exc:
         out.error = f"m13_failed:{exc}"[:500]
         out.stopped_at = "step_m13"
@@ -478,15 +580,32 @@ def run_pipeline_v5(
         logger.exception("[PIPELINE-V5] M13: %s", exc)
         return out
 
-    from src.procurement.m14_workspace_assembler import build_m14_offers_for_workspace
-
+    bundle_roles = _bundle_scoring_roles_for_workspace(workspace_id)
     with get_connection() as conn:
-        offers = build_m14_offers_for_workspace(conn, workspace_id)
-    if not offers:
-        out.error = "zero_m14_offers"
-        out.stopped_at = "step_m14_offers"
-        out.duration_seconds = time.perf_counter() - t0
-        return out
+        offers_rows = db_fetchall(
+            conn,
+            """
+            SELECT bundle_id::text AS bundle_id, supplier_name,
+                   extracted_data_json
+            FROM offer_extractions
+            WHERE workspace_id = CAST(:wid AS uuid)
+            ORDER BY created_at DESC
+            """,
+            {"wid": workspace_id},
+        )
+
+    offers: list[dict[str, Any]] = []
+    for r in offers_rows:
+        bid = str(r.get("bundle_id") or "")
+        if bundle_roles.get(bid) != ScoringRole.SCORABLE:
+            continue
+        offers.append(
+            {
+                "document_id": r["bundle_id"],
+                "supplier_name": r.get("supplier_name"),
+                "process_role": "responds_to_bid",
+            }
+        )
 
     h2 = (
         m12.handoffs.atomic_capability_skeleton.model_dump(mode="json")
@@ -512,47 +631,49 @@ def run_pipeline_v5(
 
     skip_m14 = False
     if not force_m14:
-        # ADR-0012-P0 / ADR-0017 : skip seulement si le dernier evaluation_document est
-        # au moins aussi récent que l'exécution M13 de *ce* run.
-        m13_ts = _parse_m13_processing_timestamp(
-            m13_out.report.m13_meta.processing_timestamp
-        )
         with get_connection() as conn:
-            latest_eval = fetch_latest_evaluation_document_for_workspace(
+            existing = db_execute_one(
                 conn,
-                workspace_id,
-                columns="id::text AS id, created_at",
+                """
+                SELECT id::text AS id FROM evaluation_documents
+                WHERE workspace_id = CAST(:wid AS uuid)
+                LIMIT 1
+                """,
+                {"wid": workspace_id},
             )
-        if latest_eval and m13_ts is not None:
-            eval_ca = _evaluation_document_created_at_utc(latest_eval.get("created_at"))
-            if eval_ca is not None and eval_ca >= m13_ts:
+            if existing:
                 skip_m14 = True
-                out.step_4_m14_eval_doc_id = latest_eval["id"]
+                out.step_4_m14_eval_doc_id = existing["id"]
                 logger.info(
-                    "[PIPELINE-V5] skip M14 evaluate (eval fresh vs M13) wid=%s "
-                    "eval_created_at=%s m13_processing_ts=%s",
+                    "[PIPELINE-V5] skip M14 evaluate (document exists) wid=%s",
                     workspace_id,
-                    eval_ca.isoformat(),
-                    m13_ts.isoformat(),
                 )
-        elif latest_eval and m13_ts is None:
-            logger.info(
-                "[PIPELINE-V5] M13 processing_timestamp absent — run M14 wid=%s",
-                workspace_id,
-            )
+
+    if not skip_m14 and not offers:
+        out.error = "no_scorable_offers_for_m14"
+        out.stopped_at = "precheck_m14_offers"
+        out.duration_seconds = time.perf_counter() - t0
+        return out
 
     if not skip_m14:
         repo_m14 = M14EvaluationRepository()
         engine_m14 = EvaluationEngine(repository=repo_m14)
         try:
-            engine_m14.evaluate(inp)
-            with get_connection() as conn:
-                row = fetch_latest_evaluation_document_for_workspace(
-                    conn,
-                    workspace_id,
-                    columns="id::text AS id",
-                )
-            out.step_4_m14_eval_doc_id = row["id"] if row else None
+            report = engine_m14.evaluate(inp)
+            payload = report.model_dump(mode="json")
+            if out.procedure_resolution_status:
+                payload["procedure_resolution_status"] = out.procedure_resolution_status
+            vendor_map = _vendor_name_by_bundle(workspace_id)
+            mp_list, ex_list = build_matrix_participants_and_excluded(
+                report,
+                bundle_roles=bundle_roles,
+                vendor_by_bundle=vendor_map,
+                extract_failed_bundles=extract_failed_bundles,
+            )
+            payload["matrix_participants"] = mp_list
+            payload["excluded_from_matrix"] = ex_list
+            saved = repo_m14.save_evaluation(case_id=case_id, payload=payload)
+            out.step_4_m14_eval_doc_id = saved
         except Exception as exc:
             out.error = f"m14_failed:{exc}"[:500]
             out.stopped_at = "step_m14"
