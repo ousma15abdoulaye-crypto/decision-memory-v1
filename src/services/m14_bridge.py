@@ -82,7 +82,7 @@ def matrix_participant_bundle_ids(matrix_raw: dict[str, Any]) -> frozenset[str] 
             "— filtre Gate C désactivé (mode legacy)"
         )
         return None
-    if not isinstance(mp, (list, set, frozenset)):
+    if not isinstance(mp, list | set | frozenset):
         raise BridgeConfigurationError(
             f"[BRIDGE] matrix_participants type invalide : "
             f"{type(mp)}. Attendu : list. Arrêt Gate C."
