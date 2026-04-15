@@ -23,6 +23,8 @@ import pytest
 from src.db.core import _ConnectionWrapper
 from tests.integration.conftest import _get_conn
 
+pytestmark = pytest.mark.integration
+
 # -- Helpers ------------------------------------------------------------------
 
 
