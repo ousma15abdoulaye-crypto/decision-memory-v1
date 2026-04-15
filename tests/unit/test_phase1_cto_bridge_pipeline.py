@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+import logging
+import uuid
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 from src.procurement.bundle_scoring_role import (
     ScoringRole,
     classify_bundle_scoring_role,
@@ -9,7 +15,9 @@ from src.procurement.bundle_scoring_role import (
 from src.procurement.document_ontology import ProcurementFramework
 from src.procurement.m14_evaluation_models import EvaluationReport
 from src.services.m14_bridge import (
+    BridgeConfigurationError,
     _flatten_evaluation_report_scores_matrix,
+    _run_bridge,
     matrix_participant_bundle_ids,
     scoring_criterion_key_is_forbidden,
 )
@@ -160,12 +168,53 @@ def test_gate_c_matrix_participants_only_eligible() -> None:
     assert any(x["bundle_id"] == "b-bad" and x["reason"] == "ineligible" for x in ex)
 
 
-def test_gate_c_matrix_participant_ids_none_when_legacy_payload() -> None:
-    assert matrix_participant_bundle_ids({"offer_evaluations": []}) is None
-
-
 def test_gate_c_matrix_participant_ids_empty_set() -> None:
     assert matrix_participant_bundle_ids({"matrix_participants": []}) == frozenset()
+
+
+def test_gate_c_fail_closed_invalid_type() -> None:
+    with pytest.raises(BridgeConfigurationError, match="type invalide"):
+        matrix_participant_bundle_ids({"matrix_participants": "not-a-list"})
+
+
+def test_gate_c_fail_closed_empty_list() -> None:
+    wid = str(uuid.uuid4())
+    tid = str(uuid.uuid4())
+    eid = str(uuid.uuid4())
+    bundle_key = str(uuid.uuid4())
+
+    def fake_execute_one(conn: object, sql: str, params: dict) -> dict | None:
+        if "process_workspaces" in sql:
+            return {"tenant_id": tid}
+        if "evaluation_documents" in sql:
+            return {
+                "id": eid,
+                "scores_matrix": {
+                    "matrix_participants": [],
+                    bundle_key: {"c1": {"score": 8.0}},
+                },
+            }
+        return None
+
+    with (
+        patch("src.services.m14_bridge._delete_stale_scoring_rows", return_value=0),
+        patch(
+            "src.services.m14_bridge.db_execute_one",
+            side_effect=fake_execute_one,
+        ),
+    ):
+        result = _run_bridge(MagicMock(), wid)
+    assert result.created == 0
+    assert result.skipped == 0
+
+
+def test_gate_c_legacy_none_no_crash(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """matrix_participants absent → warning, None (pas d'erreur, mode legacy)."""
+    caplog.set_level(logging.WARNING)
+    assert matrix_participant_bundle_ids({"offer_evaluations": []}) is None
+    assert any("matrix_participants absent" in r.message for r in caplog.records)
 
 
 def test_gate_c_excluded_extraction_failed_scorable_not_in_offer_list() -> None:

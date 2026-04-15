@@ -60,16 +60,33 @@ _FORBIDDEN_KEYS: frozenset[str] = frozenset(
 )
 
 
+class BridgeConfigurationError(Exception):
+    """Payload bridge M14 invalide (Gate C)."""
+
+
 def matrix_participant_bundle_ids(matrix_raw: dict[str, Any]) -> frozenset[str] | None:
     """IDs autorisés pour persistance matrice ; ``None`` = pas de filtre (documents legacy).
 
     Liste vide explicite → jeu vide (aucun bundle ne reçoit d'assessment).
     """
     if "matrix_participants" not in matrix_raw:
+        logger.warning(
+            "[BRIDGE] matrix_participants absent du payload "
+            "— filtre Gate C désactivé (mode legacy)"
+        )
         return None
     mp = matrix_raw.get("matrix_participants")
-    if not isinstance(mp, list):
+    if mp is None:
+        logger.warning(
+            "[BRIDGE] matrix_participants absent du payload "
+            "— filtre Gate C désactivé (mode legacy)"
+        )
         return None
+    if not isinstance(mp, (list, set, frozenset)):
+        raise BridgeConfigurationError(
+            f"[BRIDGE] matrix_participants type invalide : "
+            f"{type(mp)}. Attendu : list. Arrêt Gate C."
+        )
     ids: set[str] = set()
     for it in mp:
         if isinstance(it, dict) and it.get("bundle_id"):
@@ -337,6 +354,14 @@ def _run_bridge(conn: Any, workspace_id: str) -> BridgeResult:
         )
         return result
 
+    matrix_allow = matrix_participant_bundle_ids(matrix_raw)
+    if matrix_raw.get("matrix_participants") == []:
+        logger.warning(
+            "[BRIDGE] matrix_participants vide — "
+            "aucun fournisseur éligible. 0 assessment créé."
+        )
+        return result
+
     eval_doc_id = str(ed["id"])
 
     # ── 3. Référentiels : bundles et critères du workspace ─────────────────
@@ -379,7 +404,6 @@ def _run_bridge(conn: Any, workspace_id: str) -> BridgeResult:
     # ── 4. Boucle sur la matrice ──────────────────────────────────────────
     unmapped_bundles: list[str] = []
     unmapped_criteria: list[str] = []
-    matrix_allow = matrix_participant_bundle_ids(matrix_raw)
 
     for bundle_key, per_bundle in matrix.items():
         bid = str(bundle_key)
