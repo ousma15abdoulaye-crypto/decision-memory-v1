@@ -64,12 +64,23 @@ class BridgeConfigurationError(Exception):
     """Payload bridge M14 invalide (Gate C)."""
 
 
-def matrix_participant_bundle_ids(matrix_raw: dict[str, Any]) -> frozenset[str] | None:
+def matrix_participant_bundle_ids(
+    matrix_raw: dict[str, Any], *, strict: bool = False
+) -> frozenset[str] | None:
     """IDs autorisés pour persistance matrice ; ``None`` = pas de filtre (documents legacy).
 
     Liste vide explicite → jeu vide (aucun bundle ne reçoit d'assessment).
+
+    :param strict: Si True, lever PipelineError si matrix_participants absent/None
+                  (requis sur chemin pipeline_v5). Si False (défaut), mode legacy
+                  autorisé (log warning, retour None).
     """
     if "matrix_participants" not in matrix_raw:
+        if strict:
+            raise BridgeConfigurationError(
+                "bridge_invalid:matrix_participants_required_in_strict_mode — "
+                "matrix_participants key missing from payload"
+            )
         logger.warning(
             "[BRIDGE] matrix_participants absent du payload "
             "— filtre Gate C désactivé (mode legacy)"
@@ -77,6 +88,11 @@ def matrix_participant_bundle_ids(matrix_raw: dict[str, Any]) -> frozenset[str] 
         return None
     mp = matrix_raw.get("matrix_participants")
     if mp is None:
+        if strict:
+            raise BridgeConfigurationError(
+                "bridge_invalid:matrix_participants_required_in_strict_mode — "
+                "matrix_participants is None in payload"
+            )
         logger.warning(
             "[BRIDGE] matrix_participants absent du payload "
             "— filtre Gate C désactivé (mode legacy)"
@@ -292,11 +308,17 @@ class BridgeResult:
 # ── Fonction principale ────────────────────────────────────────────────────────
 
 
-def populate_assessments_from_m14(workspace_id: str) -> BridgeResult:
+def populate_assessments_from_m14(
+    workspace_id: str, *, strict_matrix_participants: bool = False
+) -> BridgeResult:
     """Pré-remplit criterion_assessments depuis evaluation_documents.scores_matrix.
 
     Connexion synchrone via get_connection() (même pattern que m16_backfill).
     Idempotent : appels successifs sans données M14 nouvelles = 0 created/updated.
+
+    :param strict_matrix_participants: Si True, lever BridgeConfigurationError si
+                                      matrix_participants absent/None (requis pipeline_v5).
+                                      Si False (défaut), mode legacy autorisé (autres chemins).
 
     Args:
         workspace_id: UUID (str) du workspace.
@@ -306,10 +328,10 @@ def populate_assessments_from_m14(workspace_id: str) -> BridgeResult:
         d'éléments non mappés (pour debug / rapport).
     """
     with get_connection() as conn:
-        return _run_bridge(conn, workspace_id)
+        return _run_bridge(conn, workspace_id, strict_matrix_participants=strict_matrix_participants)
 
 
-def _run_bridge(conn: Any, workspace_id: str) -> BridgeResult:
+def _run_bridge(conn: Any, workspace_id: str, *, strict_matrix_participants: bool = False) -> BridgeResult:
     """Exécute le bridge dans une connexion déjà ouverte (testable)."""
 
     # ── 1. Résolution tenant ───────────────────────────────────────────────
@@ -354,7 +376,7 @@ def _run_bridge(conn: Any, workspace_id: str) -> BridgeResult:
         )
         return result
 
-    matrix_allow = matrix_participant_bundle_ids(matrix_raw)
+    matrix_allow = matrix_participant_bundle_ids(matrix_raw, strict=strict_matrix_participants)
     if matrix_raw.get("matrix_participants") == []:
         logger.warning(
             "[BRIDGE] matrix_participants vide — "

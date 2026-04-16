@@ -43,6 +43,44 @@ def test_gate_a_sci_bare_maps_sci() -> None:
     assert procurement_framework_from_tenant_code("sci") == ProcurementFramework.SCI
 
 
+def test_framework_resolution_sci_variants() -> None:
+    assert procurement_framework_from_tenant_code("sci") == ProcurementFramework.SCI
+    assert (
+        procurement_framework_from_tenant_code("sci_mali") == ProcurementFramework.SCI
+    )
+    assert (
+        procurement_framework_from_tenant_code("sci_niger") == ProcurementFramework.SCI
+    )
+    assert (
+        procurement_framework_from_tenant_code("SCI_MALI") == ProcurementFramework.SCI
+    )
+
+
+def test_framework_resolution_unknown_fallback() -> None:
+    assert (
+        procurement_framework_from_tenant_code("unknown_org")
+        == ProcurementFramework.UNKNOWN
+    )
+    assert procurement_framework_from_tenant_code("") == ProcurementFramework.UNKNOWN
+    assert procurement_framework_from_tenant_code(None) == ProcurementFramework.UNKNOWN
+
+
+def test_framework_resolution_never_dgmp_for_sci() -> None:
+    result = procurement_framework_from_tenant_code("sci_mali")
+    assert result != ProcurementFramework.DGMP_MALI
+
+
+def test_gate_a_dgmp_tenant_code_maps_dgmp_mali() -> None:
+    assert (
+        procurement_framework_from_tenant_code("dgmp_mali")
+        == ProcurementFramework.DGMP_MALI
+    )
+    assert (
+        procurement_framework_from_tenant_code("mali_gov_procurement")
+        == ProcurementFramework.DGMP_MALI
+    )
+
+
 def test_gate_a_unknown_tenant_no_dgmp_fallback() -> None:
     assert (
         procurement_framework_from_tenant_code("acme_corp")

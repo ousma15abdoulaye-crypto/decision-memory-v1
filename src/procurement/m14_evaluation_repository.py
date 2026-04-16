@@ -8,6 +8,7 @@ RLS tenant_scoped via cases (chemins legacy) / workspace.
 from __future__ import annotations
 
 import logging
+import re
 import uuid as uuid_mod
 from typing import Any
 
@@ -20,6 +21,63 @@ logger = logging.getLogger(__name__)
 
 _MAX_INSERT_RETRIES = 5
 
+_DAO_CRITERION_KEY_UUID = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+
+
+def sanitize_scores_matrix_to_dao_criterion_keys(
+    matrix: dict[str, dict[str, Any]],
+    allowed_dao_ids: frozenset[str],
+) -> dict[str, dict[str, Any]]:
+    """Ne conserve que les clés critère présentes dans ``dao_criteria.id`` (UUID)."""
+    out: dict[str, dict[str, Any]] = {}
+    for bid, per in matrix.items():
+        if not isinstance(per, dict):
+            continue
+        cleaned: dict[str, Any] = {}
+        for key, cell in per.items():
+            ks = str(key).strip()
+            if ks in allowed_dao_ids and _DAO_CRITERION_KEY_UUID.match(ks):
+                cleaned[ks] = cell
+            else:
+                logger.warning("[M14] clé inconnue ignorée : %s", key)
+        if cleaned:
+            out[str(bid)] = cleaned
+    return out
+
+
+def _load_dao_workspace_scoring_maps(
+    workspace_id: str,
+) -> tuple[frozenset[str], dict[str, str]]:
+    """``(ids dao_criteria, norm(critere_nom) -> id)`` pour résolution scores_matrix."""
+    with get_connection() as conn:
+        rows = db_fetchall(
+            conn,
+            """
+            SELECT id::text AS id, critere_nom
+            FROM dao_criteria
+            WHERE workspace_id = CAST(:wid AS uuid)
+            """,
+            {"wid": workspace_id},
+        )
+    allowed = frozenset(
+        str(r["id"]).strip()
+        for r in rows
+        if r.get("id") and _DAO_CRITERION_KEY_UUID.match(str(r["id"]).strip())
+    )
+    name_map: dict[str, str] = {}
+    for r in rows:
+        cid = str(r.get("id") or "").strip()
+        if not cid or not _DAO_CRITERION_KEY_UUID.match(cid):
+            continue
+        name_map[cid.lower()] = cid
+        nom = str(r.get("critere_nom") or "").strip()
+        if nom:
+            name_map[nom.lower()] = cid
+    return allowed, name_map
+
 
 def _is_rls_denied(exc: BaseException) -> bool:
     msg = str(exc).lower()
@@ -28,13 +86,16 @@ def _is_rls_denied(exc: BaseException) -> bool:
 
 def _build_assessment_matrix_from_report(
     payload: dict[str, Any],
+    *,
+    norm_name_to_id: dict[str, str] | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Transforme EvaluationReport en matrice bundle×critère pour M16 bridge.
 
     Format sortie: {bundle_id: {criterion_key: {score, confidence, justification}}}
 
-    Cette matrice est exploitable par populate_assessments_from_m14() qui attend
-    une structure {bundle_id: {criterion_key: cell_data}}.
+    Si ``norm_name_to_id`` est fourni (persist pipeline), les clés techniques sont
+    des ``dao_criteria.id`` ; l'éligibilité / prix ne sont pas injectés dans la
+    matrice persistée (clés non-UUID).
     """
     matrix: dict[str, dict[str, Any]] = {}
 
@@ -58,14 +119,34 @@ def _build_assessment_matrix_from_report(
                 if not isinstance(crit, dict):
                     continue
 
-                crit_name = str(crit.get("criteria_name", "unknown"))
+                crit_name = str(crit.get("criteria_name", "unknown")).strip()
                 awarded = crit.get("awarded_score")
                 max_score = crit.get("max_score")
                 justif = crit.get("justification", "")
                 conf = crit.get("confidence", 0.6)
 
-                # Construction cell_json compatible M16
-                bundle_matrix[crit_name] = {
+                if norm_name_to_id is not None:
+                    nid = norm_name_to_id.get(crit_name.lower())
+                    if nid is None and _DAO_CRITERION_KEY_UUID.match(crit_name):
+                        nid = next(
+                            (
+                                v
+                                for v in norm_name_to_id.values()
+                                if v.lower() == crit_name.lower()
+                            ),
+                            None,
+                        )
+                    if nid is None:
+                        logger.warning(
+                            "[M14] criteria_name non résolu vers dao_criteria.id : %s",
+                            crit_name,
+                        )
+                        continue
+                    ckey = nid
+                else:
+                    ckey = crit_name
+
+                bundle_matrix[ckey] = {
                     "score": awarded,
                     "max_score": max_score,
                     "justification": justif,
@@ -73,50 +154,49 @@ def _build_assessment_matrix_from_report(
                     "source": "m14",
                 }
 
-        # Extraction éligibilité (peut devenir critère éliminatoire)
-        eligibility = offer.get("eligibility_results") or []
-        for check in eligibility:
-            if not isinstance(check, dict):
-                continue
-            if not check.get("is_eliminatory"):
-                continue
+        if norm_name_to_id is None:
+            # Extraction éligibilité (peut devenir critère éliminatoire)
+            eligibility = offer.get("eligibility_results") or []
+            for check in eligibility:
+                if not isinstance(check, dict):
+                    continue
+                if not check.get("is_eliminatory"):
+                    continue
 
-            check_id = str(check.get("check_id", ""))
-            check_name = str(check.get("check_name", "eligibility"))
-            result = check.get("result", "INDETERMINATE")
-            conf = check.get("confidence", 0.6)
+                check_id = str(check.get("check_id", ""))
+                check_name = str(check.get("check_name", "eligibility"))
+                result = check.get("result", "INDETERMINATE")
+                conf = check.get("confidence", 0.6)
 
-            # Score binaire : PASS=1, FAIL=0, autre=0.5
-            if result == "PASS":
-                score_val = 1.0
-            elif result == "FAIL":
-                score_val = 0.0
-            else:
-                score_val = 0.5
+                if result == "PASS":
+                    score_val = 1.0
+                elif result == "FAIL":
+                    score_val = 0.0
+                else:
+                    score_val = 0.5
 
-            key = check_id if check_id else check_name
-            bundle_matrix[key] = {
-                "score": score_val,
-                "max_score": 1.0,
-                "justification": f"Eligibility: {result}",
-                "confidence": conf,
-                "source": "m14",
-                "check_type": "eligibility",
-            }
-
-        # Extraction analyse prix (optionnel)
-        price_analysis = offer.get("price_analysis")
-        if isinstance(price_analysis, dict):
-            total_price = price_analysis.get("total_price_declared")
-            if total_price is not None:
-                bundle_matrix["price_total"] = {
-                    "score": total_price,
-                    "max_score": None,
-                    "justification": f"Currency: {price_analysis.get('currency', 'unknown')}",
-                    "confidence": price_analysis.get("confidence", 0.6),
+                key = check_id if check_id else check_name
+                bundle_matrix[key] = {
+                    "score": score_val,
+                    "max_score": 1.0,
+                    "justification": f"Eligibility: {result}",
+                    "confidence": conf,
                     "source": "m14",
-                    "check_type": "price",
+                    "check_type": "eligibility",
                 }
+
+            price_analysis = offer.get("price_analysis")
+            if isinstance(price_analysis, dict):
+                total_price = price_analysis.get("total_price_declared")
+                if total_price is not None:
+                    bundle_matrix["price_total"] = {
+                        "score": total_price,
+                        "max_score": None,
+                        "justification": f"Currency: {price_analysis.get('currency', 'unknown')}",
+                        "confidence": price_analysis.get("confidence", 0.6),
+                        "source": "m14",
+                        "check_type": "price",
+                    }
 
         if bundle_matrix:
             matrix[bundle_id] = bundle_matrix
@@ -289,11 +369,23 @@ class M14EvaluationRepository:
             )
             return None
 
-        # FIX M16 BRIDGE: Transformer payload en assessment_matrix exploitable
-        assessment_matrix = _build_assessment_matrix_from_report(payload)
+        allowed_ids, norm_name_to_id = _load_dao_workspace_scoring_maps(workspace_id)
+        assessment_matrix = _build_assessment_matrix_from_report(
+            payload, norm_name_to_id=norm_name_to_id
+        )
         assessment_matrix = _apply_scores_matrix_dao_fallback(
             workspace_id, assessment_matrix, payload
         )
+        assessment_matrix = sanitize_scores_matrix_to_dao_criterion_keys(
+            assessment_matrix, allowed_ids
+        )
+
+        # Phase 1 Gate B/C metadata preservation (CTO D-06 mandat 2026-04-16)
+        # Preserve matrix_participants + excluded_from_matrix in scores_matrix for bridge strict mode
+        if "matrix_participants" in payload:
+            assessment_matrix["matrix_participants"] = payload["matrix_participants"]
+        if "excluded_from_matrix" in payload:
+            assessment_matrix["excluded_from_matrix"] = payload["excluded_from_matrix"]
 
         for attempt in range(_MAX_INSERT_RETRIES):
             try:
