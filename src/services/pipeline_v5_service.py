@@ -62,7 +62,12 @@ from src.procurement.procedure_models import (
     ScoringStructureDetected,
     TracedField,
 )
-from src.services.m14_bridge import populate_assessments_from_m14
+from src.services.m14_bridge import (
+    PipelineError as BridgePipelineError,
+)
+from src.services.m14_bridge import (
+    populate_assessments_from_m14,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1296,9 +1301,16 @@ def run_pipeline_v5(
 
     try:
         bridge = populate_assessments_from_m14(
-            workspace_id, strict_matrix_participants=True
+            workspace_id,
+            strict_matrix_participants=True,
+            strict_uuid=True,
         )
         out.step_5_assessments_created = bridge.created + bridge.updated
+    except BridgePipelineError as bridge_err:
+        # D-004B — m14_bridge.PipelineError (alias: conflit avec PipelineError
+        # local pipeline_v5, L79).
+        logger.error("bridge_pipeline_error: %s", bridge_err)
+        raise
     except Exception as exc:
         logger.exception("[PIPELINE-V5] bridge M14→M16: %s", exc)
         out.error = f"bridge_failed:{exc}"[:500]

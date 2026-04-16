@@ -26,6 +26,19 @@ _DAO_CRITERION_KEY_UUID = re.compile(
     re.IGNORECASE,
 )
 
+_D004_DGMP_PREFIX = re.compile(r"^dgmp[%_:]", re.IGNORECASE)
+
+
+def _d004_excluded_scoring_key_shape(key: str) -> bool:
+    """Motifs interdits sur le scoring path avant INSERT (D-004, aligné m14_bridge)."""
+    ks = str(key).strip()
+    low = ks.lower()
+    if low.startswith("m14:eligibility:") or low.startswith("m14:compliance:"):
+        return True
+    if _D004_DGMP_PREFIX.match(low):
+        return True
+    return False
+
 
 def sanitize_scores_matrix_to_dao_criterion_keys(
     matrix: dict[str, dict[str, Any]],
@@ -39,6 +52,9 @@ def sanitize_scores_matrix_to_dao_criterion_keys(
         cleaned: dict[str, Any] = {}
         for key, cell in per.items():
             ks = str(key).strip()
+            if _d004_excluded_scoring_key_shape(ks):
+                logger.warning("[M14] clé scoring exclue (D-004) ignorée : %s", key)
+                continue
             if ks in allowed_dao_ids and _DAO_CRITERION_KEY_UUID.match(ks):
                 cleaned[ks] = cell
             else:
