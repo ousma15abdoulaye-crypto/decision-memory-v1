@@ -31,6 +31,8 @@ from __future__ import annotations
 
 import logging
 import re
+import uuid as uuid_mod
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -58,10 +60,109 @@ _FORBIDDEN_KEYS: frozenset[str] = frozenset(
         "weighted_scores",
     }
 )
+_FORBIDDEN_KEYS_LOWER: frozenset[str] = frozenset(x.lower() for x in _FORBIDDEN_KEYS)
 
 
 class BridgeConfigurationError(Exception):
     """Payload bridge M14 invalide (Gate C)."""
+
+
+class PipelineError(RuntimeError):
+    """Fail-fast bridge D-004 (strict_uuid) — matrice scorable sans clé DAO canonique."""
+
+
+_D004_DGMP_PREFIX = re.compile(r"^dgmp[%_:]", re.IGNORECASE)
+
+
+def matches_d004_excluded_scoring_pattern(criterion_key: str) -> bool:
+    """Préfixes interdits sur le scoring path (mandat D-004 Règle 3)."""
+    ck = (criterion_key or "").strip()
+    if not ck:
+        return True
+    low = ck.lower()
+    if low.startswith("m14:eligibility:") or low.startswith("m14:compliance:"):
+        return True
+    if _D004_DGMP_PREFIX.match(low):
+        return True
+    return False
+
+
+def _dao_uuid_index(dao_crit_ids: frozenset[str]) -> dict[uuid_mod.UUID, str]:
+    """UUID normalisé → ``dao_criteria.id`` tel que stocké dans ``dao_crit_ids``."""
+    out: dict[uuid_mod.UUID, str] = {}
+    for did in dao_crit_ids:
+        try:
+            out[uuid_mod.UUID(str(did))] = str(did)
+        except ValueError:
+            continue
+    return out
+
+
+def resolve_strict_scoring_criterion_key(
+    criterion_key: str,
+    dao_crit_ids: frozenset[str],
+    *,
+    uuid_index: dict[uuid_mod.UUID, str] | None = None,
+) -> str | None:
+    """Résout ``criterion_key`` vers un ``dao_criteria.id`` du workspace (toute variante UUID).
+
+    Retourne l'identifiant texte tel que présent dans ``dao_crit_ids`` si match,
+    sinon ``None`` (clé non canonique).
+    """
+    ck = (criterion_key or "").strip()
+    if not ck:
+        return None
+    if ck in _FORBIDDEN_KEYS or ck.lower() in _FORBIDDEN_KEYS_LOWER:
+        return None
+    if scoring_criterion_key_is_forbidden(ck):
+        return None
+    if matches_d004_excluded_scoring_pattern(ck):
+        return None
+    try:
+        parsed = uuid_mod.UUID(ck)
+    except ValueError:
+        return None
+    idx = uuid_index if uuid_index is not None else _dao_uuid_index(dao_crit_ids)
+    return idx.get(parsed)
+
+
+def assert_scorable_bundles_have_at_least_one_canonical_key(
+    matrix: dict[str, Any],
+    *,
+    matrix_allow: frozenset[str],
+    dao_crit_ids: frozenset[str],
+) -> None:
+    """Lève ``PipelineError`` si un bundle scorable n'a aucune clé résoluble en DAO."""
+    uuid_index = _dao_uuid_index(dao_crit_ids)
+    for bid in matrix_allow:
+        if bid not in matrix:
+            raise PipelineError(
+                "bridge_strict_uuid:bundle_fail_fast — "
+                f"bundle {bid} in matrix_participants but absent from scores_matrix"
+            )
+        per = matrix.get(bid)
+        if not isinstance(per, dict):
+            raise PipelineError(
+                "bridge_strict_uuid:bundle_fail_fast — "
+                f"bundle {bid} has invalid scores_matrix entry (not a dict)"
+            )
+        if not per:
+            raise PipelineError(
+                "bridge_strict_uuid:bundle_fail_fast — "
+                f"bundle {bid} has empty scoring dict in scores_matrix"
+            )
+        if any(
+            resolve_strict_scoring_criterion_key(
+                str(k), dao_crit_ids, uuid_index=uuid_index
+            )
+            for k in per
+        ):
+            continue
+        raise PipelineError(
+            "bridge_strict_uuid:bundle_fail_fast — "
+            f"bundle {bid} has {len(per)} scoring cell(s) but zero "
+            "criterion_key resolves to dao_criteria.id for this workspace"
+        )
 
 
 def matrix_participant_bundle_ids(
@@ -116,7 +217,7 @@ def scoring_criterion_key_is_forbidden(criterion_key: str) -> bool:
     if not ck:
         return True
     low = ck.lower()
-    if ck in _FORBIDDEN_KEYS or low in {x.lower() for x in _FORBIDDEN_KEYS}:
+    if ck in _FORBIDDEN_KEYS or low in _FORBIDDEN_KEYS_LOWER:
         return True
     if low.startswith("m14:eligibility:") or low.startswith("m14:compliance:"):
         return True
@@ -300,6 +401,8 @@ class BridgeResult:
     deleted_stale_rows: int = 0
     skipped_invalid_key: int = 0
     skipped_not_matrix_participant: int = 0
+    rejected_noncanonical_keys: int = 0
+    structured_warnings: list[str] = field(default_factory=list)
     unmapped_bundles: list[str] = field(default_factory=list)
     unmapped_criteria: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
@@ -309,7 +412,10 @@ class BridgeResult:
 
 
 def populate_assessments_from_m14(
-    workspace_id: str, *, strict_matrix_participants: bool = False
+    workspace_id: str,
+    *,
+    strict_matrix_participants: bool = False,
+    strict_uuid: bool = False,
 ) -> BridgeResult:
     """Pré-remplit criterion_assessments depuis evaluation_documents.scores_matrix.
 
@@ -319,6 +425,9 @@ def populate_assessments_from_m14(
     :param strict_matrix_participants: Si True, lever BridgeConfigurationError si
                                       matrix_participants absent/None (requis pipeline_v5).
                                       Si False (défaut), mode legacy autorisé (autres chemins).
+    :param strict_uuid: Si True (pipeline_v5 uniquement), n'insère que des clés
+                        ``dao_criteria.id`` résolues ; compteur
+                        ``rejected_noncanonical_keys`` ; fail-fast bundle si besoin.
 
     Args:
         workspace_id: UUID (str) du workspace.
@@ -329,12 +438,19 @@ def populate_assessments_from_m14(
     """
     with get_connection() as conn:
         return _run_bridge(
-            conn, workspace_id, strict_matrix_participants=strict_matrix_participants
+            conn,
+            workspace_id,
+            strict_matrix_participants=strict_matrix_participants,
+            strict_uuid=strict_uuid,
         )
 
 
 def _run_bridge(
-    conn: Any, workspace_id: str, *, strict_matrix_participants: bool = False
+    conn: Any,
+    workspace_id: str,
+    *,
+    strict_matrix_participants: bool = False,
+    strict_uuid: bool = False,
 ) -> BridgeResult:
     """Exécute le bridge dans une connexion déjà ouverte (testable)."""
 
@@ -432,9 +548,16 @@ def _run_bridge(
     # ── 4. Boucle sur la matrice ──────────────────────────────────────────
     unmapped_bundles: list[str] = []
     unmapped_criteria: list[str] = []
+    strict_bundle_rejected: dict[str, int] = defaultdict(int)
+    strict_bundle_canonical_ok: dict[str, int] = defaultdict(int)
+    strict_uuid_index: dict[uuid_mod.UUID, str] | None = (
+        _dao_uuid_index(dao_crit_ids) if strict_uuid else None
+    )
 
     for bundle_key, per_bundle in matrix.items():
         bid = str(bundle_key)
+        if bid in ("matrix_participants", "excluded_from_matrix"):
+            continue
         if bid not in bundle_ids:
             unmapped_bundles.append(bid)
             continue
@@ -447,35 +570,68 @@ def _run_bridge(
         for ck, cell_raw in per_bundle.items():
             criterion_key = str(ck)
             if criterion_key in _FORBIDDEN_KEYS:
-                continue
-            if scoring_criterion_key_is_forbidden(criterion_key):
-                result.skipped_invalid_key += 1
+                if strict_uuid:
+                    result.rejected_noncanonical_keys += 1
+                    strict_bundle_rejected[bid] += 1
                 continue
 
-            # Construit cell_json enrichi du tag source M14
-            if isinstance(cell_raw, dict):
-                cell_obj: dict[str, Any] = {**cell_raw}
-            else:
-                cell_obj = {"value": cell_raw}
-            cell_obj.setdefault("source", "m14")
-            cell_obj.setdefault("m14_original", True)
-
-            # Résolution criterion_key → dao_criteria.id
-            dao_id: str | None = (
-                criterion_key if criterion_key in dao_crit_ids else None
-            )
-            if dao_id is None:
-                result.skipped_invalid_key += 1
-                if _UUID_CRIT.match(criterion_key):
-                    unmapped_criteria.append(criterion_key)
-                logger.info(
-                    "[M14-BRIDGE] skip sans dao_criterion_id workspace=%s bundle=%s "
-                    "criterion_key=%s",
-                    workspace_id,
-                    bid,
+            if strict_uuid:
+                canon_dao = resolve_strict_scoring_criterion_key(
                     criterion_key,
+                    dao_crit_ids,
+                    uuid_index=strict_uuid_index,
                 )
-                continue
+                if canon_dao is None:
+                    result.rejected_noncanonical_keys += 1
+                    strict_bundle_rejected[bid] += 1
+                    if _UUID_CRIT.match(criterion_key):
+                        unmapped_criteria.append(criterion_key)
+                    logger.debug(
+                        "[M14-BRIDGE] strict_uuid skip non-canonique workspace=%s "
+                        "bundle=%s criterion_key=%s",
+                        workspace_id,
+                        bid,
+                        criterion_key,
+                    )
+                    continue
+                criterion_key = canon_dao
+                dao_id: str | None = canon_dao
+                strict_bundle_canonical_ok[bid] += 1
+            else:
+                if scoring_criterion_key_is_forbidden(criterion_key):
+                    result.skipped_invalid_key += 1
+                    continue
+
+                # Construit cell_json enrichi du tag source M14
+                if isinstance(cell_raw, dict):
+                    cell_obj: dict[str, Any] = {**cell_raw}
+                else:
+                    cell_obj = {"value": cell_raw}
+                cell_obj.setdefault("source", "m14")
+                cell_obj.setdefault("m14_original", True)
+
+                # Résolution criterion_key → dao_criteria.id
+                dao_id = criterion_key if criterion_key in dao_crit_ids else None
+                if dao_id is None:
+                    result.skipped_invalid_key += 1
+                    if _UUID_CRIT.match(criterion_key):
+                        unmapped_criteria.append(criterion_key)
+                    logger.info(
+                        "[M14-BRIDGE] skip sans dao_criterion_id workspace=%s bundle=%s "
+                        "criterion_key=%s",
+                        workspace_id,
+                        bid,
+                        criterion_key,
+                    )
+                    continue
+
+            if strict_uuid:
+                if isinstance(cell_raw, dict):
+                    cell_obj = {**cell_raw}
+                else:
+                    cell_obj = {"value": cell_raw}
+                cell_obj.setdefault("source", "m14")
+                cell_obj.setdefault("m14_original", True)
 
             try:
                 op = _upsert_assessment(
@@ -499,13 +655,32 @@ def _run_bridge(
                 logger.warning("[M14-BRIDGE] Erreur upsert %s", msg)
                 result.errors.append(msg)
 
+    if strict_uuid and matrix_allow is not None:
+        assert_scorable_bundles_have_at_least_one_canonical_key(
+            matrix,
+            matrix_allow=matrix_allow,
+            dao_crit_ids=dao_crit_ids,
+        )
+        for bid in matrix_allow:
+            rej = strict_bundle_rejected.get(bid, 0)
+            ok = strict_bundle_canonical_ok.get(bid, 0)
+            if rej > 0 and ok > 0:
+                total = rej + ok
+                warn = (
+                    f"bridge_strict_uuid:{rej}/{total} criterion_keys non "
+                    f"canoniques ignorées — bundle {bid}"
+                )
+                result.structured_warnings.append(warn)
+                logger.warning("[M14-BRIDGE] %s", warn)
+
     result.unmapped_bundles = list(dict.fromkeys(unmapped_bundles))
     result.unmapped_criteria = list(dict.fromkeys(unmapped_criteria))
 
     logger.info(
         "[M14-BRIDGE] workspace=%s eval_doc=%s → created=%d updated=%d "
         "skipped=%d deleted_stale=%d skipped_invalid_key=%d "
-        "skipped_not_matrix=%d unmapped_bundles=%d unmapped_crit=%d",
+        "skipped_not_matrix=%d rejected_noncanonical=%d "
+        "unmapped_bundles=%d unmapped_crit=%d",
         workspace_id,
         eval_doc_id,
         result.created,
@@ -514,6 +689,7 @@ def _run_bridge(
         result.deleted_stale_rows,
         result.skipped_invalid_key,
         result.skipped_not_matrix_participant,
+        result.rejected_noncanonical_keys,
         len(result.unmapped_bundles),
         len(result.unmapped_criteria),
     )
