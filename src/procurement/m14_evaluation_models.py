@@ -31,6 +31,19 @@ DAO_CRITERION_ID_UUID_RE = re.compile(
 )
 
 
+def _ponderation_coherence_from_totals(
+    total_w: float, *, has_criteria: bool
+) -> Literal["OK", "INCOHERENT", "INCOMPLETE", "NOT_FOUND"]:
+    """Cohérence des pondérations DAO (aligné extract_scoring_structure / revue Copilot)."""
+    if not has_criteria:
+        return "NOT_FOUND"
+    if abs(total_w - 100.0) <= 0.01:
+        return "OK"
+    if total_w > 0.0:
+        return "INCOMPLETE"
+    return "INCOHERENT"
+
+
 def scoring_structure_detected_from_dao_criteria_rows(
     rows: list[dict[str, Any]],
 ) -> ScoringStructureDetected:
@@ -57,10 +70,8 @@ def scoring_structure_detected_from_dao_criteria_rows(
                 evidence=", ".join(ev_parts),
             )
         )
-    coherence: Literal["OK", "INCOHERENT", "INCOMPLETE", "NOT_FOUND"] = (
-        "OK" if abs(total_w - 100.0) <= 0.01 else "INCOHERENT"
-    )
-    if coherence != "OK":
+    coherence = _ponderation_coherence_from_totals(total_w, has_criteria=bool(criteria))
+    if coherence not in ("OK", "NOT_FOUND"):
         logger.warning(
             "[M14] dao_criteria ponderation sum=%s (attendu ~100.0) — %s",
             total_w,
@@ -109,10 +120,8 @@ def m14_h2_scoring_structure_dict_from_dao_criteria_rows(
                 "awarded_score": None,
             }
         )
-    coherence: Literal["OK", "INCOHERENT", "INCOMPLETE", "NOT_FOUND"] = (
-        "OK" if abs(total_w - 100.0) <= 0.01 else "INCOHERENT"
-    )
-    if coherence != "OK":
+    coherence = _ponderation_coherence_from_totals(total_w, has_criteria=bool(crits))
+    if coherence not in ("OK", "NOT_FOUND"):
         logger.warning(
             "[M14] dao_criteria ponderation sum=%s (attendu ~100.0) — %s",
             total_w,

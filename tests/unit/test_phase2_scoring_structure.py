@@ -138,3 +138,59 @@ def test_scoring_structure_skips_non_uuid_dao_ids() -> None:
     ss = scoring_structure_detected_from_dao_criteria_rows(rows)
     assert len(ss.criteria) == 1
     assert ss.criteria[0].criteria_name == u1
+    assert ss.ponderation_coherence == "OK"
+
+
+def test_scoring_structure_detected_not_found_when_no_uuid_criteria() -> None:
+    rows = [
+        {"id": "not-a-uuid", "critere_nom": "X", "ponderation": 50.0, "famille": "x"},
+    ]
+    ss = scoring_structure_detected_from_dao_criteria_rows(rows)
+    assert ss.criteria == []
+    assert ss.ponderation_coherence == "NOT_FOUND"
+
+
+def test_m14_h2_empty_rows_yields_not_found() -> None:
+    dct = m14_h2_scoring_structure_dict_from_dao_criteria_rows([])
+    assert dct["criteria"] == []
+    assert dct["ponderation_coherence"] == "NOT_FOUND"
+
+
+def test_m14_h2_incomplete_when_weights_sum_not_100() -> None:
+    u1, u2 = str(uuid.uuid4()), str(uuid.uuid4())
+    rows = [
+        {
+            "id": u1,
+            "critere_nom": "A",
+            "ponderation": 40.0,
+            "is_eliminatory": False,
+            "famille": "technical",
+        },
+        {
+            "id": u2,
+            "critere_nom": "B",
+            "ponderation": 30.0,
+            "is_eliminatory": False,
+            "famille": "price",
+        },
+    ]
+    dct = m14_h2_scoring_structure_dict_from_dao_criteria_rows(rows)
+    assert len(dct["criteria"]) == 2
+    assert dct["ponderation_coherence"] == "INCOMPLETE"
+    assert abs(float(dct["total_weight"]) - 70.0) <= 0.01
+
+
+def test_m14_h2_incoherent_when_criteria_but_zero_total_weight() -> None:
+    u1 = str(uuid.uuid4())
+    rows = [
+        {
+            "id": u1,
+            "critere_nom": "Zero",
+            "ponderation": 0.0,
+            "is_eliminatory": False,
+            "famille": "technical",
+        },
+    ]
+    dct = m14_h2_scoring_structure_dict_from_dao_criteria_rows(rows)
+    assert len(dct["criteria"]) == 1
+    assert dct["ponderation_coherence"] == "INCOHERENT"
