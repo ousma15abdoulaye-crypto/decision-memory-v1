@@ -130,6 +130,9 @@ class PipelineV5Result(BaseModel):
     procedure_resolution_status: str | None = None
     gate_b_exclusions: list[dict[str, Any]] = Field(default_factory=list)
     gate_b_m14_bundle_count: int = 0
+    # D-005 — vue canonique additive (regroupement métier) ; ne substitue pas les UUID DAO.
+    merged_criteria: list[dict[str, Any]] = Field(default_factory=list)
+    merged_criteria_warnings: list[str] = Field(default_factory=list)
     # Phase 1 Gate B/C traceability (CTO D-06 + mandat 2026-04-16)
     bundle_status_by_bundle_id: dict[str, str] = Field(default_factory=dict)
     offers_submitted_to_m14: list[str] = Field(default_factory=list)
@@ -1021,7 +1024,8 @@ def run_pipeline_v5(
                 SELECT id::text AS id, critere_nom,
                        COALESCE(ponderation, 0)::float AS ponderation,
                        COALESCE(is_eliminatory, false) AS is_eliminatory,
-                       COALESCE(NULLIF(trim(categorie::text), ''), 'general') AS famille
+                       COALESCE(NULLIF(trim(categorie::text), ''), 'general') AS famille,
+                       created_at
                 FROM dao_criteria
                 WHERE workspace_id = CAST(:wid AS uuid)
                 ORDER BY categorie NULLS LAST, ponderation DESC NULLS LAST, id::text
@@ -1081,6 +1085,13 @@ def run_pipeline_v5(
         out.duration_seconds = time.perf_counter() - t0
         logger.exception("[PIPELINE-V5] fatal: %s", exc)
         return out
+
+    from src.procurement.merged_criteria import build_merged_criteria_result
+
+    mc_res = build_merged_criteria_result(dao_criteria_rows)
+    ser = mc_res.to_serializable()
+    out.merged_criteria = ser.get("merged", [])
+    out.merged_criteria_warnings = ser.get("warnings", [])
 
     scoring_detected = scoring_structure_detected_from_dao_criteria_rows(
         dao_criteria_rows
