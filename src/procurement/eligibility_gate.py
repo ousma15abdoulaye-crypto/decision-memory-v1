@@ -230,11 +230,11 @@ def _evaluate_leaf(
             vendor_id=vendor.vendor_id,
             result_internal=RESULT_INTERNAL_FAIL_CONFIRMED,
             result_display=RESULT_DISPLAY_FAIL,
-            proof_level=PROOF_DECLARATION_ONLY,
+            proof_level=PROOF_VERIFIED_EXTERNALLY,
             evidence_found=[],
             evidence_label=None,
             detection_method=DETECTION_AUTO,
-            confidence=CONFIDENCE_AUTO_DOCUMENTED,
+            confidence=1.0,
             recommended_action=ACTION_EXCLUDE_CONFIRM,
             decision_trace_id=trace_id,
             fail_reason="Bundle Gate B INTERNAL/REFERENCE/UNUSABLE",
@@ -255,7 +255,7 @@ def _evaluate_leaf(
             contradictions=[],
             decision_rule=rule,
             decision_result=RESULT_INTERNAL_FAIL_CONFIRMED,
-            confidence=CONFIDENCE_AUTO_DOCUMENTED,
+            confidence=1.0,
         )
         return res, trace
 
@@ -780,6 +780,7 @@ def _priority_score_for_vendor(
     vendor: VendorGateInput,
     by_id: dict[str, EssentialCriterionResult],
     traces: dict[str, GateDecisionTrace],
+    criterion_by_id: dict[str, EssentialCriterion],
 ) -> tuple[int, list[str]]:
     score = PRIORITY_BASE
     reasons: list[str] = []
@@ -807,8 +808,11 @@ def _priority_score_for_vendor(
         reasons.append("pass_or_pending_weak_documentary_strength_LOW")
     if vendor.is_important_vendor:
         for r in by_id.values():
+            crit_def = criterion_by_id.get(r.criterion_id)
             if (
                 r.criterion_id != "sci_q5"
+                and crit_def is not None
+                and crit_def.gate_severity == "BLOCKING"
                 and r.result_internal == RESULT_INTERNAL_PASS_DECLARED
                 and r.detection_method == DETECTION_DECLARED_ONLY
             ):
@@ -840,10 +844,8 @@ def evaluate_vendor(
     q5_children = [c for c in leaves if c.parent_id == "sci_q5"]
     other_leaves = [c for c in leaves if c.parent_id != "sci_q5"]
     traces: dict[str, GateDecisionTrace] = {}
-    bundle_blocked = (
-        vendor.bundle_gate_b_status is not None
-        and vendor.bundle_gate_b_status.upper() in NON_SCORABLE_GATE_B_STATUSES
-    )
+    bstat_eval = (vendor.bundle_gate_b_status or "").strip().upper()
+    bundle_blocked = bstat_eval in NON_SCORABLE_GATE_B_STATUSES
     force_ns = not vendor.has_exploitable_documents
     results: dict[str, EssentialCriterionResult] = {}
     for crit in other_leaves:
@@ -888,7 +890,7 @@ def _verdict_from_detail(
 ) -> EligibilityVerdict:
     by_cid = {c.criterion_id: c for c in criteria}
     leaves = [c.criterion_id for c in criteria if not c.is_parent]
-    has_q5_aggregate = any(c.criterion_id == "sci_q5" for c in criteria)
+    has_q5_aggregate = "sci_q5" in detail.criterion_results
     leaves_plus = [*leaves, "sci_q5"] if has_q5_aggregate else list(leaves)
     blocking_ids = _blocking_leaf_ids(criteria)
     auto_v, human_v, total, vratio, bratio = _compute_coverage(
@@ -982,7 +984,11 @@ def _verdict_from_detail(
         locked=False,
     )
     ps, pr = _priority_score_for_vendor(
-        verdict, vendor, detail.criterion_results, detail.traces_by_id
+        verdict,
+        vendor,
+        detail.criterion_results,
+        detail.traces_by_id,
+        by_cid,
     )
     if any(
         r.committee_override and r.result_internal == RESULT_INTERNAL_PASS_CONFIRMED
@@ -1094,15 +1100,15 @@ def require_eligible_vendors_or_raise(gate_output: GateOutput) -> None:
 
 
 def null_scores_for_ineligible(verdict: EligibilityVerdict) -> dict[str, object]:
-    """Règle anti-#DIV/0! mandat §9 pour vendeurs non éligibles au scoring."""
+    """Règle anti-#DIV/0! mandat §9 pour vendeurs non éligibles au scoring.
+
+    Ne doit être appelée que pour un verdict non éligible (évite d'écraser
+    silencieusement des scores pour un fournisseur autorisé au scoring).
+    """
     if verdict.eligible:
-        return {
-            "score_technique": None,
-            "score_commercial": None,
-            "score_durabilité": None,
-            "total": None,
-            "rang": None,
-        }
+        raise ValueError(
+            "null_scores_for_ineligible() must not be called for an eligible vendor"
+        )
     return {
         "score_technique": None,
         "score_commercial": None,

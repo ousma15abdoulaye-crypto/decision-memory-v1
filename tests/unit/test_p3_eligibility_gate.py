@@ -301,6 +301,27 @@ def test_null_scores_for_excluded_vendors() -> None:
     assert row["rang"] == "EXC"
 
 
+def test_null_scores_rejects_eligible_verdict() -> None:
+    v = VendorGateInput(
+        vendor_id="v1", has_exploitable_documents=True, signal_hits=_all_hits()
+    )
+    out = run_eligibility_gate("ws", "lot1", {"v1": v})
+    with pytest.raises(ValueError, match="eligible"):
+        null_scores_for_ineligible(out.verdicts["v1"])
+
+
+def test_bundle_gate_b_status_trimmed_like_verdict() -> None:
+    v = VendorGateInput(
+        vendor_id="v1",
+        has_exploitable_documents=True,
+        signal_hits=_all_hits(),
+        bundle_gate_b_status="  INTERNAL  ",
+    )
+    det = evaluate_vendor(v, standard_sci_essential_criteria())
+    assert det.criterion_results["sci_q1"].result_internal == "FAIL_CONFIRMED"
+    assert det.criterion_results["sci_q1"].proof_level == "VERIFIED_EXTERNALLY"
+
+
 def test_decision_trace_created_for_auto_detection() -> None:
     v = VendorGateInput(
         vendor_id="v1", has_exploitable_documents=True, signal_hits=_all_hits()
