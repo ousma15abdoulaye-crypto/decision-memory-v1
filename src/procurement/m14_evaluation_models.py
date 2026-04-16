@@ -95,6 +95,9 @@ def m14_h2_scoring_structure_dict_from_dao_criteria_rows(
     métier (criterion_id, libellé, famille, éliminatoire) et les clés attendues par
     ``EvaluationEngine._compute_technical_score`` (``criteria_name`` = UUID DAO,
     ``weight_percent``).
+
+    D-005 : une vue ``MergedCriterion`` additive est calculée en parallèle dans
+    ``pipeline_v5_service`` ; elle ne remplace pas ces clés ni cette grille.
     """
     crits: list[dict[str, Any]] = []
     total_w = 0.0
