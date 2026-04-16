@@ -1309,7 +1309,7 @@ def run_pipeline_v5(
     except BridgePipelineError as bridge_err:
         # D-004B — m14_bridge.PipelineError (alias: conflit avec PipelineError
         # local pipeline_v5, L79).
-        logger.error("bridge_pipeline_error: %s", bridge_err)
+        logger.exception("bridge_pipeline_error: %s", bridge_err)
         raise
     except Exception as exc:
         logger.exception("[PIPELINE-V5] bridge M14→M16: %s", exc)

@@ -60,6 +60,7 @@ _FORBIDDEN_KEYS: frozenset[str] = frozenset(
         "weighted_scores",
     }
 )
+_FORBIDDEN_KEYS_LOWER: frozenset[str] = frozenset(x.lower() for x in _FORBIDDEN_KEYS)
 
 
 class BridgeConfigurationError(Exception):
@@ -86,8 +87,22 @@ def matches_d004_excluded_scoring_pattern(criterion_key: str) -> bool:
     return False
 
 
+def _dao_uuid_index(dao_crit_ids: frozenset[str]) -> dict[uuid_mod.UUID, str]:
+    """UUID normalisé → ``dao_criteria.id`` tel que stocké dans ``dao_crit_ids``."""
+    out: dict[uuid_mod.UUID, str] = {}
+    for did in dao_crit_ids:
+        try:
+            out[uuid_mod.UUID(str(did))] = str(did)
+        except ValueError:
+            continue
+    return out
+
+
 def resolve_strict_scoring_criterion_key(
-    criterion_key: str, dao_crit_ids: frozenset[str]
+    criterion_key: str,
+    dao_crit_ids: frozenset[str],
+    *,
+    uuid_index: dict[uuid_mod.UUID, str] | None = None,
 ) -> str | None:
     """Résout ``criterion_key`` vers un ``dao_criteria.id`` du workspace (toute variante UUID).
 
@@ -97,7 +112,7 @@ def resolve_strict_scoring_criterion_key(
     ck = (criterion_key or "").strip()
     if not ck:
         return None
-    if ck in _FORBIDDEN_KEYS or ck.lower() in {x.lower() for x in _FORBIDDEN_KEYS}:
+    if ck in _FORBIDDEN_KEYS or ck.lower() in _FORBIDDEN_KEYS_LOWER:
         return None
     if scoring_criterion_key_is_forbidden(ck):
         return None
@@ -107,13 +122,8 @@ def resolve_strict_scoring_criterion_key(
         parsed = uuid_mod.UUID(ck)
     except ValueError:
         return None
-    for did in dao_crit_ids:
-        try:
-            if uuid_mod.UUID(str(did)) == parsed:
-                return str(did)
-        except ValueError:
-            continue
-    return None
+    idx = uuid_index if uuid_index is not None else _dao_uuid_index(dao_crit_ids)
+    return idx.get(parsed)
 
 
 def assert_scorable_bundles_have_at_least_one_canonical_key(
@@ -123,6 +133,7 @@ def assert_scorable_bundles_have_at_least_one_canonical_key(
     dao_crit_ids: frozenset[str],
 ) -> None:
     """Lève ``PipelineError`` si un bundle scorable n'a aucune clé résoluble en DAO."""
+    uuid_index = _dao_uuid_index(dao_crit_ids)
     for bid in matrix_allow:
         if bid not in matrix:
             raise PipelineError(
@@ -140,7 +151,12 @@ def assert_scorable_bundles_have_at_least_one_canonical_key(
                 "bridge_strict_uuid:bundle_fail_fast — "
                 f"bundle {bid} has empty scoring dict in scores_matrix"
             )
-        if any(resolve_strict_scoring_criterion_key(str(k), dao_crit_ids) for k in per):
+        if any(
+            resolve_strict_scoring_criterion_key(
+                str(k), dao_crit_ids, uuid_index=uuid_index
+            )
+            for k in per
+        ):
             continue
         raise PipelineError(
             "bridge_strict_uuid:bundle_fail_fast — "
@@ -201,7 +217,7 @@ def scoring_criterion_key_is_forbidden(criterion_key: str) -> bool:
     if not ck:
         return True
     low = ck.lower()
-    if ck in _FORBIDDEN_KEYS or low in {x.lower() for x in _FORBIDDEN_KEYS}:
+    if ck in _FORBIDDEN_KEYS or low in _FORBIDDEN_KEYS_LOWER:
         return True
     if low.startswith("m14:eligibility:") or low.startswith("m14:compliance:"):
         return True
@@ -534,6 +550,9 @@ def _run_bridge(
     unmapped_criteria: list[str] = []
     strict_bundle_rejected: dict[str, int] = defaultdict(int)
     strict_bundle_canonical_ok: dict[str, int] = defaultdict(int)
+    strict_uuid_index: dict[uuid_mod.UUID, str] | None = (
+        _dao_uuid_index(dao_crit_ids) if strict_uuid else None
+    )
 
     for bundle_key, per_bundle in matrix.items():
         bid = str(bundle_key)
@@ -558,14 +577,16 @@ def _run_bridge(
 
             if strict_uuid:
                 canon_dao = resolve_strict_scoring_criterion_key(
-                    criterion_key, dao_crit_ids
+                    criterion_key,
+                    dao_crit_ids,
+                    uuid_index=strict_uuid_index,
                 )
                 if canon_dao is None:
                     result.rejected_noncanonical_keys += 1
                     strict_bundle_rejected[bid] += 1
                     if _UUID_CRIT.match(criterion_key):
                         unmapped_criteria.append(criterion_key)
-                    logger.info(
+                    logger.debug(
                         "[M14-BRIDGE] strict_uuid skip non-canonique workspace=%s "
                         "bundle=%s criterion_key=%s",
                         workspace_id,

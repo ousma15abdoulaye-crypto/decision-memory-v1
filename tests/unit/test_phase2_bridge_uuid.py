@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 import inspect
+import logging
 import uuid
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
+from src.procurement.m14_evaluation_repository import (
+    sanitize_scores_matrix_to_dao_criterion_keys,
+)
 from src.services import m14_bridge
 from src.services.m14_bridge import (
     BridgeResult,
     PipelineError,
+    _dao_uuid_index,
     assert_scorable_bundles_have_at_least_one_canonical_key,
     matches_d004_excluded_scoring_pattern,
     resolve_strict_scoring_criterion_key,
@@ -40,6 +45,62 @@ def test_bridge_preserves_dao_criterion_id_alignment() -> None:
     allowed = frozenset({cid})
     got = resolve_strict_scoring_criterion_key(cid, allowed)
     assert got == cid
+
+
+def test_matches_d004_empty_and_dgmp_prefix_variants() -> None:
+    assert matches_d004_excluded_scoring_pattern("") is True
+    assert matches_d004_excluded_scoring_pattern("   ") is True
+    assert matches_d004_excluded_scoring_pattern("dgmp%x") is True
+    assert matches_d004_excluded_scoring_pattern("DGMP_foo") is True
+    assert matches_d004_excluded_scoring_pattern("dgmp:bar") is True
+    assert matches_d004_excluded_scoring_pattern(str(uuid.uuid4())) is False
+
+
+def test_resolve_uses_uuid_index_when_provided() -> None:
+    cid = str(uuid.uuid4())
+    allowed = frozenset({cid})
+    idx = _dao_uuid_index(allowed)
+    assert (
+        resolve_strict_scoring_criterion_key(cid.upper(), allowed, uuid_index=idx)
+        == cid
+    )
+
+
+def test_resolve_rejects_forbidden_scoring_keys() -> None:
+    allowed = frozenset({str(uuid.uuid4())})
+    assert resolve_strict_scoring_criterion_key("winner", allowed) is None
+    assert resolve_strict_scoring_criterion_key("RANK", allowed) is None
+
+
+def test_assert_scorable_fail_fast_bundle_absent_from_matrix() -> None:
+    b = str(uuid.uuid4())
+    dao = str(uuid.uuid4())
+    with pytest.raises(PipelineError, match="absent from scores_matrix"):
+        assert_scorable_bundles_have_at_least_one_canonical_key(
+            {},
+            matrix_allow=frozenset({b}),
+            dao_crit_ids=frozenset({dao}),
+        )
+
+
+def test_assert_scorable_fail_fast_invalid_bundle_entry() -> None:
+    b, dao = str(uuid.uuid4()), str(uuid.uuid4())
+    with pytest.raises(PipelineError, match="not a dict"):
+        assert_scorable_bundles_have_at_least_one_canonical_key(
+            {b: []},
+            matrix_allow=frozenset({b}),
+            dao_crit_ids=frozenset({dao}),
+        )
+
+
+def test_assert_scorable_fail_fast_empty_scoring_dict() -> None:
+    b, dao = str(uuid.uuid4()), str(uuid.uuid4())
+    with pytest.raises(PipelineError, match="empty scoring dict"):
+        assert_scorable_bundles_have_at_least_one_canonical_key(
+            {b: {}},
+            matrix_allow=frozenset({b}),
+            dao_crit_ids=frozenset({dao}),
+        )
 
 
 def test_bridge_excludes_eligibility_and_compliance_keys() -> None:
@@ -143,3 +204,35 @@ def test_bridge_warning_with_counter_on_partial_rejection(monkeypatch: Any) -> N
     assert len(upserts) == 3
     assert {t[0] for t in upserts} == {dao1, dao2, dao3}
     assert any("2/5" in w and bundle in w for w in result.structured_warnings)
+
+
+def test_sanitize_scores_matrix_d004_strips_excluded_keys(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.WARNING)
+    bid = "bundle-1"
+    cid = str(uuid.uuid4())
+    allowed = frozenset({cid})
+    matrix = {
+        bid: {
+            cid: {"score": 1.0},
+            "m14:eligibility:x": {"score": 0.0},
+            "m14:compliance:y": {"score": 0.0},
+            "dgmp%legacy": {"score": 0.0},
+            "not-a-uuid": {"score": 0.5},
+        }
+    }
+    out = sanitize_scores_matrix_to_dao_criterion_keys(matrix, allowed)
+    assert out == {bid: {cid: {"score": 1.0}}}
+    assert any("D-004" in r.message for r in caplog.records)
+
+
+def test_sanitize_scores_matrix_skips_non_dict_per_bundle() -> None:
+    cid = str(uuid.uuid4())
+    allowed = frozenset({cid})
+    raw: dict[str, Any] = {"b1": "not-a-dict", "b2": {cid: {"score": 1.0}}}
+    out = sanitize_scores_matrix_to_dao_criterion_keys(
+        cast(dict[str, dict[str, Any]], raw),
+        allowed,
+    )
+    assert out == {"b2": {cid: {"score": 1.0}}}
