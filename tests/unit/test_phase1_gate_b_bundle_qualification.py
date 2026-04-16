@@ -162,8 +162,16 @@ def test_gate_b_all_four_fields_persisted_in_out() -> None:
         {"bundle_id": "bundle1", "supplier_name": "Vendor A", "is_eligible": True}
     ]
     out.excluded_from_matrix = [
-        {"bundle_id": "bundle2", "supplier_name": "Internal", "reason": "internal_reference_bundle"},
-        {"bundle_id": "bundle3", "supplier_name": "Reference", "reason": "reference_bundle"},
+        {
+            "bundle_id": "bundle2",
+            "supplier_name": "Internal",
+            "reason": "internal_reference_bundle",
+        },
+        {
+            "bundle_id": "bundle3",
+            "supplier_name": "Reference",
+            "reason": "reference_bundle",
+        },
         {"bundle_id": "bundle4", "supplier_name": "Empty", "reason": "unusable"},
     ]
 

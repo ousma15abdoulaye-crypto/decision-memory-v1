@@ -1276,7 +1276,9 @@ def run_pipeline_v5(
         )
 
     try:
-        bridge = populate_assessments_from_m14(workspace_id, strict_matrix_participants=True)
+        bridge = populate_assessments_from_m14(
+            workspace_id, strict_matrix_participants=True
+        )
         out.step_5_assessments_created = bridge.created + bridge.updated
     except Exception as exc:
         logger.exception("[PIPELINE-V5] bridge M14→M16: %s", exc)

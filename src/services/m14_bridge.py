@@ -328,10 +328,14 @@ def populate_assessments_from_m14(
         d'éléments non mappés (pour debug / rapport).
     """
     with get_connection() as conn:
-        return _run_bridge(conn, workspace_id, strict_matrix_participants=strict_matrix_participants)
+        return _run_bridge(
+            conn, workspace_id, strict_matrix_participants=strict_matrix_participants
+        )
 
 
-def _run_bridge(conn: Any, workspace_id: str, *, strict_matrix_participants: bool = False) -> BridgeResult:
+def _run_bridge(
+    conn: Any, workspace_id: str, *, strict_matrix_participants: bool = False
+) -> BridgeResult:
     """Exécute le bridge dans une connexion déjà ouverte (testable)."""
 
     # ── 1. Résolution tenant ───────────────────────────────────────────────
@@ -376,7 +380,9 @@ def _run_bridge(conn: Any, workspace_id: str, *, strict_matrix_participants: boo
         )
         return result
 
-    matrix_allow = matrix_participant_bundle_ids(matrix_raw, strict=strict_matrix_participants)
+    matrix_allow = matrix_participant_bundle_ids(
+        matrix_raw, strict=strict_matrix_participants
+    )
     if matrix_raw.get("matrix_participants") == []:
         logger.warning(
             "[BRIDGE] matrix_participants vide — "
