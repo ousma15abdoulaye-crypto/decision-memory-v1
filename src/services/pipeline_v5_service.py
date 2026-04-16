@@ -47,6 +47,7 @@ from src.procurement.m14_evaluation_models import (
     M14EvaluationInput,
     ProcessLinkingEntry,
     ProcessLinkingType,
+    m14_h2_scoring_structure_dict_from_dao_criteria_rows,
     scoring_structure_detected_from_dao_criteria_rows,
 )
 from src.procurement.m14_evaluation_repository import M14EvaluationRepository
@@ -72,6 +73,19 @@ class PipelineConfigurationError(RuntimeError):
 
 class PipelineError(RuntimeError):
     """Fail-fast pipeline (prérequis H1 avant M13)."""
+
+
+def _ensure_m14_scoring_structure_for_scorable_offers(
+    offers: list[dict[str, Any]],
+    m14_scoring_h2: dict[str, Any],
+) -> None:
+    """D-003 — pas de scoring implicite vide quand des offres Gate B vont à M14."""
+    if offers and not m14_scoring_h2.get("criteria"):
+        raise PipelineError(
+            "pipeline_invalid:m14_scoring_structure_empty — "
+            "dao_criteria ne produit aucun critère UUID exploitable pour M14 alors "
+            "que des offres scorables sont présentes (Gate B)."
+        )
 
 
 def _require_dao_criteria_for_pipeline(
@@ -1066,6 +1080,9 @@ def run_pipeline_v5(
     scoring_detected = scoring_structure_detected_from_dao_criteria_rows(
         dao_criteria_rows
     )
+    m14_scoring_h2 = m14_h2_scoring_structure_dict_from_dao_criteria_rows(
+        dao_criteria_rows
+    )
     m12_by_bundle = build_pipeline_v5_minimal_m12(
         workspace_id=workspace_id,
         corpus_text=corpus_text,
@@ -1158,11 +1175,13 @@ def run_pipeline_v5(
     out.bundle_status_by_bundle_id = gate_b_status_map
     out.offers_submitted_to_m14 = [o["document_id"] for o in offers]
 
-    h2 = (
-        m12_for_m13.handoffs.atomic_capability_skeleton.model_dump(mode="json")
-        if m12_for_m13.handoffs.atomic_capability_skeleton
-        else {}
-    )
+    _ensure_m14_scoring_structure_for_scorable_offers(offers, m14_scoring_h2)
+
+    h2: dict[str, Any] = {}
+    if m12_for_m13.handoffs.atomic_capability_skeleton is not None:
+        h2 = m12_for_m13.handoffs.atomic_capability_skeleton.model_dump(mode="json")
+    # D-003 : la grille de score M14 vient toujours de dao_criteria (pas M13).
+    h2["scoring_structure"] = m14_scoring_h2
     h3 = (
         m12_for_m13.handoffs.market_context_signal.model_dump(mode="json")
         if m12_for_m13.handoffs.market_context_signal
