@@ -8,12 +8,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.couche_a.extraction.criterion import _OFFER_TYPE_TO_ROLE
 from src.couche_a.extraction.offer_pipeline import extract_offer_content_async
@@ -40,7 +41,14 @@ from src.procurement.m13_regulatory_profile_repository import (
     M13RegulatoryProfileRepository,
 )
 from src.procurement.m14_engine import EvaluationEngine
-from src.procurement.m14_evaluation_models import EvaluationReport, M14EvaluationInput
+from src.procurement.m14_evaluation_models import (
+    DAO_CRITERION_ID_UUID_RE,
+    EvaluationReport,
+    M14EvaluationInput,
+    ProcessLinkingEntry,
+    ProcessLinkingType,
+    scoring_structure_detected_from_dao_criteria_rows,
+)
 from src.procurement.m14_evaluation_repository import M14EvaluationRepository
 from src.procurement.procedure_models import (
     DocumentConformitySignal,
@@ -50,6 +58,7 @@ from src.procurement.procedure_models import (
     M12Output,
     ProcedureRecognition,
     ProcessLinking,
+    ScoringStructureDetected,
     TracedField,
 )
 from src.services.m14_bridge import populate_assessments_from_m14
@@ -57,15 +66,31 @@ from src.services.m14_bridge import populate_assessments_from_m14
 logger = logging.getLogger(__name__)
 
 
-def procurement_framework_from_tenant_code(code: str | None) -> ProcurementFramework:
-    """Résout le cadre hôte M13 à partir de ``tenants.code`` (Gate A — plan directeur).
+class PipelineConfigurationError(RuntimeError):
+    """Configuration workspace / DAO insuffisante pour exécuter le pipeline."""
 
-    Pilote SCI : ``sci_mali`` / ``sci_niger`` / ``sci`` → SCI. Pas de repli silencieux
-    vers DGMP ; tenant non reconnu → ``UNKNOWN`` (FAIL LOUD pipeline).
-    """
+
+class PipelineError(RuntimeError):
+    """Fail-fast pipeline (prérequis H1 avant M13)."""
+
+
+def _require_dao_criteria_for_pipeline(
+    workspace_id: str, dao_criteria_rows: list[dict[str, Any]]
+) -> None:
+    if not dao_criteria_rows:
+        raise PipelineConfigurationError(
+            f"[PIPELINE] workspace {workspace_id} : aucun dao_criteria défini. "
+            "Impossible de scorer. Arrêt."
+        )
+
+
+def procurement_framework_from_tenant_code(code: str | None) -> ProcurementFramework:
+    """Résout le cadre hôte M13 à partir de ``tenants.code`` (Gate A — plan directeur)."""
     c = (code or "").strip().lower()
-    if c in ("sci", "sci_mali", "sci_niger"):
+    if "sci" in c:
         return ProcurementFramework.SCI
+    if "dgmp" in c or "mali_gov" in c:
+        return ProcurementFramework.DGMP_MALI
     return ProcurementFramework.UNKNOWN
 
 
@@ -84,6 +109,13 @@ class PipelineV5Result(BaseModel):
     step_5_assessments_created: int = 0
     duration_seconds: float = 0.0
     procedure_resolution_status: str | None = None
+    gate_b_exclusions: list[dict[str, Any]] = Field(default_factory=list)
+    gate_b_m14_bundle_count: int = 0
+    # Phase 1 Gate B/C traceability (CTO D-06 + mandat 2026-04-16)
+    bundle_status_by_bundle_id: dict[str, str] = Field(default_factory=dict)
+    offers_submitted_to_m14: list[str] = Field(default_factory=list)
+    matrix_participants: list[dict[str, Any]] = Field(default_factory=list)
+    excluded_from_matrix: list[dict[str, Any]] = Field(default_factory=list)
 
 
 def _tf(
@@ -94,18 +126,232 @@ def _tf(
     return TracedField(value=value, confidence=confidence, evidence=evidence or [])
 
 
-def build_pipeline_v5_minimal_m12(
-    *, corpus_text: str, procurement_framework: ProcurementFramework
+def _map_doc_type_str_to_document_kind(doc_type: str | None) -> DocumentKindParent:
+    """Mappe ``bundle_documents.doc_type`` → ``DocumentKindParent`` (D-001)."""
+    s = (doc_type or "").strip().lower()
+    if s in ("offer", "quotation", "vendor_offer"):
+        return DocumentKindParent.OFFER_COMBINED
+    if s == "technical_proposal":
+        return DocumentKindParent.OFFER_TECHNICAL
+    if s == "financial_proposal":
+        return DocumentKindParent.OFFER_FINANCIAL
+    if s == "rfq":
+        return DocumentKindParent.RFQ
+    if s == "dao":
+        return DocumentKindParent.DAO
+    if s == "itb":
+        return DocumentKindParent.ITT
+    if s in ("policy", "internal", "pv", "minutes"):
+        return DocumentKindParent.TDR
+    return DocumentKindParent.UNKNOWN
+
+
+def _map_raw_doc_type_to_scoring_alias(doc_type: str | None) -> str:
+    """Aligne les ``doc_type`` DB sur les libellés attendus par ``classify_bundle_scoring_role``."""
+    s = (doc_type or "").strip().lower()
+    if s in ("offer", "quotation", "vendor_offer"):
+        return "offer_combined"
+    if s == "technical_proposal":
+        return "offer_technical"
+    if s == "financial_proposal":
+        return "offer_financial"
+    if s in ("rfq", "dao"):
+        return s
+    if s == "itb":
+        return "itt"
+    if s in ("policy", "internal", "pv", "minutes"):
+        return "tdr"
+    return "__unclassified__"
+
+
+def _dominant_document_kind(kinds: list[DocumentKindParent]) -> DocumentKindParent:
+    """Type dominant du bundle (offre > technique > …)."""
+    order = (
+        DocumentKindParent.OFFER_COMBINED,
+        DocumentKindParent.OFFER_TECHNICAL,
+        DocumentKindParent.OFFER_FINANCIAL,
+        DocumentKindParent.ITT,
+        DocumentKindParent.DAO,
+        DocumentKindParent.RFQ,
+        DocumentKindParent.TDR,
+        DocumentKindParent.UNKNOWN,
+    )
+    uniq = list(dict.fromkeys(kinds))
+    for k in order:
+        if k in uniq:
+            return k
+    return DocumentKindParent.UNKNOWN
+
+
+def _bundle_scoring_role_for_pipeline(
+    bundle_id: str,
+    vendor_name_raw: str,
+    raw_doc_types: frozenset[str],
+) -> ScoringRole:
+    """ScoringRole par bundle — D-001 + règle UNCLASSIFIED (inclusion par défaut)."""
+    aliases = {
+        _map_raw_doc_type_to_scoring_alias(d)
+        for d in raw_doc_types
+        if (d or "").strip()
+    }
+    unknown_raw = [
+        d
+        for d in raw_doc_types
+        if _map_raw_doc_type_to_scoring_alias(d) == "__unclassified__"
+    ]
+    if unknown_raw:
+        for ur in unknown_raw:
+            logger.warning(
+                "[M12] bundle %s : doc_type inconnu %r → UNCLASSIFIED. "
+                "Inclusion dans matrix_participants par défaut.",
+                bundle_id,
+                ur,
+            )
+    mapped = frozenset(a for a in aliases if a != "__unclassified__")
+    if not mapped:
+        return ScoringRole.SCORABLE
+    has_offer = bool(
+        mapped & frozenset({"offer_technical", "offer_financial", "offer_combined"})
+    )
+    vendor_ok = bool((vendor_name_raw or "").strip()) and (
+        (vendor_name_raw or "").strip().upper() != "ABSENT"
+    )
+    if has_offer and vendor_ok:
+        return ScoringRole.SCORABLE
+    if has_offer and not vendor_ok:
+        return ScoringRole.UNUSABLE
+    solicitation_only = bool(mapped) and mapped <= frozenset({"rfq", "dao", "itt"})
+    if not has_offer and solicitation_only:
+        return ScoringRole.REFERENCE
+    return classify_bundle_scoring_role(
+        vendor_name_raw=vendor_name_raw,
+        doc_types=mapped,
+    )
+
+
+def _load_bundle_documents_grouped(
+    workspace_id: str,
+) -> tuple[dict[str, list[dict[str, Any]]], dict[str, str]]:
+    """``bundle_id`` → documents ; ``bundle_id`` → ``vendor_name_raw``."""
+    with get_connection() as conn:
+        bundles = db_fetchall(
+            conn,
+            """
+            SELECT id::text AS bundle_id, vendor_name_raw
+            FROM supplier_bundles
+            WHERE workspace_id = CAST(:wid AS uuid)
+            ORDER BY bundle_index NULLS LAST, id::text
+            """,
+            {"wid": workspace_id},
+        )
+        docs = db_fetchall(
+            conn,
+            """
+            SELECT bd.id::text AS id, bd.doc_type::text AS doc_type, bd.raw_text,
+                   bd.bundle_id::text AS bundle_id
+            FROM bundle_documents bd
+            WHERE bd.workspace_id = CAST(:wid AS uuid)
+            ORDER BY bd.uploaded_at NULLS LAST
+            """,
+            {"wid": workspace_id},
+        )
+    vmap = {
+        str(b["bundle_id"]): str(b.get("vendor_name_raw") or "") for b in bundles or []
+    }
+    groups: dict[str, list[dict[str, Any]]] = {bid: [] for bid in vmap}
+    for r in docs or []:
+        bid = str(r.get("bundle_id") or "")
+        if bid not in groups:
+            groups[bid] = []
+        row = dict(r)
+        row["vendor_name_raw"] = vmap.get(bid, "")
+        groups[bid].append(row)
+    return groups, vmap
+
+
+_GATE_B_OFFER_TYPES = frozenset(
+    {"offer_technical", "offer_financial", "offer_combined"}
+)
+_GATE_B_REFERENCE_DOC_TYPES = frozenset({"rfq", "dao", "tdr"})
+# Document d'appel SCI (éviter les réponses fournisseur : « … RFQ-… » puis en-tête client).
+_GATE_B_REFERENCE_TEXT = re.compile(
+    r"(?is)save\s+the\s+children\s*[\s_]*\brfq\b",
+)
+_GATE_B_INTERNAL_TEXT = re.compile(
+    r"(?is)(safeguarding\s+policy|politique\s+de\s+sauvegarde|"
+    r"politique\s+de\s+d[ée]?veloppement\s+durable\s+pour\s+les\s+fournisseurs|"
+    r"developpement\s+durable\s+pour\s+les\s+fournisseurs|"
+    r"rapport\s+narratif.{0,120}[ée']?valuation|[ée]valuation\s+des\s+offres|"
+    r"rapport\s+narratif\s+d[\u2019']?[ée]valuation)",
+)
+
+
+def _gate_b_raw_text_present(row: dict[str, Any]) -> bool:
+    rt = row.get("raw_text")
+    return rt is not None and str(rt).strip() != ""
+
+
+def gate_b_classify_bundle_for_m14(
+    rows: list[dict[str, Any]],
+) -> tuple[str, str]:
+    """Gate B — statut bundle pour inclusion M14 (texte réel des ``bundle_documents``).
+
+    Retourne ``(statut, raison)`` avec ``statut`` ∈
+    ``SCORABLE`` | ``REFERENCE`` | ``INTERNAL`` | ``UNUSABLE``.
+    """
+    if not rows:
+        return "UNUSABLE", "no_bundle_documents"
+
+    present = [r for r in rows if _gate_b_raw_text_present(r)]
+    if not present:
+        return "UNUSABLE", "all_documents_empty_or_null"
+
+    for r in present:
+        dt = str(r.get("doc_type") or "").strip().lower()
+        if dt in _GATE_B_REFERENCE_DOC_TYPES:
+            return "REFERENCE", f"source_rules_doc_type={dt}"
+
+    full_snip = "\n".join(str(r.get("raw_text") or "")[:4000] for r in present)[:12000]
+    if _GATE_B_REFERENCE_TEXT.search(full_snip):
+        return "REFERENCE", "rfq_sci_text_pattern_in_offer_slot"
+
+    offer_present = [
+        r
+        for r in present
+        if str(r.get("doc_type") or "").lower() in _GATE_B_OFFER_TYPES
+    ]
+    offer_text = "\n".join(str(r.get("raw_text") or "")[:6000] for r in offer_present)[
+        :12000
+    ]
+
+    if offer_present:
+        if _GATE_B_INTERNAL_TEXT.search(offer_text):
+            return "INTERNAL", "internal_or_evaluation_document_in_offer_slot"
+        return "SCORABLE", "supplier_offer_with_present_raw_text"
+
+    if _GATE_B_INTERNAL_TEXT.search(full_snip):
+        return "INTERNAL", "internal_document_non_offer_slot"
+    return "INTERNAL", "non_offer_documents_only_present"
+
+
+def _build_one_minimal_m12_output(
+    *,
+    bundle_id: str,
+    document_kind: DocumentKindParent,
+    text: str,
+    procurement_framework: ProcurementFramework,
+    scoring: ScoringStructureDetected | None,
+    classified_pass_entries: list[str],
 ) -> M12Output:
-    """M12 minimal pour enchaîner M13 (H1 via ITT + texte corpus)."""
-    text = corpus_text[:500_000] if corpus_text else ""
+    """Un ``M12Output`` minimal pour un bundle (document_kind + corpus local)."""
+    snippet = text[:500_000] if text else ""
     fw = procurement_framework
     fw_conf = 0.8
     rec = ProcedureRecognition(
         framework_detected=_tf(fw, fw_conf),
         procurement_family=_tf(ProcurementFamily.GOODS),
         procurement_family_sub=_tf(ProcurementFamilySub.GENERIC),
-        document_kind=_tf(DocumentKindParent.ITT),
+        document_kind=_tf(document_kind),
         document_subtype=_tf(DocumentKindParent.UNKNOWN),
         is_composite=_tf(False, 1.0),
         document_layer=_tf(DocumentLayer.SOURCE_RULES),
@@ -123,7 +369,7 @@ def build_pipeline_v5_minimal_m12(
         visit_required=_tf("NOT_APPLICABLE", 1.0),
         sample_required=_tf("NOT_APPLICABLE", 1.0),
         humanitarian_context=_tf("NOT_APPLICABLE", 1.0),
-        recognition_source=_tf("pipeline_v5"),
+        recognition_source=_tf("pipeline_v5_per_bundle"),
         review_status=_tf("review_required", 0.6),
     )
     validity = DocumentValidity(
@@ -141,21 +387,22 @@ def build_pipeline_v5_minimal_m12(
         procedure_end_marker=_tf(False, 1.0, ["pipeline_v5"]),
     )
     hh: M12Handoffs = build_handoffs(
-        DocumentKindParent.ITT,
+        document_kind,
         fw,
         fw_conf,
         ProcurementFamily.GOODS,
         ProcurementFamilySub.GENERIC,
         [],
-        None,
-        text,
+        scoring,
+        snippet,
     )
+    seq = ["pipeline_v5", f"bundle:{bundle_id}", *classified_pass_entries]
     meta = M12Meta(
         mode="bootstrap",
         confidence_ceiling=1.0,
-        corpus_size_at_processing=len(text),
+        corpus_size_at_processing=len(snippet),
         processing_timestamp=datetime.now(UTC).isoformat(),
-        pass_sequence=["pipeline_v5"],
+        pass_sequence=seq,
     )
     return M12Output(
         procedure_recognition=rec,
@@ -165,6 +412,96 @@ def build_pipeline_v5_minimal_m12(
         handoffs=hh,
         m12_meta=meta,
     )
+
+
+def build_pipeline_v5_minimal_m12(
+    *,
+    workspace_id: str,
+    corpus_text: str,
+    procurement_framework: ProcurementFramework,
+    scoring: ScoringStructureDetected | None = None,
+) -> dict[str, M12Output]:
+    """M12 minimal **par bundle** (D-001) — ``document_kind`` + corpus par fournisseur."""
+    groups, _vmap = _load_bundle_documents_grouped(workspace_id)
+    out: dict[str, M12Output] = {}
+    if not groups:
+        out["_workspace"] = _build_one_minimal_m12_output(
+            bundle_id="_workspace",
+            document_kind=DocumentKindParent.ITT,
+            text=corpus_text,
+            procurement_framework=procurement_framework,
+            scoring=scoring,
+            classified_pass_entries=["bundle:_workspace:no_supplier_bundles"],
+        )
+        return out
+    for bundle_id, rows in groups.items():
+        kinds: list[DocumentKindParent] = []
+        classified: list[str] = []
+        for row in rows:
+            dt = str(row.get("doc_type") or "")
+            dk = _map_doc_type_str_to_document_kind(dt)
+            kinds.append(dk)
+            did = str(row.get("id") or "")
+            raw = row.get("raw_text")
+            sts = "present" if raw is not None and str(raw).strip() else "empty"
+            classified.append(f"doc|{did}|{dk.value}|{sts}")
+        dominant = (
+            _dominant_document_kind(kinds) if kinds else DocumentKindParent.UNKNOWN
+        )
+        bundle_corpus = "\n\n".join(
+            str(r.get("raw_text") or "").strip() for r in rows if r.get("raw_text")
+        )
+        if not bundle_corpus.strip():
+            bundle_corpus = corpus_text
+        out[bundle_id] = _build_one_minimal_m12_output(
+            bundle_id=bundle_id,
+            document_kind=dominant,
+            text=bundle_corpus,
+            procurement_framework=procurement_framework,
+            scoring=scoring,
+            classified_pass_entries=classified,
+        )
+    return out
+
+
+def _select_m12_output_for_m13(
+    m12_by_bundle: dict[str, M12Output],
+    *,
+    procurement_framework: ProcurementFramework,
+    corpus_text: str,
+    scoring: ScoringStructureDetected | None,
+) -> M12Output:
+    """Choisit un M12 représentatif pour M13 (H1) quand la carte est multi-bundle."""
+    if not m12_by_bundle:
+        return _build_one_minimal_m12_output(
+            bundle_id="_workspace",
+            document_kind=DocumentKindParent.ITT,
+            text=corpus_text,
+            procurement_framework=procurement_framework,
+            scoring=scoring,
+            classified_pass_entries=["m13_pick:fallback_empty"],
+        )
+    priority = (
+        DocumentKindParent.OFFER_COMBINED,
+        DocumentKindParent.OFFER_TECHNICAL,
+        DocumentKindParent.OFFER_FINANCIAL,
+        DocumentKindParent.ITT,
+        DocumentKindParent.DAO,
+        DocumentKindParent.RFQ,
+        DocumentKindParent.TDR,
+        DocumentKindParent.UNKNOWN,
+    )
+    for kind in priority:
+        for m12 in m12_by_bundle.values():
+            if m12.procedure_recognition.document_kind.value == kind:
+                return m12
+    return next(iter(m12_by_bundle.values()))
+
+
+def _ensure_h1_regulatory_skeleton_present(m12: M12Output) -> None:
+    """M13 ne doit pas être le premier détecteur d'absence de H1 (P0-H1)."""
+    if not m12.handoffs or not m12.handoffs.regulatory_profile_skeleton:
+        raise PipelineError("pipeline_invalid:H1_regulatory_profile_skeleton_missing")
 
 
 def build_matrix_participants_and_excluded(
@@ -235,7 +572,196 @@ def build_matrix_participants_and_excluded(
             }
         )
 
+    in_matrix = {str(x["bundle_id"]) for x in matrix_participants}
+    excluded_ids = {str(x["bundle_id"]) for x in excluded_from_matrix}
+    for bid, role in bundle_roles.items():
+        if bid in in_matrix or bid in excluded_ids:
+            continue
+        if role == ScoringRole.INTERNAL:
+            excluded_from_matrix.append(
+                {
+                    "bundle_id": bid,
+                    "supplier_name": (vendor_by_bundle.get(bid) or "").strip(),
+                    "reason": "internal_reference_bundle",
+                }
+            )
+            excluded_ids.add(bid)
+        elif role == ScoringRole.REFERENCE:
+            excluded_from_matrix.append(
+                {
+                    "bundle_id": bid,
+                    "supplier_name": (vendor_by_bundle.get(bid) or "").strip(),
+                    "reason": "reference_bundle",
+                }
+            )
+            excluded_ids.add(bid)
+
     return matrix_participants, excluded_from_matrix
+
+
+def _parse_pass_sequence_doc_entry(entry: str) -> tuple[str, str, bool] | None:
+    """Parse une entrée ``m12_meta.pass_sequence`` de forme ``doc|id|kind|present|empty``."""
+    if not entry.startswith("doc|"):
+        return None
+    parts = entry.split("|")
+    if len(parts) < 4:
+        return None
+    doc_id = parts[1].strip()
+    kind_raw = parts[2].strip()
+    sts = parts[3].strip().lower()
+    if not doc_id:
+        return None
+    raw_text_present = sts == "present"
+    return (doc_id, kind_raw, raw_text_present)
+
+
+def _pass_kind_value_to_document_kind_name(kind_raw: str) -> str:
+    """``DocumentKindParent.value`` (pass_sequence) → nom enum (ex. ``OFFER_TECHNICAL``)."""
+    try:
+        return DocumentKindParent(kind_raw.strip().lower()).name
+    except ValueError:
+        return "UNKNOWN"
+
+
+def _family_to_link_type(family: str) -> ProcessLinkingType:
+    norm = _normalize_scoring_family(family)
+    if norm == "technical":
+        return "technical"
+    if norm == "commercial":
+        return "price"
+    return "evidence"
+
+
+def _normalize_scoring_family(fam: str) -> str:
+    f = (fam or "").strip().lower()
+    if f in ("technical", "technique"):
+        return "technical"
+    if f in ("commercial", "price", "prix", "financial"):
+        return "commercial"
+    if f in ("sustainability", "durabilité", "durabilite", "environment"):
+        return "sustainability"
+    return "other"
+
+
+def _document_kind_matches_family(document_kind: str, family: str) -> bool:
+    """``document_kind`` = nom enum (``OFFER_TECHNICAL``) ; ``family`` = famille DAO normalisée."""
+    fam = _normalize_scoring_family(family)
+    dk = (document_kind or "").strip().upper()
+    if fam == "technical":
+        return dk in ("OFFER_TECHNICAL", "OFFER_COMBINED")
+    if fam == "commercial":
+        return dk in ("OFFER_FINANCIAL", "OFFER_COMBINED")
+    if fam == "sustainability":
+        return dk in ("OFFER_COMBINED", "UNKNOWN")
+    return dk in ("OFFER_COMBINED", "UNKNOWN")
+
+
+def _require_scoring_criterion_ids_are_dao_uuids(
+    scoring: ScoringStructureDetected,
+) -> None:
+    """Précondition Phase 2 — critères = UUID ``dao_criteria.id`` uniquement."""
+    for c in scoring.criteria:
+        cid = str(c.criteria_name or "").strip()
+        if not cid or not DAO_CRITERION_ID_UUID_RE.match(cid):
+            raise PipelineConfigurationError(
+                "[PIPELINE] process_linking : structure de scoring avec criterion_id "
+                f"non-UUID (dao_criteria.id uniquement) : {cid!r}"
+            )
+
+
+def _criterion_family_by_id_from_dao_rows(
+    dao_criteria_rows: list[dict[str, Any]],
+) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for row in dao_criteria_rows:
+        rid = str(row.get("id") or "").strip()
+        if rid:
+            out[rid] = str(row.get("famille") or "general")
+    return out
+
+
+def _filter_compatible_docs_for_criterion(
+    parsed_docs: list[tuple[str, str, bool]],
+    *,
+    family_raw: str,
+) -> list[tuple[str, str, bool]]:
+    """Docs dont le kind matche la famille ; UNKNOWN exclu si fallback non nécessaire."""
+    fam_norm = _normalize_scoring_family(family_raw)
+    compatible = [
+        p for p in parsed_docs if _document_kind_matches_family(p[1], family_raw)
+    ]
+    if fam_norm in ("sustainability", "other"):
+        has_non_unknown = any(p[1] != "UNKNOWN" for p in compatible)
+        if has_non_unknown:
+            compatible = [p for p in compatible if p[1] != "UNKNOWN"]
+    return compatible
+
+
+def _build_process_linking_entries(
+    *,
+    matrix_participants: list[dict[str, Any]],
+    m12_by_bundle: dict[str, M12Output],
+    scoring_detected: ScoringStructureDetected,
+    dao_criteria_rows: list[dict[str, Any]],
+) -> list[ProcessLinkingEntry]:
+    """Construit ``process_linking_data`` depuis M12 en mémoire + participants matrice."""
+    if not matrix_participants:
+        return []
+
+    _require_scoring_criterion_ids_are_dao_uuids(scoring_detected)
+
+    fam_by_criterion = _criterion_family_by_id_from_dao_rows(dao_criteria_rows)
+    entries: list[ProcessLinkingEntry] = []
+
+    for mp in matrix_participants:
+        bundle_id = str(mp.get("bundle_id") or "").strip()
+        if not bundle_id:
+            continue
+        m12 = m12_by_bundle.get(bundle_id)
+        parsed_docs: list[tuple[str, str, bool]] = []
+        if m12 is not None:
+            for raw in m12.m12_meta.pass_sequence or []:
+                parsed = _parse_pass_sequence_doc_entry(str(raw))
+                if parsed is None:
+                    continue
+                doc_id, kind_raw, present = parsed
+                kind_name = _pass_kind_value_to_document_kind_name(kind_raw)
+                parsed_docs.append((doc_id, kind_name, present))
+
+        for crit in scoring_detected.criteria:
+            criterion_id = str(crit.criteria_name or "").strip()
+            family_raw = fam_by_criterion.get(criterion_id, "general")
+            link_type = _family_to_link_type(family_raw)
+            use_docs = _filter_compatible_docs_for_criterion(
+                parsed_docs, family_raw=family_raw
+            )
+            if use_docs:
+                for doc_id, document_kind, raw_ok in use_docs:
+                    entries.append(
+                        ProcessLinkingEntry(
+                            bundle_id=bundle_id,
+                            document_id=doc_id,
+                            document_kind=document_kind,
+                            criterion_id=criterion_id,
+                            link_type=link_type,
+                            raw_text_present=raw_ok,
+                            source="m12_pass_sequence",
+                        )
+                    )
+            else:
+                entries.append(
+                    ProcessLinkingEntry(
+                        bundle_id=bundle_id,
+                        document_id="",
+                        document_kind="MISSING",
+                        criterion_id=criterion_id,
+                        link_type="missing",
+                        raw_text_present=False,
+                        source="m12_pass_sequence",
+                    )
+                )
+
+    return entries
 
 
 def _vendor_name_by_bundle(workspace_id: str) -> dict[str, str]:
@@ -253,40 +779,15 @@ def _vendor_name_by_bundle(workspace_id: str) -> dict[str, str]:
 
 
 def _bundle_scoring_roles_for_workspace(workspace_id: str) -> dict[str, ScoringRole]:
-    """Rôle scoring runtime par ``supplier_bundles.id`` (CTO D-03, sans migration)."""
-    with get_connection() as conn:
-        rows = db_fetchall(
-            conn,
-            """
-            SELECT sb.id::text AS bundle_id, sb.vendor_name_raw,
-                   COALESCE(
-                       array_agg(bd.doc_type::text)
-                       FILTER (WHERE bd.doc_type IS NOT NULL),
-                       ARRAY[]::text[]
-                   ) AS doc_types
-            FROM supplier_bundles sb
-            LEFT JOIN bundle_documents bd ON bd.bundle_id = sb.id
-            WHERE sb.workspace_id = CAST(:wid AS uuid)
-            GROUP BY sb.id, sb.vendor_name_raw
-            """,
-            {"wid": workspace_id},
-        )
+    """Rôle scoring runtime par ``supplier_bundles.id`` (D-001 + CTO D-03)."""
+    groups, vmap = _load_bundle_documents_grouped(workspace_id)
     out: dict[str, ScoringRole] = {}
-    for r in rows or []:
-        bid = r.get("bundle_id")
-        if not bid:
-            continue
-        raw = r.get("doc_types")
-        if raw is None:
-            dtypes: frozenset[str] = frozenset()
-        elif isinstance(raw, list):
-            dtypes = frozenset(str(x) for x in raw if x)
-        else:
-            dtypes = frozenset()
-        out[str(bid)] = classify_bundle_scoring_role(
-            vendor_name_raw=str(r.get("vendor_name_raw") or ""),
-            doc_types=dtypes,
+    for bid, rows in groups.items():
+        dtypes = frozenset(
+            str(r.get("doc_type") or "") for r in rows if r.get("doc_type")
         )
+        vendor = vmap.get(bid) or (rows[0].get("vendor_name_raw") if rows else "") or ""
+        out[bid] = _bundle_scoring_role_for_pipeline(bid, str(vendor), dtypes)
     return out
 
 
@@ -445,6 +946,7 @@ def run_pipeline_v5(
     out = PipelineV5Result(workspace_id=workspace_id)
     fw_value: ProcurementFramework = ProcurementFramework.UNKNOWN
     extract_failed_bundles: frozenset[str] = frozenset()
+    dao_criteria_rows: list[dict[str, Any]] = []
 
     try:
         with get_connection() as conn:
@@ -494,18 +996,20 @@ def run_pipeline_v5(
                 out.stopped_at = "precheck_bundles"
                 return out
 
-            ndao = db_execute_one(
+            dao_criteria_rows = db_fetchall(
                 conn,
                 """
-                SELECT COUNT(*)::int AS n FROM dao_criteria
+                SELECT id::text AS id, critere_nom,
+                       COALESCE(ponderation, 0)::float AS ponderation,
+                       COALESCE(is_eliminatory, false) AS is_eliminatory,
+                       COALESCE(NULLIF(trim(categorie::text), ''), 'general') AS famille
+                FROM dao_criteria
                 WHERE workspace_id = CAST(:wid AS uuid)
+                ORDER BY categorie NULLS LAST, ponderation DESC NULLS LAST, id::text
                 """,
                 {"wid": workspace_id},
             )
-            if not ndao or ndao["n"] < 1:
-                out.error = "no_dao_criteria"
-                out.stopped_at = "precheck_criteria"
-                return out
+            _require_dao_criteria_for_pipeline(workspace_id, dao_criteria_rows)
 
             com = db_execute_one(
                 conn,
@@ -550,6 +1054,8 @@ def run_pipeline_v5(
         corpus_text = "\n\n".join(
             str(r["raw_text"]).strip() for r in corpus_parts if r.get("raw_text")
         )
+    except PipelineConfigurationError:
+        raise
     except Exception as exc:
         out.error = str(exc)[:500]
         out.stopped_at = "exception"
@@ -557,17 +1063,34 @@ def run_pipeline_v5(
         logger.exception("[PIPELINE-V5] fatal: %s", exc)
         return out
 
-    m12 = build_pipeline_v5_minimal_m12(
-        corpus_text=corpus_text, procurement_framework=fw_value
+    scoring_detected = scoring_structure_detected_from_dao_criteria_rows(
+        dao_criteria_rows
+    )
+    m12_by_bundle = build_pipeline_v5_minimal_m12(
+        workspace_id=workspace_id,
+        corpus_text=corpus_text,
+        procurement_framework=fw_value,
+        scoring=scoring_detected,
     )
     out.step_2_m12_reconstructed = True
+
+    m12_for_m13 = _select_m12_output_for_m13(
+        m12_by_bundle,
+        procurement_framework=fw_value,
+        corpus_text=corpus_text,
+        scoring=scoring_detected,
+    )
+
+    _ensure_h1_regulatory_skeleton_present(m12_for_m13)
 
     doc_id = f"pipeline_v5:{workspace_id}"
     engine_m13 = RegulatoryComplianceEngine(
         repository=M13RegulatoryProfileRepository(),
     )
     try:
-        m13_out = engine_m13.process_m12(case_id=case_id, document_id=doc_id, m12=m12)
+        m13_out = engine_m13.process_m12(
+            case_id=case_id, document_id=doc_id, m12=m12_for_m13
+        )
         out.step_3_m13_procedure_type = m13_out.report.regime.procedure_type.value
         out.procedure_resolution_status = (
             f"{m13_out.report.regime.framework.value}"
@@ -581,6 +1104,7 @@ def run_pipeline_v5(
         return out
 
     bundle_roles = _bundle_scoring_roles_for_workspace(workspace_id)
+    doc_groups, _vendor_map = _load_bundle_documents_grouped(workspace_id)
     with get_connection() as conn:
         offers_rows = db_fetchall(
             conn,
@@ -595,9 +1119,32 @@ def run_pipeline_v5(
         )
 
     offers: list[dict[str, Any]] = []
+    gate_b_status_map: dict[str, str] = {}
     for r in offers_rows:
         bid = str(r.get("bundle_id") or "")
         if bundle_roles.get(bid) != ScoringRole.SCORABLE:
+            continue
+        gstatus, greason = gate_b_classify_bundle_for_m14(doc_groups.get(bid) or [])
+        gate_b_status_map[bid] = gstatus
+        if gstatus != "SCORABLE":
+            vendor_raw = _vendor_map.get(bid) or (
+                (doc_groups.get(bid) or [{}])[0].get("vendor_name_raw") or ""
+            )
+            out.gate_b_exclusions.append(
+                {
+                    "bundle_id": bid,
+                    "vendor_name_raw": vendor_raw,
+                    "status": gstatus,
+                    "reason": greason,
+                }
+            )
+            logger.info(
+                "[PIPELINE-V5] Gate B exclude bundle_id=%s vendor=%r status=%s reason=%s",
+                bid,
+                vendor_raw,
+                gstatus,
+                greason,
+            )
             continue
         offers.append(
             {
@@ -606,15 +1153,19 @@ def run_pipeline_v5(
                 "process_role": "responds_to_bid",
             }
         )
+    out.gate_b_m14_bundle_count = len(offers)
+    # Phase 1 Gate B traceability — persist bundle_status and offers_submitted_to_m14
+    out.bundle_status_by_bundle_id = gate_b_status_map
+    out.offers_submitted_to_m14 = [o["document_id"] for o in offers]
 
     h2 = (
-        m12.handoffs.atomic_capability_skeleton.model_dump(mode="json")
-        if m12.handoffs.atomic_capability_skeleton
+        m12_for_m13.handoffs.atomic_capability_skeleton.model_dump(mode="json")
+        if m12_for_m13.handoffs.atomic_capability_skeleton
         else {}
     )
     h3 = (
-        m12.handoffs.market_context_signal.model_dump(mode="json")
-        if m12.handoffs.market_context_signal
+        m12_for_m13.handoffs.market_context_signal.model_dump(mode="json")
+        if m12_for_m13.handoffs.market_context_signal
         else {}
     )
 
@@ -659,17 +1210,48 @@ def run_pipeline_v5(
         repo_m14 = M14EvaluationRepository()
         engine_m14 = EvaluationEngine(repository=repo_m14)
         try:
-            report = engine_m14.evaluate(inp)
+            vendor_map = _vendor_name_by_bundle(workspace_id)
+            report_matrix = EvaluationEngine(repository=None).evaluate(inp)
+            mp_list, ex_list = build_matrix_participants_and_excluded(
+                report_matrix,
+                bundle_roles=bundle_roles,
+                vendor_by_bundle=vendor_map,
+                extract_failed_bundles=extract_failed_bundles,
+            )
+            linking_entries = _build_process_linking_entries(
+                matrix_participants=mp_list,
+                m12_by_bundle=m12_by_bundle,
+                scoring_detected=scoring_detected,
+                dao_criteria_rows=dao_criteria_rows,
+            )
+            logger.info(
+                "[PIPELINE] process_linking_data: %s entries for %s bundles",
+                len(linking_entries),
+                len(mp_list),
+            )
+            if linking_entries:
+                logger.debug(
+                    "[PIPELINE] process_linking_data preview: %s",
+                    [e.model_dump() for e in linking_entries[:2]],
+                )
+            inp_with_linking = inp.model_copy(
+                update={
+                    "process_linking_data": [e.model_dump() for e in linking_entries],
+                }
+            )
+            report = engine_m14.evaluate(inp_with_linking)
             payload = report.model_dump(mode="json")
             if out.procedure_resolution_status:
                 payload["procedure_resolution_status"] = out.procedure_resolution_status
-            vendor_map = _vendor_name_by_bundle(workspace_id)
             mp_list, ex_list = build_matrix_participants_and_excluded(
                 report,
                 bundle_roles=bundle_roles,
                 vendor_by_bundle=vendor_map,
                 extract_failed_bundles=extract_failed_bundles,
             )
+            # Phase 1 Gate C traceability — persist matrix_participants and excluded_from_matrix
+            out.matrix_participants = mp_list
+            out.excluded_from_matrix = ex_list
             payload["matrix_participants"] = mp_list
             payload["excluded_from_matrix"] = ex_list
             saved = repo_m14.save_evaluation(case_id=case_id, payload=payload)
@@ -681,8 +1263,22 @@ def run_pipeline_v5(
             logger.exception("[PIPELINE-V5] M14: %s", exc)
             return out
 
+    # Phase 1 Gate B/C guards — prevent bridge call with invalid state (CTO D-06 mandat 2026-04-16)
+    if out.matrix_participants is None:
+        raise PipelineError(
+            "pipeline_invalid:matrix_participants_missing — "
+            "build_matrix_participants_and_excluded returned None, Gate B/C did not produce a valid participant list"
+        )
+    if len(out.matrix_participants) == 0:
+        raise PipelineError(
+            "pipeline_blocked:no_eligible_matrix_participants — "
+            "All bundles failed Gate B or Gate C, no eligible supplier to score in this dossier"
+        )
+
     try:
-        bridge = populate_assessments_from_m14(workspace_id)
+        bridge = populate_assessments_from_m14(
+            workspace_id, strict_matrix_participants=True
+        )
         out.step_5_assessments_created = bridge.created + bridge.updated
     except Exception as exc:
         logger.exception("[PIPELINE-V5] bridge M14→M16: %s", exc)

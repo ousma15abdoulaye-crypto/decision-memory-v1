@@ -1,7 +1,7 @@
 """M12 engine — enchaîne Pass 1A–1D pour produire un M12Output métier.
 
 Utilisé par ``run_pipeline_v5`` (ADR-0012 addendum) à la place du bootstrap
-heuristique ``build_pipeline_v5_minimal_m12``.
+heuristique ``build_pipeline_v5_minimal_m12`` (D-001 : carte ``bundle_id → M12Output``).
 
 Assemblage identique à ``run_pass_2a_regulatory_profile`` : les sorties des
 passes sont fusionnées via ``build_m12_output_from_pass_outputs``.

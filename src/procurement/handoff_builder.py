@@ -8,6 +8,7 @@ Handoffs PREPARE data — they never APPLY rules (S18).
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 from src.procurement.document_ontology import (
     SOURCE_RULES_KINDS,
@@ -63,6 +64,24 @@ _DGMP_THRESHOLD = re.compile(
 )
 
 
+def _read_sci_thresholds_framework_key_from_repo() -> str | None:
+    """Lit ``framework`` dans ``config/regulatory/sci/thresholds.yaml`` (Gate A / P0-H1)."""
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "config"
+        / "regulatory"
+        / "sci"
+        / "thresholds.yaml"
+    )
+    if not path.is_file():
+        return None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if stripped.startswith("framework:"):
+            return stripped.split(":", 1)[1].strip()
+    return None
+
+
 def _build_h1_regulatory(
     framework: ProcurementFramework,
     framework_confidence: float,
@@ -106,6 +125,11 @@ def _build_h1_regulatory(
             )
             dgmp_threshold_tier = classify_dgmp_tier(largest.amount_fcfa, dgmp_family)
             dgmp_signals.append(f"tier_{dgmp_threshold_tier}_detected")
+
+    if framework == ProcurementFramework.SCI:
+        yaml_fw = _read_sci_thresholds_framework_key_from_repo()
+        if yaml_fw:
+            sci_signals.append(f"regulatory_yaml_framework={yaml_fw}")
 
     return RegulatoryProfileSkeleton(
         framework_detected=framework,
@@ -226,6 +250,8 @@ def build_handoffs(
     if document_kind in SOURCE_RULES_KINDS:
         h1 = _build_h1_regulatory(framework, framework_confidence, text, family=family)
         h2 = _build_h2_capability(family, family_sub, gates, scoring)
+    elif framework != ProcurementFramework.UNKNOWN:
+        h1 = _build_h1_regulatory(framework, framework_confidence, text, family=family)
 
     h3 = _build_h3_market(text)
     if (
