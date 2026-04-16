@@ -31,6 +31,19 @@ DAO_CRITERION_ID_UUID_RE = re.compile(
 )
 
 
+def _ponderation_coherence_from_totals(
+    total_w: float, *, has_criteria: bool
+) -> Literal["OK", "INCOHERENT", "INCOMPLETE", "NOT_FOUND"]:
+    """Cohérence des pondérations DAO (aligné extract_scoring_structure / revue Copilot)."""
+    if not has_criteria:
+        return "NOT_FOUND"
+    if abs(total_w - 100.0) <= 0.01:
+        return "OK"
+    if total_w > 0.0:
+        return "INCOMPLETE"
+    return "INCOHERENT"
+
+
 def scoring_structure_detected_from_dao_criteria_rows(
     rows: list[dict[str, Any]],
 ) -> ScoringStructureDetected:
@@ -39,7 +52,7 @@ def scoring_structure_detected_from_dao_criteria_rows(
     total_w = 0.0
     for row in rows:
         rid = str(row.get("id") or "").strip()
-        if not rid:
+        if not rid or not DAO_CRITERION_ID_UUID_RE.match(rid):
             continue
         w = float(row.get("ponderation") or 0.0)
         total_w += w
@@ -57,10 +70,8 @@ def scoring_structure_detected_from_dao_criteria_rows(
                 evidence=", ".join(ev_parts),
             )
         )
-    coherence: Literal["OK", "INCOHERENT", "INCOMPLETE", "NOT_FOUND"] = (
-        "OK" if abs(total_w - 100.0) <= 0.01 else "INCOHERENT"
-    )
-    if coherence != "OK":
+    coherence = _ponderation_coherence_from_totals(total_w, has_criteria=bool(criteria))
+    if coherence not in ("OK", "NOT_FOUND"):
         logger.warning(
             "[M14] dao_criteria ponderation sum=%s (attendu ~100.0) — %s",
             total_w,
@@ -73,6 +84,56 @@ def scoring_structure_detected_from_dao_criteria_rows(
         confidence=1.0,
         evidence=[f"dao_criteria_rows={len(rows)}"],
     )
+
+
+def m14_h2_scoring_structure_dict_from_dao_criteria_rows(
+    rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Grille D-003 pour ``h2_capability_skeleton['scoring_structure']`` (M14 / dao_criteria).
+
+    Source unique : ``dao_criteria``. Chaque entrée expose à la fois les champs
+    métier (criterion_id, libellé, famille, éliminatoire) et les clés attendues par
+    ``EvaluationEngine._compute_technical_score`` (``criteria_name`` = UUID DAO,
+    ``weight_percent``).
+    """
+    crits: list[dict[str, Any]] = []
+    total_w = 0.0
+    for row in rows:
+        rid = str(row.get("id") or "").strip()
+        if not rid or not DAO_CRITERION_ID_UUID_RE.match(rid):
+            continue
+        w = float(row.get("ponderation") or 0.0)
+        total_w += w
+        label = str(row.get("critere_nom") or "").strip()
+        fam = str(row.get("famille") or "general").strip().lower()
+        elim = row.get("is_eliminatory")
+        crits.append(
+            {
+                "criterion_id": rid,
+                "criterion_name": label,
+                "criteria_name": rid,
+                "famille": fam,
+                "weight_percent": w,
+                "ponderation": w,
+                "is_eliminatory": bool(elim) if elim is not None else False,
+                "max_score": None,
+                "awarded_score": None,
+            }
+        )
+    coherence = _ponderation_coherence_from_totals(total_w, has_criteria=bool(crits))
+    if coherence not in ("OK", "NOT_FOUND"):
+        logger.warning(
+            "[M14] dao_criteria ponderation sum=%s (attendu ~100.0) — %s",
+            total_w,
+            coherence,
+        )
+    return {
+        "criteria": crits,
+        "total_weight": total_w,
+        "ponderation_coherence": coherence,
+        "confidence": 1.0,
+        "evidence": [f"dao_criteria_rows={len(rows)}"],
+    }
 
 
 class EligibilityCheckResult(BaseModel):
