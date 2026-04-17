@@ -1307,6 +1307,18 @@ def run_pipeline_v5(
     )
     out.offers_submitted_to_m14 = [str(o["document_id"]) for o in offers]
 
+    # P3.1B — restreindre bundle_roles pour build_matrix_participants_and_excluded.
+    # Les bundles FAIL (excluded_vendor_ids) et PENDING (pending_vendor_ids) sont
+    # marqués UNUSABLE : ils ne tombent plus dans la branche "SCORABLE absent de M14"
+    # (→ not_in_m14_offer_list). merge_p3_eligibility_gate_failures_into_excluded les
+    # ajoute ensuite avec reason="eligibility_fail". Les PENDING n'apparaissent dans
+    # aucun des deux (ils sont tracés via out.pending_vendor_ids — R3/R7).
+    _p3_non_scorable = set(gate_out.excluded_vendor_ids) | set(gate_out.pending_vendor_ids)
+    bundle_roles_for_matrix: dict[str, ScoringRole] = {
+        bid: (ScoringRole.UNUSABLE if bid in _p3_non_scorable else role)
+        for bid, role in bundle_roles.items()
+    }
+
     _ensure_m14_scoring_structure_for_scorable_offers(offers_pre_p3, m14_scoring_h2)
 
     h2: dict[str, Any] = {}
@@ -1370,7 +1382,7 @@ def run_pipeline_v5(
             report_matrix = EvaluationEngine(repository=None).evaluate(inp)
             mp_list, ex_list = build_matrix_participants_and_excluded(
                 report_matrix,
-                bundle_roles=bundle_roles,
+                bundle_roles=bundle_roles_for_matrix,
                 vendor_by_bundle=vendor_map,
                 extract_failed_bundles=extract_failed_bundles,
             )
@@ -1402,7 +1414,7 @@ def run_pipeline_v5(
                 payload["procedure_resolution_status"] = out.procedure_resolution_status
             mp_list, ex_list = build_matrix_participants_and_excluded(
                 report,
-                bundle_roles=bundle_roles,
+                bundle_roles=bundle_roles_for_matrix,
                 vendor_by_bundle=vendor_map,
                 extract_failed_bundles=extract_failed_bundles,
             )
