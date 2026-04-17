@@ -1313,7 +1313,9 @@ def run_pipeline_v5(
     # (→ not_in_m14_offer_list). merge_p3_eligibility_gate_failures_into_excluded les
     # ajoute ensuite avec reason="eligibility_fail". Les PENDING n'apparaissent dans
     # aucun des deux (ils sont tracés via out.pending_vendor_ids — R3/R7).
-    _p3_non_scorable = set(gate_out.excluded_vendor_ids) | set(gate_out.pending_vendor_ids)
+    _p3_non_scorable = set(gate_out.excluded_vendor_ids) | set(
+        gate_out.pending_vendor_ids
+    )
     bundle_roles_for_matrix: dict[str, ScoringRole] = {
         bid: (ScoringRole.UNUSABLE if bid in _p3_non_scorable else role)
         for bid, role in bundle_roles.items()

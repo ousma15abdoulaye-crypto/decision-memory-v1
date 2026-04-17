@@ -322,6 +322,23 @@ def test_pending_vendor_goes_to_pending_list_not_excluded() -> None:
     assert gate.verdicts[bid].gate_result == RESULT_DISPLAY_PENDING
 
 
+def test_p3_pending_as_unusable_not_not_in_m14_offer_list() -> None:
+    """Aligné post-0fc6ad3 : rôle UNUSABLE → pas de ligne ``not_in_m14_offer_list`` (R3)."""
+    pend = "pend-bundle-matrix"
+    report = EvaluationReport(
+        case_id="c-pend",
+        evaluation_method="lowest_price",
+        offer_evaluations=[],
+    )
+    _mp, ex = build_matrix_participants_and_excluded(
+        report,
+        bundle_roles={pend: ScoringRole.UNUSABLE},
+        vendor_by_bundle={pend: "Vendor P"},
+        extract_failed_bundles=frozenset(),
+    )
+    assert not any(x.get("bundle_id") == pend for x in ex)
+
+
 def test_non_scorable_bundle_goes_to_excluded_from_matrix() -> None:
     """Bundle INTERNAL n’entre pas dans la matrice ; exclusion stable ``internal_reference_bundle``."""
     bid = "internal-bundle-1"
