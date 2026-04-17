@@ -35,6 +35,11 @@ from src.procurement.document_ontology import (
     ProcurementFamilySub,
     ProcurementFramework,
 )
+from src.procurement.eligibility_gate import (
+    build_vendor_gate_input_from_bundle_documents,
+    run_eligibility_gate,
+)
+from src.procurement.eligibility_models import GateOutput, VendorGateInput
 from src.procurement.handoff_builder import build_handoffs
 from src.procurement.m13_engine import RegulatoryComplianceEngine
 from src.procurement.m13_regulatory_profile_repository import (
@@ -78,6 +83,97 @@ class PipelineConfigurationError(RuntimeError):
 
 class PipelineError(RuntimeError):
     """Fail-fast pipeline (prérequis H1 avant M13)."""
+
+
+# P3.1B — raisons d’exclusion matrice reconnues (merge Gate C + échecs P3.1).
+EXCLUSION_REASONS: frozenset[str] = frozenset(
+    {
+        "ineligible",
+        "eligibility_indeterminate",
+        "eligibility_unknown",
+        "extraction_failed",
+        "not_in_m14_offer_list",
+        "internal_reference_bundle",
+        "reference_bundle",
+        "eligibility_fail",
+    }
+)
+
+
+def run_p3_1b_eligibility_gate_phase(
+    workspace_id: str,
+    case_id: str | None,
+    offers: list[dict[str, Any]],
+    doc_groups: dict[str, list[dict[str, Any]]],
+    bundle_status_by_bundle_id: dict[str, str],
+    vendor_by_bundle: dict[str, str],
+) -> tuple[list[dict[str, Any]], GateOutput]:
+    """P3.1B — exécute EligibilityGate sur les offres Gate-B-SCORABLE ; filtre ``offers``."""
+    lot_id = case_id or workspace_id
+    if not offers:
+        return [], run_eligibility_gate(workspace_id, lot_id, {})
+    vendors_map: dict[str, VendorGateInput] = {}
+    for o in offers:
+        bid = str(o["document_id"])
+        rows = doc_groups.get(bid) or []
+        vname = str(o.get("supplier_name") or vendor_by_bundle.get(bid) or "")
+        st = bundle_status_by_bundle_id.get(bid)
+        vendors_map[bid] = build_vendor_gate_input_from_bundle_documents(
+            bid,
+            vendor_name=vname,
+            rows=rows,
+            bundle_gate_b_status=st,
+        )
+    gate_out = run_eligibility_gate(workspace_id, lot_id, vendors_map)
+    elig = set(gate_out.eligible_vendor_ids)
+    filtered = [o for o in offers if str(o["document_id"]) in elig]
+    return filtered, gate_out
+
+
+def eligibility_verdicts_summary_from_gate_output(gate: GateOutput) -> dict[str, Any]:
+    """Résumé sérialisable des verdicts P3.1 (R7)."""
+    summary: dict[str, Any] = {}
+    for vid, ver in gate.verdicts.items():
+        summary[vid] = {
+            "eligible": ver.eligible,
+            "gate_result": ver.gate_result,
+            "failing_criteria": list(ver.failing_criteria),
+            "pending_criteria": list(ver.pending_criteria),
+            "dominant_cause": ver.dominant_cause,
+        }
+    return summary
+
+
+def merge_p3_eligibility_gate_failures_into_excluded(
+    excluded_from_matrix: list[dict[str, Any]],
+    gate_output: GateOutput,
+    vendor_by_bundle: dict[str, str],
+) -> None:
+    """Fusionne les échecs P3.1 (FAIL) dans ``excluded_from_matrix`` (P3.1B R2).
+
+    Les vendors PENDING ne sont pas ajoutés ici (liste ``pending_vendor_ids`` sur le résultat).
+    """
+    seen = {str(x.get("bundle_id")) for x in excluded_from_matrix}
+    for vid in gate_output.excluded_vendor_ids:
+        if vid in seen:
+            continue
+        ver = gate_output.verdicts.get(vid)
+        failed: list[str] = []
+        if ver is not None:
+            dom = ver.dominant_cause or ver.gate_result
+            failed = [
+                f"p3.1:{dom}",
+                *[f"p3.1:failing:{c}" for c in (ver.failing_criteria or [])],
+            ]
+        excluded_from_matrix.append(
+            {
+                "bundle_id": vid,
+                "supplier_name": (vendor_by_bundle.get(vid) or "").strip(),
+                "reason": "eligibility_fail",
+                "failed_eligibility_checks": failed,
+            }
+        )
+        seen.add(vid)
 
 
 def _ensure_m14_scoring_structure_for_scorable_offers(
@@ -136,6 +232,11 @@ class PipelineV5Result(BaseModel):
     # Phase 1 Gate B/C traceability (CTO D-06 + mandat 2026-04-16)
     bundle_status_by_bundle_id: dict[str, str] = Field(default_factory=dict)
     offers_submitted_to_m14: list[str] = Field(default_factory=list)
+    # P3.1B — post-Gate-B, pré / post EligibilityGate (R7).
+    eligible_vendor_ids: list[str] = Field(default_factory=list)
+    excluded_vendor_ids: list[str] = Field(default_factory=list)
+    pending_vendor_ids: list[str] = Field(default_factory=list)
+    eligibility_verdicts_summary: dict[str, Any] = Field(default_factory=dict)
     matrix_participants: list[dict[str, Any]] = Field(default_factory=list)
     excluded_from_matrix: list[dict[str, Any]] = Field(default_factory=list)
 
@@ -1187,11 +1288,40 @@ def run_pipeline_v5(
             }
         )
     out.gate_b_m14_bundle_count = len(offers)
-    # Phase 1 Gate B traceability — persist bundle_status and offers_submitted_to_m14
     out.bundle_status_by_bundle_id = gate_b_status_map
-    out.offers_submitted_to_m14 = [o["document_id"] for o in offers]
+    offers_pre_p3 = list(offers)
+    vendor_map = _vendor_name_by_bundle(workspace_id)
+    offers, gate_out = run_p3_1b_eligibility_gate_phase(
+        workspace_id,
+        case_id,
+        offers,
+        doc_groups,
+        gate_b_status_map,
+        vendor_map,
+    )
+    out.eligible_vendor_ids = list(gate_out.eligible_vendor_ids)
+    out.excluded_vendor_ids = list(gate_out.excluded_vendor_ids)
+    out.pending_vendor_ids = list(gate_out.pending_vendor_ids)
+    out.eligibility_verdicts_summary = eligibility_verdicts_summary_from_gate_output(
+        gate_out
+    )
+    out.offers_submitted_to_m14 = [str(o["document_id"]) for o in offers]
 
-    _ensure_m14_scoring_structure_for_scorable_offers(offers, m14_scoring_h2)
+    # P3.1B — restreindre bundle_roles pour build_matrix_participants_and_excluded.
+    # Les bundles FAIL (excluded_vendor_ids) et PENDING (pending_vendor_ids) sont
+    # marqués UNUSABLE : ils ne tombent plus dans la branche "SCORABLE absent de M14"
+    # (→ not_in_m14_offer_list). merge_p3_eligibility_gate_failures_into_excluded les
+    # ajoute ensuite avec reason="eligibility_fail". Les PENDING n'apparaissent dans
+    # aucun des deux (ils sont tracés via out.pending_vendor_ids — R3/R7).
+    _p3_non_scorable = set(gate_out.excluded_vendor_ids) | set(
+        gate_out.pending_vendor_ids
+    )
+    bundle_roles_for_matrix: dict[str, ScoringRole] = {
+        bid: (ScoringRole.UNUSABLE if bid in _p3_non_scorable else role)
+        for bid, role in bundle_roles.items()
+    }
+
+    _ensure_m14_scoring_structure_for_scorable_offers(offers_pre_p3, m14_scoring_h2)
 
     h2: dict[str, Any] = {}
     if m12_for_m13.handoffs.atomic_capability_skeleton is not None:
@@ -1236,6 +1366,12 @@ def run_pipeline_v5(
                 )
 
     if not skip_m14 and not offers:
+        if offers_pre_p3:
+            raise PipelineError(
+                "pipeline_blocked:p3_1b_zero_eligible_after_gate — "
+                "Des bundles Gate B SCORABLE ont été identifiés mais aucun fournisseur "
+                "n’a passé l’EligibilityGate P3.1 (tous exclus ou aucun éligible)."
+            )
         out.error = "no_scorable_offers_for_m14"
         out.stopped_at = "precheck_m14_offers"
         out.duration_seconds = time.perf_counter() - t0
@@ -1245,11 +1381,10 @@ def run_pipeline_v5(
         repo_m14 = M14EvaluationRepository()
         engine_m14 = EvaluationEngine(repository=repo_m14)
         try:
-            vendor_map = _vendor_name_by_bundle(workspace_id)
             report_matrix = EvaluationEngine(repository=None).evaluate(inp)
             mp_list, ex_list = build_matrix_participants_and_excluded(
                 report_matrix,
-                bundle_roles=bundle_roles,
+                bundle_roles=bundle_roles_for_matrix,
                 vendor_by_bundle=vendor_map,
                 extract_failed_bundles=extract_failed_bundles,
             )
@@ -1274,15 +1409,19 @@ def run_pipeline_v5(
                     "process_linking_data": [e.model_dump() for e in linking_entries],
                 }
             )
+            # P3.1B — ``offers`` / ``inp`` sont post-EligibilityGate ; M14 ne score que l’éligible.
             report = engine_m14.evaluate(inp_with_linking)
             payload = report.model_dump(mode="json")
             if out.procedure_resolution_status:
                 payload["procedure_resolution_status"] = out.procedure_resolution_status
             mp_list, ex_list = build_matrix_participants_and_excluded(
                 report,
-                bundle_roles=bundle_roles,
+                bundle_roles=bundle_roles_for_matrix,
                 vendor_by_bundle=vendor_map,
                 extract_failed_bundles=extract_failed_bundles,
+            )
+            merge_p3_eligibility_gate_failures_into_excluded(
+                ex_list, gate_out, vendor_map
             )
             # Phase 1 Gate C traceability — persist matrix_participants and excluded_from_matrix
             out.matrix_participants = mp_list
