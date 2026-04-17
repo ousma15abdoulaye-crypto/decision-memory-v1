@@ -1,7 +1,7 @@
 """
 P3.1 — EligibilityGate intelligent (pré-M14, pré-scoring).
 
-Brique additive : aucune intégration ``pipeline_v5_service`` dans ce mandat.
+Raccordé au pipeline V5 (P3.1B) via ``build_vendor_gate_input_from_bundle_documents``.
 Les décisions s’appuient sur ``criterion_type``, ``gate_severity``,
 ``verification_source`` et les preuves fournies — pas sur ``question_number`` seul.
 """
@@ -11,6 +11,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from typing import Any
 
 from src.procurement.eligibility_models import (
     EligibilityReviewPriority,
@@ -1021,6 +1022,40 @@ def _verdict_from_detail(
         locked=verdict.locked,
     )
     return verdict
+
+
+def build_vendor_gate_input_from_bundle_documents(
+    bundle_id: str,
+    *,
+    vendor_name: str = "",
+    rows: list[dict[str, Any]],
+    bundle_gate_b_status: str | None = None,
+) -> VendorGateInput:
+    """Construit ``VendorGateInput`` depuis les lignes ``bundle_documents`` (P3.1B).
+
+    Détection documentaire : chaque jeton ``evidence_expected`` du catalogue SCI
+    standard est cherché en sous-chaîne (corpus concaténé en minuscules). Pas
+    d’heuristique métier cachée hors de ces jetons explicites.
+    """
+    corpus_lower = "\n".join(str(r.get("raw_text") or "") for r in rows).lower()
+    has_docs = bool(corpus_lower.strip())
+    signal_hits: dict[str, list[str]] = {}
+    if has_docs:
+        for crit in standard_sci_essential_criteria():
+            if crit.is_parent:
+                continue
+            matched = [
+                tok for tok in crit.evidence_expected if tok.lower() in corpus_lower
+            ]
+            if matched:
+                signal_hits[crit.criterion_id] = matched
+    return VendorGateInput(
+        vendor_id=str(bundle_id),
+        vendor_name=vendor_name or str(bundle_id),
+        bundle_gate_b_status=bundle_gate_b_status,
+        has_exploitable_documents=has_docs,
+        signal_hits=signal_hits,
+    )
 
 
 def run_eligibility_gate(
