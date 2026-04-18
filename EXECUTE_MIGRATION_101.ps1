@@ -10,7 +10,19 @@ Write-Host "=" -NoNewline -ForegroundColor Cyan
 Write-Host ("=" * 69) -ForegroundColor Cyan
 Write-Host ""
 
-$repoRoot = "C:\Users\abdoulaye.ousmane\OneDrive - Save the Children International\Documents\GitHub\decision-memory-v1"
+$repoRoot = $null
+
+try {
+    $gitRepoRoot = git rev-parse --show-toplevel 2>$null
+    if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($gitRepoRoot)) {
+        $repoRoot = $gitRepoRoot.Trim()
+    }
+} catch {
+}
+
+if (-not $repoRoot) {
+    $repoRoot = (Resolve-Path $PSScriptRoot).Path
+}
 Set-Location $repoRoot
 
 Write-Host "PRE-CHECK: Verifying alembic current..." -ForegroundColor Yellow
