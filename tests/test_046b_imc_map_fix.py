@@ -155,6 +155,8 @@ VALID_ALEMBIC_HEADS = (
     "098_primary_admin_email_owner_mandate_stub",
     "f7198e64fb16",
     "e7df16ec18ee",
+    # P3.2 — scoring schema dao_criteria + process_workspaces (migration 101)
+    "101_p32_dao_criteria_scoring_schema",
 )
 
 
