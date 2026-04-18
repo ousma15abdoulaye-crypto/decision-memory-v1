@@ -1,10 +1,7 @@
-"""L7 — Tests force_recompute : INV-P14 (cache) / INV-P15A (calcul forcé).
+"""L7 — Tests force_recompute : INV-P15A (calcul exécuté).
 
-Vérifie que _run_scoring_step() :
-  - force_recompute=True  → toujours calculate_scores_for_case (INV-P15A)
-  - force_recompute=False → tentative get_latest_score_run, fallback calcul (INV-P14)
-  - _lookup_warning initialisé à None (PATCH-10) — pas de NameError possible
-  - force_recompute tracé dans meta du step scoring
+Rectificatif CTO P3.3 : le scoring Couche A appelle toujours
+``calculate_scores_for_case`` — pas de cache via ``get_latest_score_run``.
 
 Fixtures : db_conn, case_factory.
 """
@@ -15,9 +12,12 @@ from unittest.mock import MagicMock, patch
 
 from src.couche_a.pipeline.service import _run_scoring_step
 
-# ---------------------------------------------------------------------------
-# Helpers mock
-# ---------------------------------------------------------------------------
+
+class _EngineStub:
+    """Stub sans get_latest_score_run — toute utilisation future lèverait AttributeError."""
+
+    def __init__(self) -> None:
+        self.calculate_scores_for_case = MagicMock(return_value=([], []))
 
 
 def _mock_conn_with_rows(extractions=None, criteria=None):
@@ -42,17 +42,13 @@ def _mock_conn_with_rows(extractions=None, criteria=None):
     return conn
 
 
-# ---------------------------------------------------------------------------
-# Test : force_recompute=True appelle toujours calculate_scores_for_case
-# ---------------------------------------------------------------------------
-
-
-def test_force_recompute_true_always_calculates():
-    """INV-P15A : force_recompute=True → calculate_scores_for_case toujours appelé."""
+def test_force_recompute_true_calls_calculate_scores():
+    """force_recompute=True → calculate_scores_for_case appelé."""
     conn = _mock_conn_with_rows()
+    stub = _EngineStub()
 
     with (
-        patch("src.couche_a.pipeline.service.ScoringEngine") as mock_engine,
+        patch("src.couche_a.pipeline.service.ScoringEngine", return_value=stub),
         patch(
             "src.couche_a.pipeline.service._build_supplier_packages_from_extractions",
             return_value=[],
@@ -62,26 +58,19 @@ def test_force_recompute_true_always_calculates():
             return_value=[],
         ),
     ):
-        engine_instance = mock_engine.return_value
-        engine_instance.calculate_scores_for_case.return_value = ([], [])
+        _run_scoring_step("CASE-28b05d85", conn, force_recompute=True)
 
-        _run_scoring_step("case-test", conn, force_recompute=True)
-
-        engine_instance.calculate_scores_for_case.assert_called_once()
-        engine_instance.get_latest_score_run.assert_not_called()
+        stub.calculate_scores_for_case.assert_called_once()
+        assert not hasattr(stub, "get_latest_score_run")
 
 
-# ---------------------------------------------------------------------------
-# Test : force_recompute=False tente get_latest_score_run d'abord
-# ---------------------------------------------------------------------------
-
-
-def test_force_recompute_false_tries_cache_first():
-    """INV-P14 : force_recompute=False → get_latest_score_run tenté en premier."""
+def test_force_recompute_false_also_calls_calculate_scores_no_cache():
+    """Rectificatif CTO : force_recompute=False → même chemin, pas de get_latest_score_run."""
     conn = _mock_conn_with_rows()
+    stub = _EngineStub()
 
     with (
-        patch("src.couche_a.pipeline.service.ScoringEngine") as mock_engine,
+        patch("src.couche_a.pipeline.service.ScoringEngine", return_value=stub),
         patch(
             "src.couche_a.pipeline.service._build_supplier_packages_from_extractions",
             return_value=[],
@@ -91,29 +80,19 @@ def test_force_recompute_false_tries_cache_first():
             return_value=[],
         ),
     ):
-        engine_instance = mock_engine.return_value
-        engine_instance.get_latest_score_run.return_value = {
-            "scores": [],
-            "eliminations": [],
-        }
+        _run_scoring_step("CASE-28b05d85", conn, force_recompute=False)
 
-        _run_scoring_step("case-test", conn, force_recompute=False)
-
-        engine_instance.get_latest_score_run.assert_called_once_with("case-test")
-        engine_instance.calculate_scores_for_case.assert_not_called()
+        stub.calculate_scores_for_case.assert_called_once()
+        assert not hasattr(stub, "get_latest_score_run")
 
 
-# ---------------------------------------------------------------------------
-# Test : force_recompute=False avec AttributeError → fallback calcul (ADR-0013)
-# ---------------------------------------------------------------------------
-
-
-def test_force_recompute_false_fallback_on_missing_method():
-    """ADR-0013 : get_latest_score_run absent → fallback calculate_scores_for_case."""
+def test_no_lookup_warning_in_meta():
+    """Le meta scoring ne contient plus lookup_warning (cache retiré)."""
     conn = _mock_conn_with_rows()
+    stub = _EngineStub()
 
     with (
-        patch("src.couche_a.pipeline.service.ScoringEngine") as mock_engine,
+        patch("src.couche_a.pipeline.service.ScoringEngine", return_value=stub),
         patch(
             "src.couche_a.pipeline.service._build_supplier_packages_from_extractions",
             return_value=[],
@@ -123,59 +102,18 @@ def test_force_recompute_false_fallback_on_missing_method():
             return_value=[],
         ),
     ):
-        engine_instance = mock_engine.return_value
-        del engine_instance.get_latest_score_run
-        type(engine_instance).get_latest_score_run = property(
-            lambda self: (_ for _ in ()).throw(AttributeError("not implemented"))
-        )
-        engine_instance.calculate_scores_for_case.return_value = ([], [])
-
-        outcome = _run_scoring_step("case-test", conn, force_recompute=False)
-
-        engine_instance.calculate_scores_for_case.assert_called_once()
-        assert outcome.meta.get("lookup_warning") == "SCORE_CACHE_UNAVAILABLE_FALLBACK"
-
-
-# ---------------------------------------------------------------------------
-# Test : PATCH-10 — _lookup_warning initialisé à None (pas de NameError)
-# ---------------------------------------------------------------------------
-
-
-def test_lookup_warning_initialized_no_name_error():
-    """PATCH-10 : _lookup_warning initialisé à None — pas de NameError."""
-    conn = _mock_conn_with_rows()
-
-    with (
-        patch("src.couche_a.pipeline.service.ScoringEngine") as mock_engine,
-        patch(
-            "src.couche_a.pipeline.service._build_supplier_packages_from_extractions",
-            return_value=[],
-        ),
-        patch(
-            "src.couche_a.pipeline.service._build_dao_criteria_from_rows",
-            return_value=[],
-        ),
-    ):
-        engine_instance = mock_engine.return_value
-        engine_instance.calculate_scores_for_case.return_value = ([], [])
-
-        # Force_recompute=True skip le bloc cache → _lookup_warning reste None → pas d'erreur
-        outcome = _run_scoring_step("case-test", conn, force_recompute=True)
+        outcome = _run_scoring_step("CASE-28b05d85", conn, force_recompute=False)
 
         assert "lookup_warning" not in outcome.meta
-
-
-# ---------------------------------------------------------------------------
-# Test : force_recompute tracé dans meta
-# ---------------------------------------------------------------------------
 
 
 def test_force_recompute_traced_in_meta():
     """force_recompute doit être tracé dans StepOutcome.meta."""
     conn = _mock_conn_with_rows()
+    stub = _EngineStub()
 
     with (
-        patch("src.couche_a.pipeline.service.ScoringEngine") as mock_engine,
+        patch("src.couche_a.pipeline.service.ScoringEngine", return_value=stub),
         patch(
             "src.couche_a.pipeline.service._build_supplier_packages_from_extractions",
             return_value=[],
@@ -185,22 +123,24 @@ def test_force_recompute_traced_in_meta():
             return_value=[],
         ),
     ):
-        engine_instance = mock_engine.return_value
-        engine_instance.calculate_scores_for_case.return_value = ([], [])
-
         outcome_true = _run_scoring_step("case-test", conn, force_recompute=True)
         assert outcome_true.meta["force_recompute"] is True
 
         conn2 = _mock_conn_with_rows()
-        engine_instance.get_latest_score_run = MagicMock(return_value=None)
-        engine_instance.calculate_scores_for_case.return_value = ([], [])
-        outcome_false = _run_scoring_step("case-test", conn2, force_recompute=False)
+        stub2 = _EngineStub()
+        with (
+            patch("src.couche_a.pipeline.service.ScoringEngine", return_value=stub2),
+            patch(
+                "src.couche_a.pipeline.service._build_supplier_packages_from_extractions",
+                return_value=[],
+            ),
+            patch(
+                "src.couche_a.pipeline.service._build_dao_criteria_from_rows",
+                return_value=[],
+            ),
+        ):
+            outcome_false = _run_scoring_step("case-test", conn2, force_recompute=False)
         assert outcome_false.meta["force_recompute"] is False
-
-
-# ---------------------------------------------------------------------------
-# Test : no extractions → incomplete immédiat (force_recompute ignoré)
-# ---------------------------------------------------------------------------
 
 
 def test_no_extractions_returns_incomplete_regardless_force_recompute():

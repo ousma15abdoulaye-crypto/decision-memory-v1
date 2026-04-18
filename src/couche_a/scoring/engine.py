@@ -7,11 +7,13 @@ No automatic vendor ranking or recommendations.
 """
 
 import json
-import re
 from datetime import UTC, datetime
 
 from src.core.models import DAOCriterion, SupplierPackage
+from src.couche_a.scoring.commercial_normalizer import qualify_supplier_commercial_price
 from src.couche_a.scoring.models import EliminationResult, ScoreResult
+from src.couche_a.scoring.p33_trace import log_p33_structured
+from src.couche_a.scoring.qualified_price import PriceAmbiguousError
 from src.db import get_connection
 from src.db.connection import get_db_cursor
 
@@ -25,6 +27,26 @@ _DEFAULT_WEIGHTS: dict[str, float] = {
 }
 
 _SCORING_VERSION = "V3.3.2"
+
+
+def _p33_suppressed_commercial_details(
+    case_id: str,
+    supplier_name: str,
+    reason_code: str,
+    base: dict,
+) -> dict:
+    """Marqueurs P3.3 obligatoires + trace structurée (pas de score chiffré exploitable)."""
+    log_p33_structured(
+        "p33_commercial_suppressed",
+        case_id=case_id,
+        supplier_name=supplier_name,
+        reason_code=reason_code,
+    )
+    return {
+        **base,
+        "p33_commercial_score_semantic_null": True,
+        "human_review_required": True,
+    }
 
 
 def _get_case_currency(conn, case_id: str | None) -> tuple[str, bool, str | None]:
@@ -151,7 +173,7 @@ class ScoringEngine:
 
         # 3. Calculate category scores
         commercial_scores = self._calculate_commercial_scores(
-            active_suppliers, profile, currency=currency
+            active_suppliers, profile, currency=currency, case_id=case_id
         )
         capacity_scores = self._calculate_capacity_scores(active_suppliers, profile)
         sustainability_scores = self._calculate_sustainability_scores(
@@ -172,6 +194,7 @@ class ScoringEngine:
             profile,
             weights=weights,
             scoring_meta=scoring_meta,
+            case_id=case_id,
         )
 
         # 5. Combine all scores
@@ -205,6 +228,7 @@ class ScoringEngine:
         suppliers: list[SupplierPackage],
         profile: dict,
         currency: str | None = None,
+        case_id: str = "",
     ) -> list[ScoreResult]:
         """Calculate commercial scores (price-based).
 
@@ -214,50 +238,175 @@ class ScoringEngine:
         effective_currency = (
             currency if currency is not None else _get_case_currency(None, None)[0]
         )
-        scores = []
+        scores: list[ScoreResult] = []
 
-        # Extract prices
-        prices = []
+        qualified_by_name: dict[str, Any] = {}
+        ambiguous_by_name: dict[str, PriceAmbiguousError] = {}
         for supplier in suppliers:
-            price_str = supplier.extracted_data.get("total_price", "")
-            match = re.search(r"(\d+(?:\.\d+)?)", price_str)
-            if match:
-                prices.append((supplier.supplier_name, float(match.group(1))))
+            name = supplier.supplier_name
+            try:
+                qualified_by_name[name] = qualify_supplier_commercial_price(
+                    supplier, case_currency=currency
+                )
+            except PriceAmbiguousError as exc:
+                ambiguous_by_name[name] = exc
+                qualified_by_name[name] = None
 
-        if not prices:
-            # No prices available
+        valid_qps = {
+            n: q
+            for n, q in qualified_by_name.items()
+            if q is not None and n not in ambiguous_by_name
+        }
+        bases = {(q.tax_basis, q.price_level, q.currency) for q in valid_qps.values()}
+        batch_incompatible = len(bases) > 1
+
+        if batch_incompatible:
             for supplier in suppliers:
+                det = _p33_suppressed_commercial_details(
+                    case_id,
+                    supplier.supplier_name,
+                    "P33_INCOMPATIBLE_COMMERCIAL_BASES_ACROSS_SUPPLIERS",
+                    {
+                        "p33_commercial_suppressed": True,
+                        "reason": "INCOMPATIBLE_COMMERCIAL_BASES_ACROSS_SUPPLIERS",
+                        "currency": effective_currency,
+                    },
+                )
                 scores.append(
                     ScoreResult(
                         supplier_name=supplier.supplier_name,
                         category="commercial",
                         score_value=0.0,
                         calculation_method=self.commercial_method,
-                        calculation_details={
-                            "error": "Aucun prix disponible",
-                            "currency": effective_currency,
-                        },
+                        calculation_details=det,
                     )
                 )
             return scores
 
-        # Find lowest price
-        lowest_price = min(price for _, price in prices)
+        prices: list[tuple[str, float]] = [
+            (name, qp.amount) for name, qp in valid_qps.items()
+        ]
 
-        # Calculate scores: (lowest_price / supplier_price) * 100
-        for supplier_name, price in prices:
-            score_value = (lowest_price / price) * 100.0
+        if not prices:
+            for supplier in suppliers:
+                name = supplier.supplier_name
+                if name in ambiguous_by_name:
+                    exc = ambiguous_by_name[name]
+                    det = _p33_suppressed_commercial_details(
+                        case_id,
+                        name,
+                        "P33_PRICE_AMBIGUOUS",
+                        {
+                            "p33_commercial_suppressed": True,
+                            "p33_price_ambiguous": True,
+                            "p33_codes": exc.codes,
+                            "p33_message": str(exc),
+                            "currency": effective_currency,
+                        },
+                    )
+                    scores.append(
+                        ScoreResult(
+                            supplier_name=name,
+                            category="commercial",
+                            score_value=0.0,
+                            calculation_method=self.commercial_method,
+                            calculation_details=det,
+                        )
+                    )
+                else:
+                    det = _p33_suppressed_commercial_details(
+                        case_id,
+                        name,
+                        "P33_PRICE_NOT_QUALIFIED",
+                        {
+                            "error": (
+                                "Prix non qualifié (P3.3) — "
+                                "HT/TTC non signalé ou montant absent"
+                            ),
+                            "currency": effective_currency,
+                            "p33_commercial_suppressed": True,
+                        },
+                    )
+                    scores.append(
+                        ScoreResult(
+                            supplier_name=name,
+                            category="commercial",
+                            score_value=0.0,
+                            calculation_method=self.commercial_method,
+                            calculation_details=det,
+                        )
+                    )
+            return scores
+
+        lowest_price = min(p for _, p in prices if p > 0)
+
+        for supplier in suppliers:
+            name = supplier.supplier_name
+            if name in ambiguous_by_name:
+                exc = ambiguous_by_name[name]
+                det = _p33_suppressed_commercial_details(
+                    case_id,
+                    name,
+                    "P33_PRICE_AMBIGUOUS",
+                    {
+                        "p33_commercial_suppressed": True,
+                        "p33_price_ambiguous": True,
+                        "p33_codes": exc.codes,
+                        "p33_message": str(exc),
+                        "currency": effective_currency,
+                    },
+                )
+                scores.append(
+                    ScoreResult(
+                        supplier_name=name,
+                        category="commercial",
+                        score_value=0.0,
+                        calculation_method=self.commercial_method,
+                        calculation_details=det,
+                    )
+                )
+                continue
+            qp = qualified_by_name.get(name)
+            if qp is None:
+                det = _p33_suppressed_commercial_details(
+                    case_id,
+                    name,
+                    "P33_PRICE_NOT_QUALIFIED",
+                    {
+                        "error": (
+                            "Prix non qualifié (P3.3) — "
+                            "HT/TTC non signalé ou montant absent"
+                        ),
+                        "currency": effective_currency,
+                        "p33_commercial_suppressed": True,
+                    },
+                )
+                scores.append(
+                    ScoreResult(
+                        supplier_name=name,
+                        category="commercial",
+                        score_value=0.0,
+                        calculation_method=self.commercial_method,
+                        calculation_details=det,
+                    )
+                )
+                continue
+
+            price = qp.amount
+            score_value = (lowest_price / price) * 100.0 if price > 0 else 0.0
+            details = {
+                "price": price,
+                "lowest_price": lowest_price,
+                "currency": effective_currency,
+                "qualified_price": qp.model_dump(mode="json"),
+            }
             scores.append(
                 ScoreResult(
-                    supplier_name=supplier_name,
+                    supplier_name=name,
                     category="commercial",
                     score_value=round(score_value, 2),
                     calculation_method=self.commercial_method,
-                    calculation_details={
-                        "price": price,
-                        "lowest_price": lowest_price,
-                        "currency": effective_currency,
-                    },
+                    calculation_details=details,
                 )
             )
 
@@ -367,16 +516,23 @@ class ScoringEngine:
         profile: dict,
         weights: dict[str, float] | None = None,
         scoring_meta: dict | None = None,
+        case_id: str = "",
     ) -> list[ScoreResult]:
         """Calculate weighted total scores.
 
         weights and scoring_meta come from _load_weights() via calculate_scores_for_case.
         scoring_meta is always present in calculation_details (INV-9 traceability).
+
+        P3.3 (rectificatif CTO) : pas de repondération silencieuse du pilier commercial.
+        Si aucun prix commercial n'est exploitable pour le lot, ``total_not_comparable``
+        est posé ; la somme pondérée conserve les poids DAO (contribution commercial = 0).
         """
         total_scores = []
 
         # Use weights from DB (via _load_weights) or fall back to defaults
-        effective_weights = weights if weights is not None else _DEFAULT_WEIGHTS.copy()
+        effective_weights: dict[str, float] = (
+            dict(weights) if weights is not None else _DEFAULT_WEIGHTS.copy()
+        )
 
         # Per-criterion profile overrides apply only when no DB weights provided (legacy path)
         if weights is None:
@@ -386,6 +542,21 @@ class ScoringEngine:
                 if category and category in effective_weights:
                     effective_weights[category] = weight
 
+        commercial_rows = [
+            s for s in category_scores if s.category == "commercial"
+        ]
+        all_commercial_suppressed = bool(commercial_rows) and all(
+            (s.calculation_details or {}).get("p33_commercial_suppressed")
+            for s in commercial_rows
+        )
+        any_commercial_suppressed = any(
+            (s.calculation_details or {}).get("p33_commercial_suppressed")
+            for s in commercial_rows
+        )
+        cohort_commercial_incomplete = (
+            any_commercial_suppressed and not all_commercial_suppressed
+        )
+
         # Calculate for each supplier
         for supplier in suppliers:
             supplier_scores = {
@@ -394,11 +565,29 @@ class ScoringEngine:
                 if s.supplier_name == supplier.supplier_name
             }
 
-            # Weighted sum
+            # Weighted sum (poids inchangés — pas de rescale P3.3)
             total = sum(
                 supplier_scores.get(cat, 0.0) * weight
                 for cat, weight in effective_weights.items()
             )
+
+            details: dict = {
+                "weights": effective_weights,
+                "category_scores": supplier_scores,
+                "scoring_meta": scoring_meta or {},
+            }
+            if all_commercial_suppressed:
+                details["total_not_comparable"] = True
+                details["human_review_required"] = True
+                details["p33_total_score_semantic_incomplete"] = True
+                log_p33_structured(
+                    "p33_total_not_comparable",
+                    case_id=case_id,
+                    supplier_name=supplier.supplier_name,
+                    reason_code="P33_ALL_COMMERCIAL_SUPPRESSED",
+                )
+            elif cohort_commercial_incomplete:
+                details["p33_total_cohort_commercial_incomplete"] = True
 
             total_scores.append(
                 ScoreResult(
@@ -406,11 +595,7 @@ class ScoringEngine:
                     category="total",
                     score_value=round(total, 2),
                     calculation_method="weighted_sum",
-                    calculation_details={
-                        "weights": effective_weights,
-                        "category_scores": supplier_scores,
-                        "scoring_meta": scoring_meta or {},
-                    },
+                    calculation_details=details,
                 )
             )
 

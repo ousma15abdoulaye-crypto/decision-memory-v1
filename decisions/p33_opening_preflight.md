@@ -111,9 +111,9 @@ Aligné mandat §7.1, adapté aux **IDs encore parfois texte** dans le pipeline 
 
 ## BLOC P8 — Verdict
 
-**`NOT READY`**
+**`GO` (2026-04-18)** — validation CTO explicite (« Go preflight ») ; ouverture implémentation P3.3 autorisée sur `feat/p3-3-commercial-normalizer`.
 
-**Motif :** preflight **rédigé** ; ouverture code **bloquée** tant que la **validation CTO explicite** du document (Article 12 — « preflight validé CTO ») n’est pas acquise. Branch technique et point d’insertion sont **identifiés** ; contrats P5/P6 **esquissés** ; risques P3 **cartographiés**.
+**Rappel :** branch technique et point d’insertion **identifiés** ; contrats P5/P6 **figés en implémentation** ; risques P3 **cartographiés** dans les blocs ci-dessus.
 
 ---
 

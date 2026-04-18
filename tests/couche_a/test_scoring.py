@@ -67,7 +67,7 @@ class TestScoringEngine:
                 has_financial=True,
                 has_technical=True,
                 has_admin=True,
-                extracted_data={"total_price": "1000 XOF", "currency": "XOF"},
+                extracted_data={"total_price": "1000 XOF TTC", "currency": "XOF"},
                 missing_fields=[],
             ),
             SupplierPackage(
@@ -78,7 +78,7 @@ class TestScoringEngine:
                 has_financial=True,
                 has_technical=True,
                 has_admin=True,
-                extracted_data={"total_price": "850 XOF", "currency": "XOF"},
+                extracted_data={"total_price": "850 XOF TTC", "currency": "XOF"},
                 missing_fields=[],
             ),
         ]
@@ -92,7 +92,9 @@ class TestScoringEngine:
             ]
         }
 
-        scores = engine._calculate_commercial_scores(suppliers, profile)
+        scores = engine._calculate_commercial_scores(
+            suppliers, profile, case_id="CASE-28b05d85"
+        )
 
         assert len(scores) == 2
         assert any(
@@ -131,12 +133,18 @@ class TestScoringEngine:
         ]
 
         profile = {"criteria": []}
-        scores = engine._calculate_commercial_scores(suppliers, profile)
+        scores = engine._calculate_commercial_scores(
+            suppliers, profile, case_id="CASE-28b05d85"
+        )
 
         assert len(scores) == 1
         assert scores[0].score_value == 0.0
         assert "error" in scores[0].calculation_details
-        assert scores[0].calculation_details["error"] == "Aucun prix disponible"
+        err = scores[0].calculation_details["error"]
+        assert err.startswith("Prix non qualifié (P3.3)")
+        assert scores[0].calculation_details.get("p33_commercial_suppressed") is True
+        assert scores[0].calculation_details.get("p33_commercial_score_semantic_null")
+        assert scores[0].calculation_details.get("human_review_required") is True
 
     def test_calculate_capacity_scores(self):
         """Test du calcul des scores de capacitÃ©."""
@@ -300,6 +308,84 @@ class TestScoringEngine:
         assert total_score.category == "total"
         assert total_score.calculation_method == "weighted_sum"
 
+    def test_calculate_total_scores_p33_no_rescale_when_all_commercial_suppressed(
+        self,
+    ):
+        """Rectificatif CTO : pas de repondération ; total marqué non comparable."""
+        engine = ScoringEngine()
+
+        suppliers = [
+            SupplierPackage(
+                supplier_name="Fournisseur Test",
+                offer_ids=["offer_1"],
+                documents=[],
+                package_status="COMPLETE",
+                has_financial=True,
+                has_technical=True,
+                has_admin=True,
+                extracted_data={},
+                missing_fields=[],
+            )
+        ]
+
+        category_scores = [
+            ScoreResult(
+                supplier_name="Fournisseur Test",
+                category="commercial",
+                score_value=0.0,
+                calculation_method="price_lowest_100",
+                calculation_details={"p33_commercial_suppressed": True},
+            ),
+            ScoreResult(
+                supplier_name="Fournisseur Test",
+                category="capacity",
+                score_value=70.0,
+                calculation_method="capacity_experience",
+                calculation_details={},
+            ),
+            ScoreResult(
+                supplier_name="Fournisseur Test",
+                category="sustainability",
+                score_value=90.0,
+                calculation_method="sustainability_certifications",
+                calculation_details={},
+            ),
+            ScoreResult(
+                supplier_name="Fournisseur Test",
+                category="essentials",
+                score_value=100.0,
+                calculation_method="elimination_check",
+                calculation_details={},
+            ),
+        ]
+
+        profile = {
+            "criteria": [
+                {"category": "essentials", "weight": 0.0},
+                {"category": "commercial", "weight": 0.50},
+                {"category": "capacity", "weight": 0.30},
+                {"category": "sustainability", "weight": 0.10},
+            ]
+        }
+
+        weights = {"commercial": 0.5, "capacity": 0.3, "sustainability": 0.1, "essentials": 0.1}
+        total_scores = engine._calculate_total_scores(
+            suppliers,
+            category_scores,
+            profile,
+            weights=weights,
+            case_id="CASE-28b05d85",
+        )
+
+        total_score = total_scores[0]
+        # Pas de rescale : 0*0.5 + 70*0.3 + 90*0.1 + 100*0.1 = 40
+        assert abs(total_score.score_value - 40.0) < 0.01
+        d = total_score.calculation_details
+        assert d.get("total_not_comparable") is True
+        assert d.get("p33_total_score_semantic_incomplete") is True
+        assert abs(d["weights"]["capacity"] - 0.3) < 1e-9
+        assert abs(d["weights"]["commercial"] - 0.5) < 1e-9
+
     def test_check_eliminatory_criteria(self):
         """Test de la vÃ©rification des critÃ¨res Ã©liminatoires."""
         engine = ScoringEngine()
@@ -449,7 +535,7 @@ class TestScoringIntegration:
                 has_technical=True,
                 has_admin=True,
                 extracted_data={
-                    "total_price": "1000 XOF",
+                    "total_price": "1000 XOF TTC",
                     "currency": "XOF",
                     "technical_refs": ["Projet 1", "Projet 2", "Projet 3"],
                     "lead_time_days": 30,
@@ -466,7 +552,7 @@ class TestScoringIntegration:
                 has_technical=True,
                 has_admin=True,
                 extracted_data={
-                    "total_price": "850 XOF",
+                    "total_price": "850 XOF TTC",
                     "currency": "XOF",
                     "technical_refs": ["Projet A", "Projet B"],
                     "lead_time_days": 45,
