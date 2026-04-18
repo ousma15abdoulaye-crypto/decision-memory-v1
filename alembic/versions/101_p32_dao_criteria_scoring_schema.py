@@ -7,6 +7,9 @@ Create Date: 2026-04-18
 P3.2 Scoring Engine Article 15 — Migration schéma
 Corpus canonique : CASE-28b05d85 (50/40/10 capacity/commercial/sustainability)
 
+Upgrade idempotent (IF NOT EXISTS / contrainte gardée) : aligné sur 100_process_workspaces_zip_r2 —
+évite DuplicateColumn quand ``alembic_version`` est rejoué sans DROP des colonnes (CI / tests).
+
 Opérations upgrade (ordre strict CTO) :
 - dao_criteria : +family, +weight_within_family, +criterion_mode, +scoring_mode, +min_threshold
 - process_workspaces : +technical_qualification_threshold
@@ -35,7 +38,7 @@ def upgrade() -> None:
 
     op.execute("""
         ALTER TABLE dao_criteria
-        ADD COLUMN family TEXT;
+        ADD COLUMN IF NOT EXISTS family TEXT;
     """)
 
     # Backfill family depuis criterion_category
@@ -68,7 +71,7 @@ def upgrade() -> None:
 
     op.execute("""
         ALTER TABLE dao_criteria
-        ADD COLUMN weight_within_family INTEGER;
+        ADD COLUMN IF NOT EXISTS weight_within_family INTEGER;
     """)
 
     # Backfill weight_within_family = (ponderation / SUM_famille) × 100
@@ -111,7 +114,7 @@ def upgrade() -> None:
 
     op.execute("""
         ALTER TABLE dao_criteria
-        ADD COLUMN criterion_mode TEXT NOT NULL DEFAULT 'SCORE';
+        ADD COLUMN IF NOT EXISTS criterion_mode TEXT NOT NULL DEFAULT 'SCORE';
     """)
 
     # Backfill criterion_mode = 'GATE' pour critères essentiels
@@ -136,7 +139,7 @@ def upgrade() -> None:
 
     op.execute("""
         ALTER TABLE dao_criteria
-        ADD COLUMN scoring_mode TEXT;
+        ADD COLUMN IF NOT EXISTS scoring_mode TEXT;
     """)
 
     # Backfill scoring_mode depuis m16_scoring_mode
@@ -156,13 +159,21 @@ def upgrade() -> None:
 
     # Contrainte CHECK scoring_mode (valeurs autorisées P3.2)
     op.execute("""
-        ALTER TABLE dao_criteria
-        ADD CONSTRAINT check_scoring_mode_p32 CHECK (
-            scoring_mode IS NULL OR scoring_mode IN (
-                'RUBRIC', 'PRO_RATA', 'COUNT_BASED', 'BINARY', 'DETERMINISTIC',
-                'NUMERIC', 'QUALITATIVE', 'NOT_APPLICABLE'
-            )
-        );
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'check_scoring_mode_p32'
+            ) THEN
+                ALTER TABLE dao_criteria
+                ADD CONSTRAINT check_scoring_mode_p32 CHECK (
+                    scoring_mode IS NULL OR scoring_mode IN (
+                        'RUBRIC', 'PRO_RATA', 'COUNT_BASED', 'BINARY', 'DETERMINISTIC',
+                        'NUMERIC', 'QUALITATIVE', 'NOT_APPLICABLE'
+                    )
+                );
+            END IF;
+        END $$;
     """)
 
     # ========================================================================
@@ -172,7 +183,7 @@ def upgrade() -> None:
 
     op.execute("""
         ALTER TABLE dao_criteria
-        ADD COLUMN min_threshold FLOAT;
+        ADD COLUMN IF NOT EXISTS min_threshold FLOAT;
     """)
 
     op.execute("""
@@ -189,7 +200,7 @@ def upgrade() -> None:
 
     op.execute("""
         ALTER TABLE process_workspaces
-        ADD COLUMN technical_qualification_threshold FLOAT NOT NULL DEFAULT 50.0;
+        ADD COLUMN IF NOT EXISTS technical_qualification_threshold FLOAT NOT NULL DEFAULT 50.0;
     """)
 
     op.execute("""
