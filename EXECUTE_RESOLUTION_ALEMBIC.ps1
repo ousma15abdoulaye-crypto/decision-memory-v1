@@ -8,7 +8,10 @@ Write-Host "P3.2 ÉTAPE C — RÉSOLUTION ALEMBIC (DELETE 082)" -ForegroundColor
 Write-Host ("=" * 69) -ForegroundColor Cyan
 Write-Host ""
 
-$repoRoot = "C:\Users\abdoulaye.ousmane\OneDrive - Save the Children International\Documents\GitHub\decision-memory-v1"
+$repoRoot = (& git -C $PSScriptRoot rev-parse --show-toplevel 2>$null).Trim()
+if (-not $repoRoot) {
+    throw "Unable to determine the repository root from script location: $PSScriptRoot"
+}
 Set-Location $repoRoot
 
 $file082 = "alembic\versions\082_p32_dao_criteria_scoring_schema.py"
