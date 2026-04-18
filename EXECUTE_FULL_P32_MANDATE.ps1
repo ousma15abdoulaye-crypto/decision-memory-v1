@@ -9,7 +9,15 @@ Write-Host "=" -NoNewline -ForegroundColor Cyan
 Write-Host ("=" * 69) -ForegroundColor Cyan
 Write-Host ""
 
-$repoRoot = "C:\Users\abdoulaye.ousmane\OneDrive - Save the Children International\Documents\GitHub\decision-memory-v1"
+$scriptDir = $PSScriptRoot
+try {
+    $repoRoot = (& git -C $scriptDir rev-parse --show-toplevel 2>$null).Trim()
+    if ([string]::IsNullOrWhiteSpace($repoRoot)) {
+        $repoRoot = $scriptDir
+    }
+} catch {
+    $repoRoot = $scriptDir
+}
 Set-Location $repoRoot
 
 # ===========================================================================
