@@ -8,6 +8,7 @@ No automatic vendor ranking or recommendations.
 
 import json
 from datetime import UTC, datetime
+from typing import Any
 
 from src.core.models import DAOCriterion, SupplierPackage
 from src.couche_a.scoring.commercial_normalizer import qualify_supplier_commercial_price

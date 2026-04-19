@@ -13,7 +13,6 @@ from pydantic import ValidationError
 
 from src.core.models import SupplierPackage
 from src.couche_a.scoring.engine import ScoringEngine
-from src.couche_a.scoring.models import ScoreResult
 from src.couche_a.scoring.qualified_price import (
     PriceLevel,
     QualificationConfidence,
