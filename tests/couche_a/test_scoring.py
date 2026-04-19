@@ -368,7 +368,12 @@ class TestScoringEngine:
             ]
         }
 
-        weights = {"commercial": 0.5, "capacity": 0.3, "sustainability": 0.1, "essentials": 0.1}
+        weights = {
+            "commercial": 0.5,
+            "capacity": 0.3,
+            "sustainability": 0.1,
+            "essentials": 0.1,
+        }
         total_scores = engine._calculate_total_scores(
             suppliers,
             category_scores,

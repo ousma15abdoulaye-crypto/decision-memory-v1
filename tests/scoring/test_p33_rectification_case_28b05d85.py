@@ -52,15 +52,25 @@ def test_t1_all_vendors_no_qualifiable_price_no_rescale_total_not_comparable():
         suppliers, profile, currency="XOF", case_id=CASE_CANON
     )
     assert len(commercial) == 2
-    assert all(s.calculation_details.get("p33_commercial_suppressed") for s in commercial)
-    assert all(s.calculation_details.get("p33_commercial_score_semantic_null") for s in commercial)
+    assert all(
+        s.calculation_details.get("p33_commercial_suppressed") for s in commercial
+    )
+    assert all(
+        s.calculation_details.get("p33_commercial_score_semantic_null")
+        for s in commercial
+    )
 
     cap = engine._calculate_capacity_scores(suppliers, profile)
     sus = engine._calculate_sustainability_scores(suppliers, profile)
     ess = engine._calculate_essentials_scores(suppliers, profile)
     all_cat = commercial + cap + sus + ess
 
-    weights = {"commercial": 0.5, "capacity": 0.3, "sustainability": 0.1, "essentials": 0.1}
+    weights = {
+        "commercial": 0.5,
+        "capacity": 0.3,
+        "sustainability": 0.1,
+        "essentials": 0.1,
+    }
     totals = engine._calculate_total_scores(
         suppliers, all_cat, profile, weights=weights, case_id=UUID_CANON_EQUIVALENT
     )
@@ -96,13 +106,20 @@ def test_t2_single_vendor_unqualified_cohort_flag_not_total_not_comparable():
     ess = engine._calculate_essentials_scores(suppliers, profile)
     all_cat = commercial + cap + sus + ess
 
-    weights = {"commercial": 0.5, "capacity": 0.3, "sustainability": 0.1, "essentials": 0.1}
+    weights = {
+        "commercial": 0.5,
+        "capacity": 0.3,
+        "sustainability": 0.1,
+        "essentials": 0.1,
+    }
     totals = engine._calculate_total_scores(
         suppliers, all_cat, profile, weights=weights, case_id=CASE_CANON
     )
     for t in totals:
         assert t.calculation_details.get("total_not_comparable") is not True
-        assert t.calculation_details.get("p33_total_cohort_commercial_incomplete") is True
+        assert (
+            t.calculation_details.get("p33_total_cohort_commercial_incomplete") is True
+        )
 
 
 def test_t3_confidence_enum_only_float_rejected():
