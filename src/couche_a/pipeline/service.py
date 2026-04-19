@@ -116,7 +116,6 @@ def _run_scoring_step(
     force_recompute: bool = False,
 ) -> StepOutcome:
     """Délègue le scoring au ScoringEngine existant."""
-    _lookup_warning: str | None = None
 
     with conn.cursor() as cur:
         cur.execute(
@@ -152,25 +151,13 @@ def _run_scoring_step(
     criteria = _build_dao_criteria_from_rows(criteria_rows)
     engine = ScoringEngine()
 
-    scores = None
-    eliminations: list[Any] = []
-
-    if not force_recompute:
-        try:
-            cached = engine.get_latest_score_run(case_id)  # type: ignore[attr-defined]
-            if cached is not None:
-                scores = cached.get("scores", [])
-                eliminations = cached.get("eliminations", [])
-                _lookup_warning = "SCORE_REUSED_FROM_CACHE"
-        except AttributeError:
-            _lookup_warning = "SCORE_CACHE_UNAVAILABLE_FALLBACK"
-
-    if scores is None:
-        scores, eliminations = engine.calculate_scores_for_case(
-            case_id=case_id,
-            suppliers=supplier_packages,
-            criteria=criteria,
-        )
+    # Calcul direct (Option 2 rectificatif CTO P3.3) — pas de cache score sur
+    # méthode absente / AttributeError sur chemin nominal.
+    scores, eliminations = engine.calculate_scores_for_case(
+        case_id=case_id,
+        suppliers=supplier_packages,
+        criteria=criteria,
+    )
 
     score_entries = [
         {
@@ -187,8 +174,6 @@ def _run_scoring_step(
         "score_entries": score_entries,
         "force_recompute": force_recompute,
     }
-    if _lookup_warning:
-        meta["lookup_warning"] = _lookup_warning
 
     return StepOutcome(
         status="ok" if scores else "incomplete",
