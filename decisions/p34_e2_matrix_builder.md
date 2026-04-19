@@ -51,3 +51,11 @@ Fichier : `tests/unit/services/test_matrix_builder.py` — couverture : R1–R9,
 ## 6. Verdict : **READY FOR E3**
 
 Fichiers **hors périmètre E2** respectés (`matrix_models.py`, `test_matrix_models.py`, pipeline M14 intacts). Prochaine étape : orchestration **E3** (branchement pipeline) sans modifier les contrats E1/E2 gelés.
+
+---
+
+## Note rectification post-revue CTO (2026-04-19)
+
+- **R4** : `exclusion_reason_codes` inclut désormais `P3.2:UNQUALIFIED_TECHNICAL` lorsque le seuil technique MANDATORY écarte un vendor éligible (alignement M10 / source-tagged).
+- **R9 vs R7** : commentaire dans `matrix_builder_service.py` sur l’émission conditionnelle de `COHORT_ASYMMETRIC_COMMERCIAL` (mix NULL / non-NULL dans RANKABLE uniquement).
+- **Nettoyage** : suppression du helper résiduel `_workspace_uuid` non utilisé.

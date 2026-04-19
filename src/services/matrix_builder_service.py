@@ -36,7 +36,6 @@ _STATUS_CHAIN: list[str] = [
 ]
 
 _NS_BUNDLE = UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
-_NS_WORKSPACE = UUID("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
 
 _FLAG_COMMERCIAL = "DMS_MATRIX_COMMERCIAL_SCORE="
 _FLAG_SUSTAINABILITY = "DMS_MATRIX_SUSTAINABILITY_SCORE="
@@ -61,13 +60,7 @@ _SUST_SCORE_RE = re.compile(
     rf"^{re.escape(_FLAG_SUSTAINABILITY)}(?P<val>.+)$", re.IGNORECASE
 )
 
-
-def _workspace_uuid(raw: str) -> UUID:
-    s = (raw or "").strip()
-    try:
-        return UUID(s)
-    except ValueError:
-        return uuid5(_NS_WORKSPACE, f"dms:workspace:{s}")
+_CODE_P32_UNQUALIFIED_TECHNICAL = "P3.2:UNQUALIFIED_TECHNICAL"
 
 
 def _bundle_uuid(offer_document_id: str) -> UUID:
@@ -295,6 +288,8 @@ def _apply_ranking(rows: list[MatrixRow]) -> list[MatrixRow]:
 
     has_comm_null = any(r.commercial_score_system is None for r in rankable)
     has_comm_ok = any(r.commercial_score_system is not None for r in rankable)
+    # R9: COHORT_ASYMMETRIC_COMMERCIAL uniquement si mix NULL / non-NULL dans RANKABLE
+    # (distinct d'un cas R7 où toute la cohorte RANKABLE est NULL commercial, ou n=1).
     asymmetric_commercial = has_comm_null and has_comm_ok
 
     has_sust_null = any(r.sustainability_score_system is None for r in rankable)
@@ -457,6 +452,14 @@ def build_matrix_rows(
         else:
             init_rank_status = RankStatus.PENDING
 
+        exclusion_codes = list(elig_codes)
+        if (
+            elig == EligibilityStatus.ELIGIBLE
+            and row_mode == TechnicalThresholdMode.MANDATORY
+            and row_qualified is False
+        ):
+            exclusion_codes = [_CODE_P32_UNQUALIFIED_TECHNICAL]
+
         row = MatrixRow(
             workspace_id=workspace_id,
             bundle_id=bundle_id,
@@ -474,7 +477,7 @@ def build_matrix_rows(
             total_comparability_status=tcomp,
             rank=None,
             rank_status=init_rank_status,
-            exclusion_reason_codes=list(elig_codes),
+            exclusion_reason_codes=exclusion_codes,
             warning_flags=wf,
             human_review_required=human_rev,
             status_origin=origin,

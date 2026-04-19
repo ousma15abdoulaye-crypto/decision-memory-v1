@@ -271,6 +271,7 @@ def test_r4_mandatory_not_qualified_excluded() -> None:
     r = rows[0]
     assert r.rank_status == RankStatus.EXCLUDED
     assert r.rank is None
+    assert r.exclusion_reason_codes == ["P3.2:UNQUALIFIED_TECHNICAL"]
 
 
 def test_r5_informative_not_qualified_still_ranked_with_flag() -> None:
