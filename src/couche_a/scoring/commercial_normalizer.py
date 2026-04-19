@@ -140,7 +140,8 @@ def qualify_supplier_commercial_price(
         and str(case_currency).strip()
         and doc_currency
         and str(doc_currency).strip()
-        and _normalize_currency(str(doc_currency)) != _normalize_currency(str(case_currency))
+        and _normalize_currency(str(doc_currency))
+        != _normalize_currency(str(case_currency))
     ):
         raise PriceAmbiguousError(
             f"Conflit devise offre ({doc_currency}) vs dossier ({case_currency}).",

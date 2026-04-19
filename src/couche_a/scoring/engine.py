@@ -543,9 +543,7 @@ class ScoringEngine:
                 if category and category in effective_weights:
                     effective_weights[category] = weight
 
-        commercial_rows = [
-            s for s in category_scores if s.category == "commercial"
-        ]
+        commercial_rows = [s for s in category_scores if s.category == "commercial"]
         all_commercial_suppressed = bool(commercial_rows) and all(
             (s.calculation_details or {}).get("p33_commercial_suppressed")
             for s in commercial_rows
