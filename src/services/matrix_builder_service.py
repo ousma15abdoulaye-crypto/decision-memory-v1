@@ -326,7 +326,12 @@ def _apply_ranking(rows: list[MatrixRow]) -> list[MatrixRow]:
             if out[i].sustainability_score_system is not None
             and out[i].total_score_system is not None
         ]
-        ranked_sub.sort(key=lambda t: t[1].total_score_system or 0.0, reverse=True)
+        ranked_sub.sort(
+            key=lambda t: (
+                -(t[1].total_score_system or 0.0),
+                str(t[1].bundle_id),
+            )
+        )
         for place, (i, _) in enumerate(ranked_sub, start=1):
             r = out[i]
             w = list(r.warning_flags)
@@ -349,8 +354,10 @@ def _apply_ranking(rows: list[MatrixRow]) -> list[MatrixRow]:
 
     ranked_sub = sorted(
         rankable_idx,
-        key=lambda i: out[i].total_score_system or 0.0,
-        reverse=True,
+        key=lambda i: (
+            -(out[i].total_score_system or 0.0),
+            str(out[i].bundle_id),
+        ),
     )
     for place, i in enumerate(ranked_sub, start=1):
         r = out[i]

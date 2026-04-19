@@ -13,9 +13,11 @@ import time
 from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.core.models import DAOCriterion
 from src.couche_a.extraction.criterion import _OFFER_TYPE_TO_ROLE
 from src.couche_a.extraction.offer_pipeline import extract_offer_content_async
 from src.couche_a.extraction.persistence import persist_tdr_result_to_db
@@ -56,6 +58,7 @@ from src.procurement.m14_evaluation_models import (
     scoring_structure_detected_from_dao_criteria_rows,
 )
 from src.procurement.m14_evaluation_repository import M14EvaluationRepository
+from src.procurement.matrix_models import MatrixRow, MatrixSummary
 from src.procurement.procedure_models import (
     DocumentConformitySignal,
     DocumentValidity,
@@ -72,6 +75,10 @@ from src.services.m14_bridge import (
 )
 from src.services.m14_bridge import (
     populate_assessments_from_m14,
+)
+from src.services.matrix_builder_service import (
+    build_matrix_rows,
+    build_matrix_summary,
 )
 
 logger = logging.getLogger(__name__)
@@ -199,6 +206,76 @@ def _require_dao_criteria_for_pipeline(
         )
 
 
+def _dao_criteria_rows_to_models(rows: list[dict[str, Any]]) -> list[DAOCriterion]:
+    """Convertit les lignes ``dao_criteria`` DB en ``DAOCriterion`` pour le builder matrice."""
+    out: list[DAOCriterion] = []
+    for i, row in enumerate(rows):
+        out.append(
+            DAOCriterion(
+                categorie=str(row.get("famille") or "general"),
+                critere_nom=str(row.get("critere_nom") or "").strip() or "criterion",
+                description="",
+                ponderation=float(row.get("ponderation") or 0.0),
+                type_reponse="numeric",
+                seuil_elimination=None,
+                ordre_affichage=i,
+            )
+        )
+    return out
+
+
+def _technical_threshold_config_for_workspace(workspace_id: str) -> dict[str, Any] | None:
+    """Lit ``technical_threshold_mode`` sur ``process_workspaces`` si la colonne existe (E0.4)."""
+    try:
+        with get_connection() as conn:
+            row = db_execute_one(
+                conn,
+                """
+                SELECT technical_threshold_mode::text AS mode
+                FROM process_workspaces
+                WHERE id = CAST(:wid AS uuid)
+                """,
+                {"wid": workspace_id},
+            )
+    except Exception:
+        logger.debug(
+            "[PIPELINE-V5] technical_threshold_mode absent ou illisible pour wid=%s",
+            workspace_id,
+            exc_info=True,
+        )
+        return None
+    if not row or row.get("mode") in (None, ""):
+        return None
+    return {"threshold_mode": str(row["mode"]).strip()}
+
+
+def build_matrix_projection_for_pipeline(
+    *,
+    workspace_id: str,
+    gate_output: GateOutput | None,
+    report: EvaluationReport,
+    dao_criteria_rows: list[dict[str, Any]],
+    technical_threshold_config: dict[str, Any] | None = None,
+    pipeline_run_id: UUID | None = None,
+) -> tuple[list[MatrixRow], MatrixSummary, UUID]:
+    """P3.4 E3 — projection matrice ; ``ValueError`` si ``gate_output`` absent."""
+    if gate_output is None:
+        raise ValueError("gate_output is required for matrix projection")
+    rid = pipeline_run_id or uuid4()
+    wid = UUID(str(workspace_id).strip())
+    dao_models = _dao_criteria_rows_to_models(dao_criteria_rows)
+    rows = build_matrix_rows(
+        wid,
+        rid,
+        report.offer_evaluations,
+        gate_output,
+        dao_models,
+        technical_threshold_config,
+    )
+    summary = build_matrix_summary(rows, wid, rid)
+    return rows, summary, rid
+
+
 def procurement_framework_from_tenant_code(code: str | None) -> ProcurementFramework:
     """Résout le cadre hôte M13 à partir de ``tenants.code`` (Gate A — plan directeur)."""
     c = (code or "").strip().lower()
@@ -239,6 +316,8 @@ class PipelineV5Result(BaseModel):
     eligibility_verdicts_summary: dict[str, Any] = Field(default_factory=dict)
     matrix_participants: list[dict[str, Any]] = Field(default_factory=list)
     excluded_from_matrix: list[dict[str, Any]] = Field(default_factory=list)
+    matrix_rows: list[MatrixRow] = Field(default_factory=list)
+    matrix_summary: MatrixSummary | None = None
 
 
 def _tf(
@@ -1346,6 +1425,7 @@ def run_pipeline_v5(
     )
 
     skip_m14 = False
+    m14_final_report: EvaluationReport | None = None
     if not force_m14:
         with get_connection() as conn:
             existing = db_execute_one(
@@ -1411,6 +1491,7 @@ def run_pipeline_v5(
             )
             # P3.1B — ``offers`` / ``inp`` sont post-EligibilityGate ; M14 ne score que l’éligible.
             report = engine_m14.evaluate(inp_with_linking)
+            m14_final_report = report
             payload = report.model_dump(mode="json")
             if out.procedure_resolution_status:
                 payload["procedure_resolution_status"] = out.procedure_resolution_status
@@ -1467,6 +1548,23 @@ def run_pipeline_v5(
         out.stopped_at = "step_bridge"
         out.duration_seconds = time.perf_counter() - t0
         return out
+
+    if m14_final_report is None:
+        raise PipelineError(
+            "pipeline_invalid:m14_report_missing_for_matrix_projection — "
+            "Évaluation M14 absente après bridge ; projection matrice impossible."
+        )
+    tech_cfg = _technical_threshold_config_for_workspace(workspace_id)
+    rows, summary, _ = build_matrix_projection_for_pipeline(
+        workspace_id=workspace_id,
+        gate_output=gate_out,
+        report=m14_final_report,
+        dao_criteria_rows=dao_criteria_rows,
+        technical_threshold_config=tech_cfg,
+        pipeline_run_id=None,
+    )
+    out.matrix_rows = rows
+    out.matrix_summary = summary
 
     out.completed = True
     out.duration_seconds = time.perf_counter() - t0
