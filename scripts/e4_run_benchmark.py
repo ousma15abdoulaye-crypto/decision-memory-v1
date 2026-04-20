@@ -3,11 +3,20 @@
 P3.4 E4 — Benchmark post-merge (Option B : exécution humaine sur DB réelle).
 
 Charge ``.env`` puis ``.env.local`` avant tout import ``src`` (pattern ``main.py``).
-Résout ``process_workspaces`` via les mêmes critères que ``M14EvaluationRepository``
-(``legacy_case_id`` exact, sinon ``id`` UUID).
+Résout ``process_workspaces`` via ``reference_code`` exact (référence humaine type
+``CASE-…``), puis ``legacy_case_id`` exact, sinon ``id`` UUID.
 
 Requêtes volumes dry-run : alignées sur les précontrôles de ``run_pipeline_v5``
 (``src/services/pipeline_v5_service.py``) — source de vérité schéma côté code.
+
+Hors ``--dry-run``, un précontrôle GET ``/health`` sur ``ANNOTATION_BACKEND_URL``
+échoue vite si l’extraction (annotation backend) est injoignable.
+
+Windows — si ``ModuleNotFoundError: No module named 'src'`` : inclure le répertoire
+racine du dépôt et ``src`` dans ``PYTHONPATH`` avant d’invoquer le script::
+
+    CMD:  set PYTHONPATH=src;.&& python scripts/e4_run_benchmark.py ...
+    PS:   $env:PYTHONPATH='src;.'; python scripts/e4_run_benchmark.py ...
 
 Usage::
 
@@ -66,6 +75,30 @@ def _configure_logging() -> None:
     )
 
 
+def precheck_annotation_backend(*, timeout_s: float = 5.0) -> tuple[bool, str]:
+    """
+    Vérifie que l’annotation backend (extraction) répond avant ``run_pipeline_v5``.
+
+    Utilise GET ``{ANNOTATION_BACKEND_URL}/health`` (même service que ``/predict``).
+    """
+    try:
+        import httpx
+
+        from src.couche_a.llm_router import router as llm_router
+    except Exception as e:
+        return False, f"import précontrôle: {type(e).__name__}: {e}"
+
+    base = llm_router.backend_url.rstrip("/")
+    url = f"{base}/health"
+    try:
+        with httpx.Client(timeout=timeout_s) as client:
+            resp = client.get(url)
+            resp.raise_for_status()
+    except Exception as e:
+        return False, f"{url} → {type(e).__name__}: {e}"
+    return True, url
+
+
 def resolve_workspace_id(
     *,
     workspace_id: UUID | None,
@@ -110,6 +143,21 @@ def resolve_workspace_id(
             """
             SELECT id::text AS id
             FROM process_workspaces
+            WHERE reference_code = :ref
+            LIMIT 1
+            """,
+            {"ref": ref},
+        )
+    if row and row.get("id"):
+        logger.info("Workspace résolu depuis reference_code=%r → %s", ref, row["id"])
+        return row["id"]
+
+    with get_connection() as conn:
+        row = db_execute_one(
+            conn,
+            """
+            SELECT id::text AS id
+            FROM process_workspaces
             WHERE legacy_case_id = :ref
             LIMIT 1
             """,
@@ -120,7 +168,7 @@ def resolve_workspace_id(
         return row["id"]
 
     raise SystemExit(
-        f"ERREUR: aucun process_workspaces pour legacy_case_id={ref!r} "
+        f"ERREUR: aucun process_workspaces pour reference_code ni legacy_case_id={ref!r} "
         "(essayez --workspace-id avec l'UUID complet).",
     )
 
@@ -392,14 +440,30 @@ def _print_report_blocks(
 
 def main() -> int:
     _configure_logging()
-    parser = argparse.ArgumentParser(description="P3.4 E4 benchmark post-merge (Option B)")
-    parser.add_argument("--workspace-reference", default=None, help="legacy_case_id exact")
+    parser = argparse.ArgumentParser(
+        description="P3.4 E4 benchmark post-merge (Option B)",
+        epilog=(
+            "Windows PYTHONPATH si import src échoue: "
+            "CMD set PYTHONPATH=src;.&& python scripts/e4_run_benchmark.py ... | "
+            "PS $env:PYTHONPATH='src;.'; python scripts/e4_run_benchmark.py ..."
+        ),
+    )
+    parser.add_argument(
+        "--workspace-reference",
+        default=None,
+        help="reference_code exact (ex. CASE-…), sinon legacy_case_id exact",
+    )
     parser.add_argument("--workspace-id", type=UUID, default=None)
     parser.add_argument("--runs", type=int, default=2, help="runs pour idempotence (défaut 2)")
     parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Volumes + résolution workspace uniquement (pas de pipeline)",
+    )
+    parser.add_argument(
+        "--skip-extraction-precheck",
+        action="store_true",
+        help="Ne pas appeler GET /health sur ANNOTATION_BACKEND_URL avant le pipeline",
     )
     args = parser.parse_args()
 
@@ -428,6 +492,18 @@ def main() -> int:
                 artifacts=None,
             )
             return 0
+
+        if not args.skip_extraction_precheck:
+            ok, detail = precheck_annotation_backend()
+            if not ok:
+                msg = (
+                    "ERREUR: précontrôle extraction (annotation backend) échoué — "
+                    "le pipeline nécessite un service joignable sur ANNOTATION_BACKEND_URL. "
+                    f"Détail: {detail}"
+                )
+                logger.error(msg)
+                print(msg, file=sys.stderr)
+                return 2
 
         results: list[PipelineV5Result] = []
         for i in range(max(1, args.runs)):
