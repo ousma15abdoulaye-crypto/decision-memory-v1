@@ -42,6 +42,22 @@ OUTPUT_DIR = Path("rapports")
 
 logger = logging.getLogger("e4_benchmark")
 
+# Champs volatiles exclus de l'empreinte stable V3 idempotence.
+# Ces champs varient légitimement entre 2 runs consécutifs sans remettre en cause
+# la stabilité sémantique de la projection matrice.
+_VOLATILE_FIELDS: frozenset[str] = frozenset(
+    {
+        "computed_at",  # datetime.now(UTC) à la construction MatrixRow / MatrixSummary
+        "pipeline_run_id",  # uuid4() par invocation pipeline / projection
+        "matrix_revision_id",  # uuid4() par build_matrix_summary
+    }
+)
+
+
+def _stable_fingerprint(row_data: dict[str, Any]) -> dict[str, Any]:
+    """Projection stable d'une ``MatrixRow`` sérialisée pour comparaison V3 idempotence."""
+    return {k: v for k, v in row_data.items() if k not in _VOLATILE_FIELDS}
+
 
 def _configure_logging() -> None:
     logging.basicConfig(
@@ -182,24 +198,41 @@ def collect_dry_run_metrics(workspace_id: str) -> dict[str, Any]:
 
 
 def _stable_matrix_fingerprint(result: PipelineV5Result) -> list[dict[str, Any]]:
-    """Empreinte stable pour comparaison idempotence (hors ``pipeline_run_id``)."""
-    out: list[dict[str, Any]] = []
-    for row in result.matrix_rows:
-        d = row.model_dump(mode="json")
-        d.pop("pipeline_run_id", None)
-        d.pop("matrix_revision_id", None)
-        out.append(
-            {
-                "bundle_id": d.get("bundle_id"),
-                "vendor_id": d.get("vendor_id"),
-                "rank_status": d.get("rank_status"),
-                "rank": d.get("rank"),
-                "eligibility_status": d.get("eligibility_status"),
-                "total_score_system": d.get("total_score_system"),
-            }
-        )
-    out.sort(key=lambda x: (x.get("bundle_id") or "", x.get("vendor_id") or ""))
+    """Liste triée d'empreintes stables (une par ``MatrixRow``) pour comparaison V3."""
+    out = [_stable_fingerprint(r.model_dump(mode="json")) for r in result.matrix_rows]
+    out.sort(
+        key=lambda d: (str(d.get("bundle_id", "")), str(d.get("supplier_name", ""))),
+    )
     return out
+
+
+def _build_run_meta(
+    *,
+    workspace_id_str: str,
+    pipeline_run_id: UUID | None,
+    matrix_revision_id: UUID | None,
+    duration_seconds: float,
+    runs_count: int,
+    timestamp: datetime,
+    tag: str,
+    result: PipelineV5Result,
+) -> dict[str, Any]:
+    """Construit le manifeste ``run_meta.json`` enrichi (traçabilité E4 §5.2)."""
+    return {
+        "timestamp": timestamp.isoformat(),
+        "workspace_id": workspace_id_str,
+        "pipeline_run_id": str(pipeline_run_id) if pipeline_run_id else None,
+        "matrix_revision_id": str(matrix_revision_id) if matrix_revision_id else None,
+        "duration_seconds": round(float(duration_seconds), 3),
+        "runs_count": runs_count,
+        "python_version": sys.version.split()[0],
+        "branch": "chore/p3-4-e4-benchmark-validation",
+        "reference": "P3.4-E4-BENCHMARK-VALIDATION-OPTION-B",
+        "tag": tag,
+        "completed": result.completed,
+        "error": result.error,
+        "stopped_at": result.stopped_at,
+    }
 
 
 def verify_invariants(result: PipelineV5Result) -> dict[str, Any]:
@@ -279,6 +312,7 @@ def serialize_artifacts(
     workspace_id: str,
     *,
     tag: str,
+    runs_count: int,
 ) -> dict[str, Any]:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     slug = str(workspace_id).replace("-", "")[:12]
@@ -292,15 +326,23 @@ def serialize_artifacts(
         if result.matrix_summary
         else None
     )
-    meta = {
-        "tag": tag,
-        "workspace_id": workspace_id,
-        "completed": result.completed,
-        "error": result.error,
-        "stopped_at": result.stopped_at,
-        "duration_seconds": result.duration_seconds,
-        "captured_at": datetime.now(tz=UTC).isoformat(),
-    }
+    pid: UUID | None = None
+    if result.matrix_rows:
+        pid = result.matrix_rows[0].pipeline_run_id
+    mrid: UUID | None = None
+    if result.matrix_summary is not None:
+        mrid = result.matrix_summary.matrix_revision_id
+
+    meta = _build_run_meta(
+        workspace_id_str=workspace_id,
+        pipeline_run_id=pid,
+        matrix_revision_id=mrid,
+        duration_seconds=result.duration_seconds,
+        runs_count=runs_count,
+        timestamp=datetime.now(tz=UTC),
+        tag=tag,
+        result=result,
+    )
 
     rows_path.write_text(json.dumps(rows_payload, indent=2, ensure_ascii=False), encoding="utf-8")
     summary_path.write_text(
@@ -406,7 +448,12 @@ def main() -> int:
             "detail": {"runs": len(fingerprints)},
         }
 
-        artifacts = serialize_artifacts(last, wid, tag=f"run_{len(results)}")
+        artifacts = serialize_artifacts(
+            last,
+            wid,
+            tag=f"run_{len(results)}",
+            runs_count=len(results),
+        )
 
         _print_report_blocks(
             workspace_id=wid,

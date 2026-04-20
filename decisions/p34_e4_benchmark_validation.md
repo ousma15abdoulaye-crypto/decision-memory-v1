@@ -51,22 +51,41 @@ Relever depuis la sortie console du script (bloc `2_precheck_metrics`) ou depuis
 
 ## 5. Invariants V1–V6 sur sortie réelle
 
-Synthèse depuis le bloc `6_invariants` du script (et compléments manuels si besoin) :
+### Convention d’évaluation
 
-| Volet | Résultat | Détail |
-|-------|----------|--------|
-| V1 cohérence cohorte / compteurs | À remplir | |
-| V2 modèles Pydantic (`MatrixRow` / `MatrixSummary`) | À remplir | |
-| V3 idempotence (2 runs) | À remplir | |
-| V4 explicabilité | À remplir | (inspection ciblée si requis) |
-| V5 propagation flags | À remplir | |
-| V6 summary | À remplir | |
+| Code | Signification | Action attendue |
+|------|---------------|-----------------|
+| `ok: true` | invariant automatiquement vérifié et validé | aucune |
+| `ok: false` | invariant automatiquement vérifié et violé | **STOP + remontée CTO Senior** |
+| `ok: null` | invariant requiert inspection sémantique manuelle | inspection des artefacts JSON, remplissage manuel du tableau |
+
+L’inspection manuelle consiste à ouvrir les fichiers  
+`rapports/p34_case_<slug>_matrix_rows.json` et  
+`rapports/p34_case_<slug>_matrix_summary.json` et à vérifier que :
+
+- les chaînes sémantiques attendues sont peuplées (V4) ;
+- les flags métier attendus sont propagés (V5) ;
+- la cohérence distribution vs statuts est respectée (V6 partiel).
+
+### Tableau de synthèse V1–V6
+
+| Volet | Automation | Résultat | Détail |
+|-------|------------|----------|--------|
+| V1 cohérence cohorte (compteurs) | automatisé | À remplir | depuis bloc `6_invariants` du script |
+| V2 modèles Pydantic (`MatrixRow`, `MatrixSummary`) | automatisé | À remplir | `model_validate` sur sortie |
+| V3 idempotence (2 runs, empreinte stable) | automatisé | À remplir | champs exclus : `computed_at`, `pipeline_run_id`, `matrix_revision_id` (voir `scripts/e4_run_benchmark.py`) |
+| V4 explicabilité peuplée | **manuel** | À remplir | `status_chain` non vide + sémantique cohérente ? |
+| V5 propagation flags métier | **manuel** | À remplir | flags P3.3 + `TECHNICAL_THRESHOLD_MODE_DEFAULT_APPLIED` présents ? |
+| V6 summary Pydantic | automatisé | À remplir | `model_validate` sur summary |
+| V6 summary distribution cohérente | **manuel** | À remplir | `cohort_comparability_status` cohérent avec la distribution observée ? |
+
+Synthèse automatique : bloc `6_invariants` du script (compléter le tableau après inspection manuelle V4/V5/V6 distribution).
 
 ---
 
 ## 6. Idempotence et tie-break
 
-- Deux exécutions consécutives `run_pipeline_v5` : **À remplir** (empreinte stable sans `pipeline_run_id`).  
+- Deux exécutions consécutives `run_pipeline_v5` : **À remplir** (empreinte stable : exclusion explicite de `computed_at`, `pipeline_run_id`, `matrix_revision_id` via `_VOLATILE_FIELDS` dans `scripts/e4_run_benchmark.py`).  
 - Tie-break A2 : **À remplir** (vérifié / non applicable).
 
 ---
