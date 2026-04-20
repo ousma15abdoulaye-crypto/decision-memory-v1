@@ -106,7 +106,7 @@ Bloc `2_precheck_metrics` du dry-run (`--workspace-id` identique) :
 - **Verdict E4** : **REFUSÉ** au sens « objectifs benchmark matrice non atteints sur cette exécution » — **cause** : **environnement** (backend d’extraction indisponible / réseau), **sans** constat de violation des invariants P3.4 sur sortie matrice (sortie absente).
 - **Suite proposée** :
   1. Rejouer `python scripts/e4_run_benchmark.py --workspace-id f1a6edfb-ac50-4301-a1a9-7a80053c632a --runs 2` sur un poste où le **client d’extraction** est joignable, avec `PYTHONPATH=src;.` et mêmes secrets DB.
-  2. **Dette doc / produit** : aligner `--workspace-reference` sur `reference_code` (schéma 069) — aujourd’hui le script résout la référence texte via **`legacy_case_id`** seulement (`WHERE legacy_case_id = :ref`), ce qui **ne** couvre **pas** `CASE-28b05d85` posé comme `reference_code`. **Aucune** colonne `reference` fantôme n’est utilisée. Exécution mandatée avec **`--workspace-id`** pour lever l’ambiguïté.
+  2. **Dette doc / produit** : ~~aligner `--workspace-reference` sur `reference_code`~~ **traité en E4.1 bis** (commit `5e71ebfb`, voir § NB ci-dessous). Réexécution possible avec `--workspace-reference CASE-28b05d85` sans passer par l’UUID.
   3. Ouvrir post-merge l’issue **tech-debt** « helper DB cross-platform » (mandat CTO — hors périmètre E4).
 - **PR / push** : **non effectués** dans cette session (conformément mandat §9 différé jusqu’à revue CTO Senior du présent rapport).
 
@@ -116,3 +116,53 @@ Bloc `2_precheck_metrics` du dry-run (`--workspace-id` identique) :
 
 - **`python -m pytest tests/unit/ -q`** : **`456 passed`** (2026-04-20, même session).
 - **Test d’intégration E4** : non relancé avec `P34_E4_WORKSPACE_ID` après échec pipeline (résultat attendu : échec identique tant que l’extraction est KO).
+
+---
+
+## NB — E4.1 bis (terminé)
+
+Les changements sont **uniquement** dans `scripts/e4_run_benchmark.py`, commit **`5e71ebfb`** sur `chore/p3-4-e4-benchmark-validation`. **Aucun push** (comme demandé).
+
+### Contenu livré
+
+- **`--workspace-reference`** — Résolution dans l’ordre : `reference_code` exact → `legacy_case_id` exact → (inchangé) chaîne parseable en UUID → `id`.
+- **Documentation `PYTHONPATH` (Windows)** — Dans le docstring du module (CMD + PowerShell) et dans l’`epilog` de `--help`.
+- **Précontrôle extraction** — Avant `run_pipeline_v5` (hors `--dry-run`) : `GET {ANNOTATION_BACKEND_URL}/health` via `httpx`, timeout 5 s, message d’erreur explicite et **code de sortie 2**. Échappatoire : `--skip-extraction-precheck`.
+
+### Vérifications (post-commit)
+
+- `ruff check scripts/e4_run_benchmark.py` : OK  
+- `pytest tests/unit/ -q` : **456 passed**
+
+**Usage** : pour relancer un benchmark complet après démarrage du backend d’annotation, même commande qu’avant ; si le service est down, **échec immédiat** avec le détail au lieu d’un plantage au milieu du pipeline.
+
+---
+
+## NB — Radiographie extraction : monolithe annotation-backend vs « tuyau entreprise »
+
+### Investigation (code — 2026-04-20)
+
+1. **Le pipeline appelle déjà l’annotation backend comme porte HTTP d’extraction**  
+   - `src/couche_a/extraction/backend_client.py` : `call_annotation_backend` envoie un `POST` JSON vers `{LLMRouter.backend_url}/predict` (URL = `get_settings().ANNOTATION_BACKEND_URL`), timeout issu du routeur, parsing de la réponse en `TDRExtractionResult`, et **fallback métier** (`make_fallback_result`) sur timeout / HTTP / `RequestError` / exception inattendue.  
+   - `src/couche_a/extraction/offer_pipeline.py` : enchaîne extraction de texte locale (`extract_text_any`) puis appels async au backend pour la partie « ML / schéma annotation » — la **dépendance réseau** est donc **sur le chemin nominal**, pas un oubli de câblage.
+
+2. **L’annotation backend est un monolithe applicatif**  
+   - `services/annotation-backend/backend.py` : application **FastAPI** unique qui embarque boot, CORS, `/health`, `/predict`, intégration **Mistral**, imports **Label Studio / orchestrateur** (`src.annotation.orchestrator`), classifieur documentaire, validateurs de schéma, etc. — **un seul déployable**, gros surface de responsabilités, cohérent avec le **gel** documenté (pas de découpage attendu sans mandat CTO).  
+   - Le service ajuste aussi `sys.path` pour résoudre `src/` depuis le monorepo : couplage fort au dépôt, typique d’un **module métier + ML** livré ensemble.
+
+3. **Écart avec un « tuyau d’extraction entreprise »** (cible souvent attendue en prod à grande échelle)  
+
+   | Dimension | État actuel (synthèse) | Souvent attendu « entreprise » |
+   |-----------|----------------------|--------------------------------|
+   | Entrée unique | Oui côté DMS : `/predict` | + passerelle dédiée (versionnement API, quotas) |
+   | Résilience batch | Fallback document par document ; pas de file centralisée dans ce flux | Files (SQS/Kafka), workers horizontaux, DLQ |
+   | Observabilité | Logs applicatifs + latence loguée côté client | Traces distribuées, métriques SLA par tenant |
+   | Isolement blast radius | Panne backend = extraction KO pour tous les appels | Cellules / pools par région ou par tenant |
+   | Contrat | Payload ad hoc JSON « tasks » | OpenAPI publié, tests de contrat CI entre consommateur et fournisseur |
+
+   **Lecture** : le **câblage fonctionnel** « pipeline → HTTP → annotation-backend » est **déjà en place** ; la douleur E4 venait de **disponibilité** (`ConnectError`), pas d’absence de route. Le gap « entreprise » est surtout **plateforme** (file, scale-out, gouvernance API, observabilité) et **éventuellement** évolution **architecturale** du déployable ML — **hors périmètre** E4.1 bis et **soumis** au cadre gel / mandat sur `services/annotation-backend/`.
+
+4. **Pistes (hors scope commit E4.1 bis)** — à trancher produit / CTO :  
+   - **Court terme** : garantir `ANNOTATION_BACKEND_URL` + processus de démarrage (compose, Railway) + SLO interne « health avant run » (déjà outillé côté script benchmark).  
+   - **Moyen terme** : couche **API gateway** devant le même backend sans le splitter (auth, rate limit).  
+   - **Long terme** : **découpage** extraction asynchrone (queue + workers) — implique stratégie de migration (`docs/contracts/annotation/ANNOTATION_BACKEND_MIGRATION_STRATEGY.md` si toujours d’actualité) et **dégel** ciblé du service.
