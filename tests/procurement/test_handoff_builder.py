@@ -26,7 +26,8 @@ class TestBuildHandoffs:
         assert handoffs.regulatory_profile_skeleton is not None
         assert handoffs.atomic_capability_skeleton is not None
 
-    def test_offer_does_not_get_h1_h2(self) -> None:
+    def test_offer_gets_h1_framework_signal_not_h2(self) -> None:
+        """P0-H1 : cadre SCI connu → squelette H1 même hors SOURCE_RULES_KINDS ; H2 reste réservé aux source_rules."""
         handoffs = build_handoffs(
             document_kind=DocumentKindParent.OFFER_TECHNICAL,
             framework=ProcurementFramework.SCI,
@@ -37,7 +38,12 @@ class TestBuildHandoffs:
             scoring=None,
             text="Offre technique fournisseur",
         )
-        assert handoffs.regulatory_profile_skeleton is None
+        h1 = handoffs.regulatory_profile_skeleton
+        assert h1 is not None
+        assert h1.framework_detected == ProcurementFramework.SCI
+        assert any(
+            s.startswith("regulatory_yaml_framework=") for s in h1.sci_signals_detected
+        )
         assert handoffs.atomic_capability_skeleton is None
 
     def test_h3_market_signal_with_prices(self) -> None:

@@ -7,11 +7,136 @@ RÈGLE-09 : winner / rank / recommendation / offre_retenue = INTERDITS.
 
 from __future__ import annotations
 
+import logging
+import re
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.procurement.procedure_models import (
+    ScoringCriterionDetected,
+    ScoringStructureDetected,
+)
+
+ProcessLinkingSource = Literal["m12_pass_sequence"]
+ProcessLinkingType = Literal["evidence", "price", "technical", "missing"]
+
 M14Confidence = Literal[0.6, 0.8, 1.0]
+
+logger = logging.getLogger(__name__)
+
+DAO_CRITERION_ID_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+
+
+def _ponderation_coherence_from_totals(
+    total_w: float, *, has_criteria: bool
+) -> Literal["OK", "INCOHERENT", "INCOMPLETE", "NOT_FOUND"]:
+    """Cohérence des pondérations DAO (aligné extract_scoring_structure / revue Copilot)."""
+    if not has_criteria:
+        return "NOT_FOUND"
+    if abs(total_w - 100.0) <= 0.01:
+        return "OK"
+    if total_w > 0.0:
+        return "INCOMPLETE"
+    return "INCOHERENT"
+
+
+def scoring_structure_detected_from_dao_criteria_rows(
+    rows: list[dict[str, Any]],
+) -> ScoringStructureDetected:
+    """Construit un ``ScoringStructureDetected`` M12 depuis les lignes ``dao_criteria`` DB."""
+    criteria: list[ScoringCriterionDetected] = []
+    total_w = 0.0
+    for row in rows:
+        rid = str(row.get("id") or "").strip()
+        if not rid or not DAO_CRITERION_ID_UUID_RE.match(rid):
+            continue
+        w = float(row.get("ponderation") or 0.0)
+        total_w += w
+        label = str(row.get("critere_nom") or "").strip()
+        fam = str(row.get("famille") or "general")
+        elim = row.get("is_eliminatory")
+        ev_parts = [f"label={label}", f"famille={fam}"]
+        if elim is not None:
+            ev_parts.append(f"is_eliminatory={bool(elim)}")
+        criteria.append(
+            ScoringCriterionDetected(
+                criteria_name=rid,
+                weight_percent=w,
+                confidence=1.0,
+                evidence=", ".join(ev_parts),
+            )
+        )
+    coherence = _ponderation_coherence_from_totals(total_w, has_criteria=bool(criteria))
+    if coherence not in ("OK", "NOT_FOUND"):
+        logger.warning(
+            "[M14] dao_criteria ponderation sum=%s (attendu ~100.0) — %s",
+            total_w,
+            coherence,
+        )
+    return ScoringStructureDetected(
+        criteria=criteria,
+        total_weight=total_w,
+        ponderation_coherence=coherence,
+        confidence=1.0,
+        evidence=[f"dao_criteria_rows={len(rows)}"],
+    )
+
+
+def m14_h2_scoring_structure_dict_from_dao_criteria_rows(
+    rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Grille D-003 pour ``h2_capability_skeleton['scoring_structure']`` (M14 / dao_criteria).
+
+    Source unique : ``dao_criteria``. Chaque entrée expose à la fois les champs
+    métier (criterion_id, libellé, famille, éliminatoire) et les clés attendues par
+    ``EvaluationEngine._compute_technical_score`` (``criteria_name`` = UUID DAO,
+    ``weight_percent``).
+
+    D-005 : une vue ``MergedCriterion`` additive est calculée en parallèle dans
+    ``pipeline_v5_service`` ; elle ne remplace pas ces clés ni cette grille.
+    """
+    crits: list[dict[str, Any]] = []
+    total_w = 0.0
+    for row in rows:
+        rid = str(row.get("id") or "").strip()
+        if not rid or not DAO_CRITERION_ID_UUID_RE.match(rid):
+            continue
+        w = float(row.get("ponderation") or 0.0)
+        total_w += w
+        label = str(row.get("critere_nom") or "").strip()
+        fam = str(row.get("famille") or "general").strip().lower()
+        elim = row.get("is_eliminatory")
+        crits.append(
+            {
+                "criterion_id": rid,
+                "criterion_name": label,
+                "criteria_name": rid,
+                "famille": fam,
+                "weight_percent": w,
+                "ponderation": w,
+                "is_eliminatory": bool(elim) if elim is not None else False,
+                "max_score": None,
+                "awarded_score": None,
+            }
+        )
+    coherence = _ponderation_coherence_from_totals(total_w, has_criteria=bool(crits))
+    if coherence not in ("OK", "NOT_FOUND"):
+        logger.warning(
+            "[M14] dao_criteria ponderation sum=%s (attendu ~100.0) — %s",
+            total_w,
+            coherence,
+        )
+    return {
+        "criteria": crits,
+        "total_weight": total_w,
+        "ponderation_coherence": coherence,
+        "confidence": 1.0,
+        "evidence": [f"dao_criteria_rows={len(rows)}"],
+    }
 
 
 class EligibilityCheckResult(BaseModel):
@@ -136,6 +261,20 @@ class EvaluationReport(BaseModel):
     eligible_offers_count: int = 0
     blueprint_ref: str | None = None
     m14_meta: EvaluationMeta = Field(default_factory=EvaluationMeta)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ProcessLinkingEntry(BaseModel):
+    """Lien documentaire minimal bundle → document → critère (Phase 2, transitoire)."""
+
+    bundle_id: str
+    document_id: str
+    document_kind: str
+    criterion_id: str
+    link_type: ProcessLinkingType
+    raw_text_present: bool
+    source: ProcessLinkingSource = "m12_pass_sequence"
 
     model_config = ConfigDict(extra="forbid")
 
