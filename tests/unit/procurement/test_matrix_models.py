@@ -249,7 +249,9 @@ def test_matrix_summary_valid() -> None:
         essential_criteria_failed=1,
         essential_criteria_pending=0,
     )
-    assert s.cohort_comparability_status == CohortComparabilityStatus.PARTIALLY_COMPARABLE
+    assert (
+        s.cohort_comparability_status == CohortComparabilityStatus.PARTIALLY_COMPARABLE
+    )
 
 
 def test_i6_forbidden_fields_absent_on_summary_schema() -> None:

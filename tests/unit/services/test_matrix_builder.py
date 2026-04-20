@@ -200,7 +200,11 @@ def test_r2_pending_rank_null() -> None:
         eligible=[],
         excluded=[],
         pending=[vs],
-        verdicts={vs: _verdict(vs, eligible=False, gate_result="PENDING", dominant="WEAK_DOCUMENTARY")},
+        verdicts={
+            vs: _verdict(
+                vs, eligible=False, gate_result="PENDING", dominant="WEAK_DOCUMENTARY"
+            )
+        },
     )
     rows = build_matrix_rows(
         _wid(),
@@ -484,7 +488,9 @@ def test_summary_fully_partially_not() -> None:
         {"threshold_mode": "MANDATORY"},
     )
     s_full = build_matrix_summary(rows_full, w, rid)
-    assert s_full.cohort_comparability_status == CohortComparabilityStatus.FULLY_COMPARABLE
+    assert (
+        s_full.cohort_comparability_status == CohortComparabilityStatus.FULLY_COMPARABLE
+    )
 
     gate_mix = _gate(
         eligible=[a, b],
@@ -525,7 +531,10 @@ def test_summary_fully_partially_not() -> None:
         {"threshold_mode": "MANDATORY"},
     )
     s_mix = build_matrix_summary(rows_mix, w, rid)
-    assert s_mix.cohort_comparability_status == CohortComparabilityStatus.PARTIALLY_COMPARABLE
+    assert (
+        s_mix.cohort_comparability_status
+        == CohortComparabilityStatus.PARTIALLY_COMPARABLE
+    )
 
     gate_nc = _gate(
         eligible=[a, b],
@@ -587,8 +596,12 @@ def test_idempotence_double_build() -> None:
             sust_flag="DMS_MATRIX_SUSTAINABILITY_SCORE=10",
         )
     ]
-    a = build_matrix_rows(_wid(), _run(), offers, gate, _dao(), {"threshold_mode": "MANDATORY"})
-    b = build_matrix_rows(_wid(), _run(), offers, gate, _dao(), {"threshold_mode": "MANDATORY"})
+    a = build_matrix_rows(
+        _wid(), _run(), offers, gate, _dao(), {"threshold_mode": "MANDATORY"}
+    )
+    b = build_matrix_rows(
+        _wid(), _run(), offers, gate, _dao(), {"threshold_mode": "MANDATORY"}
+    )
     assert _dump_stable(a) == _dump_stable(b)
 
 

@@ -175,7 +175,10 @@ def test_e3_matrix_projection_nominal_three_vendors() -> None:
                 name="Gamma",
                 eligible_gate=False,
                 tech=_tech(20.0, passes=True),
-                flags=["DMS_MATRIX_COMMERCIAL_SCORE=20.0", "DMS_MATRIX_SUSTAINABILITY_SCORE=5.0"],
+                flags=[
+                    "DMS_MATRIX_COMMERCIAL_SCORE=20.0",
+                    "DMS_MATRIX_SUSTAINABILITY_SCORE=5.0",
+                ],
             ),
         ],
     )
@@ -218,7 +221,9 @@ def test_e3_empty_offer_evaluations_not_comparable_summary() -> None:
     )
     assert rows == []
     assert summary.total_bundles == 0
-    assert summary.cohort_comparability_status == CohortComparabilityStatus.NOT_COMPARABLE
+    assert (
+        summary.cohort_comparability_status == CohortComparabilityStatus.NOT_COMPARABLE
+    )
 
 
 def test_e3_gate_output_none_raises() -> None:
@@ -248,7 +253,10 @@ def test_e3_pipeline_v5_result_json_roundtrip() -> None:
                 name="Alpha",
                 eligible_gate=True,
                 tech=_tech(40.0, passes=True),
-                flags=["DMS_MATRIX_COMMERCIAL_SCORE=30.0", "DMS_MATRIX_SUSTAINABILITY_SCORE=10.0"],
+                flags=[
+                    "DMS_MATRIX_COMMERCIAL_SCORE=30.0",
+                    "DMS_MATRIX_SUSTAINABILITY_SCORE=10.0",
+                ],
             ),
         ],
     )
@@ -259,7 +267,9 @@ def test_e3_pipeline_v5_result_json_roundtrip() -> None:
         dao_criteria_rows=_dao_rows(),
         pipeline_run_id=_run_id(),
     )
-    out = PipelineV5Result(workspace_id=str(_wid()), matrix_rows=rows, matrix_summary=summary)
+    out = PipelineV5Result(
+        workspace_id=str(_wid()), matrix_rows=rows, matrix_summary=summary
+    )
     raw = out.model_dump_json()
     data = json.loads(raw)
     assert "matrix_rows" in data and len(data["matrix_rows"]) == 1
@@ -277,7 +287,10 @@ def test_e3_technical_threshold_default_flag_on_rows() -> None:
                 name="Alpha",
                 eligible_gate=True,
                 tech=_tech(40.0, passes=True),
-                flags=["DMS_MATRIX_COMMERCIAL_SCORE=30.0", "DMS_MATRIX_SUSTAINABILITY_SCORE=10.0"],
+                flags=[
+                    "DMS_MATRIX_COMMERCIAL_SCORE=30.0",
+                    "DMS_MATRIX_SUSTAINABILITY_SCORE=10.0",
+                ],
             ),
         ],
     )
@@ -289,7 +302,9 @@ def test_e3_technical_threshold_default_flag_on_rows() -> None:
         technical_threshold_config=None,
         pipeline_run_id=_run_id(),
     )
-    assert all("TECHNICAL_THRESHOLD_MODE_DEFAULT_APPLIED" in r.warning_flags for r in rows)
+    assert all(
+        "TECHNICAL_THRESHOLD_MODE_DEFAULT_APPLIED" in r.warning_flags for r in rows
+    )
 
 
 def test_e3_idempotent_matrix_projection_fixed_run_id() -> None:
@@ -303,7 +318,10 @@ def test_e3_idempotent_matrix_projection_fixed_run_id() -> None:
                 name="Alpha",
                 eligible_gate=True,
                 tech=_tech(40.0, passes=True),
-                flags=["DMS_MATRIX_COMMERCIAL_SCORE=30.0", "DMS_MATRIX_SUSTAINABILITY_SCORE=10.0"],
+                flags=[
+                    "DMS_MATRIX_COMMERCIAL_SCORE=30.0",
+                    "DMS_MATRIX_SUSTAINABILITY_SCORE=10.0",
+                ],
             ),
         ],
     )
@@ -417,7 +435,10 @@ def test_e3_pipeline_v5_result_pre_matrix_fields_preserved() -> None:
                 name="Alpha",
                 eligible_gate=True,
                 tech=_tech(40.0, passes=True),
-                flags=["DMS_MATRIX_COMMERCIAL_SCORE=30.0", "DMS_MATRIX_SUSTAINABILITY_SCORE=10.0"],
+                flags=[
+                    "DMS_MATRIX_COMMERCIAL_SCORE=30.0",
+                    "DMS_MATRIX_SUSTAINABILITY_SCORE=10.0",
+                ],
             ),
         ],
     )

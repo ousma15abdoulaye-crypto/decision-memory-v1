@@ -110,9 +110,7 @@ def _technical_score_system(oe: OfferEvaluation) -> float | None:
     return ts.total_weighted_score
 
 
-def _technical_threshold_value(
-    oe: OfferEvaluation, cfg: dict | None
-) -> float | None:
+def _technical_threshold_value(oe: OfferEvaluation, cfg: dict | None) -> float | None:
     ts = oe.technical_score
     if ts is not None and ts.technical_threshold is not None:
         return ts.technical_threshold
@@ -130,16 +128,32 @@ def _technical_mode_and_warnings(
     technical_threshold_config: dict | None,
 ) -> tuple[TechnicalThresholdMode, list[str], StatusOrigin]:
     if not technical_threshold_config:
-        return TechnicalThresholdMode.MANDATORY, [_FLAG_DEFAULT_TECH], StatusOrigin.DEFAULT_APPLIED
+        return (
+            TechnicalThresholdMode.MANDATORY,
+            [_FLAG_DEFAULT_TECH],
+            StatusOrigin.DEFAULT_APPLIED,
+        )
     raw = technical_threshold_config.get("threshold_mode")
     if raw is None:
         raw = technical_threshold_config.get("mode")
     if raw is None:
-        return TechnicalThresholdMode.MANDATORY, [_FLAG_DEFAULT_TECH], StatusOrigin.DEFAULT_APPLIED
+        return (
+            TechnicalThresholdMode.MANDATORY,
+            [_FLAG_DEFAULT_TECH],
+            StatusOrigin.DEFAULT_APPLIED,
+        )
     try:
-        return TechnicalThresholdMode(str(raw).upper()), [], StatusOrigin.PIPELINE_SYSTEM
+        return (
+            TechnicalThresholdMode(str(raw).upper()),
+            [],
+            StatusOrigin.PIPELINE_SYSTEM,
+        )
     except ValueError:
-        return TechnicalThresholdMode.MANDATORY, [_FLAG_DEFAULT_TECH], StatusOrigin.DEFAULT_APPLIED
+        return (
+            TechnicalThresholdMode.MANDATORY,
+            [_FLAG_DEFAULT_TECH],
+            StatusOrigin.DEFAULT_APPLIED,
+        )
 
 
 def _eligibility_status(vendor_id: str, gate: GateOutput) -> EligibilityStatus:
@@ -224,7 +238,11 @@ def _explainability_for(
         "sustainability": {"system": sust},
     }
     exclusion_path: list[str] | None
-    if rank_status in (RankStatus.EXCLUDED, RankStatus.NOT_COMPARABLE, RankStatus.INCOMPLETE):
+    if rank_status in (
+        RankStatus.EXCLUDED,
+        RankStatus.NOT_COMPARABLE,
+        RankStatus.INCOMPLETE,
+    ):
         exclusion_path = list(exclusion_codes) if exclusion_codes else [primary]
     elif elig == EligibilityStatus.INELIGIBLE:
         exclusion_path = list(exclusion_codes) if exclusion_codes else [primary]
@@ -256,7 +274,10 @@ def _apply_ranking(rows: list[MatrixRow]) -> list[MatrixRow]:
                 )
             )
             continue
-        if elig in (EligibilityStatus.PENDING, EligibilityStatus.REGULARIZATION_PENDING):
+        if elig in (
+            EligibilityStatus.PENDING,
+            EligibilityStatus.REGULARIZATION_PENDING,
+        ):
             out.append(
                 base.model_copy(
                     update={
@@ -303,7 +324,11 @@ def _apply_ranking(rows: list[MatrixRow]) -> list[MatrixRow]:
             if _FLAG_COHORT_COMM not in w:
                 w.append(_FLAG_COHORT_COMM)
             out[i] = r.model_copy(
-                update={"rank": None, "rank_status": RankStatus.NOT_COMPARABLE, "warning_flags": w}
+                update={
+                    "rank": None,
+                    "rank_status": RankStatus.NOT_COMPARABLE,
+                    "warning_flags": w,
+                }
             )
         return out
 
@@ -316,7 +341,11 @@ def _apply_ranking(rows: list[MatrixRow]) -> list[MatrixRow]:
                 w.append(wflag)
             if r.sustainability_score_system is None:
                 out[i] = r.model_copy(
-                    update={"rank": None, "rank_status": RankStatus.INCOMPLETE, "warning_flags": w}
+                    update={
+                        "rank": None,
+                        "rank_status": RankStatus.INCOMPLETE,
+                        "warning_flags": w,
+                    }
                 )
             else:
                 out[i] = r.model_copy(update={"warning_flags": w})
@@ -336,20 +365,28 @@ def _apply_ranking(rows: list[MatrixRow]) -> list[MatrixRow]:
             r = out[i]
             w = list(r.warning_flags)
             out[i] = r.model_copy(
-                update={"rank": place, "rank_status": RankStatus.RANKED, "warning_flags": w}
+                update={
+                    "rank": place,
+                    "rank_status": RankStatus.RANKED,
+                    "warning_flags": w,
+                }
             )
         return out
 
     if any(r.commercial_score_system is None for r in rankable):
         for i in rankable_idx:
             r = out[i]
-            out[i] = r.model_copy(update={"rank": None, "rank_status": RankStatus.NOT_COMPARABLE})
+            out[i] = r.model_copy(
+                update={"rank": None, "rank_status": RankStatus.NOT_COMPARABLE}
+            )
         return out
 
     if any(r.sustainability_score_system is None for r in rankable):
         for i in rankable_idx:
             r = out[i]
-            out[i] = r.model_copy(update={"rank": None, "rank_status": RankStatus.INCOMPLETE})
+            out[i] = r.model_copy(
+                update={"rank": None, "rank_status": RankStatus.INCOMPLETE}
+            )
         return out
 
     ranked_sub = sorted(
@@ -390,7 +427,9 @@ def build_matrix_rows(
     technical_threshold_config: dict | None = None,
 ) -> list[MatrixRow]:
     _ = sum((c.ponderation for c in dao_criteria), 0.0)
-    mode, mode_warnings, mode_origin = _technical_mode_and_warnings(technical_threshold_config)
+    mode, mode_warnings, mode_origin = _technical_mode_and_warnings(
+        technical_threshold_config
+    )
     rows: list[MatrixRow] = []
 
     for oe in offer_evaluations:
@@ -448,7 +487,10 @@ def build_matrix_rows(
 
         if elig == EligibilityStatus.INELIGIBLE:
             init_rank_status = RankStatus.EXCLUDED
-        elif elig in (EligibilityStatus.PENDING, EligibilityStatus.REGULARIZATION_PENDING):
+        elif elig in (
+            EligibilityStatus.PENDING,
+            EligibilityStatus.REGULARIZATION_PENDING,
+        ):
             init_rank_status = RankStatus.PENDING
         elif (
             row_mode == TechnicalThresholdMode.MANDATORY
@@ -477,9 +519,15 @@ def build_matrix_rows(
             technical_threshold_mode=row_mode,
             technical_threshold_value=row_thr,
             technical_qualified=row_qualified,
-            technical_score_system=None if elig == EligibilityStatus.INELIGIBLE else tech,
-            commercial_score_system=None if elig == EligibilityStatus.INELIGIBLE else comm,
-            sustainability_score_system=None if elig == EligibilityStatus.INELIGIBLE else sust,
+            technical_score_system=(
+                None if elig == EligibilityStatus.INELIGIBLE else tech
+            ),
+            commercial_score_system=(
+                None if elig == EligibilityStatus.INELIGIBLE else comm
+            ),
+            sustainability_score_system=(
+                None if elig == EligibilityStatus.INELIGIBLE else sust
+            ),
             total_score_system=None if elig == EligibilityStatus.INELIGIBLE else total,
             total_comparability_status=tcomp,
             rank=None,
@@ -495,11 +543,17 @@ def build_matrix_rows(
     return _attach_explainability(ranked)
 
 
-def _cohort_comparability(rows: list[MatrixRow]) -> tuple[CohortComparabilityStatus, list[str]]:
+def _cohort_comparability(
+    rows: list[MatrixRow],
+) -> tuple[CohortComparabilityStatus, list[str]]:
     ce = sum(1 for r in rows if r.eligibility_status == EligibilityStatus.ELIGIBLE)
     ci = sum(1 for r in rows if r.eligibility_status == EligibilityStatus.INELIGIBLE)
     cp = sum(1 for r in rows if r.eligibility_status == EligibilityStatus.PENDING)
-    cr = sum(1 for r in rows if r.eligibility_status == EligibilityStatus.REGULARIZATION_PENDING)
+    cr = sum(
+        1
+        for r in rows
+        if r.eligibility_status == EligibilityStatus.REGULARIZATION_PENDING
+    )
 
     cc_e = sum(
         1
@@ -548,32 +602,48 @@ def build_matrix_summary(
     now = datetime.now(UTC)
 
     total_bundles = len(matrix_rows)
-    count_eligible = sum(1 for r in matrix_rows if r.eligibility_status == EligibilityStatus.ELIGIBLE)
+    count_eligible = sum(
+        1 for r in matrix_rows if r.eligibility_status == EligibilityStatus.ELIGIBLE
+    )
     count_ineligible = sum(
         1 for r in matrix_rows if r.eligibility_status == EligibilityStatus.INELIGIBLE
     )
-    count_pending = sum(1 for r in matrix_rows if r.eligibility_status == EligibilityStatus.PENDING)
+    count_pending = sum(
+        1 for r in matrix_rows if r.eligibility_status == EligibilityStatus.PENDING
+    )
     count_regularization_pending = sum(
-        1 for r in matrix_rows if r.eligibility_status == EligibilityStatus.REGULARIZATION_PENDING
+        1
+        for r in matrix_rows
+        if r.eligibility_status == EligibilityStatus.REGULARIZATION_PENDING
     )
 
     count_comparable = sum(
-        1 for r in matrix_rows if r.total_comparability_status == ComparabilityStatus.COMPARABLE
+        1
+        for r in matrix_rows
+        if r.total_comparability_status == ComparabilityStatus.COMPARABLE
     )
     count_non_comparable = sum(
-        1 for r in matrix_rows if r.total_comparability_status == ComparabilityStatus.NON_COMPARABLE
+        1
+        for r in matrix_rows
+        if r.total_comparability_status == ComparabilityStatus.NON_COMPARABLE
     )
     count_incomplete = sum(
-        1 for r in matrix_rows if r.total_comparability_status == ComparabilityStatus.INCOMPLETE
+        1
+        for r in matrix_rows
+        if r.total_comparability_status == ComparabilityStatus.INCOMPLETE
     )
 
     count_ranked = sum(1 for r in matrix_rows if r.rank_status == RankStatus.RANKED)
     count_excluded = sum(1 for r in matrix_rows if r.rank_status == RankStatus.EXCLUDED)
-    count_pending_rank = sum(1 for r in matrix_rows if r.rank_status == RankStatus.PENDING)
+    count_pending_rank = sum(
+        1 for r in matrix_rows if r.rank_status == RankStatus.PENDING
+    )
     count_not_comparable_rank = sum(
         1 for r in matrix_rows if r.rank_status == RankStatus.NOT_COMPARABLE
     )
-    count_incomplete_rank = sum(1 for r in matrix_rows if r.rank_status == RankStatus.INCOMPLETE)
+    count_incomplete_rank = sum(
+        1 for r in matrix_rows if r.rank_status == RankStatus.INCOMPLETE
+    )
 
     cohort_status, cohort_flags = _cohort_comparability(matrix_rows)
 

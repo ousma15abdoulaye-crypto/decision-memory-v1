@@ -224,7 +224,9 @@ def _dao_criteria_rows_to_models(rows: list[dict[str, Any]]) -> list[DAOCriterio
     return out
 
 
-def _technical_threshold_config_for_workspace(workspace_id: str) -> dict[str, Any] | None:
+def _technical_threshold_config_for_workspace(
+    workspace_id: str,
+) -> dict[str, Any] | None:
     """Lit ``technical_threshold_mode`` sur ``process_workspaces`` si la colonne existe (E0.4)."""
     try:
         with get_connection() as conn:

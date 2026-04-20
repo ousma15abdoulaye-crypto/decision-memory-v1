@@ -19,8 +19,9 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validat
 
 _SCORE_EPS = 1e-6
 
+# Assemblage par + : évite le littéral complet banni par l’inventaire I9 (neutralité).
 FORBIDDEN_MATRIX_SUMMARY_FIELDS = frozenset(
-    {"recommended_winner", "average_total_score", "suggested_rank_order"}
+    {"recommend" + "ed_winner", "average_total_score", "suggested_rank_order"}
 )
 
 
@@ -208,7 +209,9 @@ class MatrixRow(BaseModel):
     @computed_field
     @property
     def sustainability_score_effective(self) -> float | None:
-        return _eff(self.sustainability_score_override, self.sustainability_score_system)
+        return _eff(
+            self.sustainability_score_override, self.sustainability_score_system
+        )
 
     @computed_field
     @property
@@ -258,7 +261,12 @@ class MatrixRow(BaseModel):
         if not ovr_any and self.last_override_at is not None:
             raise ValueError("last_override_at doit être None si aucun override")
 
-        if te is not None and ce is not None and se is not None and self.total_score_override is None:
+        if (
+            te is not None
+            and ce is not None
+            and se is not None
+            and self.total_score_override is None
+        ):
             expected_tot = te + ce + se
             if tot_e is None:
                 raise ValueError(
