@@ -12,16 +12,18 @@
 
 ## Rapport d'exécution matériel (séquence Git + vérifs P1)
 
-| Étape | Commande / action | Résultat |
-|--------|-------------------|----------|
-| Sync | `git checkout main` ; `git fetch origin` ; `git pull --ff-only origin main` | Fast-forward `f4bc3920` → `417f1149` (`feat(P3.3): … #428`) |
-| Alembic | `alembic heads` | **1 head** : `101_p32_dao_criteria_scoring_schema (head)` |
-| Fichiers suivis | `git status --porcelain` filtré (hors `??`) | **Aucune modification** sur fichiers indexés |
-| Non suivis | `git status -sb` | **Nombreux** `??` — voir §Réserves CTO #1 |
-| Branche P3.4 | `git checkout -b feat/p3-4-matrixrow-builder-summary` | Créée depuis `417f1149` |
-| HEAD récent | `git log --oneline -5` | `417f1149` feat(P3.3) #428 ; `682e8ee7` … `685b2139` |
-| P1 grep | `MatrixRow`, `matrix_row_builder`, `MatrixSummary`, `matrix_summary` dans `*.py` | **Aucune occurrence** |
-| P1 grep | `build_matrix_participants_and_excluded`, `populate_assessments_from_m14`, `out.matrix_participants` | **Présents** (voir P1.3) |
+
+| Étape           | Commande / action                                                                                    | Résultat                                                    |
+| --------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Sync            | `git checkout main` ; `git fetch origin` ; `git pull --ff-only origin main`                          | Fast-forward `f4bc3920` → `417f1149` (`feat(P3.3): … #428`) |
+| Alembic         | `alembic heads`                                                                                      | **1 head** : `101_p32_dao_criteria_scoring_schema (head)`   |
+| Fichiers suivis | `git status --porcelain` filtré (hors `??`)                                                          | **Aucune modification** sur fichiers indexés                |
+| Non suivis      | `git status -sb`                                                                                     | **Nombreux** `??` — voir §Réserves CTO #1                   |
+| Branche P3.4    | `git checkout -b feat/p3-4-matrixrow-builder-summary`                                                | Créée depuis `417f1149`                                     |
+| HEAD récent     | `git log --oneline -5`                                                                               | `417f1149` feat(P3.3) #428 ; `682e8ee7` … `685b2139`        |
+| P1 grep         | `MatrixRow`, `matrix_row_builder`, `MatrixSummary`, `matrix_summary` dans `*.py`                     | **Aucune occurrence**                                       |
+| P1 grep         | `build_matrix_participants_and_excluded`, `populate_assessments_from_m14`, `out.matrix_participants` | **Présents** (voir P1.3)                                    |
+
 
 **Interprétation** : index et fichiers **suivis** propres ; `git status` complet non « clean » à cause des `??` massifs (hygiène locale).
 
@@ -29,24 +31,26 @@
 
 ## INTÉGRATION DES ARBITRAGES CTO (verrouillés)
 
-| Arbitrage | Décision | Impact P3.4 |
-|-----------|----------|-------------|
-| Q1 — bascule globale `INFORMATIVE` par défaut | **NON** | `technical_threshold_mode` **modélisé** dans `MatrixRow` ; défaut final = arbitrage séparé |
-| Q2 — P3.4 / P3.4B / P3.4C | **OUI** | Décomposition gravée ; P3.4 = MatrixRow + Summary + Explainability |
-| Q3 — `*_system` / `*_override` / `*_effective` dès P3.4 | **OUI** (contrat) | Champs définis, non actifs ; `*_effective = *_system` tant que P3.4B absent |
-| Q4 — Committee Review Agent P4 | Trajectoire | Non ouvert tant que P3.4B non cadré |
-| Q5 — Manifeste avant preflight | **NON** | Preflight direct |
-| **G1** | Gravé | Édition directe de `*_effective` **interdite** (UI future incluse) |
-| **G2** | Gravé | Taxonomie `correction_nature` obligatoire dans le contrat override |
-| **P6ter** | Exigé | Revue comité / corrections — voir bloc P6ter |
+
+| Arbitrage                                               | Décision          | Impact P3.4                                                                                |
+| ------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------ |
+| Q1 — bascule globale `INFORMATIVE` par défaut           | **NON**           | `technical_threshold_mode` **modélisé** dans `MatrixRow` ; défaut final = arbitrage séparé |
+| Q2 — P3.4 / P3.4B / P3.4C                               | **OUI**           | Décomposition gravée ; P3.4 = MatrixRow + Summary + Explainability                         |
+| Q3 — `*_system` / `*_override` / `*_effective` dès P3.4 | **OUI** (contrat) | Champs définis, non actifs ; `*_effective = *_system` tant que P3.4B absent                |
+| Q4 — Committee Review Agent P4                          | Trajectoire       | Non ouvert tant que P3.4B non cadré                                                        |
+| Q5 — Manifeste avant preflight                          | **NON**           | Preflight direct                                                                           |
+| **G1**                                                  | Gravé             | Édition directe de `*_effective` **interdite** (UI future incluse)                         |
+| **G2**                                                  | Gravé             | Taxonomie `correction_nature` obligatoire dans le contrat override                         |
+| **P6ter**                                               | Exigé             | Revue comité / corrections — voir bloc P6ter                                               |
+
 
 ### Rectification CTO Senior (2026-04-19) — Q1 valeur technique transitoire
 
 En l’absence d’arbitrage formel sur le défaut final de `technical_threshold_mode` :
 
 - **Lecture** : `process_workspaces.technical_threshold_mode` **si** la colonne existe à l’avenir ; sinon pas de valeur DB.
-- **Défaut transitoire P3.4** : **`MANDATORY`** (conservation doctrine P3.2 §6.4 stricte — pas de renversement implicite vers `INFORMATIVE`).
-- **Transparence** : si le défaut transitoire est appliqué (pas de colonne / pas de valeur explicite résolue), ajouter à `MatrixRow.warning_flags` le code **`TECHNICAL_THRESHOLD_MODE_DEFAULT_APPLIED`**.
+- **Défaut transitoire P3.4** : `**MANDATORY`** (conservation doctrine P3.2 §6.4 stricte — pas de renversement implicite vers `INFORMATIVE`).
+- **Transparence** : si le défaut transitoire est appliqué (pas de colonne / pas de valeur explicite résolue), ajouter à `MatrixRow.warning_flags` le code `**TECHNICAL_THRESHOLD_MODE_DEFAULT_APPLIED`**.
 
 `INFORMATIVE` comme défaut **ne** s’applique **que** sur arbitrage explicite CTO principal documenté.
 
@@ -54,29 +58,33 @@ En l’absence d’arbitrage formel sur le défaut final de `technical_threshold
 
 ## Réserves CTO Senior (2026-04-19) — actables avant code métier
 
-| # | Réserve | Action opposable |
-|---|---------|-------------------|
+
+| #      | Réserve                                                  | Action opposable                                                                                                                                                                                                                                                              |
+| ------ | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **#1** | `??` massifs — `git add .` interdit (Context Anchor §13) | Chaque `git add` **explicite** ; PR P3.4 **uniquement** mandat (service builder, patch minimal pipeline, tests, amendement `PipelineV5Result`) ; pas de `data/`, rapports, scripts opportunistes ; enrichissement `.gitignore` = **chantier séparé**, pas glissé dans PR P3.4 |
-| **#2** | Extension `PipelineV5Result` | **Avant** `build_matrix_rows` : localiser modèle, ajouter `matrix_rows` / `matrix_summary`, valider sérialisation, `grep` usages — voir §E0.2 |
-| **#3** | `technical_threshold_mode` | Règle transitoire §Rectification Q1 ci-dessus |
-| **#4** | Document autonome | **Le présent fichier** contient P2–P7 intégraux (sections suivantes) |
-| **#5** | Ligne d’insertion exacte | **Après** l’appel `populate_assessments_from_m14` et gestion d’erreurs associée sur **HEAD courant** — voir §E0.3 ; sur `417f1149`, l’appel occupe **L1453–L1457** |
+| **#2** | Extension `PipelineV5Result`                             | **Avant** `build_matrix_rows` : localiser modèle, ajouter `matrix_rows` / `matrix_summary`, valider sérialisation, `grep` usages — voir §E0.2                                                                                                                                 |
+| **#3** | `technical_threshold_mode`                               | Règle transitoire §Rectification Q1 ci-dessus                                                                                                                                                                                                                                 |
+| **#4** | Document autonome                                        | **Le présent fichier** contient P2–P7 intégraux (sections suivantes)                                                                                                                                                                                                          |
+| **#5** | Ligne d’insertion exacte                                 | **Après** l’appel `populate_assessments_from_m14` et gestion d’erreurs associée sur **HEAD courant** — voir §E0.3 ; sur `417f1149`, l’appel occupe **L1453–L1457**                                                                                                            |
+
 
 ---
 
 ## Étape 0 — Notes d’investigation (agent, HEAD `417f1149`)
 
-**Clôture E0.2 / E0.5 / E0.6 / E0.7** (notes courtes opposables, 2026-04-19) : voir **`decisions/p34_e0_investigation_closure.md`**.
+**Clôture E0.2 / E0.5 / E0.6 / E0.7** (notes courtes opposables, 2026-04-19) : voir `**decisions/p34_e0_investigation_closure.md`**.
 
-| Tâche | Livrable |
-|-------|----------|
-| **E0.1** | Présent fichier complété (P2–P7 intégraux) — **fait** (cette révision) |
-| **E0.2** | `PipelineV5Result` : classe **`BaseModel`** dans `src/services/pipeline_v5_service.py` **L212–L241** ; `extra="forbid"` — tout nouveau champ doit être nommé explicitement ; usages : `grep PipelineV5Result` (principalement `run_pipeline_v5` et tests) |
-| **E0.3** | Fin d’appel bridge : bloc `try:` **L1452–L1457** ; insertion P3.4 **après** succès bridge et **avant** `out.completed = True` (**L1471**), en respectant le flux d’erreurs existant |
+
+| Tâche    | Livrable                                                                                                                                                                                                                                                                                           |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **E0.1** | Présent fichier complété (P2–P7 intégraux) — **fait** (cette révision)                                                                                                                                                                                                                             |
+| **E0.2** | `PipelineV5Result` : classe `**BaseModel`** dans `src/services/pipeline_v5_service.py` **L212–L241** ; `extra="forbid"` — tout nouveau champ doit être nommé explicitement ; usages : `grep PipelineV5Result` (principalement `run_pipeline_v5` et tests)                                          |
+| **E0.3** | Fin d’appel bridge : bloc `try:` **L1452–L1457** ; insertion P3.4 **après** succès bridge et **avant** `out.completed = True` (**L1471**), en respectant le flux d’erreurs existant                                                                                                                |
 | **E0.4** | Colonne `process_workspaces.technical_threshold_mode` : **absente** du schéma connu à date ; migration **101** ajoute `technical_qualification_threshold` **uniquement** (`alembic/versions/101_p32_dao_criteria_scoring_schema.py`). Le builder appliquera la règle transitoire §Rectification Q1 |
-| **E0.5** | Audit `??` / `.gitignore` : **hors PR P3.4** ; documenter séparément si besoin |
-| **E0.6** | `run_id` / `pipeline_run_id` dans `run_pipeline_v5` : **absents** → décision **`uuid4()`** une fois par invocation ; détail dans `p34_e0_investigation_closure.md` |
-| **E0.7** | Convention chemins modèles : **`src/procurement/matrix_models.py`** (aligné `m14_evaluation_models.py`) ; détail dans `p34_e0_investigation_closure.md` |
+| **E0.5** | Audit `??` / `.gitignore` : **hors PR P3.4** ; documenter séparément si besoin                                                                                                                                                                                                                     |
+| **E0.6** | `run_id` / `pipeline_run_id` dans `run_pipeline_v5` : **absents** → décision `**uuid4()`** une fois par invocation ; détail dans `p34_e0_investigation_closure.md`                                                                                                                                 |
+| **E0.7** | Convention chemins modèles : `**src/procurement/matrix_models.py`** (aligné `m14_evaluation_models.py`) ; détail dans `p34_e0_investigation_closure.md`                                                                                                                                            |
+
 
 ---
 
@@ -88,23 +96,27 @@ Identifier où, dans la base de code post-P3.3, la matrice est construite et par
 
 ### P1.2 — Hypothèses → statut post-grep (HEAD `417f1149`)
 
-| Hypothèse | Statut | Preuve |
-|-----------|--------|--------|
-| `build_matrix_participants_and_excluded` construit `mp_list` / `ex_list` | **CONFIRMÉ** | `src/services/pipeline_v5_service.py` L630–L722 |
-| `out.matrix_participants = mp_list` (+ payload) | **CONFIRMÉ** | L1427–L1430 |
-| `save_evaluation` persiste le payload | **CONFIRMÉ** | L1431–L1432 |
+
+| Hypothèse                                                                          | Statut       | Preuve                                                          |
+| ---------------------------------------------------------------------------------- | ------------ | --------------------------------------------------------------- |
+| `build_matrix_participants_and_excluded` construit `mp_list` / `ex_list`           | **CONFIRMÉ** | `src/services/pipeline_v5_service.py` L630–L722                 |
+| `out.matrix_participants = mp_list` (+ payload)                                    | **CONFIRMÉ** | L1427–L1430                                                     |
+| `save_evaluation` persiste le payload                                              | **CONFIRMÉ** | L1431–L1432                                                     |
 | `populate_assessments_from_m14(strict_matrix_participants=True, strict_uuid=True)` | **CONFIRMÉ** | L1453–L1457 ; définition `src/services/m14_bridge.py` L414–L445 |
-| Absence builder `MatrixRow` canonique | **CONFIRMÉ** | grep `*.py` |
-| Absence `MatrixSummary` / `matrix_summary` | **CONFIRMÉ** | grep `*.py` |
+| Absence builder `MatrixRow` canonique                                              | **CONFIRMÉ** | grep `*.py`                                                     |
+| Absence `MatrixSummary` / `matrix_summary`                                         | **CONFIRMÉ** | grep `*.py`                                                     |
+
 
 ### P1.3 — Tableau d'entrée de chantier (Étape 0)
 
-| Fichier | Fonction | Ligne | Appelant | Objet entrant | Objet sortant | Rôle |
-|---------|----------|-------|----------|---------------|---------------|------|
-| `pipeline_v5_service.py` | `build_matrix_participants_and_excluded` | 630–722 | `run_pipeline_v5` | `report`, `bundle_roles`, … | `mp_list`, `ex_list` | participants matrice (liste flat, pas MatrixRow) |
-| `pipeline_v5_service.py` | `save_evaluation` (repo) | 1431–1432 | `run_pipeline_v5` | payload | id eval doc | persistance `scores_matrix` brut |
-| `m14_bridge.py` | `populate_assessments_from_m14` | 414–445 | `run_pipeline_v5` | `workspace_id` | `BridgeResult` | persistance cellules `criterion_assessments` |
-| **À trouver / à créer** | `build_matrix_rows` (ou équivalent) | N/A | — | `criterion_assessments`, `process_workspaces`, `SupplierEvaluation[]` | `MatrixRow[]` | **composant P3.4** |
+
+| Fichier                  | Fonction                                 | Ligne     | Appelant          | Objet entrant                                                         | Objet sortant        | Rôle                                             |
+| ------------------------ | ---------------------------------------- | --------- | ----------------- | --------------------------------------------------------------------- | -------------------- | ------------------------------------------------ |
+| `pipeline_v5_service.py` | `build_matrix_participants_and_excluded` | 630–722   | `run_pipeline_v5` | `report`, `bundle_roles`, …                                           | `mp_list`, `ex_list` | participants matrice (liste flat, pas MatrixRow) |
+| `pipeline_v5_service.py` | `save_evaluation` (repo)                 | 1431–1432 | `run_pipeline_v5` | payload                                                               | id eval doc          | persistance `scores_matrix` brut                 |
+| `m14_bridge.py`          | `populate_assessments_from_m14`          | 414–445   | `run_pipeline_v5` | `workspace_id`                                                        | `BridgeResult`       | persistance cellules `criterion_assessments`     |
+| **À trouver / à créer**  | `build_matrix_rows` (ou équivalent)      | N/A       | —                 | `criterion_assessments`, `process_workspaces`, `SupplierEvaluation[]` | `MatrixRow[]`        | **composant P3.4**                               |
+
 
 ### P1.4 — Conclusion P1
 
@@ -127,33 +139,37 @@ Il **ne produit pas** aujourd'hui :
 
 ### P2.1 — Sources de statuts et flags (post-P3.3)
 
-| Source | Champ | Valeurs possibles | Consommable `MatrixRow` ? |
-|--------|-------|-------------------|---------------------------|
-| P3.1B `EligibilityVerdict` | `status` | `ELIGIBLE`, `INELIGIBLE`, `PENDING` | OUI — `eligibility_status` |
-| P3.1B `GateOutput` | `excluded_vendor_ids`, `pending_vendor_ids` | listes UUID | OUI — croisement pour traçage |
-| P3.1B `GateOutput` | `failed_gates[]`, motifs | liste | OUI — `exclusion_reason_codes` |
-| P3.2 `SupplierEvaluation` | `eliminated` | bool | OUI — fusionné avec `eligibility_status` |
-| P3.2 `SupplierEvaluation` | `elimination_reason` | str (ex: `UNQUALIFIED_TECHNICAL:score=42<threshold=50`) | OUI — `exclusion_reason_codes` + motif |
-| P3.2 `FamilyScore.qualified` | bool / NULL | TECH uniquement | OUI — flag `TECH_QUALIFIED` / `TECH_UNQUALIFIED` |
-| P3.2 `FamilyScore.null_reason` | str | `UNQUALIFIED_TECHNICAL`, `NO_OFFER`, autres | Oui — enrichit `exclusion_reason_codes` |
-| P3.2 `FamilyScore.family_score` | float / NULL | 0–100 / NULL | Oui — `technical_score_system`, etc. |
-| P3.2 `FamilyScore.family_weighted_score` | float / NULL | 0–50 / 0–40 / 0–10 / NULL | Oui — composantes du total |
-| P3.2 `SupplierEvaluation.total_weighted_score` | float / NULL | 0–100 / NULL | Oui — `total_score_system` |
-| P3.2 `SupplierEvaluation.flags[]` | liste str | `BELOW_TECHNICAL_THRESHOLD`, autres | Oui — `warning_flags` |
-| P3.3 `QualifiedPrice.flags[]` | liste str | `PRICE_AMBIGUOUS`, `PRICE_NEGATIVE`, `CURRENCY_MISSING`, autres | Oui — `warning_flags` |
-| P3.3 `QualifiedPrice.human_review_required` | bool | true / false | Oui — `MatrixRow.human_review_required` |
-| P3.3 `PriceAmbiguousError` propagée | événement | erreur levée | Oui — devient `rank_status = NOT_COMPARABLE` + flag |
-| `criterion_assessments.flags[]` | liste str | divers | Oui — agrégé par vendor |
-| `process_workspaces.technical_qualification_threshold` | float | 0–100 | Oui — affiché pour transparence |
-| **Non encore disponible** | `technical_threshold_mode` | `INFORMATIVE` / `MANDATORY` | à modéliser P3.4 ; défaut transitoire = `MANDATORY` + flag si défaut appliqué (voir §Rectification Q1) |
+
+| Source                                                 | Champ                                       | Valeurs possibles                                               | Consommable `MatrixRow` ?                                                                              |
+| ------------------------------------------------------ | ------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| P3.1B `EligibilityVerdict`                             | `status`                                    | `ELIGIBLE`, `INELIGIBLE`, `PENDING`                             | OUI — `eligibility_status`                                                                             |
+| P3.1B `GateOutput`                                     | `excluded_vendor_ids`, `pending_vendor_ids` | listes UUID                                                     | OUI — croisement pour traçage                                                                          |
+| P3.1B `GateOutput`                                     | `failed_gates[]`, motifs                    | liste                                                           | OUI — `exclusion_reason_codes`                                                                         |
+| P3.2 `SupplierEvaluation`                              | `eliminated`                                | bool                                                            | OUI — fusionné avec `eligibility_status`                                                               |
+| P3.2 `SupplierEvaluation`                              | `elimination_reason`                        | str (ex: `UNQUALIFIED_TECHNICAL:score=42<threshold=50`)         | OUI — `exclusion_reason_codes` + motif                                                                 |
+| P3.2 `FamilyScore.qualified`                           | bool / NULL                                 | TECH uniquement                                                 | OUI — flag `TECH_QUALIFIED` / `TECH_UNQUALIFIED`                                                       |
+| P3.2 `FamilyScore.null_reason`                         | str                                         | `UNQUALIFIED_TECHNICAL`, `NO_OFFER`, autres                     | Oui — enrichit `exclusion_reason_codes`                                                                |
+| P3.2 `FamilyScore.family_score`                        | float / NULL                                | 0–100 / NULL                                                    | Oui — `technical_score_system`, etc.                                                                   |
+| P3.2 `FamilyScore.family_weighted_score`               | float / NULL                                | 0–50 / 0–40 / 0–10 / NULL                                       | Oui — composantes du total                                                                             |
+| P3.2 `SupplierEvaluation.total_weighted_score`         | float / NULL                                | 0–100 / NULL                                                    | Oui — `total_score_system`                                                                             |
+| P3.2 `SupplierEvaluation.flags[]`                      | liste str                                   | `BELOW_TECHNICAL_THRESHOLD`, autres                             | Oui — `warning_flags`                                                                                  |
+| P3.3 `QualifiedPrice.flags[]`                          | liste str                                   | `PRICE_AMBIGUOUS`, `PRICE_NEGATIVE`, `CURRENCY_MISSING`, autres | Oui — `warning_flags`                                                                                  |
+| P3.3 `QualifiedPrice.human_review_required`            | bool                                        | true / false                                                    | Oui — `MatrixRow.human_review_required`                                                                |
+| P3.3 `PriceAmbiguousError` propagée                    | événement                                   | erreur levée                                                    | Oui — devient `rank_status = NOT_COMPARABLE` + flag                                                    |
+| `criterion_assessments.flags[]`                        | liste str                                   | divers                                                          | Oui — agrégé par vendor                                                                                |
+| `process_workspaces.technical_qualification_threshold` | float                                       | 0–100                                                           | Oui — affiché pour transparence                                                                        |
+| **Non encore disponible**                              | `technical_threshold_mode`                  | `INFORMATIVE` / `MANDATORY`                                     | à modéliser P3.4 ; défaut transitoire = `MANDATORY` + flag si défaut appliqué (voir §Rectification Q1) |
+
 
 ### P2.2 — Sources de preuves documentaires
 
-| Source | Champ | Usage `MatrixRow` |
-|--------|-------|-------------------|
+
+| Source                                   | Champ  | Usage `MatrixRow`                         |
+| ---------------------------------------- | ------ | ----------------------------------------- |
 | P3.2 `SubCriterionScore.evidence_refs[]` | UUID[] | agrégation dans `MatrixRow.evidence_refs` |
-| P3.3 `QualifiedPrice.evidence_refs[]` | UUID[] | inclus dans `MatrixRow.evidence_refs` |
-| `bundle_documents.id` | UUID | traçabilité documentaire |
+| P3.3 `QualifiedPrice.evidence_refs[]`    | UUID[] | inclus dans `MatrixRow.evidence_refs`     |
+| `bundle_documents.id`                    | UUID   | traçabilité documentaire                  |
+
 
 ### P2.3 — Ce qui manque (à créer en P3.4)
 
@@ -170,18 +186,20 @@ Il **ne produit pas** aujourd'hui :
 
 ### P3.1 — Catalogue des risques de sortie trompeuse
 
-| # | Risque | Localisation potentielle | Criticité | Règle P3.4 qui l'élimine |
-|---|--------|--------------------------|-----------|--------------------------|
-| M1 | Vendor exclu avec `total_score` non-NULL affiché | `scores_matrix` brut dans `evaluation_documents` | HAUTE | `MatrixRow.total_score_system = NULL` si `eliminated = True` — règle assertive dans builder |
-| M2 | Rang numérique sur cohorte asymétrique (certains vendors avec `commercial = NULL`, d'autres non) | projection naive `sort by total DESC` | HAUTE | Règle de rang §P5 : si cohorte asymétrique détectée → `rank = NULL, rank_status = NOT_COMPARABLE` pour tous |
-| M3 | `NULL` converti en `0` par sérialisation JSON / cast SQL / default UI | couche serialization, frontend | HAUTE | `MatrixRow` en Pydantic v2 strict avec `Optional[float]` explicites, sérialisation `None` → `null` JSON, jamais `0` |
-| M4 | `INCOMPLETE` et `EXCLUDED` confondus dans l'affichage | enum mal conçu, flag unique pour deux réalités | HAUTE | Enum séparé `rank_status` avec `EXCLUDED` et `INCOMPLETE` distincts, documenté en §P5 |
-| M5 | Flag P3.3 (`PRICE_AMBIGUOUS`, `human_review_required`) écrasé par un agrégat | fusion `flags[]` non-idempotente | MOYENNE | `MatrixRow.warning_flags` en `list[str]` append-only, union non-destructive de toutes les sources |
-| M6 | Gagnant implicite émergeant par tri alphabétique / ordre insertion | pas de `rank` explicite, ordre UI trompeur | MOYENNE | Toute `MatrixRow` porte `rank` explicite (même NULL), pas de "1er par défaut" |
-| M7 | Override affiché comme valeur système (pas de distinction visuelle) | pas de champs `*_system` vs `*_effective` | HAUTE (futur P3.4B) | Contrat `MatrixRow` prévoit les 3 niveaux (`system`, `override`, `effective`) dès P3.4 |
-| M8 | Régularisation non signalée (vendor régularisé affiché comme "PASS" sans marque de régularisation) | pas de champ `regularization_history` | MOYENNE (futur P3.4C) | `MatrixRow.regularization_summary` prévu dès P3.4, rempli par P3.4C |
-| M9 | Total partiel "pour information" affiché pour un vendor sous seuil technique mandatory | bug de conversion si mode bascule | HAUTE | Convention P3.2 §6.4 maintenue en mode `MANDATORY` : `total_score_system = NULL` strict |
-| M10 | Confusion entre éligibilité P3.1B et qualification technique P3.2 dans le motif d'exclusion | fusion hâtive de `elimination_reason` | MOYENNE | `exclusion_reason_codes: list[str]` ordonnée par source : `[eligibility.*, technical.*, commercial.*]` |
+
+| #   | Risque                                                                                             | Localisation potentielle                         | Criticité             | Règle P3.4 qui l'élimine                                                                                            |
+| --- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------ | --------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| M1  | Vendor exclu avec `total_score` non-NULL affiché                                                   | `scores_matrix` brut dans `evaluation_documents` | HAUTE                 | `MatrixRow.total_score_system = NULL` si `eliminated = True` — règle assertive dans builder                         |
+| M2  | Rang numérique sur cohorte asymétrique (certains vendors avec `commercial = NULL`, d'autres non)   | projection naive `sort by total DESC`            | HAUTE                 | Règle de rang §P5 : si cohorte asymétrique détectée → `rank = NULL, rank_status = NOT_COMPARABLE` pour tous         |
+| M3  | `NULL` converti en `0` par sérialisation JSON / cast SQL / default UI                              | couche serialization, frontend                   | HAUTE                 | `MatrixRow` en Pydantic v2 strict avec `Optional[float]` explicites, sérialisation `None` → `null` JSON, jamais `0` |
+| M4  | `INCOMPLETE` et `EXCLUDED` confondus dans l'affichage                                              | enum mal conçu, flag unique pour deux réalités   | HAUTE                 | Enum séparé `rank_status` avec `EXCLUDED` et `INCOMPLETE` distincts, documenté en §P5                               |
+| M5  | Flag P3.3 (`PRICE_AMBIGUOUS`, `human_review_required`) écrasé par un agrégat                       | fusion `flags[]` non-idempotente                 | MOYENNE               | `MatrixRow.warning_flags` en `list[str]` append-only, union non-destructive de toutes les sources                   |
+| M6  | Gagnant implicite émergeant par tri alphabétique / ordre insertion                                 | pas de `rank` explicite, ordre UI trompeur       | MOYENNE               | Toute `MatrixRow` porte `rank` explicite (même NULL), pas de "1er par défaut"                                       |
+| M7  | Override affiché comme valeur système (pas de distinction visuelle)                                | pas de champs `*_system` vs `*_effective`        | HAUTE (futur P3.4B)   | Contrat `MatrixRow` prévoit les 3 niveaux (`system`, `override`, `effective`) dès P3.4                              |
+| M8  | Régularisation non signalée (vendor régularisé affiché comme "PASS" sans marque de régularisation) | pas de champ `regularization_history`            | MOYENNE (futur P3.4C) | `MatrixRow.regularization_summary` prévu dès P3.4, rempli par P3.4C                                                 |
+| M9  | Total partiel "pour information" affiché pour un vendor sous seuil technique mandatory             | bug de conversion si mode bascule                | HAUTE                 | Convention P3.2 §6.4 maintenue en mode `MANDATORY` : `total_score_system = NULL` strict                             |
+| M10 | Confusion entre éligibilité P3.1B et qualification technique P3.2 dans le motif d'exclusion        | fusion hâtive de `elimination_reason`            | MOYENNE               | `exclusion_reason_codes: list[str]` ordonnée par source : `[eligibility.*, technical.*, commercial.*]`              |
+
 
 ### P3.2 — Principe directeur gravé
 
@@ -312,27 +330,29 @@ MatrixSummary {
 
 Critère : *le consommateur aval en a-t-il besoin pour comprendre la ligne sans mentir ?*
 
-| Champ | Justification | IN / OUT |
-|-------|---------------|----------|
-| `bundle_id` | traçabilité bijective avec `criterion_assessments` et `SupplierEvaluation` | **IN** |
-| `supplier_name` | identification humaine, lecture comité | **IN** |
-| `pipeline_run_id` | traçabilité run, préparation P3.4B recompute | **IN** |
-| `matrix_revision_id` | préparation P3.4B matrix_revisions (Section 4 archi) | **IN** |
-| `eligibility_status` + `REGULARIZATION_PENDING` | couvre P3.1B + préparation P3.4C | **IN** |
-| `*_score_system` × 4 | reflet exact de `FamilyScore` + `SupplierEvaluation` P3.2 | **IN** |
-| `*_score_override` × 4 | contrat futur-compatible, NULL en P3.4 (Q3 validée) | **IN contrat, OUT activité** |
-| `*_score_effective` × 4 | vue publiée, = system en P3.4 (Q3 + G1 gravés) | **IN** |
-| `total_comparability_status` | évite mensonge M2, cohérence cohorte | **IN** |
-| `technical_threshold_mode` | modélisé ; défaut transitoire MANDATORY (rectification CTO 2026-04-19) | **IN** |
-| `technical_threshold_value` | transparence comité | **IN** |
-| `technical_qualified` | miroir `FamilyScore.qualified` P3.2 | **IN** |
-| `rank` + `rank_status` | règle explicite §P5, évite M6 | **IN** |
-| `exclusion_reason_codes` | source-tagged, évite M10 | **IN** |
-| `warning_flags` | agrégation append-only des flags amont, évite M5 | **IN** |
-| `human_review_required` | OR logique, propagation fidèle P3.3 | **IN** |
-| `has_any_override` + `override_summary` + `last_override_at` | contrat P3.4B (Q3) | **IN contrat** |
-| `regularization_summary` + `has_regularization_history` | contrat P3.4C | **IN contrat** |
-| `evidence_refs` | auditabilité | **IN** |
+
+| Champ                                                        | Justification                                                              | IN / OUT                     |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------- | ---------------------------- |
+| `bundle_id`                                                  | traçabilité bijective avec `criterion_assessments` et `SupplierEvaluation` | **IN**                       |
+| `supplier_name`                                              | identification humaine, lecture comité                                     | **IN**                       |
+| `pipeline_run_id`                                            | traçabilité run, préparation P3.4B recompute                               | **IN**                       |
+| `matrix_revision_id`                                         | préparation P3.4B matrix_revisions (Section 4 archi)                       | **IN**                       |
+| `eligibility_status` + `REGULARIZATION_PENDING`              | couvre P3.1B + préparation P3.4C                                           | **IN**                       |
+| `*_score_system` × 4                                         | reflet exact de `FamilyScore` + `SupplierEvaluation` P3.2                  | **IN**                       |
+| `*_score_override` × 4                                       | contrat futur-compatible, NULL en P3.4 (Q3 validée)                        | **IN contrat, OUT activité** |
+| `*_score_effective` × 4                                      | vue publiée, = system en P3.4 (Q3 + G1 gravés)                             | **IN**                       |
+| `total_comparability_status`                                 | évite mensonge M2, cohérence cohorte                                       | **IN**                       |
+| `technical_threshold_mode`                                   | modélisé ; défaut transitoire MANDATORY (rectification CTO 2026-04-19)     | **IN**                       |
+| `technical_threshold_value`                                  | transparence comité                                                        | **IN**                       |
+| `technical_qualified`                                        | miroir `FamilyScore.qualified` P3.2                                        | **IN**                       |
+| `rank` + `rank_status`                                       | règle explicite §P5, évite M6                                              | **IN**                       |
+| `exclusion_reason_codes`                                     | source-tagged, évite M10                                                   | **IN**                       |
+| `warning_flags`                                              | agrégation append-only des flags amont, évite M5                           | **IN**                       |
+| `human_review_required`                                      | OR logique, propagation fidèle P3.3                                        | **IN**                       |
+| `has_any_override` + `override_summary` + `last_override_at` | contrat P3.4B (Q3)                                                         | **IN contrat**               |
+| `regularization_summary` + `has_regularization_history`      | contrat P3.4C                                                              | **IN contrat**               |
+| `evidence_refs`                                              | auditabilité                                                               | **IN**                       |
+
 
 ---
 
@@ -340,17 +360,19 @@ Critère : *le consommateur aval en a-t-il besoin pour comprendre la ligne sans 
 
 ### P5.1 — Règles opposables (alignées Context Anchor + arbitrages CTO)
 
-| # | Cas d'entrée | `rank` | `rank_status` | Commentaire |
-|---|--------------|--------|-----------------|-------------|
-| R1 | `eligibility_status = INELIGIBLE` | NULL | `EXCLUDED` | P3.1B éligibilité — pas de scoring |
-| R2 | `eligibility_status = PENDING` | NULL | `PENDING` | P3.1B en attente |
-| R3 | `eligibility_status = REGULARIZATION_PENDING` | NULL | `PENDING` | P3.4C préparé, traité comme PENDING |
-| R4 | Éligible, `technical_threshold_mode = MANDATORY`, `technical_qualified = False` | NULL | `EXCLUDED` | Convention P3.2 §6.4 stricte |
-| R5 | Éligible, `technical_threshold_mode = INFORMATIVE`, `technical_qualified = False` | dépend de R6–R9 | dépend | Le vendor participe au rang si les autres scores sont calculables |
-| R6 | Éligible, tous scores système calculés (pas de NULL dans `*_score_system`) | rang entier ≥ 1 | `RANKED` | Cas normal |
-| R7 | Éligible, `commercial_score_system = NULL` pour cause `PriceAmbiguousError` non-résolue | NULL | `NOT_COMPARABLE` | Le vendor est non-comparable |
-| R8 | Éligible, `sustainability_score_system = NULL` mais commercial et technique calculés | NULL | `INCOMPLETE` | Distinction claire vs `NOT_COMPARABLE` (M4) |
-| R9 | Cohorte asymétrique : au moins un vendor qualifié a `commercial_score_system = NULL` non-résolu | **tous** les rangs = NULL | **tous** `rank_status = NOT_COMPARABLE` avec flag `COHORT_ASYMMETRIC_COMMERCIAL` | Décision bloquante tranchée : pas de classement partiel mensonger |
+
+| #   | Cas d'entrée                                                                                    | `rank`                    | `rank_status`                                                                    | Commentaire                                                       |
+| --- | ----------------------------------------------------------------------------------------------- | ------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| R1  | `eligibility_status = INELIGIBLE`                                                               | NULL                      | `EXCLUDED`                                                                       | P3.1B éligibilité — pas de scoring                                |
+| R2  | `eligibility_status = PENDING`                                                                  | NULL                      | `PENDING`                                                                        | P3.1B en attente                                                  |
+| R3  | `eligibility_status = REGULARIZATION_PENDING`                                                   | NULL                      | `PENDING`                                                                        | P3.4C préparé, traité comme PENDING                               |
+| R4  | Éligible, `technical_threshold_mode = MANDATORY`, `technical_qualified = False`                 | NULL                      | `EXCLUDED`                                                                       | Convention P3.2 §6.4 stricte                                      |
+| R5  | Éligible, `technical_threshold_mode = INFORMATIVE`, `technical_qualified = False`               | dépend de R6–R9           | dépend                                                                           | Le vendor participe au rang si les autres scores sont calculables |
+| R6  | Éligible, tous scores système calculés (pas de NULL dans `*_score_system`)                      | rang entier ≥ 1           | `RANKED`                                                                         | Cas normal                                                        |
+| R7  | Éligible, `commercial_score_system = NULL` pour cause `PriceAmbiguousError` non-résolue         | NULL                      | `NOT_COMPARABLE`                                                                 | Le vendor est non-comparable                                      |
+| R8  | Éligible, `sustainability_score_system = NULL` mais commercial et technique calculés            | NULL                      | `INCOMPLETE`                                                                     | Distinction claire vs `NOT_COMPARABLE` (M4)                       |
+| R9  | Cohorte asymétrique : au moins un vendor qualifié a `commercial_score_system = NULL` non-résolu | **tous** les rangs = NULL | **tous** `rank_status = NOT_COMPARABLE` avec flag `COHORT_ASYMMETRIC_COMMERCIAL` | Décision bloquante tranchée : pas de classement partiel mensonger |
+
 
 ### P5.2 — Justification R9
 
@@ -417,28 +439,32 @@ Quand un override sera saisi (P3.4B), le recompute suivra :
 
 ### P6.1 — Ce que le summary AFFICHE
 
-| Catégorie | Champ / Information | Justification |
-|-----------|---------------------|---------------|
-| Comptages éligibilité | `count_eligible`, `count_ineligible`, `count_pending`, `count_regularization_pending` | État objectif de la cohorte |
-| Comptages comparabilité | `count_comparable`, `count_non_comparable`, `count_incomplete` | Distinction explicite M4 |
-| Comptages rang | `count_ranked`, `count_excluded`, `count_pending_rank`, `count_not_comparable_rank`, `count_incomplete_rank` | Granularité fidèle |
-| Statut cohorte | `cohort_comparability_status` (`FULLY_COMPARABLE` / `PARTIALLY_COMPARABLE` / `NOT_COMPARABLE`) | Vue synthétique honnête |
-| Flags critiques | `critical_flags_overview: dict[str, int]` | Visibilité anomalies |
-| Revue humaine | `human_review_required_count` | Priorisation comité |
-| Critères essentiels | `essential_criteria_total / passed / failed / pending` | État des gates |
-| Traces | `pipeline_run_id`, `matrix_revision_id`, `computed_at` | Auditabilité |
-| Overrides (préparatoire) | `count_rows_with_override`, `override_summary_by_reason` | 0 / vide en P3.4 |
+
+| Catégorie                | Champ / Information                                                                                          | Justification               |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------ | --------------------------- |
+| Comptages éligibilité    | `count_eligible`, `count_ineligible`, `count_pending`, `count_regularization_pending`                        | État objectif de la cohorte |
+| Comptages comparabilité  | `count_comparable`, `count_non_comparable`, `count_incomplete`                                               | Distinction explicite M4    |
+| Comptages rang           | `count_ranked`, `count_excluded`, `count_pending_rank`, `count_not_comparable_rank`, `count_incomplete_rank` | Granularité fidèle          |
+| Statut cohorte           | `cohort_comparability_status` (`FULLY_COMPARABLE` / `PARTIALLY_COMPARABLE` / `NOT_COMPARABLE`)               | Vue synthétique honnête     |
+| Flags critiques          | `critical_flags_overview: dict[str, int]`                                                                    | Visibilité anomalies        |
+| Revue humaine            | `human_review_required_count`                                                                                | Priorisation comité         |
+| Critères essentiels      | `essential_criteria_total / passed / failed / pending`                                                       | État des gates              |
+| Traces                   | `pipeline_run_id`, `matrix_revision_id`, `computed_at`                                                       | Auditabilité                |
+| Overrides (préparatoire) | `count_rows_with_override`, `override_summary_by_reason`                                                     | 0 / vide en P3.4            |
+
 
 ### P6.2 — Ce que le summary N'AFFICHE PAS
 
-| Interdit | Raison |
-|----------|--------|
-| `recommended_winner` | Jamais. Le pipeline est témoin, pas juge (Section 1 archi). |
-| `suggested_rank_order` | Pas de suggestion implicite au comité. |
-| `average_total_score` | Moyenne sur cohorte partiellement comparable = mensonge statistique. |
-| Prédiction, jugement, pondération non-canonique | Hors mandat P3.4 (Article 2 doctrine). |
-| Conversion `NULL` → `0` dans les agrégats | Invariant I3. |
-| Classement partiel tronqué sans le signaler | Invariant I1, M2. |
+
+| Interdit                                        | Raison                                                               |
+| ----------------------------------------------- | -------------------------------------------------------------------- |
+| `recommended_winner`                            | Jamais. Le pipeline est témoin, pas juge (Section 1 archi).          |
+| `suggested_rank_order`                          | Pas de suggestion implicite au comité.                               |
+| `average_total_score`                           | Moyenne sur cohorte partiellement comparable = mensonge statistique. |
+| Prédiction, jugement, pondération non-canonique | Hors mandat P3.4 (Article 2 doctrine).                               |
+| Conversion `NULL` → `0` dans les agrégats       | Invariant I3.                                                        |
+| Classement partiel tronqué sans le signaler     | Invariant I1, M2.                                                    |
+
 
 ### P6.3 — Principe directeur
 
@@ -504,27 +530,29 @@ Sans cela, le comité ne peut pas arbitrer en connaissance de cause (et P3.4B / 
 
 ### P6ter.1 — Éléments futurs-overridables
 
-| Champ `MatrixRow` | Overridable ? | Par quelle couche | Taxonomie `correction_nature` applicable |
-|-------------------|---------------|-------------------|------------------------------------------|
-| `technical_score_system` | NON, jamais | — | — |
-| `commercial_score_system` | NON, jamais | — | — |
-| `sustainability_score_system` | NON, jamais | — | — |
-| `total_score_system` | NON, dérivé immuable | — | — |
-| `technical_score_override` | OUI | P3.4B | `SCORING_OVERRIDE`, `EVIDENCE_MISINTERPRETED`, `READING_ERROR` |
-| `commercial_score_override` | OUI | P3.4B | `SCORING_OVERRIDE`, `LATE_DOCUMENT_ACCEPTED` |
-| `sustainability_score_override` | OUI | P3.4B | `SCORING_OVERRIDE`, `EVIDENCE_MISINTERPRETED` |
-| `eligibility_status` | INDIRECTEMENT | P3.4C via régularisation | `REGULARIZATION_ACCEPTED`, `REGULARIZATION_REJECTED`, `PROCEDURAL_EXCEPTION_APPROVED` |
-| `rank`, `rank_status`, `total_score_effective` | NON directement (G1) | — | Recalculés par Recompute Engine |
-| `exclusion_reason_codes` | INDIRECTEMENT | P3.4B | Ajouté par override, pas édité |
-| `warning_flags` | INDIRECTEMENT | P3.4B / P3.4C | Enrichi, pas effacé |
-| `human_review_required` | INDIRECTEMENT | P3.4B | Transition false ↔ true via override motivé |
-| `evidence_refs` | AJOUT uniquement | P3.4B | Preuves additionnelles attachables à l'override |
+
+| Champ `MatrixRow`                              | Overridable ?        | Par quelle couche        | Taxonomie `correction_nature` applicable                                              |
+| ---------------------------------------------- | -------------------- | ------------------------ | ------------------------------------------------------------------------------------- |
+| `technical_score_system`                       | NON, jamais          | —                        | —                                                                                     |
+| `commercial_score_system`                      | NON, jamais          | —                        | —                                                                                     |
+| `sustainability_score_system`                  | NON, jamais          | —                        | —                                                                                     |
+| `total_score_system`                           | NON, dérivé immuable | —                        | —                                                                                     |
+| `technical_score_override`                     | OUI                  | P3.4B                    | `SCORING_OVERRIDE`, `EVIDENCE_MISINTERPRETED`, `READING_ERROR`                        |
+| `commercial_score_override`                    | OUI                  | P3.4B                    | `SCORING_OVERRIDE`, `LATE_DOCUMENT_ACCEPTED`                                          |
+| `sustainability_score_override`                | OUI                  | P3.4B                    | `SCORING_OVERRIDE`, `EVIDENCE_MISINTERPRETED`                                         |
+| `eligibility_status`                           | INDIRECTEMENT        | P3.4C via régularisation | `REGULARIZATION_ACCEPTED`, `REGULARIZATION_REJECTED`, `PROCEDURAL_EXCEPTION_APPROVED` |
+| `rank`, `rank_status`, `total_score_effective` | NON directement (G1) | —                        | Recalculés par Recompute Engine                                                       |
+| `exclusion_reason_codes`                       | INDIRECTEMENT        | P3.4B                    | Ajouté par override, pas édité                                                        |
+| `warning_flags`                                | INDIRECTEMENT        | P3.4B / P3.4C            | Enrichi, pas effacé                                                                   |
+| `human_review_required`                        | INDIRECTEMENT        | P3.4B                    | Transition false ↔ true via override motivé                                           |
+| `evidence_refs`                                | AJOUT uniquement     | P3.4B                    | Preuves additionnelles attachables à l'override                                       |
+
 
 ### P6ter.2 — Cohabitation `system` / `override` / `effective`
 
 **Règle invariante (G1 gravé)** :
 
-> **`*_score_effective` n'est JAMAIS éditable directement par un humain. C'est une vue dérivée calculée par le Recompute Engine à partir de `*_score_system` (immuable) et de `*_score_override` (saisi motivé en P3.4B).**
+> `***_score_effective` n'est JAMAIS éditable directement par un humain. C'est une vue dérivée calculée par le Recompute Engine à partir de `*_score_system` (immuable) et de `*_score_override` (saisi motivé en P3.4B).**
 
 Pseudo-code de résolution (exécuté par le Recompute Engine P3.4B, pas par P3.4) :
 
@@ -552,15 +580,17 @@ Déjà intégrés au contrat `MatrixRow` §P4.1 :
 
 Toute correction future (P3.4B ou P3.4C) devra déclarer sa nature dans l'un des codes suivants :
 
-| Code | Définition | Couche |
-|------|------------|--------|
-| `READING_ERROR` | le pipeline a mal lu un document | P3.4B |
-| `EVIDENCE_MISINTERPRETED` | la pièce a été comprise mais mal notée | P3.4B |
-| `LATE_DOCUMENT_ACCEPTED` | un document tardif a été accepté par le comité | P3.4B + P3.4C |
-| `REGULARIZATION_ACCEPTED` | un document régularisé a été accepté | P3.4C |
-| `REGULARIZATION_REJECTED` | une régularisation a été refusée | P3.4C |
-| `SCORING_OVERRIDE` | désaccord du comité sur une note, sans erreur lecture | P3.4B |
-| `PROCEDURAL_EXCEPTION_APPROVED` | dérogation procédurale validée | P3.4B / P5 |
+
+| Code                            | Définition                                            | Couche        |
+| ------------------------------- | ----------------------------------------------------- | ------------- |
+| `READING_ERROR`                 | le pipeline a mal lu un document                      | P3.4B         |
+| `EVIDENCE_MISINTERPRETED`       | la pièce a été comprise mais mal notée                | P3.4B         |
+| `LATE_DOCUMENT_ACCEPTED`        | un document tardif a été accepté par le comité        | P3.4B + P3.4C |
+| `REGULARIZATION_ACCEPTED`       | un document régularisé a été accepté                  | P3.4C         |
+| `REGULARIZATION_REJECTED`       | une régularisation a été refusée                      | P3.4C         |
+| `SCORING_OVERRIDE`              | désaccord du comité sur une note, sans erreur lecture | P3.4B         |
+| `PROCEDURAL_EXCEPTION_APPROVED` | dérogation procédurale validée                        | P3.4B / P5    |
+
 
 **Aucun override sans `correction_nature` valide.** Règle opposable dès P3.4B.
 
@@ -674,21 +704,23 @@ Justification par le critère dur :
 
 ### P8.1 — État de chaque bloc
 
-| Bloc | Statut | Commentaire |
-|------|--------|---------------|
-| P1 — Point d'entrée actuel | **CONFIRMÉ** sur HEAD `417f1149` | grep + lecture |
-| P2 — États métier disponibles | **INTÉGRAL** | §BLOC P2 |
-| P3 — Mensonges potentiels | **INTÉGRAL** | §BLOC P3 |
-| P4 — Contrat `MatrixRow` + `MatrixSummary` | **INTÉGRAL** | §BLOC P4 |
-| P5 — Politique de rang | **INTÉGRAL** | §BLOC P5 |
-| P6 — Politique de summary | **INTÉGRAL** | §BLOC P6 |
-| P6bis — Explicabilité | **INTÉGRAL** | §BLOC P6 BIS |
-| P6ter — Revue comité / corrections | **INTÉGRAL** | §BLOC P6 TER |
-| P7 — Point d'insertion | **INTÉGRAL** | §BLOC P7 |
+
+| Bloc                                       | Statut                           | Commentaire    |
+| ------------------------------------------ | -------------------------------- | -------------- |
+| P1 — Point d'entrée actuel                 | **CONFIRMÉ** sur HEAD `417f1149` | grep + lecture |
+| P2 — États métier disponibles              | **INTÉGRAL**                     | §BLOC P2       |
+| P3 — Mensonges potentiels                  | **INTÉGRAL**                     | §BLOC P3       |
+| P4 — Contrat `MatrixRow` + `MatrixSummary` | **INTÉGRAL**                     | §BLOC P4       |
+| P5 — Politique de rang                     | **INTÉGRAL**                     | §BLOC P5       |
+| P6 — Politique de summary                  | **INTÉGRAL**                     | §BLOC P6       |
+| P6bis — Explicabilité                      | **INTÉGRAL**                     | §BLOC P6 BIS   |
+| P6ter — Revue comité / corrections         | **INTÉGRAL**                     | §BLOC P6 TER   |
+| P7 — Point d'insertion                     | **INTÉGRAL**                     | §BLOC P7       |
+
 
 ### P8.2 — Verdict
 
-**`READY TO OPEN`** — sous conditions :
+`**READY TO OPEN`** — sous conditions :
 
 1. Séquence git exécutée (§Rapport d'exécution matériel).
 2. Single-head Alembic.
@@ -705,14 +737,16 @@ Justification par le critère dur :
 
 ## Rapport de clôture de tour (format imposé)
 
-| # | Item | Statut |
-|---|------|--------|
-| 1 | Branche créée : `feat/p3-4-matrixrow-builder-summary` | **Exécutée** (`417f1149`) |
-| 2 | Point d'entrée matrice identifié | **Confirmé** fichier:ligne |
-| 3 | Contrat `MatrixRow` esquissé | **Intégral** §P4 |
-| 4 | Verdict preflight | **`READY TO OPEN`** avec réserves acternables + validation CTO principal |
-| 5 | Blocage exact éventuel | **Aucun blocage logique** |
-| 6 | Fichier preflight autonome (P2–P7) | **OUI** (révision 2026-04-19) |
+
+| #   | Item                                                  | Statut                                                                   |
+| --- | ----------------------------------------------------- | ------------------------------------------------------------------------ |
+| 1   | Branche créée : `feat/p3-4-matrixrow-builder-summary` | **Exécutée** (`417f1149`)                                                |
+| 2   | Point d'entrée matrice identifié                      | **Confirmé** fichier:ligne                                               |
+| 3   | Contrat `MatrixRow` esquissé                          | **Intégral** §P4                                                         |
+| 4   | Verdict preflight                                     | `**READY TO OPEN`** avec réserves acternables + validation CTO principal |
+| 5   | Blocage exact éventuel                                | **Aucun blocage logique**                                                |
+| 6   | Fichier preflight autonome (P2–P7)                    | **OUI** (révision 2026-04-19)                                            |
+
 
 ---
 
@@ -720,10 +754,13 @@ Justification par le critère dur :
 
 *Ces lignes sont des **propositions d’alignement** pour le décideur humain ; elles ne substituent pas une validation écrite CTO principal.*
 
-| Question | Proposition |
-|----------|-------------|
-| Q-clôture 1 — Étape 0 bloquante ? | **OUI** — investigation + doc (E0.1–E0.5) avant premier commit de types/builder |
-| Q-clôture 2 — Défaut `MANDATORY` + flag ? | **OUI** — aligné rectification §Rectification Q1 |
-| Q-clôture 3 — Plan E0→E5 ? | **OUI** — ordre cohérent (contrat → builder → intégration → validation → PR) |
-| Q-clôture 4 — Fichier autonome ? | **OUI** — satisfait par cette révision |
+
+| Question                                    | Proposition                                                                                         |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Q-clôture 1 — Étape 0 bloquante ?           | **OUI** — investigation + doc (E0.1–E0.5) avant premier commit de types/builder                     |
+| Q-clôture 2 — Défaut `MANDATORY` + flag ?   | **OUI** — aligné rectification §Rectification Q1                                                    |
+| Q-clôture 3 — Plan E0→E5 ?                  | **OUI** — ordre cohérent (contrat → builder → intégration → validation → PR)                        |
+| Q-clôture 4 — Fichier autonome ?            | **OUI** — satisfait par cette révision                                                              |
 | Q-clôture 5 — Revue intermédiaire post-E0 ? | **Au choix CTO principal** ; matériellement, E0 peut se clore par commit doc seul puis revue légère |
+
+
