@@ -168,6 +168,9 @@ alembic/versions/__pycache__/
 # dms.log explicite
 dms.log
 
+# P3.4 E4 benchmark artefacts (données sensibles — Option B)
+rapports/p34_case_*.json
+
 # Railway
 .railway/
 
