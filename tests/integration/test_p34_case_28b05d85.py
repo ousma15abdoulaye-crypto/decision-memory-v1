@@ -63,9 +63,9 @@ def test_p34_e4_pipeline_and_matrix_invariants(workspace_id: UUID) -> None:
     try:
         wid = str(workspace_id)
         first = run_pipeline_v5(wid, force_m14=False)
-        assert first.completed, (
-            f"pipeline incomplet: error={first.error!r} stopped_at={first.stopped_at!r}"
-        )
+        assert (
+            first.completed
+        ), f"pipeline incomplet: error={first.error!r} stopped_at={first.stopped_at!r}"
         assert first.matrix_summary is not None
         assert first.matrix_rows, "matrix_rows vide après run complet"
 
@@ -76,20 +76,20 @@ def test_p34_e4_pipeline_and_matrix_invariants(workspace_id: UUID) -> None:
         MatrixSummary.model_validate(summary.model_dump())
 
         by_status = Counter(r.rank_status for r in first.matrix_rows)
-        assert summary.count_ranked == by_status.get(RankStatus.RANKED, 0), (
-            "V1 : count_ranked ne correspond pas aux lignes RANKED"
-        )
-        assert summary.count_excluded == by_status.get(RankStatus.EXCLUDED, 0), (
-            "V1 : count_excluded ne correspond pas aux lignes EXCLUDED"
-        )
-        assert summary.total_bundles == len(first.matrix_rows), (
-            "V1 : total_bundles != len(matrix_rows)"
-        )
+        assert summary.count_ranked == by_status.get(
+            RankStatus.RANKED, 0
+        ), "V1 : count_ranked ne correspond pas aux lignes RANKED"
+        assert summary.count_excluded == by_status.get(
+            RankStatus.EXCLUDED, 0
+        ), "V1 : count_excluded ne correspond pas aux lignes EXCLUDED"
+        assert summary.total_bundles == len(
+            first.matrix_rows
+        ), "V1 : total_bundles != len(matrix_rows)"
 
         second = run_pipeline_v5(wid, force_m14=False)
-        assert second.completed, (
-            f"V3 : second run incomplet error={second.error!r} stopped_at={second.stopped_at!r}"
-        )
+        assert (
+            second.completed
+        ), f"V3 : second run incomplet error={second.error!r} stopped_at={second.stopped_at!r}"
 
         fp_a = _stable_matrix_fingerprint(first)
         fp_b = _stable_matrix_fingerprint(second)
