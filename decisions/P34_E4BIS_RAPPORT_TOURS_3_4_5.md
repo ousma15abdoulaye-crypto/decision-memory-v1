@@ -434,4 +434,56 @@ Voir: `local_sandbox_archive/CHANTIERS_LATENTS_REGISTRY.md`
 
 ---
 
-**FIN DU RAPPORT** (mise à jour post-benchmark en attente)
+## Amendement — E4-ter post-déblocage Mistral
+
+**Commit d'amendement** : [sera le SHA du commit 9]  
+**Date** : 2026-04-21  
+**Verdict E4-ter** : NON CONCLUANT — infrastructure (triple blocage)
+
+### Séquence E4-ter
+
+- Fix ops appliqué : MISTRAL_API_KEY configurée côté Railway backend
+- Task background bls8gmjo4 lancée, 2 runs idempotence V3 attendus
+- Timeout 120s systématique sur extraction OCR (backend Railway trop lent même avec Mistral configuré)
+- Perte connexion DATABASE_URL Railway distant pendant run 1 (`getaddrinfo failed` vers maglev.proxy.rlwy.net)
+- Circuit breaker déclenché après 3 échecs DB consécutifs
+- Run 1 stopped_at="exception", Run 2 bloqué immédiatement
+- Artifacts générés mais vides :
+  - 0 bundle_documents extraits sur 6
+  - 0 matrix_rows produites
+  - matrix_summary = null
+
+### Triple blocage infrastructure identifié
+
+| Code | Dette | Criticité |
+|---|---|---|
+| I-DEBT-1 | Backend Railway timeout 120s extraction OCR | 🔴 |
+| I-DEBT-2 | DATABASE_URL Railway distant instable | 🔴 |
+| I-DEBT-3 | Configuration ops Railway non documentée | 🟡 |
+
+### Verdict dual CTO Senior
+
+**Verdict PRODUIT (pipeline P3.4)** :  
+NON VALIDÉ sur réel / NON INVALIDÉ sur réel.  
+Le pipeline n'a rien prouvé d'opérationnel ni rien démontré de défaillant sur CASE-28b05d85. 456 tests unit maintenus, invariants I1–I6 gravés, algorithme R1–R9 implémenté. Preuve matérielle sur réel manquante.
+
+**Verdict INFRA (plateforme DMS pilote)** :  
+INSUFFISANTE pour benchmark E2E pilote.  
+Trois dettes systémiques (I-DEBT-1, 2, 3) nécessitent une phase de stabilisation dédiée avant reprise benchmark.
+
+### Décision de clôture session
+
+Session E4/E4-bis/E4-ter fermée en état NON CONCLUANT infrastructure, trace opposable complète préservée.
+
+Ouverture Phase P3.4-INFRA-STABILIZATION avant tout E4-quater. Cette phase devient chemin critique avant P3.4B, P3.4C, P3.5.
+
+### Références
+
+- Arbitrage CTO Senior : DMS-ARBITRAGE-CTO-SENIOR-TRIPLE-NONCONCLUANT-STRATEGY-V1
+- Handover V3 §0.5 (benchmarks sur réel non négociables)
+- Doctrine G1 (fix ops ≠ industrialisation)
+- Doctrines G19-G21 (preflight infra, signal systémique, revue archives)
+
+---
+
+**FIN DU RAPPORT CONSOLIDÉ** (session clôturée 2026-04-21)
