@@ -246,7 +246,7 @@ All bundles failed Gate B or Gate C, no eligible supplier to score
 1. ✅ SSL certificate fix confirmé fonctionnel (precheck /health HTTP 200)
 2. ✅ Railway variables vérifiées: `DMS_API_MISTRAL` présente mais non utilisée
 3. ✅ Code backend.py cherche prioritairement `MISTRAL_API_KEY`
-4. ✅ Ajouté `MISTRAL_API_KEY` Railway avec bonne clé (qQ4Xy3ZT2zmhMMffxpBEPsleSYi9HfT0)
+4. ✅ Ajouté `MISTRAL_API_KEY` Railway avec valeur redacted (`<REDACTED>`)
 5. ⏳ Railway redeploy lancé mais backend toujours 502 au moment benchmark
 6. ❌ Backend pas encore opérationnel avec Mistral configuré
 
