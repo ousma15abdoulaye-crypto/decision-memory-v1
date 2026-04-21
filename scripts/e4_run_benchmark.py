@@ -91,7 +91,10 @@ def precheck_annotation_backend(*, timeout_s: float = 5.0) -> tuple[bool, str]:
     base = llm_router.backend_url.rstrip("/")
     url = f"{base}/health"
     try:
-        with httpx.Client(timeout=timeout_s) as client:
+        import os
+        # TLS proxy SCI: HTTPX_VERIFY_SSL=0 désactive verify (dev/local uniquement)
+        verify_ssl = os.getenv("HTTPX_VERIFY_SSL", "1") != "0"
+        with httpx.Client(timeout=timeout_s, verify=verify_ssl) as client:
             resp = client.get(url)
             resp.raise_for_status()
     except Exception as e:
