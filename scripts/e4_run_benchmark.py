@@ -92,6 +92,7 @@ def precheck_annotation_backend(*, timeout_s: float = 5.0) -> tuple[bool, str]:
     url = f"{base}/health"
     try:
         import os
+
         # TLS proxy SCI: HTTPX_VERIFY_SSL=0 désactive verify (dev/local uniquement)
         verify_ssl = os.getenv("HTTPX_VERIFY_SSL", "1") != "0"
         with httpx.Client(timeout=timeout_s, verify=verify_ssl) as client:
@@ -373,9 +374,7 @@ def serialize_artifacts(
 
     rows_payload = [r.model_dump(mode="json") for r in result.matrix_rows]
     summary_payload = (
-        result.matrix_summary.model_dump(mode="json")
-        if result.matrix_summary
-        else None
+        result.matrix_summary.model_dump(mode="json") if result.matrix_summary else None
     )
     pid: UUID | None = None
     if result.matrix_rows:
@@ -395,12 +394,16 @@ def serialize_artifacts(
         result=result,
     )
 
-    rows_path.write_text(json.dumps(rows_payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    rows_path.write_text(
+        json.dumps(rows_payload, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
     summary_path.write_text(
         json.dumps(summary_payload, indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
-    meta_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
+    meta_path.write_text(
+        json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
 
     return {
         "matrix_rows_path": str(rows_path),
@@ -427,7 +430,12 @@ def _print_report_blocks(
         (
             "5_rank_distribution",
             (
-                {str(k): v for k, v in Counter(r.rank_status for r in result.matrix_rows).items()}
+                {
+                    str(k): v
+                    for k, v in Counter(
+                        r.rank_status for r in result.matrix_rows
+                    ).items()
+                }
                 if result and result.matrix_rows
                 else {}
             ),
@@ -438,7 +446,9 @@ def _print_report_blocks(
     ]
     for name, payload in blocks:
         print(f"=== {name} ===", flush=True)
-        print(json.dumps(payload, indent=2, default=str, ensure_ascii=False), flush=True)
+        print(
+            json.dumps(payload, indent=2, default=str, ensure_ascii=False), flush=True
+        )
 
 
 def main() -> int:
@@ -457,7 +467,9 @@ def main() -> int:
         help="reference_code exact (ex. CASE-…), sinon legacy_case_id exact",
     )
     parser.add_argument("--workspace-id", type=UUID, default=None)
-    parser.add_argument("--runs", type=int, default=2, help="runs pour idempotence (défaut 2)")
+    parser.add_argument(
+        "--runs", type=int, default=2, help="runs pour idempotence (défaut 2)"
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -544,8 +556,7 @@ def main() -> int:
         )
 
         inv_failed = any(
-            isinstance(v, dict) and v.get("ok") is False
-            for v in inv.values()
+            isinstance(v, dict) and v.get("ok") is False for v in inv.values()
         )
         if not last.completed or inv_failed:
             return 1

@@ -18,12 +18,16 @@ def run(base: str) -> None:
     # 0. Créer un utilisateur smoke dédié (évite dépendance au seed admin)
     smoke_user = f"smoke_{uuid.uuid4().hex[:8]}"
     smoke_pass = "SmokeM2Test123!"
-    reg_payload = json.dumps({
-        "email": f"{smoke_user}@smoke-test.com",
-        "username": smoke_user,
-        "password": smoke_pass,
-    }).encode()
-    req0 = urllib.request.Request(f"{base}/auth/register", data=reg_payload, method="POST")
+    reg_payload = json.dumps(
+        {
+            "email": f"{smoke_user}@smoke-test.com",
+            "username": smoke_user,
+            "password": smoke_pass,
+        }
+    ).encode()
+    req0 = urllib.request.Request(
+        f"{base}/auth/register", data=reg_payload, method="POST"
+    )
     req0.add_header("Content-Type", "application/json")
     with urllib.request.urlopen(req0, timeout=20) as r0:
         reg = json.loads(r0.read())
@@ -32,7 +36,9 @@ def run(base: str) -> None:
         print(f"     role_name : {reg.get('role_name')}")
 
     # 1. POST /auth/token
-    data = urllib.parse.urlencode({"username": smoke_user, "password": smoke_pass}).encode()
+    data = urllib.parse.urlencode(
+        {"username": smoke_user, "password": smoke_pass}
+    ).encode()
     req = urllib.request.Request(f"{base}/auth/token", data=data, method="POST")
     req.add_header("Content-Type", "application/x-www-form-urlencoded")
     with urllib.request.urlopen(req, timeout=20) as resp:
@@ -49,7 +55,9 @@ def run(base: str) -> None:
     type_ok = claims.get("type") == "access"
     print(f"     jti   : {'PRESENT OK' if jti_ok else 'ABSENT FAIL'}")
     print(f"     role  : {claims.get('role', 'ABSENT FAIL')}")
-    print(f"     type  : {claims.get('type', 'ABSENT FAIL')} {'OK' if type_ok else 'FAIL'}")
+    print(
+        f"     type  : {claims.get('type', 'ABSENT FAIL')} {'OK' if type_ok else 'FAIL'}"
+    )
     print(f"     sub   : {claims.get('sub', 'ABSENT')}")
 
     # 2. GET /auth/me
@@ -63,7 +71,9 @@ def run(base: str) -> None:
         print(f"     id        : {me.get('id')}")
 
     # 3. POST /api/cases
-    case_body = json.dumps({"case_type": "DAO", "title": "Smoke M2", "lot": None}).encode()
+    case_body = json.dumps(
+        {"case_type": "DAO", "title": "Smoke M2", "lot": None}
+    ).encode()
     req3 = urllib.request.Request(f"{base}/api/cases", data=case_body, method="POST")
     req3.add_header("Authorization", f"Bearer {token}")
     req3.add_header("Content-Type", "application/json")

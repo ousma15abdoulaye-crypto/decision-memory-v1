@@ -5,6 +5,7 @@ Détermine :
 2. Last migration number in versions/
 3. Exact down_revision for migration 101
 """
+
 import subprocess
 import sys
 from pathlib import Path
@@ -24,7 +25,7 @@ try:
         cwd=repo_root,
         capture_output=True,
         text=True,
-        timeout=10
+        timeout=10,
     )
     if result.returncode == 0:
         print(result.stdout.strip() or "(no output - possibly no migrations applied)")
@@ -65,9 +66,9 @@ print(f"  Revision ID (stem): {last_stem}")
 last_file = versions_dir / last_name
 print(f"\n[4] Reading revision ID from {last_name}:")
 try:
-    with open(last_file, 'r', encoding='utf-8') as f:
+    with open(last_file, "r", encoding="utf-8") as f:
         content = f.read()
-        for line in content.split('\n'):
+        for line in content.split("\n"):
             if line.strip().startswith("revision = "):
                 revision_line = line.strip()
                 print(f"  {revision_line}")

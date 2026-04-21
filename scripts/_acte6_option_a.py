@@ -3,6 +3,7 @@
 Usage : python scripts/_acte6_option_a.py <RAILWAY_DB_URL>
 IDs validés explicitement : case = c035e6fb-..., user = 10.
 """
+
 import sys
 import psycopg
 from psycopg.rows import dict_row
@@ -18,13 +19,16 @@ with psycopg.connect(url, row_factory=dict_row, autocommit=False) as conn:
     with conn.cursor() as cur:
 
         # Étape 1 — vérification avant opération
-        cur.execute("""
+        cur.execute(
+            """
             SELECT c.id AS case_id, c.title AS case_title,
                    c.owner_id, u.username AS owner_username, u.email AS owner_email
             FROM cases c
             JOIN users u ON u.id = c.owner_id
             WHERE c.id = %s
-        """, (CASE_ID,))
+        """,
+            (CASE_ID,),
+        )
         row = cur.fetchone()
         print("ETAPE 1 - verification avant DELETE:")
         print(" ", dict(row) if row else "AUCUNE LIGNE")
@@ -67,7 +71,10 @@ with psycopg.connect(url, row_factory=dict_row, autocommit=False) as conn:
                OR username ILIKE 'smoke_%' OR username ILIKE 'dbg_%'
         """)
         rows = cur.fetchall()
-        print("\nETAPE 7a - smoke/debug restants:", [dict(r) for r in rows] if rows else "0 rows")
+        print(
+            "\nETAPE 7a - smoke/debug restants:",
+            [dict(r) for r in rows] if rows else "0 rows",
+        )
 
         cur.execute("SELECT COUNT(*) AS total_users FROM users")
         print("ETAPE 7b - total_users:", dict(cur.fetchone()))
@@ -83,6 +90,9 @@ with psycopg.connect(url, row_factory=dict_row, autocommit=False) as conn:
             ORDER BY conrelid::regclass::text
         """)
         fk_rows = cur.fetchall()
-        print("\nETAPE 8 - FK NOT VALID:", [dict(r) for r in fk_rows] if fk_rows else "0 rows")
+        print(
+            "\nETAPE 8 - FK NOT VALID:",
+            [dict(r) for r in fk_rows] if fk_rows else "0 rows",
+        )
 
 del url

@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 """Audit M12 — Structure mercurials, sources, zones, items, tables IMC."""
+
 import os
 import psycopg
 from psycopg.rows import dict_row
 
-url = (
-    os.environ.get("RAILWAY_DATABASE_URL", "")
-    or os.environ.get("DATABASE_URL", "")
-)
+url = os.environ.get("RAILWAY_DATABASE_URL", "") or os.environ.get("DATABASE_URL", "")
 if "postgresql+psycopg://" in url:
     url = url.replace("postgresql+psycopg://", "postgresql://")
 if not url:
@@ -19,15 +17,13 @@ conn = psycopg.connect(url, row_factory=dict_row)
 print("=" * 70)
 print("=== REQUÊTE 1 — COLONNES TABLE MERCURIALS ===")
 print("=" * 70)
-cols = conn.execute(
-    """
+cols = conn.execute("""
     SELECT column_name, data_type, is_nullable
     FROM information_schema.columns
     WHERE table_name = 'mercurials'
     AND table_schema = 'public'
     ORDER BY ordinal_position
-"""
-).fetchall()
+""").fetchall()
 for c in cols:
     print(f"  {c['column_name']:30} {c['data_type']:20} null={c['is_nullable']}")
 
@@ -36,15 +32,13 @@ print("=" * 70)
 print("=== REQUÊTE 2 — SOURCES (via mercuriale_sources) ET PLAGE ===")
 print("=" * 70)
 try:
-    rows = conn.execute(
-        """
+    rows = conn.execute("""
         SELECT s.source_type, COUNT(*) as n
         FROM mercurials m
         JOIN mercuriale_sources s ON s.id = m.source_id
         GROUP BY s.source_type
         ORDER BY n DESC
-    """
-    ).fetchall()
+    """).fetchall()
     for r in rows:
         print(f"  {str(r['source_type']):40} {r['n']} lignes")
 except Exception as e:
@@ -54,16 +48,14 @@ except Exception as e:
 print()
 print("=== PLAGE TEMPORELLE (year) ===")
 try:
-    r = conn.execute(
-        """
+    r = conn.execute("""
         SELECT
             MIN(year) as year_min,
             MAX(year) as year_max,
             COUNT(DISTINCT year) as n_years,
             COUNT(*) as total
         FROM mercurials
-    """
-    ).fetchone()
+    """).fetchone()
     print(f"  year_min   : {r['year_min']}")
     print(f"  year_max   : {r['year_max']}")
     print(f"  n_years    : {r['n_years']}")
@@ -77,15 +69,13 @@ print("=" * 70)
 print("=== REQUÊTE 3 — ZONES ET ITEMS ===")
 print("=" * 70)
 try:
-    rows = conn.execute(
-        """
+    rows = conn.execute("""
         SELECT zone_id, COUNT(*) as n
         FROM mercurials
         GROUP BY zone_id
         ORDER BY n DESC
         LIMIT 20
-    """
-    ).fetchall()
+    """).fetchall()
     for r in rows:
         print(f"  {str(r['zone_id']):30} {r['n']} lignes")
 except Exception as e:
@@ -95,14 +85,12 @@ except Exception as e:
 print()
 print("=== ECHANTILLON ITEMS (50 premiers) ===")
 try:
-    rows = conn.execute(
-        """
+    rows = conn.execute("""
         SELECT DISTINCT item_canonical
         FROM mercurials
         ORDER BY item_canonical
         LIMIT 50
-    """
-    ).fetchall()
+    """).fetchall()
     for r in rows:
         print(f"  {r['item_canonical']}")
 except Exception as e:
@@ -112,16 +100,14 @@ except Exception as e:
 print()
 print("=== ITEMS IMC (ciment, sable, gravier, bois, fer, etc.) ===")
 try:
-    rows = conn.execute(
-        """
+    rows = conn.execute("""
         SELECT item_canonical, COUNT(*) as n
         FROM mercurials
         WHERE LOWER(item_canonical) ~ 'ciment|sable|gravier|bois|fer|beton|moellon|chevron|carreau|granito|plomberie|electricite|peinture|menuiserie|rond|cpj|agregat'
         GROUP BY item_canonical
         ORDER BY n DESC
         LIMIT 30
-    """
-    ).fetchall()
+    """).fetchall()
     if rows:
         for r in rows:
             print(f"  {r['item_canonical']:45} {r['n']} lignes")
@@ -135,8 +121,7 @@ print()
 print("=" * 70)
 print("=== REQUÊTE 4 — TABLES prix/price/imc/index/mercurial/survey ===")
 print("=" * 70)
-rows = conn.execute(
-    """
+rows = conn.execute("""
     SELECT table_schema, table_name,
            pg_size_pretty(
                pg_total_relation_size(
@@ -158,15 +143,13 @@ rows = conn.execute(
         OR table_name ILIKE '%survey%'
     )
     ORDER BY table_schema, table_name
-"""
-).fetchall()
+""").fetchall()
 for r in rows:
     print(f"  {r['table_schema']:15} {r['table_name']:35} {r['taille']}")
 
 print()
 print("=== TABLES PUBLIC (taille décroissante) ===")
-rows = conn.execute(
-    """
+rows = conn.execute("""
     SELECT relname as table_name,
            pg_size_pretty(pg_total_relation_size(c.oid)) as taille
     FROM pg_class c
@@ -175,8 +158,7 @@ rows = conn.execute(
     AND c.relkind = 'r'
     ORDER BY pg_total_relation_size(c.oid) DESC
     LIMIT 30
-"""
-).fetchall()
+""").fetchall()
 for r in rows:
     print(f"  {r['table_name']:40} {r['taille']}")
 
@@ -186,15 +168,13 @@ print("=== REQUÊTE A — CONTENU imc_entries ===")
 print("=" * 70)
 print("=== COLONNES imc_entries ===")
 try:
-    cols = conn.execute(
-        """
+    cols = conn.execute("""
         SELECT column_name, data_type
         FROM information_schema.columns
         WHERE table_name = 'imc_entries'
         AND table_schema = 'public'
         ORDER BY ordinal_position
-    """
-    ).fetchall()
+    """).fetchall()
     for c in cols:
         print(f"  {c['column_name']:30} {c['data_type']}")
 except Exception as e:
@@ -204,8 +184,7 @@ except Exception as e:
 print()
 print("=== PLAGE TEMPORELLE imc_entries ===")
 try:
-    r = conn.execute(
-        """
+    r = conn.execute("""
         SELECT
             MIN(period_year)        as year_min,
             MAX(period_year)        as year_max,
@@ -215,21 +194,18 @@ try:
             COUNT(DISTINCT period_year||chr(45)||LPAD(period_month::text,2,chr(48)))
                              as n_periods
         FROM imc_entries
-    """
-    ).fetchone()
+    """).fetchone()
     for k, v in r.items():
         print(f"  {k:20} : {v}")
 except Exception as e:
     conn.rollback()
     try:
-        r = conn.execute(
-            """
+        r = conn.execute("""
             SELECT MIN(period_year) as year_min,
                    MAX(period_year) as year_max,
                    COUNT(*) as total
             FROM imc_entries
-        """
-        ).fetchone()
+        """).fetchone()
         for k, v in r.items():
             print(f"  {k:20} : {v}")
     except Exception as e2:
@@ -275,8 +251,7 @@ print("=== REQUÊTE C — Recouvrement imc_entries vs mercurials ===")
 print("=" * 70)
 print("=== CATÉGORIES imc_entries NON dans mercurials (category_raw) ===")
 try:
-    rows = conn.execute(
-        """
+    rows = conn.execute("""
         SELECT DISTINCT ie.category_raw, COUNT(*) as n
         FROM imc_entries ie
         LEFT JOIN mercurials m
@@ -286,8 +261,7 @@ try:
         GROUP BY ie.category_raw
         ORDER BY n DESC
         LIMIT 20
-    """
-    ).fetchall()
+    """).fetchall()
     if rows:
         print(f"  {len(rows)} catégories IMC absentes de mercurials (top 20) :")
         for r in rows:
@@ -301,14 +275,12 @@ except Exception as e:
 print()
 print("=== ANNÉES dans imc_entries (period_year) ===")
 try:
-    rows = conn.execute(
-        """
+    rows = conn.execute("""
         SELECT period_year as year, COUNT(*) as n
         FROM imc_entries
         GROUP BY period_year
         ORDER BY period_year
-    """
-    ).fetchall()
+    """).fetchall()
     for r in rows:
         print(f"  {r['year']} : {r['n']} lignes")
 except Exception as e:

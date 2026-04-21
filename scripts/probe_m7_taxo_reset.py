@@ -7,6 +7,7 @@ Usage :
     $env:DATABASE_URL = "<Railway>"
     python scripts/probe_m7_taxo_reset.py
 """
+
 from __future__ import annotations
 
 import os
@@ -15,6 +16,7 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
     load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
 except ImportError:

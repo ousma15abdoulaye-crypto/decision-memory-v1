@@ -5,6 +5,7 @@ Vérifie :
 2. CASE-28b05d85 : family, weight_within_family, criterion_mode, scoring_mode
 3. essential doctrine respectée
 """
+
 import os
 import sys
 import psycopg2
@@ -139,9 +140,9 @@ else:
     all_ok = True
     for ref_code, family, criterion_mode, count in essential_rows:
         family_ok = "✅" if family is None else f"⛔ {family}"
-        mode_ok = "✅" if criterion_mode == 'GATE' else f"⛔ {criterion_mode}"
+        mode_ok = "✅" if criterion_mode == "GATE" else f"⛔ {criterion_mode}"
         print(f"{ref_code:30s} | {str(family):6s} | {criterion_mode:14s} | {count:5d}")
-        if family is not None or criterion_mode != 'GATE':
+        if family is not None or criterion_mode != "GATE":
             all_ok = False
 
     if all_ok:
@@ -176,9 +177,13 @@ scoring_null = cur.fetchone()
 
 if scoring_null:
     ref_code, count = scoring_null
-    print(f"\n✅ {count} rows CASE-28b05d85 : m16_scoring_mode IS NULL → scoring_mode IS NULL (preserved)")
+    print(
+        f"\n✅ {count} rows CASE-28b05d85 : m16_scoring_mode IS NULL → scoring_mode IS NULL (preserved)"
+    )
 else:
-    print("\n✅ Aucun cas m16_scoring_mode IS NULL sur CASE-28b05d85 (ou tous backfillés)")
+    print(
+        "\n✅ Aucun cas m16_scoring_mode IS NULL sur CASE-28b05d85 (ou tous backfillés)"
+    )
 
 # Check no false fallback (m16 NULL but scoring NOT NULL)
 query_false_fallback = """
@@ -194,7 +199,9 @@ cur.execute(query_false_fallback)
 false_fallback_count = cur.fetchone()[0]
 
 if false_fallback_count > 0:
-    print(f"\n⛔ ERREUR: {false_fallback_count} rows avec m16_scoring_mode IS NULL mais scoring_mode NOT NULL (fallback interdit)")
+    print(
+        f"\n⛔ ERREUR: {false_fallback_count} rows avec m16_scoring_mode IS NULL mais scoring_mode NOT NULL (fallback interdit)"
+    )
     sys.exit(1)
 else:
     print("✅ Aucun fallback silencieux détecté (m16 NULL → scoring NULL)")

@@ -16,6 +16,7 @@ Attendu post-compute :
 Usage : DATABASE_URL=<railway> DMS_ALLOW_RAILWAY=1 \
         python scripts/compute_market_signals_m11.py
 """
+
 import os
 import subprocess
 import sys
@@ -23,6 +24,7 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
     load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
 except ImportError:
@@ -33,9 +35,8 @@ from psycopg.rows import dict_row
 
 BASELINE_M10B = 578
 
-db_url = (
-    os.environ.get("RAILWAY_DATABASE_URL", "")
-    or os.environ.get("DATABASE_URL", "")
+db_url = os.environ.get("RAILWAY_DATABASE_URL", "") or os.environ.get(
+    "DATABASE_URL", ""
 )
 if not db_url:
     sys.exit("STOP — DATABASE_URL absente")

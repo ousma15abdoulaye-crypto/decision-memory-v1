@@ -7,6 +7,7 @@ Usage:
     $env:DATABASE_URL = "<Railway>"
     python scripts/m7_rebuild_t0_purge.py
 """
+
 from __future__ import annotations
 
 import os
@@ -59,7 +60,9 @@ def run() -> None:
                     llm_subfamily_id_raw      = NULL
                 WHERE human_validated = FALSE
             """)
-            print(f"  T0-C : {cur1.rowcount} items domain_id null · {cur.rowcount} non-seeds reset")
+            print(
+                f"  T0-C : {cur1.rowcount} items domain_id null · {cur.rowcount} non-seeds reset"
+            )
 
             # T0-B : Purger taxonomie théorique · DELETE (pas TRUNCATE CASCADE)
             # TRUNCATE CASCADE supprimerait dict_items (FK vers taxo)

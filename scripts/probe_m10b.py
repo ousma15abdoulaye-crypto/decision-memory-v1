@@ -6,6 +6,7 @@ Usage local   : DATABASE_URL=<local>   python scripts/probe_m10b.py
 Usage Railway : DATABASE_URL=<railway> DMS_ALLOW_RAILWAY=1 \
                 python scripts/probe_m10b.py
 """
+
 import os
 import sys
 
@@ -13,6 +14,7 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
     load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
 except ImportError:
@@ -22,8 +24,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 db_url = (
-    os.environ.get("RAILWAY_DATABASE_URL", "")
-    or os.environ.get("DATABASE_URL", "")
+    os.environ.get("RAILWAY_DATABASE_URL", "") or os.environ.get("DATABASE_URL", "")
 ).replace("postgresql+psycopg://", "postgresql://", 1)
 allow_railway = os.environ.get("DMS_ALLOW_RAILWAY", "0") == "1"
 
@@ -87,36 +88,28 @@ with psycopg.connect(db_url, row_factory=dict_row) as conn:
             (tbl,),
         )
         r = cur.fetchone()
-        status = (
-            f"PRESENTE (schema={r['table_schema']})"
-            if r
-            else "ABSENTE - STOP"
-        )
+        status = f"PRESENTE (schema={r['table_schema']})" if r else "ABSENTE - STOP"
         print(f"[P2] {tbl:30} {status}")
         if not r:
             stops.append(f"STOP-P2 - {tbl} absente, trigger impossible")
 
     # P3 — Schéma couche_a existe ? (045 le crée si absent)
-    cur.execute(
-        """
+    cur.execute("""
         SELECT schema_name
         FROM information_schema.schemata
         WHERE schema_name = 'couche_a'
-        """
-    )
+        """)
     r = cur.fetchone()
     print(f"[P3] schema couche_a : {'PRESENT' if r else 'absent -> 045 le cree'}")
 
     # P4 — fn_dms_event_notify déjà présente ?
-    cur.execute(
-        """
+    cur.execute("""
         SELECT proname FROM pg_proc
         WHERE proname = 'fn_dms_event_notify'
         AND pronamespace = (
             SELECT oid FROM pg_namespace WHERE nspname = 'couche_a'
         )
-        """
-    )
+        """)
     r = cur.fetchone()
     print(
         f"[P4] fn_dms_event_notify : "

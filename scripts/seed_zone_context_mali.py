@@ -112,7 +112,9 @@ CONTEXTS = [
 
 
 def main():
-    db = os.environ.get("RAILWAY_DATABASE_URL", "") or os.environ.get("DATABASE_URL", "")
+    db = os.environ.get("RAILWAY_DATABASE_URL", "") or os.environ.get(
+        "DATABASE_URL", ""
+    )
     if not db:
         raise SystemExit("DATABASE_URL / RAILWAY_DATABASE_URL absente")
     if "railway" in db.lower() and not os.environ.get("ALLOW_RAILWAY_SEED"):

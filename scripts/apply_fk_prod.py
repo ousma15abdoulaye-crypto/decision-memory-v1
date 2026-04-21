@@ -18,6 +18,7 @@ Prérequis :
     pointant vers un vendor inexistant
   - Exécuter sur prod Railway uniquement
 """
+
 import os
 import sys
 

@@ -3,6 +3,7 @@
 Exécute les 3 queries SQL requises pour déterminer si dao_criteria.ponderation
 est globale (somme 100% tous critères) ou intra-famille (somme 100% par famille).
 """
+
 import sys
 from pathlib import Path
 
@@ -72,13 +73,17 @@ def probe_ponderation_sums():
                 sum_g = row["sum_global"] or 0.0
                 count = row["count_criteria"] or 0
                 coherence = "✓ OK" if abs(sum_g - 100.0) <= 0.01 else f"✗ {sum_g:.2f}%"
-                print(f"  {ref[:30]:<30} | sum={sum_g:6.2f}% | count={count:3d} | {coherence}")
+                print(
+                    f"  {ref[:30]:<30} | sum={sum_g:6.2f}% | count={count:3d} | {coherence}"
+                )
 
         print()
         print()
 
         # Query 2a : vérifier colonnes famille
-        print("QUERY 2A — Colonnes disponibles (famille, criterion_category, categorie)")
+        print(
+            "QUERY 2A — Colonnes disponibles (famille, criterion_category, categorie)"
+        )
         print("-" * 80)
 
         query2a = """
@@ -121,7 +126,9 @@ def probe_ponderation_sums():
             rows2b = cursor2b.fetchall()
 
             if not rows2b:
-                print("⚠️  Colonne 'famille' existe mais aucune row avec famille + ponderation")
+                print(
+                    "⚠️  Colonne 'famille' existe mais aucune row avec famille + ponderation"
+                )
             else:
                 print(f"✅ {len(rows2b)} combinaisons (workspace × famille)")
                 print()
@@ -135,8 +142,14 @@ def probe_ponderation_sums():
 
                     if current_ws != ref:
                         if current_ws is not None:
-                            coherence_ws = "✓ OK" if abs(ws_total - 100.0) <= 0.01 else f"✗ {ws_total:.2f}%"
-                            print(f"    TOTAL {current_ws[:20]:<20} : {ws_total:6.2f}% | {coherence_ws}")
+                            coherence_ws = (
+                                "✓ OK"
+                                if abs(ws_total - 100.0) <= 0.01
+                                else f"✗ {ws_total:.2f}%"
+                            )
+                            print(
+                                f"    TOTAL {current_ws[:20]:<20} : {ws_total:6.2f}% | {coherence_ws}"
+                            )
                             print()
                         current_ws = ref
                         ws_total = 0.0
@@ -147,11 +160,19 @@ def probe_ponderation_sums():
 
                 # Dernière workspace
                 if current_ws is not None:
-                    coherence_ws = "✓ OK" if abs(ws_total - 100.0) <= 0.01 else f"✗ {ws_total:.2f}%"
-                    print(f"    TOTAL {current_ws[:20]:<20} : {ws_total:6.2f}% | {coherence_ws}")
+                    coherence_ws = (
+                        "✓ OK"
+                        if abs(ws_total - 100.0) <= 0.01
+                        else f"✗ {ws_total:.2f}%"
+                    )
+                    print(
+                        f"    TOTAL {current_ws[:20]:<20} : {ws_total:6.2f}% | {coherence_ws}"
+                    )
 
         elif "criterion_category" in available_columns:
-            print("QUERY 2B — Sommes par criterion_category (colonne 'famille' absente)")
+            print(
+                "QUERY 2B — Sommes par criterion_category (colonne 'famille' absente)"
+            )
             print("-" * 80)
 
             query2b_alt = """
@@ -183,7 +204,9 @@ def probe_ponderation_sums():
                     cat = row["criterion_category"] or "NO_CAT"
                     sum_c = row["sum_category"] or 0.0
                     count = row["count_criteria"] or 0
-                    print(f"  {ref[:30]:<30} | {cat[:20]:<20} | sum={sum_c:6.2f}% | count={count:3d}")
+                    print(
+                        f"  {ref[:30]:<30} | {cat[:20]:<20} | sum={sum_c:6.2f}% | count={count:3d}"
+                    )
 
         else:
             print("⚠️  AUCUNE colonne famille/criterion_category trouvée")
@@ -196,7 +219,11 @@ def probe_ponderation_sums():
         print("-" * 80)
 
         famille_col = "famille" if "famille" in available_columns else "NULL"
-        cat_col = "criterion_category" if "criterion_category" in available_columns else "NULL"
+        cat_col = (
+            "criterion_category"
+            if "criterion_category" in available_columns
+            else "NULL"
+        )
 
         query3 = f"""
         SELECT
@@ -227,7 +254,9 @@ def probe_ponderation_sums():
                 pond = row["ponderation"] or 0.0
                 fam = row["famille"] or "-"
                 cat = row["criterion_category"] or "-"
-                print(f"  {nom:<40} | pond={pond:5.1f}% | fam={fam:<15} | cat={cat:<15}")
+                print(
+                    f"  {nom:<40} | pond={pond:5.1f}% | fam={fam:<15} | cat={cat:<15}"
+                )
 
     print()
     print("=" * 80)
@@ -241,5 +270,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ ERREUR : {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

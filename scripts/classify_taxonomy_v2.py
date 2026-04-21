@@ -27,6 +27,7 @@ Usage :
     python scripts/classify_taxonomy_v2.py --mode sync
     python scripts/classify_taxonomy_v2.py --mode batch
 """
+
 from __future__ import annotations
 
 import argparse
@@ -54,21 +55,22 @@ logging.basicConfig(
 
 # ─── Config ──────────────────────────────────────────────────────────────────
 
-MODEL        = "mistral-small-latest"
+MODEL = "mistral-small-latest"
 TAXO_VERSION = "2.0.0"
-CONF_SEUIL   = 0.75
-MAX_RETRY    = 3
-BATCH_SYNC   = 10
-BATCH_ASYNC  = 500
+CONF_SEUIL = 0.75
+MAX_RETRY = 3
+BATCH_SYNC = 10
+BATCH_ASYNC = 500
 MAX_COST_USD = 10.0
-COST_IN      = float(os.environ.get("M7_COST_IN",  "0.2"))
-COST_OUT     = float(os.environ.get("M7_COST_OUT", "0.6"))
-TOKENS_IN    = 600 * BATCH_SYNC
-TOKENS_OUT   = 150 * BATCH_SYNC
-RESIDUEL_L3  = "DIVERS_NON_CLASSE"
+COST_IN = float(os.environ.get("M7_COST_IN", "0.2"))
+COST_OUT = float(os.environ.get("M7_COST_OUT", "0.6"))
+TOKENS_IN = 600 * BATCH_SYNC
+TOKENS_OUT = 150 * BATCH_SYNC
+RESIDUEL_L3 = "DIVERS_NON_CLASSE"
 
 
 # ─── URL + clé ───────────────────────────────────────────────────────────────
+
 
 def get_db_url() -> str:
     """RÈGLE-39 · normalisation psycopg3."""
@@ -99,6 +101,7 @@ def get_mistral_key() -> str:
 
 # ─── Taxonomie depuis DB · DA-TAXO-DB ────────────────────────────────────────
 
+
 class Taxonomy:
     """
     Chargée une fois depuis PostgreSQL au démarrage.
@@ -111,8 +114,7 @@ class Taxonomy:
             "SELECT domain_id, label_fr FROM couche_b.taxo_l1_domains"
         ).fetchall()
         l2 = conn.execute(
-            "SELECT family_l2_id, domain_id, label_fr "
-            "FROM couche_b.taxo_l2_families"
+            "SELECT family_l2_id, domain_id, label_fr " "FROM couche_b.taxo_l2_families"
         ).fetchall()
         l3 = conn.execute(
             "SELECT subfamily_id, family_l2_id, label_fr "
@@ -125,16 +127,18 @@ class Taxonomy:
                 "Lancer scripts/seed_taxonomy_v2.py avant Phase A."
             )
 
-        self.valid_l1:   frozenset[str] = frozenset(r["domain_id"]   for r in l1)
-        self.valid_l2:   frozenset[str] = frozenset(r["family_l2_id"] for r in l2)
-        self.valid_l3:   frozenset[str] = frozenset(r["subfamily_id"] for r in l3)
-        self.l2_to_l1:   dict[str, str] = {r["family_l2_id"]: r["domain_id"] for r in l2}
-        self.l3_to_l2:   dict[str, str] = {r["subfamily_id"]: r["family_l2_id"] for r in l3}
+        self.valid_l1: frozenset[str] = frozenset(r["domain_id"] for r in l1)
+        self.valid_l2: frozenset[str] = frozenset(r["family_l2_id"] for r in l2)
+        self.valid_l3: frozenset[str] = frozenset(r["subfamily_id"] for r in l3)
+        self.l2_to_l1: dict[str, str] = {r["family_l2_id"]: r["domain_id"] for r in l2}
+        self.l3_to_l2: dict[str, str] = {
+            r["subfamily_id"]: r["family_l2_id"] for r in l3
+        }
 
         # Labels pour le prompt
-        self.l1_labels:  dict[str, str] = {r["domain_id"]:   r["label_fr"] for r in l1}
-        self.l2_labels:  dict[str, str] = {r["family_l2_id"]: r["label_fr"] for r in l2}
-        self.l3_labels:  dict[str, str] = {r["subfamily_id"]: r["label_fr"] for r in l3}
+        self.l1_labels: dict[str, str] = {r["domain_id"]: r["label_fr"] for r in l1}
+        self.l2_labels: dict[str, str] = {r["family_l2_id"]: r["label_fr"] for r in l2}
+        self.l3_labels: dict[str, str] = {r["subfamily_id"]: r["label_fr"] for r in l3}
 
     def validate(
         self,
@@ -168,11 +172,11 @@ _TAXO: Optional[Taxonomy] = None
 
 
 class TaxoProposal(BaseModel):
-    domain_id:         str
-    family_l2_id:      str
-    subfamily_id:      str
-    confidence:        float
-    raison:            str
+    domain_id: str
+    family_l2_id: str
+    subfamily_id: str
+    confidence: float
+    raison: str
     confidence_source: str = "llm_self_report"
 
     @field_validator("confidence")
@@ -214,9 +218,7 @@ def build_prompt(items: list[dict], taxo: Taxonomy) -> str:
     # L1 → L2 complet
     l1_l2_lines: list[str] = []
     for l1_id in sorted(taxo.valid_l1):
-        l2_children = sorted(
-            f2 for f2, p in taxo.l2_to_l1.items() if p == l1_id
-        )
+        l2_children = sorted(f2 for f2, p in taxo.l2_to_l1.items() if p == l1_id)
         l2_str = " | ".join(l2_children)
         l1_label = taxo.l1_labels.get(l1_id, "")
         l1_l2_lines.append(f"  {l1_id} ({l1_label}) → {l2_str}")
@@ -271,6 +273,7 @@ ZÉRO code inventé. ZÉRO texte hors JSON."""
 
 # ─── Parser défensif · F-JSON ─────────────────────────────────────────────────
 
+
 def parse_llm_response(
     raw: str,
 ) -> tuple[list[dict], Optional[str]]:
@@ -322,6 +325,7 @@ def parse_llm_response(
 
 # ─── API Mistral · F-LOGP supprimé ───────────────────────────────────────────
 
+
 def mistral_post(
     payload: dict,
     report: "TaxoReport",
@@ -336,11 +340,13 @@ def mistral_post(
     import urllib.error
     import urllib.request
 
-    data = json.dumps({
-        **payload,
-        "response_format": {"type": "json_object"},
-        # logprobs intentionnellement absent · F-LOGP
-    }).encode()
+    data = json.dumps(
+        {
+            **payload,
+            "response_format": {"type": "json_object"},
+            # logprobs intentionnellement absent · F-LOGP
+        }
+    ).encode()
 
     for attempt in range(1, MAX_RETRY + 1):
         try:
@@ -349,18 +355,16 @@ def mistral_post(
                 data=data,
                 headers={
                     "Authorization": f"Bearer {key}",
-                    "Content-Type":  "application/json",
+                    "Content-Type": "application/json",
                 },
                 method="POST",
             )
             with urllib.request.urlopen(req, timeout=30) as resp:
                 result = json.loads(resp.read())
-                usage  = result.get("usage", {})
+                usage = result.get("usage", {})
                 report.cost_usd += (
-                    usage.get("prompt_tokens",     TOKENS_IN)
-                    * COST_IN / 1_000_000
-                    + usage.get("completion_tokens", TOKENS_OUT)
-                    * COST_OUT / 1_000_000
+                    usage.get("prompt_tokens", TOKENS_IN) * COST_IN / 1_000_000
+                    + usage.get("completion_tokens", TOKENS_OUT) * COST_OUT / 1_000_000
                 )
                 return result
 
@@ -368,7 +372,7 @@ def mistral_post(
             if e.code in (400, 401, 403):
                 logger.error(f"HTTP {e.code} · STOP-R2 · non retryable")
                 raise
-            delay = 2 ** attempt + random.uniform(-0.5, 0.5)
+            delay = 2**attempt + random.uniform(-0.5, 0.5)
             logger.warning(
                 f"HTTP {e.code} · attempt {attempt}/{MAX_RETRY} "
                 f"· retry {delay:.1f}s"
@@ -376,7 +380,7 @@ def mistral_post(
             time.sleep(delay)
 
         except Exception as e:
-            delay = 2 ** attempt
+            delay = 2**attempt
             logger.warning(f"Réseau attempt {attempt} : {e} · retry {delay}s")
             time.sleep(delay)
 
@@ -385,6 +389,7 @@ def mistral_post(
 
 
 # ─── Persistance ─────────────────────────────────────────────────────────────
+
 
 def build_prompt_hash(item_ids: list[str], prompt: str) -> str:
     return hashlib.sha256(
@@ -397,12 +402,15 @@ def already_done(
     item_id: str,
     ph: str,
 ) -> bool:
-    return conn.execute(
-        "SELECT 1 FROM couche_b.taxo_proposals_v2 "
-        "WHERE item_id=%s AND taxo_version=%s "
-        "AND model=%s AND prompt_hash=%s",
-        (item_id, TAXO_VERSION, MODEL, ph),
-    ).fetchone() is not None
+    return (
+        conn.execute(
+            "SELECT 1 FROM couche_b.taxo_proposals_v2 "
+            "WHERE item_id=%s AND taxo_version=%s "
+            "AND model=%s AND prompt_hash=%s",
+            (item_id, TAXO_VERSION, MODEL, ph),
+        ).fetchone()
+        is not None
+    )
 
 
 def insert_proposal(
@@ -413,7 +421,8 @@ def insert_proposal(
     status: str,
     batch_job_id: Optional[str] = None,
 ) -> None:
-    conn.execute("""
+    conn.execute(
+        """
         INSERT INTO couche_b.taxo_proposals_v2 (
             item_id, domain_id, family_l2_id, subfamily_id,
             confidence, reason, model, prompt_hash, taxo_version,
@@ -421,46 +430,53 @@ def insert_proposal(
         ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         ON CONFLICT (item_id, taxo_version, model, prompt_hash)
         DO NOTHING
-    """, (
-        item_id,
-        prop.domain_id, prop.family_l2_id, prop.subfamily_id,
-        prop.confidence, prop.raison,
-        MODEL, ph, TAXO_VERSION, status,
-        prop.confidence_source, batch_job_id,
-    ))
+    """,
+        (
+            item_id,
+            prop.domain_id,
+            prop.family_l2_id,
+            prop.subfamily_id,
+            prop.confidence,
+            prop.raison,
+            MODEL,
+            ph,
+            TAXO_VERSION,
+            status,
+            prop.confidence_source,
+            batch_job_id,
+        ),
+    )
 
 
 # ─── Report ──────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class TaxoReport:
-    total:     int   = 0
-    batches:   int   = 0
-    inserted:  int   = 0
-    skipped:   int   = 0
-    flagged:   int   = 0
-    residuel:  int   = 0
-    truncated: int   = 0
-    errors:    int   = 0
-    cost_usd:  float = 0.0
-    samples:   list  = field(default_factory=list)
+    total: int = 0
+    batches: int = 0
+    inserted: int = 0
+    skipped: int = 0
+    flagged: int = 0
+    residuel: int = 0
+    truncated: int = 0
+    errors: int = 0
+    cost_usd: float = 0.0
+    samples: list = field(default_factory=list)
 
     def _proc(self) -> int:
         return self.inserted + self.flagged
 
     def flag_pct(self) -> float:
         p = self._proc()
-        return round(self.flagged  / p * 100, 1) if p else 0.0
+        return round(self.flagged / p * 100, 1) if p else 0.0
 
     def resid_pct(self) -> float:
         p = self._proc()
         return round(self.residuel / p * 100, 1) if p else 0.0
 
     def cost_per_item(self) -> float:
-        return (
-            TOKENS_IN  * COST_IN  / 1_000_000
-            + TOKENS_OUT * COST_OUT / 1_000_000
-        )
+        return TOKENS_IN * COST_IN / 1_000_000 + TOKENS_OUT * COST_OUT / 1_000_000
 
     def summary(self) -> str:
         lines = [
@@ -495,11 +511,14 @@ class TaxoReport:
 
 # ─── Core batch · F-CONN : connexion par batch ───────────────────────────────
 
+
 def _make_fallback(taxo: Taxonomy, reason: str) -> TaxoProposal:
     rl1, rl2, rl3 = taxo.residuel()
     return TaxoProposal(
-        domain_id=rl1, family_l2_id=rl2,
-        subfamily_id=rl3, confidence=0.0,
+        domain_id=rl1,
+        family_l2_id=rl2,
+        subfamily_id=rl3,
+        confidence=0.0,
         raison=reason[:80],
     )
 
@@ -517,9 +536,11 @@ def _insert_flagged_batch(
         try:
             with conn.transaction():
                 insert_proposal(
-                    conn, item["item_id"],
+                    conn,
+                    item["item_id"],
                     _make_fallback(taxo, reason),
-                    ph, "flagged",
+                    ph,
+                    "flagged",
                 )
             report.flagged += 1
         except Exception as e:
@@ -543,27 +564,33 @@ def process_single_batch(
     SAVEPOINT par item (psycopg3 nested transaction).
     """
     prompt = build_prompt(batch, taxo)
-    ph     = build_prompt_hash([it["item_id"] for it in batch], prompt)
+    ph = build_prompt_hash([it["item_id"] for it in batch], prompt)
     report.batches += 1
 
     # ── Appel LLM · connexion DB fermée ──────────────────────────────
-    result = mistral_post({
-        "model":       MODEL,
-        "messages": [
-            {"role": "system", "content": PROMPT_SYSTEM},
-            {"role": "user",   "content": prompt},
-        ],
-        "temperature": 0.1,
-        "max_tokens":  1500,
-    }, report, key)
+    result = mistral_post(
+        {
+            "model": MODEL,
+            "messages": [
+                {"role": "system", "content": PROMPT_SYSTEM},
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": 0.1,
+            "max_tokens": 1500,
+        },
+        report,
+        key,
+    )
 
     if result is None:
         # Retry épuisé · marquer tout le batch erreur sans DB
         report.errors += len(batch)
-        logger.warning(f"Batch abandonné après MAX_RETRY · {len(batch)} items non insérés")
+        logger.warning(
+            f"Batch abandonné après MAX_RETRY · {len(batch)} items non insérés"
+        )
         return
 
-    raw             = result["choices"][0]["message"]["content"]
+    raw = result["choices"][0]["message"]["content"]
     items_parsed, error = parse_llm_response(raw)
 
     # ── Écriture DB · connexion ouverte ici uniquement ───────────────
@@ -573,7 +600,10 @@ def process_single_batch(
         if error or not items_parsed:
             logger.warning(f"Parse échoué : {error}")
             _insert_flagged_batch(
-                conn, batch, taxo, ph,
+                conn,
+                batch,
+                taxo,
+                ph,
                 f"parse_error:{(error or 'empty')[:40]}",
                 report,
             )
@@ -582,7 +612,7 @@ def process_single_batch(
 
         # F3 · batch tronqué → items manquants → flagged
         if len(items_parsed) < len(batch):
-            missing = batch[len(items_parsed):]
+            missing = batch[len(items_parsed) :]
             logger.warning(
                 f"Batch tronqué : attendu {len(batch)} "
                 f"· reçu {len(items_parsed)} "
@@ -590,7 +620,10 @@ def process_single_batch(
             )
             report.truncated += 1
             _insert_flagged_batch(
-                conn, missing, taxo, ph,
+                conn,
+                missing,
+                taxo,
+                ph,
                 "batch_truncation",
                 report,
             )
@@ -606,10 +639,8 @@ def process_single_batch(
             try:
                 prop = TaxoProposal(**raw_prop)
             except Exception as e:
-                logger.warning(
-                    f"Pydantic {item['item_id']}: {e} · flagged"
-                )
-                prop   = _make_fallback(taxo, f"pydantic:{str(e)[:40]}")
+                logger.warning(f"Pydantic {item['item_id']}: {e} · flagged")
+                prop = _make_fallback(taxo, f"pydantic:{str(e)[:40]}")
                 status = "flagged"
                 report.flagged += 1
             else:
@@ -619,7 +650,7 @@ def process_single_batch(
                     report.inserted += 1
                 else:
                     status = "flagged"
-                    report.flagged  += 1
+                    report.flagged += 1
                     if is_residuel:
                         report.residuel += 1
 
@@ -631,12 +662,14 @@ def process_single_batch(
                 report.errors += 1
 
             if len(report.samples) < 20:
-                report.samples.append({
-                    "label":  item["label_fr"],
-                    "l1":     prop.domain_id,
-                    "conf":   prop.confidence,
-                    "status": status,
-                })
+                report.samples.append(
+                    {
+                        "label": item["label_fr"],
+                        "l1": prop.domain_id,
+                        "conf": prop.confidence,
+                        "status": status,
+                    }
+                )
 
         conn.commit()
         logger.info(
@@ -647,6 +680,7 @@ def process_single_batch(
 
 
 # ─── Load items ──────────────────────────────────────────────────────────────
+
 
 def load_items(
     conn: psycopg.Connection,
@@ -669,6 +703,7 @@ def load_items(
 
 # ─── Mode SYNC ───────────────────────────────────────────────────────────────
 
+
 def run_sync(
     items: list[dict],
     taxo: Taxonomy,
@@ -682,7 +717,7 @@ def run_sync(
         batch = items[i : i + BATCH_SYNC]
 
         if dry_run:
-            report.batches  += 1
+            report.batches += 1
             report.cost_usd += report.cost_per_item() * len(batch)
             logger.info(
                 f"DRY-RUN batch {i//BATCH_SYNC+1} "
@@ -694,12 +729,12 @@ def run_sync(
 
         if i > 0 and i % 100 == 0:
             logger.info(
-                f"Progression {i}/{len(items)} "
-                f"· coût ${report.cost_usd:.4f}"
+                f"Progression {i}/{len(items)} " f"· coût ${report.cost_usd:.4f}"
             )
 
 
 # ─── Mode BATCH API ──────────────────────────────────────────────────────────
+
 
 def run_batch_api(
     items: list[dict],
@@ -717,7 +752,7 @@ def run_batch_api(
     import urllib.request
 
     items_by_id: dict[str, dict] = {it["item_id"]: it for it in items}
-    ph_map:      dict[str, str]  = {}
+    ph_map: dict[str, str] = {}
 
     def api_call(
         method: str,
@@ -730,7 +765,7 @@ def run_batch_api(
             data=data,
             headers={
                 "Authorization": f"Bearer {key}",
-                "Content-Type":  content_type,
+                "Content-Type": content_type,
             },
             method=method,
         )
@@ -741,21 +776,25 @@ def run_batch_api(
     lines = []
     for item in items:
         prompt = build_prompt([item], taxo)
-        ph     = build_prompt_hash([item["item_id"]], prompt)
+        ph = build_prompt_hash([item["item_id"]], prompt)
         ph_map[item["item_id"]] = ph
-        lines.append(json.dumps({
-            "custom_id": item["item_id"],
-            "body": {
-                "model":           MODEL,
-                "response_format": {"type": "json_object"},
-                "temperature":     0.1,
-                "max_tokens":      400,
-                "messages": [
-                    {"role": "system", "content": PROMPT_SYSTEM},
-                    {"role": "user",   "content": prompt},
-                ],
-            },
-        }))
+        lines.append(
+            json.dumps(
+                {
+                    "custom_id": item["item_id"],
+                    "body": {
+                        "model": MODEL,
+                        "response_format": {"type": "json_object"},
+                        "temperature": 0.1,
+                        "max_tokens": 400,
+                        "messages": [
+                            {"role": "system", "content": PROMPT_SYSTEM},
+                            {"role": "user", "content": prompt},
+                        ],
+                    },
+                }
+            )
+        )
 
     jsonl_bytes = "\n".join(lines).encode()
     report.batches = 1
@@ -763,29 +802,41 @@ def run_batch_api(
     # Upload
     boundary = uuid.uuid4().hex
     body = (
-        f"--{boundary}\r\n"
-        f'Content-Disposition: form-data; name="file"; '
-        f'filename="m74_batch.jsonl"\r\n'
-        f"Content-Type: application/octet-stream\r\n\r\n"
-    ).encode() + jsonl_bytes + (
-        f"\r\n--{boundary}\r\n"
-        f'Content-Disposition: form-data; name="purpose"\r\n\r\n'
-        f"batch\r\n--{boundary}--\r\n"
-    ).encode()
+        (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="file"; '
+            f'filename="m74_batch.jsonl"\r\n'
+            f"Content-Type: application/octet-stream\r\n\r\n"
+        ).encode()
+        + jsonl_bytes
+        + (
+            f"\r\n--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="purpose"\r\n\r\n'
+            f"batch\r\n--{boundary}--\r\n"
+        ).encode()
+    )
 
-    upload  = api_call(
-        "POST", "/v1/files", body,
+    upload = api_call(
+        "POST",
+        "/v1/files",
+        body,
         content_type=f"multipart/form-data; boundary={boundary}",
     )
     file_id = upload["id"]
     logger.info(f"Fichier uploadé : {file_id}")
 
-    job    = api_call("POST", "/v1/batch/jobs", json.dumps({
-        "input_files": [file_id],
-        "model":       MODEL,
-        "endpoint":    "/v1/chat/completions",
-        "metadata":    {"mandat": "M7.4", "taxo_version": TAXO_VERSION},
-    }).encode())
+    job = api_call(
+        "POST",
+        "/v1/batch/jobs",
+        json.dumps(
+            {
+                "input_files": [file_id],
+                "model": MODEL,
+                "endpoint": "/v1/chat/completions",
+                "metadata": {"mandat": "M7.4", "taxo_version": TAXO_VERSION},
+            }
+        ).encode(),
+    )
     job_id = job["id"]
     logger.info(f"Job batch : {job_id}")
 
@@ -793,12 +844,12 @@ def run_batch_api(
     poll_int = 10
     max_poll = 120
     max_wait = 7200
-    elapsed  = 0
+    elapsed = 0
     while elapsed < max_wait:
         time.sleep(poll_int)
-        elapsed  += poll_int
-        status_r  = api_call("GET", f"/v1/batch/jobs/{job_id}")
-        status    = status_r.get("status")
+        elapsed += poll_int
+        status_r = api_call("GET", f"/v1/batch/jobs/{job_id}")
+        status = status_r.get("status")
         logger.info(f"Job {job_id} · {status} · {elapsed}s")
         if status in ("SUCCESS", "FAILED", "TIMEOUT_EXCEEDED", "CANCELLED"):
             break
@@ -818,27 +869,26 @@ def run_batch_api(
         result_lines = resp.read().decode().strip().split("\n")
 
     for line in result_lines:
-        r       = json.loads(line)
+        r = json.loads(line)
         item_id = r["custom_id"]
-        item    = items_by_id.get(item_id)
+        item = items_by_id.get(item_id)
         if item is None:
             continue
-        ph      = ph_map.get(item_id, "batch_unknown")
-        body_r  = r.get("response", {}).get("body", {})
-        raw     = (
-            body_r.get("choices", [{}])[0]
-            .get("message", {})
-            .get("content", "")
-        )
+        ph = ph_map.get(item_id, "batch_unknown")
+        body_r = r.get("response", {}).get("body", {})
+        raw = body_r.get("choices", [{}])[0].get("message", {}).get("content", "")
         usage = body_r.get("usage", {})
         report.cost_usd += (
-            usage.get("prompt_tokens",     600) * COST_IN  * 0.5 / 1_000_000
+            usage.get("prompt_tokens", 600) * COST_IN * 0.5 / 1_000_000
             + usage.get("completion_tokens", 150) * COST_OUT * 0.5 / 1_000_000
         )
         items_parsed, error = parse_llm_response(raw)
         if error or not items_parsed:
             _insert_flagged_batch(
-                conn, [item], taxo, ph,
+                conn,
+                [item],
+                taxo,
+                ph,
                 f"batch_parse_error:{(error or 'empty')[:30]}",
                 report,
             )
@@ -873,36 +923,36 @@ def run_batch_api(
 
 # ─── Entry point ─────────────────────────────────────────────────────────────
 
+
 def main() -> None:
     global _TAXO
 
     parser = argparse.ArgumentParser(
         description="M7.4 Phase A · Classification taxonomie"
     )
-    parser.add_argument("--mode",    choices=["sync", "batch"], default="sync")
-    parser.add_argument("--sample",  type=int)
+    parser.add_argument("--mode", choices=["sync", "batch"], default="sync")
+    parser.add_argument("--sample", type=int)
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--estimate",action="store_true")
+    parser.add_argument("--estimate", action="store_true")
     args = parser.parse_args()
 
     db_url = get_db_url()
-    key    = "" if (args.dry_run or args.estimate) else get_mistral_key()
+    key = "" if (args.dry_run or args.estimate) else get_mistral_key()
     report = TaxoReport()
 
     # Chargement initial : connexion courte · fermée avant appels LLM
     # F-CONN : zéro connexion idle pendant les appels API
     with psycopg.connect(db_url, row_factory=dict_row) as conn:
-        taxo   = Taxonomy(conn)
-        _TAXO  = taxo          # injecté dans TaxoProposal.check_fk
-        items  = load_items(conn, limit=args.sample)
+        taxo = Taxonomy(conn)
+        _TAXO = taxo  # injecté dans TaxoProposal.check_fk
+        items = load_items(conn, limit=args.sample)
         report.total = len(items)
     # connexion fermée ici
 
     if args.estimate:
-        n_calls    = math.ceil(len(items) / BATCH_SYNC)
-        cost_sync  = n_calls * (
-            TOKENS_IN * COST_IN / 1_000_000
-            + TOKENS_OUT * COST_OUT / 1_000_000
+        n_calls = math.ceil(len(items) / BATCH_SYNC)
+        cost_sync = n_calls * (
+            TOKENS_IN * COST_IN / 1_000_000 + TOKENS_OUT * COST_OUT / 1_000_000
         )
         cost_batch = cost_sync * 0.5
         print(f"Items          : {len(items)}")

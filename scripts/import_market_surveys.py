@@ -29,6 +29,7 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
     load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
 except ImportError:
@@ -37,17 +38,13 @@ except ImportError:
 import psycopg
 from psycopg.rows import dict_row
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
 
 def check_env() -> str:
     db = (
-        os.environ.get("RAILWAY_DATABASE_URL", "")
-        or os.environ.get("DATABASE_URL", "")
+        os.environ.get("RAILWAY_DATABASE_URL", "") or os.environ.get("DATABASE_URL", "")
     ).replace("postgresql+psycopg://", "postgresql://")
     if not db:
         raise SystemExit("DATABASE_URL absent")
@@ -81,8 +78,7 @@ def validate_row(
 
     try:
         d = datetime.strptime(
-            (row.get("date_surveyed") or "").strip(),
-            "%Y-%m-%d"
+            (row.get("date_surveyed") or "").strip(), "%Y-%m-%d"
         ).date()
         if d > date.today():
             return False, f"date future: {d}"
@@ -111,10 +107,7 @@ def main():
     cur.execute("SELECT zone_id FROM tracked_market_zones")
     valid_zones = {r["zone_id"] for r in cur.fetchall()}
 
-    log.info(
-        "Référentiels : %d items, %d zones",
-        len(valid_items), len(valid_zones)
-    )
+    log.info("Référentiels : %d items, %d zones", len(valid_items), len(valid_zones))
 
     with open(args.file, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -124,9 +117,7 @@ def main():
 
     ok = err = skip = 0
     for row in rows:
-        valid, reason = validate_row(
-            row, valid_items, valid_zones
-        )
+        valid, reason = validate_row(row, valid_items, valid_zones)
         if not valid:
             log.warning("SKIP: %s — %s", row, reason)
             skip += 1
@@ -140,7 +131,8 @@ def main():
         try:
             cur.execute("SAVEPOINT sp_survey")
             price = float(row["price_per_unit"])
-            cur.execute("""
+            cur.execute(
+                """
                 INSERT INTO public.market_surveys (
                     item_id,
                     zone_id,
@@ -160,13 +152,15 @@ def main():
                     'validated',
                     %(source_ref)s
                 )
-            """, {
-                "item_id": row["item_id"],
-                "zone_id": row["zone_id"],
-                "price": price,
-                "date_surveyed": row["date_surveyed"],
-                "source_ref": row.get("source_ref"),
-            })
+            """,
+                {
+                    "item_id": row["item_id"],
+                    "zone_id": row["zone_id"],
+                    "price": price,
+                    "date_surveyed": row["date_surveyed"],
+                    "source_ref": row.get("source_ref"),
+                },
+            )
             cur.execute("RELEASE SAVEPOINT sp_survey")
             ok += 1
         except Exception as e:
@@ -177,16 +171,10 @@ def main():
     if not args.dry_run:
         conn.commit()
 
-    log.info(
-        "DONE ok=%d skip=%d err=%d",
-        ok, skip, err
-    )
+    log.info("DONE ok=%d skip=%d err=%d", ok, skip, err)
 
     cur.execute("SELECT COUNT(*) AS n FROM market_surveys")
-    log.info(
-        "market_surveys total : %d",
-        cur.fetchone()["n"]
-    )
+    log.info("market_surveys total : %d", cur.fetchone()["n"])
     conn.close()
     sys.exit(1 if err > 0 else 0)
 

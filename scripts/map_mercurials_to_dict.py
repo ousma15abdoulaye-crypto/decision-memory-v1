@@ -50,12 +50,46 @@ def normalize(text: str) -> str:
     t = re.sub(r"\([^)]*\)", " ", t)
     t = re.sub(r"[^a-zàâäéèêëîïôùûüç\s]", " ", t)
     stopwords = {
-        "de", "du", "des", "le", "la", "les", "un", "une",
-        "et", "en", "au", "aux", "par", "pour", "sur", "avec",
-        "dans", "ce", "se", "sa", "son", "ses", "ou", "que",
-        "qui", "lot", "kit", "sac", "boite", "bidon",
-        "bouteille", "litre", "kg", "ml", "cm", "mm",
-        "piece", "unite", "forfait", "abonnement",
+        "de",
+        "du",
+        "des",
+        "le",
+        "la",
+        "les",
+        "un",
+        "une",
+        "et",
+        "en",
+        "au",
+        "aux",
+        "par",
+        "pour",
+        "sur",
+        "avec",
+        "dans",
+        "ce",
+        "se",
+        "sa",
+        "son",
+        "ses",
+        "ou",
+        "que",
+        "qui",
+        "lot",
+        "kit",
+        "sac",
+        "boite",
+        "bidon",
+        "bouteille",
+        "litre",
+        "kg",
+        "ml",
+        "cm",
+        "mm",
+        "piece",
+        "unite",
+        "forfait",
+        "abonnement",
     }
     tokens = [w for w in t.split() if w not in stopwords and len(w) > 2]
     return " ".join(tokens)
@@ -160,15 +194,11 @@ def run_propose(db_url: str) -> None:
                     "taxo_l1": best_item["taxo_l1"],
                     "taxo_l3": best_item["taxo_l3"],
                     "score": round(best_score, 3),
-                    "confiance": (
-                        "AUTO" if best_score >= SEUIL_AUTO else "REVUE"
-                    ),
+                    "confiance": ("AUTO" if best_score >= SEUIL_AUTO else "REVUE"),
                     "nb_lignes": row["nb_lignes"],
                     "prix_moyen": float(row["prix_moyen"] or 0),
                     "annees": f"{row['annee_min']}-{row['annee_max']}",
-                    "valider_oui_non": (
-                        "OUI" if best_score >= SEUIL_AUTO else ""
-                    ),
+                    "valider_oui_non": ("OUI" if best_score >= SEUIL_AUTO else ""),
                 }
             )
         else:

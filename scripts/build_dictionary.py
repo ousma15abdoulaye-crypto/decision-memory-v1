@@ -57,20 +57,22 @@ if "postgresql+psycopg://" in DATABASE_URL:
 # STRUCTURES
 # ============================================================
 
+
 @dataclass
 class RawItem:
-    raw:        str
+    raw: str
     normalized: str
-    slug:       str
-    freq:       int        = 0
-    sources:    list[str]  = field(default_factory=list)
-    zones:      set[str]   = field(default_factory=set)
-    imc_anchor: bool       = False
+    slug: str
+    freq: int = 0
+    sources: list[str] = field(default_factory=list)
+    zones: set[str] = field(default_factory=set)
+    imc_anchor: bool = False
 
 
 @dataclass
 class SchemaState:
     """Colonnes réelles · lues depuis DB · RÈGLE-40."""
+
     collision_cols: set[str] = field(default_factory=set)
     proposals_cols: set[str] = field(default_factory=set)
     existing_slugs: set[str] = field(default_factory=set)
@@ -78,15 +80,15 @@ class SchemaState:
 
 @dataclass
 class BuildReport:
-    total_raw:        int       = 0
-    total_normalized: int       = 0
-    new_items:        int       = 0
-    updated_items:    int       = 0
-    new_aliases:      int       = 0
-    review_queue:     int       = 0
-    collisions:       int       = 0
-    skipped:          int       = 0
-    errors:           list[str] = field(default_factory=list)
+    total_raw: int = 0
+    total_normalized: int = 0
+    new_items: int = 0
+    updated_items: int = 0
+    new_aliases: int = 0
+    review_queue: int = 0
+    collisions: int = 0
+    skipped: int = 0
+    errors: list[str] = field(default_factory=list)
 
     def summary(self) -> str:
         lines = [
@@ -114,6 +116,7 @@ class BuildReport:
 # ============================================================
 # VÉRIFICATIONS PRÉALABLES
 # ============================================================
+
 
 def assert_prerequisites(conn: psycopg.Connection) -> None:
     """
@@ -177,6 +180,7 @@ def load_schema_state(conn: psycopg.Connection) -> SchemaState:
 # EXTRACTION
 # ============================================================
 
+
 def extract_raw_items(conn: psycopg.Connection) -> list[RawItem]:
     """
     Extrait libellés bruts depuis mercurials + imc_entries.
@@ -198,7 +202,7 @@ def extract_raw_items(conn: psycopg.Connection) -> list[RawItem]:
     """).fetchall()
 
     for row in rows:
-        raw  = row["item_canonical"]
+        raw = row["item_canonical"]
         slug = build_canonical_slug(raw)
         if not slug:
             continue
@@ -210,9 +214,7 @@ def extract_raw_items(conn: psycopg.Connection) -> list[RawItem]:
             )
         items[slug].freq += row["freq"]
         items[slug].sources.append("mercuriale")
-        items[slug].zones.update(
-            z for z in (row["zones"] or []) if z
-        )
+        items[slug].zones.update(z for z in (row["zones"] or []) if z)
 
     rows = conn.execute("""
         SELECT DISTINCT category_raw
@@ -222,7 +224,7 @@ def extract_raw_items(conn: psycopg.Connection) -> list[RawItem]:
     """).fetchall()
 
     for row in rows:
-        raw  = row["category_raw"]
+        raw = row["category_raw"]
         slug = build_canonical_slug(raw)
         if not slug:
             continue
@@ -242,6 +244,7 @@ def extract_raw_items(conn: psycopg.Connection) -> list[RawItem]:
 # SCORING
 # ============================================================
 
+
 def compute_confidence(item: RawItem) -> float:
     score = 0.0
     if item.freq > 0:
@@ -258,6 +261,7 @@ def compute_confidence(item: RawItem) -> float:
 # LOG COLLISION · RÈGLE-37 · RÈGLE-40
 # ============================================================
 
+
 def log_collision(
     conn: psycopg.Connection,
     ss: SchemaState,
@@ -272,32 +276,27 @@ def log_collision(
     resolution = 'unresolved' (CHECK 036)
     """
     wanted: dict = {
-        "id":               str(_uuid.uuid4()),
-        "raw_text_1":       item_a_id,
-        "raw_text_2":       item_b_id,
-        "fuzzy_score":      0.0,
-        "category_match":   False,
-        "unit_match":       False,
-        "resolution":       "unresolved",
-        "resolved_by":      "system",
-        "collision_type":   "synonym_conflict",
-        "item_a_id":        item_a_id,
-        "item_b_id":        item_b_id,
+        "id": str(_uuid.uuid4()),
+        "raw_text_1": item_a_id,
+        "raw_text_2": item_b_id,
+        "fuzzy_score": 0.0,
+        "category_match": False,
+        "unit_match": False,
+        "resolution": "unresolved",
+        "resolved_by": "system",
+        "collision_type": "synonym_conflict",
+        "item_a_id": item_a_id,
+        "item_b_id": item_b_id,
         "alias_conflicted": alias_conflicted,
     }
 
-    present = {
-        k: v for k, v in wanted.items()
-        if k in ss.collision_cols
-    }
+    present = {k: v for k, v in wanted.items() if k in ss.collision_cols}
 
     if "id" not in present or len(present) < 3:
-        logger.warning(
-            "dict_collision_log colonnes insuffisantes · skippé"
-        )
+        logger.warning("dict_collision_log colonnes insuffisantes · skippé")
         return
 
-    cols   = list(present.keys())
+    cols = list(present.keys())
     values = list(present.values())
 
     try:
@@ -315,6 +314,7 @@ def log_collision(
 # LOG PROPOSAL · RÈGLE-25 · RÈGLE-40
 # ============================================================
 
+
 def log_proposal(
     conn: psycopg.Connection,
     ss: SchemaState,
@@ -328,24 +328,19 @@ def log_proposal(
     human_validated = FALSE · RÈGLE-25.
     """
     wanted = {
-        "id":            generate_deterministic_id(
-            f"dp_{item_id}_{raw}", prefix="dp"
-        ),
-        "item_id":       item_id,
+        "id": generate_deterministic_id(f"dp_{item_id}_{raw}", prefix="dp"),
+        "item_id": item_id,
         "proposed_form": raw,
-        "confidence":    confidence,
-        "status":        "pending",
+        "confidence": confidence,
+        "status": "pending",
     }
 
-    present = {
-        k: v for k, v in wanted.items()
-        if k in ss.proposals_cols
-    }
+    present = {k: v for k, v in wanted.items() if k in ss.proposals_cols}
 
     if "id" not in present or "item_id" not in present:
         return
 
-    cols   = list(present.keys())
+    cols = list(present.keys())
     values = list(present.values())
 
     try:
@@ -363,6 +358,7 @@ def log_proposal(
 # ============================================================
 # INSERTION ITEM
 # ============================================================
+
 
 def insert_item(
     conn: psycopg.Connection,
@@ -411,7 +407,8 @@ def insert_item(
                         updated_at = NOW()
                 """,
                 (
-                    item_id, item.raw,
+                    item_id,
+                    item.raw,
                     item.slug,
                     confidence,
                     json.dumps(sorted(set(item.sources))),
@@ -454,7 +451,8 @@ def insert_item(
         if existing_alias:
             report.collisions += 1
             log_collision(
-                conn, ss,
+                conn,
+                ss,
                 existing_alias["item_id"],
                 item_id,
                 item.normalized,
@@ -473,7 +471,9 @@ def insert_item(
             ON CONFLICT (normalized_alias) DO NOTHING
             """,
             (
-                item_id, item.raw, item.normalized,
+                item_id,
+                item.raw,
+                item.normalized,
                 item.sources[0] if item.sources else "mercuriale",
             ),
         )
@@ -486,7 +486,9 @@ def insert_item(
     except Exception as exc:
         logger.error(
             "Erreur '%s' (slug=%s) : %s",
-            item.raw, item.slug, exc,
+            item.raw,
+            item.slug,
+            exc,
         )
         report.errors.append(f"{item.slug}: {exc}")
 
@@ -494,6 +496,7 @@ def insert_item(
 # ============================================================
 # POINT D'ENTRÉE
 # ============================================================
+
 
 def main(dry_run: bool, min_freq: int) -> None:
 
@@ -507,7 +510,7 @@ def main(dry_run: bool, min_freq: int) -> None:
     if dry_run:
         with psycopg.connect(DATABASE_URL, row_factory=dict_row) as conn:
             assert_prerequisites(conn)
-            ss    = load_schema_state(conn)
+            ss = load_schema_state(conn)
             items = extract_raw_items(conn)
             report.total_raw = len(items)
 
@@ -517,7 +520,8 @@ def main(dry_run: bool, min_freq: int) -> None:
                 if item.slug in slugs_seen:
                     logger.warning(
                         "Slug dupliqué '%s' ← '%s'",
-                        item.slug, item.raw,
+                        item.slug,
+                        item.raw,
                     )
                 slugs_seen.add(item.slug)
 
@@ -529,7 +533,7 @@ def main(dry_run: bool, min_freq: int) -> None:
                 if item.slug in ss.existing_slugs:
                     report.updated_items += 1
                 else:
-                    report.new_items   += 1
+                    report.new_items += 1
                     report.new_aliases += 1
 
                 if confidence < 0.75:
@@ -567,14 +571,19 @@ def main(dry_run: bool, min_freq: int) -> None:
                 if item.slug in slugs_seen:
                     logger.warning(
                         "Slug dupliqué '%s' ← '%s'",
-                        item.slug, item.raw,
+                        item.slug,
+                        item.raw,
                     )
                 slugs_seen.add(item.slug)
 
                 confidence = compute_confidence(item)
                 insert_item(
-                    conn, ss, item,
-                    confidence, min_freq, report,
+                    conn,
+                    ss,
+                    item,
+                    confidence,
+                    min_freq,
+                    report,
                 )
 
     print(report.summary())
@@ -598,7 +607,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Build dictionnaire procurement DMS M6"
     )
-    parser.add_argument("--dry-run",  action="store_true")
+    parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--min-freq", type=int, default=2)
     args = parser.parse_args()
     main(args.dry_run, args.min_freq)

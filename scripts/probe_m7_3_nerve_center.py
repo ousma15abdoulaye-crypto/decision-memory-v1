@@ -85,9 +85,7 @@ def run() -> None:
             marker = "[OK]" if ok else "[KO] ABSENT · STOP-PRE"
             print(f"  {tbl:<35} : {marker}")
             if not ok:
-                stop_signals.append(
-                    f"STOP-PRE · couche_b.{tbl} absent · M7.2 requise"
-                )
+                stop_signals.append(f"STOP-PRE · couche_b.{tbl} absent · M7.2 requise")
 
         # ---- N1 · Alembic -----------------------------------------------
         _p(conn, "N1_ALEMBIC", "SELECT version_num FROM alembic_version")
@@ -128,9 +126,7 @@ def run() -> None:
                 (col,),
             ).fetchone()
             present = r["n"] > 0
-            marker = (
-                "[WARN] DÉJÀ PRÉSENTE · STOP-N04" if present else "[OK] absente"
-            )
+            marker = "[WARN] DÉJÀ PRÉSENTE · STOP-N04" if present else "[OK] absente"
             print(f"  {col:<35} : {marker}")
             if present:
                 stop_signals.append(f"STOP-N04 · colonne {col} déjà présente")
@@ -152,14 +148,10 @@ def run() -> None:
                 (tbl,),
             ).fetchone()
             present = r["n"] > 0
-            marker = (
-                "[WARN] DÉJÀ PRÉSENTE · STOP-N04" if present else "[OK] absente"
-            )
+            marker = "[WARN] DÉJÀ PRÉSENTE · STOP-N04" if present else "[OK] absente"
             print(f"  {tbl:<35} : {marker}")
             if present:
-                stop_signals.append(
-                    f"STOP-N04 · table couche_b.{tbl} déjà présente"
-                )
+                stop_signals.append(f"STOP-N04 · table couche_b.{tbl} déjà présente")
 
         # ---- N5 · Counts -------------------------------------------------
         print("\n--- N5_COUNTS ---")
@@ -255,9 +247,7 @@ def run() -> None:
         canonical_source = None
         for tbl, label in canonical_tables:
             try:
-                r = conn.execute(
-                    f"SELECT COUNT(*) AS n FROM {tbl}"
-                ).fetchone()
+                r = conn.execute(f"SELECT COUNT(*) AS n FROM {tbl}").fetchone()
                 n = r["n"]
                 marker = " [canonique]" if canonical_source is None else ""
                 print(f"  {tbl:<40} : {n} lignes ({label}){marker}")

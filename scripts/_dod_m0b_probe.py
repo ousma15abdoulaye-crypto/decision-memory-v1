@@ -1,4 +1,5 @@
 """Probe DoD M0B — 6 vérifications."""
+
 import os
 import psycopg
 import psycopg.rows
