@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Refresh market_coverage CONCURRENTLY."""
+
 import os
+
 try:
     from dotenv import load_dotenv
     from pathlib import Path
+
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
     load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
 except ImportError:
@@ -11,7 +14,9 @@ except ImportError:
 
 import psycopg
 
-db = os.environ.get("DATABASE_URL", "").replace("postgresql+psycopg://", "postgresql://")
+db = os.environ.get("DATABASE_URL", "").replace(
+    "postgresql+psycopg://", "postgresql://"
+)
 if not db:
     raise SystemExit("DATABASE_URL absente")
 conn = psycopg.connect(db)

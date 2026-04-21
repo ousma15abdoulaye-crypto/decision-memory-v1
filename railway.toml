@@ -2,6 +2,9 @@
 # Ne pas ajouter [deploy].startCommand ici pour l’API sans valider le runbook ops.
 #
 # Worker ARQ (service séparé Railway) : railway.worker.toml + docs/ops/RAILWAY_ARQ_WORKER_SERVICE.md
+#
+# Annotation backend (service séparé) : ne pas réutiliser ce fichier — utiliser
+# railway.annotation-backend.toml (Dockerfile services/annotation-backend) ; voir commentaire en tête de ce fichier.
 
 [build]
 builder = "DOCKERFILE"

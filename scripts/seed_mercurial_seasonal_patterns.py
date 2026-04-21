@@ -32,6 +32,7 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
     load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
 except ImportError:
@@ -40,22 +41,18 @@ except ImportError:
 import psycopg
 from psycopg.rows import dict_row
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
 COMPUTATION_VERSION = "v1.1_mercurials"
-MIN_OBSERVATIONS = 3   # minimum par (taxo_l3, zone, month)
+MIN_OBSERVATIONS = 3  # minimum par (taxo_l3, zone, month)
 # Données annuelles mercurials → mois de référence = 6 (milieu année)
 REF_MONTH = 6
 
 
 def check_env() -> str:
     db = (
-        os.environ.get("RAILWAY_DATABASE_URL", "")
-        or os.environ.get("DATABASE_URL", "")
+        os.environ.get("RAILWAY_DATABASE_URL", "") or os.environ.get("DATABASE_URL", "")
     ).replace("postgresql+psycopg://", "postgresql://")
     if not db:
         raise SystemExit("DATABASE_URL absent")
@@ -107,10 +104,12 @@ def main():
     meta: dict = {}
     for r in rows:
         key = (r["zone_id"], r["taxo_l3"])
-        groups[key].append({
-            "year": r["year"],
-            "price_avg": float(r["price_avg"]),
-        })
+        groups[key].append(
+            {
+                "year": r["year"],
+                "price_avg": float(r["price_avg"]),
+            }
+        )
         if key not in meta:
             meta[key] = {
                 "taxo_l1": r["taxo_l1"],
@@ -136,17 +135,19 @@ def main():
         confidence = min(0.95, 0.50 + len(prix_list) * 0.05)
         me = meta[(zone_id, taxo_l3)]
 
-        patterns_to_insert.append({
-            "zone_id": zone_id,
-            "taxo_l1": me["taxo_l1"],
-            "taxo_l2": me["taxo_l2"],
-            "taxo_l3": taxo_l3,
-            "month": REF_MONTH,
-            "historical_deviation_pct": historical_deviation_pct,
-            "years_observed": len(prix_list),
-            "confidence": round(confidence, 2),
-            "computation_version": COMPUTATION_VERSION,
-        })
+        patterns_to_insert.append(
+            {
+                "zone_id": zone_id,
+                "taxo_l1": me["taxo_l1"],
+                "taxo_l2": me["taxo_l2"],
+                "taxo_l3": taxo_l3,
+                "month": REF_MONTH,
+                "historical_deviation_pct": historical_deviation_pct,
+                "years_observed": len(prix_list),
+                "confidence": round(confidence, 2),
+                "computation_version": COMPUTATION_VERSION,
+            }
+        )
 
     log.info("Patterns calculés : %d", len(patterns_to_insert))
 
@@ -161,7 +162,8 @@ def main():
     for p in patterns_to_insert:
         try:
             cur.execute("SAVEPOINT sp_pattern")
-            cur.execute("""
+            cur.execute(
+                """
                 INSERT INTO public.seasonal_patterns (
                     zone_id, taxo_l1, taxo_l2, taxo_l3,
                     month, historical_deviation_pct, years_observed,
@@ -179,7 +181,9 @@ def main():
                     years_observed = EXCLUDED.years_observed,
                     confidence = EXCLUDED.confidence,
                     last_computed = CURRENT_DATE
-            """, p)
+            """,
+                p,
+            )
             cur.execute("RELEASE SAVEPOINT sp_pattern")
             ok += 1
         except Exception as e:
@@ -198,10 +202,7 @@ def main():
         ORDER BY computation_version
     """)
     for r in cur.fetchall():
-        log.info(
-            "  patterns %s : %d",
-            r["computation_version"], r["n"]
-        )
+        log.info("  patterns %s : %d", r["computation_version"], r["n"])
 
     conn.close()
     sys.exit(1 if err > 0 else 0)

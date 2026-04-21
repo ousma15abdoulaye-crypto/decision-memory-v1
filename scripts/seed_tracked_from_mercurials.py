@@ -9,6 +9,7 @@ Usage :
   DATABASE_URL=<railway> python scripts/seed_tracked_from_mercurials.py
   RAILWAY_DATABASE_URL=<url> python scripts/seed_tracked_from_mercurials.py
 """
+
 from __future__ import annotations
 
 import os
@@ -21,12 +22,15 @@ from psycopg.rows import dict_row
 ROOT = Path(__file__).resolve().parents[1]
 try:
     from dotenv import load_dotenv
+
     load_dotenv(ROOT / ".env")
     load_dotenv(ROOT / ".env.local")
 except ImportError:
     pass
 
-db_url = os.environ.get("RAILWAY_DATABASE_URL", "") or os.environ.get("DATABASE_URL", "")
+db_url = os.environ.get("RAILWAY_DATABASE_URL", "") or os.environ.get(
+    "DATABASE_URL", ""
+)
 if not db_url:
     print("ERROR: RAILWAY_DATABASE_URL / DATABASE_URL absente")
     sys.exit(1)

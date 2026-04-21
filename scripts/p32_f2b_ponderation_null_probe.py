@@ -1,4 +1,5 @@
 """P3.2 F2b — ponderation IS NULL probe"""
+
 import os
 import psycopg2
 

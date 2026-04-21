@@ -1,4 +1,5 @@
 """P3.2 F2c — m16_scoring_mode IS NULL probe"""
+
 import os
 import psycopg2
 

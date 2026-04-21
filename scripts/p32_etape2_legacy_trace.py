@@ -2,6 +2,7 @@
 
 Exécute queries traçabilité avec noms tables réels (probe schéma ÉTAPE 1).
 """
+
 import sys
 from pathlib import Path
 
@@ -62,7 +63,9 @@ def probe_traceability():
         print(f"✅ {len(legacy_workspaces)} workspaces LEGACY_90")
         print()
         for ws in legacy_workspaces:
-            print(f"  {ws['reference_code']:<40} | sum={ws['sum_global']:6.2f}% | criteria={ws['count_criteria']:3d}")
+            print(
+                f"  {ws['reference_code']:<40} | sum={ws['sum_global']:6.2f}% | criteria={ws['count_criteria']:3d}"
+            )
 
         print()
         print()
@@ -94,8 +97,14 @@ def probe_traceability():
 
         print()
         for row in metadata_rows:
-            created = row['created_at'].strftime('%Y-%m-%d') if row['created_at'] else 'NO_DATE'
-            print(f"  {row['reference_code']:<40} | {created} | {row['process_type']:<10} | {row['status']}")
+            created = (
+                row["created_at"].strftime("%Y-%m-%d")
+                if row["created_at"]
+                else "NO_DATE"
+            )
+            print(
+                f"  {row['reference_code']:<40} | {created} | {row['process_type']:<10} | {row['status']}"
+            )
 
         print()
         print()
@@ -132,9 +141,19 @@ def probe_traceability():
 
         print()
         for row in date_comparison:
-            earliest = row['earliest_created'].strftime('%Y-%m-%d') if row['earliest_created'] else 'N/A'
-            latest = row['latest_created'].strftime('%Y-%m-%d') if row['latest_created'] else 'N/A'
-            print(f"  {row['classification']:<15} | count={row['count_workspaces']:3d} | earliest={earliest} | latest={latest}")
+            earliest = (
+                row["earliest_created"].strftime("%Y-%m-%d")
+                if row["earliest_created"]
+                else "N/A"
+            )
+            latest = (
+                row["latest_created"].strftime("%Y-%m-%d")
+                if row["latest_created"]
+                else "N/A"
+            )
+            print(
+                f"  {row['classification']:<15} | count={row['count_workspaces']:3d} | earliest={earliest} | latest={latest}"
+            )
 
         print()
         print()
@@ -177,15 +196,17 @@ def probe_traceability():
         print("Legend: docs | extractions | bundles | evaluations | assessments")
         print()
         for row in activity_rows:
-            ref = row['reference_code'][:35]
-            docs = row['count_documents']
-            extr = row['count_offer_extractions']
-            bund = row['count_supplier_bundles']
-            eval_ = row['count_evaluation_documents']
-            asse = row['count_criterion_assessments']
+            ref = row["reference_code"][:35]
+            docs = row["count_documents"]
+            extr = row["count_offer_extractions"]
+            bund = row["count_supplier_bundles"]
+            eval_ = row["count_evaluation_documents"]
+            asse = row["count_criterion_assessments"]
             total = docs + extr + bund + eval_ + asse
             flag = "⚠️ ACTIF" if total > 0 else "✓ vide"
-            print(f"  {ref:<35} | {docs:4d} | {extr:4d} | {bund:4d} | {eval_:4d} | {asse:4d} | {flag}")
+            print(
+                f"  {ref:<35} | {docs:4d} | {extr:4d} | {bund:4d} | {eval_:4d} | {asse:4d} | {flag}"
+            )
 
         print()
         print()
@@ -215,7 +236,9 @@ def probe_traceability():
 
         print()
         for row in tenant_rows:
-            print(f"  {row['tenant_code']:<30} | {row['count_legacy_90']:3d} workspaces LEGACY_90")
+            print(
+                f"  {row['tenant_code']:<30} | {row['count_legacy_90']:3d} workspaces LEGACY_90"
+            )
 
         print()
         print()
@@ -252,14 +275,16 @@ def probe_traceability():
         if not pattern_rows:
             print("⚠️  Colonne famille NULL (impossible extraire pattern)")
         else:
-            ref = pattern_rows[0]['reference_code']
+            ref = pattern_rows[0]["reference_code"]
             print(f"\nWorkspace échantillon : {ref}")
             print()
             total_famille = 0.0
             for row in pattern_rows:
-                sum_f = row['sum_famille']
+                sum_f = row["sum_famille"]
                 total_famille += sum_f
-                print(f"  {row['famille']:<20} | sum={sum_f:6.2f}% | criteria={row['count_criteria']:3d}")
+                print(
+                    f"  {row['famille']:<20} | sum={sum_f:6.2f}% | criteria={row['count_criteria']:3d}"
+                )
             print(f"  {'TOTAL':<20} | sum={total_famille:6.2f}%")
 
     print()
@@ -274,5 +299,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ ERREUR : {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

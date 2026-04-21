@@ -17,6 +17,7 @@ Pas de fews_context_code — code FEWS dans notes.
 Usage : DATABASE_URL=<railway> DMS_ALLOW_RAILWAY=1 \
         python scripts/seed_zone_context_missing14.py
 """
+
 import os
 import sys
 from datetime import date
@@ -24,6 +25,7 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
     load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
 except ImportError:
@@ -44,10 +46,24 @@ ZONE_CONTEXTS = [
     ("zone-san-1", "seasonal_lean", "ipc_2_stressed", 8.0, "open", "ML-7"),
     ("zone-nioro-1", "seasonal_lean", "ipc_2_stressed", 8.0, "open", "ML-7"),
     ("zone-mopti-1", "security_crisis", "ipc_3_crisis", 18.0, "restricted", "ML-2"),
-    ("zone-bandiagara-1", "security_crisis", "ipc_3_crisis", 18.0, "restricted", "ML-2"),
+    (
+        "zone-bandiagara-1",
+        "security_crisis",
+        "ipc_3_crisis",
+        18.0,
+        "restricted",
+        "ML-2",
+    ),
     ("zone-nara-1", "security_crisis", "ipc_3_crisis", 18.0, "restricted", "ML-2"),
     ("zone-douentza-1", "security_crisis", "ipc_3_crisis", 25.0, "restricted", "ML-8"),
-    ("zone-taoudeni-1", "security_crisis", "ipc_4_emergency", 32.0, "very_restricted", "ML-9"),
+    (
+        "zone-taoudeni-1",
+        "security_crisis",
+        "ipc_4_emergency",
+        32.0,
+        "very_restricted",
+        "ML-9",
+    ),
 ]
 
 VALID_FROM = date(2026, 1, 1)
@@ -55,9 +71,8 @@ SOURCE = "FEWS NET Mali M11 DETTE-1"
 
 
 def main():
-    db_url = (
-        os.environ.get("RAILWAY_DATABASE_URL", "")
-        or os.environ.get("DATABASE_URL", "")
+    db_url = os.environ.get("RAILWAY_DATABASE_URL", "") or os.environ.get(
+        "DATABASE_URL", ""
     )
     if not db_url:
         sys.exit("STOP — DATABASE_URL absente")
@@ -98,10 +113,21 @@ def main():
                          valid_from, valid_until, source, notes)
                     VALUES (%s, %s, %s, %s, %s, %s, NULL, %s, %s)
                     """,
-                    (zone_id, ctx_type, severity, markup_pct, access, VALID_FROM, SOURCE, notes),
+                    (
+                        zone_id,
+                        ctx_type,
+                        severity,
+                        markup_pct,
+                        access,
+                        VALID_FROM,
+                        SOURCE,
+                        notes,
+                    ),
                 )
                 conn.commit()
-                print(f"OK   {zone_id:28} {severity:20} +{markup_pct:5.1f}%  [{fews_code}]")
+                print(
+                    f"OK   {zone_id:28} {severity:20} +{markup_pct:5.1f}%  [{fews_code}]"
+                )
                 ok += 1
             except Exception as e:
                 conn.rollback()

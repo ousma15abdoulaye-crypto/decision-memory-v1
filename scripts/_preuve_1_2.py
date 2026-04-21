@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """PREUVE 1 + 2 — Identité DB + M7.2 prérequis."""
+
 import os
 import sys
 from pathlib import Path
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
     load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
 except ImportError:
@@ -14,13 +16,17 @@ except ImportError:
 import psycopg
 from psycopg.rows import dict_row
 
-URL = os.environ.get("DATABASE_URL", "").replace("postgresql+psycopg://", "postgresql://")
+URL = os.environ.get("DATABASE_URL", "").replace(
+    "postgresql+psycopg://", "postgresql://"
+)
 if not URL:
     sys.exit("DATABASE_URL manquante")
 
 with psycopg.connect(URL, row_factory=dict_row) as c:
     # PREUVE 1
-    r = c.execute("select current_database() db, inet_server_addr() host, inet_server_port() port").fetchone()
+    r = c.execute(
+        "select current_database() db, inet_server_addr() host, inet_server_port() port"
+    ).fetchone()
     a = c.execute("select version_num from alembic_version").fetchone()
     v = c.execute("select count(*) n from public.vendors").fetchone()
     print("--- PREUVE 1 ---")

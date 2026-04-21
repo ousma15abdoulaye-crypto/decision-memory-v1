@@ -29,6 +29,7 @@ if str(ROOT) not in sys.path:
 # Load .env if present (dev convenience — Railway injects DATABASE_URL directly)
 try:
     from dotenv import load_dotenv
+
     load_dotenv(ROOT / ".env")
 except ImportError:
     pass  # python-dotenv optional; DATABASE_URL must be set in environment
@@ -47,11 +48,11 @@ except ImportError:
     sys.exit(1)
 
 # ── Test user definition ──────────────────────────────────────────────────────
-USER_EMAIL     = "ousma15abdoulaye@gmail.com"
-USER_USERNAME  = "abdoulaye_ousmane"
+USER_EMAIL = "ousma15abdoulaye@gmail.com"
+USER_USERNAME = "abdoulaye_ousmane"
 USER_FULL_NAME = "Abdoulaye Ousmane"
-USER_PASSWORD  = "Babayaga202@BT"
-USER_ROLE_ID   = 2          # procurement_officer (seeded in migration 004_users_rbac)
+USER_PASSWORD = "Babayaga202@BT"
+USER_ROLE_ID = 2  # procurement_officer (seeded in migration 004_users_rbac)
 USER_ROLE_NAME = "procurement_officer"
 
 INSERT_SQL = """
@@ -106,12 +107,12 @@ def main() -> None:
     created_at = datetime.utcnow().isoformat()
 
     params = {
-        "email":           USER_EMAIL,
-        "username":        USER_USERNAME,
+        "email": USER_EMAIL,
+        "username": USER_USERNAME,
         "hashed_password": hashed_password,
-        "full_name":       USER_FULL_NAME,
-        "role_id":         USER_ROLE_ID,
-        "created_at":      created_at,
+        "full_name": USER_FULL_NAME,
+        "role_id": USER_ROLE_ID,
+        "created_at": created_at,
     }
 
     with psycopg.connect(conn_url, row_factory=dict_row) as conn:
@@ -121,7 +122,9 @@ def main() -> None:
             existing = cur.fetchone()
 
             if existing:
-                print(f"ℹ  User already exists: {USER_EMAIL} (id={existing['id']}) — no changes made.")
+                print(
+                    f"ℹ  User already exists: {USER_EMAIL} (id={existing['id']}) — no changes made."
+                )
                 return
 
             cur.execute(INSERT_SQL, params)
@@ -137,7 +140,9 @@ def main() -> None:
         print(f"  Role: {USER_ROLE_NAME}")
     else:
         # ON CONFLICT DO NOTHING fired — row existed under a different email
-        print(f"ℹ  Insert skipped (conflict on username or email). User may already exist.")
+        print(
+            f"ℹ  Insert skipped (conflict on username or email). User may already exist."
+        )
 
 
 if __name__ == "__main__":

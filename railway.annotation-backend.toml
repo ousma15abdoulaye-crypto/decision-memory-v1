@@ -1,0 +1,15 @@
+# Service Railway séparé : dms-annotation-backend (ML /predict, /setup, LS).
+# Ne pas utiliser railway.toml racine : celui-ci pointe sur Dockerfile → main:app (API DMS).
+#
+# Déploiement : service « annotation-backend » (ou nom équivalent) → mêmes repo + branche
+# que l’API → dans les paramètres Railway du **service**, lier ce fichier comme config
+# (équivalent : Build → Dockerfile Path = services/annotation-backend/Dockerfile,
+# Root = racine monorepo, Start Command vide).
+#
+# Variables : voir services/annotation-backend/ENVIRONMENT.md (MISTRAL_*, PSEUDONYM_SALT, …).
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "services/annotation-backend/Dockerfile"
+
+# Pas de [deploy].startCommand : le Dockerfile impose CMD ["./start.sh"] → uvicorn backend:app.

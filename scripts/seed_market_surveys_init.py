@@ -16,6 +16,7 @@ Idempotence : skip si (zone_id, item_id, date_surveyed, supplier_raw) existe.
 Usage : DATABASE_URL=<railway> DMS_ALLOW_RAILWAY=1 \
         python scripts/seed_market_surveys_init.py
 """
+
 import os
 import sys
 from datetime import date
@@ -23,6 +24,7 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
     load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
 except ImportError:
@@ -33,9 +35,8 @@ from psycopg.rows import dict_row
 
 
 def main():
-    db_url = (
-        os.environ.get("RAILWAY_DATABASE_URL", "")
-        or os.environ.get("DATABASE_URL", "")
+    db_url = os.environ.get("RAILWAY_DATABASE_URL", "") or os.environ.get(
+        "DATABASE_URL", ""
     )
     if not db_url:
         sys.exit("STOP — DATABASE_URL absente")
@@ -104,9 +105,7 @@ def main():
                 ok += 1
             except Exception as e:
                 cur.execute("ROLLBACK TO SAVEPOINT sp_survey")
-                print(
-                    f"ERR ({row['zone_id']}, {row['item_id']}, {survey_date}) — {e}"
-                )
+                print(f"ERR ({row['zone_id']}, {row['item_id']}, {survey_date}) — {e}")
                 err += 1
 
         conn.commit()

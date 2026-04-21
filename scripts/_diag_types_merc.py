@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 """Diagnostic types mercurials / mercurials_item_map — Railway."""
+
 import os
 from pathlib import Path
+
 try:
     from dotenv import load_dotenv
+
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 except ImportError:
     pass
 import psycopg
 
-db = os.environ.get("RAILWAY_DATABASE_URL", "").replace("postgresql+psycopg://", "postgresql://")
+db = os.environ.get("RAILWAY_DATABASE_URL", "").replace(
+    "postgresql+psycopg://", "postgresql://"
+)
 if not db:
     print("RAILWAY_DATABASE_URL absente")
     exit(1)

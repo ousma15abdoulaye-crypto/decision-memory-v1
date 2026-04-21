@@ -1,4 +1,5 @@
 """P3.2 — Git state probe for PR preparation"""
+
 import subprocess
 from pathlib import Path
 
@@ -9,14 +10,13 @@ print("P3.2 GIT STATE PROBE")
 print("=" * 70)
 print()
 
+
 def run_git(args):
     result = subprocess.run(
-        ["git"] + args,
-        cwd=repo_root,
-        capture_output=True,
-        text=True
+        ["git"] + args, cwd=repo_root, capture_output=True, text=True
     )
     return result.stdout, result.stderr, result.returncode
+
 
 # Current branch
 print("[1] Current branch")
@@ -69,7 +69,7 @@ print()
 print("[6] Untracked files")
 print("=" * 70)
 stdout, stderr, code = run_git(["ls-files", "--others", "--exclude-standard"])
-untracked = [f for f in stdout.strip().split('\n') if f.strip()]
+untracked = [f for f in stdout.strip().split("\n") if f.strip()]
 if untracked:
     for f in untracked[:20]:  # Limit to 20
         print(f"  {f}")

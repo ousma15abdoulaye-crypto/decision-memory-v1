@@ -41,7 +41,7 @@ def normalize_template(template_path: Path) -> None:
 
     # Charger le workbook
     wb = openpyxl.load_workbook(template_path)
-    
+
     # 1. Lister AVANT
     list_sheetnames(wb, "ONGLETS AVANT NORMALISATION")
 
@@ -51,9 +51,9 @@ def normalize_template(template_path: Path) -> None:
         "Commercial Evaluation ": "Commercial Evaluation",  # Espace en fin
         "Commercial Evaluation (2)": "Commercial Evaluation",  # Suffixe (2)
         "Essential Evaluation ": "Essential Evaluation",
-        "Capability Evaluation ": "Capability Evaluation", 
+        "Capability Evaluation ": "Capability Evaluation",
         "Sustainability Evaluation ": "Sustainability Evaluation",
-        "Summary ": "Summary"
+        "Summary ": "Summary",
     }
 
     # Détecter et renommer
@@ -74,19 +74,21 @@ def normalize_template(template_path: Path) -> None:
     # 3. Masquer/supprimer onglets debug
     debug_sheets = ["DMS_SUMMARY", "DEBUG", "TEMP", "SCRATCH", "NOTES"]
     hidden_sheets = []
-    
-    for sheet_name in list(wb.sheetnames):  # Liste copie pour éviter modification pendant itération
+
+    for sheet_name in list(
+        wb.sheetnames
+    ):  # Liste copie pour éviter modification pendant itération
         # Vérifier si c'est un onglet debug (exact ou pattern)
         is_debug = False
         for debug_pattern in debug_sheets:
             if debug_pattern in sheet_name.upper():
                 is_debug = True
                 break
-        
+
         if is_debug:
             ws = wb[sheet_name]
             # On masque plutôt que supprimer pour préserver les données
-            ws.sheet_state = 'hidden'
+            ws.sheet_state = "hidden"
             hidden_sheets.append(sheet_name)
 
     if hidden_sheets:
@@ -97,10 +99,10 @@ def normalize_template(template_path: Path) -> None:
         print("\n✓ Aucun onglet debug détecté")
 
     # 4. Sauvegarder
-    backup_path = template_path.with_suffix('.backup.xlsx')
+    backup_path = template_path.with_suffix(".backup.xlsx")
     print(f"\n💾 Sauvegarde de l'original: {backup_path.name}")
     wb.save(backup_path)
-    
+
     print(f"💾 Sauvegarde du template normalisé: {template_path.name}")
     wb.save(template_path)
 
@@ -115,7 +117,9 @@ def main():
     if len(sys.argv) != 2:
         print("Usage: python scripts/fix_template.py <chemin_template.xlsx>")
         print("\nExemple:")
-        print("  python scripts/fix_template.py src/templates/DMS-CBA-CANONICAL-V1.0.xlsx")
+        print(
+            "  python scripts/fix_template.py src/templates/DMS-CBA-CANONICAL-V1.0.xlsx"
+        )
         sys.exit(1)
 
     template_path = Path(sys.argv[1])

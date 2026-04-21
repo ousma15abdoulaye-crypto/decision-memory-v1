@@ -72,6 +72,8 @@ def _assert_safe_sync(local_url: str, remote_url: str) -> None:
         raise RuntimeError(
             f"Refusing to run sync: remote URL {remote_host!r} does not look like a Railway host."
         )
+
+
 #!/usr/bin/env python3
 """
 Sync couche_b.procurement_dict_items local -> Railway.
@@ -96,6 +98,7 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
     load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
 except ImportError:
@@ -106,8 +109,12 @@ from psycopg.rows import dict_row
 
 
 def get_urls() -> tuple[str, str]:
-    local = os.environ.get("DATABASE_URL", "").replace("postgresql+psycopg://", "postgresql://")
-    railway = os.environ.get("RAILWAY_DATABASE_URL", "").replace("postgresql+psycopg://", "postgresql://")
+    local = os.environ.get("DATABASE_URL", "").replace(
+        "postgresql+psycopg://", "postgresql://"
+    )
+    railway = os.environ.get("RAILWAY_DATABASE_URL", "").replace(
+        "postgresql+psycopg://", "postgresql://"
+    )
     if not local:
         raise SystemExit("DATABASE_URL absent")
     if not railway:
@@ -184,12 +191,26 @@ def main():
 
     # Colonnes sans FK problematiques
     insert_cols = [
-        c for c in [
-            "item_id", "label_fr", "label_en", "active",
-            "canonical_slug", "dict_version", "confidence_score",
-            "human_validated", "taxo_l1", "taxo_l2", "taxo_l3",
-            "taxo_version", "item_code", "fingerprint", "birth_source",
-            "label_status", "quality_score", "item_type",
+        c
+        for c in [
+            "item_id",
+            "label_fr",
+            "label_en",
+            "active",
+            "canonical_slug",
+            "dict_version",
+            "confidence_score",
+            "human_validated",
+            "taxo_l1",
+            "taxo_l2",
+            "taxo_l3",
+            "taxo_version",
+            "item_code",
+            "fingerprint",
+            "birth_source",
+            "label_status",
+            "quality_score",
+            "item_type",
         ]
         if c in railway_cols
     ]
@@ -200,9 +221,7 @@ def main():
 
     cols_str = ", ".join(insert_cols)
     placeholders = ", ".join(f"%({c})s" for c in insert_cols)
-    update_str = ", ".join(
-        f"{c} = EXCLUDED.{c}" for c in insert_cols if c != "item_id"
-    )
+    update_str = ", ".join(f"{c} = EXCLUDED.{c}" for c in insert_cols if c != "item_id")
     sql = f"""
         INSERT INTO couche_b.procurement_dict_items ({cols_str})
         VALUES ({placeholders})
@@ -230,7 +249,9 @@ def main():
         print(f"  {i+len(batch)}/{len(items)} ({pct}%) ok={ok} err={err}", flush=True)
 
     # Vérification finale
-    cur_dst.execute("SELECT COUNT(*) AS n FROM couche_b.procurement_dict_items WHERE active=TRUE")
+    cur_dst.execute(
+        "SELECT COUNT(*) AS n FROM couche_b.procurement_dict_items WHERE active=TRUE"
+    )
     n = cur_dst.fetchone()["n"]
     dst.close()
 

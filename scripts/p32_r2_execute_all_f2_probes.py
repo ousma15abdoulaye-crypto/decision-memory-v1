@@ -1,4 +1,5 @@
 """P3.2 R2 — Execute all F2 NULL probes sequentially"""
+
 import os
 import sys
 import psycopg2
@@ -153,7 +154,9 @@ print()
 print("reference_code                 | total | null_cat | null_pond | null_score")
 print("-" * 80)
 for ref_code, total, null_cat, null_pond, null_score in rows_summary:
-    print(f"{ref_code:30s} | {total:5d} | {null_cat:8d} | {null_pond:9d} | {null_score:10d}")
+    print(
+        f"{ref_code:30s} | {total:5d} | {null_cat:8d} | {null_pond:9d} | {null_score:10d}"
+    )
 
 print()
 

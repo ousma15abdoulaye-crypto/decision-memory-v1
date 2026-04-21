@@ -62,7 +62,9 @@ def main(db_url: str) -> None:
 
             print(f"[cleanup] {len(rows)} compte(s) à supprimer :\n")
             for r in rows:
-                print(f"  id={r['id']:>3}  username={r['username']:<30}  email={r['email']}")
+                print(
+                    f"  id={r['id']:>3}  username={r['username']:<30}  email={r['email']}"
+                )
 
             # 2. Confirmation
             print()
@@ -81,12 +83,16 @@ def main(db_url: str) -> None:
             cur.execute(COUNT_SQL)
             total = cur.fetchone()["n"]
             print(f"\n[cleanup] DELETE {deleted} — OK")
-            print(f"[cleanup] Comptes restants en DB : {total} (doit contenir admin uniquement)")
+            print(
+                f"[cleanup] Comptes restants en DB : {total} (doit contenir admin uniquement)"
+            )
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python scripts/_cleanup_prod_smoke_users.py <DATABASE_URL_PUBLIC>")
+        print(
+            "Usage: python scripts/_cleanup_prod_smoke_users.py <DATABASE_URL_PUBLIC>"
+        )
         print()
         print("Obtenir l'URL publique :")
         print("  Railway UI → Postgres service → Connect → Public URL")

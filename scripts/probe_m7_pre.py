@@ -69,13 +69,11 @@ def run() -> None:
 
         # P1-CHECK ecart attendu vs reel
         print("\n--- P1_CHECK_ECART ---")
-        rows = conn.execute(
-            """
+        rows = conn.execute("""
             SELECT family_id
             FROM couche_b.procurement_dict_families
             ORDER BY family_id
-            """
-        ).fetchall()
+            """).fetchall()
         reels = {r["family_id"] for r in rows}
         manquants = FAMILLES_ATTENDUES - reels
         inattendus = reels - FAMILLES_ATTENDUES

@@ -76,13 +76,11 @@ def main() -> None:
                     print(f"  SKIP  {name} (already exists)")
                     skipped += 1
                 else:
-                    cur.execute(
-                        f"""
+                    cur.execute(f"""
                         CREATE TABLE IF NOT EXISTS {_SCHEMA}.{name}
                             PARTITION OF {_PARENT_TABLE}
                             FOR VALUES FROM ('{start}') TO ('{end}')
-                        """
-                    )
+                        """)
                     print(f"  CREATE {name} [{start} → {end})")
                     created += 1
 

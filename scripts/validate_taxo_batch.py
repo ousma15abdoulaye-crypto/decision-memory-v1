@@ -17,6 +17,7 @@ Usage :
     python scripts/validate_taxo_batch.py --domain SANTE
     python scripts/validate_taxo_batch.py --approve-item <item_id>
 """
+
 from __future__ import annotations
 
 import argparse
@@ -30,13 +31,14 @@ import psycopg
 from psycopg.rows import dict_row
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)s %(levelname)-8s %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s %(levelname)-8s %(message)s"
+)
 
 SEUIL_AUTO_APPROVE = 0.90
-SEUIL_REVIEW       = 0.75
-SEED_ATTENDU       = 51
-TAXO_VERSION       = "2.0.0"
+SEUIL_REVIEW = 0.75
+SEED_ATTENDU = 51
+TAXO_VERSION = "2.0.0"
 
 
 def get_db_url() -> str:
@@ -99,8 +101,7 @@ def resolve_ao_user_id(
             return uuid.UUID(raw)
         except ValueError:
             sys.exit(
-                f"❌ AO_USER_ID '{raw}' invalide — "
-                f"public.users.id est de type UUID"
+                f"❌ AO_USER_ID '{raw}' invalide — " f"public.users.id est de type UUID"
             )
     else:
         try:
@@ -145,7 +146,8 @@ def run(
                 print(f"DRY-RUN · approbation {approve_item} simulée")
                 return
             with conn.transaction():
-                conn.execute("""
+                conn.execute(
+                    """
                     UPDATE couche_b.taxo_proposals_v2
                     SET status      = 'approved',
                         approved_by = %s,
@@ -155,7 +157,9 @@ def run(
                     WHERE item_id      = %s
                       AND taxo_version = %s
                       AND status       = 'pending'
-                """, (ao_user_id, ao_user_id, approve_item, TAXO_VERSION))
+                """,
+                    (ao_user_id, ao_user_id, approve_item, TAXO_VERSION),
+                )
             print(f"✓ {approve_item} approuvé manuellement")
             return
 
@@ -172,7 +176,7 @@ def run(
         """
         params: list = [TAXO_VERSION]
         if domain_filter:
-            sql    += " AND p.domain_id = %s"
+            sql += " AND p.domain_id = %s"
             params.append(domain_filter)
         sql += " ORDER BY p.confidence DESC, p.domain_id"
 
@@ -180,26 +184,27 @@ def run(
         logger.info(f"Proposals pending : {len(rows)}")
 
         auto_approved = 0
-        review_list   = []
+        review_list = []
 
         for row in rows:
-            conf     = float(row["confidence"])
-            coherent = is_fk_coherent(
-                row["domain_id"], row["family_l2_id"], l2_to_l1
-            )
+            conf = float(row["confidence"])
+            coherent = is_fk_coherent(row["domain_id"], row["family_l2_id"], l2_to_l1)
             residuel = row["subfamily_id"] == "DIVERS_NON_CLASSE"
 
             if conf >= SEUIL_AUTO_APPROVE and coherent and not residuel:
                 if not dry_run:
                     with conn.transaction():
-                        conn.execute("""
+                        conn.execute(
+                            """
                             UPDATE couche_b.taxo_proposals_v2
                             SET status      = 'approved',
                                 approved_by = %s,
                                 approved_at = NOW(),
                                 updated_at  = NOW()
                             WHERE id = %s
-                        """, (ao_user_id, row["id"]))
+                        """,
+                            (ao_user_id, row["id"]),
+                        )
                 auto_approved += 1
 
             elif conf >= SEUIL_REVIEW and coherent and not residuel:
@@ -214,32 +219,31 @@ def run(
             WHERE human_validated = TRUE AND active = TRUE
         """).fetchone()["n"]
         if seed_n != SEED_ATTENDU:
-            sys.exit(
-                f"⛔ STOP-V5 : seed {seed_n} ≠ {SEED_ATTENDU} après Phase B"
-            )
+            sys.exit(f"⛔ STOP-V5 : seed {seed_n} ≠ {SEED_ATTENDU} après Phase B")
 
         # Rapport
         print("\n" + "=" * 65)
-        print(
-            f"PHASE B — VALIDATION SEMI-AUTO "
-            f"{'(DRY-RUN)' if dry_run else ''}"
-        )
+        print(f"PHASE B — VALIDATION SEMI-AUTO " f"{'(DRY-RUN)' if dry_run else ''}")
         print("=" * 65)
-        print(f"  Auto-approuvées (conf ≥ {SEUIL_AUTO_APPROVE})    : "
-              f"{auto_approved}")
-        print(f"  Review AO requise (conf {SEUIL_REVIEW}–{SEUIL_AUTO_APPROVE}) : "
-              f"{len(review_list)}")
+        print(
+            f"  Auto-approuvées (conf ≥ {SEUIL_AUTO_APPROVE})    : " f"{auto_approved}"
+        )
+        print(
+            f"  Review AO requise (conf {SEUIL_REVIEW}–{SEUIL_AUTO_APPROVE}) : "
+            f"{len(review_list)}"
+        )
         print(f"  Total traité                              : {len(rows)}")
-        print(f"  AO actor_id tracé                         : "
-              f"{'OUI (' + str(ao_user_id)[:8] + '...)' if ao_user_id else 'NON · dégradé'}")
+        print(
+            f"  AO actor_id tracé                         : "
+            f"{'OUI (' + str(ao_user_id)[:8] + '...)' if ao_user_id else 'NON · dégradé'}"
+        )
 
         if review_list:
-            print(f"\nFILE DE REVIEW AO ({len(review_list)} items · "
-                  f"top 50 priorité) :")
             print(
-                f"  {'ITEM_ID':<35} {'LABEL':<25} "
-                f"{'L1':<14} {'L2':<18} CONF"
+                f"\nFILE DE REVIEW AO ({len(review_list)} items · "
+                f"top 50 priorité) :"
             )
+            print(f"  {'ITEM_ID':<35} {'LABEL':<25} " f"{'L1':<14} {'L2':<18} CONF")
             print("-" * 100)
             for r in review_list[:50]:
                 print(
@@ -253,16 +257,15 @@ def run(
                 print(f"  ... et {len(review_list)-50} autres")
             print(f"\n  Pour approuver manuellement :")
             print(
-                f"  python scripts/validate_taxo_batch.py "
-                f"--approve-item <item_id>"
+                f"  python scripts/validate_taxo_batch.py " f"--approve-item <item_id>"
             )
         print("=" * 65)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dry-run",       action="store_true")
-    parser.add_argument("--domain",        type=str)
-    parser.add_argument("--approve-item",  type=str)
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--domain", type=str)
+    parser.add_argument("--approve-item", type=str)
     args = parser.parse_args()
     run(args.dry_run, args.domain, args.approve_item)

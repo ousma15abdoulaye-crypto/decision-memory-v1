@@ -123,11 +123,17 @@ def main() -> None:
 
     conn = _connect()
     results = []
-    for probe_fn in [probe_decision_snapshots, probe_analysis_summaries, probe_memory_entries]:
+    for probe_fn in [
+        probe_decision_snapshots,
+        probe_analysis_summaries,
+        probe_memory_entries,
+    ]:
         try:
             results.append(probe_fn(conn))
         except Exception as exc:
-            results.append({"table": probe_fn.__name__, "status": "ERROR", "error": str(exc)})
+            results.append(
+                {"table": probe_fn.__name__, "status": "ERROR", "error": str(exc)}
+            )
     conn.close()
 
     print("=" * 60)

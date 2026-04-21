@@ -2,15 +2,17 @@
 Audit Phase 1 -- M-CRITERIA-FK
 Read-only. Aucune ecriture DB.
 """
+
 import os, sys
 from pathlib import Path
 from dotenv import load_dotenv
+
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 import psycopg
 from psycopg.rows import dict_row
 
-DATABASE_URL = os.environ.get("DATABASE_URL", os.environ.get("DM_DATABASE_URL",""))
+DATABASE_URL = os.environ.get("DATABASE_URL", os.environ.get("DM_DATABASE_URL", ""))
 DATABASE_URL = DATABASE_URL.replace("postgresql+psycopg://", "postgresql://")
 
 AUDIT_QUERIES = {
@@ -45,6 +47,7 @@ AUDIT_QUERIES = {
     """,
 }
 
+
 def safe_query(cur, label, sql):
     try:
         cur.execute(sql)
@@ -57,21 +60,34 @@ def safe_query(cur, label, sql):
         print(f"\n[{label}] ERREUR : {e}")
         return None
 
+
 def main():
     print(f"[PROBE] DB : {DATABASE_URL[:50]}...")
     with psycopg.connect(DATABASE_URL, row_factory=dict_row) as conn:
         conn.autocommit = True
         with conn.cursor() as cur:
 
-            col_rows    = safe_query(cur, "criteria.canonical_item_id", AUDIT_QUERIES["col_info"])
-            tables      = safe_query(cur, "couche_b tables detectees", AUDIT_QUERIES["couche_b_tables"])
+            col_rows = safe_query(
+                cur, "criteria.canonical_item_id", AUDIT_QUERIES["col_info"]
+            )
+            tables = safe_query(
+                cur, "couche_b tables detectees", AUDIT_QUERIES["couche_b_tables"]
+            )
 
             # Comptes selon tables existantes
-            for t in (tables or []):
+            for t in tables or []:
                 if t["table_name"] == "items":
-                    safe_query(cur, "couche_b.items COUNT", AUDIT_QUERIES["couche_b_items_count"])
+                    safe_query(
+                        cur,
+                        "couche_b.items COUNT",
+                        AUDIT_QUERIES["couche_b_items_count"],
+                    )
                 if t["table_name"] == "procurement_dict_items":
-                    safe_query(cur, "couche_b.procurement_dict_items COUNT", AUDIT_QUERIES["couche_b_dict_count"])
+                    safe_query(
+                        cur,
+                        "couche_b.procurement_dict_items COUNT",
+                        AUDIT_QUERIES["couche_b_dict_count"],
+                    )
 
             orphan_rows = safe_query(cur, "ORPHELINS", AUDIT_QUERIES["orphans"])
 
@@ -90,6 +106,7 @@ def main():
     print(f"[OK] 0 orphelin. Tables Couche B detectees : {table_names}")
     print("[OK] GO pour migration 023.")
     sys.exit(0)
+
 
 if __name__ == "__main__":
     main()
