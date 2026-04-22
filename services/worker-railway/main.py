@@ -97,6 +97,12 @@ async def log_requests(request: Request, call_next):
     return response
 
 
+@app.get("/healthz")
+async def healthz():
+    """Public healthcheck for Railway (no auth required)"""
+    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
+
+
 @app.get("/health")
 async def health(token: str = Header(None, alias="Authorization", include_in_schema=False)):
     """Health check worker + DB reachability"""
