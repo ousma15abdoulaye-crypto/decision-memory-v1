@@ -1,6 +1,6 @@
 # W3-bis — Test stabilité worker Railway 50 min
 
-**Statut** : ✅ **PASS avec réserves** — Stabilité longue durée validée  
+**Statut** : ⚠️ **PASS PARTIEL** — Stabilité validée, protocole incomplet (83/100 pings)  
 **Date** : 2026-04-23  
 **Auteur** : Agent (session P3.4-INFRA-STABILIZATION)  
 **Branche** : `chore/p3-4-infra-stabilization`
@@ -9,18 +9,21 @@
 
 ## Résumé exécutif
 
-**Verdict** : ✅ **W3-bis PASS** — Worker Railway stable 50 min continues, aucune déconnexion.
+**Verdict** : ⚠️ **W3-bis PASS PARTIEL** — Stabilité worker Railway fortement corroborée, protocole incomplet.
 
 **Observations clés** :
-- ✅ 83/83 pings HTTP 200 (100% succès)
+- ✅ 83/83 pings HTTP 200 (100% succès observé)
 - ✅ Aucun timeout DB
-- ✅ Aucun gap > 60s (continuité session validée)
+- ✅ Aucun gap > 60s (continuité session 50 min validée)
 - ✅ Latence DB interne Railway : **~52ms** (normale)
 - ⚠️ Latence réseau local Windows → Railway : **1.2s–10s** (artifact local, non représentatif)
+- ❌ **Protocole incomplet** : 83/100 pings exécutés
 
-**Conclusion** : **Option C validée pour sessions longues 45+ min.** Le worker Railway tient la distance sans déconnexion ni erreur DB. Les latences élevées observées sont dues au réseau local de test, pas au worker.
+**Conclusion** : La **stabilité du worker Railway est fortement corroborée** sur 50 min continues sans déconnexion ni erreur DB. Le protocole nominal (100 pings) n'a pas été complété (83/100), empêchant un PASS plein au sens strict.
 
-**Recommandation** : Adopter Option C pour sessions annotation longues. Le blocage infra Phase 1/2 est levé.
+Les latences p95 élevées mesurées côté client sont considérées comme un **artifact du chemin local Windows → Railway HTTPS**, non comme une dégradation du worker (qui répond en ~52ms côté service).
+
+**Recommandation** : Selon le niveau d'exigence du gate, soit ce résultat suffit pour débloquer la suite (stabilité démontrée), soit un **W3-ter de complétude** (100/100 pings) sera requis pour PASS plein.
 
 ---
 
@@ -200,27 +203,35 @@ La latence **réelle** worker → PostgreSQL Railway est **52ms** (mesurée par 
 
 ### Verdict W3-bis
 
-**W3-bis = PASS**
+**W3-bis = PASS PARTIEL**
 
-Tous les critères primaires validés :
+**Critères primaires validés** :
 - ✅ Stabilité session 50 min continues
-- ✅ Taux succès 100%
+- ✅ Taux succès 100% (sur échantillon observé)
 - ✅ Aucun timeout DB
 - ✅ Aucune déconnexion
 
-Les latences élevées sont un artifact réseau local sans impact sur la validité du test de stabilité.
+**Protocole incomplet** :
+- ❌ 83/100 pings exécutés (83% complétude)
+- Cause : Latences réseau locales élevées ont ralenti cycles
+
+**Classification** : PASS PARTIEL — Stabilité fortement corroborée, mais protocole nominal non complété jusqu'à 100 pings. Empêche PASS plein au sens strict.
+
+Les latences p95 élevées côté client sont un artifact réseau local (Windows → Railway HTTPS), non une dégradation du worker qui répond en ~52ms côté service.
 
 ### Verdict Option C
 
-**Option C (worker Railway interne) = VALIDÉE pour sessions longues 45+ min**
+**Option C (worker Railway interne) = Stabilité fortement corroborée, gate selon niveau d'exigence**
 
-Le worker Railway déployé démontre :
-1. Stabilité longue durée (> 45 min sans interruption)
+Le worker Railway démontre sur 50 min / 83 pings :
+1. Stabilité longue durée (> 45 min sans interruption observée)
 2. Accès PostgreSQL fiable (0 timeout, 100% succès)
 3. Performance DB normale (latence interne ~52ms)
 4. Architecture viable pour sessions annotation longues
 
-**Le blocage infra Phase 1/2 est levé.**
+**Décision gate** :
+- **Si gate accepte PASS PARTIEL** : Option C prête, blocage infra Phase 1/2 levé
+- **Si gate exige PASS plein** : W3-ter requis (100/100 pings, environnement optimisé)
 
 ---
 
@@ -228,7 +239,7 @@ Le worker Railway déployé démontre :
 
 ### 1. Adoption Option C
 
-**Statut** : ✅ **VALIDÉE — prête pour production**
+**Statut** : ⚠️ **Stabilité fortement corroborée — gate selon exigence complétude**
 
 Utiliser worker Railway `dms-db-worker` pour :
 - Sessions annotation longues 45+ min
@@ -342,4 +353,4 @@ W3_bis_stability_test.sh       # Script harness corrigé
 
 ---
 
-**Statut final** : ✅ **W3-bis PASS — Option C validée pour sessions longues, blocage infra Phase 1/2 levé**
+**Statut final** : ⚠️ **W3-bis PASS PARTIEL — Stabilité validée (83/83 succès, 50min continues), protocole incomplet (83/100 pings). Gate selon niveau d'exigence : W3-ter peut être requis pour PASS plein.**
