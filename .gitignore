@@ -70,6 +70,7 @@ env/
 ENV/
 
 # Environment / secrets (Constitution: no secrets in repo)
+.local/
 .env
 .env.*
 !.env.example
@@ -190,3 +191,8 @@ local_sandbox_archive/
 # Test data imports (ad-hoc session files)
 data/imports/annotation/SUPPLIERS BUNDLE TEST*/
 data/test_zip/
+
+# Quarantaine P3.4 — scripts contenant secrets ou prod URL
+# DMS local secrets
+.local/secrets/
+_quarantine_p34/
