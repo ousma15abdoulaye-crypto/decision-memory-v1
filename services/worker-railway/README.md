@@ -36,10 +36,18 @@ Voir `decisions/worker/W1_worker_railway_spec.md`
 
 ## Endpoints
 
-Tous les endpoints nécessitent authentification bearer token :
+Le healthcheck Railway est public :
+```bash
+curl http://localhost:8000/healthz
+```
+
+Les endpoints opérationnels nécessitent authentification bearer token :
 ```bash
 curl -H "Authorization: Bearer <WORKER_AUTH_TOKEN>" http://localhost:8000/health
 ```
+
+### GET /healthz
+Healthcheck public sans accès DB.
 
 ### GET /health
 Health check worker + DB reachability.
@@ -70,6 +78,7 @@ Informations PostgreSQL (version, taille DB).
 
 5. Vérifier :
    ```bash
+   curl https://dms-db-worker.railway.app/healthz
    curl -H "Authorization: Bearer <TOKEN>" https://dms-db-worker.railway.app/health
    ```
 

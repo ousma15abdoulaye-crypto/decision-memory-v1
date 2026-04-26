@@ -57,7 +57,7 @@ python -c "import psycopg; print(psycopg.__version__)"  # 3.2.5
 railway run python scripts/phase1/l1d_tunnel_stability_test.py \
   --duration 2700 \
   --interval 30 \
-  --output decisions/phase1/L1_D_raw_measurements.csv
+  --output docs/reports/p34/L1_D_raw_measurements.csv
 ```
 
 **Horodatage démarrage script** : 2026-04-22T13:39:28 UTC

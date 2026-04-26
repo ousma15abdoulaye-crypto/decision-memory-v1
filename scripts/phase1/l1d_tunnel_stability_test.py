@@ -6,14 +6,13 @@ Usage:
     python scripts/phase1/l1d_tunnel_stability_test.py \
         --duration 2700 \
         --interval 30 \
-        --output decisions/phase1/L1_D_raw_measurements.csv
+        --output docs/reports/p34/L1_D_raw_measurements.csv
 
 Prérequis:
     - Tunnel Railway CLI ouvert dans un terminal séparé
       (railway connect postgres)
     - psycopg[binary] installé (pip install psycopg[binary])
-    - DATABASE_URL dans l'environnement OU connexion via tunnel local
-      sur port attendu
+    - DATABASE_URL dans l'environnement, pointant vers Railway ou le tunnel local
 
 Le script exécute `SELECT 1` à intervalles réguliers, logge latence
 et erreurs dans un CSV. Affiche progression en stdout toutes les 5 min.
@@ -41,7 +40,9 @@ def run_test(duration_sec: int, interval_sec: int, output_path: Path) -> None:
     """
     dsn = os.environ.get("DATABASE_URL")
     if not dsn:
-        print("ERROR: DATABASE_URL not set. Use: railway run python ... OR set env var.")
+        print(
+            "ERROR: DATABASE_URL not set. Use: railway run python ... OR set env var."
+        )
         sys.exit(1)
 
     start = time.monotonic()
@@ -55,7 +56,9 @@ def run_test(duration_sec: int, interval_sec: int, output_path: Path) -> None:
         writer = csv.writer(f)
         writer.writerow(["timestamp_utc", "attempt", "latency_ms", "status", "error"])
 
-        print(f"[L1-D] Starting tunnel stability test: duration={duration_sec}s, interval={interval_sec}s")
+        print(
+            f"[L1-D] Starting tunnel stability test: duration={duration_sec}s, interval={interval_sec}s"
+        )
         print(f"[L1-D] Output: {output_path}")
 
         while time.monotonic() < end_target:
@@ -83,7 +86,9 @@ def run_test(duration_sec: int, interval_sec: int, output_path: Path) -> None:
 
             if attempt % 10 == 0:
                 elapsed_min = (time.monotonic() - start) / 60
-                print(f"[L1-D] t={elapsed_min:.1f}min | attempts={attempt} | success={success} | fail={failure}")
+                print(
+                    f"[L1-D] t={elapsed_min:.1f}min | attempts={attempt} | success={success} | fail={failure}"
+                )
 
             remaining = end_target - time.monotonic()
             if remaining <= 0:
@@ -98,8 +103,18 @@ def run_test(duration_sec: int, interval_sec: int, output_path: Path) -> None:
 
 def main():
     parser = argparse.ArgumentParser(description="DMS L1-D tunnel stability test")
-    parser.add_argument("--duration", type=int, default=2700, help="Duration in seconds (default 2700 = 45min)")
-    parser.add_argument("--interval", type=int, default=30, help="Interval between requests in seconds (default 30)")
+    parser.add_argument(
+        "--duration",
+        type=int,
+        default=2700,
+        help="Duration in seconds (default 2700 = 45min)",
+    )
+    parser.add_argument(
+        "--interval",
+        type=int,
+        default=30,
+        help="Interval between requests in seconds (default 30)",
+    )
     parser.add_argument("--output", type=Path, required=True, help="Output CSV path")
     args = parser.parse_args()
 

@@ -344,7 +344,7 @@ Max:    10375.40
 ## Fichiers générés
 
 ```
-W3_bis_results.csv             # 92 lignes (83 pings + 8 info)
+docs/reports/p34/W3_bis_results.csv  # 92 lignes (83 pings + 8 info)
 W3_bis_validation.log          # Rapport validation automatique
 W3_bis_heartbeat.txt           # Timestamp dernière activité
 W3_bis_railway_logs.txt        # Vide (CLI error)

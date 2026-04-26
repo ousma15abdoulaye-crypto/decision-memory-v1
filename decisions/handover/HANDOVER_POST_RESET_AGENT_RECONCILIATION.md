@@ -34,7 +34,7 @@
 
 - `W3_bis_heartbeat.txt`
 - `W3_bis_railway_logs.txt`
-- `W3_bis_results.csv`
+- `docs/reports/p34/W3_bis_results.csv`
 - `W3_results.csv`
 - `decisions/worker/W3_MANDAT_stability_test.md`
 

@@ -5,14 +5,14 @@
 set -euo pipefail
 
 # Configuration
-URL="https://dms-db-worker-production.up.railway.app"
+URL="${DMS_DB_WORKER_URL:?DMS_DB_WORKER_URL not set}"
 TOKEN="${WORKER_AUTH_TOKEN}"
 DURATION_MIN=50
 INTERVAL_SEC=30
 EXPECTED_PINGS=100
 
 # Fichiers de sortie
-RESULTS_CSV="W3_bis_results.csv"
+RESULTS_CSV="docs/reports/p34/W3_bis_results.csv"
 HEARTBEAT_FILE="W3_bis_heartbeat.txt"
 LOGS_FILE="W3_bis_railway_logs.txt"
 VALIDATION_LOG="W3_bis_validation.log"
@@ -29,6 +29,7 @@ echo "Start time: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
 echo ""
 
 # Initialisation fichiers
+mkdir -p "$(dirname "$RESULTS_CSV")"
 echo "timestamp,endpoint,status_code,latency_ms,curl_exit_code" > "$RESULTS_CSV"
 echo "$(date +%s)" > "$HEARTBEAT_FILE"
 
@@ -83,10 +84,9 @@ while [ $(date +%s) -lt $end_epoch ]; do
 
     # Check /db/info toutes les 10 itérations
     if [ $((counter % 10)) -eq 0 ]; then
-        info_response=$(curl -s -w "%{http_code}" \
+        info_code=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer $TOKEN" \
             "$URL/db/info" 2>&1)
-        info_code=$(echo "$info_response" | tail -1)
         echo "$ts,/db/info,$info_code,," >> "$RESULTS_CSV"
 
         # Progress log
@@ -146,7 +146,7 @@ success_rate=$(awk "BEGIN {printf \"%.1f\", ($http_200_count / $ping_count) * 10
 echo "2. HTTP success rate:" | tee -a "$VALIDATION_LOG"
 echo "   - HTTP 200: $http_200_count / $ping_count ($success_rate%)" | tee -a "$VALIDATION_LOG"
 
-if (( $(echo "$success_rate >= 98" | bc -l) )); then
+if awk "BEGIN {exit !($success_rate >= 98)}"; then
     echo "   ✅ Success rate ≥ 98%" | tee -a "$VALIDATION_LOG"
 else
     echo "   ❌ FAIL: Success rate < 98%" | tee -a "$VALIDATION_LOG"
@@ -175,7 +175,7 @@ if [ "$latency_count" -gt 0 ]; then
     echo "   - P95: ${lat_p95}ms" | tee -a "$VALIDATION_LOG"
     echo "   - Max: ${lat_max}ms" | tee -a "$VALIDATION_LOG"
 
-    if (( $(echo "$lat_p95 < 150" | bc -l) )); then
+    if awk "BEGIN {exit !($lat_p95 < 150)}"; then
         echo "   ✅ P95 < 150ms (indicative target)" | tee -a "$VALIDATION_LOG"
     else
         echo "   ⚠️  P95 ≥ 150ms (above indicative target)" | tee -a "$VALIDATION_LOG"

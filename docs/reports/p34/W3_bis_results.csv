@@ -9,7 +9,7 @@ timestamp,endpoint,status_code,latency_ms,curl_exit_code
 2026-04-23T14:33:05Z,/db/ping,200,1593.41,0
 2026-04-23T14:33:41Z,/db/ping,200,2952.24,0
 2026-04-23T14:34:18Z,/db/ping,200,1403.76,0
-2026-04-23T14:34:18Z,/db/info,{"version":"PostgreSQL 17.9 (Debian 17.9-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit","database_name":"railway","database_size_bytes":117470899,"database_size_pretty":"112 MB"}200,,
+2026-04-23T14:34:18Z,/db/info,200,,
 2026-04-23T14:34:55Z,/db/ping,200,1545.26,0
 2026-04-23T14:35:29Z,/db/ping,200,1349.25,0
 2026-04-23T14:36:03Z,/db/ping,200,1430.85,0
@@ -20,7 +20,7 @@ timestamp,endpoint,status_code,latency_ms,curl_exit_code
 2026-04-23T14:38:55Z,/db/ping,200,1326.37,0
 2026-04-23T14:39:28Z,/db/ping,200,2059.67,0
 2026-04-23T14:40:01Z,/db/ping,200,1480.52,0
-2026-04-23T14:40:01Z,/db/info,{"version":"PostgreSQL 17.9 (Debian 17.9-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit","database_name":"railway","database_size_bytes":117470899,"database_size_pretty":"112 MB"}200,,
+2026-04-23T14:40:01Z,/db/info,200,,
 2026-04-23T14:40:34Z,/db/ping,200,1411.29,0
 2026-04-23T14:41:07Z,/db/ping,200,1202.36,0
 2026-04-23T14:41:41Z,/db/ping,200,2501.27,0
@@ -31,7 +31,7 @@ timestamp,endpoint,status_code,latency_ms,curl_exit_code
 2026-04-23T14:44:36Z,/db/ping,200,1372.59,0
 2026-04-23T14:45:10Z,/db/ping,200,1323.77,0
 2026-04-23T14:45:44Z,/db/ping,200,2902.64,0
-2026-04-23T14:45:44Z,/db/info,{"version":"PostgreSQL 17.9 (Debian 17.9-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit","database_name":"railway","database_size_bytes":117470899,"database_size_pretty":"112 MB"}200,,
+2026-04-23T14:45:44Z,/db/info,200,,
 2026-04-23T14:46:23Z,/db/ping,200,9029.24,0
 2026-04-23T14:47:04Z,/db/ping,200,1973.48,0
 2026-04-23T14:47:39Z,/db/ping,200,3245.53,0
@@ -42,7 +42,7 @@ timestamp,endpoint,status_code,latency_ms,curl_exit_code
 2026-04-23T14:50:37Z,/db/ping,200,1448.71,0
 2026-04-23T14:51:13Z,/db/ping,200,3882.84,0
 2026-04-23T14:51:53Z,/db/ping,200,2666.38,0
-2026-04-23T14:51:53Z,/db/info,{"version":"PostgreSQL 17.9 (Debian 17.9-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit","database_name":"railway","database_size_bytes":117470899,"database_size_pretty":"112 MB"}200,,
+2026-04-23T14:51:53Z,/db/info,200,,
 2026-04-23T14:52:33Z,/db/ping,200,3846.79,0
 2026-04-23T14:53:10Z,/db/ping,200,7484.93,0
 2026-04-23T14:53:50Z,/db/ping,200,3558.39,0
@@ -53,7 +53,7 @@ timestamp,endpoint,status_code,latency_ms,curl_exit_code
 2026-04-23T14:56:52Z,/db/ping,200,4445.83,0
 2026-04-23T14:57:29Z,/db/ping,200,4515.44,0
 2026-04-23T14:58:07Z,/db/ping,200,2656.78,0
-2026-04-23T14:58:07Z,/db/info,{"version":"PostgreSQL 17.9 (Debian 17.9-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit","database_name":"railway","database_size_bytes":117470899,"database_size_pretty":"112 MB"}200,,
+2026-04-23T14:58:07Z,/db/info,200,,
 2026-04-23T14:58:46Z,/db/ping,200,3148.89,0
 2026-04-23T14:59:23Z,/db/ping,200,2877.91,0
 2026-04-23T14:59:59Z,/db/ping,200,4190.33,0
@@ -64,7 +64,7 @@ timestamp,endpoint,status_code,latency_ms,curl_exit_code
 2026-04-23T15:03:03Z,/db/ping,200,6103.58,0
 2026-04-23T15:03:41Z,/db/ping,200,3774.59,0
 2026-04-23T15:04:19Z,/db/ping,200,2292.73,0
-2026-04-23T15:04:19Z,/db/info,{"version":"PostgreSQL 17.9 (Debian 17.9-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit","database_name":"railway","database_size_bytes":117470899,"database_size_pretty":"112 MB"}200,,
+2026-04-23T15:04:19Z,/db/info,200,,
 2026-04-23T15:04:57Z,/db/ping,200,2730.14,0
 2026-04-23T15:05:33Z,/db/ping,200,1918.86,0
 2026-04-23T15:06:09Z,/db/ping,200,6063.45,0
@@ -75,7 +75,7 @@ timestamp,endpoint,status_code,latency_ms,curl_exit_code
 2026-04-23T15:09:15Z,/db/ping,200,2240.87,0
 2026-04-23T15:09:50Z,/db/ping,200,3302.09,0
 2026-04-23T15:10:26Z,/db/ping,200,3129.34,0
-2026-04-23T15:10:26Z,/db/info,{"version":"PostgreSQL 17.9 (Debian 17.9-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit","database_name":"railway","database_size_bytes":117470899,"database_size_pretty":"112 MB"}200,,
+2026-04-23T15:10:26Z,/db/info,200,,
 2026-04-23T15:11:06Z,/db/ping,200,4884.31,0
 2026-04-23T15:11:44Z,/db/ping,200,2304.90,0
 2026-04-23T15:12:20Z,/db/ping,200,7854.27,0
@@ -86,7 +86,7 @@ timestamp,endpoint,status_code,latency_ms,curl_exit_code
 2026-04-23T15:15:41Z,/db/ping,200,3194.25,0
 2026-04-23T15:16:19Z,/db/ping,200,4266.88,0
 2026-04-23T15:16:57Z,/db/ping,200,4318.73,0
-2026-04-23T15:16:57Z,/db/info,{"version":"PostgreSQL 17.9 (Debian 17.9-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit","database_name":"railway","database_size_bytes":117470899,"database_size_pretty":"112 MB"}200,,
+2026-04-23T15:16:57Z,/db/info,200,,
 2026-04-23T15:17:40Z,/db/ping,200,4025.53,0
 2026-04-23T15:18:17Z,/db/ping,200,3871.74,0
 2026-04-23T15:18:53Z,/db/ping,200,5367.59,0
