@@ -75,25 +75,29 @@ Le dépôt contient **deux** implémentations distinctes qui appellent une capac
 
 #### 4.A — `ocr_with_mistral` (`src/assembler/ocr_mistral.py`)
 
-| Élément | Fait observé |
-|--------|----------------|
-| **Entrée** | Chemin **fichier local** (`str` / `Path`). Le fichier est lu en octets, encodé **base64**, embarqué dans un JSON : `document` = `image_url` (data URI image/jpeg, png, tiff) ou `document_url` (data URI `application/pdf`) selon l’extension. |
-| **Clé API** | `os.environ.get("MISTRAL_API_KEY", "")` — **pas** `get_mistral_api_key()` / Settings. |
-| **Appel Mistral** | `httpx.AsyncClient.post("https://api.mistral.ai/v1/ocr", ...)` avec `json={"model": MISTRAL_OCR_MODEL, "document": document}`. |
-| **Sortie** | `dict` : `raw_text` (concaténation des `page.get("markdown", "")` pour chaque entrée de `data["pages"]`), `confidence` fixé à `0.85` en succès, `ocr_engine` = `"mistral_ocr_3"`, `structured_json` = `None` ; en erreur : `raw_text` vide, `error` présent. |
-| **Persistance / suite** | Le résultat est placé dans l’état LangGraph (`raw_documents` / `ocr_result` dans `extract_node` de `graph.py`) puis traité par les nœuds suivants du Pass -1 (hors périmètre lecture détaillée ici). |
-| **GCF sans changement code** | **Partiellement, avec blocage précis** : ce chemin n’est emprunté que pour types **SCAN / IMAGE** dans Pass -1. La clé doit être dans **`MISTRAL_API_KEY`** côté **process** ; les alias `DMS_API_MISTRAL` documentés pour `annotation-backend` **ne sont pas** lus par `ocr_mistral.py`. Le flux « baseline extraction offre » GCF via `extract_offer_content` **n’utilise pas** cette fonction (voir 5). |
+
+| Élément                      | Fait observé                                                                                                                                                                                                                                                                                                                                                                                               |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Entrée**                   | Chemin **fichier local** (`str` / `Path`). Le fichier est lu en octets, encodé **base64**, embarqué dans un JSON : `document` = `image_url` (data URI image/jpeg, png, tiff) ou `document_url` (data URI `application/pdf`) selon l’extension.                                                                                                                                                             |
+| **Clé API**                  | `os.environ.get("MISTRAL_API_KEY", "")` — **pas** `get_mistral_api_key()` / Settings.                                                                                                                                                                                                                                                                                                                      |
+| **Appel Mistral**            | `httpx.AsyncClient.post("https://api.mistral.ai/v1/ocr", ...)` avec `json={"model": MISTRAL_OCR_MODEL, "document": document}`.                                                                                                                                                                                                                                                                             |
+| **Sortie**                   | `dict` : `raw_text` (concaténation des `page.get("markdown", "")` pour chaque entrée de `data["pages"]`), `confidence` fixé à `0.85` en succès, `ocr_engine` = `"mistral_ocr_3"`, `structured_json` = `None` ; en erreur : `raw_text` vide, `error` présent.                                                                                                                                               |
+| **Persistance / suite**      | Le résultat est placé dans l’état LangGraph (`raw_documents` / `ocr_result` dans `extract_node` de `graph.py`) puis traité par les nœuds suivants du Pass -1 (hors périmètre lecture détaillée ici).                                                                                                                                                                                                       |
+| **GCF sans changement code** | **Partiellement, avec blocage précis** : ce chemin n’est emprunté que pour types **SCAN / IMAGE** dans Pass -1. La clé doit être dans `**MISTRAL_API_KEY`** côté **process** ; les alias `DMS_API_MISTRAL` documentés pour `annotation-backend` **ne sont pas** lus par `ocr_mistral.py`. Le flux « baseline extraction offre » GCF via `extract_offer_content` **n’utilise pas** cette fonction (voir 5). |
+
 
 #### 4.B — `_extract_mistral_ocr` (`src/extraction/engine.py`)
 
-| Élément | Fait observé |
-|--------|----------------|
-| **Entrée** | **`storage_uri`** : chaîne chemin fichier local ; ouverture `open(storage_uri, "rb")` ; validation taille (`_MISTRAL_OCR_MAX_BYTES`) et MIME par entête (`_MISTRAL_OCR_SUPPORTED_MIMES` = `image/`, `application/pdf`). |
-| **Clé API** | `get_mistral_api_key()` → `src/core/api_keys.py` lit **`get_settings().MISTRAL_API_KEY`** uniquement (lève `APIKeyMissingError` si absent). |
-| **Appel Mistral** | Client SDK `Mistral` avec `httpx.Client(verify=...)` ; `client.files.upload(..., purpose="ocr")` puis `client.ocr.process(model=TIER_1_OCR_MODEL, document={"type": "file", "file_id": uploaded_id})` ; `files.delete` en `finally`. |
-| **Sortie** | Tuple `(raw_text: str, dict)` — `raw_text` via `_ocr_pages_to_text(response)` (markdown / texte des pages) ; second membre = `dict(STRUCTURED_DATA_EMPTY)` observé dans le code lu. |
-| **Persistance / suite** | Chaînée depuis `extract_async` / `extract_sync` : le moteur appelle `_store_extraction` / statuts document (logique dans `engine.py` hors extrait détaillé ligne par ligne dans ce mandat). |
-| **GCF sans changement code** | **Partiellement, avec blocage précis** : utilisé par le **bridge** et par l’API extractions si `extraction_method` est `mistral_ocr` (ou alias `tesseract`). Indépendant du dossier « GCF » nommé en data ; dépend des **méthodes d’extraction** et de la présence de **`MISTRAL_API_KEY`** dans Settings du service principal. |
+
+| Élément                      | Fait observé                                                                                                                                                                                                                                                                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Entrée**                   | `**storage_uri`** : chaîne chemin fichier local ; ouverture `open(storage_uri, "rb")` ; validation taille (`_MISTRAL_OCR_MAX_BYTES`) et MIME par entête (`_MISTRAL_OCR_SUPPORTED_MIMES` = `image/`, `application/pdf`).                                                                                                         |
+| **Clé API**                  | `get_mistral_api_key()` → `src/core/api_keys.py` lit `**get_settings().MISTRAL_API_KEY`** uniquement (lève `APIKeyMissingError` si absent).                                                                                                                                                                                     |
+| **Appel Mistral**            | Client SDK `Mistral` avec `httpx.Client(verify=...)` ; `client.files.upload(..., purpose="ocr")` puis `client.ocr.process(model=TIER_1_OCR_MODEL, document={"type": "file", "file_id": uploaded_id})` ; `files.delete` en `finally`.                                                                                            |
+| **Sortie**                   | Tuple `(raw_text: str, dict)` — `raw_text` via `_ocr_pages_to_text(response)` (markdown / texte des pages) ; second membre = `dict(STRUCTURED_DATA_EMPTY)` observé dans le code lu.                                                                                                                                             |
+| **Persistance / suite**      | Chaînée depuis `extract_async` / `extract_sync` : le moteur appelle `_store_extraction` / statuts document (logique dans `engine.py` hors extrait détaillé ligne par ligne dans ce mandat).                                                                                                                                     |
+| **GCF sans changement code** | **Partiellement, avec blocage précis** : utilisé par le **bridge** et par l’API extractions si `extraction_method` est `mistral_ocr` (ou alias `tesseract`). Indépendant du dossier « GCF » nommé en data ; dépend des **méthodes d’extraction** et de la présence de `**MISTRAL_API_KEY`** dans Settings du service principal. |
+
 
 #### 4.C — `/predict` (annotation-backend)
 
@@ -105,10 +109,10 @@ Le dépôt contient **deux** implémentations distinctes qui appellent une capac
 
 ### 5. Ce que ce chemin n’est pas
 
-- **`POST /predict`** (`services/annotation-backend/backend.py`) **n’est pas** le flux **Mistral OCR canonique** : c’est un flux **LLM sur texte** déjà fourni (`tasks[].data.text` ou `data.content`) ; `_call_mistral` utilise `client.chat.complete` avec `MISTRAL_MODEL` et `response_format={"type": "json_object"}` — **pas** `ocr.process` ni endpoint `/v1/ocr`.
-- **`extract_text_any`** (`src/couche_a/extraction/text_extraction.py`) **n’appelle pas** Mistral OCR : la docstring indique explicitement « OCR (Mistral / Tesseract) = M10A — hors scope ici » ; PDF → pypdf/pdfminer (+ voie LlamaParse si clés Llama présentes, dans la suite du même fichier non entièrement re-lue pour ce mandat).
-- **`extract_offer_content` / `extract_offer_content_async`** (`offer_pipeline.py`) : point d’entrée pipeline offre observé → **`extract_text_any`** puis appel **annotation backend** pour structuration — **pas** `_extract_mistral_ocr` ni `ocr_with_mistral` dans le fragment lu.
-- **Aucune technologie OCR non nommée** dans les extraits lus n’est étiquetée « Mistral OCR » autrement que **Mistral OCR 3** / **`mistral-ocr-latest`** / endpoint **`/v1/ocr`** ou **`ocr.process`**.
+- `**POST /predict`** (`services/annotation-backend/backend.py`) **n’est pas** le flux **Mistral OCR canonique** : c’est un flux **LLM sur texte** déjà fourni (`tasks[].data.text` ou `data.content`) ; `_call_mistral` utilise `client.chat.complete` avec `MISTRAL_MODEL` et `response_format={"type": "json_object"}` — **pas** `ocr.process` ni endpoint `/v1/ocr`.
+- `**extract_text_any`** (`src/couche_a/extraction/text_extraction.py`) **n’appelle pas** Mistral OCR : la docstring indique explicitement « OCR (Mistral / Tesseract) = M10A — hors scope ici » ; PDF → pypdf/pdfminer (+ voie LlamaParse si clés Llama présentes, dans la suite du même fichier non entièrement re-lue pour ce mandat).
+- `**extract_offer_content` / `extract_offer_content_async`** (`offer_pipeline.py`) : point d’entrée pipeline offre observé → `**extract_text_any**` puis appel **annotation backend** pour structuration — **pas** `_extract_mistral_ocr` ni `ocr_with_mistral` dans le fragment lu.
+- **Aucune technologie OCR non nommée** dans les extraits lus n’est étiquetée « Mistral OCR » autrement que **Mistral OCR 3** / `**mistral-ocr-latest`** / endpoint `**/v1/ocr**` ou `**ocr.process**`.
 
 ---
 
@@ -116,4 +120,4 @@ Le dépôt contient **deux** implémentations distinctes qui appellent une capac
 
 **chemin canonique identifié mais non appelable en l'état, avec blocage précis**
 
-**Motifs (factuels)** : (1) **deux** implémentations Mistral OCR coexistent (`ocr_with_mistral` httpx `/v1/ocr` vs `_extract_mistral_ocr` SDK fichiers) ; (2) **résolution de clé divergente** — Pass -1 lit seulement `MISTRAL_API_KEY` dans `os.environ`, le moteur SLA-B lit `MISTRAL_API_KEY` via **Settings** ; (3) le flux **offre / `extract_text_any`** pertinent pour une partie des scénarios « GCF » en extraction couche A **n’inclut pas** Mistral OCR dans le code inspecté ; (4) **`/predict`** est un flux **LLM texte → JSON**, pas OCR.
+**Motifs (factuels)** : (1) **deux** implémentations Mistral OCR coexistent (`ocr_with_mistral` httpx `/v1/ocr` vs `_extract_mistral_ocr` SDK fichiers) ; (2) **résolution de clé divergente** — Pass -1 lit seulement `MISTRAL_API_KEY` dans `os.environ`, le moteur SLA-B lit `MISTRAL_API_KEY` via **Settings** ; (3) le flux **offre / `extract_text_any`** pertinent pour une partie des scénarios « GCF » en extraction couche A **n’inclut pas** Mistral OCR dans le code inspecté ; (4) `**/predict`** est un flux **LLM texte → JSON**, pas OCR.
