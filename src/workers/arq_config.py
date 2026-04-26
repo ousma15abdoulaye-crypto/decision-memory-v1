@@ -27,6 +27,7 @@ from src.workers.arq_tasks import (
     detect_patterns,
     generate_candidate_rules,
     index_event,
+    rehydrate_bundle_document_raw_text_task,
     run_pass_minus_1,
 )
 
@@ -86,6 +87,7 @@ class WorkerSettings:
         index_event,
         detect_patterns,
         generate_candidate_rules,
+        rehydrate_bundle_document_raw_text_task,
         run_pass_minus_1,
         project_workspace_events_to_couche_b,
         project_sealed_workspace,
