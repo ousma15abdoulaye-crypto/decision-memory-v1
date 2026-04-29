@@ -42,8 +42,10 @@ if not WORKER_AUTH_TOKEN:
     raise ValueError("WORKER_AUTH_TOKEN environment variable is required")
 
 
-def get_arq_redis_url() -> str | None:
+def get_arq_redis_url(header_override: str | None = None) -> str | None:
     """Resolve ARQ Redis DSN without logging secret-bearing values."""
+    if header_override:
+        return header_override
     if ARQ_REDIS_URL:
         return ARQ_REDIS_URL
 
@@ -66,6 +68,7 @@ def redis_config_status() -> dict[str, bool]:
         "REDIS_PASSWORD": bool(os.getenv("REDIS_PASSWORD")),
         "REDISPORT": bool(os.getenv("REDISPORT")),
         "REDISUSER": bool(os.getenv("REDISUSER")),
+        "X_ARQ_REDIS_URL": False,
     }
 
 
@@ -255,6 +258,9 @@ async def db_info(
 async def enqueue_rehydrate(
     req: RehydrateEnqueueRequest,
     token: str = Header(None, alias="Authorization", include_in_schema=False),
+    arq_redis_url: str | None = Header(
+        None, alias="X-ARQ-Redis-URL", include_in_schema=False
+    ),
 ):
     """Enqueue the canonical document-level rehydration task.
 
@@ -262,13 +268,15 @@ async def enqueue_rehydrate(
     job. It never writes raw_text directly.
     """
     verify_token(token)
-    redis_url = get_arq_redis_url()
+    redis_url = get_arq_redis_url(arq_redis_url)
     if not redis_url:
+        status_flags = redis_config_status()
+        status_flags["X_ARQ_REDIS_URL"] = bool(arq_redis_url)
         raise HTTPException(
             status_code=503,
             detail={
                 "error": "ARQ Redis is not configured",
-                "redis_config_present": redis_config_status(),
+                "redis_config_present": status_flags,
             },
         )
 
@@ -337,6 +345,58 @@ async def enqueue_rehydrate(
     except Exception as e:
         log_exception("ERROR", "ARQ rehydrate enqueue failed", e)
         raise HTTPException(status_code=500, detail="ARQ enqueue failed")
+
+
+@app.get("/bundle-documents/{document_id}/rehydration-state")
+async def bundle_document_rehydration_state(
+    document_id: UUID,
+    workspace_id: UUID,
+    token: str = Header(None, alias="Authorization", include_in_schema=False),
+):
+    """Read-only state check for the M1 rehydration gate."""
+    verify_token(token)
+
+    try:
+        async with await psycopg.AsyncConnection.connect(
+            DATABASE_URL, connect_timeout=5
+        ) as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    SELECT id::text,
+                           workspace_id::text,
+                           bundle_id::text,
+                           filename,
+                           COALESCE(char_length(raw_text), 0) AS raw_text_len,
+                           ocr_engine,
+                           m12_doc_kind,
+                           m12_confidence,
+                           extracted_at
+                    FROM bundle_documents
+                    WHERE id = %s::uuid
+                      AND workspace_id = %s::uuid
+                    """,
+                    (str(document_id), str(workspace_id)),
+                )
+                row = await cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="bundle_document not found")
+        return {
+            "id": row[0],
+            "workspace_id": row[1],
+            "bundle_id": row[2],
+            "filename": row[3],
+            "raw_text_len": row[4],
+            "ocr_engine": row[5],
+            "m12_doc_kind": row[6],
+            "m12_confidence": float(row[7]) if row[7] is not None else None,
+            "extracted_at": row[8].isoformat() if row[8] else None,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_exception("ERROR", "Bundle document state query failed", e)
+        raise HTTPException(status_code=500, detail="Database query failed")
 
 
 @app.on_event("startup")
