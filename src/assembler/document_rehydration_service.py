@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 import logging
+import shutil
+import tempfile
+import zipfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -11,6 +16,7 @@ from typing import Any
 from uuid import UUID
 
 from src.assembler.pdf_detector import FileType, detect_file_type
+from src.core.config import get_settings, make_r2_s3_client
 from src.db import db_execute, db_execute_one, get_connection
 
 logger = logging.getLogger(__name__)
@@ -90,6 +96,83 @@ def _resolve_file_type(file_path: Path, stored_file_type: str | None) -> FileTyp
     return detect_file_type(file_path)
 
 
+def _normalized_name(value: str | None) -> str:
+    return (value or "").strip().replace("\\", "/").split("/")[-1].lower()
+
+
+def _pick_zip_member(
+    zf: zipfile.ZipFile, filename: str, storage_path: str
+) -> str | None:
+    wanted = {_normalized_name(filename), _normalized_name(storage_path)}
+    wanted.discard("")
+    candidates = [name for name in zf.namelist() if not name.endswith("/")]
+    for name in candidates:
+        if _normalized_name(name) in wanted:
+            return name
+    return None
+
+
+@contextmanager
+def _provided_path(path: Path | None) -> Iterator[Path | None]:
+    yield path
+
+
+@contextmanager
+def _document_file_from_workspace_zip(
+    conn: Any,
+    workspace_id: str,
+    filename: str,
+    storage_path: str,
+) -> Iterator[Path | None]:
+    row = db_execute_one(
+        conn,
+        """
+        SELECT zip_r2_key
+        FROM process_workspaces
+        WHERE id = CAST(:workspace_id AS uuid)
+        """,
+        {"workspace_id": workspace_id},
+    )
+    r2_key = ((row or {}).get("zip_r2_key") or "").strip()
+    if not r2_key:
+        yield None
+        return
+
+    settings = get_settings()
+    if not settings.r2_object_storage_configured():
+        yield None
+        return
+
+    s3 = make_r2_s3_client()
+    obj = s3.get_object(Bucket=settings.R2_BUCKET_NAME, Key=r2_key)
+    body = obj["Body"]
+    zip_tmp = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+    zip_tmp.close()
+    extracted_tmp: tempfile.NamedTemporaryFile | None = None
+    try:
+        with open(zip_tmp.name, "wb") as out_f:
+            shutil.copyfileobj(body, out_f, length=1024 * 1024)
+        with zipfile.ZipFile(zip_tmp.name) as zf:
+            member = _pick_zip_member(zf, filename, storage_path)
+            if not member:
+                yield None
+                return
+            suffix = Path(member).suffix or Path(filename).suffix or ".bin"
+            extracted_tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+            extracted_tmp.close()
+            with zf.open(member) as src, open(extracted_tmp.name, "wb") as dst:
+                shutil.copyfileobj(src, dst, length=1024 * 1024)
+            yield Path(extracted_tmp.name)
+    finally:
+        try:
+            body.close()
+        except Exception:
+            pass
+        Path(zip_tmp.name).unlink(missing_ok=True)
+        if extracted_tmp is not None:
+            Path(extracted_tmp.name).unlink(missing_ok=True)
+
+
 async def rehydrate_bundle_document_raw_text(
     document_id: UUID,
     workspace_id: UUID,
@@ -109,6 +192,7 @@ async def rehydrate_bundle_document_raw_text(
             """
             SELECT id::text AS id,
                    workspace_id::text AS workspace_id,
+                   filename,
                    file_type,
                    storage_path,
                    raw_text
@@ -150,15 +234,32 @@ async def rehydrate_bundle_document_raw_text(
                 document_id=document_id_str,
             )
 
-        file_path = Path(storage_path)
+        file_path: Path | None = Path(storage_path)
         if not file_path.is_file():
-            return RehydrationResult(
-                status=RehydrationStatus.FILE_NOT_ACCESSIBLE,
-                workspace_id=workspace_id_str,
-                document_id=document_id_str,
-            )
+            file_path = None
 
-        extraction = await _extract_raw_text(file_path, row.get("file_type"))
+        if file_path is None:
+            zip_file = _document_file_from_workspace_zip(
+                conn,
+                workspace_id_str,
+                row.get("filename") or "",
+                storage_path,
+            )
+        else:
+            zip_file = None
+
+        with (
+            zip_file if zip_file is not None else _provided_path(file_path)
+        ) as resolved:
+            if resolved is None or not resolved.is_file():
+                return RehydrationResult(
+                    status=RehydrationStatus.FILE_NOT_ACCESSIBLE,
+                    workspace_id=workspace_id_str,
+                    document_id=document_id_str,
+                )
+
+            extraction = await _extract_raw_text(resolved, row.get("file_type"))
+
         raw_text = extraction.get("raw_text")
         if isinstance(raw_text, str):
             raw_text = raw_text.replace("\x00", "")
