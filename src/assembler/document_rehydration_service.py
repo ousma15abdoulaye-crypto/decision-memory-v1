@@ -113,8 +113,8 @@ def _pick_zip_member(
 
 
 @contextmanager
-def _provided_path(path: Path | None) -> Iterator[Path | None]:
-    yield path
+def _provided_path(path: Path | None) -> Iterator[tuple[Path | None, str | None]]:
+    yield path, None
 
 
 @contextmanager
@@ -123,7 +123,7 @@ def _document_file_from_workspace_zip(
     workspace_id: str,
     filename: str,
     storage_path: str,
-) -> Iterator[Path | None]:
+) -> Iterator[tuple[Path | None, str | None]]:
     row = db_execute_one(
         conn,
         """
@@ -135,16 +135,20 @@ def _document_file_from_workspace_zip(
     )
     r2_key = ((row or {}).get("zip_r2_key") or "").strip()
     if not r2_key:
-        yield None
+        yield None, "workspace_zip_r2_key_missing"
         return
 
     settings = get_settings()
     if not settings.r2_object_storage_configured():
-        yield None
+        yield None, "r2_not_configured"
         return
 
     s3 = make_r2_s3_client()
-    obj = s3.get_object(Bucket=settings.R2_BUCKET_NAME, Key=r2_key)
+    try:
+        obj = s3.get_object(Bucket=settings.R2_BUCKET_NAME, Key=r2_key)
+    except Exception as exc:
+        yield None, f"r2_get_object_failed:{type(exc).__name__}"
+        return
     body = obj["Body"]
     zip_tmp = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
     zip_tmp.close()
@@ -155,14 +159,14 @@ def _document_file_from_workspace_zip(
         with zipfile.ZipFile(zip_tmp.name) as zf:
             member = _pick_zip_member(zf, filename, storage_path)
             if not member:
-                yield None
+                yield None, "zip_member_not_found"
                 return
             suffix = Path(member).suffix or Path(filename).suffix or ".bin"
             extracted_tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
             extracted_tmp.close()
             with zf.open(member) as src, open(extracted_tmp.name, "wb") as dst:
                 shutil.copyfileobj(src, dst, length=1024 * 1024)
-            yield Path(extracted_tmp.name)
+            yield Path(extracted_tmp.name), None
     finally:
         try:
             body.close()
@@ -248,14 +252,16 @@ async def rehydrate_bundle_document_raw_text(
         else:
             zip_file = None
 
-        with (
-            zip_file if zip_file is not None else _provided_path(file_path)
-        ) as resolved:
+        with zip_file if zip_file is not None else _provided_path(file_path) as (
+            resolved,
+            file_error,
+        ):
             if resolved is None or not resolved.is_file():
                 return RehydrationResult(
                     status=RehydrationStatus.FILE_NOT_ACCESSIBLE,
                     workspace_id=workspace_id_str,
                     document_id=document_id_str,
+                    error=file_error,
                 )
 
             extraction = await _extract_raw_text(resolved, row.get("file_type"))
