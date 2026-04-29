@@ -11,11 +11,15 @@ import os
 import sys
 import time
 from datetime import UTC, datetime
+from uuid import UUID
 
 import psycopg
+from arq import create_pool
+from arq.connections import RedisSettings
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 # Windows async fix for psycopg
 if sys.platform == "win32":
@@ -27,6 +31,7 @@ load_dotenv()
 # Configuration
 DATABASE_URL = os.getenv("DATABASE_URL")
 WORKER_AUTH_TOKEN = os.getenv("WORKER_AUTH_TOKEN")
+ARQ_REDIS_URL = os.getenv("ARQ_REDIS_URL") or os.getenv("REDIS_URL")
 PORT = int(os.getenv("PORT", "8000"))
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
@@ -54,6 +59,14 @@ def log_structured(level: str, message: str, **kwargs):
 def log_exception(level: str, message: str, exc: Exception) -> None:
     """Log exception class only; connection strings can appear in DB errors."""
     log_structured(level, message, error_type=type(exc).__name__)
+
+
+class RehydrateEnqueueRequest(BaseModel):
+    """Payload for controlled bundle_document raw_text rehydration enqueue."""
+
+    workspace_id: UUID
+    document_id: UUID
+    force: bool = False
 
 
 # FastAPI app
@@ -207,6 +220,87 @@ async def db_info(
     except Exception as e:
         log_exception("ERROR", "DB info query failed", e)
         raise HTTPException(status_code=500, detail="Database query failed")
+
+
+@app.post("/arq/enqueue/rehydrate", status_code=202)
+async def enqueue_rehydrate(
+    req: RehydrateEnqueueRequest,
+    token: str = Header(None, alias="Authorization", include_in_schema=False),
+):
+    """Enqueue the canonical document-level rehydration task.
+
+    This endpoint only validates the existing bundle_document and queues an ARQ
+    job. It never writes raw_text directly.
+    """
+    verify_token(token)
+    if not ARQ_REDIS_URL:
+        raise HTTPException(status_code=503, detail="ARQ Redis is not configured")
+
+    try:
+        async with await psycopg.AsyncConnection.connect(
+            DATABASE_URL, connect_timeout=5
+        ) as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    SELECT id::text,
+                           workspace_id::text,
+                           COALESCE(char_length(raw_text), 0) AS raw_text_len
+                    FROM bundle_documents
+                    WHERE id = %s::uuid
+                      AND workspace_id = %s::uuid
+                    """,
+                    (str(req.document_id), str(req.workspace_id)),
+                )
+                row = await cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="bundle_document not found")
+        if int(row[2] or 0) > 0 and not req.force:
+            raise HTTPException(
+                status_code=409,
+                detail="bundle_document already has raw_text; use force to overwrite",
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_exception("ERROR", "Rehydrate enqueue precheck failed", e)
+        raise HTTPException(status_code=500, detail="Database precheck failed")
+
+    try:
+        pool = await create_pool(RedisSettings.from_dsn(ARQ_REDIS_URL))
+        try:
+            job = await pool.enqueue_job(
+                "rehydrate_bundle_document_raw_text_task",
+                workspace_id=str(req.workspace_id),
+                document_id=str(req.document_id),
+                force=req.force,
+            )
+        finally:
+            await pool.close()
+        if job is None:
+            raise HTTPException(
+                status_code=409, detail="job already enqueued or duplicate"
+            )
+        log_structured(
+            "INFO",
+            "Rehydrate job enqueued",
+            job_id=job.job_id,
+            workspace_id=str(req.workspace_id),
+            document_id=str(req.document_id),
+            force=req.force,
+        )
+        return {
+            "job_id": job.job_id,
+            "function": "rehydrate_bundle_document_raw_text_task",
+            "workspace_id": str(req.workspace_id),
+            "document_id": str(req.document_id),
+            "force": req.force,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_exception("ERROR", "ARQ rehydrate enqueue failed", e)
+        raise HTTPException(status_code=500, detail="ARQ enqueue failed")
 
 
 @app.on_event("startup")
