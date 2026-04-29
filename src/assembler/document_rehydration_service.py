@@ -112,9 +112,64 @@ def _pick_zip_member(
     return None
 
 
+def _r2_key_candidates(storage_path: str) -> list[str]:
+    key = storage_path.strip().replace("\\", "/")
+    if not key:
+        return []
+    candidates = [key]
+    without_leading_slash = key.lstrip("/")
+    if without_leading_slash and without_leading_slash != key:
+        candidates.append(without_leading_slash)
+    return candidates
+
+
 @contextmanager
 def _provided_path(path: Path | None) -> Iterator[tuple[Path | None, str | None]]:
     yield path, None
+
+
+@contextmanager
+def _document_file_from_r2_key(
+    storage_path: str,
+    filename: str,
+) -> Iterator[tuple[Path | None, str | None]]:
+    keys = _r2_key_candidates(storage_path)
+    if not keys:
+        yield None, "r2_key_missing"
+        return
+
+    settings = get_settings()
+    if not settings.r2_object_storage_configured():
+        yield None, "r2_not_configured"
+        return
+
+    s3 = make_r2_s3_client()
+    last_error: str | None = None
+    obj = None
+    for key in keys:
+        try:
+            obj = s3.get_object(Bucket=settings.R2_BUCKET_NAME, Key=key)
+            break
+        except Exception as exc:
+            last_error = f"r2_storage_path_get_object_failed:{type(exc).__name__}"
+    if obj is None:
+        yield None, last_error
+        return
+
+    body = obj["Body"]
+    suffix = Path(keys[-1]).suffix or Path(filename).suffix or ".bin"
+    tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+    tmp.close()
+    try:
+        with open(tmp.name, "wb") as out_f:
+            shutil.copyfileobj(body, out_f, length=1024 * 1024)
+        yield Path(tmp.name), None
+    finally:
+        try:
+            body.close()
+        except Exception:
+            pass
+        Path(tmp.name).unlink(missing_ok=True)
 
 
 @contextmanager
@@ -242,20 +297,22 @@ async def rehydrate_bundle_document_raw_text(
         if not file_path.is_file():
             file_path = None
 
-        if file_path is None:
-            zip_file = _document_file_from_workspace_zip(
-                conn,
-                workspace_id_str,
-                row.get("filename") or "",
-                storage_path,
-            )
-        else:
-            zip_file = None
+        file_source = (
+            _document_file_from_r2_key(storage_path, row.get("filename") or "")
+            if file_path is None
+            else _provided_path(file_path)
+        )
+        with file_source as (resolved, file_error):
+            if resolved is None or not resolved.is_file():
+                with _document_file_from_workspace_zip(
+                    conn,
+                    workspace_id_str,
+                    row.get("filename") or "",
+                    storage_path,
+                ) as (zip_resolved, zip_error):
+                    resolved = zip_resolved
+                    file_error = file_error or zip_error
 
-        with zip_file if zip_file is not None else _provided_path(file_path) as (
-            resolved,
-            file_error,
-        ):
             if resolved is None or not resolved.is_file():
                 return RehydrationResult(
                     status=RehydrationStatus.FILE_NOT_ACCESSIBLE,

@@ -193,14 +193,16 @@ async def test_inaccessible_storage_path_falls_back_to_workspace_r2_zip() -> Non
             return True
 
     class S3:
-        def get_object(self, **_kwargs):
+        def get_object(self, **kwargs):
+            if kwargs["Key"] != "workspace.zip":
+                raise RuntimeError("not found")
             return {"Body": Body(zip_bytes.getvalue())}
 
     with (
         db_patches[0],
         db_patches[1],
         db_patches[2],
-        patch.object(Path, "is_file", side_effect=[False, True]),
+        patch.object(Path, "is_file", side_effect=[False, True, True]),
         patch(
             "src.assembler.document_rehydration_service.get_settings",
             return_value=Settings(),
@@ -224,6 +226,66 @@ async def test_inaccessible_storage_path_falls_back_to_workspace_r2_zip() -> Non
 
     assert result.status == RehydrationStatus.SUCCESS
     assert conn.executed[0][1]["raw_text"] == "Extracted text from R2 zip"
+
+
+@pytest.mark.asyncio
+async def test_inaccessible_storage_path_reads_individual_r2_object_first() -> None:
+    document_id, workspace_id = _ids()
+    conn = FakeConnection(
+        _row(
+            document_id,
+            workspace_id,
+            filename="Offre Technique.pdf",
+            storage_path="/gcf/az/offre_technique.pdf",
+        )
+    )
+    db_patches = _patch_db(conn)
+
+    class Body(BytesIO):
+        def close(self) -> None:
+            super().close()
+
+    class Settings:
+        R2_BUCKET_NAME = "bucket"
+
+        def r2_object_storage_configured(self) -> bool:
+            return True
+
+    class S3:
+        def get_object(self, **kwargs):
+            if kwargs["Key"] == "/gcf/az/offre_technique.pdf":
+                raise RuntimeError("leading slash key not found")
+            assert kwargs["Key"] == "gcf/az/offre_technique.pdf"
+            return {"Body": Body(b"%PDF-1.4 fake")}
+
+    with (
+        db_patches[0],
+        db_patches[1],
+        db_patches[2],
+        patch.object(Path, "is_file", side_effect=[False, True, True]),
+        patch(
+            "src.assembler.document_rehydration_service.get_settings",
+            return_value=Settings(),
+        ),
+        patch(
+            "src.assembler.document_rehydration_service.make_r2_s3_client",
+            return_value=S3(),
+        ),
+        patch(
+            "src.assembler.ocr_mistral.ocr_native_pdf",
+            new=AsyncMock(
+                return_value={
+                    "raw_text": "Extracted text from R2 object",
+                    "ocr_engine": "none",
+                    "confidence": 1.0,
+                }
+            ),
+        ),
+    ):
+        result = await rehydrate_bundle_document_raw_text(document_id, workspace_id)
+
+    assert result.status == RehydrationStatus.SUCCESS
+    assert conn.executed[0][1]["raw_text"] == "Extracted text from R2 object"
 
 
 @pytest.mark.asyncio
