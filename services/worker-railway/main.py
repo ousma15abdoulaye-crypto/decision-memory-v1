@@ -11,6 +11,7 @@ import os
 import sys
 import time
 from datetime import UTC, datetime
+from urllib.parse import quote
 from uuid import UUID
 
 import psycopg
@@ -39,6 +40,34 @@ if not DATABASE_URL:
     raise ValueError("DATABASE_URL environment variable is required")
 if not WORKER_AUTH_TOKEN:
     raise ValueError("WORKER_AUTH_TOKEN environment variable is required")
+
+
+def get_arq_redis_url() -> str | None:
+    """Resolve ARQ Redis DSN without logging secret-bearing values."""
+    if ARQ_REDIS_URL:
+        return ARQ_REDIS_URL
+
+    host = os.getenv("REDISHOST")
+    password = os.getenv("REDIS_PASSWORD")
+    port = os.getenv("REDISPORT", "6379")
+    user = os.getenv("REDISUSER", "default")
+    if host and password:
+        return f"redis://{quote(user)}:{quote(password)}@{host}:{port}"
+
+    return None
+
+
+def redis_config_status() -> dict[str, bool]:
+    """Return only presence flags, never Redis values."""
+    return {
+        "ARQ_REDIS_URL": bool(os.getenv("ARQ_REDIS_URL")),
+        "REDIS_URL": bool(os.getenv("REDIS_URL")),
+        "REDISHOST": bool(os.getenv("REDISHOST")),
+        "REDIS_PASSWORD": bool(os.getenv("REDIS_PASSWORD")),
+        "REDISPORT": bool(os.getenv("REDISPORT")),
+        "REDISUSER": bool(os.getenv("REDISUSER")),
+    }
+
 
 # Logging structuré JSON
 logging.basicConfig(level=getattr(logging, LOG_LEVEL.upper()), format="%(message)s")
@@ -233,8 +262,15 @@ async def enqueue_rehydrate(
     job. It never writes raw_text directly.
     """
     verify_token(token)
-    if not ARQ_REDIS_URL:
-        raise HTTPException(status_code=503, detail="ARQ Redis is not configured")
+    redis_url = get_arq_redis_url()
+    if not redis_url:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "ARQ Redis is not configured",
+                "redis_config_present": redis_config_status(),
+            },
+        )
 
     try:
         async with await psycopg.AsyncConnection.connect(
@@ -267,7 +303,7 @@ async def enqueue_rehydrate(
         raise HTTPException(status_code=500, detail="Database precheck failed")
 
     try:
-        pool = await create_pool(RedisSettings.from_dsn(ARQ_REDIS_URL))
+        pool = await create_pool(RedisSettings.from_dsn(redis_url))
         try:
             job = await pool.enqueue_job(
                 "rehydrate_bundle_document_raw_text_task",
