@@ -18,3 +18,4 @@ node_modules
 # services/annotation-backend (contexte = racine repo) échoue sur COPY …/start.sh.
 # L’image API racine ne copie pas ce dossier ; seul le contexte envoyé au daemon grossit un peu.
 services/annotation-backend/tests
+data/imports/gcf_offers

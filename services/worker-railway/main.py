@@ -11,11 +11,16 @@ import os
 import sys
 import time
 from datetime import UTC, datetime
+from urllib.parse import quote
+from uuid import UUID
 
 import psycopg
+from arq import create_pool
+from arq.connections import RedisSettings
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 # Windows async fix for psycopg
 if sys.platform == "win32":
@@ -27,6 +32,7 @@ load_dotenv()
 # Configuration
 DATABASE_URL = os.getenv("DATABASE_URL")
 WORKER_AUTH_TOKEN = os.getenv("WORKER_AUTH_TOKEN")
+ARQ_REDIS_URL = os.getenv("ARQ_REDIS_URL") or os.getenv("REDIS_URL")
 PORT = int(os.getenv("PORT", "8000"))
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
@@ -34,6 +40,37 @@ if not DATABASE_URL:
     raise ValueError("DATABASE_URL environment variable is required")
 if not WORKER_AUTH_TOKEN:
     raise ValueError("WORKER_AUTH_TOKEN environment variable is required")
+
+
+def get_arq_redis_url(header_override: str | None = None) -> str | None:
+    """Resolve ARQ Redis DSN without logging secret-bearing values."""
+    if header_override:
+        return header_override
+    if ARQ_REDIS_URL:
+        return ARQ_REDIS_URL
+
+    host = os.getenv("REDISHOST")
+    password = os.getenv("REDIS_PASSWORD")
+    port = os.getenv("REDISPORT", "6379")
+    user = os.getenv("REDISUSER", "default")
+    if host and password:
+        return f"redis://{quote(user)}:{quote(password)}@{host}:{port}"
+
+    return None
+
+
+def redis_config_status() -> dict[str, bool]:
+    """Return only presence flags, never Redis values."""
+    return {
+        "ARQ_REDIS_URL": bool(os.getenv("ARQ_REDIS_URL")),
+        "REDIS_URL": bool(os.getenv("REDIS_URL")),
+        "REDISHOST": bool(os.getenv("REDISHOST")),
+        "REDIS_PASSWORD": bool(os.getenv("REDIS_PASSWORD")),
+        "REDISPORT": bool(os.getenv("REDISPORT")),
+        "REDISUSER": bool(os.getenv("REDISUSER")),
+        "X_ARQ_REDIS_URL": False,
+    }
+
 
 # Logging structuré JSON
 logging.basicConfig(level=getattr(logging, LOG_LEVEL.upper()), format="%(message)s")
@@ -54,6 +91,22 @@ def log_structured(level: str, message: str, **kwargs):
 def log_exception(level: str, message: str, exc: Exception) -> None:
     """Log exception class only; connection strings can appear in DB errors."""
     log_structured(level, message, error_type=type(exc).__name__)
+
+
+class RehydrateEnqueueRequest(BaseModel):
+    """Payload for controlled bundle_document raw_text rehydration enqueue."""
+
+    workspace_id: UUID
+    document_id: UUID
+    force: bool = False
+
+
+class M12ClassifyEnqueueRequest(BaseModel):
+    """Payload for controlled bundle_document M12 classification enqueue."""
+
+    workspace_id: UUID
+    document_id: UUID
+    force: bool = False
 
 
 # FastAPI app
@@ -206,6 +259,246 @@ async def db_info(
         }
     except Exception as e:
         log_exception("ERROR", "DB info query failed", e)
+        raise HTTPException(status_code=500, detail="Database query failed")
+
+
+@app.post("/arq/enqueue/rehydrate", status_code=202)
+async def enqueue_rehydrate(
+    req: RehydrateEnqueueRequest,
+    token: str = Header(None, alias="Authorization", include_in_schema=False),
+    arq_redis_url: str | None = Header(
+        None, alias="X-ARQ-Redis-URL", include_in_schema=False
+    ),
+):
+    """Enqueue the canonical document-level rehydration task.
+
+    This endpoint only validates the existing bundle_document and queues an ARQ
+    job. It never writes raw_text directly.
+    """
+    verify_token(token)
+    redis_url = get_arq_redis_url(arq_redis_url)
+    if not redis_url:
+        status_flags = redis_config_status()
+        status_flags["X_ARQ_REDIS_URL"] = bool(arq_redis_url)
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "ARQ Redis is not configured",
+                "redis_config_present": status_flags,
+            },
+        )
+
+    try:
+        async with await psycopg.AsyncConnection.connect(
+            DATABASE_URL, connect_timeout=5
+        ) as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    SELECT id::text,
+                           workspace_id::text,
+                           COALESCE(char_length(raw_text), 0) AS raw_text_len
+                    FROM bundle_documents
+                    WHERE id = %s::uuid
+                      AND workspace_id = %s::uuid
+                    """,
+                    (str(req.document_id), str(req.workspace_id)),
+                )
+                row = await cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="bundle_document not found")
+        if int(row[2] or 0) > 0 and not req.force:
+            raise HTTPException(
+                status_code=409,
+                detail="bundle_document already has raw_text; use force to overwrite",
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_exception("ERROR", "Rehydrate enqueue precheck failed", e)
+        raise HTTPException(status_code=500, detail="Database precheck failed")
+
+    try:
+        pool = await create_pool(RedisSettings.from_dsn(redis_url))
+        try:
+            job = await pool.enqueue_job(
+                "rehydrate_bundle_document_raw_text_task",
+                workspace_id=str(req.workspace_id),
+                document_id=str(req.document_id),
+                force=req.force,
+            )
+        finally:
+            await pool.close()
+        if job is None:
+            raise HTTPException(
+                status_code=409, detail="job already enqueued or duplicate"
+            )
+        log_structured(
+            "INFO",
+            "Rehydrate job enqueued",
+            job_id=job.job_id,
+            workspace_id=str(req.workspace_id),
+            document_id=str(req.document_id),
+            force=req.force,
+        )
+        return {
+            "job_id": job.job_id,
+            "function": "rehydrate_bundle_document_raw_text_task",
+            "workspace_id": str(req.workspace_id),
+            "document_id": str(req.document_id),
+            "force": req.force,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_exception("ERROR", "ARQ rehydrate enqueue failed", e)
+        raise HTTPException(status_code=500, detail="ARQ enqueue failed")
+
+
+@app.post("/arq/enqueue/m12-classify", status_code=202)
+async def enqueue_m12_classify(
+    req: M12ClassifyEnqueueRequest,
+    token: str = Header(None, alias="Authorization", include_in_schema=False),
+    arq_redis_url: str | None = Header(
+        None, alias="X-ARQ-Redis-URL", include_in_schema=False
+    ),
+):
+    """Enqueue document-level M12 classification for an existing bundle_document."""
+    verify_token(token)
+    redis_url = get_arq_redis_url(arq_redis_url)
+    if not redis_url:
+        status_flags = redis_config_status()
+        status_flags["X_ARQ_REDIS_URL"] = bool(arq_redis_url)
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "ARQ Redis is not configured",
+                "redis_config_present": status_flags,
+            },
+        )
+
+    try:
+        async with await psycopg.AsyncConnection.connect(
+            DATABASE_URL, connect_timeout=5
+        ) as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    SELECT id::text,
+                           workspace_id::text,
+                           COALESCE(char_length(raw_text), 0) AS raw_text_len,
+                           m12_doc_kind
+                    FROM bundle_documents
+                    WHERE id = %s::uuid
+                      AND workspace_id = %s::uuid
+                    """,
+                    (str(req.document_id), str(req.workspace_id)),
+                )
+                row = await cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="bundle_document not found")
+        if int(row[2] or 0) <= 0:
+            raise HTTPException(
+                status_code=409,
+                detail="bundle_document raw_text is required before M12 classification",
+            )
+        if row[3] is not None and not req.force:
+            raise HTTPException(
+                status_code=409,
+                detail="bundle_document already has m12_doc_kind; use force to reclassify",
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_exception("ERROR", "M12 classify enqueue precheck failed", e)
+        raise HTTPException(status_code=500, detail="Database precheck failed")
+
+    try:
+        pool = await create_pool(RedisSettings.from_dsn(redis_url))
+        try:
+            job = await pool.enqueue_job(
+                "classify_bundle_document_m12_task",
+                workspace_id=str(req.workspace_id),
+                document_id=str(req.document_id),
+                force=req.force,
+            )
+        finally:
+            await pool.close()
+        if job is None:
+            raise HTTPException(
+                status_code=409, detail="job already enqueued or duplicate"
+            )
+        log_structured(
+            "INFO",
+            "M12 classify job enqueued",
+            job_id=job.job_id,
+            workspace_id=str(req.workspace_id),
+            document_id=str(req.document_id),
+            force=req.force,
+        )
+        return {
+            "job_id": job.job_id,
+            "function": "classify_bundle_document_m12_task",
+            "workspace_id": str(req.workspace_id),
+            "document_id": str(req.document_id),
+            "force": req.force,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_exception("ERROR", "ARQ M12 classify enqueue failed", e)
+        raise HTTPException(status_code=500, detail="ARQ enqueue failed")
+
+
+@app.get("/bundle-documents/{document_id}/rehydration-state")
+async def bundle_document_rehydration_state(
+    document_id: UUID,
+    workspace_id: UUID,
+    token: str = Header(None, alias="Authorization", include_in_schema=False),
+):
+    """Read-only state check for the M1 rehydration gate."""
+    verify_token(token)
+
+    try:
+        async with await psycopg.AsyncConnection.connect(
+            DATABASE_URL, connect_timeout=5
+        ) as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    SELECT id::text,
+                           workspace_id::text,
+                           bundle_id::text,
+                           filename,
+                           COALESCE(char_length(raw_text), 0) AS raw_text_len,
+                           ocr_engine,
+                           m12_doc_kind,
+                           m12_confidence,
+                           extracted_at
+                    FROM bundle_documents
+                    WHERE id = %s::uuid
+                      AND workspace_id = %s::uuid
+                    """,
+                    (str(document_id), str(workspace_id)),
+                )
+                row = await cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="bundle_document not found")
+        return {
+            "id": row[0],
+            "workspace_id": row[1],
+            "bundle_id": row[2],
+            "filename": row[3],
+            "raw_text_len": row[4],
+            "ocr_engine": row[5],
+            "m12_doc_kind": row[6],
+            "m12_confidence": float(row[7]) if row[7] is not None else None,
+            "extracted_at": row[8].isoformat() if row[8] else None,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_exception("ERROR", "Bundle document state query failed", e)
         raise HTTPException(status_code=500, detail="Database query failed")
 
 

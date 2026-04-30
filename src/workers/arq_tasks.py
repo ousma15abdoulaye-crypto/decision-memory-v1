@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import shutil
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -109,6 +110,76 @@ async def detect_patterns(ctx: dict[str, Any]) -> int:
 async def generate_candidate_rules(ctx: dict[str, Any]) -> int:
     """Alias for detect_patterns — kept for backward compat / independent scheduling."""
     return await detect_patterns(ctx)
+
+
+async def rehydrate_bundle_document_raw_text_task(
+    ctx: dict[str, Any],
+    workspace_id: str,
+    document_id: str,
+    force: bool = False,
+) -> dict[str, Any]:
+    """ARQ task for controlled document-level raw_text rehydration."""
+    from uuid import UUID
+
+    from src.assembler.document_rehydration_service import (
+        rehydrate_bundle_document_raw_text,
+    )
+
+    start = time.perf_counter()
+    result = await rehydrate_bundle_document_raw_text(
+        document_id=UUID(document_id),
+        workspace_id=UUID(workspace_id),
+        force=force,
+    )
+    duration_ms = round((time.perf_counter() - start) * 1000, 2)
+    payload = result.log_payload()
+    payload["duration_ms"] = duration_ms
+
+    logger.info(
+        "[REHYDRATE-TASK] workspace=%s document=%s status=%s raw_text_len=%d "
+        "engine=%s duration_ms=%.2f",
+        workspace_id,
+        document_id,
+        payload["status"],
+        payload["raw_text_len"],
+        payload["ocr_engine"],
+        duration_ms,
+    )
+    return payload
+
+
+async def classify_bundle_document_m12_task(
+    ctx: dict[str, Any],
+    workspace_id: str,
+    document_id: str,
+    force: bool = False,
+) -> dict[str, Any]:
+    """ARQ task for controlled document-level M12 classification."""
+    from uuid import UUID
+
+    from src.assembler.document_m12_service import classify_bundle_document_m12
+
+    start = time.perf_counter()
+    result = classify_bundle_document_m12(
+        document_id=UUID(document_id),
+        workspace_id=UUID(workspace_id),
+        force=force,
+    )
+    duration_ms = round((time.perf_counter() - start) * 1000, 2)
+    payload = result.log_payload()
+    payload["duration_ms"] = duration_ms
+
+    logger.info(
+        "[M12-DOC-TASK] workspace=%s document=%s status=%s kind=%s conf=%s "
+        "duration_ms=%.2f",
+        workspace_id,
+        document_id,
+        payload["status"],
+        payload["m12_doc_kind"],
+        payload["m12_confidence"],
+        duration_ms,
+    )
+    return payload
 
 
 async def run_pass_minus_1(
