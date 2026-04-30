@@ -109,7 +109,7 @@ async def test_qualify_supplier_bundle_gate_b_task_calls_service() -> None:
             vendor_name_raw="AZ",
             gate_b_role="scorable",
             gate_b_reason_codes=["supplier_offer_with_present_raw_text"],
-            qualification_status="qualified",
+            qualification_status="pending",
             completeness_score=1 / 3,
             missing_documents=["nif", "rccm"],
             doc_count=1,
@@ -135,5 +135,5 @@ async def test_qualify_supplier_bundle_gate_b_task_calls_service() -> None:
     assert result["status"] == "SUCCESS"
     assert result["gate_b_role"] == "scorable"
     assert result["gate_b_reason_codes"] == ["supplier_offer_with_present_raw_text"]
-    assert result["qualification_status"] == "qualified"
+    assert result["qualification_status"] == "pending"
     assert "duration_ms" in result

@@ -10,15 +10,12 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
-from src.assembler.graph import _check_completeness
 from src.db import db_execute, db_execute_one, db_fetchall, get_connection
 
 logger = logging.getLogger(__name__)
 
 SERVICE_NAME = "bundle_gate_b_service"
-SCORABLE_GATE_B_ROLE = "scorable"
-QUALIFIED_STATUS = "qualified"
-PENDING_STATUS = "pending"
+REQUIRED_DOC_TYPES = {"offer_combined", "nif", "rccm"}
 
 
 class BundleGateBRole(StrEnum):
@@ -74,12 +71,6 @@ class BundleGateBQualificationResult:
         }
 
 
-def _qualification_status_for_gate_b(gate_b_role: str) -> str:
-    if gate_b_role == SCORABLE_GATE_B_ROLE:
-        return QUALIFIED_STATUS
-    return PENDING_STATUS
-
-
 def _docs_with_text(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [r for r in rows if str(r.get("raw_text") or "").strip()]
 
@@ -95,6 +86,13 @@ def _rows_for_completeness(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         doc["doc_type"] = doc.get("m12_doc_kind") or doc.get("doc_type")
         normalized.append(doc)
     return normalized
+
+
+def _check_completeness(rows: list[dict[str, Any]]) -> tuple[float, list[str]]:
+    present = {str(d.get("doc_type") or "other") for d in rows}
+    missing = sorted(REQUIRED_DOC_TYPES - present)
+    score = len(REQUIRED_DOC_TYPES - set(missing)) / len(REQUIRED_DOC_TYPES)
+    return score, missing
 
 
 def _reason_codes(reason: str) -> list[str]:
@@ -256,7 +254,7 @@ def qualify_supplier_bundle_gate_b(
         role_upper, reason = gate_b_classify_bundle_for_m14(rows)
         gate_b_role = role_upper.lower()
         gate_b_reason_codes = _reason_codes(reason)
-        qualification_status = _qualification_status_for_gate_b(gate_b_role)
+        qualification_status = bundle.get("qualification_status")
         evidence = _build_evidence(
             rows,
             gate_b_role=gate_b_role,
@@ -274,7 +272,6 @@ def qualify_supplier_bundle_gate_b(
                 gate_b_evidence = CAST(:gate_b_evidence AS jsonb),
                 gate_b_evaluated_at = :gate_b_evaluated_at,
                 gate_b_evaluated_by = :gate_b_evaluated_by,
-                qualification_status = :qualification_status,
                 completeness_score = :completeness_score,
                 missing_documents = :missing_documents
             WHERE id = CAST(:bundle_id AS uuid)
@@ -286,7 +283,6 @@ def qualify_supplier_bundle_gate_b(
                 "gate_b_evidence": json.dumps(evidence, ensure_ascii=False),
                 "gate_b_evaluated_at": datetime.now(UTC),
                 "gate_b_evaluated_by": SERVICE_NAME,
-                "qualification_status": qualification_status,
                 "completeness_score": completeness_score,
                 "missing_documents": missing_documents,
                 "bundle_id": bundle_id_str,

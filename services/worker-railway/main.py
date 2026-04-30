@@ -498,7 +498,9 @@ async def enqueue_bundle_gate_b_qualify(
                                WHERE bd.m12_doc_kind IS NOT NULL
                            ) AS docs_with_m12
                     FROM supplier_bundles sb
-                    LEFT JOIN bundle_documents bd ON bd.bundle_id = sb.id
+                    LEFT JOIN bundle_documents bd
+                      ON bd.bundle_id = sb.id
+                     AND bd.workspace_id = sb.workspace_id
                     WHERE sb.id = %s::uuid
                       AND sb.workspace_id = %s::uuid
                     GROUP BY sb.id

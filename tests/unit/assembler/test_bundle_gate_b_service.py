@@ -103,7 +103,7 @@ def test_qualifies_scorable_offer_bundle_without_touching_scoring() -> None:
     assert result.updated is True
     assert result.gate_b_role == "scorable"
     assert result.gate_b_reason_codes == ["supplier_offer_with_present_raw_text"]
-    assert result.qualification_status == "qualified"
+    assert result.qualification_status == "pending"
     assert result.completeness_score == 1 / 3
     assert result.missing_documents == ["nif", "rccm"]
     assert conn.executed
@@ -112,7 +112,7 @@ def test_qualifies_scorable_offer_bundle_without_touching_scoring() -> None:
     assert "gate_b_reason_codes" in sql
     assert "gate_b_evaluated_at" in sql
     assert "gate_b_evaluated_by" in sql
-    assert "qualification_status" in sql
+    assert "qualification_status =" not in sql
     assert "completeness_score" in sql
     assert "raw_text" not in sql
     assert "evaluation_documents" not in sql
