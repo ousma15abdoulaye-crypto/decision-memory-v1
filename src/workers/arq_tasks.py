@@ -182,6 +182,40 @@ async def classify_bundle_document_m12_task(
     return payload
 
 
+async def qualify_supplier_bundle_gate_b_task(
+    ctx: dict[str, Any],
+    workspace_id: str,
+    bundle_id: str,
+    force: bool = False,
+) -> dict[str, Any]:
+    """ARQ task for controlled V1.1 Gate B bundle qualification."""
+    from uuid import UUID
+
+    from src.procurement.bundle_gate_b_service import qualify_supplier_bundle_gate_b
+
+    start = time.perf_counter()
+    result = qualify_supplier_bundle_gate_b(
+        workspace_id=UUID(workspace_id),
+        bundle_id=UUID(bundle_id),
+        force=force,
+    )
+    duration_ms = round((time.perf_counter() - start) * 1000, 2)
+    payload = result.log_payload()
+    payload["duration_ms"] = duration_ms
+
+    logger.info(
+        "[GATE-B-BUNDLE-TASK] workspace=%s bundle=%s status=%s gate_b_role=%s "
+        "qualification=%s duration_ms=%.2f",
+        workspace_id,
+        bundle_id,
+        payload["status"],
+        payload["gate_b_role"],
+        payload["qualification_status"],
+        duration_ms,
+    )
+    return payload
+
+
 async def run_pass_minus_1(
     ctx: dict[str, Any],
     workspace_id: str,

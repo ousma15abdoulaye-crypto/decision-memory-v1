@@ -157,6 +157,8 @@ VALID_ALEMBIC_HEADS = (
     "e7df16ec18ee",
     # P3.2 — scoring schema dao_criteria + process_workspaces (migration 101)
     "101_p32_dao_criteria_scoring_schema",
+    # V1.1 M3 — Gate B qualification persisted on supplier_bundles
+    "102_v11_bundle_gate_b_role",
 )
 
 
