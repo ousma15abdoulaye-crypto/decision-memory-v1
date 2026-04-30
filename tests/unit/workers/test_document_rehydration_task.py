@@ -13,6 +13,10 @@ from src.assembler.document_rehydration_service import (
     RehydrationResult,
     RehydrationStatus,
 )
+from src.procurement.bundle_gate_b_service import (
+    BundleGateBQualificationResult,
+    BundleGateBQualificationStatus,
+)
 
 
 @pytest.mark.asyncio
@@ -88,4 +92,48 @@ async def test_classify_bundle_document_m12_task_calls_service() -> None:
     assert result["status"] == "SUCCESS"
     assert result["m12_doc_kind"] == "offer_combined"
     assert result["m12_confidence"] == 0.8
+    assert "duration_ms" in result
+
+
+@pytest.mark.asyncio
+async def test_qualify_supplier_bundle_gate_b_task_calls_service() -> None:
+    from src.workers.arq_tasks import qualify_supplier_bundle_gate_b_task
+
+    workspace_id = uuid.uuid4()
+    bundle_id = uuid.uuid4()
+    service = Mock(
+        return_value=BundleGateBQualificationResult(
+            status=BundleGateBQualificationStatus.SUCCESS,
+            workspace_id=str(workspace_id),
+            bundle_id=str(bundle_id),
+            vendor_name_raw="AZ",
+            gate_b_role="scorable",
+            gate_b_reason_codes=["supplier_offer_with_present_raw_text"],
+            qualification_status="qualified",
+            completeness_score=1 / 3,
+            missing_documents=["nif", "rccm"],
+            doc_count=1,
+            docs_with_text=1,
+            docs_with_m12=1,
+            updated=True,
+        )
+    )
+
+    with patch(
+        "src.procurement.bundle_gate_b_service.qualify_supplier_bundle_gate_b",
+        service,
+    ):
+        result = await qualify_supplier_bundle_gate_b_task(
+            {}, str(workspace_id), str(bundle_id), force=True
+        )
+
+    service.assert_called_once_with(
+        workspace_id=workspace_id,
+        bundle_id=bundle_id,
+        force=True,
+    )
+    assert result["status"] == "SUCCESS"
+    assert result["gate_b_role"] == "scorable"
+    assert result["gate_b_reason_codes"] == ["supplier_offer_with_present_raw_text"]
+    assert result["qualification_status"] == "qualified"
     assert "duration_ms" in result
