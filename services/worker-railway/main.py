@@ -109,6 +109,14 @@ class M12ClassifyEnqueueRequest(BaseModel):
     force: bool = False
 
 
+class BundleGateBEnqueueRequest(BaseModel):
+    """Payload for controlled supplier_bundle Gate B qualification enqueue."""
+
+    workspace_id: UUID
+    bundle_id: UUID
+    force: bool = False
+
+
 # FastAPI app
 app = FastAPI(title="DMS Worker Railway", version="1.0.0")
 
@@ -447,6 +455,119 @@ async def enqueue_m12_classify(
         raise
     except Exception as e:
         log_exception("ERROR", "ARQ M12 classify enqueue failed", e)
+        raise HTTPException(status_code=500, detail="ARQ enqueue failed")
+
+
+@app.post("/arq/enqueue/bundle-gate-b-qualify", status_code=202)
+async def enqueue_bundle_gate_b_qualify(
+    req: BundleGateBEnqueueRequest,
+    token: str = Header(None, alias="Authorization", include_in_schema=False),
+    arq_redis_url: str | None = Header(
+        None, alias="X-ARQ-Redis-URL", include_in_schema=False
+    ),
+):
+    """Enqueue Gate B qualification for an existing supplier_bundle."""
+    verify_token(token)
+    redis_url = get_arq_redis_url(arq_redis_url)
+    if not redis_url:
+        status_flags = redis_config_status()
+        status_flags["X_ARQ_REDIS_URL"] = bool(arq_redis_url)
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "ARQ Redis is not configured",
+                "redis_config_present": status_flags,
+            },
+        )
+
+    try:
+        async with await psycopg.AsyncConnection.connect(
+            DATABASE_URL, connect_timeout=5
+        ) as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    SELECT sb.id::text,
+                           sb.workspace_id::text,
+                           sb.gate_b_role,
+                           COUNT(bd.id) AS doc_count,
+                           COUNT(*) FILTER (
+                               WHERE char_length(coalesce(bd.raw_text,'')) > 0
+                           ) AS docs_with_text,
+                           COUNT(*) FILTER (
+                               WHERE bd.m12_doc_kind IS NOT NULL
+                           ) AS docs_with_m12
+                    FROM supplier_bundles sb
+                    LEFT JOIN bundle_documents bd ON bd.bundle_id = sb.id
+                    WHERE sb.id = %s::uuid
+                      AND sb.workspace_id = %s::uuid
+                    GROUP BY sb.id
+                    """,
+                    (str(req.bundle_id), str(req.workspace_id)),
+                )
+                row = await cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="supplier_bundle not found")
+        if row[2] is not None and not req.force:
+            raise HTTPException(
+                status_code=409,
+                detail="supplier_bundle already has gate_b_role; use force to re-evaluate",
+            )
+        if int(row[3] or 0) <= 0:
+            raise HTTPException(
+                status_code=409,
+                detail="supplier_bundle requires bundle_documents before Gate B qualification",
+            )
+        if int(row[4] or 0) <= 0:
+            raise HTTPException(
+                status_code=409,
+                detail="supplier_bundle requires raw_text before Gate B qualification",
+            )
+        if int(row[5] or 0) < int(row[4] or 0):
+            raise HTTPException(
+                status_code=409,
+                detail="supplier_bundle requires M12 on text documents before Gate B qualification",
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_exception("ERROR", "Gate B bundle enqueue precheck failed", e)
+        raise HTTPException(status_code=500, detail="Database precheck failed")
+
+    try:
+        pool = await create_pool(RedisSettings.from_dsn(redis_url))
+        try:
+            job = await pool.enqueue_job(
+                "qualify_supplier_bundle_gate_b_task",
+                workspace_id=str(req.workspace_id),
+                bundle_id=str(req.bundle_id),
+                force=req.force,
+            )
+        finally:
+            await pool.close()
+        if job is None:
+            raise HTTPException(
+                status_code=409, detail="job already enqueued or duplicate"
+            )
+        log_structured(
+            "INFO",
+            "Gate B bundle qualify job enqueued",
+            job_id=job.job_id,
+            workspace_id=str(req.workspace_id),
+            bundle_id=str(req.bundle_id),
+            force=req.force,
+        )
+        return {
+            "job_id": job.job_id,
+            "function": "qualify_supplier_bundle_gate_b_task",
+            "workspace_id": str(req.workspace_id),
+            "bundle_id": str(req.bundle_id),
+            "force": req.force,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_exception("ERROR", "ARQ Gate B bundle qualify enqueue failed", e)
         raise HTTPException(status_code=500, detail="ARQ enqueue failed")
 
 
