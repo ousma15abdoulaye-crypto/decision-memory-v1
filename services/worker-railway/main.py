@@ -101,6 +101,14 @@ class RehydrateEnqueueRequest(BaseModel):
     force: bool = False
 
 
+class M12ClassifyEnqueueRequest(BaseModel):
+    """Payload for controlled bundle_document M12 classification enqueue."""
+
+    workspace_id: UUID
+    document_id: UUID
+    force: bool = False
+
+
 # FastAPI app
 app = FastAPI(title="DMS Worker Railway", version="1.0.0")
 
@@ -344,6 +352,101 @@ async def enqueue_rehydrate(
         raise
     except Exception as e:
         log_exception("ERROR", "ARQ rehydrate enqueue failed", e)
+        raise HTTPException(status_code=500, detail="ARQ enqueue failed")
+
+
+@app.post("/arq/enqueue/m12-classify", status_code=202)
+async def enqueue_m12_classify(
+    req: M12ClassifyEnqueueRequest,
+    token: str = Header(None, alias="Authorization", include_in_schema=False),
+    arq_redis_url: str | None = Header(
+        None, alias="X-ARQ-Redis-URL", include_in_schema=False
+    ),
+):
+    """Enqueue document-level M12 classification for an existing bundle_document."""
+    verify_token(token)
+    redis_url = get_arq_redis_url(arq_redis_url)
+    if not redis_url:
+        status_flags = redis_config_status()
+        status_flags["X_ARQ_REDIS_URL"] = bool(arq_redis_url)
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "ARQ Redis is not configured",
+                "redis_config_present": status_flags,
+            },
+        )
+
+    try:
+        async with await psycopg.AsyncConnection.connect(
+            DATABASE_URL, connect_timeout=5
+        ) as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    SELECT id::text,
+                           workspace_id::text,
+                           COALESCE(char_length(raw_text), 0) AS raw_text_len,
+                           m12_doc_kind
+                    FROM bundle_documents
+                    WHERE id = %s::uuid
+                      AND workspace_id = %s::uuid
+                    """,
+                    (str(req.document_id), str(req.workspace_id)),
+                )
+                row = await cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="bundle_document not found")
+        if int(row[2] or 0) <= 0:
+            raise HTTPException(
+                status_code=409,
+                detail="bundle_document raw_text is required before M12 classification",
+            )
+        if row[3] is not None and not req.force:
+            raise HTTPException(
+                status_code=409,
+                detail="bundle_document already has m12_doc_kind; use force to reclassify",
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_exception("ERROR", "M12 classify enqueue precheck failed", e)
+        raise HTTPException(status_code=500, detail="Database precheck failed")
+
+    try:
+        pool = await create_pool(RedisSettings.from_dsn(redis_url))
+        try:
+            job = await pool.enqueue_job(
+                "classify_bundle_document_m12_task",
+                workspace_id=str(req.workspace_id),
+                document_id=str(req.document_id),
+                force=req.force,
+            )
+        finally:
+            await pool.close()
+        if job is None:
+            raise HTTPException(
+                status_code=409, detail="job already enqueued or duplicate"
+            )
+        log_structured(
+            "INFO",
+            "M12 classify job enqueued",
+            job_id=job.job_id,
+            workspace_id=str(req.workspace_id),
+            document_id=str(req.document_id),
+            force=req.force,
+        )
+        return {
+            "job_id": job.job_id,
+            "function": "classify_bundle_document_m12_task",
+            "workspace_id": str(req.workspace_id),
+            "document_id": str(req.document_id),
+            "force": req.force,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_exception("ERROR", "ARQ M12 classify enqueue failed", e)
         raise HTTPException(status_code=500, detail="ARQ enqueue failed")
 
 

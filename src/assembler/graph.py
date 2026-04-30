@@ -207,7 +207,8 @@ def _route_hitl(state: PassMinusOneState) -> str:
     return "ok"
 
 
-def _classify_document_type(raw_text: str, filename: str) -> str:
+def classify_document_type_for_pass_minus_one(raw_text: str, filename: str) -> str:
+    """Return the existing Pass-1 M12 document kind for raw text and filename."""
     text_lower = (raw_text + " " + filename).lower()
     if any(k in text_lower for k in ["offre", "prix", "montant", "total"]):
         return "offer_combined"
@@ -218,6 +219,10 @@ def _classify_document_type(raw_text: str, filename: str) -> str:
     if "rib" in text_lower or "relevé d'identité" in text_lower:
         return "rib"
     return "other"
+
+
+def _classify_document_type(raw_text: str, filename: str) -> str:
+    return classify_document_type_for_pass_minus_one(raw_text, filename)
 
 
 def resolve_bundle_vendor_key(raw_text: str, zip_entry_filename: str) -> str:
