@@ -216,6 +216,41 @@ async def qualify_supplier_bundle_gate_b_task(
     return payload
 
 
+async def extract_supplier_bundle_offer_task(
+    ctx: dict[str, Any],
+    workspace_id: str,
+    bundle_id: str,
+    force: bool = False,
+) -> dict[str, Any]:
+    """ARQ task for controlled bundle-level offer extraction."""
+    from uuid import UUID
+
+    from src.procurement.bundle_offer_extraction_service import (
+        extract_supplier_bundle_offer_async,
+    )
+
+    start = time.perf_counter()
+    result = await extract_supplier_bundle_offer_async(
+        workspace_id=UUID(workspace_id),
+        bundle_id=UUID(bundle_id),
+        force=force,
+    )
+    duration_ms = round((time.perf_counter() - start) * 1000, 2)
+    payload = result.log_payload()
+    payload["duration_ms"] = duration_ms
+
+    logger.info(
+        "[BUNDLE-OFFER-EXTRACT-TASK] workspace=%s bundle=%s status=%s "
+        "extraction_id=%s duration_ms=%.2f",
+        workspace_id,
+        bundle_id,
+        payload["status"],
+        payload["extraction_id"],
+        duration_ms,
+    )
+    return payload
+
+
 async def run_pass_minus_1(
     ctx: dict[str, Any],
     workspace_id: str,
