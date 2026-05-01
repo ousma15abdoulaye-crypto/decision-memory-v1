@@ -17,6 +17,10 @@ from src.procurement.bundle_gate_b_service import (
     BundleGateBQualificationResult,
     BundleGateBQualificationStatus,
 )
+from src.procurement.bundle_offer_extraction_service import (
+    BundleOfferExtractionResult,
+    BundleOfferExtractionStatus,
+)
 
 
 @pytest.mark.asyncio
@@ -136,4 +140,45 @@ async def test_qualify_supplier_bundle_gate_b_task_calls_service() -> None:
     assert result["gate_b_role"] == "scorable"
     assert result["gate_b_reason_codes"] == ["supplier_offer_with_present_raw_text"]
     assert result["qualification_status"] == "pending"
+    assert "duration_ms" in result
+
+
+@pytest.mark.asyncio
+async def test_extract_supplier_bundle_offer_task_calls_service() -> None:
+    from src.workers.arq_tasks import extract_supplier_bundle_offer_task
+
+    workspace_id = uuid.uuid4()
+    bundle_id = uuid.uuid4()
+    service = AsyncMock(
+        return_value=BundleOfferExtractionResult(
+            status=BundleOfferExtractionStatus.SUCCESS,
+            workspace_id=str(workspace_id),
+            bundle_id=str(bundle_id),
+            vendor_name_raw="AZ",
+            extraction_id="extraction-1",
+            supplier_name="AZ",
+            doc_count=1,
+            offer_doc_count=1,
+            raw_text_len=42,
+            updated=True,
+        )
+    )
+
+    with patch(
+        "src.procurement.bundle_offer_extraction_service."
+        "extract_supplier_bundle_offer_async",
+        service,
+    ):
+        result = await extract_supplier_bundle_offer_task(
+            {}, str(workspace_id), str(bundle_id), force=True
+        )
+
+    service.assert_awaited_once_with(
+        workspace_id=workspace_id,
+        bundle_id=bundle_id,
+        force=True,
+    )
+    assert result["status"] == "SUCCESS"
+    assert result["extraction_id"] == "extraction-1"
+    assert result["supplier_name"] == "AZ"
     assert "duration_ms" in result

@@ -117,6 +117,14 @@ class BundleGateBEnqueueRequest(BaseModel):
     force: bool = False
 
 
+class BundleOfferExtractionEnqueueRequest(BaseModel):
+    """Payload for controlled supplier_bundle offer extraction enqueue."""
+
+    workspace_id: UUID
+    bundle_id: UUID
+    force: bool = False
+
+
 # FastAPI app
 app = FastAPI(title="DMS Worker Railway", version="1.0.0")
 
@@ -570,6 +578,157 @@ async def enqueue_bundle_gate_b_qualify(
         raise
     except Exception as e:
         log_exception("ERROR", "ARQ Gate B bundle qualify enqueue failed", e)
+        raise HTTPException(status_code=500, detail="ARQ enqueue failed")
+
+
+@app.post("/arq/enqueue/bundle-offer-extract", status_code=202)
+async def enqueue_bundle_offer_extract(
+    req: BundleOfferExtractionEnqueueRequest,
+    token: str = Header(None, alias="Authorization", include_in_schema=False),
+    arq_redis_url: str | None = Header(
+        None, alias="X-ARQ-Redis-URL", include_in_schema=False
+    ),
+):
+    """Enqueue offer extraction for one scorable supplier_bundle only."""
+    verify_token(token)
+    redis_url = get_arq_redis_url(arq_redis_url)
+    if not redis_url:
+        status_flags = redis_config_status()
+        status_flags["X_ARQ_REDIS_URL"] = bool(arq_redis_url)
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "ARQ Redis is not configured",
+                "redis_config_present": status_flags,
+            },
+        )
+
+    try:
+        async with await psycopg.AsyncConnection.connect(
+            DATABASE_URL, connect_timeout=5
+        ) as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    SELECT sb.id::text,
+                           sb.workspace_id::text,
+                           sb.gate_b_role,
+                           COUNT(bd.id) AS doc_count,
+                           COUNT(*) FILTER (
+                               WHERE char_length(coalesce(bd.raw_text,'')) > 0
+                           ) AS docs_with_text,
+                           COUNT(*) FILTER (
+                               WHERE char_length(coalesce(bd.raw_text,'')) > 0
+                                 AND bd.m12_doc_kind IS NOT NULL
+                           ) AS text_docs_with_m12,
+                           COUNT(*) FILTER (
+                               WHERE char_length(coalesce(bd.raw_text,'')) > 0
+                                 AND (
+                                     lower(coalesce(bd.m12_doc_kind,'')) IN (
+                                         'offer',
+                                         'quotation',
+                                         'vendor_offer',
+                                         'offer_technical',
+                                         'offer_financial',
+                                         'offer_combined'
+                                     )
+                                     OR lower(coalesce(bd.doc_type::text,'')) IN (
+                                         'offer',
+                                         'quotation',
+                                         'vendor_offer',
+                                         'offer_technical',
+                                         'offer_financial',
+                                         'offer_combined'
+                                     )
+                                 )
+                           ) AS offer_docs_with_text,
+                           COUNT(oe.id) AS existing_extractions
+                    FROM supplier_bundles sb
+                    LEFT JOIN bundle_documents bd
+                      ON bd.bundle_id = sb.id
+                     AND bd.workspace_id = sb.workspace_id
+                    LEFT JOIN offer_extractions oe
+                      ON oe.bundle_id = sb.id
+                     AND oe.workspace_id = sb.workspace_id
+                    WHERE sb.id = %s::uuid
+                      AND sb.workspace_id = %s::uuid
+                    GROUP BY sb.id
+                    """,
+                    (str(req.bundle_id), str(req.workspace_id)),
+                )
+                row = await cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="supplier_bundle not found")
+        if str(row[2] or "").strip().lower() != "scorable":
+            raise HTTPException(
+                status_code=409,
+                detail="supplier_bundle must have gate_b_role=scorable before offer extraction",
+            )
+        if int(row[7] or 0) > 0 and not req.force:
+            raise HTTPException(
+                status_code=409,
+                detail="supplier_bundle already has offer_extractions; use force to re-extract",
+            )
+        if int(row[3] or 0) <= 0:
+            raise HTTPException(
+                status_code=409,
+                detail="supplier_bundle requires bundle_documents before offer extraction",
+            )
+        if int(row[4] or 0) <= 0:
+            raise HTTPException(
+                status_code=409,
+                detail="supplier_bundle requires raw_text before offer extraction",
+            )
+        if int(row[5] or 0) < int(row[4] or 0):
+            raise HTTPException(
+                status_code=409,
+                detail="supplier_bundle requires M12 on text documents before offer extraction",
+            )
+        if int(row[6] or 0) <= 0:
+            raise HTTPException(
+                status_code=409,
+                detail="supplier_bundle requires an offer document before offer extraction",
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_exception("ERROR", "Bundle offer extraction enqueue precheck failed", e)
+        raise HTTPException(status_code=500, detail="Database precheck failed")
+
+    try:
+        pool = await create_pool(RedisSettings.from_dsn(redis_url))
+        try:
+            job = await pool.enqueue_job(
+                "extract_supplier_bundle_offer_task",
+                workspace_id=str(req.workspace_id),
+                bundle_id=str(req.bundle_id),
+                force=req.force,
+            )
+        finally:
+            await pool.close()
+        if job is None:
+            raise HTTPException(
+                status_code=409, detail="job already enqueued or duplicate"
+            )
+        log_structured(
+            "INFO",
+            "Bundle offer extraction job enqueued",
+            job_id=job.job_id,
+            workspace_id=str(req.workspace_id),
+            bundle_id=str(req.bundle_id),
+            force=req.force,
+        )
+        return {
+            "job_id": job.job_id,
+            "function": "extract_supplier_bundle_offer_task",
+            "workspace_id": str(req.workspace_id),
+            "bundle_id": str(req.bundle_id),
+            "force": req.force,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_exception("ERROR", "ARQ bundle offer extraction enqueue failed", e)
         raise HTTPException(status_code=500, detail="ARQ enqueue failed")
 
 
