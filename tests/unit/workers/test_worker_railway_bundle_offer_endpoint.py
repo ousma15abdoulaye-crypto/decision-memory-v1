@@ -11,8 +11,9 @@ from fastapi.testclient import TestClient
 
 
 class FakeCursor:
-    def __init__(self, row):
+    def __init__(self, row=None, rows=None):
         self.row = row
+        self.rows = rows or []
 
     async def __aenter__(self):
         return self
@@ -26,10 +27,26 @@ class FakeCursor:
     async def fetchone(self):
         return self.row
 
+    async def fetchall(self):
+        return self.rows
+
+
+class FakeCursorContext:
+    def __init__(self, cursor):
+        self.cursor = cursor
+
+    async def __aenter__(self):
+        return self.cursor
+
+    async def __aexit__(self, *_args):
+        return False
+
 
 class FakeConnection:
-    def __init__(self, row):
+    def __init__(self, row=None, rows=None, cursors=None):
         self.row = row
+        self.rows = rows or []
+        self.cursors = list(cursors or [])
 
     async def __aenter__(self):
         return self
@@ -38,7 +55,9 @@ class FakeConnection:
         return False
 
     def cursor(self):
-        return FakeCursor(self.row)
+        if self.cursors:
+            return FakeCursorContext(self.cursors.pop(0))
+        return FakeCursorContext(FakeCursor(self.row))
 
 
 class FakePool:
@@ -137,3 +156,90 @@ def test_bundle_offer_extract_endpoint_rejects_invalid_payload(monkeypatch) -> N
     )
 
     assert response.status_code == 422
+
+
+def test_m4c_snapshot_endpoint_requires_bearer(monkeypatch) -> None:
+    mod = _load_worker_module(monkeypatch)
+    client = TestClient(mod.app)
+
+    response = client.get(
+        "/diagnostics/v1/workspaces/"
+        f"{uuid.uuid4()}/bundles/{uuid.uuid4()}/m4c-pre-snapshot"
+    )
+
+    assert response.status_code == 401
+
+
+def test_m4c_snapshot_endpoint_returns_bundle_document_and_no_raw_text(
+    monkeypatch,
+) -> None:
+    mod = _load_worker_module(monkeypatch)
+    client = TestClient(mod.app)
+    workspace_id = uuid.uuid4()
+    bundle_id = uuid.uuid4()
+    document_id = uuid.uuid4()
+    bundle_row = (
+        str(bundle_id),
+        "AZ",
+        "scorable",
+        0.33,
+        ["nif", "rccm"],
+        "pending",
+        False,
+        0,
+    )
+    document_rows = [
+        (
+            str(document_id),
+            68369,
+            "658d41cefc0e1fcecfac9f365f1bc2a3",
+            "offer_combined",
+            0.8,
+        )
+    ]
+    conn = FakeConnection(
+        cursors=[
+            FakeCursor(row=bundle_row, rows=document_rows),
+        ]
+    )
+
+    async def fake_connect(*_args, **_kwargs):
+        return conn
+
+    with patch.object(mod.psycopg.AsyncConnection, "connect", fake_connect):
+        response = client.get(
+            "/diagnostics/v1/workspaces/"
+            f"{workspace_id}/bundles/{bundle_id}/m4c-pre-snapshot",
+            headers={"Authorization": "Bearer secret-token"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["bundle"]["bundle_id"] == str(bundle_id)
+    assert payload["bundle"]["vendor_name_raw"] == "AZ"
+    assert payload["document"]["document_id"] == str(document_id)
+    assert payload["document"]["raw_text_len"] == 68369
+    assert payload["document"]["raw_text_md5"] == "658d41cefc0e1fcecfac9f365f1bc2a3"
+    assert payload["document"]["m12_doc_kind"] == "offer_combined"
+    assert payload["offer_extractions_count"] == 0
+    assert "raw_text" not in payload["document"]
+    assert all("raw_text" not in doc for doc in payload["documents"])
+
+
+def test_m4c_snapshot_endpoint_unknown_bundle_returns_404(monkeypatch) -> None:
+    mod = _load_worker_module(monkeypatch)
+    client = TestClient(mod.app)
+    workspace_id = uuid.uuid4()
+    bundle_id = uuid.uuid4()
+
+    async def fake_connect(*_args, **_kwargs):
+        return FakeConnection(cursors=[FakeCursor(row=None)])
+
+    with patch.object(mod.psycopg.AsyncConnection, "connect", fake_connect):
+        response = client.get(
+            "/diagnostics/v1/workspaces/"
+            f"{workspace_id}/bundles/{bundle_id}/m4c-pre-snapshot",
+            headers={"Authorization": "Bearer secret-token"},
+        )
+
+    assert response.status_code == 404

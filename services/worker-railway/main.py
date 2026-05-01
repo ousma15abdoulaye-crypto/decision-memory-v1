@@ -732,6 +732,97 @@ async def enqueue_bundle_offer_extract(
         raise HTTPException(status_code=500, detail="ARQ enqueue failed")
 
 
+@app.get(
+    "/diagnostics/v1/workspaces/{workspace_id}/bundles/{bundle_id}/m4c-pre-snapshot"
+)
+async def m4c_bundle_pre_snapshot(
+    workspace_id: UUID,
+    bundle_id: UUID,
+    token: str = Header(None, alias="Authorization", include_in_schema=False),
+):
+    """Read-only M4C pre-extraction snapshot for one supplier_bundle."""
+    verify_token(token)
+
+    try:
+        async with await psycopg.AsyncConnection.connect(
+            DATABASE_URL, connect_timeout=5
+        ) as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    SELECT sb.id::text AS bundle_id,
+                           sb.vendor_name_raw,
+                           sb.gate_b_role,
+                           sb.completeness_score,
+                           sb.missing_documents,
+                           sb.qualification_status,
+                           sb.is_retained,
+                           COUNT(oe.id) AS offer_extractions_count
+                    FROM supplier_bundles sb
+                    LEFT JOIN offer_extractions oe
+                      ON oe.bundle_id = sb.id
+                     AND oe.workspace_id = sb.workspace_id
+                    WHERE sb.id = %s::uuid
+                      AND sb.workspace_id = %s::uuid
+                    GROUP BY sb.id
+                    """,
+                    (str(bundle_id), str(workspace_id)),
+                )
+                bundle_row = await cur.fetchone()
+                if bundle_row is None:
+                    raise HTTPException(
+                        status_code=404, detail="supplier_bundle not found"
+                    )
+
+                await cur.execute(
+                    """
+                    SELECT bd.id::text AS document_id,
+                           char_length(coalesce(bd.raw_text,'')) AS raw_text_len,
+                           md5(coalesce(bd.raw_text,'')) AS raw_text_md5,
+                           bd.m12_doc_kind,
+                           bd.m12_confidence
+                    FROM bundle_documents bd
+                    WHERE bd.workspace_id = %s::uuid
+                      AND bd.bundle_id = %s::uuid
+                    ORDER BY bd.uploaded_at NULLS LAST, bd.id::text
+                    """,
+                    (str(workspace_id), str(bundle_id)),
+                )
+                document_rows = await cur.fetchall()
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_exception("ERROR", "M4C pre-snapshot query failed", e)
+        raise HTTPException(status_code=500, detail="Database query failed")
+
+    documents = [
+        {
+            "document_id": row[0],
+            "raw_text_len": int(row[1] or 0),
+            "raw_text_md5": row[2],
+            "m12_doc_kind": row[3],
+            "m12_confidence": float(row[4]) if row[4] is not None else None,
+        }
+        for row in document_rows
+    ]
+    return {
+        "bundle": {
+            "bundle_id": bundle_row[0],
+            "vendor_name_raw": bundle_row[1],
+            "gate_b_role": bundle_row[2],
+            "completeness_score": (
+                float(bundle_row[3]) if bundle_row[3] is not None else None
+            ),
+            "missing_documents": list(bundle_row[4] or []),
+            "qualification_status": bundle_row[5],
+            "is_retained": bool(bundle_row[6]),
+        },
+        "document": documents[0] if documents else None,
+        "documents": documents,
+        "offer_extractions_count": int(bundle_row[7] or 0),
+    }
+
+
 @app.get("/bundle-documents/{document_id}/rehydration-state")
 async def bundle_document_rehydration_state(
     document_id: UUID,
