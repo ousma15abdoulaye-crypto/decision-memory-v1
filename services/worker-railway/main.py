@@ -125,6 +125,118 @@ class BundleOfferExtractionEnqueueRequest(BaseModel):
     force: bool = False
 
 
+def runtime_commit() -> str | None:
+    """Return Railway commit metadata when the platform exposes it."""
+    for key in (
+        "RAILWAY_GIT_COMMIT_SHA",
+        "RAILWAY_DEPLOYMENT_COMMIT_SHA",
+        "SOURCE_COMMIT",
+        "GIT_COMMIT_SHA",
+    ):
+        value = os.getenv(key)
+        if value:
+            return value
+    return None
+
+
+def open_m6d_readonly_connection():
+    """Lazy import keeps the worker importable in tests before DB settings exist."""
+    from src.db import get_connection
+
+    return get_connection()
+
+
+def fetch_m6d_rows(conn, sql: str, params: dict) -> list[dict]:
+    from src.db import db_fetchall
+
+    return db_fetchall(conn, sql, params)
+
+
+def build_canonical_m14_offers(conn, workspace_id: str) -> list[dict]:
+    from src.procurement.m14_workspace_assembler import build_m14_offers_for_workspace
+
+    return build_m14_offers_for_workspace(
+        conn,
+        workspace_id,
+        allow_existing_evaluation_documents=True,
+        allow_stale_criterion_assessments=True,
+    )
+
+
+def is_m14_offer_readiness_error(exc: Exception) -> bool:
+    from src.procurement.m14_workspace_assembler import M14OfferReadinessError
+
+    return isinstance(exc, M14OfferReadinessError)
+
+
+def construct_m14_input_no_persist(
+    case_id: str, offers: list[dict], dao_rows: list[dict]
+):
+    from src.procurement.m14_evaluation_models import (
+        M14EvaluationInput,
+        m14_h2_scoring_structure_dict_from_dao_criteria_rows,
+    )
+
+    return M14EvaluationInput(
+        case_id=case_id,
+        source_rules_document_id=f"diagnostic:m6d:{case_id}",
+        offers=offers,
+        h2_capability_skeleton={
+            "scoring_structure": m14_h2_scoring_structure_dict_from_dao_criteria_rows(
+                dao_rows
+            )
+        },
+    )
+
+
+def summarize_canonical_offer(offer: dict) -> dict:
+    fields = offer.get("extracted_fields")
+    if not isinstance(fields, list):
+        fields = []
+    evidence_map = offer.get("evidence_map")
+    missing_fields = offer.get("missing_fields")
+    line_items = offer.get("line_items")
+    extraction_id = offer.get("extraction_id")
+    identity_only = not extraction_id or not fields or not bool(evidence_map)
+
+    return {
+        "bundle_id": str(offer.get("document_id") or ""),
+        "document_id": str(offer.get("document_id") or ""),
+        "supplier_name": offer.get("supplier_name"),
+        "extraction_id": str(extraction_id) if extraction_id else None,
+        "extraction_ok": offer.get("extraction_ok") is True,
+        "review_required": bool(offer.get("review_required", False)),
+        "taxonomy_core": offer.get("taxonomy_core"),
+        "family_main": offer.get("family_main"),
+        "family_sub": offer.get("family_sub"),
+        "extracted_fields_count": len(fields),
+        "evidence_map_present": bool(evidence_map),
+        "missing_fields_count": (
+            len(missing_fields) if isinstance(missing_fields, list) else 0
+        ),
+        "line_items_count": len(line_items) if isinstance(line_items, list) else 0,
+        "readiness_status": offer.get("readiness_status") or "unknown",
+        "readiness_blockers": list(offer.get("readiness_blockers") or []),
+        "readiness_warnings": list(offer.get("readiness_warnings") or []),
+        "identity_only": identity_only,
+    }
+
+
+def m6d_forbidden_actions() -> dict[str, str]:
+    return {
+        "m14_evaluate": "NO",
+        "run_pipeline_v5": "NO",
+        "bridge": "NO",
+        "matrix": "NO",
+        "scoring": "NO",
+        "db_update": "NO",
+        "migration": "NO",
+        "mistral_call": "NO",
+        "enqueue": "NO",
+        "winner_rank_recommendation": "NO",
+    }
+
+
 # FastAPI app
 app = FastAPI(title="DMS Worker Railway", version="1.0.0")
 
@@ -820,6 +932,184 @@ async def m4c_bundle_pre_snapshot(
         "document": documents[0] if documents else None,
         "documents": documents,
         "offer_extractions_count": int(bundle_row[7] or 0),
+    }
+
+
+@app.get("/diagnostics/v1/workspaces/{workspace_id}/m6d-builder-probe")
+async def m6d_builder_probe(
+    workspace_id: UUID,
+    include_m14_input: bool = False,
+    expected_offers_count: int = 2,
+    token: str = Header(None, alias="Authorization", include_in_schema=False),
+):
+    """Read-only M6D probe: enriched offers and no-persist M14 input readiness."""
+    verify_token(token)
+
+    workspace_id_str = str(workspace_id)
+    builder_blockers: list[str] = []
+    try:
+        with open_m6d_readonly_connection() as conn:
+            try:
+                canonical_offers = build_canonical_m14_offers(conn, workspace_id_str)
+            except Exception as exc:
+                if not is_m14_offer_readiness_error(exc):
+                    raise
+                builder_blockers = list(getattr(exc, "blockers", []) or [str(exc)])
+                canonical_offers = []
+
+            dao_rows = fetch_m6d_rows(
+                conn,
+                """
+                SELECT id::text AS id,
+                       critere_nom,
+                       COALESCE(ponderation, 0)::float AS ponderation,
+                       COALESCE(is_eliminatory, false) AS is_eliminatory,
+                       COALESCE(NULLIF(trim(categorie::text), ''), 'general') AS famille,
+                       created_at
+                FROM dao_criteria
+                WHERE workspace_id = CAST(:wid AS uuid)
+                ORDER BY categorie NULLS LAST, ponderation DESC NULLS LAST, id::text
+                """,
+                {"wid": workspace_id_str},
+            )
+            workspace_rows = fetch_m6d_rows(
+                conn,
+                """
+                SELECT COALESCE(legacy_case_id::text, id::text) AS case_id
+                FROM process_workspaces
+                WHERE id = CAST(:wid AS uuid)
+                """,
+                {"wid": workspace_id_str},
+            )
+            evaluation_rows = fetch_m6d_rows(
+                conn,
+                """
+                SELECT COUNT(*)::int AS n
+                FROM evaluation_documents
+                WHERE workspace_id = CAST(:wid AS uuid)
+                """,
+                {"wid": workspace_id_str},
+            )
+            assessment_rows = fetch_m6d_rows(
+                conn,
+                """
+                SELECT COUNT(*)::int AS n
+                FROM criterion_assessments
+                WHERE workspace_id = CAST(:wid AS uuid)
+                """,
+                {"wid": workspace_id_str},
+            )
+            offer_ids = [
+                str(offer.get("document_id"))
+                for offer in canonical_offers
+                if offer.get("document_id")
+            ]
+            if offer_ids:
+                stale_rows = fetch_m6d_rows(
+                    conn,
+                    """
+                    SELECT EXISTS (
+                        SELECT 1
+                        FROM criterion_assessments
+                        WHERE workspace_id = CAST(:wid AS uuid)
+                          AND NOT (bundle_id::text = ANY(:bundle_ids::text[]))
+                    ) AS stale
+                    """,
+                    {"wid": workspace_id_str, "bundle_ids": offer_ids},
+                )
+                stale_assessments_exist = bool(
+                    stale_rows and stale_rows[0].get("stale")
+                )
+            else:
+                stale_assessments_exist = bool(
+                    assessment_rows and int(assessment_rows[0].get("n") or 0) > 0
+                )
+    except Exception as e:
+        log_exception("ERROR", "M6D builder probe query failed", e)
+        raise HTTPException(status_code=500, detail="Database query failed")
+
+    offers = [summarize_canonical_offer(offer) for offer in canonical_offers]
+    offers_count = len(offers)
+    dao_criteria_count = len(dao_rows)
+    dao_weights_total = sum(float(row.get("ponderation") or 0.0) for row in dao_rows)
+    dao_weights_by_family: dict[str, float] = {}
+    for row in dao_rows:
+        family = str(row.get("famille") or "general")
+        dao_weights_by_family[family] = dao_weights_by_family.get(family, 0.0) + float(
+            row.get("ponderation") or 0.0
+        )
+    evaluation_documents_count = (
+        int(evaluation_rows[0].get("n") or 0) if evaluation_rows else 0
+    )
+    criterion_assessments_count = (
+        int(assessment_rows[0].get("n") or 0) if assessment_rows else 0
+    )
+    case_id = (
+        str(workspace_rows[0].get("case_id"))
+        if workspace_rows and workspace_rows[0].get("case_id")
+        else workspace_id_str
+    )
+
+    input_blockers: list[str] = []
+    input_warnings: list[str] = []
+    input_blockers.extend(builder_blockers)
+    if offers_count == 0:
+        input_blockers.append("builder_returned_zero_offers")
+    if offers_count != expected_offers_count:
+        input_blockers.append("offers_count_mismatch")
+    if any(offer["identity_only"] for offer in offers):
+        input_blockers.append("identity_only_offer_detected")
+    if any(offer["readiness_blockers"] for offer in offers):
+        input_blockers.append("offer_readiness_blockers_present")
+    if dao_criteria_count != 3:
+        input_blockers.append("dao_criteria_count_mismatch")
+    if abs(dao_weights_total - 100.0) > 0.01:
+        input_blockers.append("dao_weights_total_mismatch")
+    if evaluation_documents_count > 0:
+        input_blockers.append("evaluation_documents_existing_skip_risk")
+    if stale_assessments_exist or criterion_assessments_count > 0:
+        input_blockers.append("criterion_assessments_historical_contamination_risk")
+    for offer in offers:
+        for warning in offer["readiness_warnings"]:
+            if warning not in input_warnings:
+                input_warnings.append(warning)
+
+    m14_input_probe = None
+    if include_m14_input:
+        m14_input_constructed = False
+        if not input_blockers:
+            try:
+                construct_m14_input_no_persist(case_id, canonical_offers, dao_rows)
+                m14_input_constructed = True
+            except Exception as exc:
+                input_blockers.append(
+                    f"m14_input_construction_failed:{type(exc).__name__}"
+                )
+        m14_input_probe = {
+            "m14_input_constructed": m14_input_constructed,
+            "offers_count": offers_count,
+            "dao_criteria_count": dao_criteria_count,
+            "dao_weights_total": dao_weights_total,
+            "dao_weights_by_family": dao_weights_by_family,
+            "input_ready": not input_blockers,
+            "input_blockers": input_blockers,
+            "input_warnings": input_warnings,
+            "no_persist": True,
+            "evaluation_engine_called": False,
+            "repository_used": False,
+            "created_artifacts": [],
+        }
+
+    return {
+        "workspace_id": str(workspace_id),
+        "runtime_commit": runtime_commit(),
+        "offers_count": offers_count,
+        "offers": offers,
+        "stale_assessments_exist": stale_assessments_exist,
+        "evaluation_documents_count": evaluation_documents_count,
+        "criterion_assessments_count": criterion_assessments_count,
+        "m14_input_probe": m14_input_probe,
+        "forbidden_actions": m6d_forbidden_actions(),
     }
 
 
