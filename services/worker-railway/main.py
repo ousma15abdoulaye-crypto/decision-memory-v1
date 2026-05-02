@@ -10,6 +10,7 @@ import logging
 import os
 import sys
 import time
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from urllib.parse import quote
 from uuid import UUID
@@ -144,11 +145,23 @@ def runtime_commit() -> str | None:
     return None
 
 
+@contextmanager
 def open_m6d_readonly_connection():
-    """Lazy import keeps the worker importable in tests before DB settings exist."""
+    """Read-only DB access for M6D diagnostics.
+
+    The worker does not run JWT middleware, so ``app.tenant_id`` is never set.
+    Several tables (e.g. ``criterion_assessments``) use RLS policies that require
+    either a matching tenant or ``app.is_admin=true``. Without this, reads can
+    fail at the SQL layer and surface as ``Database query failed`` on the probe.
+    """
     from src.db import get_connection
 
-    return get_connection()
+    with get_connection() as conn:
+        conn.execute(
+            "SELECT set_config('app.is_admin', :v, true)",
+            {"v": "true"},
+        )
+        yield conn
 
 
 def fetch_m6d_rows(conn, sql: str, params: dict) -> list[dict]:
