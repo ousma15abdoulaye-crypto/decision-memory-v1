@@ -54,7 +54,7 @@ def _parse_missing_fields(raw: Any) -> list[str]:
 
 
 def _field_value_present(field: dict[str, Any]) -> bool:
-    return "value" in field and field.get("value") not in (None, "")
+    return "value" in field and field.get("value") not in (None, "", "ABSENT")
 
 
 def _validate_fields(
@@ -68,18 +68,27 @@ def _validate_fields(
         if not isinstance(field, dict):
             blockers.append(f"{bundle_id}:field_{index}_invalid_type")
             continue
+        normalized = dict(field)
+        field_name = str(normalized.get("name") or "").strip()
         missing_keys = [
             key
             for key in ("name", "value", "confidence", "evidence")
-            if key not in field
+            if key not in normalized
         ]
-        if missing_keys or not _field_value_present(field):
+        if not field_name or field_name.upper() == "ABSENT":
+            missing_keys.append("name")
+        if normalized.get("confidence") in (None, ""):
+            missing_keys.append("confidence")
+        if not str(normalized.get("evidence") or "").strip():
+            missing_keys.append("evidence")
+        if missing_keys or not _field_value_present(normalized):
             blockers.append(
                 f"{bundle_id}:field_{index}_missing_"
-                + "_".join(missing_keys or ["value"])
+                + "_".join(dict.fromkeys(missing_keys or ["value"]))
             )
             continue
-        valid.append(field)
+        normalized["name"] = field_name
+        valid.append(normalized)
     return valid
 
 
@@ -145,16 +154,16 @@ def _stale_assessments_exist(
     rows = db_fetchall(
         conn,
         """
-        SELECT bundle_id::text AS bundle_id
-        FROM criterion_assessments
-        WHERE workspace_id = CAST(:wid AS uuid)
-        LIMIT 200
+        SELECT EXISTS (
+            SELECT 1
+            FROM criterion_assessments
+            WHERE workspace_id = CAST(:wid AS uuid)
+              AND NOT (bundle_id::text = ANY(:bundle_ids::text[]))
+        ) AS stale
         """,
-        {"wid": workspace_id},
+        {"wid": workspace_id, "bundle_ids": sorted(current_bundle_ids)},
     )
-    return any(
-        str(row.get("bundle_id") or "") not in current_bundle_ids for row in rows or []
-    )
+    return bool(rows and rows[0].get("stale"))
 
 
 def _bundle_context_by_id(conn: Any, workspace_id: str) -> dict[str, dict[str, Any]]:
@@ -163,12 +172,18 @@ def _bundle_context_by_id(conn: Any, workspace_id: str) -> dict[str, dict[str, A
         """
         SELECT sb.id::text AS bundle_id,
                sb.gate_b_role,
-               bd.m12_doc_kind
+               COALESCE(
+                   MAX(bd.m12_doc_kind) FILTER (
+                       WHERE lower(COALESCE(bd.m12_doc_kind, '')) LIKE 'offer%'
+                   ),
+                   MAX(bd.m12_doc_kind)
+               ) AS m12_doc_kind
         FROM supplier_bundles sb
         LEFT JOIN bundle_documents bd
           ON bd.bundle_id = sb.id
          AND bd.workspace_id = sb.workspace_id
         WHERE sb.workspace_id = CAST(:wid AS uuid)
+        GROUP BY sb.id, sb.gate_b_role
         """,
         {"wid": workspace_id},
     )
@@ -197,22 +212,23 @@ def _offer_from_extraction(
 ) -> tuple[dict[str, Any] | None, list[str]]:
     bundle_id = str(row.get("bundle_id") or "").strip()
     blockers: list[str] = []
+    extraction_id = str(row.get("id") or "").strip()
+    blocker_prefix = bundle_id or extraction_id or "<unknown_bundle>"
     if not bundle_id:
         blockers.append("bundle_id_absent")
     supplier_name = str(row.get("supplier_name") or "").strip()
     if not supplier_name or supplier_name.upper() == "ABSENT":
-        blockers.append(f"{bundle_id}:supplier_name_absent")
-    extraction_id = str(row.get("id") or "").strip()
+        blockers.append(f"{blocker_prefix}:supplier_name_absent")
     if not extraction_id:
-        blockers.append(f"{bundle_id}:extraction_id_absent")
+        blockers.append(f"{blocker_prefix}:extraction_id_absent")
 
     payload = _parse_json_object(
-        row.get("extracted_data_json"), bundle_id=bundle_id, blockers=blockers
+        row.get("extracted_data_json"), bundle_id=blocker_prefix, blockers=blockers
     )
     if payload.get("extraction_ok") is not True:
-        blockers.append(f"{bundle_id}:extraction_ok_not_true")
+        blockers.append(f"{blocker_prefix}:extraction_ok_not_true")
     fields = _validate_fields(
-        payload.get("fields"), bundle_id=bundle_id, blockers=blockers
+        payload.get("fields"), bundle_id=blocker_prefix, blockers=blockers
     )
 
     if blockers:

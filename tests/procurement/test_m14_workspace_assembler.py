@@ -53,9 +53,19 @@ def _row(**overrides):
     return row
 
 
-def _fetchall_for(rows, *, dao_rows=None, eval_docs=None, assessments=None):
+def _fetchall_for(
+    rows,
+    *,
+    dao_rows=None,
+    eval_docs=None,
+    assessments=None,
+    context_rows=None,
+    captured_sql=None,
+):
     def fake_fetchall(c, sql, params):
         low = sql.lower()
+        if captured_sql is not None:
+            captured_sql.append(sql)
         if "from dao_criteria" in low:
             return (
                 dao_rows if dao_rows is not None else [{"id": "c1", "ponderation": 100}]
@@ -65,7 +75,7 @@ def _fetchall_for(rows, *, dao_rows=None, eval_docs=None, assessments=None):
         if "from offer_extractions" in low:
             return rows
         if "from supplier_bundles" in low:
-            return [
+            return context_rows or [
                 {
                     "bundle_id": "b1",
                     "gate_b_role": "scorable",
@@ -126,6 +136,43 @@ def test_rejects_fields_without_value_confidence_evidence() -> None:
     )
 
 
+def test_rejects_fields_with_blank_name() -> None:
+    _assert_blocked(
+        [
+            _row(
+                extracted_data_json=json.dumps(
+                    _payload(
+                        fields=[
+                            {
+                                "name": " ",
+                                "value": "x",
+                                "confidence": 0.9,
+                                "evidence": "source",
+                            }
+                        ]
+                    )
+                )
+            )
+        ],
+        "field_0_missing_name",
+    )
+
+
+def test_missing_bundle_id_uses_stable_blocker_prefix() -> None:
+    conn = MagicMock()
+    with patch(
+        "src.procurement.m14_workspace_assembler.db_fetchall",
+        side_effect=_fetchall_for([_row(bundle_id="", supplier_name="ABSENT")]),
+    ):
+        with pytest.raises(M14OfferReadinessError) as exc:
+            build_m14_offers_for_workspace(conn, "ws-uuid")
+    joined = ";".join(exc.value.blockers)
+    assert "bundle_id_absent" in joined
+    assert "extraction-1:supplier_name_absent" in joined
+    assert ";:supplier_name_absent" not in joined
+    assert not joined.startswith(":supplier_name_absent")
+
+
 def test_maps_az_style_payload_into_enriched_offer() -> None:
     conn = MagicMock()
     with patch(
@@ -179,3 +226,31 @@ def test_existing_evaluation_documents_cannot_silently_skip_m14() -> None:
         "evaluation_documents_existing_skip_risk",
         eval_docs=[{"id": "existing-eval"}],
     )
+
+
+def test_stale_criterion_assessments_are_checked_by_sql_exists() -> None:
+    captured_sql: list[str] = []
+    _assert_blocked(
+        [_row()],
+        "criterion_assessments_stale_bundle_set",
+        assessments=[{"stale": True}],
+        captured_sql=captured_sql,
+    )
+    criterion_sql = "\n".join(
+        sql for sql in captured_sql if "criterion_assessments" in sql
+    ).lower()
+    assert "select exists" in criterion_sql
+    assert "limit 200" not in criterion_sql
+
+
+def test_bundle_context_query_aggregates_document_rows_deterministically() -> None:
+    captured_sql: list[str] = []
+    conn = MagicMock()
+    with patch(
+        "src.procurement.m14_workspace_assembler.db_fetchall",
+        side_effect=_fetchall_for([_row()], captured_sql=captured_sql),
+    ):
+        build_m14_offers_for_workspace(conn, "ws-uuid")
+    context_sql = "\n".join(sql for sql in captured_sql if "supplier_bundles" in sql)
+    assert "GROUP BY sb.id, sb.gate_b_role" in context_sql
+    assert "FILTER" in context_sql
