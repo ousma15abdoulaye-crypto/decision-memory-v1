@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 import uuid
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -243,3 +245,234 @@ def test_m4c_snapshot_endpoint_unknown_bundle_returns_404(monkeypatch) -> None:
         )
 
     assert response.status_code == 404
+
+
+class SyncFakeConnection:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+
+def _m6d_offers():
+    field = {
+        "name": "methodology",
+        "value": "Approche",
+        "confidence": 0.9,
+        "evidence": "source",
+    }
+    return [
+        {
+            "document_id": "az-bundle",
+            "supplier_name": "A - Z SARL",
+            "extraction_id": "az-extraction",
+            "extraction_ok": True,
+            "review_required": False,
+            "taxonomy_core": "offer_technical",
+            "family_main": "consultance",
+            "family_sub": "technical",
+            "extracted_fields": [field],
+            "evidence_map": {"methodology": "source"},
+            "missing_fields": [],
+            "line_items": [],
+            "readiness_status": "ready",
+            "readiness_blockers": [],
+            "readiness_warnings": [],
+        },
+        {
+            "document_id": "atmost-bundle",
+            "supplier_name": "ATMOST",
+            "extraction_id": "atmost-extraction",
+            "extraction_ok": True,
+            "review_required": False,
+            "taxonomy_core": "dao",
+            "family_main": "consultance",
+            "family_sub": "technical",
+            "extracted_fields": [field],
+            "evidence_map": {"methodology": "source"},
+            "missing_fields": [],
+            "line_items": [],
+            "readiness_status": "ready",
+            "readiness_blockers": [],
+            "readiness_warnings": ["taxonomy_core_divergent"],
+        },
+    ]
+
+
+def _m6d_rows(*, dao_count=3, dao_total=100.0, eval_count=0, ca_count=0, stale=False):
+    weight = dao_total / dao_count if dao_count else 0
+    dao_rows = [
+        {
+            "id": f"criterion-{index}",
+            "critere_nom": f"Criterion {index}",
+            "ponderation": weight,
+            "is_eliminatory": False,
+            "famille": "quality",
+            "created_at": "2026-05-01T00:00:00Z",
+        }
+        for index in range(dao_count)
+    ]
+    return [
+        dao_rows,
+        [{"case_id": "case-1"}],
+        [{"n": eval_count}],
+        [{"n": ca_count}],
+        [{"stale": stale}],
+    ]
+
+
+@contextmanager
+def _patch_m6d_probe(mod, *, rows=None, offers=None):
+    with ExitStack() as stack:
+        patches = (
+            stack.enter_context(
+                patch.object(
+                    mod,
+                    "open_m6d_readonly_connection",
+                    return_value=SyncFakeConnection(),
+                )
+            ),
+            stack.enter_context(
+                patch.object(
+                    mod,
+                    "build_canonical_m14_offers",
+                    return_value=offers or _m6d_offers(),
+                )
+            ),
+            stack.enter_context(
+                patch.object(mod, "fetch_m6d_rows", side_effect=rows or _m6d_rows())
+            ),
+            stack.enter_context(
+                patch.object(
+                    mod, "construct_m14_input_no_persist", return_value=object()
+                )
+            ),
+        )
+        yield patches
+
+
+def test_m6d_builder_probe_requires_bearer(monkeypatch) -> None:
+    mod = _load_worker_module(monkeypatch)
+    client = TestClient(mod.app)
+
+    response = client.get(
+        f"/diagnostics/v1/workspaces/{uuid.uuid4()}/m6d-builder-probe"
+    )
+
+    assert response.status_code == 401
+
+
+def test_m6d_builder_probe_returns_enriched_offers_and_no_raw_text(monkeypatch) -> None:
+    mod = _load_worker_module(monkeypatch)
+    client = TestClient(mod.app)
+    workspace_id = uuid.uuid4()
+
+    with _patch_m6d_probe(mod):
+        response = client.get(
+            f"/diagnostics/v1/workspaces/{workspace_id}/m6d-builder-probe",
+            headers={"Authorization": "Bearer secret-token"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert "raw_text" not in json.dumps(payload).lower()
+    assert payload["offers_count"] == 2
+    assert payload["offers"][0]["identity_only"] is False
+    assert payload["offers"][0]["readiness_blockers"] == []
+    assert payload["offers"][1]["readiness_warnings"] == ["taxonomy_core_divergent"]
+    assert payload["forbidden_actions"]["m14_evaluate"] == "NO"
+    assert payload["forbidden_actions"]["enqueue"] == "NO"
+
+
+def test_m6d_m14_input_probe_is_no_persist_and_does_not_call_engine(
+    monkeypatch,
+) -> None:
+    mod = _load_worker_module(monkeypatch)
+    client = TestClient(mod.app)
+    workspace_id = uuid.uuid4()
+
+    with _patch_m6d_probe(mod) as patches:
+        response = client.get(
+            f"/diagnostics/v1/workspaces/{workspace_id}/m6d-builder-probe?include_m14_input=true",
+            headers={"Authorization": "Bearer secret-token"},
+        )
+
+    assert response.status_code == 200
+    assert patches[3].called
+    probe = response.json()["m14_input_probe"]
+    assert probe["no_persist"] is True
+    assert probe["evaluation_engine_called"] is False
+    assert probe["repository_used"] is False
+    assert probe["created_artifacts"] == []
+    assert probe["input_ready"] is True
+
+
+def test_m6d_offer_count_expectation_is_optional(monkeypatch) -> None:
+    mod = _load_worker_module(monkeypatch)
+    client = TestClient(mod.app)
+    workspace_id = uuid.uuid4()
+
+    with _patch_m6d_probe(mod, offers=_m6d_offers()[:1]):
+        response = client.get(
+            f"/diagnostics/v1/workspaces/{workspace_id}/m6d-builder-probe?include_m14_input=true",
+            headers={"Authorization": "Bearer secret-token"},
+        )
+
+    probe = response.json()["m14_input_probe"]
+    assert probe["offers_count"] == 1
+    assert "offers_count_mismatch" not in probe["input_blockers"]
+    assert probe["input_ready"] is True
+
+
+def test_m6d_input_ready_false_for_bad_dao_weights(monkeypatch) -> None:
+    mod = _load_worker_module(monkeypatch)
+    client = TestClient(mod.app)
+    workspace_id = uuid.uuid4()
+
+    with _patch_m6d_probe(mod, rows=_m6d_rows(dao_count=3, dao_total=90.0)):
+        response = client.get(
+            f"/diagnostics/v1/workspaces/{workspace_id}/m6d-builder-probe?include_m14_input=true",
+            headers={"Authorization": "Bearer secret-token"},
+        )
+
+    probe = response.json()["m14_input_probe"]
+    assert probe["input_ready"] is False
+    assert "dao_weights_total_mismatch" in probe["input_blockers"]
+
+
+def test_m6d_input_ready_false_for_offer_count_mismatch(monkeypatch) -> None:
+    mod = _load_worker_module(monkeypatch)
+    client = TestClient(mod.app)
+    workspace_id = uuid.uuid4()
+
+    with _patch_m6d_probe(mod):
+        response = client.get(
+            f"/diagnostics/v1/workspaces/{workspace_id}/m6d-builder-probe"
+            "?include_m14_input=true&expected_offers_count=3",
+            headers={"Authorization": "Bearer secret-token"},
+        )
+
+    probe = response.json()["m14_input_probe"]
+    assert probe["input_ready"] is False
+    assert "offers_count_mismatch" in probe["input_blockers"]
+
+
+def test_m6d_reports_stale_criterion_assessments(monkeypatch) -> None:
+    mod = _load_worker_module(monkeypatch)
+    client = TestClient(mod.app)
+    workspace_id = uuid.uuid4()
+
+    with _patch_m6d_probe(mod, rows=_m6d_rows(ca_count=6, stale=True)):
+        response = client.get(
+            f"/diagnostics/v1/workspaces/{workspace_id}/m6d-builder-probe?include_m14_input=true",
+            headers={"Authorization": "Bearer secret-token"},
+        )
+
+    payload = response.json()
+    assert payload["stale_assessments_exist"] is True
+    assert payload["criterion_assessments_count"] == 6
+    assert (
+        "criterion_assessments_historical_contamination_risk"
+        in payload["m14_input_probe"]["input_blockers"]
+    )
