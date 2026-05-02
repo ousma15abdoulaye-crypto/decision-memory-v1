@@ -503,6 +503,7 @@ def _dao_rows_for_r6() -> list[dict[str, Any]]:
 @patch("src.services.pipeline_v5_service._vendor_name_by_bundle")
 @patch("src.services.pipeline_v5_service._load_bundle_documents_grouped")
 @patch("src.services.pipeline_v5_service._bundle_scoring_roles_for_workspace")
+@patch("src.services.pipeline_v5_service.build_m14_offers_for_workspace")
 @patch(
     "src.services.pipeline_v5_service.extract_offers_from_bundles",
     return_value=(1, frozenset()),
@@ -515,6 +516,7 @@ def test_r6_run_pipeline_raises_when_p3_eliminates_all_scorable_offers(
     mock_execute_one: MagicMock,
     mock_fetchall: MagicMock,
     _mock_extract: MagicMock,
+    mock_build_offers: MagicMock,
     mock_roles: MagicMock,
     mock_load_groups: MagicMock,
     mock_vendors: MagicMock,
@@ -530,6 +532,26 @@ def test_r6_run_pipeline_raises_when_p3_eliminates_all_scorable_offers(
         {bundle_id: "SOPRESCOM"},
     )
     mock_vendors.return_value = {bundle_id: "SOPRESCOM"}
+    mock_build_offers.return_value = [
+        {
+            "document_id": bundle_id,
+            "supplier_name": "SOPRESCOM",
+            "process_role": "responds_to_bid",
+            "extraction_id": "extraction-1",
+            "extraction_ok": True,
+            "extracted_fields": [
+                {
+                    "name": "methodology",
+                    "value": "technical",
+                    "confidence": 0.9,
+                    "evidence": "technical corpus",
+                }
+            ],
+            "readiness_status": "ready",
+            "readiness_blockers": [],
+            "readiness_warnings": [],
+        }
+    ]
 
     dao_rows = _dao_rows_for_r6()
 
@@ -555,14 +577,6 @@ def test_r6_run_pipeline_raises_when_p3_eliminates_all_scorable_offers(
             return dao_rows
         if "from bundle_documents" in low and "raw_text" in low:
             return [{"raw_text": "stub corpus for m12"}]
-        if "from offer_extractions" in low:
-            return [
-                {
-                    "bundle_id": bundle_id,
-                    "supplier_name": "SOPRESCOM",
-                    "extracted_data_json": {},
-                }
-            ]
         raise AssertionError(f"unexpected db_fetchall SQL: {low[:220]!r}")
 
     mock_execute_one.side_effect = _exec
@@ -575,3 +589,4 @@ def test_r6_run_pipeline_raises_when_p3_eliminates_all_scorable_offers(
 
     with pytest.raises(PipelineError, match="p3_1b_zero_eligible_after_gate"):
         run_pipeline_v5(wid, force_m14=False)
+    mock_build_offers.assert_called_once()
