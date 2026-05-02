@@ -125,6 +125,11 @@ class BundleOfferExtractionEnqueueRequest(BaseModel):
     force: bool = False
 
 
+M6D_EXPECTED_DAO_CRITERIA_COUNT = 3
+M6D_EXPECTED_DAO_WEIGHT_TOTAL = 100.0
+M6D_DAO_WEIGHT_TOLERANCE = 0.01
+
+
 def runtime_commit() -> str | None:
     """Return Railway commit metadata when the platform exposes it."""
     for key in (
@@ -935,16 +940,11 @@ async def m4c_bundle_pre_snapshot(
     }
 
 
-@app.get("/diagnostics/v1/workspaces/{workspace_id}/m6d-builder-probe")
-async def m6d_builder_probe(
+def build_m6d_builder_probe_payload(
     workspace_id: UUID,
     include_m14_input: bool = False,
-    expected_offers_count: int = 2,
-    token: str = Header(None, alias="Authorization", include_in_schema=False),
-):
-    """Read-only M6D probe: enriched offers and no-persist M14 input readiness."""
-    verify_token(token)
-
+    expected_offers_count: int | None = None,
+) -> dict:
     workspace_id_str = str(workspace_id)
     builder_blockers: list[str] = []
     try:
@@ -1055,15 +1055,18 @@ async def m6d_builder_probe(
     input_blockers.extend(builder_blockers)
     if offers_count == 0:
         input_blockers.append("builder_returned_zero_offers")
-    if offers_count != expected_offers_count:
+    if expected_offers_count is not None and offers_count != expected_offers_count:
         input_blockers.append("offers_count_mismatch")
     if any(offer["identity_only"] for offer in offers):
         input_blockers.append("identity_only_offer_detected")
     if any(offer["readiness_blockers"] for offer in offers):
         input_blockers.append("offer_readiness_blockers_present")
-    if dao_criteria_count != 3:
+    if dao_criteria_count != M6D_EXPECTED_DAO_CRITERIA_COUNT:
         input_blockers.append("dao_criteria_count_mismatch")
-    if abs(dao_weights_total - 100.0) > 0.01:
+    if (
+        abs(dao_weights_total - M6D_EXPECTED_DAO_WEIGHT_TOTAL)
+        > M6D_DAO_WEIGHT_TOLERANCE
+    ):
         input_blockers.append("dao_weights_total_mismatch")
     if evaluation_documents_count > 0:
         input_blockers.append("evaluation_documents_existing_skip_risk")
@@ -1111,6 +1114,23 @@ async def m6d_builder_probe(
         "m14_input_probe": m14_input_probe,
         "forbidden_actions": m6d_forbidden_actions(),
     }
+
+
+@app.get("/diagnostics/v1/workspaces/{workspace_id}/m6d-builder-probe")
+async def m6d_builder_probe(
+    workspace_id: UUID,
+    include_m14_input: bool = False,
+    expected_offers_count: int | None = None,
+    token: str = Header(None, alias="Authorization", include_in_schema=False),
+):
+    """Read-only M6D probe: enriched offers and no-persist M14 input readiness."""
+    verify_token(token)
+    return await asyncio.to_thread(
+        build_m6d_builder_probe_payload,
+        workspace_id,
+        include_m14_input,
+        expected_offers_count,
+    )
 
 
 @app.get("/bundle-documents/{document_id}/rehydration-state")

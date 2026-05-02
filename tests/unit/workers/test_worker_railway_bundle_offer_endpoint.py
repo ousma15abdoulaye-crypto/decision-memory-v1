@@ -33,27 +33,6 @@ class FakeCursor:
         return self.rows
 
 
-class SequentialFakeCursor:
-    def __init__(self, *, fetchalls=None, fetchones=None):
-        self.fetchalls = list(fetchalls or [])
-        self.fetchones = list(fetchones or [])
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, *_args):
-        return False
-
-    async def execute(self, *_args, **_kwargs) -> None:
-        return None
-
-    async def fetchall(self):
-        return self.fetchalls.pop(0)
-
-    async def fetchone(self):
-        return self.fetchones.pop(0)
-
-
 class FakeCursorContext:
     def __init__(self, cursor):
         self.cursor = cursor
@@ -426,6 +405,23 @@ def test_m6d_m14_input_probe_is_no_persist_and_does_not_call_engine(
     assert probe["evaluation_engine_called"] is False
     assert probe["repository_used"] is False
     assert probe["created_artifacts"] == []
+    assert probe["input_ready"] is True
+
+
+def test_m6d_offer_count_expectation_is_optional(monkeypatch) -> None:
+    mod = _load_worker_module(monkeypatch)
+    client = TestClient(mod.app)
+    workspace_id = uuid.uuid4()
+
+    with _patch_m6d_probe(mod, offers=_m6d_offers()[:1]):
+        response = client.get(
+            f"/diagnostics/v1/workspaces/{workspace_id}/m6d-builder-probe?include_m14_input=true",
+            headers={"Authorization": "Bearer secret-token"},
+        )
+
+    probe = response.json()["m14_input_probe"]
+    assert probe["offers_count"] == 1
+    assert "offers_count_mismatch" not in probe["input_blockers"]
     assert probe["input_ready"] is True
 
 
