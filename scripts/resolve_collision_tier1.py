@@ -26,6 +26,7 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
     load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
 except ImportError:
@@ -34,17 +35,13 @@ except ImportError:
 import psycopg
 from psycopg.rows import dict_row
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
 
 def check_env() -> str:
     db = (
-        os.environ.get("RAILWAY_DATABASE_URL", "")
-        or os.environ.get("DATABASE_URL", "")
+        os.environ.get("RAILWAY_DATABASE_URL", "") or os.environ.get("DATABASE_URL", "")
     ).replace("postgresql+psycopg://", "postgresql://")
     if not db:
         raise SystemExit("DATABASE_URL absent")
@@ -119,51 +116,41 @@ def main():
             keep_label = row["label_a"]
             discard_label = row["label_b"]
 
-        decisions.append({
-            "collision_id": row["id"],
-            "keep": keep,
-            "keep_label": keep_label,
-            "discard": discard,
-            "discard_label": discard_label,
-            "score": row["fuzzy_score"],
-            "usage_keep": max(row["usage_a"], row["usage_b"]),
-            "usage_discard": min(row["usage_a"], row["usage_b"]),
-        })
+        decisions.append(
+            {
+                "collision_id": row["id"],
+                "keep": keep,
+                "keep_label": keep_label,
+                "discard": discard,
+                "discard_label": discard_label,
+                "score": row["fuzzy_score"],
+                "usage_keep": max(row["usage_a"], row["usage_b"]),
+                "usage_discard": min(row["usage_a"], row["usage_b"]),
+            }
+        )
 
     if args.propose:
         log.info("\n--- PROPOSITIONS TIER-1 ---")
         for d in decisions[:20]:
-            log.info(
-                "  GARDER  : %s (%d usages)",
-                d["keep_label"], d["usage_keep"]
-            )
+            log.info("  GARDER  : %s (%d usages)", d["keep_label"], d["usage_keep"])
             log.info(
                 "  RETIRER : %s (%d usages) score=%.2f",
                 d["discard_label"],
                 d["usage_discard"],
-                d["score"]
+                d["score"],
             )
             log.info("  ---")
         if len(decisions) > 20:
-            log.info(
-                "  ... et %d autres",
-                len(decisions) - 20
-            )
+            log.info("  ... et %d autres", len(decisions) - 20)
         conn.close()
         sys.exit(0)
 
     if args.apply:
         print(
-            f"\n{len(decisions)} collisions TIER-1 "
-            f"seront résolues automatiquement."
+            f"\n{len(decisions)} collisions TIER-1 " f"seront résolues automatiquement."
         )
-        print(
-            "Les items dupliqués seront désactivés "
-            "(active=FALSE)."
-        )
-        confirm = input(
-            "Confirmer l'application ? [oui/NON] : "
-        )
+        print("Les items dupliqués seront désactivés " "(active=FALSE).")
+        confirm = input("Confirmer l'application ? [oui/NON] : ")
         if confirm.lower() != "oui":
             log.info("Annulé.")
             conn.close()
@@ -174,34 +161,40 @@ def main():
             try:
                 cur.execute("SAVEPOINT sp_collision")
 
-                cur.execute("""
+                cur.execute(
+                    """
                     UPDATE couche_b.procurement_dict_items
                     SET active = FALSE,
                         updated_at = NOW()
                     WHERE item_id = %s
-                """, (d["discard"],))
+                """,
+                    (d["discard"],),
+                )
 
-                cur.execute("""
+                cur.execute(
+                    """
                     UPDATE mercurials_item_map
                     SET dict_item_id = %s
                     WHERE dict_item_id = %s
-                """, (d["keep"], d["discard"]))
+                """,
+                    (d["keep"], d["discard"]),
+                )
 
-                cur.execute("""
+                cur.execute(
+                    """
                     UPDATE dict_collision_log
                     SET resolution = 'auto_tier1',
                         resolved_by = 'M10A_auto'
                     WHERE id = %s
-                """, (d["collision_id"],))
+                """,
+                    (d["collision_id"],),
+                )
 
                 cur.execute("RELEASE SAVEPOINT sp_collision")
                 ok += 1
             except Exception as e:
                 cur.execute("ROLLBACK TO SAVEPOINT sp_collision")
-                log.error(
-                    "ERR collision %s: %s",
-                    d["collision_id"], e
-                )
+                log.error("ERR collision %s: %s", d["collision_id"], e)
                 err += 1
 
         conn.commit()
@@ -217,7 +210,9 @@ def main():
         r = cur.fetchone()
         log.info(
             "Dict : total=%d actifs=%d inactifs=%d",
-            r["total"], r["actifs"], r["inactifs"]
+            r["total"],
+            r["actifs"],
+            r["inactifs"],
         )
 
         cur.execute("""
@@ -227,10 +222,7 @@ def main():
             ORDER BY resolution
         """)
         for r in cur.fetchall():
-            log.info(
-                "  collision %s : %d",
-                r["resolution"], r["n"]
-            )
+            log.info("  collision %s : %d", r["resolution"], r["n"])
 
         conn.close()
         sys.exit(1 if err > 0 else 0)

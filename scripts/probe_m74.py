@@ -7,6 +7,7 @@ Usage :
     $env:DATABASE_URL = "<Railway>"
     python scripts/probe_m74.py
 """
+
 from __future__ import annotations
 
 import math
@@ -28,13 +29,13 @@ def get_db_url() -> str:
     return url
 
 
-SEED_ATTENDU   = 51
-BATCH_SIZE     = 10
-TOKENS_IN      = 600 * BATCH_SIZE
-TOKENS_OUT     = 150 * BATCH_SIZE
-COST_IN        = float(os.environ.get("M7_COST_IN",  "0.2"))
-COST_OUT       = float(os.environ.get("M7_COST_OUT", "0.6"))
-MAX_COST_SYNC  = 10.0
+SEED_ATTENDU = 51
+BATCH_SIZE = 10
+TOKENS_IN = 600 * BATCH_SIZE
+TOKENS_OUT = 150 * BATCH_SIZE
+COST_IN = float(os.environ.get("M7_COST_IN", "0.2"))
+COST_OUT = float(os.environ.get("M7_COST_OUT", "0.6"))
+MAX_COST_SYNC = 10.0
 
 # Triggers requis depuis M7.3b (noms exacts)
 REQUIRED_TRIGGERS = {
@@ -63,8 +64,10 @@ def run() -> None:
         existing_triggers = {r["trigger_name"] for r in rows}
         print(f"  Triggers actifs ({len(rows)}) :")
         for r in rows:
-            print(f"    {r['trigger_name']:<50} "
-                  f"{r['action_timing']} {r['event_manipulation']}")
+            print(
+                f"    {r['trigger_name']:<50} "
+                f"{r['action_timing']} {r['event_manipulation']}"
+            )
 
         for trig in REQUIRED_TRIGGERS:
             if trig not in existing_triggers:
@@ -82,11 +85,14 @@ def run() -> None:
         """).fetchone()
         if r:
             has_guard = "pg_trigger_depth" in r["prosrc"]
-            has_subquery = "SELECT EXISTS" in r["prosrc"] or \
-                           "dict_price_references" in r["prosrc"]
+            has_subquery = (
+                "SELECT EXISTS" in r["prosrc"] or "dict_price_references" in r["prosrc"]
+            )
             print(f"  pg_trigger_depth guard : {'OK' if has_guard else 'ABSENT'}")
-            print(f"  Sous-requête interne   : "
-                  f"{'⚠ PRÉSENTE → RÈGLE-QS violée' if has_subquery else 'OK · O(1)'}")
+            print(
+                f"  Sous-requête interne   : "
+                f"{'⚠ PRÉSENTE → RÈGLE-QS violée' if has_subquery else 'OK · O(1)'}"
+            )
             if not has_guard:
                 stops.append("STOP-TRG: pg_trigger_depth absent")
             if has_subquery:
@@ -99,9 +105,7 @@ def run() -> None:
 
         # P1 · HEAD Alembic
         print("\n--- P1_ALEMBIC_HEAD ---")
-        r = conn.execute(
-            "SELECT version_num FROM alembic_version"
-        ).fetchone()
+        r = conn.execute("SELECT version_num FROM alembic_version").fetchone()
         print(f"  HEAD actuel (down_revision M7.4) : {r['version_num']}")
 
         # P2 · État classification
@@ -132,13 +136,11 @@ def run() -> None:
         # P3 · Taxonomie EN BASE (DA-TAXO-DB)
         print("\n--- P3_TAXO_EN_BASE ---")
         for table, min_expected in [
-            ("taxo_l1_domains",    15),
-            ("taxo_l2_families",   40),
+            ("taxo_l1_domains", 15),
+            ("taxo_l2_families", 40),
             ("taxo_l3_subfamilies", 50),
         ]:
-            r = conn.execute(
-                f"SELECT COUNT(*) AS n FROM couche_b.{table}"
-            ).fetchone()
+            r = conn.execute(f"SELECT COUNT(*) AS n FROM couche_b.{table}").fetchone()
             status = "OK" if r["n"] >= min_expected else f"⚠ {r['n']} < {min_expected}"
             print(f"  {table:<30} {r['n']:>4} {status}")
             if r["n"] < min_expected:
@@ -174,28 +176,46 @@ def run() -> None:
 
         # P6 · Colonnes approved_by/approved_at sur taxo_proposals_v2
         print("\n--- P6_COLONNES_AUDIT ---")
-        for col in ["approved_by", "approved_at", "reviewed_by",
-                    "token_entropy", "confidence_source",
-                    "calibrated_confidence", "batch_job_id"]:
-            r = conn.execute("""
+        for col in [
+            "approved_by",
+            "approved_at",
+            "reviewed_by",
+            "token_entropy",
+            "confidence_source",
+            "calibrated_confidence",
+            "batch_job_id",
+        ]:
+            r = conn.execute(
+                """
                 SELECT COUNT(*) AS n FROM information_schema.columns
                 WHERE table_schema = 'couche_b'
                   AND table_name   = 'taxo_proposals_v2'
                   AND column_name  = %s
-            """, (col,)).fetchone()
+            """,
+                (col,),
+            ).fetchone()
             print(f"  {col:<30} {'EXISTE' if r['n'] > 0 else 'ABSENT → migration'}")
 
         # P7 · quality_score et updated_at sur dict_items
         print("\n--- P7_COLONNES_DICT_ITEMS ---")
-        for col in ["quality_score", "updated_at", "domain_id",
-                    "family_l2_id", "subfamily_id",
-                    "classification_confidence", "classification_source"]:
-            r = conn.execute("""
+        for col in [
+            "quality_score",
+            "updated_at",
+            "domain_id",
+            "family_l2_id",
+            "subfamily_id",
+            "classification_confidence",
+            "classification_source",
+        ]:
+            r = conn.execute(
+                """
                 SELECT COUNT(*) AS n FROM information_schema.columns
                 WHERE table_schema = 'couche_b'
                   AND table_name   = 'procurement_dict_items'
                   AND column_name  = %s
-            """, (col,)).fetchone()
+            """,
+                (col,),
+            ).fetchone()
             print(f"  {col:<35} {'EXISTE' if r['n'] > 0 else 'ABSENT → migration'}")
 
         # P8 · Estimation coût
@@ -209,11 +229,10 @@ def run() -> None:
               AND LENGTH(TRIM(label_fr)) > 5
               AND COALESCE(canonical_slug, '') !~ '^[0-9]+$'
         """).fetchone()
-        n_items    = r["n"]
-        n_calls    = math.ceil(n_items / BATCH_SIZE)
-        cost_sync  = n_calls * (
-            TOKENS_IN * COST_IN / 1_000_000
-            + TOKENS_OUT * COST_OUT / 1_000_000
+        n_items = r["n"]
+        n_calls = math.ceil(n_items / BATCH_SIZE)
+        cost_sync = n_calls * (
+            TOKENS_IN * COST_IN / 1_000_000 + TOKENS_OUT * COST_OUT / 1_000_000
         )
         cost_batch = cost_sync * 0.5
         print(f"  Items à classifier   : {n_items}")
@@ -227,13 +246,21 @@ def run() -> None:
 
         # P9 · Variables d'environnement
         print("\n--- P9_ENV_VARS ---")
-        for var in ["DATABASE_URL", "DMS_MISTRAL", "DMSMISTRALAPI",
-                    "MISTRAL_API_KEY", "M7_COST_IN", "M7_COST_OUT"]:
+        for var in [
+            "DATABASE_URL",
+            "DMS_MISTRAL",
+            "DMSMISTRALAPI",
+            "MISTRAL_API_KEY",
+            "M7_COST_IN",
+            "M7_COST_OUT",
+        ]:
             val = os.environ.get(var)
             print(f"  {var:<25} {'SET' if val else 'ABSENT'}")
-        if not (os.environ.get("DMS_MISTRAL") or
-                os.environ.get("DMSMISTRALAPI") or
-                os.environ.get("MISTRAL_API_KEY")):
+        if not (
+            os.environ.get("DMS_MISTRAL")
+            or os.environ.get("DMSMISTRALAPI")
+            or os.environ.get("MISTRAL_API_KEY")
+        ):
             stops.append(
                 "STOP: DMS_MISTRAL ou DMSMISTRALAPI ou MISTRAL_API_KEY manquante"
             )

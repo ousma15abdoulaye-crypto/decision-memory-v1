@@ -5,6 +5,7 @@ ACTION IMMÉDIATE M10A — 3 commandes sur Railway.
 2. Lancer compute_market_signals (si existe)
 3. Vérifier signaux
 """
+
 from __future__ import annotations
 
 import os
@@ -18,6 +19,7 @@ if str(ROOT) not in sys.path:
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(ROOT / ".env")
 except ImportError:
     pass
@@ -41,7 +43,9 @@ def main():
         cur = conn.cursor()
 
         # --- 1. Propager le mapping ---
-        print("--- COMMANDE 1 : Propager mapping mercurials_item_map -> mercurials.item_id ---")
+        print(
+            "--- COMMANDE 1 : Propager mapping mercurials_item_map -> mercurials.item_id ---"
+        )
         # mercurials_item_map a dict_item_id (pas item_id)
         cur.execute("""
             UPDATE mercurials m

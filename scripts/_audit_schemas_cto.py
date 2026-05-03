@@ -2,19 +2,23 @@
 Audit schémas — CTO décision M10B.
 Exécute les 3 requêtes sur la DB pointée par DATABASE_URL.
 """
+
 import os
 import sys
 
 try:
     from dotenv import load_dotenv
     from pathlib import Path
+
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 except ImportError:
     pass
 
 import psycopg
 
-db_url = os.environ.get("DATABASE_URL", "") or os.environ.get("RAILWAY_DATABASE_URL", "")
+db_url = os.environ.get("DATABASE_URL", "") or os.environ.get(
+    "RAILWAY_DATABASE_URL", ""
+)
 if not db_url:
     print("STOP - DATABASE_URL absente")
     sys.exit(1)
@@ -27,7 +31,9 @@ if "://" in db_url:
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 
-label = "RAILWAY" if "railway" in db_url.lower() or "rlwy" in db_url.lower() else "LOCAL"
+label = (
+    "RAILWAY" if "railway" in db_url.lower() or "rlwy" in db_url.lower() else "LOCAL"
+)
 print(f"\n=== AUDIT SCHEMAS — {label} ===\n")
 
 with psycopg.connect(db_url) as conn:

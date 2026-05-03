@@ -10,6 +10,7 @@ Usage :
     python scripts/fix_backfill_taxonomy.py --dry-run
     python scripts/fix_backfill_taxonomy.py
 """
+
 from __future__ import annotations
 
 import argparse
@@ -21,8 +22,9 @@ import psycopg
 from psycopg.rows import dict_row
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)s %(levelname)-8s %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s %(levelname)-8s %(message)s"
+)
 
 SEED_ATTENDU = 51
 TAXO_VERSION = "2.0.0"
@@ -43,7 +45,8 @@ def apply(dry_run: bool = True) -> None:
     with psycopg.connect(get_db_url(), row_factory=dict_row) as conn:
 
         # Count éligibles
-        n_eligible = conn.execute("""
+        n_eligible = conn.execute(
+            """
             SELECT COUNT(*) AS n
             FROM couche_b.taxo_proposals_v2 p
             JOIN couche_b.procurement_dict_items i USING (item_id)
@@ -52,7 +55,9 @@ def apply(dry_run: bool = True) -> None:
               AND i.domain_id     IS NULL
               AND i.human_validated = FALSE
               AND i.active        = TRUE
-        """, (TAXO_VERSION,)).fetchone()["n"]
+        """,
+            (TAXO_VERSION,),
+        ).fetchone()["n"]
 
         logger.info(f"Items éligibles : {n_eligible}")
 
@@ -67,7 +72,8 @@ def apply(dry_run: bool = True) -> None:
         with conn.transaction():
 
             # STOP-V6 : aucun seed dans le scope
-            n_seed_scope = conn.execute("""
+            n_seed_scope = conn.execute(
+                """
                 SELECT COUNT(*) AS n
                 FROM couche_b.taxo_proposals_v2 p
                 JOIN couche_b.procurement_dict_items i USING (item_id)
@@ -76,7 +82,9 @@ def apply(dry_run: bool = True) -> None:
                   AND i.domain_id       IS NULL
                   AND i.human_validated  = TRUE
                   AND i.active          = TRUE
-            """, (TAXO_VERSION,)).fetchone()["n"]
+            """,
+                (TAXO_VERSION,),
+            ).fetchone()["n"]
 
             if n_seed_scope > 0:
                 logger.error(
@@ -86,7 +94,8 @@ def apply(dry_run: bool = True) -> None:
                 raise RuntimeError("STOP-V6 : seeds dans scope backfill")
 
             # Apply approved → dict_items
-            conn.execute("""
+            conn.execute(
+                """
                 UPDATE couche_b.procurement_dict_items i
                 SET
                     domain_id               = p.domain_id,
@@ -108,7 +117,9 @@ def apply(dry_run: bool = True) -> None:
                   AND i.domain_id       IS NULL
                   AND i.human_validated = FALSE
                   AND i.active          = TRUE
-            """, (TAXO_VERSION,))
+            """,
+                (TAXO_VERSION,),
+            )
 
             # STOP-V5 : vérifier seed intacts
             seed_n = conn.execute("""
@@ -126,7 +137,6 @@ def apply(dry_run: bool = True) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Simuler sans écrire")
+    parser.add_argument("--dry-run", action="store_true", help="Simuler sans écrire")
     args = parser.parse_args()
     apply(args.dry_run)

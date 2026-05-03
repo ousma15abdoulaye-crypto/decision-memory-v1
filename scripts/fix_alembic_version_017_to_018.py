@@ -4,17 +4,21 @@ Run this if: alembic upgrade head fails with "Can't locate revision 017_merge_he
 
 Usage: DATABASE_URL=... python scripts/fix_alembic_version_017_to_018.py
 """
+
 import os
 import sys
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
     load_dotenv(".env.local")
 except ImportError:
     pass
 
-url = os.environ.get("DATABASE_URL", "").replace("postgresql+psycopg://", "postgresql://")
+url = os.environ.get("DATABASE_URL", "").replace(
+    "postgresql+psycopg://", "postgresql://"
+)
 if not url:
     print("DATABASE_URL required")
     sys.exit(1)

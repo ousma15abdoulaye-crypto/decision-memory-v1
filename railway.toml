@@ -2,7 +2,27 @@
 # Ne pas ajouter [deploy].startCommand ici pour l’API sans valider le runbook ops.
 #
 # Worker ARQ (service séparé Railway) : railway.worker.toml + docs/ops/RAILWAY_ARQ_WORKER_SERVICE.md
+#
+# Annotation backend (service séparé) : ne pas réutiliser ce fichier — utiliser
+# railway.annotation-backend.toml (Dockerfile services/annotation-backend) ; voir commentaire en tête de ce fichier.
+#
+# Worker Railway (service dms-db-worker) : configuration ci-dessous
 
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
+
+# Configuration service dms-db-worker (W2 POC)
+[[services]]
+name = "dms-db-worker"
+
+[services.build]
+builder = "NIXPACKS"
+watchPatterns = ["services/worker-railway/**"]
+
+[services.deploy]
+startCommand = "cd services/worker-railway && uvicorn main:app --host 0.0.0.0 --port ${PORT}"
+healthcheckPath = "/healthz"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

@@ -6,6 +6,7 @@ Usage :
     $env:DATABASE_URL = "<Railway>"
     python scripts/probe_users_id_type.py
 """
+
 from __future__ import annotations
 
 import os

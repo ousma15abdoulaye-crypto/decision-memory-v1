@@ -13,6 +13,7 @@ Schema reel : zone_from, zone_to, transport_markup, route_type.
 Usage : DATABASE_URL=<railway> DMS_ALLOW_RAILWAY=1 \
         python scripts/seed_menaka_corridor.py
 """
+
 import os
 import sys
 from datetime import date
@@ -20,6 +21,7 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
     load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
 except ImportError:
@@ -30,9 +32,8 @@ from psycopg.rows import dict_row
 
 
 def main():
-    db_url = (
-        os.environ.get("RAILWAY_DATABASE_URL", "")
-        or os.environ.get("DATABASE_URL", "")
+    db_url = os.environ.get("RAILWAY_DATABASE_URL", "") or os.environ.get(
+        "DATABASE_URL", ""
     )
     if not db_url:
         sys.exit("STOP — DATABASE_URL absente")
@@ -80,20 +81,17 @@ def main():
                 err += 1
 
         # 2. geo_price_corridors — Gao -> Menaka
-        cur.execute(
-            """
+        cur.execute("""
             SELECT 1 FROM geo_price_corridors
             WHERE zone_from = 'zone-gao-1'
             AND   zone_to   = 'zone-menaka-1'
-            """
-        )
+            """)
         if cur.fetchone():
             print("SKIP corridor Gao->Menaka — deja present")
             skip += 1
         else:
             try:
-                cur.execute(
-                    """
+                cur.execute("""
                     INSERT INTO geo_price_corridors
                         (zone_from, zone_to, transport_markup, route_type,
                          reliability, crisis_multiplier, last_verified)
@@ -106,8 +104,7 @@ def main():
                         1.25,
                         CURRENT_DATE
                     )
-                    """
-                )
+                    """)
                 conn.commit()
                 print("OK   corridor Gao->Menaka x1.45 unpaved")
                 ok += 1

@@ -5,3 +5,7 @@ python-dotenv==1.0.1
 requests==2.31.0
 httpx==0.27.0
 boto3==1.34.131
+# M13 / Pass 2A (orchestrateur) : m13_regulatory_profile_repository + src.db.core
+psycopg[binary,pool]==3.2.5
+pydantic==2.11.2
+pydantic-settings>=2.0.0

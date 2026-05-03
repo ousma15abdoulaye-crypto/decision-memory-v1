@@ -58,6 +58,10 @@ from src.procurement.m14_evaluation_models import (
     scoring_structure_detected_from_dao_criteria_rows,
 )
 from src.procurement.m14_evaluation_repository import M14EvaluationRepository
+from src.procurement.m14_workspace_assembler import (
+    M14OfferReadinessError,
+    build_m14_offers_for_workspace,
+)
 from src.procurement.matrix_models import MatrixRow, MatrixSummary
 from src.procurement.procedure_models import (
     DocumentConformitySignal,
@@ -1321,22 +1325,22 @@ def run_pipeline_v5(
     bundle_roles = _bundle_scoring_roles_for_workspace(workspace_id)
     doc_groups, _vendor_map = _load_bundle_documents_grouped(workspace_id)
     with get_connection() as conn:
-        offers_rows = db_fetchall(
-            conn,
-            """
-            SELECT bundle_id::text AS bundle_id, supplier_name,
-                   extracted_data_json
-            FROM offer_extractions
-            WHERE workspace_id = CAST(:wid AS uuid)
-            ORDER BY created_at DESC
-            """,
-            {"wid": workspace_id},
-        )
+        try:
+            offers = build_m14_offers_for_workspace(
+                conn,
+                workspace_id,
+                allow_existing_evaluation_documents=force_m14,
+            )
+        except M14OfferReadinessError as exc:
+            raise PipelineError(
+                "pipeline_blocked:m14_offer_readiness_failed — "
+                + "; ".join(exc.blockers)
+            ) from exc
 
-    offers: list[dict[str, Any]] = []
     gate_b_status_map: dict[str, str] = {}
-    for r in offers_rows:
-        bid = str(r.get("bundle_id") or "")
+    gate_b_ready_offers: list[dict[str, Any]] = []
+    for offer in offers:
+        bid = str(offer.get("document_id") or "")
         if bundle_roles.get(bid) != ScoringRole.SCORABLE:
             continue
         gstatus, greason = gate_b_classify_bundle_for_m14(doc_groups.get(bid) or [])
@@ -1361,13 +1365,8 @@ def run_pipeline_v5(
                 greason,
             )
             continue
-        offers.append(
-            {
-                "document_id": r["bundle_id"],
-                "supplier_name": r.get("supplier_name"),
-                "process_role": "responds_to_bid",
-            }
-        )
+        gate_b_ready_offers.append(offer)
+    offers = gate_b_ready_offers
     out.gate_b_m14_bundle_count = len(offers)
     out.bundle_status_by_bundle_id = gate_b_status_map
     offers_pre_p3 = list(offers)

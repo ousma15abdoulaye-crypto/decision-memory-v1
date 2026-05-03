@@ -7,6 +7,7 @@ Usage local   : DATABASE_URL=<local>   python scripts/probe_m11.py
 Usage Railway : DATABASE_URL=<railway> DMS_ALLOW_RAILWAY=1 \
                 python scripts/probe_m11.py
 """
+
 import os
 import sys
 
@@ -14,6 +15,7 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
     load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
 except ImportError:
@@ -22,9 +24,8 @@ except ImportError:
 import psycopg
 from psycopg.rows import dict_row
 
-db_url = (
-    os.environ.get("RAILWAY_DATABASE_URL", "")
-    or os.environ.get("DATABASE_URL", "")
+db_url = os.environ.get("RAILWAY_DATABASE_URL", "") or os.environ.get(
+    "DATABASE_URL", ""
 )
 if "://" in db_url:
     scheme_part, rest = db_url.split("://", 1)
@@ -55,8 +56,7 @@ with psycopg.connect(db_url, row_factory=dict_row) as conn:
     print(f"\n[P0] HEAD alembic : {head}")
     if head != "045_agent_native_foundation":
         stops.append(
-            f"STOP-P0 — head attendu 045_agent_native_foundation, "
-            f"obtenu '{head}'"
+            f"STOP-P0 — head attendu 045_agent_native_foundation, " f"obtenu '{head}'"
         )
 
     # ── P1 — DETTE-1 : zones sans severity_level (contextes actifs) ──

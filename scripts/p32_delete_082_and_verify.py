@@ -1,4 +1,5 @@
 """P3.2 ÉTAPE C — Delete 082 parasite and verify single head"""
+
 import sys
 import subprocess
 from pathlib import Path
@@ -48,10 +49,7 @@ print("=" * 70)
 print()
 
 result = subprocess.run(
-    ["alembic", "heads"],
-    cwd=repo_root,
-    capture_output=True,
-    text=True
+    ["alembic", "heads"], cwd=repo_root, capture_output=True, text=True
 )
 
 print("STDOUT:")
@@ -60,7 +58,7 @@ if result.stderr:
     print("STDERR:")
     print(result.stderr)
 
-heads_lines = [line for line in result.stdout.strip().split('\n') if line.strip()]
+heads_lines = [line for line in result.stdout.strip().split("\n") if line.strip()]
 n_heads = len(heads_lines)
 
 print()
@@ -80,10 +78,7 @@ print("=" * 70)
 print()
 
 result = subprocess.run(
-    ["alembic", "current"],
-    cwd=repo_root,
-    capture_output=True,
-    text=True
+    ["alembic", "current"], cwd=repo_root, capture_output=True, text=True
 )
 
 print("STDOUT:")

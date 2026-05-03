@@ -58,15 +58,15 @@ def main() -> None:
                 return
 
             lists = max(1, min(_LISTS, count // 10)) if count > 0 else _LISTS
-            print(f"Creating IVFFlat index on {_TABLE}({_COLUMN}) with lists={lists} ...")
-            cur.execute(
-                f"""
+            print(
+                f"Creating IVFFlat index on {_TABLE}({_COLUMN}) with lists={lists} ..."
+            )
+            cur.execute(f"""
                 CREATE INDEX CONCURRENTLY {_INDEX_NAME}
                     ON {_TABLE}
                     USING ivfflat ({_COLUMN} vector_cosine_ops)
                     WITH (lists = {lists})
-                """
-            )
+                """)
             print(f"Index {_INDEX_NAME} created successfully.")
 
 

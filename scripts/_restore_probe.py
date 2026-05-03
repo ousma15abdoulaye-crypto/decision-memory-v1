@@ -1,9 +1,14 @@
 """Probe schema + restore seeds."""
+
 import os
 
 import psycopg
 
-url = os.environ.get("DATABASE_URL", "").replace("postgresql+psycopg://", "postgresql://").replace("postgres://", "postgresql://")
+url = (
+    os.environ.get("DATABASE_URL", "")
+    .replace("postgresql+psycopg://", "postgresql://")
+    .replace("postgres://", "postgresql://")
+)
 with psycopg.connect(url) as c:
     r = c.execute("""
         SELECT column_name, data_type, is_nullable

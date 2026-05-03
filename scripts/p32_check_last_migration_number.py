@@ -4,6 +4,7 @@ Scans ALL migration files (including non-numeric IDs like e7df16ec18ee_*.py)
 and builds the true Alembic graph to identify real heads.
 Handles tuple down_revision values produced by merge migrations.
 """
+
 import ast
 import re
 from pathlib import Path
@@ -33,9 +34,7 @@ def _parse_revision_value(raw: str):
 
 
 # Scan ALL *.py files except __init__.py
-all_files = sorted(
-    f for f in versions_dir.glob("*.py") if f.stem != "__init__"
-)
+all_files = sorted(f for f in versions_dir.glob("*.py") if f.stem != "__init__")
 
 migrations = []
 for f in all_files:
@@ -50,9 +49,9 @@ for f in all_files:
 
     for line in content.splitlines():
         stripped = line.strip()
-        if re.match(r'^revision\s*=\s*', stripped) and revision is None:
+        if re.match(r"^revision\s*=\s*", stripped) and revision is None:
             revision = stripped.split("=", 1)[1].strip().strip("'\"")
-        elif re.match(r'^down_revision\s*=\s*', stripped) and down_revision_raw is None:
+        elif re.match(r"^down_revision\s*=\s*", stripped) and down_revision_raw is None:
             down_revision_raw = stripped.split("=", 1)[1].split("#")[0].strip()
 
     if revision is None:
@@ -67,12 +66,14 @@ for f in all_files:
     except (ValueError, IndexError):
         pass
 
-    migrations.append({
-        "file": f.name,
-        "revision": revision,
-        "down_revisions": down_revisions,
-        "numeric_prefix": numeric_prefix,
-    })
+    migrations.append(
+        {
+            "file": f.name,
+            "revision": revision,
+            "down_revisions": down_revisions,
+            "numeric_prefix": numeric_prefix,
+        }
+    )
 
 # Build graph: collect all down_revisions referenced by any migration
 all_down_revisions: set = set()

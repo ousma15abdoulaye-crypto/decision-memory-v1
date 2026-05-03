@@ -2,6 +2,7 @@
 
 Exécute les 5 probes SQL schéma et formate output.
 """
+
 import sys
 from pathlib import Path
 
@@ -85,8 +86,10 @@ def probe_schema():
             print(f"✅ {len(rows)} tables avec workspace_id")
             print()
             for row in rows:
-                nullable = "NULL" if row['is_nullable'] == 'YES' else "NOT NULL"
-                print(f"  {row['table_name']:<40} | {row['data_type']:<15} | {nullable}")
+                nullable = "NULL" if row["is_nullable"] == "YES" else "NOT NULL"
+                print(
+                    f"  {row['table_name']:<40} | {row['data_type']:<15} | {nullable}"
+                )
 
         print()
         print()
@@ -127,9 +130,9 @@ def probe_schema():
 
         print()
         for row in rows:
-            status = row['status']
-            ws_col = row['workspace_column'] or "NO_COLUMN"
-            icon = "✅" if status == 'EXISTS' and ws_col == 'workspace_id' else "⚠️"
+            status = row["status"]
+            ws_col = row["workspace_column"] or "NO_COLUMN"
+            icon = "✅" if status == "EXISTS" and ws_col == "workspace_id" else "⚠️"
             print(f"  {icon} {row['table_name']:<30} | {status:<10} | {ws_col}")
 
         print()
@@ -166,7 +169,9 @@ def probe_schema():
             print(f"✅ {len(rows)} foreign keys")
             print()
             for row in rows:
-                print(f"  {row['table_name']:<30} | DELETE: {row['delete_rule']:<15} | UPDATE: {row['update_rule']}")
+                print(
+                    f"  {row['table_name']:<30} | DELETE: {row['delete_rule']:<15} | UPDATE: {row['update_rule']}"
+                )
 
         print()
         print()
@@ -191,9 +196,11 @@ def probe_schema():
         print(f"✅ {len(rows)} colonnes")
         print()
         for row in rows:
-            nullable = "NULL" if row['is_nullable'] == 'YES' else "NOT NULL"
-            default = row['column_default'] or "-"
-            print(f"  {row['column_name']:<35} | {row['data_type']:<15} | {nullable:<10} | {default[:30]}")
+            nullable = "NULL" if row["is_nullable"] == "YES" else "NOT NULL"
+            default = row["column_default"] or "-"
+            print(
+                f"  {row['column_name']:<35} | {row['data_type']:<15} | {nullable:<10} | {default[:30]}"
+            )
 
     print()
     print("=" * 80)
@@ -207,5 +214,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ ERREUR : {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

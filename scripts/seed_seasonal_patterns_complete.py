@@ -14,12 +14,14 @@ Regle rollback : savepoint par batch (zone_id, taxo_l3).
 Usage : DATABASE_URL=<railway> DMS_ALLOW_RAILWAY=1 \
         python scripts/seed_seasonal_patterns_complete.py
 """
+
 import os
 import sys
 from pathlib import Path
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
     load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
 except ImportError:
@@ -35,9 +37,8 @@ REF_MONTH = 6
 
 
 def main():
-    db_url = (
-        os.environ.get("RAILWAY_DATABASE_URL", "")
-        or os.environ.get("DATABASE_URL", "")
+    db_url = os.environ.get("RAILWAY_DATABASE_URL", "") or os.environ.get(
+        "DATABASE_URL", ""
     )
     if not db_url:
         sys.exit("STOP — DATABASE_URL absente")
@@ -51,7 +52,8 @@ def main():
         cur = conn.cursor()
 
         # Candidats : (zone_id, taxo_l3) dans zones mappees mais absents de seasonal_patterns
-        cur.execute("""
+        cur.execute(
+            """
             SELECT
                 m.zone_id,
                 di.taxo_l3,
@@ -77,7 +79,9 @@ def main():
             AND m.price_avg > 0
             GROUP BY m.zone_id, di.taxo_l3, di.taxo_l1, di.taxo_l2, di.item_id
             HAVING COUNT(*) >= %s
-        """, (MIN_OBS,))
+        """,
+            (MIN_OBS,),
+        )
         candidates = cur.fetchall()
 
         if not candidates:
@@ -115,8 +119,17 @@ def main():
                         years_observed = EXCLUDED.years_observed,
                         last_computed = CURRENT_DATE
                     """,
-                    (zone_id, taxo_l1, taxo_l2, taxo_l3, item_id,
-                     REF_MONTH, n_obs, DATA_SOURCE, FORMULA_VER),
+                    (
+                        zone_id,
+                        taxo_l1,
+                        taxo_l2,
+                        taxo_l3,
+                        item_id,
+                        REF_MONTH,
+                        n_obs,
+                        DATA_SOURCE,
+                        FORMULA_VER,
+                    ),
                 )
                 cur.execute("RELEASE SAVEPOINT sp_pattern")
                 conn.commit()

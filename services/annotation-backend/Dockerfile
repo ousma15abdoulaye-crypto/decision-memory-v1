@@ -26,6 +26,9 @@ RUN chmod +x start.sh
 COPY src/__init__.py ./src/__init__.py
 COPY src/annotation ./src/annotation
 COPY src/procurement ./src/procurement
+# Pass 2A / M13RegulatoryProfileRepository → src.db (+ Settings via connection lazy)
+COPY src/db ./src/db
+COPY src/core ./src/core
 
 # Pas de CMD inline : sur Railway le JSON + $$ produisait « 1{PORT} » / « 1PORT » (sh : $$ = PID).
 CMD ["./start.sh"]

@@ -1,4 +1,5 @@
 """P3.2 F2a — criterion_category IS NULL probe"""
+
 import os
 import psycopg2
 

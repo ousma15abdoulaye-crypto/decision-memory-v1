@@ -1,4 +1,5 @@
 """ÉTAPE 2 · Vérification colonnes post-migration M7.4a."""
+
 from __future__ import annotations
 
 import os
@@ -36,7 +37,9 @@ def run() -> None:
             ORDER BY column_name
         """).fetchall()
         for r in rows:
-            print(f"  {r['column_name']:<30} {r['data_type']:<30} nullable={r['is_nullable']}")
+            print(
+                f"  {r['column_name']:<30} {r['data_type']:<30} nullable={r['is_nullable']}"
+            )
 
         print(f"\n  Total : {len(rows)} colonnes")
 

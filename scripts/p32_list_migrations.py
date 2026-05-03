@@ -1,4 +1,5 @@
 """List migrations in alembic/versions/"""
+
 from pathlib import Path
 
 versions_dir = Path(__file__).parent.parent / "alembic" / "versions"
@@ -29,7 +30,7 @@ if migrations:
 
     # Read last migration to get revision ID
     last_file = versions_dir / last_name
-    with open(last_file, 'r', encoding='utf-8') as f:
+    with open(last_file, "r", encoding="utf-8") as f:
         for line in f:
             if line.strip().startswith("revision = "):
                 print(f"\n{line.strip()}")

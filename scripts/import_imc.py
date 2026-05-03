@@ -91,11 +91,7 @@ def main() -> int:
             inserted, skipped = insert_entries_batch(source_id, entries)
             total = len(entries)
             status = (
-                "success"
-                if skipped == 0
-                else "partial"
-                if inserted > 0
-                else "failed"
+                "success" if skipped == 0 else "partial" if inserted > 0 else "failed"
             )
             update_source_status(source_id, status)
             logger.info(

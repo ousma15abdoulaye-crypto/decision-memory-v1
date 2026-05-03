@@ -4,6 +4,7 @@ Annotation backend HTTP client — calls /predict and parses responses.
 
 import json
 import logging
+import os
 import time
 
 import httpx
@@ -50,7 +51,9 @@ async def call_annotation_backend(
 
     try:
         r = _get_router()
-        async with httpx.AsyncClient(timeout=r.timeout) as client:
+        # TLS proxy SCI: HTTPX_VERIFY_SSL=0 désactive verify (dev/local uniquement)
+        verify_ssl = os.getenv("HTTPX_VERIFY_SSL", "1") != "0"
+        async with httpx.AsyncClient(timeout=r.timeout, verify=verify_ssl) as client:
             response = await client.post(
                 f"{r.backend_url}/predict",
                 json=payload,

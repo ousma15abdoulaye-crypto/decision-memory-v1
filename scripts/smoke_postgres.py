@@ -4,6 +4,7 @@ DMS Smoke Test — PostgreSQL (Constitution V2.1 ONLINE-ONLY)
 Run with: DATABASE_URL=postgresql+psycopg://... python3 scripts/smoke_postgres.py
 Optional: --url postgresql://user:pass@host:5432/db
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -18,6 +19,7 @@ if str(ROOT) not in sys.path:
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass
@@ -27,12 +29,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", help="Override DATABASE_URL (optional)")
     args = parser.parse_args()
-    
+
     if args.url:
         os.environ["DATABASE_URL"] = args.url
     elif not os.environ.get("DATABASE_URL", "").strip():
-        print("ERROR: DATABASE_URL is required. DMS is online-only (Constitution V2.1).", file=sys.stderr)
-        print("Usage: DATABASE_URL=postgresql+psycopg://user:pass@host:5432/db python3 scripts/smoke_postgres.py", file=sys.stderr)
+        print(
+            "ERROR: DATABASE_URL is required. DMS is online-only (Constitution V2.1).",
+            file=sys.stderr,
+        )
+        print(
+            "Usage: DATABASE_URL=postgresql+psycopg://user:pass@host:5432/db python3 scripts/smoke_postgres.py",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     try:
@@ -53,6 +61,7 @@ def main():
 
     with engine.connect() as conn:
         from sqlalchemy import text
+
         r = conn.execute(text("SELECT 1 AS one")).fetchone()
         assert r[0] == 1
     print("Placeholder transform OK (SELECT 1)")

@@ -1,0 +1,15 @@
+---
+description: Interdiction commit/push direct sur main — branche, PR, CI, revues, merge CTO
+alwaysApply: true
+---
+
+# DMS — Git : jamais de livraison directe sur `main`
+
+## Règle opposable (agent Cursor)
+
+1. **Interdit** : enregistrer du travail de mandat avec **`git commit` sur la branche `main`** puis **`git push origin main`**, sans passer par une **PR** avec **CI verte** et **revue / Copilot** traités.
+2. **Obligatoire** : **`git checkout -b <type>/<slug>`** (ex. `fix/login-depends`) avant le premier commit du mandat ; pousser la **branche** ; ouvrir une **PR** vers `main` ; **surveiller** les workflows jusqu’au **vert** ; **récupérer et traiter** les commentaires **Copilot** et les **threads de revue** ; vérifier **`alembic heads`** (une seule ligne si le mandat touche aux migrations) ; **merger** selon l’ordre CTO (**agent créateur** de la PR, voir **`CLAUDE.md`**).
+3. **Anchor** : si la vérité opposable change, **addendum** dans **`docs/freeze/CONTEXT_ANCHOR.md`** (RÈGLE-ANCHOR-01 : ajouts uniquement).
+4. **Exception** : uniquement sur **instruction CTO / AO écrite** pour ce cas précis (à citer dans la PR ou l’addendum).
+
+Référence détaillée : **`.cursor/rules/dms-core.mdc`** (section Git), **`.cursor/rules/dms-agent-mandate-protocol.mdc`** (avant modification + fin de mandat).

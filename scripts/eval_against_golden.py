@@ -39,7 +39,12 @@ def evaluate_case(case: dict, expected: dict, manifest) -> dict:
     if expected_fw:
         ok = regime["framework"] == expected_fw
         results["checks"].append(
-            {"check": "framework", "expected": expected_fw, "got": regime["framework"], "pass": ok}
+            {
+                "check": "framework",
+                "expected": expected_fw,
+                "got": regime["framework"],
+                "pass": ok,
+            }
         )
         results["passed" if ok else "failed"] += 1
 
@@ -69,7 +74,12 @@ def evaluate_case(case: dict, expected: dict, manifest) -> dict:
             count = len(principles.get("principles", []))
             ok = count == expected_count
             results["checks"].append(
-                {"check": "principles_count", "expected": expected_count, "got": count, "pass": ok}
+                {
+                    "check": "principles_count",
+                    "expected": expected_count,
+                    "got": count,
+                    "pass": ok,
+                }
             )
             results["passed" if ok else "failed"] += 1
 
@@ -79,7 +89,12 @@ def evaluate_case(case: dict, expected: dict, manifest) -> dict:
             has_sus = "sustainability" in names
             ok = has_sus == expected_sus
             results["checks"].append(
-                {"check": "sustainability_present", "expected": expected_sus, "got": has_sus, "pass": ok}
+                {
+                    "check": "sustainability_present",
+                    "expected": expected_sus,
+                    "got": has_sus,
+                    "pass": ok,
+                }
             )
             results["passed" if ok else "failed"] += 1
     except Exception as e:
@@ -143,7 +158,9 @@ def main() -> None:
         total_fail += result["failed"]
 
         status = "PASS" if result["failed"] == 0 else "FAIL"
-        print(f"  [{status}] {case_id}: {result['passed']} pass, {result['failed']} fail")
+        print(
+            f"  [{status}] {case_id}: {result['passed']} pass, {result['failed']} fail"
+        )
         for c in result["checks"]:
             marker = "v" if c["pass"] else "X"
             detail = ""
@@ -157,7 +174,9 @@ def main() -> None:
 
     print()
     print(f"=== SUMMARY: {total_cases} cases, {total_pass} pass, {total_fail} fail ===")
-    accuracy = total_pass / (total_pass + total_fail) if (total_pass + total_fail) > 0 else 0
+    accuracy = (
+        total_pass / (total_pass + total_fail) if (total_pass + total_fail) > 0 else 0
+    )
     print(f"Accuracy: {accuracy:.1%}")
     sys.exit(0 if total_fail == 0 else 1)
 
