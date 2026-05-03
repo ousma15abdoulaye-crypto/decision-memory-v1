@@ -458,6 +458,53 @@ def test_m6d_input_ready_false_for_offer_count_mismatch(monkeypatch) -> None:
     assert "offers_count_mismatch" in probe["input_blockers"]
 
 
+def test_open_m6d_readonly_connection_begins_read_only_then_admin_guc(
+    monkeypatch,
+) -> None:
+    """M6H2: diagnostics DB path must use a DB-enforced read-only transaction."""
+    import src.db.core as db_core
+    import src.resilience as resilience_mod
+
+    stmts: list[tuple[str, object | None]] = []
+
+    class _FakeCur:
+        def execute(self, sql, params=None):
+            stmts.append((sql.strip(), params))
+
+        def close(self) -> None:
+            return None
+
+    class _FakeConn:
+        def __init__(self) -> None:
+            self._cur = _FakeCur()
+
+        def cursor(self, row_factory=None):
+            return self._cur
+
+        def commit(self) -> None:
+            return None
+
+        def rollback(self) -> None:
+            return None
+
+        def close(self) -> None:
+            return None
+
+    fake = _FakeConn()
+    monkeypatch.setattr(db_core, "_get_raw_connection", lambda: fake)
+    monkeypatch.setattr(resilience_mod.db_breaker, "call", lambda fn: fn())
+
+    mod = _load_worker_module(monkeypatch)
+    with mod.open_m6d_readonly_connection():
+        pass
+
+    assert len(stmts) >= 2
+    assert stmts[0][0].upper().startswith("BEGIN READ ONLY")
+    lowered = stmts[1][0].lower()
+    assert "set_config" in lowered and "app.is_admin" in lowered
+    assert stmts[1][1] == {"v": "true"}
+
+
 def test_m6d_reports_stale_criterion_assessments(monkeypatch) -> None:
     mod = _load_worker_module(monkeypatch)
     client = TestClient(mod.app)

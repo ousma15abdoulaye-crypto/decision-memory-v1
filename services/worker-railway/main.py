@@ -10,6 +10,7 @@ import logging
 import os
 import sys
 import time
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from urllib.parse import quote
 from uuid import UUID
@@ -144,11 +145,46 @@ def runtime_commit() -> str | None:
     return None
 
 
+@contextmanager
 def open_m6d_readonly_connection():
-    """Lazy import keeps the worker importable in tests before DB settings exist."""
-    from src.db import get_connection
+    """Read-only DB access for M6D diagnostics.
 
-    return get_connection()
+    The worker does not run JWT middleware, so ``app.tenant_id`` is never set.
+    Several tables (e.g. ``criterion_assessments``) use RLS policies that require
+    either a matching tenant or ``app.is_admin=true``. Without this, reads can
+    fail at the SQL layer and surface as ``Database query failed`` on the probe.
+
+    PostgreSQL enforces read-only at transaction level (``BEGIN READ ONLY``) before
+    applying the transaction-local ``app.is_admin`` GUC. ``get_connection()`` is
+    deliberately not used here: it may issue ``set_config`` before the probe can
+    enter a read-only transaction.
+
+    This context manager is invoked only from the authenticated diagnostics
+    probe; all SQL still filters by ``workspace_id`` supplied in the route (the
+    assembler and probe queries are workspace-scoped).
+    """
+    from src.db.core import _ConnectionWrapper, _get_raw_connection
+    from src.resilience import db_breaker, retry_db_operation
+
+    @retry_db_operation
+    def _connect():
+        return db_breaker.call(_get_raw_connection)
+
+    conn = _connect()
+    wrapper = _ConnectionWrapper(conn)
+    try:
+        wrapper.execute("BEGIN READ ONLY")
+        wrapper.execute(
+            "SELECT set_config('app.is_admin', :v, true)",
+            {"v": "true"},
+        )
+        yield wrapper
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        wrapper.close()
 
 
 def fetch_m6d_rows(conn, sql: str, params: dict) -> list[dict]:
