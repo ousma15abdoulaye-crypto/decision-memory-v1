@@ -462,7 +462,6 @@ def test_open_m6d_readonly_connection_begins_read_only_then_admin_guc(
     monkeypatch,
 ) -> None:
     """M6H2: diagnostics DB path must use a DB-enforced read-only transaction."""
-    import src.db.core as db_core
     import src.resilience as resilience_mod
 
     stmts: list[tuple[str, object | None]] = []
@@ -491,8 +490,9 @@ def test_open_m6d_readonly_connection_begins_read_only_then_admin_guc(
             return None
 
     fake = _FakeConn()
-    monkeypatch.setattr(db_core, "_get_raw_connection", lambda: fake)
-    monkeypatch.setattr(resilience_mod.db_breaker, "call", lambda fn: fn())
+    # open_m6d_readonly_connection uses psycopg.connect(DATABASE_URL) via db_breaker.call;
+    # patch db_breaker.call to return fake directly without touching psycopg.
+    monkeypatch.setattr(resilience_mod.db_breaker, "call", lambda fn: fake)
 
     mod = _load_worker_module(monkeypatch)
     with mod.open_m6d_readonly_connection():
