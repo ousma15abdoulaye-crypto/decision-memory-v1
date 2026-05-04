@@ -17,7 +17,9 @@ from uuid import UUID
 
 # Ensure repo root is in sys.path so src.* imports resolve when running
 # from services/worker-railway/ (Railway startCommand: cd services/worker-railway).
-_repo_root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+_repo_root = os.path.abspath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
+)
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
