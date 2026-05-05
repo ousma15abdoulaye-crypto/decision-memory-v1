@@ -8,8 +8,10 @@ import hmac
 import json
 import logging
 import os
+import re
 import sys
 import time
+import traceback
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from urllib.parse import quote
@@ -86,7 +88,7 @@ logging.basicConfig(level=getattr(logging, LOG_LEVEL.upper()), format="%(message
 logger = logging.getLogger(__name__)
 
 
-def log_structured(level: str, message: str, exc_info: bool = False, **kwargs):
+def log_structured(level: str, message: str, **kwargs):
     """Log structured JSON to stdout"""
     log_entry = {
         "timestamp": datetime.now(UTC).isoformat(),
@@ -94,9 +96,39 @@ def log_structured(level: str, message: str, exc_info: bool = False, **kwargs):
         "message": message,
         **kwargs,
     }
-    logger.log(
-        getattr(logging, level.upper()), json.dumps(log_entry), exc_info=exc_info
-    )
+    logger.log(getattr(logging, level.upper()), json.dumps(log_entry))
+
+
+_SENSITIVE_REPLACEMENTS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"(?i)authorization"), "[REDACTED]"),
+    (re.compile(r"(?i)bearer\s+[A-Za-z0-9._~+/=-]+"), "Bearer [REDACTED]"),
+    (re.compile(r"(?i)worker_auth_token"), "[REDACTED]"),
+    (re.compile(r"(?i)database_url"), "[REDACTED]"),
+    (re.compile(r"(?i)redis_url"), "[REDACTED]"),
+    (re.compile(r"(?i)postgres(?:ql)?://\S+"), "[REDACTED_DSN]"),
+    (re.compile(r"(?i)redis://\S+"), "[REDACTED_DSN]"),
+    (re.compile(r"(?i)raw_text"), "[REDACTED]"),
+    (re.compile(r"(?i)extracted_data_json"), "[REDACTED]"),
+    (re.compile(r"(?i)\bheaders?\b"), "[REDACTED]"),
+    (re.compile(r"(?i)\benv\b"), "[REDACTED]"),
+]
+
+
+def sanitize_for_log(value: str, max_len: int = 500) -> str:
+    sanitized = value
+    for pattern, replacement in _SENSITIVE_REPLACEMENTS:
+        sanitized = pattern.sub(replacement, sanitized)
+    return sanitized[:max_len]
+
+
+def safe_stack_from_exception(exc: Exception, max_frames: int = 8) -> list[str]:
+    frames = traceback.extract_tb(exc.__traceback__) if exc.__traceback__ else []
+    safe_frames: list[str] = []
+    for frame in frames:
+        filename = frame.filename.replace("\\", "/")
+        if "/services/worker-railway/" in filename or "/src/" in filename:
+            safe_frames.append(f"{filename}:{frame.lineno}:{frame.name}")
+    return safe_frames[-max_frames:]
 
 
 def log_exception(level: str, message: str, exc: Exception) -> None:
@@ -1075,10 +1107,10 @@ def build_m6d_builder_probe_payload(
             "ERROR",
             "M6D builder probe query failed",
             error_type=type(e).__name__,
-            error_message=str(e)[:500],
+            error_message=sanitize_for_log(str(e), max_len=500),
             workspace_id=workspace_id_str,
             include_m14_input=include_m14_input,
-            exc_info=True,
+            safe_stack=safe_stack_from_exception(e),
         )
         raise HTTPException(status_code=500, detail="Database query failed")
 

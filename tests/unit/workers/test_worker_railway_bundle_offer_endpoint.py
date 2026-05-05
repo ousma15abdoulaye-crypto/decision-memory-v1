@@ -595,8 +595,13 @@ def test_m6d_builder_probe_logs_structured_exception_context(
     @contextmanager
     def _boom():
         raise _ProbeError(
-            "simulated db failure contains Authorization WORKER_AUTH_TOKEN "
-            "DATABASE_URL REDIS_URL raw_text extracted_data_json"
+            "Authorization: Bearer SECRET "
+            "WORKER_AUTH_TOKEN=abc123 "
+            "DATABASE_URL=postgresql://secret "
+            "REDIS_URL=redis://secret "
+            "raw_text=very_sensitive "
+            'extracted_data_json={"k":"v"} '
+            "headers and env payload"
         )
         yield
 
@@ -618,9 +623,10 @@ def test_m6d_builder_probe_logs_structured_exception_context(
     payload = json.loads(records[-1].message)
 
     assert payload["error_type"] == "_ProbeError"
-    assert payload["error_message"].startswith("simulated db failure contains ")
+    assert len(payload["error_message"]) <= 500
     assert payload["workspace_id"] == str(workspace_id)
     assert payload["include_m14_input"] is True
+    assert isinstance(payload["safe_stack"], list)
 
 
 def test_m6d_builder_probe_exception_log_avoids_sensitive_fields(
@@ -631,7 +637,13 @@ def test_m6d_builder_probe_exception_log_avoids_sensitive_fields(
 
     @contextmanager
     def _boom():
-        raise RuntimeError("probe failure for anti-leak")
+        raise RuntimeError(
+            "Authorization: Bearer SECRET "
+            "DATABASE_URL=postgresql://secret "
+            "REDIS_URL=redis://secret "
+            "raw_text=very_sensitive "
+            'extracted_data_json={"k":"v"}'
+        )
         yield
 
     monkeypatch.setattr(mod, "open_m6d_readonly_connection", _boom)
@@ -651,6 +663,8 @@ def test_m6d_builder_probe_exception_log_avoids_sensitive_fields(
     assert records, "Expected structured M6D probe error log"
     payload = json.loads(records[-1].message)
     serialized = json.dumps(payload)
+    full_log_output = caplog.text
+    exc_text = "".join((record.exc_text or "") for record in caplog.records)
 
     assert "Authorization" not in serialized
     assert "WORKER_AUTH_TOKEN" not in serialized
@@ -658,3 +672,12 @@ def test_m6d_builder_probe_exception_log_avoids_sensitive_fields(
     assert "REDIS_URL" not in serialized
     assert "raw_text" not in serialized
     assert "extracted_data_json" not in serialized
+    assert "Authorization" not in full_log_output
+    assert "Bearer SECRET" not in full_log_output
+    assert "DATABASE_URL=postgresql://secret" not in full_log_output
+    assert "REDIS_URL=redis://secret" not in full_log_output
+    assert "raw_text=very_sensitive" not in full_log_output
+    assert "extracted_data_json" not in full_log_output
+    assert "Authorization" not in exc_text
+    assert "DATABASE_URL" not in exc_text
+    assert "REDIS_URL" not in exc_text
