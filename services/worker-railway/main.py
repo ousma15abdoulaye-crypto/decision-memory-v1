@@ -10,6 +10,7 @@ import logging
 import os
 import sys
 import time
+import traceback as tb_mod
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from urllib.parse import quote
@@ -1069,7 +1070,15 @@ def build_m6d_builder_probe_payload(
                     assessment_rows and int(assessment_rows[0].get("n") or 0) > 0
                 )
     except Exception as e:
-        log_exception("ERROR", "M6D builder probe query failed", e)
+        log_structured(
+            "ERROR",
+            "M6D builder probe query failed",
+            error_type=type(e).__name__,
+            error_message=str(e)[:500],
+            error_traceback=tb_mod.format_exc()[:2000],
+            workspace_id=workspace_id_str,
+            include_m14_input=include_m14_input,
+        )
         raise HTTPException(status_code=500, detail="Database query failed")
 
     offers = [summarize_canonical_offer(offer) for offer in canonical_offers]
