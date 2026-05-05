@@ -10,7 +10,6 @@ import logging
 import os
 import sys
 import time
-import traceback as tb_mod
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from urllib.parse import quote
@@ -87,7 +86,7 @@ logging.basicConfig(level=getattr(logging, LOG_LEVEL.upper()), format="%(message
 logger = logging.getLogger(__name__)
 
 
-def log_structured(level: str, message: str, **kwargs):
+def log_structured(level: str, message: str, exc_info: bool = False, **kwargs):
     """Log structured JSON to stdout"""
     log_entry = {
         "timestamp": datetime.now(UTC).isoformat(),
@@ -95,7 +94,9 @@ def log_structured(level: str, message: str, **kwargs):
         "message": message,
         **kwargs,
     }
-    logger.log(getattr(logging, level.upper()), json.dumps(log_entry))
+    logger.log(
+        getattr(logging, level.upper()), json.dumps(log_entry), exc_info=exc_info
+    )
 
 
 def log_exception(level: str, message: str, exc: Exception) -> None:
@@ -1075,9 +1076,9 @@ def build_m6d_builder_probe_payload(
             "M6D builder probe query failed",
             error_type=type(e).__name__,
             error_message=str(e)[:500],
-            error_traceback=tb_mod.format_exc()[:2000],
             workspace_id=workspace_id_str,
             include_m14_input=include_m14_input,
+            exc_info=True,
         )
         raise HTTPException(status_code=500, detail="Database query failed")
 

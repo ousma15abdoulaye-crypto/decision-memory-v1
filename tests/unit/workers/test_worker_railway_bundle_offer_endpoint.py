@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import logging
 import sys
 import uuid
 from contextlib import ExitStack, contextmanager
@@ -579,3 +580,81 @@ def test_m6d_reports_stale_criterion_assessments(monkeypatch) -> None:
         "criterion_assessments_historical_contamination_risk"
         in payload["m14_input_probe"]["input_blockers"]
     )
+
+
+def test_m6d_builder_probe_logs_structured_exception_context(
+    monkeypatch, caplog
+) -> None:
+    mod = _load_worker_module(monkeypatch)
+    client = TestClient(mod.app)
+    workspace_id = uuid.uuid4()
+
+    class _ProbeError(RuntimeError):
+        pass
+
+    @contextmanager
+    def _boom():
+        raise _ProbeError(
+            "simulated db failure contains Authorization WORKER_AUTH_TOKEN "
+            "DATABASE_URL REDIS_URL raw_text extracted_data_json"
+        )
+        yield
+
+    monkeypatch.setattr(mod, "open_m6d_readonly_connection", _boom)
+    caplog.set_level(logging.ERROR, logger=mod.logger.name)
+
+    response = client.get(
+        f"/diagnostics/v1/workspaces/{workspace_id}/m6d-builder-probe?include_m14_input=true",
+        headers={"Authorization": "Bearer secret-token"},
+    )
+
+    assert response.status_code == 500
+    assert response.json() == {"detail": "Database query failed"}
+
+    records = [
+        r for r in caplog.records if "M6D builder probe query failed" in r.message
+    ]
+    assert records, "Expected structured M6D probe error log"
+    payload = json.loads(records[-1].message)
+
+    assert payload["error_type"] == "_ProbeError"
+    assert payload["error_message"].startswith("simulated db failure contains ")
+    assert payload["workspace_id"] == str(workspace_id)
+    assert payload["include_m14_input"] is True
+
+
+def test_m6d_builder_probe_exception_log_avoids_sensitive_fields(
+    monkeypatch, caplog
+) -> None:
+    mod = _load_worker_module(monkeypatch)
+    client = TestClient(mod.app)
+
+    @contextmanager
+    def _boom():
+        raise RuntimeError("probe failure for anti-leak")
+        yield
+
+    monkeypatch.setattr(mod, "open_m6d_readonly_connection", _boom)
+    caplog.set_level(logging.ERROR, logger=mod.logger.name)
+
+    response = client.get(
+        f"/diagnostics/v1/workspaces/{uuid.uuid4()}/m6d-builder-probe",
+        headers={"Authorization": "Bearer secret-token"},
+    )
+
+    assert response.status_code == 500
+    assert response.json() == {"detail": "Database query failed"}
+
+    records = [
+        r for r in caplog.records if "M6D builder probe query failed" in r.message
+    ]
+    assert records, "Expected structured M6D probe error log"
+    payload = json.loads(records[-1].message)
+    serialized = json.dumps(payload)
+
+    assert "Authorization" not in serialized
+    assert "WORKER_AUTH_TOKEN" not in serialized
+    assert "DATABASE_URL" not in serialized
+    assert "REDIS_URL" not in serialized
+    assert "raw_text" not in serialized
+    assert "extracted_data_json" not in serialized
