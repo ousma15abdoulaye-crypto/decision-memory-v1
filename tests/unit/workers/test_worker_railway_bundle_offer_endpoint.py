@@ -462,7 +462,6 @@ def test_open_m6d_readonly_connection_begins_read_only_then_admin_guc(
     monkeypatch,
 ) -> None:
     """M6H2: diagnostics DB path must use a DB-enforced read-only transaction."""
-    import src.db.core as db_core
     import src.resilience as resilience_mod
 
     stmts: list[tuple[str, object | None]] = []
@@ -491,8 +490,9 @@ def test_open_m6d_readonly_connection_begins_read_only_then_admin_guc(
             return None
 
     fake = _FakeConn()
-    monkeypatch.setattr(db_core, "_get_raw_connection", lambda: fake)
-    monkeypatch.setattr(resilience_mod.db_breaker, "call", lambda fn: fn())
+    # open_m6d_readonly_connection uses psycopg.connect(DATABASE_URL) via db_breaker.call;
+    # patch db_breaker.call to return fake directly without touching psycopg.
+    monkeypatch.setattr(resilience_mod.db_breaker, "call", lambda fn: fake)
 
     mod = _load_worker_module(monkeypatch)
     with mod.open_m6d_readonly_connection():
@@ -503,6 +503,62 @@ def test_open_m6d_readonly_connection_begins_read_only_then_admin_guc(
     lowered = stmts[1][0].lower()
     assert "set_config" in lowered and "app.is_admin" in lowered
     assert stmts[1][1] == {"v": "true"}
+
+
+def test_worker_module_adds_repo_root_to_sys_path(monkeypatch) -> None:
+    """sys.path bootstrap must include repo root so src.* imports resolve from any CWD."""
+    import sys
+    from pathlib import Path
+
+    mod = _load_worker_module(monkeypatch)
+    repo_root = str(Path(mod.__file__).resolve().parents[2])
+    assert repo_root in sys.path
+
+
+def test_open_m6d_readonly_connection_uses_database_url_not_settings(
+    monkeypatch,
+) -> None:
+    """Regression: must call psycopg.connect(DATABASE_URL) directly, not via get_settings().
+
+    If open_m6d_readonly_connection() regresses to _get_raw_connection(), this test
+    fails because get_settings() requires SECRET_KEY (unavailable in the worker env).
+    """
+    import src.resilience as resilience_mod
+
+    class _FakeCur:
+        def execute(self, sql, params=None):
+            pass
+
+        def close(self) -> None:
+            return None
+
+    class _FakeConn:
+        def cursor(self, row_factory=None):
+            return _FakeCur()
+
+        def commit(self) -> None:
+            return None
+
+        def rollback(self) -> None:
+            return None
+
+        def close(self) -> None:
+            return None
+
+    connected_with: list[str] = []
+
+    def fake_connect(url, **kwargs):
+        connected_with.append(url)
+        return _FakeConn()
+
+    monkeypatch.setattr(resilience_mod.db_breaker, "call", lambda fn: fn())
+    mod = _load_worker_module(monkeypatch)
+    monkeypatch.setattr(mod.psycopg, "connect", fake_connect)
+
+    with mod.open_m6d_readonly_connection():
+        pass
+
+    assert connected_with == ["postgresql://example"]
 
 
 def test_m6d_reports_stale_criterion_assessments(monkeypatch) -> None:

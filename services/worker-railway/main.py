@@ -15,6 +15,14 @@ from datetime import UTC, datetime
 from urllib.parse import quote
 from uuid import UUID
 
+# Ensure repo root is in sys.path so src.* imports resolve when running
+# from services/worker-railway/ (Railway startCommand: cd services/worker-railway).
+_repo_root = os.path.abspath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
+)
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
+
 import psycopg
 from arq import create_pool
 from arq.connections import RedisSettings
@@ -163,12 +171,12 @@ def open_m6d_readonly_connection():
     probe; all SQL still filters by ``workspace_id`` supplied in the route (the
     assembler and probe queries are workspace-scoped).
     """
-    from src.db.core import _ConnectionWrapper, _get_raw_connection
+    from src.db.core import _ConnectionWrapper
     from src.resilience import db_breaker, retry_db_operation
 
     @retry_db_operation
     def _connect():
-        return db_breaker.call(_get_raw_connection)
+        return db_breaker.call(lambda: psycopg.connect(DATABASE_URL))
 
     conn = _connect()
     wrapper = _ConnectionWrapper(conn)
