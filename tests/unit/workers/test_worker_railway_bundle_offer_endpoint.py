@@ -93,6 +93,22 @@ def _load_worker_module(monkeypatch):
     return mod
 
 
+def test_worker_bootstraps_src_import_from_services_cwd(monkeypatch) -> None:
+    services_cwd = Path(__file__).resolve().parents[3] / "services" / "worker-railway"
+    monkeypatch.chdir(services_cwd)
+
+    mod = _load_worker_module(monkeypatch)
+
+    assert mod._repo_root is not None
+    repo_root = Path(mod._repo_root)
+    assert (repo_root / "src").is_dir()
+    assert str(repo_root) in sys.path
+
+    import src.resilience as resilience_mod
+
+    assert hasattr(resilience_mod, "db_breaker")
+
+
 def test_bundle_offer_extract_endpoint_requires_bearer(monkeypatch) -> None:
     mod = _load_worker_module(monkeypatch)
     client = TestClient(mod.app)
