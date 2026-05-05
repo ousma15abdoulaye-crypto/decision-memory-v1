@@ -14,16 +14,35 @@ import time
 import traceback
 from contextlib import contextmanager
 from datetime import UTC, datetime
+from pathlib import Path
 from urllib.parse import quote
 from uuid import UUID
 
-# Ensure repo root is in sys.path so src.* imports resolve when running
-# from services/worker-railway/ (Railway startCommand: cd services/worker-railway).
-_repo_root = os.path.abspath(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
-)
-if _repo_root not in sys.path:
-    sys.path.insert(0, _repo_root)
+
+def _bootstrap_repo_root_for_src() -> str | None:
+    """Add repo root containing src/ to sys.path, independent of runtime CWD."""
+    candidates: list[Path] = []
+
+    file_path = Path(__file__).resolve()
+    candidates.extend([file_path.parent, *file_path.parents])
+
+    cwd = Path.cwd().resolve()
+    candidates.extend([cwd, *cwd.parents])
+
+    seen: set[str] = set()
+    for candidate in candidates:
+        candidate_str = str(candidate)
+        if candidate_str in seen:
+            continue
+        seen.add(candidate_str)
+        if (candidate / "src").is_dir():
+            if candidate_str not in sys.path:
+                sys.path.insert(0, candidate_str)
+            return candidate_str
+    return None
+
+
+_repo_root = _bootstrap_repo_root_for_src()
 
 import psycopg
 from arq import create_pool
