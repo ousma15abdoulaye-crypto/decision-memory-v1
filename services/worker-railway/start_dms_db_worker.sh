@@ -31,7 +31,8 @@ fi
 
 python -c 'import sys; print("[M6X-E] sys.path=" + repr(sys.path))'
 
-python -c 'import src; print("SRC_IMPORT_OK")'
+# Avoid isolated import of src here: cwd is worker-railway and set -eu would exit before uvicorn.
+# Resolving src/ is exercised via import main (_bootstrap_repo_root_for_src runs at import).
 
 python -c 'import main; print("MAIN_IMPORT_OK")'
 
