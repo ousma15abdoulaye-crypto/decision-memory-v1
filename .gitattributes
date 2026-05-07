@@ -1,3 +1,6 @@
+# Shell scripts: force LF so Docker/Linux and Windows worktrees behave the same at build time
+*.sh text eol=lf
+
 # Freeze: always LF so sha256sum matches on Linux (CI)
 docs/freeze/** text eol=lf
 
