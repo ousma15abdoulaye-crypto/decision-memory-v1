@@ -14,5 +14,6 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 COPY src /app/src
 COPY services/worker-railway /app/services/worker-railway
+RUN chmod +x /app/services/worker-railway/start_dms_db_worker.sh
 
-# Mandate-compatible start Command is set in Railway (cd + uvicorn from repo root WORKDIR=/app).
+# Mandate-compatible start Command is set in Railway (cd + bash start script; WORKDIR=/app).

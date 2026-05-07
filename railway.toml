@@ -23,7 +23,7 @@ dockerfilePath = "Dockerfile.dms-db-worker"
 watchPatterns = ["services/worker-railway/**", "src/**", "Dockerfile.dms-db-worker"]
 
 [services.deploy]
-startCommand = "cd services/worker-railway && uvicorn main:app --host 0.0.0.0 --port ${PORT}"
+startCommand = "cd services/worker-railway && bash start_dms_db_worker.sh"
 healthcheckPath = "/healthz"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
